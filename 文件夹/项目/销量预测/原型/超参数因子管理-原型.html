@@ -1,0 +1,645 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>超参数因子管理</title>
+  <style>
+    :root {
+      --sidebar-bg: #001529;
+      --header-blue: #1677ff;
+      --page-bg: #f0f2f5;
+      --card: #fff;
+      --border: #d9d9d9;
+      --text: rgba(0, 0, 0, 0.88);
+      --text-sec: rgba(0, 0, 0, 0.45);
+      --err-red: #ff4d4f;
+      --ok-green: #52c41a;
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; margin: 0; }
+    body {
+      font-family: "PingFang SC", "Microsoft YaHei", -apple-system, sans-serif;
+      font-size: 12px;
+      color: var(--text);
+      background: var(--page-bg);
+      line-height: 1.5;
+      overflow: hidden;
+    }
+    .app { display: flex; height: 100vh; min-height: 560px; }
+    .sidebar {
+      width: 56px; flex-shrink: 0; background: var(--sidebar-bg);
+      display: flex; flex-direction: column; align-items: center; padding: 12px 0; gap: 4px;
+    }
+    .sb-item {
+      width: 40px; height: 40px; border-radius: 6px;
+      display: flex; align-items: center; justify-content: center;
+      color: rgba(255,255,255,.65); cursor: default; font-size: 10px;
+    }
+    .sb-item:hover { color: #fff; background: rgba(255,255,255,.08); }
+    .sb-item.active { color: #fff; background: var(--header-blue); }
+    .main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+    .header {
+      height: 48px; flex-shrink: 0; background: var(--header-blue); color: #fff;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 16px 0 20px; font-size: 16px; font-weight: 600;
+    }
+    .header-actions { display: flex; align-items: center; gap: 16px; font-size: 13px; font-weight: 400; }
+    .header-actions span { color: rgba(255,255,255,.9); cursor: default; }
+    .user-badge {
+      width: 28px; height: 28px; border-radius: 50%; background: rgba(255,255,255,.25);
+      display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 600;
+    }
+    .body-row { flex: 1; display: flex; min-height: 0; }
+    .content { flex: 1; min-width: 0; overflow: auto; padding: 12px 16px 16px; }
+    .log-panel {
+      width: 380px; flex-shrink: 0; background: var(--card);
+      border-left: 1px solid var(--border); display: flex; flex-direction: column; min-height: 0;
+    }
+    .log-panel .hd { padding: 10px 12px; font-weight: 600; border-bottom: 1px solid #f0f0f0; flex-shrink: 0; }
+    .log-panel .bd { flex: 1; overflow: auto; padding: 8px; }
+    .panel {
+      background: var(--card); border-radius: 8px; border: 1px solid var(--border);
+      padding: 12px 14px; margin-bottom: 12px;
+    }
+    .filter-grid { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 10px 14px; }
+    .f { display: flex; align-items: center; gap: 6px; }
+    .f > label { color: var(--text-sec); white-space: nowrap; }
+    .f input[type="text"], .f input[type="date"], .f select {
+      height: 28px; padding: 2px 8px; border: 1px solid var(--border); border-radius: 4px; font-size: 12px;
+    }
+    .f input.w-id { width: 72px; }
+    .f input.w-event { width: 200px; }
+    .btn {
+      height: 28px; padding: 0 14px; border-radius: 4px; font-size: 12px; cursor: pointer; border: 1px solid var(--border);
+      background: #fff;
+    }
+    .btn-primary { background: var(--header-blue); border-color: var(--header-blue); color: #fff; }
+    .btn-primary:hover { filter: brightness(1.05); }
+    .btn-primary:disabled, .btn:disabled { opacity: 0.45; cursor: not-allowed; filter: none; }
+    .btn-danger { color: var(--err-red); border-color: #ffa39e; }
+    .toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 10px; }
+    .toolbar .role-sim {
+      margin-left: auto; display: flex; align-items: center; gap: 6px; color: var(--text-sec); font-size: 11px;
+    }
+    .toolbar .role-sim select { height: 26px; font-size: 11px; border-radius: 4px; border: 1px solid var(--border); }
+    .table-wrap { background: var(--card); border: 1px solid var(--border); border-radius: 8px; overflow: auto; max-height: calc(100vh - 280px); }
+    table.data {
+      width: 100%; border-collapse: collapse; font-size: 12px; min-width: 920px;
+    }
+    table.data th, table.data td {
+      border: 1px solid #f0f0f0; padding: 8px 10px; text-align: left;
+    }
+    table.data th {
+      background: #fafafa; font-weight: 600; position: sticky; top: 0; z-index: 2;
+      box-shadow: 0 1px 0 #f0f0f0;
+    }
+    table.data td.num { text-align: right; font-variant-numeric: tabular-nums; }
+    table.data td.center { text-align: center; }
+    .status-draft { color: var(--text-sec); }
+    .status-ok { color: var(--ok-green); font-weight: 500; }
+    .op-cell { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 0 10px; }
+    .op { color: var(--header-blue); cursor: pointer; }
+    .op:hover { text-decoration: underline; }
+    .op-muted { color: var(--text-sec); cursor: not-allowed; text-decoration: none; }
+    .modal-mask {
+      position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 100;
+      display: none; align-items: center; justify-content: center; padding: 16px;
+    }
+    .modal-mask.show { display: flex; }
+    .modal {
+      background: #fff; border-radius: 8px; width: 400px; max-width: 100%;
+      box-shadow: 0 6px 16px rgba(0,0,0,.12); overflow: hidden;
+    }
+    .modal .m-hd { padding: 12px 16px; font-weight: 600; border-bottom: 1px solid #f0f0f0; }
+    .modal .m-bd { padding: 14px 16px; font-size: 13px; line-height: 1.6; color: var(--text); }
+    .modal .m-ft { padding: 10px 16px; border-top: 1px solid #f0f0f0; text-align: right; display: flex; gap: 8px; justify-content: flex-end; }
+    .log-table { width: 100%; border-collapse: collapse; font-size: 11px; }
+    .log-table th, .log-table td { border: 1px solid #f0f0f0; padding: 6px; vertical-align: top; }
+    .log-table thead th {
+      position: sticky;
+      top: 0;
+      z-index: 2;
+      background: #fafafa;
+      box-shadow: 0 1px 0 #f0f0f0;
+    }
+    .diff-block { font-size: 11px; line-height: 1.5; }
+    .diff-block .k { color: var(--text-sec); }
+    .empty-log { color: var(--text-sec); text-align: center; padding: 24px; font-size: 12px; }
+    input.cell-inp {
+      width: 100%; max-width: 220px; height: 26px; border: 1px solid var(--border); border-radius: 4px; padding: 0 6px; font-size: 12px;
+    }
+    input.cell-num { max-width: 88px; text-align: right; }
+    table.data td.left { text-align: left; max-width: 200px; }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar" aria-label="主导航">
+      <div class="sb-item" title="看板">看</div>
+      <div class="sb-item active" title="计划">计</div>
+      <div class="sb-item" title="发货">发</div>
+      <div class="sb-item" title="退货">退</div>
+      <div class="sb-item" title="台账">账</div>
+      <div class="sb-item" title="信息">信</div>
+      <div class="sb-item" title="工具">工</div>
+    </aside>
+    <div class="main">
+      <header class="header">
+        <span>超参数因子管理</span>
+        <div class="header-actions">
+          <span>项目平台</span>
+          <span>🔔</span>
+          <span>物流系统 ▾</span>
+          <span class="user-badge">KA</span>
+        </div>
+      </header>
+      <div class="body-row">
+        <div class="content">
+          <div class="panel">
+            <div class="filter-grid">
+              <div class="f">
+                <label for="fId">超参数编号</label>
+                <input type="text" id="fId" class="w-id" placeholder="00001" maxlength="5" inputmode="numeric" />
+              </div>
+              <div class="f">
+                <label for="fEvent">超参数事件</label>
+                <input type="text" id="fEvent" class="w-event" placeholder="事件说明关键词" />
+              </div>
+              <div class="f">
+                <label>时间范围</label>
+                <div id="wrapFilterDate"></div>
+              </div>
+              <div class="f">
+                <label for="fStatus">状态</label>
+                <select id="fStatus">
+                  <option value="">全部</option>
+                  <option value="draft">草稿</option>
+                  <option value="effective">生效</option>
+                </select>
+              </div>
+              <div class="f">
+                <button type="button" class="btn btn-primary" id="btnSearch">搜索</button>
+              </div>
+            </div>
+          </div>
+          <div class="toolbar">
+            <button type="button" class="btn btn-primary" id="btnAdd">新增超参数因子</button>
+            <button type="button" class="btn" id="btnEffective">生效</button>
+            <button type="button" class="btn" id="btnIneffective">失效</button>
+            <button type="button" class="btn btn-danger" id="btnBatchDel">删除</button>
+            <div class="role-sim">
+              <span>权限模拟（正式环境由账号角色控制）</span>
+              <select id="roleSim">
+                <option value="pm">产品经理</option>
+                <option value="other">非产品经理</option>
+              </select>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table class="data">
+              <thead>
+                <tr>
+                  <th class="center" style="width:40px"><input type="checkbox" id="chkAll" title="全选当前列表" /></th>
+                  <th style="width:100px">超参数因子编号</th>
+                  <th style="min-width:180px">超参数事件说明</th>
+                  <th style="width:90px">超参数因子</th>
+                  <th style="width:200px">时间范围</th>
+                  <th style="width:72px">状态</th>
+                  <th style="width:200px">操作</th>
+                </tr>
+              </thead>
+              <tbody id="tbody"></tbody>
+            </table>
+          </div>
+        </div>
+        <aside class="log-panel" aria-label="操作日志">
+          <div class="hd">日志 <span id="logFor" style="font-weight:400;color:var(--text-sec);font-size:12px;"></span></div>
+          <div class="bd" id="logBody"></div>
+        </aside>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-mask" id="modal1" role="dialog" aria-modal="true">
+    <div class="modal">
+      <div class="m-hd" id="m1Title">提示</div>
+      <div class="m-bd" id="m1Body"></div>
+      <div class="m-ft">
+        <button type="button" class="btn" data-m1="cancel">取消</button>
+        <button type="button" class="btn btn-primary" data-m1="ok">确定</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-mask" id="modal2" role="dialog" aria-modal="true">
+    <div class="modal">
+      <div class="m-hd" id="m2Title">二次确认</div>
+      <div class="m-bd" id="m2Body"></div>
+      <div class="m-ft">
+        <button type="button" class="btn" data-m2="cancel">取消</button>
+        <button type="button" class="btn btn-danger" data-m2="ok">确认删除</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="../../../规范/assets/date-range-picker.js"></script>
+  <script>
+    (function () {
+      var PM = 'pm';
+      function isPM() {
+        return document.getElementById('roleSim').value === PM;
+      }
+      function pad5(n) {
+        var s = String(n);
+        while (s.length < 5) s = '0' + s;
+        return s.slice(-5);
+      }
+      function defaultFilterRange() {
+        var d = new Date();
+        return {
+          from: new Date(d.getFullYear(), d.getMonth() - 1, d.getDate()),
+          to: new Date(d.getFullYear(), d.getMonth() + 2, d.getDate())
+        };
+      }
+      function fmtDate(d) {
+        if (!(d instanceof Date) || isNaN(d.getTime())) return '';
+        var y = d.getFullYear();
+        var m = d.getMonth() + 1;
+        var day = d.getDate();
+        return y + '-' + (m < 10 ? '0' : '') + m + '-' + (day < 10 ? '0' : '') + day;
+      }
+      function parseYmd(s) {
+        if (!s) return null;
+        var p = s.split('-');
+        if (p.length !== 3) return null;
+        return new Date(parseInt(p[0], 10), parseInt(p[1], 10) - 1, parseInt(p[2], 10));
+      }
+      function rangesOverlap(a0, a1, b0, b1) {
+        return a0 <= b1 && a1 >= b0;
+      }
+      var nextSeq = 5;
+      var rows = [
+        { id: 1, code: '00001', event: '平台配送费减半', factor: 1.5, start: '2025-10-01', end: '2025-11-01', status: 'draft', mskuApplied: false, editing: false },
+        { id: 2, code: '00002', event: '关税增加', factor: 0.5, start: '2025-09-15', end: '2026-06-30', status: 'effective', mskuApplied: true, editing: false },
+        { id: 3, code: '00003', event: '旺季物流补贴', factor: 1.2, start: '2026-01-01', end: '2026-03-31', status: 'draft', mskuApplied: false, editing: false },
+        { id: 4, code: '00004', event: '促销系数调整', factor: 0.95, start: '2026-02-01', end: '2026-05-15', status: 'effective', mskuApplied: false, editing: false }
+      ];
+      var logsByCode = {
+        '00001': [
+          { user: 'sykie', time: '2025-08-25 12:23:45', before: { event: '平台配送费减免', factor: 1.3 }, after: { event: '平台配送费减半', factor: 1.5 } },
+          { user: '程斌武', time: '2025-08-20 09:10:00', before: { start: '2025-09-01', end: '2025-10-15' }, after: { start: '2025-10-01', end: '2025-11-01' } }
+        ],
+        '00002': [{ user: 'sykie', time: '2025-07-01 18:00:00', before: { status: '草稿' }, after: { status: '生效' } }],
+        '00003': [],
+        '00004': [{ user: '程斌武', time: '2026-01-10 11:05:22', before: { factor: 1.0 }, after: { factor: 0.95 } }]
+      };
+      var fieldLabels = { event: '超参数事件说明', factor: '超参数因子', start: '开始日期', end: '结束日期', status: '状态' };
+      function formatDiff(obj) {
+        if (!obj || typeof obj !== 'object') return '—';
+        var keys = Object.keys(obj);
+        if (!keys.length) return '—';
+        return keys.map(function (k) {
+          return '<span class="k">' + (fieldLabels[k] || k) + '：</span>' + obj[k];
+        }).join('<br/>');
+      }
+      var selectedLogCode = '';
+      function renderLogPanel() {
+        var el = document.getElementById('logBody');
+        var sub = document.getElementById('logFor');
+        if (!selectedLogCode) {
+          sub.textContent = '';
+          el.innerHTML = '<div class="empty-log">在列表中点击「日志」查看该因子的变更记录</div>';
+          return;
+        }
+        sub.textContent = '（' + selectedLogCode + '）';
+        var list = logsByCode[selectedLogCode] || [];
+        if (!list.length) {
+          el.innerHTML = '<div class="empty-log">暂无日志</div>';
+          return;
+        }
+        var h = '<table class="log-table"><thead><tr><th>调整人</th><th>调整时间</th><th>调整前</th><th>调整后</th></tr></thead><tbody>';
+        list.forEach(function (row) {
+          h += '<tr><td>' + row.user + '</td><td>' + row.time + '</td><td><div class="diff-block">' + formatDiff(row.before) + '</div></td><td><div class="diff-block">' + formatDiff(row.after) + '</div></td></tr>';
+        });
+        h += '</tbody></table>';
+        el.innerHTML = h;
+      }
+      var apiFilterDate = null;
+      function getFilterRange() {
+        if (!apiFilterDate) return null;
+        var v = apiFilterDate.get();
+        var d0 = parseYmd(v.start);
+        var d1 = parseYmd(v.end);
+        if (!d0 || !d1) return null;
+        if (d0.getTime() > d1.getTime()) return null;
+        return { from: d0, to: d1 };
+      }
+      function rowMatchesFilter(r) {
+        var idQ = document.getElementById('fId').value.trim();
+        if (idQ) {
+          var digits = idQ.replace(/\D/g, '');
+          if (digits.length) {
+            var n = parseInt(digits, 10);
+            if (isNaN(n) || r.code !== pad5(n)) return false;
+          } else if (r.code.indexOf(idQ) === -1) return false;
+        }
+        var ev = document.getElementById('fEvent').value.trim();
+        if (ev && r.event.indexOf(ev) === -1) return false;
+        var st = document.getElementById('fStatus').value;
+        if (st === 'draft' && r.status !== 'draft') return false;
+        if (st === 'effective' && r.status !== 'effective') return false;
+        var fr = getFilterRange();
+        if (fr) {
+          var rs = parseYmd(r.start);
+          var re = parseYmd(r.end);
+          if (rs && re) {
+            if (!rangesOverlap(rs.getTime(), re.getTime(), fr.from.getTime(), fr.to.getTime())) return false;
+          }
+        }
+        return true;
+      }
+      function visibleRows() {
+        return rows.filter(rowMatchesFilter);
+      }
+      function renderTable() {
+        var tb = document.getElementById('tbody');
+        var list = visibleRows();
+        var h = '';
+        list.forEach(function (r) {
+          var stText = r.status === 'draft' ? '草稿' : '生效';
+          var stCls = r.status === 'draft' ? 'status-draft' : 'status-ok';
+          h += '<tr data-id="' + r.id + '">';
+          h += '<td class="center"><input type="checkbox" class="row-chk" data-id="' + r.id + '" /></td>';
+          h += '<td>' + r.code + '</td>';
+          if (r.editing) {
+            h += '<td class="left"><input class="cell-inp" data-f="event" value="' + escapeAttr(r.event || '') + '" placeholder="请输入" /></td>';
+            h += '<td class="num"><input type="number" step="0.01" class="cell-inp cell-num" data-f="factor" value="' + (r.factor === '' || r.factor == null ? '' : escapeAttr(String(r.factor))) + '" placeholder="请输入" /></td>';
+            h += '<td><div class="cell-drp-wrap" data-row-id="' + r.id + '"></div></td>';
+          } else {
+            h += '<td class="left">' + (r.event ? escapeHtml(r.event) : '<span style="color:var(--text-sec)">—</span>') + '</td>';
+            h += '<td class="num">' + (r.factor === '' || r.factor == null ? '<span style="color:var(--text-sec)">—</span>' : escapeHtml(String(r.factor))) + '</td>';
+            if (r.start || r.end) {
+              h += '<td>' + escapeHtml(r.start || '—') + ' 至 ' + escapeHtml(r.end || '—') + '</td>';
+            } else {
+              h += '<td><span style="color:var(--text-sec)">—</span></td>';
+            }
+          }
+          h += '<td><span class="' + stCls + '">' + stText + '</span></td>';
+          h += '<td><span class="op-cell">';
+          if (r.editing) {
+            h += '<span class="op" data-act="save" data-id="' + r.id + '">保存</span>';
+            h += '<span class="op" data-act="cancel-edit" data-id="' + r.id + '">取消</span>';
+          } else {
+            var canDel = r.status === 'draft';
+            h += canDel ? '<span class="op" data-act="del" data-id="' + r.id + '">删除</span>' : '<span class="op-muted">删除</span>';
+            h += '<span class="op" data-act="edit" data-id="' + r.id + '">编辑</span>';
+            h += '<span class="op" data-act="log" data-code="' + r.code + '">日志</span>';
+          }
+          h += '</span></td></tr>';
+        });
+        tb.innerHTML = h || '<tr><td colspan="7" style="text-align:center;color:var(--text-sec);padding:24px;">无匹配数据</td></tr>';
+        document.getElementById('chkAll').checked = false;
+        mountCellDatePickers();
+      }
+      function mountCellDatePickers() {
+        if (typeof DateRangePicker === 'undefined') return;
+        document.querySelectorAll('.cell-drp-wrap').forEach(function (w) {
+          var id = parseInt(w.getAttribute('data-row-id'), 10);
+          var row = findRow(id);
+          if (!row || !row.editing) return;
+          var api = DateRangePicker.mount(w, {
+            compact: true,
+            zIndex: 150,
+            start: row.start || '',
+            end: row.end || '',
+            onChange: function () {}
+          });
+          w._drpApi = api;
+        });
+      }
+      function escapeHtml(s) {
+        return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+      }
+      function escapeAttr(s) {
+        return escapeHtml(s).replace(/'/g, '&#39;');
+      }
+      function findRow(id) {
+        for (var i = 0; i < rows.length; i++) if (rows[i].id === id) return rows[i];
+        return null;
+      }
+      function selectedIds() {
+        var ids = [];
+        document.querySelectorAll('.row-chk:checked').forEach(function (c) {
+          ids.push(parseInt(c.getAttribute('data-id'), 10));
+        });
+        return ids;
+      }
+      var m1Callback = null;
+      function openModal1(title, body, onOk) {
+        document.getElementById('m1Title').textContent = title;
+        document.getElementById('m1Body').innerHTML = body;
+        m1Callback = onOk;
+        document.getElementById('modal1').classList.add('show');
+      }
+      function closeModal1() {
+        document.getElementById('modal1').classList.remove('show');
+        m1Callback = null;
+      }
+      var m2Callback = null;
+      function openModal2(body, onOk) {
+        document.getElementById('m2Body').textContent = body;
+        m2Callback = onOk;
+        document.getElementById('modal2').classList.add('show');
+      }
+      function closeModal2() {
+        document.getElementById('modal2').classList.remove('show');
+        m2Callback = null;
+      }
+      function pad2(n) {
+        return (n < 10 ? '0' : '') + n;
+      }
+      function appendLog(code, user, beforePartial, afterPartial) {
+        if (!logsByCode[code]) logsByCode[code] = [];
+        var now = new Date();
+        var ts = now.getFullYear() + '-' + pad2(now.getMonth() + 1) + '-' + pad2(now.getDate()) + ' ' + pad2(now.getHours()) + ':' + pad2(now.getMinutes()) + ':' + pad2(now.getSeconds());
+        logsByCode[code].unshift({ user: user, time: ts, before: beforePartial, after: afterPartial });
+      }
+      function initDefaults() {
+        var dr = defaultFilterRange();
+        if (typeof DateRangePicker === 'undefined') return;
+        var el = document.getElementById('wrapFilterDate');
+        if (!el) return;
+        apiFilterDate = DateRangePicker.mount(el, {
+          zIndex: 120,
+          start: fmtDate(dr.from),
+          end: fmtDate(dr.to),
+          onChange: function () {}
+        });
+      }
+      var pendingDeleteIds = null;
+
+      document.getElementById('btnSearch').addEventListener('click', renderTable);
+      document.getElementById('chkAll').addEventListener('change', function () {
+        var on = this.checked;
+        document.querySelectorAll('.row-chk').forEach(function (c) { c.checked = on; });
+      });
+      document.getElementById('btnEffective').addEventListener('click', function () {
+        if (!isPM()) { alert('仅产品经理可执行「生效」操作。'); return; }
+        var ids = selectedIds();
+        if (!ids.length) { alert('请先勾选要生效的超参数因子。'); return; }
+        var picked = ids.map(findRow).filter(Boolean);
+        if (picked.some(function (r) { return r.status !== 'draft'; })) {
+          alert('所选记录中存在非「草稿」状态，无法批量生效。请仅选择草稿状态的记录。');
+          return;
+        }
+        openModal1('批量生效', '<p>是否确认将所选的 <strong>' + picked.length + '</strong> 条全部设为<strong>生效</strong>？</p>', function () {
+          picked.forEach(function (r) {
+            r.status = 'effective';
+            appendLog(r.code, 'KA', { status: '草稿' }, { status: '生效' });
+          });
+          closeModal1();
+          renderTable();
+          renderLogPanel();
+        });
+      });
+      document.getElementById('btnIneffective').addEventListener('click', function () {
+        if (!isPM()) { alert('仅产品经理可执行「失效」操作。'); return; }
+        var ids = selectedIds();
+        if (!ids.length) { alert('请先勾选要失效的超参数因子。'); return; }
+        var picked = ids.map(findRow).filter(Boolean);
+        if (picked.some(function (r) { return r.status !== 'effective'; })) {
+          alert('所选记录中存在非「生效」状态，无法批量失效。');
+          return;
+        }
+        var applied = picked.filter(function (r) { return r.mskuApplied; });
+        if (applied.length) {
+          alert('以下超参数因子已应用到 MSKU，不可失效：' + applied.map(function (r) { return r.code; }).join('、'));
+          return;
+        }
+        openModal1('批量失效', '<p>是否确认将所选的 <strong>' + picked.length + '</strong> 条<strong>失效</strong>（恢复为草稿）？</p>', function () {
+          picked.forEach(function (r) {
+            r.status = 'draft';
+            appendLog(r.code, 'KA', { status: '生效' }, { status: '草稿' });
+          });
+          closeModal1();
+          renderTable();
+          renderLogPanel();
+        });
+      });
+      document.getElementById('btnBatchDel').addEventListener('click', function () {
+        var ids = selectedIds();
+        if (!ids.length) { alert('请先勾选要删除的记录。'); return; }
+        var picked = ids.map(findRow).filter(Boolean);
+        if (picked.some(function (r) { return r.status !== 'draft'; })) {
+          alert('仅「草稿」状态可删除。所选记录中包含非草稿状态。');
+          return;
+        }
+        openModal1('删除确认（第一次）', '<p>即将删除 <strong>' + picked.length + '</strong> 条草稿记录。</p>', function () {
+          closeModal1();
+          pendingDeleteIds = picked.map(function (r) { return r.id; });
+          openModal2('请再次确认：确定永久删除这 ' + picked.length + ' 条记录？', function () {
+            rows = rows.filter(function (r) { return pendingDeleteIds.indexOf(r.id) === -1; });
+            pendingDeleteIds = null;
+            closeModal2();
+            renderTable();
+            if (selectedLogCode && !rows.some(function (r) { return r.code === selectedLogCode; })) selectedLogCode = '';
+            renderLogPanel();
+          });
+        });
+      });
+      document.getElementById('btnAdd').addEventListener('click', function () {
+        var code = pad5(nextSeq++);
+        var newId = rows.reduce(function (m, x) { return Math.max(m, x.id); }, 0) + 1;
+        logsByCode[code] = logsByCode[code] || [];
+        rows.push({ id: newId, code: code, event: '', factor: '', start: '', end: '', status: 'draft', mskuApplied: false, editing: true });
+        renderTable();
+      });
+      document.querySelector('#modal1').addEventListener('click', function (e) { if (e.target === this) closeModal1(); });
+      document.querySelector('#modal1 .m-ft').addEventListener('click', function (e) {
+        var t = e.target;
+        if (t.getAttribute('data-m1') === 'cancel') closeModal1();
+        if (t.getAttribute('data-m1') === 'ok' && m1Callback) m1Callback();
+      });
+      document.querySelector('#modal2').addEventListener('click', function (e) { if (e.target === this) closeModal2(); });
+      document.querySelector('#modal2 .m-ft').addEventListener('click', function (e) {
+        var t = e.target;
+        if (t.getAttribute('data-m2') === 'cancel') closeModal2();
+        if (t.getAttribute('data-m2') === 'ok' && m2Callback) m2Callback();
+      });
+      document.getElementById('tbody').addEventListener('click', function (e) {
+        var act = e.target.getAttribute('data-act');
+        if (!act) return;
+        var id = parseInt(e.target.getAttribute('data-id'), 10);
+        var row = findRow(id);
+        if (act === 'log') {
+          selectedLogCode = e.target.getAttribute('data-code') || '';
+          renderLogPanel();
+          return;
+        }
+        if (act === 'edit' && row) {
+          row._backup = { event: row.event, factor: row.factor, start: row.start, end: row.end };
+          row.editing = true;
+          renderTable();
+          return;
+        }
+        if (act === 'cancel-edit' && row) {
+          if (row._backup) {
+            row.event = row._backup.event;
+            row.factor = row._backup.factor;
+            row.start = row._backup.start;
+            row.end = row._backup.end;
+            delete row._backup;
+          }
+          row.editing = false;
+          renderTable();
+          return;
+        }
+        if (act === 'save' && row) {
+          var tr = e.target.closest('tr');
+          var before = { event: row.event, factor: row.factor, start: row.start, end: row.end };
+          var drpW = tr.querySelector('.cell-drp-wrap');
+          if (drpW && drpW._drpApi) {
+            var vv = drpW._drpApi.get();
+            row.start = vv.start;
+            row.end = vv.end;
+          }
+          tr.querySelectorAll('.cell-inp').forEach(function (inp) {
+            var f = inp.getAttribute('data-f');
+            if (f === 'factor') row.factor = inp.value.trim() === '' ? '' : parseFloat(inp.value);
+            else if (f === 'event') row.event = inp.value.trim();
+          });
+          var beforeLog = {};
+          var afterLog = {};
+          if (before.event !== row.event) { beforeLog.event = before.event; afterLog.event = row.event; }
+          if (before.factor !== row.factor) { beforeLog.factor = before.factor; afterLog.factor = row.factor; }
+          if (before.start !== row.start) { beforeLog.start = before.start; afterLog.start = row.start; }
+          if (before.end !== row.end) { beforeLog.end = before.end; afterLog.end = row.end; }
+          if (Object.keys(afterLog).length) appendLog(row.code, 'KA', beforeLog, afterLog);
+          delete row._backup;
+          row.editing = false;
+          renderTable();
+          renderLogPanel();
+          return;
+        }
+        if (act === 'del' && row && row.status === 'draft') {
+          openModal1('删除确认（第一次）', '<p>确定删除编号 <strong>' + row.code + '</strong> 吗？</p>', function () {
+            closeModal1();
+            openModal2('请再次确认删除编号 ' + row.code + '？', function () {
+              rows = rows.filter(function (r) { return r.id !== row.id; });
+              closeModal2();
+              if (selectedLogCode === row.code) selectedLogCode = '';
+              renderTable();
+              renderLogPanel();
+            });
+          });
+        }
+      });
+
+      initDefaults();
+      renderTable();
+      renderLogPanel();
+    })();
+  </script>
+</body>
+</html>

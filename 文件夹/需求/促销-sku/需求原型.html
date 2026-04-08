@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>促销-SKU 看板 - 需求原型</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", sans-serif;
+      margin: 0;
+      padding: 16px 24px 32px;
+      background: #f5f6f8;
+      color: #1a1a1a;
+    }
+    header {
+      margin-bottom: 20px;
+    }
+    .breadcrumb {
+      font-size: 13px;
+      color: #666;
+      margin-bottom: 8px;
+    }
+    .breadcrumb span { margin: 0 6px; color: #999; }
+    h1 { font-size: 20px; font-weight: 600; margin: 0; }
+
+    .filters {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 16px 24px;
+      padding: 14px 18px;
+      background: #fff;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      box-shadow: 0 1px 2px rgba(0,0,0,.06);
+    }
+    .filters label { font-size: 13px; color: #555; }
+    .filters input[type="date"], .filters select {
+      padding: 6px 10px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-size: 13px;
+    }
+    .filters select { min-width: 160px; }
+    .filters .msku-wrap { display: flex; align-items: center; gap: 8px; }
+    .filters .msku-wrap input { width: 200px; padding: 6px 10px; border: 1px solid #ddd; border-radius: 4px; }
+    .filters .tabs {
+      display: inline-flex;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      overflow: hidden;
+    }
+    .filters .tabs span {
+      padding: 6px 14px;
+      font-size: 13px;
+      cursor: pointer;
+      background: #fff;
+      border-right: 1px solid #ddd;
+    }
+    .filters .tabs span:last-child { border-right: none; }
+    .filters .tabs span.active { background: #1677ff; color: #fff; border-color: #1677ff; }
+    .filters button {
+      padding: 6px 16px;
+      background: #1677ff;
+      color: #fff;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 13px;
+    }
+    .filters button:hover { background: #4096ff; }
+
+    .chart-section {
+      background: #fff;
+      border-radius: 8px;
+      padding: 16px 20px;
+      margin-bottom: 20px;
+      box-shadow: 0 1px 2px rgba(0,0,0,.06);
+    }
+    .chart-section h3 { font-size: 14px; margin: 0 0 12px; color: #333; }
+    .chart-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+    .chart-granularity {
+      display: flex;
+      gap: 0;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      overflow: hidden;
+    }
+    .chart-granularity span {
+      padding: 4px 12px;
+      font-size: 12px;
+      cursor: pointer;
+      background: #fff;
+      border-right: 1px solid #ddd;
+    }
+    .chart-granularity span:last-child { border-right: none; }
+    .chart-granularity span.active { background: #1677ff; color: #fff; }
+    .chart-placeholder {
+      height: 220px;
+      background: linear-gradient(180deg, #f0f7ff 0%, #e6f0fa 100%);
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #666;
+      font-size: 13px;
+      position: relative;
+    }
+    .chart-placeholder .hover-demo {
+      position: absolute;
+      top: 40px;
+      left: 50%;
+      transform: translateX(-50%);
+      padding: 8px 12px;
+      background: #fff;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      box-shadow: 0 4px 12px rgba(0,0,0,.1);
+      font-size: 12px;
+      white-space: nowrap;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity .15s;
+    }
+    .chart-placeholder:hover .hover-demo { opacity: 1; }
+    .chart-note {
+      font-size: 12px;
+      color: #888;
+      margin-top: 8px;
+    }
+
+    .table-wrap {
+      overflow: auto;
+      max-height: min(65vh, 480px);
+      background: #fff;
+      border-radius: 8px;
+      box-shadow: 0 1px 2px rgba(0,0,0,.06);
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+    thead th {
+      position: sticky;
+      top: 0;
+      z-index: 3;
+      background: #fafafa;
+      border-bottom: 1px solid #eee;
+      padding: 10px 12px;
+      text-align: left;
+      font-weight: 600;
+      white-space: nowrap;
+      box-shadow: 0 1px 0 #eee;
+    }
+    thead th.frozen {
+      position: sticky;
+      left: 0;
+      top: 0;
+      z-index: 5;
+      background: #fafafa;
+      box-shadow: 2px 0 4px rgba(0,0,0,.04), 0 1px 0 #eee;
+    }
+    thead th:nth-child(1){ left: 0; }
+    thead th:nth-child(2){ left: 90px; }
+    thead th:nth-child(3){ left: 170px; }
+    thead th:nth-child(4){ left: 280px; }
+    tbody td {
+      border-bottom: 1px solid #f0f0f0;
+      padding: 8px 12px;
+    }
+    tbody tr:hover td { background: #fafafa; }
+    tbody td.frozen {
+      position: sticky;
+      left: 0;
+      z-index: 1;
+      background: #fff;
+      box-shadow: 2px 0 4px rgba(0,0,0,.04);
+    }
+    tbody tr:hover td.frozen { background: #fafafa; }
+    tbody td:nth-child(1){ left: 0; }
+    tbody td:nth-child(2){ left: 90px; }
+    tbody td:nth-child(3){ left: 170px; }
+    tbody td:nth-child(4){ left: 280px; }
+    .col-date { width: 90px; min-width: 90px; }
+    .col-country { width: 80px; min-width: 80px; }
+    .col-store { width: 110px; min-width: 110px; }
+    .col-msku { width: 110px; min-width: 110px; }
+    .col-promo { width: 100px; min-width: 100px; }
+    th[title] { cursor: help; text-decoration: underline dotted; }
+
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      padding: 10px 20px;
+      background: #333;
+      color: #fff;
+      border-radius: 6px;
+      font-size: 13px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity .2s;
+    }
+    .toast.show { opacity: 1; }
+    .page-note {
+      font-size: 12px;
+      color: #888;
+      margin-top: 12px;
+      padding: 0 4px;
+    }
+  </style>
+</head>
+<body>
+  <!-- 本原型根据 需求文档.md 生成，数据为模拟，仅用于演示 -->
+  <header>
+    <nav class="breadcrumb">数据中心 <span>→</span> 销售分析 <span>→</span> 促销-SKU</nav>
+    <h1>促销-SKU 看板（需求原型）</h1>
+  </header>
+
+  <section class="filters">
+    <label>日期</label>
+    <input type="date" id="filterDate" value="2026-02-12">
+    <label>国家</label>
+    <select id="country">
+      <option>全部</option>
+      <option>美国</option>
+      <option>加拿大</option>
+      <option>德国</option>
+    </select>
+    <label>MSKU</label>
+    <div class="msku-wrap">
+      <input type="text" id="mskuInput" placeholder="选择或搜索 MSKU（单选时趋势图浮窗展示促销）">
+      <select id="mskuSelect">
+        <option value="">-- 请选择 --</option>
+        <option value="H5106101-GL-US">H5106101-GL-US</option>
+        <option value="B5191011-GL-US">B5191011-GL-US</option>
+        <option value="H5123456-GL-DE">H5123456-GL-DE</option>
+      </select>
+    </div>
+    <span class="tabs" id="chartTabs">
+      <span class="active" data-gran="day">日</span>
+      <span data-gran="week">周</span>
+      <span data-gran="month">月</span>
+    </span>
+    <button type="button" id="btnQuery">查询</button>
+  </section>
+
+  <section class="chart-section">
+    <h3>趋势图</h3>
+    <div class="chart-header">
+      <span style="font-size:12px;color:#666;">销量 / 折后销售额 / Sessions / 转化率</span>
+      <div class="chart-granularity" id="chartGranularity">
+        <span class="active" data-g="day">日</span>
+        <span data-g="week">周</span>
+        <span data-g="month">月</span>
+      </div>
+    </div>
+    <div class="chart-placeholder" id="chartArea">
+      <span class="hover-demo" id="chartTooltip">移入数据点：按「日」显示促销类型，按「周/月」显示促销次数</span>
+      模拟趋势图区域（单选 MSKU 时，鼠标移入某日/周/月可显示促销浮窗）
+    </div>
+    <p class="chart-note" id="chartNote">当前已选择单个 MSKU：浮窗按「日」显示促销类型，按「周/月」显示促销次数。</p>
+  </section>
+
+  <section class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th class="frozen col-date" title="数据来源：订单/报表日期；格式：YYYYMMDD">日期</th>
+          <th class="frozen col-country">国家</th>
+          <th class="frozen col-store">店铺</th>
+          <th class="frozen col-msku">MSKU</th>
+          <th class="col-promo">促销类型</th>
+          <th title="数据来源：AMZ 后台 RRP；仅保留 RRP，原价列已移除">RRP</th>
+          <th title="折扣后单价">折扣价</th>
+          <th title="计算公式：(原价-折扣价)/原价">折扣力度</th>
+          <th>销量</th>
+          <th title="计算公式：销量×折扣价">折后销售额</th>
+          <th title="数据来源：流量报表">Total Sessions</th>
+          <th title="数据来源：流量报表">Browser Sessions</th>
+          <th title="T-CR 转化率；计算公式：销量/Total Sessions">T-CR</th>
+          <th title="B-CR 转化率；计算公式：销量/Browser Sessions">B-CR</th>
+        </tr>
+      </thead>
+      <tbody id="tbody">
+        <tr>
+          <td class="frozen">20260212</td>
+          <td class="frozen">美国</td>
+          <td class="frozen">GoveeLife_US</td>
+          <td class="frozen">H5106101-GL-US</td>
+          <td>LD/限时折扣</td>
+          <td>45.99</td>
+          <td>38.99</td>
+          <td>15%</td>
+          <td>27</td>
+          <td>1073.71</td>
+          <td>378</td>
+          <td>123</td>
+          <td>7.14%</td>
+          <td>21.95%</td>
+        </tr>
+        <tr>
+          <td class="frozen">20260212</td>
+          <td class="frozen">美国</td>
+          <td class="frozen">GoveeLife_US</td>
+          <td class="frozen">B5191011-GL-US</td>
+          <td>Coupon</td>
+          <td>49.99</td>
+          <td>44.99</td>
+          <td>10%</td>
+          <td>113</td>
+          <td>4102.97</td>
+          <td>552</td>
+          <td>213</td>
+          <td>20.47%</td>
+          <td>53.05%</td>
+        </tr>
+        <tr>
+          <td class="frozen">20260212</td>
+          <td class="frozen">加拿大</td>
+          <td class="frozen">GoveeLife_CA</td>
+          <td class="frozen">H5106101-GL-US</td>
+          <td>BD/秒杀</td>
+          <td>45.99</td>
+          <td>39.99</td>
+          <td>13%</td>
+          <td>56</td>
+          <td>2239.44</td>
+          <td>420</td>
+          <td>156</td>
+          <td>13.33%</td>
+          <td>35.90%</td>
+        </tr>
+        <tr>
+          <td class="frozen">20260212</td>
+          <td class="frozen">德国</td>
+          <td class="frozen">GoveeLife_DE</td>
+          <td class="frozen">H5123456-GL-DE</td>
+          <td>LD</td>
+          <td>39.99</td>
+          <td>35.99</td>
+          <td>10%</td>
+          <td>19</td>
+          <td>683.81</td>
+          <td>152</td>
+          <td>68</td>
+          <td>12.50%</td>
+          <td>27.94%</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+  <p class="page-note">说明：前四列（日期、国家、店铺、MSKU）已冻结；促销类型列在 MSKU 后；表头悬停可查看数据来源与计算公式。本原型数据为模拟。</p>
+
+  <div class="toast" id="toast">已按条件筛选（模拟）</div>
+
+  <script>
+    (function () {
+      var chartTabs = document.querySelectorAll('#chartGranularity span');
+      var chartNote = document.getElementById('chartNote');
+      var mskuSelect = document.getElementById('mskuSelect');
+      function updateChartNote() {
+        var single = mskuSelect.value && mskuSelect.value !== '';
+        chartNote.textContent = single
+          ? '当前已选择单个 MSKU：浮窗按「日」显示促销类型，按「周/月」显示促销次数。'
+          : '请先选择单个 MSKU，趋势图浮窗才会展示促销信息。';
+      }
+      chartTabs.forEach(function (t) {
+        t.addEventListener('click', function () {
+          chartTabs.forEach(function (x) { x.classList.remove('active'); });
+          this.classList.add('active');
+        });
+      });
+      mskuSelect.addEventListener('change', updateChartNote);
+      updateChartNote();
+
+      document.getElementById('btnQuery').addEventListener('click', function () {
+        var toast = document.getElementById('toast');
+        toast.classList.add('show');
+        setTimeout(function () { toast.classList.remove('show'); }, 2000);
+      });
+    })();
+  </script>
+</body>
+</html>

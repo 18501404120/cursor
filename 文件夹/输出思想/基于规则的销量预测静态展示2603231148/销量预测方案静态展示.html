@@ -1,0 +1,566 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>基于规则的销量预测方案 - 静态展示</title>
+  <style>
+    :root{
+      --bg:#f6f9ff;
+      --line:#dce6f7;
+      --primary:#2f6bff;
+      --primary-deep:#1f4fcc;
+      --text:#1f2937;
+      --sub:#6b7280;
+      --white:#ffffff;
+      --ok:#16a34a;
+      --warn:#f97316;
+      --violet:#7c3aed;
+      --soft-blue:#eef4ff;
+      --soft-green:#ecfdf3;
+      --soft-orange:#fff7ed;
+      --soft-violet:#f5f3ff;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+      color:var(--text);
+      background:var(--bg);
+    }
+    .wrap{
+      max-width:1240px;
+      margin:0 auto;
+      padding:18px 18px 42px;
+    }
+    .hero{
+      background:linear-gradient(135deg,#2f6bff 0%, #3f7bff 55%, #5a91ff 100%);
+      border:1px solid #5f93ff;
+      border-radius:14px;
+      color:#fff;
+      padding:20px 24px;
+      box-shadow:0 14px 28px rgba(47,107,255,.24);
+    }
+    .hero h1{
+      margin:0;
+      font-size:30px;
+      letter-spacing:.4px;
+      font-weight:800;
+    }
+    .hero p{
+      margin:10px 0 0;
+      line-height:1.7;
+      opacity:.95;
+      max-width:980px;
+      font-size:15px;
+    }
+    .meta{
+      margin-top:12px;
+      display:flex;
+      gap:8px;
+      flex-wrap:wrap;
+    }
+    .meta span{
+      background:rgba(255,255,255,.18);
+      border:1px solid rgba(255,255,255,.3);
+      border-radius:999px;
+      padding:5px 10px;
+      font-size:12px;
+    }
+
+    .section{
+      margin-top:14px;
+      border:1px solid var(--line);
+      border-radius:12px;
+      background:var(--white);
+      box-shadow:0 4px 14px rgba(24,39,75,.05);
+      overflow:hidden;
+    }
+    .sec-title{
+      border-bottom:1px solid #edf2fb;
+      padding:14px 16px;
+      font-size:33px;
+      font-weight:800;
+      color:#111827;
+      display:flex;
+      align-items:center;
+      gap:8px;
+    }
+    .sec-title .mark{
+      color:var(--primary);
+      font-size:22px;
+      line-height:1;
+    }
+    .sec-body{padding:14px}
+
+    .grid-3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+    .grid-2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+    .grid-4{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+
+    .card{
+      border:1px solid #e8eef9;
+      border-radius:10px;
+      background:#fff;
+      padding:12px 12px;
+      box-shadow:0 3px 10px rgba(17,24,39,.04);
+    }
+    .card h3{
+      margin:0;
+      font-size:22px;
+      color:#111827;
+      display:flex;
+      align-items:center;
+      gap:8px;
+    }
+    .card p{
+      margin:7px 0 0;
+      color:#374151;
+      line-height:1.7;
+      font-size:16px;
+    }
+    .muted{color:var(--sub)}
+    .v{
+      color:var(--warn);
+      font-weight:800;
+      font-size:18px;
+      margin-top:3px;
+      display:block;
+    }
+    .v.green{color:var(--ok)}
+
+    .sub-title{
+      margin:2px 0 10px;
+      font-size:27px;
+      color:var(--primary-deep);
+      font-weight:800;
+      display:flex;
+      align-items:center;
+      gap:6px;
+    }
+    .sub-title:after{
+      content:"";
+      display:block;
+      height:3px;
+      width:72px;
+      border-radius:4px;
+      background:var(--primary);
+      margin-left:8px;
+    }
+
+    .factor{
+      border:1px solid #e8eef9;
+      border-radius:10px;
+      background:#fff;
+      padding:12px;
+      min-height:158px;
+    }
+    .factor h4{
+      margin:0;
+      font-size:19px;
+      color:#111827;
+    }
+    .factor p{
+      margin:8px 0 0;
+      font-size:14px;
+      color:#374151;
+      line-height:1.65;
+    }
+    .pill{
+      display:inline-block;
+      margin-top:8px;
+      font-size:12px;
+      border-radius:999px;
+      border:1px solid #cfe0ff;
+      background:#f3f7ff;
+      color:#1f4fcc;
+      padding:3px 8px;
+    }
+
+    .box{
+      border:1px dashed #c9d9fb;
+      background:#f8fbff;
+      border-radius:10px;
+      padding:12px;
+    }
+    .formula{
+      font-size:17px;
+      line-height:1.8;
+      font-weight:700;
+      color:#1e40af;
+      letter-spacing:.2px;
+    }
+    .example{
+      margin-top:8px;
+      font-size:14px;
+      line-height:1.75;
+      color:#1f2937;
+    }
+    .example b{color:#111827}
+
+    .chart{
+      border:1px solid #ebf1fc;
+      border-radius:10px;
+      padding:12px 10px 10px;
+      background:#fff;
+    }
+    .bars{
+      height:220px;
+      display:flex;
+      align-items:flex-end;
+      gap:8px;
+      padding:6px 4px 0;
+      border-left:1px solid #e7eefc;
+      border-bottom:1px solid #e7eefc;
+    }
+    .bar-wrap{
+      flex:1;
+      min-width:0;
+      text-align:center;
+      font-size:11px;
+      color:#6b7280;
+    }
+    .bar{
+      width:100%;
+      border-radius:6px 6px 0 0;
+      margin-bottom:6px;
+      background:linear-gradient(180deg,#dbeafe,#60a5fa);
+    }
+    .bar.deep{
+      background:linear-gradient(180deg,#93c5fd,#2563eb);
+    }
+
+    table{
+      width:100%;
+      border-collapse:collapse;
+      font-size:13px;
+    }
+    th,td{
+      border:1px solid #edf2fc;
+      padding:8px 6px;
+      text-align:left;
+      vertical-align:top;
+    }
+    th{
+      background:#f8fbff;
+      color:#334155;
+      font-weight:700;
+    }
+    .kpi{
+      border:1px solid #eaf0fc;
+      border-radius:10px;
+      padding:11px;
+      background:#fff;
+    }
+    .kpi h5{
+      margin:0;
+      font-size:12px;
+      color:#64748b;
+      font-weight:600;
+    }
+    .kpi .num{
+      margin-top:4px;
+      font-size:26px;
+      font-weight:800;
+      color:#0f172a;
+    }
+    .kpi .tag{
+      margin-top:4px;
+      font-size:12px;
+      color:#0f766e;
+      background:#ecfdf3;
+      border:1px solid #bbf7d0;
+      border-radius:999px;
+      padding:2px 8px;
+      display:inline-block;
+    }
+
+    .list{
+      margin:6px 0 0 18px;
+      padding:0;
+      font-size:16px;
+      line-height:1.7;
+      color:#334155;
+    }
+    .list li{margin:4px 0}
+
+    .bg-blue{background:var(--soft-blue)}
+    .bg-green{background:var(--soft-green)}
+    .bg-orange{background:var(--soft-orange)}
+    .bg-violet{background:var(--soft-violet)}
+
+    .footer-note{
+      margin-top:14px;
+      font-size:12px;
+      color:#64748b;
+      text-align:right;
+    }
+
+    @media (max-width:1100px){
+      .grid-4{grid-template-columns:repeat(2,minmax(0,1fr))}
+      .grid-3{grid-template-columns:repeat(2,minmax(0,1fr))}
+    }
+    @media (max-width:760px){
+      .wrap{padding:12px}
+      .hero h1{font-size:24px}
+      .grid-3,.grid-2,.grid-4{grid-template-columns:1fr}
+      .sec-title{font-size:24px}
+      .sub-title{font-size:20px}
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <section class="hero">
+      <h1>基于规则的销量预测方案（静态展示版）</h1>
+      <p>围绕“流量、价格、生命周期、转化率、广告、竞争力排名、广告花费”七大核心因子，构建可解释、可配置、可迭代的销量预测框架。该方案用于支撑补货计划、投放预算和促销策略，提升库存周转与经营决策效率。</p>
+      <div class="meta">
+        <span>预测颗粒度：SKU × 渠道 × 周</span>
+        <span>输出形态：预测值 + 因子贡献拆解</span>
+        <span>策略特征：可配置、可灰度、可审计</span>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="sec-title"><span class="mark">▮</span>一、项目背景</div>
+      <div class="sec-body grid-3">
+        <article class="card">
+          <h3>📉 行业阶段转变</h3>
+          <p>行业从“流量红利期”进入“精细化运营期”，库存管理从“跨境电商库奏数核心抓手”升级为“销售预测+补货计划+履约协同”的一体化能力。</p>
+        </article>
+        <article class="card">
+          <h3>⚠️ 传统预测效率低</h3>
+          <p>大量企业仍依赖人工经验与简单统计，难以处理多因子联动场景，周级预测误差常见在 <span class="v">50%~60%</span>，响应市场变化滞后。</p>
+        </article>
+        <article class="card">
+          <h3>🧩 单一方案落地难</h3>
+          <p>纯算法方案解释门槛高、维护成本大；纯经验方案复制性差。需要在“可解释”与“可扩展”之间建立平衡中台能力。</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="sec-title"><span class="mark">▮</span>二、项目核心价值</div>
+      <div class="sec-body">
+        <div class="sub-title">直接经营收益（量化可落地）</div>
+        <div class="grid-4">
+          <div class="card bg-orange"><div class="muted">仓储与资金占用成本</div><span class="v">下降 15%~20%</span></div>
+          <div class="card bg-orange"><div class="muted">呆滞库存比例</div><span class="v">减少 40%</span></div>
+          <div class="card bg-orange"><div class="muted">周转天数</div><span class="v">下降 25%+</span></div>
+          <div class="card bg-orange"><div class="muted">人工预测工时</div><span class="v">节省 30%</span></div>
+          <div class="card bg-green"><div class="muted">缺货率</div><span class="v green">控制在 8% 以下</span></div>
+          <div class="card bg-green"><div class="muted">缺货损失金额</div><span class="v green">减少 15%~25%</span></div>
+          <div class="card bg-green"><div class="muted">核心品销量</div><span class="v green">提升 10%~15%</span></div>
+          <div class="card bg-green"><div class="muted">需求响应速度</div><span class="v green">提升 2~3 倍</span></div>
+        </div>
+
+        <div style="height:12px"></div>
+        <div class="grid-2">
+          <article class="card bg-blue">
+            <h3>🏭 业务运营价值</h3>
+            <p>构建“预测-补货-调价-复盘”闭环，统一运营、计划、采购和仓配口径。针对新品、活动、清仓等场景建立标准模板，降低跨团队沟通成本。</p>
+          </article>
+          <article class="card bg-blue">
+            <h3>🧠 决策支持价值</h3>
+            <p>将流量趋势、价格动作、生命周期变化等因子量化，形成可追溯的决策依据，帮助运营快速判断“是否加投、是否调价、是否提前备货”。</p>
+          </article>
+          <article class="card bg-violet">
+            <h3>🚀 战略竞争价值</h3>
+            <p>通过“规则引擎 + 可配置参数”实现快速上线与持续迭代。方案能够作为 ML baseline 与约束层，为后续智能化升级保留接口。</p>
+          </article>
+          <article class="card bg-violet">
+            <h3>🔒 治理与审计价值</h3>
+            <p>每个预测结果都可追溯到规则版本与因子贡献，支持灰度发布、版本回滚与效果对比，满足业务治理和经营复盘需求。</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="sec-title"><span class="mark">▮</span>三、七大核心因子规则设计</div>
+      <div class="sec-body">
+        <div class="sub-title">基于业务逻辑拆解影响因子，形成可配置预测基线</div>
+        <div class="grid-3">
+          <article class="factor">
+            <h4>📈 流量因子</h4>
+            <p>以近 4 周均值为基准做同比/环比分档。例：流量 +10%~+30% 对应乘数 1.08。大促周可由活动日历覆盖默认档位。</p>
+            <span class="pill">典型区间：0.85 ~ 1.15</span>
+          </article>
+          <article class="factor">
+            <h4>💲 价格因子</h4>
+            <p>按均价变化与价格带跃迁修正弹性。例：降价 5%~10% 乘数 1.06，涨价 >10% 乘数 0.88，支持叠加优惠券策略。</p>
+            <span class="pill">典型区间：0.88 ~ 1.12</span>
+          </article>
+          <article class="factor">
+            <h4>🌱 生命周期因子</h4>
+            <p>按新品爬坡、稳定期、清仓期定义阶段曲线。新品第 1~4 周可按 0.25/0.45/0.70/0.90 递增，稳定期默认 1.00。</p>
+            <span class="pill">阶段规则：周序号映射表</span>
+          </article>
+          <article class="factor">
+            <h4>🎯 转化率因子（CVR）</h4>
+            <p>比较“本周 CVR / 近 4 周 CVR”做档位修正，反映详情页质量与流量质量变化。异常暴跌触发诊断标签。</p>
+            <span class="pill">典型区间：0.90 ~ 1.10</span>
+          </article>
+          <article class="factor">
+            <h4>📣 广告状态因子</h4>
+            <p>描述广告开关与结构变化带来的状态影响。关→开可给阶梯增益；持续开投阶段由花费因子承接日常波动。</p>
+            <span class="pill">状态型：关开切换/活动加投</span>
+          </article>
+          <article class="factor">
+            <h4>🏆 竞争力排名因子</h4>
+            <p>以 BSR 或核心词排名分档，支持周环比排名变化修正。名次提升通常带来额外正向贡献，名次下滑则抑制预测。</p>
+            <span class="pill">分档型：Top100/500/2000...</span>
+          </article>
+          <article class="factor">
+            <h4>💰 广告花费因子</h4>
+            <p>以花费相对近 4 周均值做增量修正，建议和流量因子解耦，避免双重计数。可设置 ACOS 门槛限制虚高预测。</p>
+            <span class="pill">典型区间：0.95 ~ 1.10</span>
+          </article>
+          <article class="factor">
+            <h4>🧮 冲突与优先级治理</h4>
+            <p>大促日历 > 清仓 > 价格突变 > 默认规则。对于同源影响（流量与花费）采用主因子策略，保障口径一致。</p>
+            <span class="pill">保障一致性与可解释性</span>
+          </article>
+          <article class="factor">
+            <h4>📦 上下限约束</h4>
+            <p>预测下限避免异常过低，预测上限结合仓容/产能防爆仓；最终按件数取整，支持套装单位换算。</p>
+            <span class="pill">下限保护 + 上限封顶</span>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="sec-title"><span class="mark">▮</span>四、初版预测计算逻辑（静态示例）</div>
+      <div class="sec-body grid-2">
+        <article class="card">
+          <div class="sub-title">计算公式</div>
+          <div class="box">
+            <div class="formula">预测销量 = 基准销量 × 流量 × 价格 × 生命周期 × CVR × 广告 × 排名 × 花费</div>
+            <div class="example">
+              <b>示例输入：</b>基准销量 1000，流量 1.08，价格 1.06，生命周期 1.00，CVR 1.05，广告 1.00，排名 1.03，花费 1.06<br />
+              <b>计算结果：</b>1000 × 1.08 × 1.06 × 1.00 × 1.05 × 1.00 × 1.03 × 1.06 ≈ <b>1311 件/周</b>
+            </div>
+          </div>
+          <div style="height:10px"></div>
+          <table>
+            <thead>
+              <tr><th>因子</th><th>当周情况</th><th>规则</th><th>乘数</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>流量</td><td>较近4周 +22%</td><td>+10%~+30%</td><td>1.08</td></tr>
+              <tr><td>价格</td><td>较近4周 -6%</td><td>降价5%~10%</td><td>1.06</td></tr>
+              <tr><td>生命周期</td><td>稳定期第20周</td><td>稳定期规则</td><td>1.00</td></tr>
+              <tr><td>CVR</td><td>较近4周 +12%</td><td>1.05~1.20档</td><td>1.05</td></tr>
+              <tr><td>广告</td><td>持续投放</td><td>常态规则</td><td>1.00</td></tr>
+              <tr><td>排名</td><td>BSR 600，名次提升</td><td>分档+提升修正</td><td>1.03</td></tr>
+              <tr><td>花费</td><td>较近4周 +45%</td><td>130%~200%档</td><td>1.06</td></tr>
+            </tbody>
+          </table>
+        </article>
+
+        <article class="card">
+          <div class="sub-title">因子贡献示意图</div>
+          <div class="chart">
+            <div class="bars">
+              <div class="bar-wrap"><div class="bar" style="height:62%"></div>基准<br />1000</div>
+              <div class="bar-wrap"><div class="bar" style="height:67%"></div>流量后<br />1080</div>
+              <div class="bar-wrap"><div class="bar" style="height:71%"></div>价格后<br />1145</div>
+              <div class="bar-wrap"><div class="bar" style="height:71%"></div>生命周期后<br />1145</div>
+              <div class="bar-wrap"><div class="bar" style="height:74%"></div>CVR后<br />1202</div>
+              <div class="bar-wrap"><div class="bar" style="height:74%"></div>广告后<br />1202</div>
+              <div class="bar-wrap"><div class="bar deep" style="height:77%"></div>排名后<br />1238</div>
+              <div class="bar-wrap"><div class="bar deep" style="height:81%"></div>最终<br />1311</div>
+            </div>
+          </div>
+          <div style="height:10px"></div>
+          <div class="box">
+            <div class="muted" style="font-size:13px;line-height:1.7">
+              说明：该图为静态示意，体现“因子逐步修正基准销量”的逻辑路径。正式系统可输出每个因子贡献率及影响方向，用于周会复盘和参数调优。
+            </div>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="sec-title"><span class="mark">▮</span>五、验证与优化机制</div>
+      <div class="sec-body grid-3">
+        <article class="card">
+          <h3>🔍 历史回测</h3>
+          <p>按“渠道-品类-SKU”维度进行历史周盲测，输出 MAE、MAPE、命中率等指标，定位误差偏高的规则档位。</p>
+        </article>
+        <article class="card">
+          <h3>🚨 异常监控</h3>
+          <p>对 CVR 暴跌、排名骤降、花费失真、流量断崖等场景自动打标，提醒运营做策略修正或数据核验。</p>
+        </article>
+        <article class="card">
+          <h3>♻️ 季度迭代</h3>
+          <p>每季度按品类复盘规则有效性，调整乘数区间和阈值；活动季节前做专项参数预热，减少促销期偏差。</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="sec-title"><span class="mark">▮</span>六、实施路线与里程碑</div>
+      <div class="sec-body grid-2">
+        <article class="card">
+          <div class="sub-title">分阶段推进</div>
+          <ul class="list">
+            <li><b>阶段 1（2 周）：</b>完成数据口径定义、规则表结构、首批渠道样板。</li>
+            <li><b>阶段 2（3 周）：</b>上线规则引擎与预测计算服务，打通因子拆解输出。</li>
+            <li><b>阶段 3（2 周）：</b>建立回测报表与预警机制，完成灰度 SKU 验证。</li>
+            <li><b>阶段 4（持续）：</b>按季度迭代规则，结合 ML 残差优化提升精度。</li>
+          </ul>
+        </article>
+        <article class="card">
+          <div class="sub-title">关键KPI（首期）</div>
+          <div class="grid-2">
+            <div class="kpi">
+              <h5>预测误差（MAPE）</h5>
+              <div class="num">≤ 20%</div>
+              <span class="tag">核心SKU目标</span>
+            </div>
+            <div class="kpi">
+              <h5>缺货率</h5>
+              <div class="num">≤ 8%</div>
+              <span class="tag">保障可售</span>
+            </div>
+            <div class="kpi">
+              <h5>库存周转天数</h5>
+              <div class="num">-20%</div>
+              <span class="tag">改善现金流</span>
+            </div>
+            <div class="kpi">
+              <h5>规则维护效率</h5>
+              <div class="num">+50%</div>
+              <span class="tag">运营可配置</span>
+            </div>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="sec-title"><span class="mark">▮</span>七、风险识别与保障措施</div>
+      <div class="sec-body grid-3">
+        <article class="card">
+          <h3>数据风险</h3>
+          <p>风险：数据延迟、缺失、口径漂移。<br />措施：建立数据质检规则，关键指标缺失回退默认策略并打标。</p>
+        </article>
+        <article class="card">
+          <h3>业务风险</h3>
+          <p>风险：活动策略变更频繁、规则更新滞后。<br />措施：支持活动日历优先级覆盖，临时规则分钟级生效。</p>
+        </article>
+        <article class="card">
+          <h3>治理风险</h3>
+          <p>风险：参数调整缺审计导致结果不可追溯。<br />措施：版本化管理、审批流、A/B 对比、回滚机制。</p>
+        </article>
+      </div>
+    </section>
+
+    <div class="footer-note">
+      静态方案页 | 输出时间：2026-03-23 11:48 | 适用于方案评审与业务宣讲
+    </div>
+  </div>
+</body>
+</html>

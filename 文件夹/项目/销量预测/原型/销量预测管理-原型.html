@@ -1,0 +1,2303 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>销量预测管理</title>
+  <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
+  <style>
+    :root {
+      --sidebar-bg: #001529;
+      --header-blue: #1677ff;
+      --page-bg: #f0f2f5;
+      --card: #fff;
+      --border: #d9d9d9;
+      --text: rgba(0, 0, 0, 0.88);
+      --text-sec: rgba(0, 0, 0, 0.45);
+      --err-red: #ff4d4f;
+      --badge-yellow: #fadb14;
+    }
+
+    * { box-sizing: border-box; }
+    html, body { height: 100%; margin: 0; }
+    body {
+      font-family: "PingFang SC", "Microsoft YaHei", -apple-system, sans-serif;
+      font-size: 12px;
+      color: var(--text);
+      background: var(--page-bg);
+      line-height: 1.5;
+      overflow: hidden;
+    }
+
+    .app {
+      display: flex;
+      height: 100vh;
+      min-height: 640px;
+    }
+
+    /* —— 左侧深色导航 —— */
+    .sidebar {
+      width: 56px;
+      flex-shrink: 0;
+      background: var(--sidebar-bg);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 12px 0;
+      gap: 4px;
+    }
+    .sb-item {
+      width: 40px;
+      height: 40px;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: rgba(255,255,255,.65);
+      cursor: default;
+    }
+    .sb-item:hover { color: #fff; background: rgba(255,255,255,.08); }
+    .sb-item.active { color: #fff; background: var(--header-blue); }
+    .sb-item svg { width: 18px; height: 18px; fill: currentColor; }
+
+    /* —— 主列 —— */
+    .main {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .header {
+      height: 48px;
+      flex-shrink: 0;
+      background: var(--header-blue);
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 16px 0 20px;
+      font-size: 16px;
+      font-weight: 600;
+    }
+    .header-title { display: flex; align-items: center; gap: 0; position: relative; }
+    .header-title .title-text { margin-right: 8px; }
+    .header-title .anno { position: relative; top: -6px; }
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      font-size: 13px;
+      font-weight: 400;
+    }
+    .header-actions a, .header-actions span.linkish {
+      color: rgba(255,255,255,.9);
+      text-decoration: none;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .header-actions a:hover { color: #fff; }
+    .user-badge {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: rgba(255,255,255,.25);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      font-weight: 600;
+    }
+
+    .scroll {
+      flex: 1;
+      overflow: auto;
+      padding: 12px 16px 24px;
+    }
+
+    /* —— 筛选白卡片 —— */
+    .panel {
+      background: var(--card);
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      padding: 12px 14px;
+      margin-bottom: 12px;
+    }
+    .filter-grid {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px 10px;
+    }
+    .f {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .f > label {
+      color: var(--text-sec);
+      white-space: nowrap;
+      font-size: 12px;
+    }
+    .f select, .f input[type="text"], .f input[type="search"] {
+      height: 28px;
+      padding: 2px 8px;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      font-size: 12px;
+      min-width: 88px;
+      max-width: 140px;
+    }
+    .f input.w-num { min-width: 56px; max-width: 72px; }
+
+    /* model + 连体 SKU（模糊/精确/8位 + 输入框） */
+    .f-model select {
+      min-width: 120px;
+      max-width: 160px;
+    }
+    .sku-input-group {
+      display: inline-flex;
+      align-items: stretch;
+      height: 28px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      overflow: hidden;
+      background: #fff;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+    .sku-input-group:hover {
+      border-color: #4096ff;
+    }
+    .sku-input-group:focus-within {
+      border-color: #1677ff;
+      box-shadow: 0 0 0 2px rgba(22, 119, 255, 0.12);
+    }
+    .sku-mode-select {
+      border: none;
+      height: 100%;
+      margin: 0;
+      padding: 0 22px 0 8px;
+      min-width: 88px;
+      max-width: 100px;
+      font-size: 12px;
+      color: var(--text);
+      background-color: #fafafa;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 12 12'%3E%3Cpath fill='%238c8c8c' d='M2.5 4.5L6 8l3.5-3.5'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 6px center;
+      cursor: pointer;
+      appearance: none;
+      -webkit-appearance: none;
+      outline: none;
+    }
+    .sku-input-main {
+      border: none;
+      border-left: 1px solid var(--border);
+      height: 100%;
+      min-width: 168px;
+      max-width: 240px;
+      padding: 0 10px;
+      font-size: 12px;
+      color: var(--text);
+      outline: none;
+      flex: 1;
+    }
+    .sku-input-main::placeholder {
+      color: #bfbfbf;
+    }
+    .month-range-wrap {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+    }
+    .month-range-pop {
+      display: none;
+      position: absolute;
+      left: 0;
+      top: calc(100% + 6px);
+      z-index: 80;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px 14px;
+      box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
+      min-width: 288px;
+    }
+    .month-range-pop.show { display: block; }
+    .month-range-pop .mr-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 10px;
+      font-size: 12px;
+    }
+    .month-range-pop .mr-row:last-of-type { margin-bottom: 0; }
+    .month-range-pop .mr-row label {
+      width: 56px;
+      flex-shrink: 0;
+      color: var(--text-sec);
+    }
+    .month-range-pop input[type="month"] {
+      flex: 1;
+      min-width: 0;
+      height: 28px;
+      padding: 2px 8px;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      font-size: 12px;
+    }
+    .month-range-pop .mr-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+      margin-top: 12px;
+      padding-top: 10px;
+      border-top: 1px solid #f0f0f0;
+    }
+    .month-range-pop .mr-hint {
+      font-size: 11px;
+      color: #8c8c8c;
+      margin-top: 8px;
+      line-height: 1.45;
+    }
+    .month-range-wrap .badge-num {
+      position: absolute;
+      right: -6px;
+      top: -6px;
+      min-width: 16px;
+      height: 16px;
+      padding: 0 4px;
+      background: var(--badge-yellow);
+      color: #614700;
+      border-radius: 8px;
+      font-size: 10px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid #fff;
+    }
+    .btn-search {
+      height: 28px;
+      padding: 0 14px;
+      background: var(--header-blue);
+      color: #fff;
+      border: none;
+      border-radius: 4px;
+      font-size: 12px;
+      cursor: pointer;
+      margin-left: 4px;
+    }
+    .btn-search:hover { filter: brightness(1.05); }
+
+    .radio-row {
+      margin-top: 10px;
+      padding-top: 10px;
+      border-top: 1px solid #f0f0f0;
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      font-size: 12px;
+    }
+    .radio-row label { display: flex; align-items: center; gap: 6px; cursor: pointer; color: var(--text); }
+
+    /* —— KPI 六卡（与截图同色倾向） —— */
+    .kpi-wrap { margin-bottom: 12px; }
+    .kpi-row {
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      gap: 10px;
+    }
+    @media (max-width: 1400px) {
+      .kpi-row { grid-template-columns: repeat(3, 1fr); }
+    }
+    .kpi {
+      border-radius: 10px;
+      padding: 12px 14px;
+      border: 1px solid transparent;
+      position: relative;
+      min-height: 78px;
+    }
+    .kpi .t { font-size: 12px; color: rgba(0, 0, 0, 0.88); margin-bottom: 6px; line-height: 1.35; }
+    .kpi .v { font-size: 22px; font-weight: 700; letter-spacing: -0.02em; color: rgba(0, 0, 0, 0.88); }
+    .kpi.k1 { background: linear-gradient(135deg, #e6f4ff 0%, #f0f9ff 100%); }
+    .kpi.k2 { background: linear-gradient(135deg, #f6ffed 0%, #fcffe6 100%); }
+    .kpi.k3 { background: linear-gradient(135deg, #e6fffb 0%, #f0fffc 100%); }
+    .kpi.k4 { background: linear-gradient(135deg, #fcffe6 0%, #fffbe6 100%); }
+    .kpi.k5 { background: linear-gradient(135deg, #f0f5ff 0%, #e8eeff 100%); }
+    .kpi.k6 { background: linear-gradient(135deg, #fff0f6 0%, #ffe8f0 100%); }
+    .kpi.k6 .v.kpi-msku-pending-val {
+      color: #1677ff;
+      cursor: pointer;
+      user-select: none;
+    }
+    .kpi.k6 .v.kpi-msku-pending-val:hover { text-decoration: underline; }
+    .kpi.k6.kpi-pending-active {
+      outline: 2px solid #1677ff;
+      outline-offset: 1px;
+      border-radius: 10px;
+    }
+
+    /* —— 图表区 —— */
+    .chart-section {
+      margin-bottom: 12px;
+    }
+    .chart-panel {
+      background: var(--card);
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      padding: 10px 12px 4px;
+    }
+    .chart-panel h2 {
+      margin: 0 0 4px;
+      font-size: 14px;
+      font-weight: 600;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+    #chartMain { width: 100%; height: 380px; }
+    .chart-toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 10px 18px;
+      margin: 6px 0 4px;
+      font-size: 12px;
+      color: var(--text);
+    }
+    .chart-toolbar label {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
+      user-select: none;
+      color: var(--text-sec);
+    }
+    .chart-toolbar label:hover { color: var(--text); }
+
+    /* —— 表格工具栏 —— */
+    .table-block {
+      background: var(--card);
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      overflow: hidden;
+    }
+    .tb-toolbar {
+      padding: 8px 12px;
+      border-bottom: 1px solid #f0f0f0;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px 12px;
+      font-size: 12px;
+    }
+    .tb-toolbar .btns { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+    .btn-ghost {
+      height: 28px;
+      padding: 0 12px;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      background: #fff;
+      font-size: 12px;
+      cursor: pointer;
+    }
+    .btn-ghost:hover { color: var(--header-blue); border-color: var(--header-blue); }
+    .tb-toolbar .right-tools { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+    .tb-toolbar select { height: 28px; border-radius: 4px; border: 1px solid var(--border); font-size: 12px; }
+
+    .table-scroll {
+      overflow: auto;
+      max-height: calc(100vh - 420px);
+      min-height: 220px;
+    }
+    .data-table {
+      width: max-content;
+      min-width: 100%;
+      border-collapse: collapse;
+      font-size: 11px;
+    }
+    .data-table th, .data-table td {
+      border: 1px solid #f0f0f0;
+      padding: 6px 8px;
+      text-align: center;
+      white-space: nowrap;
+    }
+    .data-table th {
+      background: #fafafa;
+      font-weight: 600;
+      position: sticky;
+      top: 0;
+      z-index: 2;
+      box-shadow: 0 1px 0 #f0f0f0;
+    }
+    .data-table thead tr:first-child th {
+      z-index: 3;
+    }
+    .data-table thead tr:nth-child(2) th {
+      top: 36px;
+      z-index: 2;
+    }
+    .data-table th.th-check,
+    .data-table td.td-check {
+      width: 38px;
+      min-width: 38px;
+      max-width: 44px;
+      padding: 4px 6px;
+      text-align: center;
+      vertical-align: middle;
+      box-sizing: border-box;
+    }
+    .data-table th.th-check {
+      z-index: 3;
+    }
+    .data-table th.th-check input,
+    .data-table td.td-check input {
+      width: 14px;
+      height: 14px;
+      margin: 0;
+      cursor: pointer;
+      vertical-align: middle;
+    }
+    .data-table th.th-sales-team,
+    .data-table td.td-sales-team {
+      white-space: normal !important;
+      text-align: left;
+      line-height: 1.45;
+      word-break: break-word;
+      box-sizing: border-box;
+      width: 240px;
+      min-width: 180px;
+    }
+    .data-table th.th-sales-team {
+      position: sticky;
+      top: 0;
+      vertical-align: middle;
+    }
+    .col-resize-handle {
+      position: absolute;
+      right: 0;
+      top: 0;
+      bottom: 0;
+      width: 6px;
+      cursor: col-resize;
+      z-index: 4;
+      margin-right: -3px;
+    }
+    .col-resize-handle:hover,
+    .col-resize-handle.active {
+      background: rgba(22, 119, 255, 0.35);
+    }
+    .data-table td.left { text-align: left; max-width: 160px; overflow: hidden; text-overflow: ellipsis; }
+    .cell-edit {
+      min-width: 52px;
+      border: 1px solid transparent;
+      border-radius: 2px;
+      padding: 2px 4px;
+      font-size: 11px;
+      text-align: center;
+      width: 64px;
+    }
+    .cell-edit:hover { border-color: #91caff; }
+    .cell-edit.err { color: var(--err-red); font-weight: 600; }
+    .cell-edit.ok { color: rgba(0,0,0,.88); }
+    .rate-cell { font-weight: 600; }
+    .rate-cell.ok { color: rgba(0,0,0,.88); }
+    .rate-cell.bad { color: var(--err-red); }
+    .op-link { color: var(--header-blue); cursor: pointer; margin: 0 4px; }
+    .op-link:hover { text-decoration: underline; }
+    .op-link.op-link-disabled {
+      color: #bfbfbf !important;
+      cursor: not-allowed !important;
+      text-decoration: none !important;
+      pointer-events: none;
+    }
+    .btn-ghost:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+
+    .spark-svg { width: 64px; height: 24px; display: block; margin: 0 auto; }
+
+    .forecast-stack {
+      vertical-align: top !important;
+      text-align: center !important;
+      padding: 4px 6px !important;
+      min-width: 72px;
+      white-space: normal !important;
+    }
+    .fc-stack { display: flex; flex-direction: column; gap: 2px; align-items: stretch; }
+    .fc-line {
+      font-size: 11px;
+      line-height: 1.4;
+      padding: 4px 4px;
+      border-bottom: 1px solid #f0f0f0;
+      border-radius: 2px;
+      background: #fafafa;
+      text-align: center;
+    }
+    .fc-line:last-child { border-bottom: none; }
+    .fc-main { background: #fff; font-weight: 500; }
+    .fc-alt { background: #f6ffed; }
+    .fc-fill { background: #fff7e6; }
+    .fc-warn-red { color: #ff4d4f !important; font-weight: 700; }
+    .fc-warn-yellow { color: #d48806 !important; font-weight: 700; }
+    .rate-cell.warn-yellow { color: #d48806; font-weight: 600; }
+
+    /* 右下角趋势弹窗 */
+    .trend-pop {
+      position: fixed;
+      right: 16px;
+      bottom: 16px;
+      width: 420px;
+      max-width: calc(100vw - 32px);
+      background: #fff;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      box-shadow: 0 8px 24px rgba(0,0,0,.15);
+      z-index: 100;
+      display: flex;
+      flex-direction: column;
+      max-height: 48vh;
+    }
+    .trend-pop.hidden { display: none; }
+    .trend-pop .hd {
+      padding: 8px 12px;
+      border-bottom: 1px solid #f0f0f0;
+      font-weight: 600;
+      font-size: 13px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .trend-pop .hd button {
+      border: none;
+      background: none;
+      cursor: pointer;
+      font-size: 16px;
+      color: var(--text-sec);
+      line-height: 1;
+    }
+    #chartTrend { width: 100%; height: 260px; }
+
+    /* PRD 标注小黄点（与截图标注风格一致，可关） */
+    .anno {
+      position: absolute;
+      width: 18px;
+      height: 18px;
+      background: var(--badge-yellow);
+      color: #614700;
+      border-radius: 50%;
+      font-size: 10px;
+      font-weight: 800;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 2px solid #fff;
+      box-shadow: 0 1px 3px rgba(0,0,0,.2);
+      pointer-events: none;
+      z-index: 6;
+    }
+    .panel.rel { position: relative; }
+    .kpi.rel { position: relative; }
+    .tb-toolbar.rel { position: relative; }
+
+    /* 弹层 */
+    .mask {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,.45);
+      z-index: 200;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .mask.show { display: flex; }
+    .dialog {
+      background: #fff;
+      border-radius: 8px;
+      width: 100%;
+      max-width: 640px;
+      max-height: 85vh;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 8px 24px rgba(0,0,0,.15);
+    }
+    .dialog.wide { max-width: 960px; }
+    .dialog .dh {
+      padding: 12px 16px;
+      border-bottom: 1px solid #f0f0f0;
+      font-weight: 600;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .dialog .db { padding: 14px 16px; overflow: auto; font-size: 13px; }
+    .dialog .df {
+      padding: 10px 16px 14px;
+      border-top: 1px solid #f0f0f0;
+      display: flex;
+      justify-content: flex-end;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .dialog .df .dlg-footer-btn {
+      height: 32px;
+      padding: 0 16px;
+      border-radius: 4px;
+      border: 1px solid var(--border);
+      background: #fff;
+      cursor: pointer;
+    }
+    .dialog .df .btn-primary-dlg {
+      background: var(--header-blue);
+      border-color: var(--header-blue);
+      color: #fff;
+    }
+    .dialog .df .btn-primary-dlg:hover { filter: brightness(1.05); }
+    .form-row-dlg {
+      margin-bottom: 14px;
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      font-size: 13px;
+    }
+    .form-row-dlg > label {
+      width: 132px;
+      flex-shrink: 0;
+      color: var(--text-sec);
+      text-align: right;
+      padding-top: 6px;
+      line-height: 1.4;
+    }
+    .form-row-dlg .field { flex: 1; min-width: 0; }
+    .form-row-dlg input[type="text"],
+    .form-row-dlg input[type="date"],
+    .form-row-dlg textarea {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 6px 10px;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      font-size: 13px;
+    }
+    .form-row-dlg input[readonly] { background: #f5f5f5; color: #666; }
+    .form-row-dlg textarea { min-height: 88px; resize: vertical; }
+    .date-range-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .date-range-row input[type="date"] { flex: 1; min-width: 130px; }
+    .remark-table-scroll {
+      overflow: auto;
+      max-height: min(42vh, 360px);
+      margin-top: 8px;
+    }
+    .remark-list-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+    .remark-list-table th,
+    .remark-list-table td {
+      border: 1px solid #f0f0f0;
+      padding: 8px 10px;
+      text-align: left;
+      vertical-align: top;
+    }
+    .remark-list-table thead th {
+      position: sticky;
+      top: 0;
+      z-index: 2;
+      background: #fafafa;
+      font-weight: 600;
+      box-shadow: 0 1px 0 #f0f0f0;
+    }
+    .btn-add-remark {
+      height: 32px;
+      padding: 0 14px;
+      background: var(--header-blue);
+      color: #fff;
+      border: none;
+      border-radius: 4px;
+      font-size: 13px;
+      cursor: pointer;
+      margin-bottom: 4px;
+    }
+    .btn-add-remark:hover { filter: brightness(1.05); }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar" aria-label="主导航">
+      <div class="sb-item active" title="工作台">
+        <svg viewBox="0 0 24 24"><path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"/></svg>
+      </div>
+      <div class="sb-item" title="计划">
+        <svg viewBox="0 0 24 24"><path d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11zM7 10h5v5H7z"/></svg>
+      </div>
+      <div class="sb-item" title="发货">
+        <svg viewBox="0 0 24 24"><path d="M20 8h-3V4H3c-1.1 0-2 .9-2 2v11h2c0 1.66 1.34 3 3 3s3-1.34 3-3h6c0 1.66 1.34 3 3 3s3-1.34 3-3h2v-5l-3-4zM6 18.5c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zm13.5-9l1.96 2.5H17V9.5h2.5zm-1.5 9c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5z"/></svg>
+      </div>
+      <div class="sb-item" title="退货">
+        <svg viewBox="0 0 24 24"><path d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6 0 1.01-.25 1.97-.7 2.8l1.46 1.46C19.54 15.03 20 13.57 20 12c0-4.42-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6 0-1.01.25-1.97.7-2.8L5.24 7.74C4.46 8.97 4 10.43 4 12c0 4.42 3.58 8 8 8v3l4-4-4-4v3z"/></svg>
+      </div>
+      <div class="sb-item" title="台账">
+        <svg viewBox="0 0 24 24"><path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/></svg>
+      </div>
+      <div class="sb-item" title="信息">
+        <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
+      </div>
+      <div class="sb-item" title="工具">
+        <svg viewBox="0 0 24 24"><path d="M22.7 19l-9.1-9.1c.9-2.3.4-5-1.5-6.9-2-2-5-2.4-7.4-1.3L9 6 6 9 1.6 4.7C.4 7.1.9 10.1 2.9 12.1c1.9 1.9 4.6 2.4 6.9 1.5l9.1 9.1c.4.4 1 .4 1.4 0l2.3-2.3c.5-.4.5-1.1.1-1.4z"/></svg>
+      </div>
+    </aside>
+
+    <div class="main">
+      <header class="header">
+        <div class="header-title">
+          <span class="title-text">销量预测管理</span>
+          <span class="anno">10</span>
+        </div>
+        <div class="header-actions">
+          <a href="#">项目平台</a>
+          <span class="linkish" title="通知">🔔</span>
+          <span class="linkish">物流系统 ▾</span>
+          <div class="user-badge">KA</div>
+        </div>
+      </header>
+
+      <div class="scroll">
+        <div class="panel rel">
+          <span class="anno" style="right:8px;top:8px;">13</span>
+          <div class="filter-grid">
+            <div class="f"><label>区域</label><select><option>全部</option></select></div>
+            <div class="f"><label>国家</label><select><option>全部</option></select></div>
+            <div class="f"><label>店铺</label><select><option>全部</option></select></div>
+            <div class="f"><label>场景品类</label><select id="filterScenarioCategory"><option value="">全部</option></select></div>
+            <div class="f"><label>品线</label><select id="filterProductLine"><option value="">全部</option></select></div>
+            <div class="f"><label>产品定位</label><select><option>全部</option></select></div>
+            <div class="f f-model"><label>model查询</label><select id="modelQuery"><option value="">请选择</option><option>模型-A</option><option>模型-B</option></select></div>
+            <div class="f"><label>SKU</label>
+              <div class="sku-input-group" id="skuInputGroup">
+                <select class="sku-mode-select" id="skuSearchMode" title="搜索方式" aria-label="SKU搜索方式">
+                  <option value="fuzzy" selected>模糊</option>
+                  <option value="exact">精确</option>
+                  <option value="8digit">8位搜索</option>
+                </select>
+                <input class="sku-input-main" type="text" id="skuKeyword" placeholder="请输入SKU" autocomplete="off" />
+              </div>
+            </div>
+            <div class="f"><label>TL</label><select><option>全部</option></select></div>
+            <div class="f"><label>Sales</label><select><option>全部</option></select></div>
+            <div class="f"><label>可售状态</label><select><option>全部</option></select></div>
+            <div class="f">
+              <label for="filterPredR">预测选择</label>
+              <select id="filterPredR" style="min-width:72px" title="选择用于比较的预测轮次 R1～R3">
+                <option value="R1" selected>R1</option>
+                <option value="R2">R2</option>
+                <option value="R3">R3</option>
+              </select>
+            </div>
+            <div class="f"><label>比较</label><select id="filterRCompare" style="min-width:72px"><option>大于</option><option>小于</option></select></div>
+            <div class="f"><label>数值</label><input class="w-num" type="text" id="filterRValue" placeholder="0" title="与所选 R、比较符组合过滤" /></div>
+            <div class="f">
+              <label>月份范围</label>
+              <div class="month-range-wrap">
+                <div id="monthRangeDrpWrap"></div>
+                <span class="badge-num">6</span>
+              </div>
+            </div>
+            <button type="button" class="btn-search" id="btnSearch">搜索</button>
+          </div>
+          <div class="radio-row">
+            <label><input type="radio" name="predMode" value="ml" id="predModeMl" checked /> 机器学习</label>
+            <label><input type="radio" name="predMode" value="sys" id="predModeSys" /> 系统预测</label>
+          </div>
+        </div>
+
+        <div class="kpi-wrap">
+          <div class="kpi-row">
+            <div class="kpi k1 rel">
+              <span class="anno" style="right:6px;top:6px;">5</span>
+              <div class="t">R1（提前1个月）<br />预测准确率</div>
+              <div class="v" id="kpiR1Val" title="筛选月份内有实际的各月，按汇总公式">—</div>
+            </div>
+            <div class="kpi k2">
+              <div class="t">R2（提前2个月）<br />预测准确率</div>
+              <div class="v" id="kpiR2Val" title="筛选月份内有实际的各月，按汇总公式">—</div>
+            </div>
+            <div class="kpi k3">
+              <div class="t">R3（提前3个月）<br />预测准确率</div>
+              <div class="v" id="kpiR3Val" title="筛选月份内有实际的各月，按汇总公式">—</div>
+            </div>
+            <div class="kpi k6" id="kpiMskuPendingCard" title="forecast 与当前预测方式偏差超阈值，且近一年 R2≥70%（亚马逊渠道）；点击数字筛选列表">
+              <div class="t">MSKU待处理<br />（偏差过大）</div>
+              <div class="v kpi-msku-pending-val" id="kpiPendingMskuVal">0</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="chart-section">
+          <div class="chart-panel">
+            <h2>销量预测与达成 <span class="anno" style="position:relative;display:inline-flex;vertical-align:middle;">8</span></h2>
+            <div class="chart-toolbar">
+              <label><input type="checkbox" id="chkShowManual" /> 显示人工预测R1–R3与达成率</label>
+            </div>
+            <div id="chartMain"></div>
+          </div>
+        </div>
+
+        <div class="table-block">
+          <div class="tb-toolbar rel">
+            <span class="anno" style="left:10px;top:50%;transform:translateY(-50%);">1</span>
+            <div class="btns">
+              <button type="button" class="btn-ghost" id="btnExport">导出</button>
+              <button type="button" class="btn-ghost" id="btnAddRemarkBatch" disabled title="请先勾选列表中的行">新增异常备注</button>
+              <label style="display:flex;align-items:center;gap:6px;">
+                <input type="checkbox" id="chkSysRuleForecast" /> 系统规则销量预测
+              </label>
+              <label style="display:flex;align-items:center;gap:6px;">
+                <input type="checkbox" id="chkForecastFill" /> forecast填写销量
+              </label>
+            </div>
+            <div class="right-tools">
+              <span class="anno" style="position:relative;margin-right:6px;">7</span>
+              <span>预测选择</span>
+              <select id="leadSelect">
+                <option>R1</option><option>R2</option><option selected>R3</option>
+              </select>
+            </div>
+          </div>
+          <div class="table-scroll">
+            <table class="data-table" id="dataTable">
+              <thead>
+                <tr>
+                  <th rowspan="2" class="th-check">
+                    <input type="checkbox" id="chkSelectAll" title="全选" aria-label="全选当前列表" />
+                  </th>
+                  <th rowspan="2">区域/国家/店铺</th>
+                  <th rowspan="2">场景/品类/品线</th>
+                  <th rowspan="2" class="th-sales-team" id="thColSales">销售团队<div class="col-resize-handle" id="salesColResizeHandle" title="拖拽调整列宽"></div></th>
+                  <th rowspan="2">SKU信息<br /><span style="font-weight:400;color:#999">sku / 定位</span></th>
+                  <th rowspan="2">MSKU信息<br /><span style="font-weight:400;color:#999">平台 / MSKU</span></th>
+                  <th id="thMonthGroup" colspan="13" style="text-align:center;border-bottom:1px solid #f0f0f0;">月份</th>
+                  <th rowspan="2">历史销量趋势</th>
+                  <th rowspan="2">R1</th><th rowspan="2">R2</th><th rowspan="2">R3</th>
+                  <th rowspan="2">操作</th>
+                </tr>
+                <tr id="monthHeadRow"></tr>
+              </thead>
+              <tbody id="tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 趋势图弹窗 -->
+  <div class="trend-pop" id="trendPop">
+    <div class="hd">
+      <span id="trendTitle">趋势图</span>
+      <button type="button" id="trendClose" aria-label="关闭">×</button>
+    </div>
+    <div id="chartTrend"></div>
+  </div>
+
+  <!-- 详情 / 批量 简易弹层 -->
+  <div class="mask" id="dlgMask">
+    <div class="dialog" id="dlgBox">
+      <div class="dh"><span id="dlgTitle">详情</span><button type="button" id="dlgClose" style="border:none;background:none;font-size:18px;cursor:pointer;">×</button></div>
+      <div class="db" id="dlgBody"></div>
+      <div class="df" id="dlgFooter"></div>
+    </div>
+  </div>
+
+  <script src="../../../规范/assets/month-range-picker.js"></script>
+  <script src="../../../规范/assets/date-range-picker.js"></script>
+  <script>
+    (function () {
+      /**
+       * 月份范围由筛选区「月份范围」控制，默认：锚定日前 6 个月～后 6 个月（含当月）。
+       * R1/R2/R3 的锁定规则按“距目标月还有几个月”来分段（见 systemTargetFor）。
+       */
+      var months = [];
+
+      function startOfDay(d) {
+        return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+      }
+
+      function parseMonthLabel(lab) {
+        return { y: +lab.slice(0, 4), m: +lab.slice(4, 6) };
+      }
+
+      function fmtMonthLabel(y, m1to12) {
+        return String(y) + (m1to12 < 10 ? '0' : '') + String(m1to12);
+      }
+
+      /** URL ?anchor=2026-04-15 固定演示；否则用当天（每日滚动） */
+      function getAnchorDate() {
+        var q = typeof location !== 'undefined' && location.search.match(/anchor=(\d{4}-\d{2}-\d{2})/);
+        if (q) {
+          var p = q[1].split('-');
+          return startOfDay(new Date(+p[0], +p[1] - 1, +p[2]));
+        }
+        return startOfDay(new Date());
+      }
+
+      var anchorDate = getAnchorDate();
+
+      function compareMonthLabels(a, b) {
+        var pa = parseMonthLabel(a),
+          pb = parseMonthLabel(b);
+        if (pa.y !== pb.y) return pa.y - pb.y;
+        return pa.m - pb.m;
+      }
+
+      /** 从 YYYYMM 起按月递增一条标签 */
+      function addMonthLabel(lab, delta) {
+        var p = parseMonthLabel(lab);
+        var d = new Date(p.y, p.m - 1 + delta, 1);
+        return fmtMonthLabel(d.getFullYear(), d.getMonth() + 1);
+      }
+
+      /** 闭区间 [startLab, endLab] 内所有月份 YYYYMM */
+      function buildMonthsFromTo(startLab, endLab) {
+        if (!startLab || !endLab) return [];
+        if (compareMonthLabels(startLab, endLab) > 0) {
+          var t = startLab;
+          startLab = endLab;
+          endLab = t;
+        }
+        var res = [];
+        var cur = startLab;
+        var guard = 0;
+        while (guard++ < 120) {
+          res.push(cur);
+          if (cur === endLab) break;
+          cur = addMonthLabel(cur, 1);
+        }
+        return res;
+      }
+
+      /** 默认：锚定日所在月的前 6 个月至后 6 个月（含当月，共 13 个月） */
+      function defaultMonthWindow(anchor) {
+        var base = new Date(anchor.getFullYear(), anchor.getMonth(), 1);
+        var startD = new Date(base.getFullYear(), base.getMonth() - 6, 1);
+        var endD = new Date(base.getFullYear(), base.getMonth() + 6, 1);
+        return buildMonthsFromTo(
+          fmtMonthLabel(startD.getFullYear(), startD.getMonth() + 1),
+          fmtMonthLabel(endD.getFullYear(), endD.getMonth() + 1)
+        );
+      }
+
+      function applyMonthRangeUI() {
+        syncMonthRangePickerFromMonths();
+      }
+
+      function applyTrendTitleUI() {
+        var t = document.getElementById('trendTitle');
+        if (!t) return;
+        if (!months.length) {
+          t.textContent = '趋势图';
+          return;
+        }
+        t.textContent = '趋势图（' + months[0] + ' - ' + months[months.length - 1] + '）';
+      }
+
+      function rebuildMonthHeaders() {
+        var thGroup = document.getElementById('thMonthGroup');
+        var row = document.getElementById('monthHeadRow');
+        if (!thGroup || !row) return;
+        thGroup.colSpan = Math.max(1, months.length);
+        row.innerHTML = months
+          .map(function (m) {
+            return '<th>' + m + '</th>';
+          })
+          .join('');
+      }
+
+      var monthRangePickerApi = null;
+      function syncMonthRangePickerFromMonths() {
+        if (!monthRangePickerApi || !months.length) return;
+        var p0 = parseMonthLabel(months[0]);
+        var p1 = parseMonthLabel(months[months.length - 1]);
+        monthRangePickerApi.set(MonthRangePicker.fmtYm(p0.y, p0.m), MonthRangePicker.fmtYm(p1.y, p1.m));
+      }
+      function initMonthRangePicker() {
+        var el = document.getElementById('monthRangeDrpWrap');
+        if (!el || monthRangePickerApi || typeof MonthRangePicker === 'undefined') return;
+        monthRangePickerApi = MonthRangePicker.mount(el, {
+          zIndex: 400,
+          start: '2026-01',
+          end: '2026-01',
+          onChange: function (s, e) {
+            if (!s || !e) return;
+            var startLab = MonthRangePicker.ymToYyyyMm(s);
+            var endLab = MonthRangePicker.ymToYyyyMm(e);
+            var next = buildMonthsFromTo(startLab, endLab);
+            if (!next.length) return;
+            if (next.length > 36) {
+              alert('演示版跨度不超过 36 个月，请缩小范围');
+              syncMonthRangePickerFromMonths();
+              return;
+            }
+            months = next;
+            rebuildMonthHeaders();
+            applyTrendTitleUI();
+            refreshAll();
+            chartMain.resize();
+            chartTrend.resize();
+          }
+        });
+        syncMonthRangePickerFromMonths();
+      }
+
+      /** anchor 到目标月 1 号相差多少“整月”（向上取整到月维度） */
+      function monthsUntilMonthFirst(anchor, lab) {
+        var p = parseMonthLabel(lab);
+        var ms = new Date(p.y, p.m - 1, 1);
+        var a0 = new Date(anchor.getFullYear(), anchor.getMonth(), 1);
+        var diff = (ms.getFullYear() - a0.getFullYear()) * 12 + (ms.getMonth() - a0.getMonth());
+        return diff;
+      }
+
+      /** 是否「未来月」：该月 1 号 &gt; 锚定日，才走滚动/冻结目标逻辑 */
+      function isFutureMonth(anchor, lab) {
+        var p = parseMonthLabel(lab);
+        var ms = new Date(p.y, p.m - 1, 1);
+        return ms > anchor;
+      }
+
+      /** 该月最后一天（日历月） */
+      function lastDayOfMonth(y, m1to12) {
+        return new Date(y, m1to12, 0);
+      }
+
+      /**
+       * 是否展示实际销量：仅当该月已完整结束（锚定日晚于该月最后一天）；
+       * 未来月、当月未跑完均不展示。
+       */
+      function showsActualSales(anchor, lab) {
+        var p = parseMonthLabel(lab);
+        var end = startOfDay(lastDayOfMonth(p.y, p.m));
+        return startOfDay(anchor) > end;
+      }
+
+      /** 滚动预测（随锚定日变化，模拟每日跑批）；R1/R2/R3 在未锁定阶段取同一个值 */
+      function rollingTarget(lab, anchor) {
+        var p = parseMonthLabel(lab);
+        var d = anchor.getDate();
+        var mo = anchor.getMonth() + 1;
+        var seed = p.m * 17 + d * 3 + mo * 11 + (anchor.getFullYear() % 7) * 19 + p.y;
+        return Math.round(105 + (seed % 95));
+      }
+
+      /** 锁定快照：按 R 版本与目标月稳定生成（不随每日滚动改变） */
+      function frozenTarget(lab, rIndex) {
+        var p = parseMonthLabel(lab);
+        var seed = p.m * 31 + (rIndex + 1) * 47 + p.y * 7;
+        return Math.round(112 + (seed % 88) + rIndex * 4);
+      }
+
+      /** 非「未来月」时的演示目标基线（示意用）；0 表示走 rollingTarget 回退 */
+      var HIST_SYS = [
+        [122, 128, 135, 118, 125, 132, 140, 138, 145, 150, 148, 155, 160],
+        [118, 124, 130, 115, 122, 128, 136, 134, 140, 146, 144, 150, 156],
+        [114, 120, 126, 112, 118, 124, 132, 130, 136, 142, 140, 146, 152]
+      ];
+
+      function systemTargetFor(lab, rIndex, anchor) {
+        var i = months.indexOf(lab);
+        if (i < 0) return 0;
+        if (!isFutureMonth(anchor, lab)) {
+          var rowH = HIST_SYS[rIndex];
+          var hv = rowH && rowH[i];
+          return hv != null ? hv : rollingTarget(lab, anchor);
+        }
+        /**
+         * 锁定规则（目标月 M）：
+         * - 初始：R1/R2/R3 预测值相同（都取 rollingTarget）
+         * - 距 M 还有 3 个月（进入 M-3 月区间）开始：R3 锁定（后续每日预测仍跑，但 R3 不再变）
+         * - 距 M 还有 2 个月开始：R2 锁定
+         * - 距 M 还有 1 个月开始：R1 锁定
+         *
+         * 实现：monthsUntilMonthFirst(anchor, M) 的值为：
+         * 12..4：都滚动；3：锁 R3；2：锁 R2/R3；1：全锁
+         */
+        var mLeft = monthsUntilMonthFirst(anchor, lab);
+        if (mLeft <= 1) return frozenTarget(lab, rIndex); // 1个月内：R1/R2/R3 全锁
+        if (mLeft === 2) return rIndex >= 1 ? frozenTarget(lab, rIndex) : rollingTarget(lab, anchor); // 锁R2/R3
+        if (mLeft === 3) return rIndex >= 2 ? frozenTarget(lab, rIndex) : rollingTarget(lab, anchor); // 锁R3
+        return rollingTarget(lab, anchor); // 4个月及以上：都滚动且相同
+      }
+
+      /** 人工预测：在系统目标上略偏，仅 R1–R3 */
+      function manualTargetFor(lab, rIndex, anchor) {
+        var sys = systemTargetFor(lab, rIndex, anchor);
+        var p = parseMonthLabel(lab);
+        var bias = 0.92 + ((p.m + rIndex * 3) % 10) * 0.008;
+        return Math.round(sys * bias);
+      }
+
+      /** 已结束月无数组位时的演示实际销量（按月份稳定） */
+      function demoActualFromLab(lab) {
+        var p = parseMonthLabel(lab);
+        var seed = p.y * 12 + p.m;
+        return Math.round(110 + (seed * 17) % 55);
+      }
+
+      /**
+       * 单期销量目标达成率：100% − |实际−目标| / max(实际,目标)
+       * 无实际或分母为 0 时返回 null（图表不画点）
+       */
+      function achievementRateOnePoint(actual, target) {
+        if (actual == null || target == null) return null;
+        var denom = Math.max(actual, target);
+        if (denom <= 0) return null;
+        return 1 - Math.abs(actual - target) / denom;
+      }
+
+      /**
+       * 跨月汇总：100% − Σ|实际−目标| / Σmax(实际,目标)（仅统计 actual 非空的月份）
+       */
+      function achievementRateAggregate(actualArr, targetArr) {
+        var sumAbs = 0;
+        var sumMax = 0;
+        for (var i = 0; i < actualArr.length; i++) {
+          var a = actualArr[i];
+          var t = targetArr[i];
+          if (a == null) continue;
+          if (t == null || typeof t !== 'number') continue;
+          sumAbs += Math.abs(a - t);
+          sumMax += Math.max(a, t);
+        }
+        if (sumMax <= 0) return null;
+        return 1 - sumAbs / sumMax;
+      }
+
+      function buildChartPayload(anchor) {
+        var targets = [[], [], []];
+        var manual = [[], [], []];
+        var actual = [];
+        var ach = [[], [], []];
+        var manAch = [[], [], []];
+
+        var histActual = [119, 126, 132, 116, 124, 130, 138, 152, 148, 156, 162, 158, 165];
+
+        for (var i = 0; i < months.length; i++) {
+          var lab = months[i];
+          var act = null;
+          if (showsActualSales(anchor, lab)) {
+            act = histActual[i] != null ? histActual[i] : demoActualFromLab(lab);
+          }
+          actual.push(act);
+
+          for (var r = 0; r < 3; r++) {
+            targets[r].push(systemTargetFor(lab, r, anchor));
+          }
+          for (var m = 0; m < 3; m++) {
+            manual[m].push(manualTargetFor(lab, m, anchor));
+          }
+
+          var a = actual[i];
+          for (var r2 = 0; r2 < 3; r2++) {
+            var t = targets[r2][i];
+            var ar = achievementRateOnePoint(a, t);
+            ach[r2].push(ar == null ? null : ar);
+          }
+          for (var m2 = 0; m2 < 3; m2++) {
+            var tm = manual[m2][i];
+            var mar = achievementRateOnePoint(a, tm);
+            manAch[m2].push(mar == null ? null : mar);
+          }
+        }
+
+        return { targets: targets, manual: manual, actual: actual, ach: ach, manAch: manAch };
+      }
+
+      function updateKpiCards() {
+        var p = buildChartPayload(getAnchorDate());
+        var ids = ['kpiR1Val', 'kpiR2Val', 'kpiR3Val'];
+        for (var r = 0; r < 3; r++) {
+          var el = document.getElementById(ids[r]);
+          if (!el) continue;
+          var agg = achievementRateAggregate(p.actual, p.targets[r]);
+          el.textContent = agg == null ? '—' : (agg * 100).toFixed(0) + '%';
+        }
+      }
+
+      function hollowLineStyle(color) {
+        return {
+          color: color,
+          width: 2
+        };
+      }
+
+      function hollowSymbol(color) {
+        return {
+          color: '#fff',
+          borderColor: color,
+          borderWidth: 2
+        };
+      }
+
+      var chkMan = document.getElementById('chkShowManual');
+
+      function buildChartOption() {
+        var p = buildChartPayload(getAnchorDate());
+
+        var legendNames = [
+          '目标R1', '目标R2', '目标R3',
+          '人工R1', '人工R2', '人工R3',
+          '实际销量',
+          'R1达成率', 'R2达成率', 'R3达成率',
+          '人工R1达成率', '人工R2达成率', '人工R3达成率'
+        ];
+
+        var selected = {
+          目标R1: true,
+          目标R2: true,
+          目标R3: true,
+          人工R1: false,
+          人工R2: false,
+          人工R3: false,
+          实际销量: true,
+          R1达成率: true,
+          R2达成率: true,
+          R3达成率: true,
+          人工R1达成率: false,
+          人工R2达成率: false,
+          人工R3达成率: false
+        };
+        if (chkMan && chkMan.checked) {
+          selected['人工R1'] = true;
+          selected['人工R2'] = true;
+          selected['人工R3'] = true;
+          selected['人工R1达成率'] = true;
+          selected['人工R2达成率'] = true;
+          selected['人工R3达成率'] = true;
+        }
+
+        var barColors = ['#1677ff', '#13c2c2', '#52c41a'];
+        var manualBarStyle = function (hex) {
+          return {
+            color: hex,
+            opacity: 0.35,
+            borderColor: hex,
+            borderWidth: 1
+          };
+        };
+
+        var series = [];
+
+        for (var b = 0; b < 3; b++) {
+          series.push({
+            name: '目标R' + (b + 1),
+            type: 'bar',
+            data: p.targets[b],
+            itemStyle: { color: barColors[b] },
+            barMaxWidth: 7
+          });
+        }
+        for (var mb = 0; mb < 3; mb++) {
+          series.push({
+            name: '人工R' + (mb + 1),
+            type: 'bar',
+            data: p.manual[mb],
+            itemStyle: manualBarStyle(['#fa8c16', '#eb2f96', '#2f54eb'][mb]),
+            barMaxWidth: 6
+          });
+        }
+        series.push({
+          name: '实际销量',
+          type: 'bar',
+          data: p.actual,
+          itemStyle: { color: '#fadb14', borderColor: '#d4b106', borderWidth: 1 },
+          barMaxWidth: 8
+        });
+
+        var lineColorsAch = ['#fa8c16', '#f5222d', '#1677ff'];
+        for (var l = 0; l < 3; l++) {
+          series.push({
+            name: 'R' + (l + 1) + '达成率',
+            type: 'line',
+            yAxisIndex: 1,
+            data: p.ach[l],
+            connectNulls: false,
+            smooth: true,
+            symbol: 'circle',
+            symbolSize: 6,
+            itemStyle: hollowSymbol(lineColorsAch[l]),
+            lineStyle: hollowLineStyle(lineColorsAch[l])
+          });
+        }
+        var manLineColors = ['#ffc069', '#ff85c0', '#85a5ff'];
+        for (var lm = 0; lm < 3; lm++) {
+          series.push({
+            name: '人工R' + (lm + 1) + '达成率',
+            type: 'line',
+            yAxisIndex: 1,
+            data: p.manAch[lm],
+            connectNulls: false,
+            smooth: true,
+            symbol: 'circle',
+            symbolSize: 5,
+            lineStyle: { width: 2, type: 'dashed', color: manLineColors[lm] },
+            itemStyle: { color: '#fff', borderColor: manLineColors[lm], borderWidth: 2 }
+          });
+        }
+
+        return {
+          tooltip: {
+            trigger: 'axis',
+            axisPointer: { type: 'cross' }
+          },
+          legend: {
+            type: 'scroll',
+            bottom: 0,
+            data: legendNames,
+            selected: selected
+          },
+          grid: { left: 52, right: 58, top: 12, bottom: 108 },
+          xAxis: {
+            type: 'category',
+            data: months,
+            axisLabel: { fontSize: 10, rotate: 28, interval: 0 }
+          },
+          yAxis: [
+            {
+              type: 'value',
+              name: '数量',
+              max: 250,
+              min: 0,
+              splitNumber: 5,
+              axisLabel: { fontSize: 10 },
+              splitLine: { lineStyle: { type: 'dashed', color: '#e8e8e8' } }
+            },
+            {
+              type: 'value',
+              name: '达成率',
+              min: 0,
+              max: 1,
+              splitNumber: 5,
+              axisLabel: {
+                fontSize: 10,
+                formatter: function (v) { return (v * 100).toFixed(0) + '%'; }
+              },
+              splitLine: { show: false }
+            }
+          ],
+          series: series
+        };
+      }
+
+      var elMain = document.getElementById('chartMain');
+      var chartMain = echarts.init(elMain);
+      // months 会在后面初始化，这里先占位
+      chartMain.setOption(buildChartOption());
+
+      var elTrend = document.getElementById('chartTrend');
+      var chartTrend = echarts.init(elTrend);
+      chartTrend.setOption(buildChartOption());
+
+      function refreshCharts() {
+        anchorDate = getAnchorDate();
+        var opt = buildChartOption();
+        chartMain.setOption(opt, true);
+        chartTrend.setOption(opt, true);
+        updateKpiCards();
+      }
+
+      function refreshAll() {
+        anchorDate = getAnchorDate();
+        pendingMskuFilterActive = false;
+        var pc = document.getElementById('kpiMskuPendingCard');
+        if (pc) pc.classList.remove('kpi-pending-active');
+        rebuildMonthHeaders();
+        applyMonthRangeUI();
+        applyTrendTitleUI();
+        renderForecastTable();
+        refreshCharts();
+      }
+
+      if (chkMan) chkMan.addEventListener('change', refreshCharts);
+
+      window.addEventListener('resize', function () {
+        chartMain.resize();
+        chartTrend.resize();
+      });
+
+      document.getElementById('trendClose').addEventListener('click', function () {
+        document.getElementById('trendPop').classList.add('hidden');
+      });
+      document.getElementById('btnSearch').addEventListener('click', function () {
+        refreshAll();
+        chartMain.resize();
+        chartTrend.resize();
+      });
+
+      // 初始化：默认过去6个月～未来6个月（含当月）+ 表头/图表
+      months = defaultMonthWindow(anchorDate);
+      rebuildMonthHeaders();
+      initMonthRangePicker();
+      applyMonthRangeUI();
+      applyTrendTitleUI();
+      refreshCharts();
+
+      /** 图三示例：ml/sys/fill 至少 12 个月演示数据，列数随「月份范围」扩展（超出按模循环补数） */
+      /** 点击「MSKU待处理」数字时：仅展示偏差过大行并勾选；再点恢复 */
+      var pendingMskuFilterActive = false;
+
+      /**
+       * 场景/品类/品线主数据（与《提示词/场景品类品线规则》一致）
+       * 每行：品线编码|场景|品类
+       */
+      var SCENARIO_CATEGORY_LINE_RAW = [
+        '5111|传感器及控制|温湿度计',
+        '5111|传感器及控制|空气质量检测仪',
+        '5111|传感器及控制|智能按键',
+        '5111|传感器及控制|门窗传感器',
+        '5111|传感器及控制|红外人体传感器',
+        '5111|传感器及控制|人体存在传感器',
+        '5111|传感器及控制|压力传感器',
+        '5111|传感器及控制|二氧化碳检测仪',
+        '5112|传感器及控制|漏水报警器',
+        '5113|传感器及控制|智能插座',
+        '5114|传感器及控制|烤肉温度计',
+        '5115|传感器及控制|浇水控制器',
+        '6011|居家|球泡',
+        '6012|居家|落地灯',
+        '6012|居家|床头灯',
+        '6012|居家|星空灯',
+        '6013|居家|吊灯',
+        '6013|居家|吸顶灯',
+        '6013|居家|风扇灯',
+        '6013|居家|筒灯',
+        '6013|居家|其他',
+        '6013|居家|室内壁灯',
+        '6014|游戏|游戏灯带',
+        '6014|游戏|像素灯',
+        '6014|游戏|室内激光灯',
+        '6014|游戏|方块灯',
+        '6014|游戏|条状灯',
+        '6015|观影|摄像头取色系列',
+        '6015|观影|TV灯带',
+        '6015|游戏|HDMI盒子系列',
+        '6015|观影|HDMI盒子系列',
+        '6016|观影|灯柱',
+        '6016|游戏|灯柱',
+        '6112|居家|灯带',
+        '6121|居家|传感器&盒子',
+        '6121|居家|新形态灯带',
+        '6811|季节|窗帘灯',
+        '6812|季节|贴片灯串',
+        '6812|季节|插件灯串',
+        '6812|季节|瀑布灯',
+        '6812|季节|树衣灯',
+        '6812|季节|圣诞树灯',
+        '6812|季节|草莓灯',
+        '6812|季节|礼盒',
+        '6813|季节|灌木丛灯',
+        '6813|季节|冰帘灯',
+        '6813|季节|造型灯',
+        '7011|户外|屋檐灯',
+        '7012|户外|球泡灯串',
+        '7013|户外|壁灯',
+        '7013|户外|泛光灯',
+        '7013|户外|射灯',
+        '7013|户外|路径灯',
+        '7013|户外|路灯',
+        '7013|户外|户外投影灯',
+        '7013|户外|传感器&盒子',
+        '7013|户外|礼盒',
+        '7013|户外|庭院灯',
+        '7013|户外|植物灯',
+        '7014|户外|户外灯带',
+        '7014|户外|车灯',
+        '7110|环境电器|塔扇',
+        '7111|环境电器|台扇',
+        '7112|环境电器|空净',
+        '7113|环境电器|暖风机',
+        '7114|环境电器|加湿器',
+        '7115|环境电器|除湿机',
+        '7116|环境电器|香薰机',
+        '7H11|环境电器|环电配件',
+        '7117|厨房电器|电水壶',
+        '7118|厨房电器|厨余垃圾处理机',
+        '8H11|厨房电器|厨电配件',
+        '8111|厨房电器|冰淇淋机',
+        '8111|厨房电器|冰食料理机',
+        '8112|厨房电器|制冰机',
+        '8118|厨房电器|电饭煲'
+      ];
+
+      var SCENARIO_CATEGORY_LINE_ENTRIES = SCENARIO_CATEGORY_LINE_RAW.map(function (line) {
+        var p = line.split('|');
+        return { line: p[0], scenario: p[1], category: p[2] };
+      });
+
+      function populateScenarioCategoryFilters() {
+        var selLine = document.getElementById('filterProductLine');
+        var selPair = document.getElementById('filterScenarioCategory');
+        if (!selLine || !selPair) return;
+        while (selLine.options.length > 1) selLine.remove(1);
+        while (selPair.options.length > 1) selPair.remove(1);
+        var linesSeen = {};
+        var pairsSeen = {};
+        var linesArr = [];
+        var pairsArr = [];
+        SCENARIO_CATEGORY_LINE_ENTRIES.forEach(function (e) {
+          if (!linesSeen[e.line]) {
+            linesSeen[e.line] = true;
+            linesArr.push(e.line);
+          }
+          var pk = e.scenario + '/' + e.category;
+          if (!pairsSeen[pk]) {
+            pairsSeen[pk] = true;
+            pairsArr.push(pk);
+          }
+        });
+        linesArr.sort();
+        pairsArr.sort();
+        linesArr.forEach(function (code) {
+          selLine.appendChild(new Option(code, code));
+        });
+        pairsArr.forEach(function (pk) {
+          selPair.appendChild(new Option(pk, pk));
+        });
+      }
+
+      /** 演示用 SKU（8 位）与 MSKU（8 位码 + 尾缀）示例，与后台产品表一致；仅用于填充列表 sku/msku 列 */
+      var PRODUCT_DEMO_SAMPLES = [
+        { sku: 'H6076113', msku: 'H6076113-ZY-US' },
+        { sku: 'H607C311', msku: 'H607C311-ZY-EU' },
+        { sku: 'H607C311', msku: 'H607C311-APP-EU' },
+        { sku: 'H60B0311', msku: 'H60B0311-APP-EU' },
+        { sku: 'H60B0311', msku: 'H60B0311-ZY-EU' },
+        { sku: 'H60B0111', msku: 'H60B0111-APP-US' },
+        { sku: 'H60B0111', msku: 'H60B0111-APP-CA' },
+        { sku: 'H60B0111', msku: 'H60B0111-ZY-CA' },
+        { sku: 'H60B0111', msku: 'H60B0111-ZY-US' },
+        { sku: 'H61951A1', msku: 'H61951A1-V' },
+        { sku: 'H61411A1-H61951A1', msku: 'H61411A1-H61951A1' },
+        { sku: 'B6062101', msku: 'B6062101-OF-US' },
+        { sku: 'B6062101', msku: 'B6062101-OF-US-DSV' },
+        { sku: 'H6049AD1', msku: 'H6049AD1-OF-US' },
+        { sku: 'H60521D1', msku: 'H60521D1-OF-US' },
+        { sku: 'H60521D1', msku: 'H60521D1-OF-US-DSV' },
+        { sku: 'H6052AD1', msku: 'H6052AD1-OF-US' },
+        { sku: 'H60541D1', msku: 'H60541D1-OF-US-DSV' },
+        { sku: 'H6055101', msku: 'H6055101-OF-US-DSV' },
+        { sku: 'H6072181', msku: 'H6072181-OF-US' },
+        { sku: 'H6072181', msku: 'H6072181-OF-US-DSV' }
+      ];
+
+      /** 30 条演示数据：覆盖 P0/P1/P2/EOL、亚马逊/非亚马逊、R2 高/中/低、forecast 偏差/无偏差 */
+      function buildDemoTableRows() {
+        var tiers = ['P0', 'P1', 'P2', 'EOL'];
+        var regions = ['北美区/US/Amazon-US', '欧洲区/DE/Amazon-DE', '亚太区/JP/Amazon-JP', '英国区/UK/Amazon-UK'];
+        var catLen = SCENARIO_CATEGORY_LINE_ENTRIES.length;
+        var sampleLen = PRODUCT_DEMO_SAMPLES.length;
+        var rows = [];
+        for (var i = 0; i < 30; i++) {
+          var ent = SCENARIO_CATEGORY_LINE_ENTRIES[i % catLen];
+          var tier = tiers[i % 4];
+          var amazon = i % 7 !== 5;
+          var r2Year;
+          if (i < 10) r2Year = 80 + (i % 10);
+          else if (i < 20) r2Year = 70 + (i % 10);
+          else r2Year = 52 + (i % 18);
+          var vol =
+            tier === 'EOL'
+              ? [12, 22, 40][i % 3]
+              : tier === 'P2'
+                ? [35, 400, 2500][i % 3]
+                : [500, 1500, 4000, 8000, 12000][i % 5];
+          var base = 1800 + (i * 173) % 5200;
+          var ml = [],
+            sys = [],
+            fill = [];
+          for (var m = 0; m < 12; m++) {
+            var mlv = Math.round(base + m * 75 + (i + m) * 13);
+            ml.push(mlv);
+            sys.push(Math.round(mlv * 0.96 + m * 6));
+            var bigDev =
+              amazon &&
+              (m === 5 ||
+                m === 10 ||
+                (i % 4 === 0 && m % 4 === 1) ||
+                (tier === 'P2' && i % 3 === 0 && m === 7));
+            if (bigDev) {
+              fill.push(mlv % 2 === 0 ? Math.round(mlv * 0.48) : Math.round(mlv * 1.52));
+            } else if (m % 6 === 3) {
+              fill.push(Math.round(mlv * 1.02));
+            } else {
+              fill.push(null);
+            }
+          }
+          var rCls = r2Year >= 80 ? 'ok' : r2Year >= 70 ? 'warn-yellow' : 'bad';
+          var samp = PRODUCT_DEMO_SAMPLES[i % sampleLen];
+          rows.push({
+            a: regions[i % 4] + (amazon ? '' : '-TB'),
+            b: ent.scenario + '/' + ent.category + '/' + ent.line,
+            c: 'sales: u' + i + '/TL: t' + (i % 5),
+            sku: samp.sku,
+            pos: '定位: ' + tier + (tier === 'EOL' ? '清仓' : '稳定'),
+            plat: amazon ? '亚马逊' : '淘宝',
+            channelAmazon: amazon,
+            productTier: tier,
+            recent30dVol: vol,
+            msku: samp.msku,
+            r2Year: r2Year,
+            ml: ml,
+            sys: sys,
+            fill: fill,
+            fillWarn: {},
+            r: [
+              { v: String(75 + (i % 20)), cls: 'ok' },
+              { v: String(r2Year) + '.0', cls: rCls },
+              { v: String(60 + (i % 25)), cls: 'ok' }
+            ]
+          });
+        }
+        return rows;
+      }
+
+      populateScenarioCategoryFilters();
+      var tableRows = buildDemoTableRows();
+
+      function isPredML() {
+        var el = document.querySelector('input[name="predMode"]:checked');
+        return el && el.value === 'ml';
+      }
+
+      /** 表格列与动态月份对齐；ml/sys 超出 12 条演示数据时按模循环，fill 超出为 null */
+      function seriesValueForCell(row, field, mi) {
+        var arr = row[field];
+        if (!arr || !arr.length) return field === 'fill' ? null : '—';
+        if (mi < arr.length) return arr[mi];
+        if (field === 'fill') return null;
+        return arr[mi % arr.length];
+      }
+
+      function isAmazonRow(row) {
+        if (row.channelAmazon === false) return false;
+        if (row.channelAmazon === true) return true;
+        return row.plat && String(row.plat).indexOf('亚马逊') >= 0;
+      }
+
+      /** 《MSKU预计阈值规则》P0 分档（2K～3K 未单列时用中间档） */
+      function p0ThresholdByVol(vol) {
+        var v = vol != null ? vol : 0;
+        if (v < 1000) return 0.2;
+        if (v < 2000) return 0.15;
+        if (v < 3000) return 0.125;
+        if (v < 5000) return 0.1;
+        if (v < 10000) return 0.05;
+        return 0.05;
+      }
+
+      function relDevFillBase(fill, base) {
+        var mx = Math.max(Math.abs(fill), Math.abs(base), 1e-9);
+        return Math.abs(fill - base) / mx;
+      }
+
+      function absDevFillBase(fill, base) {
+        return Math.abs(fill - base);
+      }
+
+      /** 单月 forecast vs 基准是否触发预警（不含渠道/R2 过滤） */
+      function monthTriggersMskuWarn(row, fill, base) {
+        var vol = row.recent30dVol != null ? row.recent30dVol : 0;
+        var rel = relDevFillBase(fill, base);
+        var abs = absDevFillBase(fill, base);
+        var tier = row.productTier || 'P1';
+        if (tier === 'P0') return rel >= p0ThresholdByVol(vol);
+        if (tier === 'P1') return rel >= 0.2;
+        if (tier === 'P2') {
+          if (rel >= 0.4) return true;
+          return vol >= 0 && vol <= 60 && abs >= 30;
+        }
+        if (tier === 'EOL') {
+          if (vol >= 0 && vol <= 30 && abs >= 20) return true;
+          return vol > 30 && rel >= 0.5;
+        }
+        return rel >= 0.2;
+      }
+
+      /**
+       * forecast 与「机器学习预测」偏差触发阈值时：亚马逊渠道下按近一年 R2 着色
+       * 红：R2≥80%；黄：70%≤R2<80%；R2<70 不额外着色（仍可按主数值样式）
+       */
+      function fillForecastDeviationClass(row, mi) {
+        var fillVal = seriesValueForCell(row, 'fill', mi);
+        if (fillVal == null || typeof fillVal !== 'number') return '';
+        var mlVal = seriesValueForCell(row, 'ml', mi);
+        if (mlVal == null || typeof mlVal !== 'number') return '';
+        if (!isAmazonRow(row)) return '';
+        if (!monthTriggersMskuWarn(row, fillVal, mlVal)) return '';
+        if (row.r2Year >= 80) return ' fc-warn-red';
+        if (row.r2Year >= 70) return ' fc-warn-yellow';
+        return '';
+      }
+
+      /** 亚马逊 + 近一年 R2≥70 + 至少一月 forecast 相对当前预测方式超阈值 */
+      function rowIsPendingMsku(row) {
+        if (!isAmazonRow(row)) return false;
+        if (row.r2Year == null || row.r2Year < 70) return false;
+        var baseField = isPredML() ? 'ml' : 'sys';
+        for (var mi = 0; mi < months.length; mi++) {
+          var fillVal = seriesValueForCell(row, 'fill', mi);
+          if (fillVal == null || typeof fillVal !== 'number') continue;
+          var baseVal = seriesValueForCell(row, baseField, mi);
+          if (baseVal == null || typeof baseVal !== 'number') continue;
+          if (monthTriggersMskuWarn(row, fillVal, baseVal)) return true;
+        }
+        return false;
+      }
+
+      function getPendingRowIndices() {
+        var res = [];
+        for (var ri = 0; ri < tableRows.length; ri++) {
+          if (rowIsPendingMsku(tableRows[ri])) res.push(ri);
+        }
+        return res;
+      }
+
+      function updateKpiPendingMsku() {
+        var el = document.getElementById('kpiPendingMskuVal');
+        if (!el) return;
+        el.textContent = String(getPendingRowIndices().length);
+      }
+
+      function buildForecastCell(row, mi) {
+        var ml = isPredML();
+        var mainVal = seriesValueForCell(row, ml ? 'ml' : 'sys', mi);
+        var altVal = seriesValueForCell(row, ml ? 'sys' : 'ml', mi);
+        var fillVal = seriesValueForCell(row, 'fill', mi);
+        var chkAlt = document.getElementById('chkSysRuleForecast');
+        var chkFill = document.getElementById('chkForecastFill');
+        var parts = [];
+        parts.push('<div class="fc-line fc-main">' + mainVal + '</div>');
+        if (chkAlt && chkAlt.checked) {
+          parts.push('<div class="fc-line fc-alt">' + altVal + '</div>');
+        }
+        if (chkFill && chkFill.checked && fillVal != null && fillVal !== '') {
+          var fw = fillForecastDeviationClass(row, mi);
+          parts.push('<div class="fc-line fc-fill' + fw + '">' + fillVal + '</div>');
+        }
+        return '<td class="forecast-stack"><div class="fc-stack">' + parts.join('') + '</div></td>';
+      }
+
+      function sparkFromRow(row) {
+        var field = isPredML() ? 'ml' : 'sys';
+        var vals = [];
+        for (var si = 0; si < months.length; si++) {
+          vals.push(seriesValueForCell(row, field, si));
+        }
+        var w = 64, h = 24, p = 2;
+        var numVals = vals.map(function (v) {
+          return typeof v === 'number' ? v : NaN;
+        }).filter(function (x) {
+          return !isNaN(x);
+        });
+        var min = numVals.length ? Math.min.apply(null, numVals) : 0;
+        var max = numVals.length ? Math.max.apply(null, numVals) : 1;
+        var rng = max - min || 1;
+        var pts = vals.map(function (v, i) {
+          var nv = typeof v === 'number' ? v : min;
+          var x = p + (i / (vals.length - 1 || 1)) * (w - p * 2);
+          var y = h - p - ((nv - min) / rng) * (h - p * 2);
+          return x + ',' + y;
+        });
+        return '<svg class="spark-svg" viewBox="0 0 64 24"><polyline fill="none" stroke="#1677ff" stroke-width="1.5" points="' + pts.join(' ') + '"/></svg>';
+      }
+
+      /** 销售团队：在「/TL:」前换行，避免截断 */
+      function formatSalesTeamCell(text) {
+        if (!text) return '';
+        return text
+          .replace(/\/TL:/g, '/<br/>TL:')
+          .replace(/,\s*TL:/g, '/<br/>TL:');
+      }
+
+      var SALES_COL_W_KEY = '销量预测管理_proto_salesColWidth';
+      function getSalesColWidthPref() {
+        try {
+          var s = localStorage.getItem(SALES_COL_W_KEY);
+          if (s) {
+            var w = parseInt(s, 10);
+            if (!isNaN(w)) return w;
+          }
+        } catch (err) {}
+        return 240;
+      }
+
+      function applySalesColWidth(px) {
+        px = Math.round(Math.max(160, Math.min(640, px)));
+        var th = document.getElementById('thColSales');
+        if (!th) return px;
+        th.style.width = px + 'px';
+        th.style.minWidth = px + 'px';
+        th.style.maxWidth = px + 'px';
+        document.querySelectorAll('.td-sales-team').forEach(function (td) {
+          td.style.width = px + 'px';
+          td.style.minWidth = px + 'px';
+          td.style.maxWidth = px + 'px';
+        });
+        return px;
+      }
+
+      function persistSalesColWidth() {
+        var th = document.getElementById('thColSales');
+        if (!th) return;
+        try {
+          localStorage.setItem(SALES_COL_W_KEY, String(Math.round(th.getBoundingClientRect().width)));
+        } catch (err) {}
+      }
+
+      function initSalesColumnResize() {
+        var handle = document.getElementById('salesColResizeHandle');
+        var th = document.getElementById('thColSales');
+        if (!handle || !th || handle.dataset.bound === '1') return;
+        handle.dataset.bound = '1';
+        var dragging = false;
+        var startX = 0;
+        var startW = 0;
+        handle.addEventListener('mousedown', function (e) {
+          e.preventDefault();
+          e.stopPropagation();
+          dragging = true;
+          startX = e.pageX;
+          startW = th.getBoundingClientRect().width;
+          handle.classList.add('active');
+          document.body.style.cursor = 'col-resize';
+          document.body.style.userSelect = 'none';
+        });
+        document.addEventListener('mousemove', function (e) {
+          if (!dragging) return;
+          applySalesColWidth(startW + (e.pageX - startX));
+        });
+        document.addEventListener('mouseup', function () {
+          if (!dragging) return;
+          dragging = false;
+          handle.classList.remove('active');
+          document.body.style.cursor = '';
+          document.body.style.userSelect = '';
+          persistSalesColWidth();
+        });
+      }
+
+      function renderForecastTable() {
+        var tb = document.getElementById('tbody');
+        tb.innerHTML = '';
+        var master = document.getElementById('chkSelectAll');
+        var showIndices = [];
+        if (pendingMskuFilterActive) {
+          showIndices = getPendingRowIndices().slice();
+        } else {
+          for (var si = 0; si < tableRows.length; si++) showIndices.push(si);
+        }
+
+        if (master && !pendingMskuFilterActive) {
+          master.checked = false;
+          master.indeterminate = false;
+        }
+
+        showIndices.forEach(function (ri) {
+          var row = tableRows[ri];
+          var tr = document.createElement('tr');
+          var html = '';
+          var chkOn = pendingMskuFilterActive ? ' checked' : '';
+          html +=
+            '<td class="td-check"><input type="checkbox" class="row-chk" data-ri="' +
+            ri +
+            '" aria-label="选择该行"' +
+            chkOn +
+            ' /></td>';
+          html += '<td class="left">' + row.a + '</td>';
+          html += '<td class="left">' + row.b + '</td>';
+          html += '<td class="left td-sales-team">' + formatSalesTeamCell(row.c) + '</td>';
+          html += '<td class="left">' + row.sku + '<br/><span style="color:#999">' + row.pos + '</span></td>';
+          html += '<td class="left">' + row.plat + '<br/><span style="color:#999">' + row.msku + '</span></td>';
+          for (var mi = 0; mi < months.length; mi++) {
+            html += buildForecastCell(row, mi);
+          }
+          html += '<td>' + sparkFromRow(row) + '</td>';
+          for (var rx = 0; rx < 3; rx++) {
+            var x = row.r[rx];
+            if (!x) x = { v: '—', cls: 'ok' };
+            var c = 'rate-cell ' + (x.cls === 'bad' ? 'bad' : x.cls === 'warn-yellow' ? 'warn-yellow' : 'ok');
+            html += '<td class="' + c + '">' + x.v + (x.v === '—' ? '' : '%') + '</td>';
+          }
+          html +=
+            '<td><span class="op-link op-link-disabled" data-act="remark" data-ri="' +
+            ri +
+            '" aria-disabled="true" title="请先勾选本行">异常备注</span><span class="op-link" data-act="detail" data-ri="' +
+            ri +
+            '">详情</span></td>';
+          tr.innerHTML = html;
+          tb.appendChild(tr);
+        });
+
+        if (master && pendingMskuFilterActive) {
+          if (showIndices.length > 0) {
+            master.checked = true;
+            master.indeterminate = false;
+          } else {
+            master.checked = false;
+            master.indeterminate = false;
+          }
+        }
+
+        applySalesColWidth(getSalesColWidthPref());
+        updateKpiPendingMsku();
+        updateRemarkAvailability();
+      }
+
+      function updateRemarkAvailability() {
+        var tb = document.getElementById('tbody');
+        var batch = document.getElementById('btnAddRemarkBatch');
+        if (!tb) return;
+        var anyChecked = false;
+        tb.querySelectorAll('tr').forEach(function (tr) {
+          var chk = tr.querySelector('.row-chk');
+          var remarkLink = tr.querySelector('[data-act="remark"]');
+          if (!chk || !remarkLink) return;
+          if (chk.checked) {
+            anyChecked = true;
+            remarkLink.classList.remove('op-link-disabled');
+            remarkLink.setAttribute('aria-disabled', 'false');
+            remarkLink.removeAttribute('title');
+          } else {
+            remarkLink.classList.add('op-link-disabled');
+            remarkLink.setAttribute('aria-disabled', 'true');
+            remarkLink.setAttribute('title', '请先勾选本行');
+          }
+        });
+        if (batch) {
+          batch.disabled = !anyChecked;
+          batch.title = anyChecked ? '' : '请先勾选列表中的行';
+        }
+      }
+
+      function syncSelectAllState() {
+        var tb = document.getElementById('tbody');
+        var master = document.getElementById('chkSelectAll');
+        if (!tb || !master) return;
+        var boxes = tb.querySelectorAll('.row-chk');
+        var n = boxes.length;
+        var checked = 0;
+        boxes.forEach(function (b) {
+          if (b.checked) checked++;
+        });
+        master.indeterminate = checked > 0 && checked < n;
+        master.checked = n > 0 && checked === n;
+      }
+
+      function initTableRowSelection() {
+        var tb = document.getElementById('tbody');
+        var master = document.getElementById('chkSelectAll');
+        if (!tb || !master || master.dataset.bound === '1') return;
+        master.dataset.bound = '1';
+        master.addEventListener('change', function () {
+          tb.querySelectorAll('.row-chk').forEach(function (c) {
+            c.checked = master.checked;
+          });
+          master.indeterminate = false;
+          updateRemarkAvailability();
+        });
+        tb.addEventListener('change', function (e) {
+          if (!e.target.classList || !e.target.classList.contains('row-chk')) return;
+          syncSelectAllState();
+          updateRemarkAvailability();
+        });
+      }
+
+      renderForecastTable();
+      initSalesColumnResize();
+      initTableRowSelection();
+
+      var kpiPendingVal = document.getElementById('kpiPendingMskuVal');
+      var kpiPendingCard = document.getElementById('kpiMskuPendingCard');
+      if (kpiPendingVal) {
+        kpiPendingVal.addEventListener('click', function (e) {
+          e.preventDefault();
+          e.stopPropagation();
+          pendingMskuFilterActive = !pendingMskuFilterActive;
+          if (kpiPendingCard) kpiPendingCard.classList.toggle('kpi-pending-active', pendingMskuFilterActive);
+          renderForecastTable();
+        });
+      }
+
+      document.querySelectorAll('input[name="predMode"]').forEach(function (el) {
+        el.addEventListener('change', renderForecastTable);
+      });
+      var chkSysRuleForecast = document.getElementById('chkSysRuleForecast');
+      var chkForecastFill = document.getElementById('chkForecastFill');
+      if (chkSysRuleForecast) chkSysRuleForecast.addEventListener('change', renderForecastTable);
+      if (chkForecastFill) chkForecastFill.addEventListener('change', renderForecastTable);
+
+      var mask = document.getElementById('dlgMask');
+      var dlgBox = document.getElementById('dlgBox');
+      var dlgFooter = document.getElementById('dlgFooter');
+
+      /** 演示用：每行 SKU 的异常备注历史（仅第 0 行预置示例） */
+      var remarkDemoData = {};
+      for (var rdi = 0; rdi < 30; rdi++) remarkDemoData[rdi] = [];
+      remarkDemoData[0] = [
+        {
+          adjuster: 'sykie',
+          time: '2025-08-25 12:23:45',
+          content: '断货15天',
+          rangeText: '2025年1月1日到2025年2月12日',
+          dateStart: '2025-01-01',
+          dateEnd: '2025-02-12',
+          participate: true
+        },
+        {
+          adjuster: '程凯武',
+          time: '2025-07-10 09:15:22',
+          content: '断货115天',
+          rangeText: '2025年3月1日到2025年5月30日',
+          dateStart: '2025-03-01',
+          dateEnd: '2025-05-30',
+          participate: false
+        }
+      ];
+
+      var remarkContext = { rowIndex: null, editIndex: null, fromBatch: false };
+      var remarkDateDrp = null;
+
+      function hideDlg() {
+        if (remarkDateDrp) {
+          remarkDateDrp.destroy();
+          remarkDateDrp = null;
+        }
+        mask.classList.remove('show');
+        dlgBox.classList.remove('wide');
+      }
+
+      function setDlg(title, bodyHtml, footerHtml) {
+        document.getElementById('dlgTitle').textContent = title;
+        document.getElementById('dlgBody').innerHTML = bodyHtml;
+        dlgFooter.innerHTML = footerHtml || '<button type="button" class="dlg-footer-btn" data-dlg="close">关闭</button>';
+        mask.classList.add('show');
+      }
+
+      mask.addEventListener('click', function (e) {
+        if (e.target === mask) hideDlg();
+      });
+      document.getElementById('dlgClose').addEventListener('click', hideDlg);
+
+      dlgFooter.addEventListener('click', function (e) {
+        var btn = e.target.closest('[data-dlg]');
+        if (!btn) return;
+        var act = btn.getAttribute('data-dlg');
+        if (act === 'close' || act === 'cancel') hideDlg();
+        if (act === 'confirm') {
+          if (remarkContext.returnToList && remarkContext.rowIndex != null) {
+            alert('演示：已保存（无后端），返回列表');
+            showRemarkList(remarkContext.rowIndex);
+          } else {
+            alert('演示：已提交（无后端持久化）');
+            hideDlg();
+          }
+        }
+      });
+
+      function showDlgDetail(title, html) {
+        dlgBox.classList.remove('wide');
+        setDlg(title, html, '<button type="button" class="dlg-footer-btn" data-dlg="close">关闭</button>');
+      }
+
+      function buildRemarkFormHtml(opts) {
+        opts = opts || {};
+        var isEdit = !!opts.isEdit;
+        var content = opts.content != null ? opts.content : '';
+        var ds = opts.dateStart || '';
+        var de = opts.dateEnd || '';
+        var part = opts.participate !== false;
+        var modUser = opts.modUser || '当前用户';
+        var modTime = opts.modTime || (isEdit ? '2025-08-25 12:23:45' : '—');
+        return (
+          '<p style="margin:0 0 12px;color:#8c8c8c;font-size:12px;">' +
+          (remarkContext.fromBatch
+            ? '批量：对当前筛选范围内所选 MSKU 生效（演示）。'
+            : 'SKU：' +
+              (tableRows[remarkContext.rowIndex] ? tableRows[remarkContext.rowIndex].sku : '') +
+              '') +
+          '</p>' +
+          '<div class="form-row-dlg"><label>修改人</label><div class="field"><input type="text" readonly value="' +
+          modUser +
+          '" /></div></div>' +
+          '<div class="form-row-dlg"><label>修改时间</label><div class="field"><input type="text" readonly value="' +
+          modTime +
+          '" /></div></div>' +
+          '<div class="form-row-dlg"><label>备注内容</label><div class="field"><textarea id="remarkContentInput" placeholder="请输入备注内容">' +
+          content +
+          '</textarea></div></div>' +
+          '<div class="form-row-dlg"><label>生效时间</label><div class="field">' +
+          '<div id="remarkDateRangeMount"></div>' +
+          '<div style="font-size:11px;color:#999;margin-top:4px;">请选择生效日期范围（必填）</div>' +
+          '</div></div>' +
+          '<div class="form-row-dlg"><label>是否参与达成率计算</label><div class="field" style="padding-top:6px;">' +
+          '<label><input type="checkbox" id="remarkParticipate" ' +
+          (part ? 'checked' : '') +
+          ' /> 参与达成率计算</label>' +
+          '</div></div>'
+        );
+      }
+
+      function showRemarkForm(mode) {
+        var isEdit = mode === 'edit';
+        dlgBox.classList.remove('wide');
+        remarkContext.returnToList = !remarkContext.fromBatch && remarkContext.rowIndex != null;
+        var title = isEdit ? '编辑异常备注' : '新增异常备注';
+        var rec =
+          isEdit && remarkContext.rowIndex != null && remarkContext.editIndex != null
+            ? remarkDemoData[remarkContext.rowIndex][remarkContext.editIndex]
+            : null;
+        var drStart = '2026-01-01';
+        var drEnd = '2026-03-31';
+        if (rec) {
+          if (rec.dateStart) drStart = rec.dateStart;
+          if (rec.dateEnd) drEnd = rec.dateEnd;
+        }
+        var body = buildRemarkFormHtml(
+          rec
+            ? {
+                isEdit: true,
+                content: rec.content,
+                dateStart: rec.dateStart,
+                dateEnd: rec.dateEnd,
+                participate: rec.participate,
+                modUser: rec.adjuster,
+                modTime: rec.time
+              }
+            : { isEdit: false, dateStart: '2026-01-01', dateEnd: '2026-03-31' }
+        );
+        var footer =
+          '<button type="button" class="dlg-footer-btn" data-dlg="cancel">取消</button>' +
+          '<button type="button" class="dlg-footer-btn btn-primary-dlg" data-dlg="confirm">确定</button>';
+        setDlg(title, body, footer);
+        if (remarkDateDrp) {
+          remarkDateDrp.destroy();
+          remarkDateDrp = null;
+        }
+        var mountRemark = document.getElementById('remarkDateRangeMount');
+        if (mountRemark && typeof DateRangePicker !== 'undefined') {
+          remarkDateDrp = DateRangePicker.mount(mountRemark, {
+            zIndex: 500,
+            start: drStart,
+            end: drEnd,
+            onChange: function () {}
+          });
+        }
+      }
+
+      function showRemarkList(ri) {
+        remarkContext.rowIndex = ri;
+        remarkContext.fromBatch = false;
+        remarkContext.editIndex = null;
+        dlgBox.classList.add('wide');
+        var r = tableRows[ri];
+        var list = remarkDemoData[ri] || [];
+        var rowsHtml = list
+          .map(function (item, idx) {
+            return (
+              '<tr>' +
+              '<td>' +
+              item.adjuster +
+              '</td><td>' +
+              item.time +
+              '</td><td>' +
+              item.content +
+              '</td><td>' +
+              item.rangeText +
+              '</td><td>' +
+              (item.participate ? '是' : '否') +
+              '</td><td>' +
+              '<span class="op-link" data-act="edit-remark" data-ri="' +
+              ri +
+              '" data-idx="' +
+              idx +
+              '">编辑</span> ' +
+              '<span class="op-link" data-act="del-remark" data-ri="' +
+              ri +
+              '" data-idx="' +
+              idx +
+              '">删除</span>' +
+              '</td></tr>'
+            );
+          })
+          .join('');
+        if (!rowsHtml) {
+          rowsHtml = '<tr><td colspan="6" style="text-align:center;color:#999;padding:16px;">暂无备注，请点击「新增异常备注」添加</td></tr>';
+        }
+        var body =
+          '<button type="button" class="btn-add-remark" id="btnOpenAddRemark" data-ri="' +
+          ri +
+          '">新增异常备注</button>' +
+          '<div class="remark-table-scroll"><table class="remark-list-table">' +
+          '<thead><tr>' +
+          '<th>调整人</th><th>调整时间</th><th>备注内容</th><th>生效时间</th><th>参与达成率计算</th><th>操作</th>' +
+          '</tr></thead><tbody>' +
+          rowsHtml +
+          '</tbody></table></div>';
+        setDlg('异常备注 — ' + r.sku, body, '<button type="button" class="dlg-footer-btn" data-dlg="close">关闭</button>');
+      }
+
+      document.getElementById('dlgBody').addEventListener('click', function (e) {
+        var t = e.target;
+        if (t.id === 'btnOpenAddRemark') {
+          var ri = +t.getAttribute('data-ri');
+          remarkContext.rowIndex = ri;
+          remarkContext.editIndex = null;
+          remarkContext.fromBatch = false;
+          showRemarkForm('add');
+        }
+        if (t.getAttribute && t.getAttribute('data-act') === 'edit-remark') {
+          remarkContext.rowIndex = +t.getAttribute('data-ri');
+          remarkContext.editIndex = +t.getAttribute('data-idx');
+          remarkContext.fromBatch = false;
+          showRemarkForm('edit');
+        }
+        if (t.getAttribute && t.getAttribute('data-act') === 'del-remark') {
+          if (confirm('演示：确认删除该条备注？')) alert('演示：已删除（未持久化）');
+        }
+      });
+
+      document.getElementById('tbody').addEventListener('click', function (e) {
+        var t = e.target;
+        if (t.getAttribute && t.getAttribute('data-act') === 'detail') {
+          var ri = +t.getAttribute('data-ri');
+          var r = tableRows[ri];
+          showDlgDetail('详情 - ' + r.sku, '<p>MSKU：' + r.msku + '</p><p>平台：' + r.plat + '</p><p>演示数据，无后端。</p>');
+        }
+        if (t.getAttribute && t.getAttribute('data-act') === 'remark') {
+          if (t.classList && t.classList.contains('op-link-disabled')) return;
+          var ri2 = +t.getAttribute('data-ri');
+          showRemarkList(ri2);
+        }
+      });
+
+      document.getElementById('btnExport').addEventListener('click', function () {
+        alert('演示：导出');
+      });
+      document.getElementById('btnAddRemarkBatch').addEventListener('click', function () {
+        if (this.disabled) return;
+        remarkContext.rowIndex = null;
+        remarkContext.editIndex = null;
+        remarkContext.fromBatch = true;
+        remarkContext.returnToList = false;
+        showRemarkForm('add');
+      });
+    })();
+  </script>
+</body>
+</html>
