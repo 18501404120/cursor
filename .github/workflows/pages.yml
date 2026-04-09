@@ -1,5 +1,6 @@
-# Pages 发布源请在 Settings → Pages 选择「GitHub Actions」
-# 已去掉 configure-pages（部分仓库会触发 git exit 128）；用 bash 复制避免 rsync/符号链接问题
+# 发布到分支 gh-pages（避开 deploy-pages / configure-pages 触发的 git 128）
+# 推送成功后：Settings → Pages → Source 选「Deploy from a branch」→ Branch: gh-pages / folder: /(root)
+# 若仍选「GitHub Actions」为源，本分支不会生效，请改回「从分支发布」
 
 name: Deploy GitHub Pages
 
@@ -8,19 +9,14 @@ on:
     branches: [main]
 
 permissions:
-  contents: read
-  pages: write
-  id-token: write
+  contents: write
 
 concurrency:
-  group: pages
-  cancel-in-progress: false
+  group: pages-gh
+  cancel-in-progress: true
 
 jobs:
   deploy:
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -46,14 +42,13 @@ jobs:
             ls -la _site
             exit 1
           fi
-          echo "OK: index.html present, listing _site (top):"
-          ls -la _site | head -25
+          touch _site/.nojekyll
+          ls -la _site | head -20
 
-      - name: Upload artifact
-        uses: actions/upload-pages-artifact@v3
+      - name: Push to gh-pages
+        uses: JamesIves/github-pages-deploy-action@v4
         with:
-          path: _site
-
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
+          branch: gh-pages
+          folder: _site
+          clean: true
+          single-commit: true
