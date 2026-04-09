@@ -1,5 +1,5 @@
-# 使用 GitHub Actions 发布 Pages（需在仓库 Settings → Pages 将 Source 改为「GitHub Actions」）
-# 说明：https://docs.github.com/en/pages/getting-started-with-github-pages/configuring-a-publishing-source-for-your-github-pages-site#publishing-with-a-custom-github-actions-workflow
+# Pages 发布源请在 Settings → Pages 选择「GitHub Actions」
+# 已去掉 configure-pages（部分仓库会触发 git exit 128）；用 bash 复制避免 rsync/符号链接问题
 
 name: Deploy GitHub Pages
 
@@ -27,21 +27,27 @@ jobs:
         uses: actions/checkout@v4
         with:
           submodules: false
-
-      - name: Setup Pages
-        uses: actions/configure-pages@v4
+          fetch-depth: 1
 
       - name: Prepare static files
+        shell: bash
         run: |
+          set -euo pipefail
           mkdir -p _site
-          rsync -a \
-            --exclude='.git' \
-            --exclude='.github' \
-            --exclude='_site' \
-            --exclude='node_modules' \
-            --exclude='.DS_Store' \
-            ./ _site/
-          test -f _site/index.html && echo "OK: index.html present" || (echo "missing index.html" && exit 1)
+          shopt -s dotglob nullglob
+          for path in *; do
+            case "$path" in
+              .|..|.git|.github|_site|node_modules|.DS_Store|.cursor) continue ;;
+            esac
+            cp -a "$path" _site/
+          done
+          if [[ ! -f _site/index.html ]]; then
+            echo "missing index.html"
+            ls -la _site
+            exit 1
+          fi
+          echo "OK: index.html present, listing _site (top):"
+          ls -la _site | head -25
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
