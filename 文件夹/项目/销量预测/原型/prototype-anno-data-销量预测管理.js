@@ -10,7 +10,7 @@
       title: "页头：销量预测管理",
       html:
         "<p>本页为运营/计划侧主工作台：自上而下为<strong>筛选 → 预测模式 → KPI → 趋势图 → 明细表</strong>。</p>" +
-        "<p>角标数字为设计稿批注，与红点说明互不冲突；红点仅出现在本说明版。</p>",
+        "<p>红点（说明版）用于点击查看字段与逻辑说明。</p>",
     },
     {
       containerSelector: FG + " > .f:nth-child(1)",
@@ -96,8 +96,7 @@
       anchorSelector: "#monthRangeDrpWrap",
       title: "筛选：月份范围",
       html:
-        "<p>控制 KPI 汇总、图表横轴与表格月度列所覆盖的<strong>业务月区间</strong>；与滚动预测任务月对齐。</p>" +
-        "<p>角标「6」为设计批注，非功能按钮。</p>",
+        "<p>控制 KPI 汇总、图表横轴与表格月度列所覆盖的<strong>业务月区间</strong>；与滚动预测任务月对齐。</p>",
     },
     {
       anchorSelector: "#btnSearch",
