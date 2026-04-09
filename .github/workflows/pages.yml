@@ -30,19 +30,29 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p _site
+          touch _site/.nojekyll
           shopt -s dotglob nullglob
           for path in *; do
             case "$path" in
               .|..|.git|.github|_site|node_modules|.DS_Store|.cursor) continue ;;
             esac
+            if [[ "$path" == *.log ]]; then continue; fi
             cp -a "$path" _site/
           done
+          # 断链符号链接会导致官方 pages-build-deployment 的 build 步骤失败
+          find _site -type l | while IFS= read -r link; do
+            if [[ ! -e "$link" ]]; then
+              echo "remove broken symlink: $link"
+              rm -f "$link"
+            fi
+          done
+          # 子模块占位目录（无内容）可能引起异常，整目录去掉
+          rm -rf _site/文件夹/mcp/mcp_excalidraw 2>/dev/null || true
           if [[ ! -f _site/index.html ]]; then
             echo "missing index.html"
             ls -la _site
             exit 1
           fi
-          touch _site/.nojekyll
           ls -la _site | head -20
 
       - name: Push to gh-pages
