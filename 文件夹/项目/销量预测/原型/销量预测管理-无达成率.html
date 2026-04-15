@@ -35,6 +35,65 @@
         if (box) box.style.display = 'none';
       }
 
+      function stripRateFromOption(opt) {
+        if (!opt || typeof opt !== 'object') return opt;
+        if (opt.legend && opt.legend[0]) {
+          var lg = opt.legend[0];
+          if (Array.isArray(lg.data)) {
+            lg.data = lg.data.filter(function (name) {
+              return String(name).indexOf('达成率') === -1;
+            });
+          }
+          if (lg.selected) {
+            Object.keys(lg.selected).forEach(function (k) {
+              if (String(k).indexOf('达成率') > -1) delete lg.selected[k];
+            });
+          }
+        }
+        if (Array.isArray(opt.series)) {
+          opt.series = opt.series.filter(function (s) {
+            var n = s && s.name ? String(s.name) : '';
+            if (n.indexOf('达成率') > -1) return false;
+            if (s && s.type === 'line' && s.yAxisIndex === 1) return false;
+            return true;
+          });
+        }
+        if (Array.isArray(opt.yAxis) && opt.yAxis.length > 1) {
+          opt.yAxis = [opt.yAxis[0]];
+        }
+        return opt;
+      }
+
+      function wrapChartSetOption(chart) {
+        if (!chart || chart.__noRateSetOptionWrapped) return;
+        chart.__noRateSetOptionWrapped = true;
+        var origSet = chart.setOption.bind(chart);
+        chart.setOption = function (option, notMerge, lazyUpdate) {
+          return origSet(stripRateFromOption(option), notMerge, lazyUpdate);
+        };
+      }
+
+      function patchEcharts(win) {
+        if (!win || !win.echarts || win.echarts.__noRatePatched) return;
+        win.echarts.__noRatePatched = true;
+        var origInit = win.echarts.init;
+        win.echarts.init = function () {
+          var chart = origInit.apply(this, arguments);
+          wrapChartSetOption(chart);
+          return chart;
+        };
+      }
+
+      function ensureChartsWrapped(win, doc) {
+        if (!win || !win.echarts) return;
+        ['chartMain', 'chartTrend'].forEach(function (id) {
+          var dom = doc.getElementById(id);
+          if (!dom) return;
+          var ins = win.echarts.getInstanceByDom(dom);
+          wrapChartSetOption(ins);
+        });
+      }
+
       function stripRateSeries(win, doc) {
         if (!win.echarts) return;
         var chartIds = ['chartMain', 'chartTrend'];
@@ -43,32 +102,9 @@
           if (!dom) return;
           var ins = win.echarts.getInstanceByDom(dom);
           if (!ins) return;
+          wrapChartSetOption(ins);
           var opt = ins.getOption() || {};
-          if (opt.legend && opt.legend[0]) {
-            var lg = opt.legend[0];
-            if (Array.isArray(lg.data)) {
-              lg.data = lg.data.filter(function (name) {
-                return String(name).indexOf('达成率') === -1;
-              });
-            }
-            if (lg.selected) {
-              Object.keys(lg.selected).forEach(function (k) {
-                if (String(k).indexOf('达成率') > -1) delete lg.selected[k];
-              });
-            }
-          }
-          if (Array.isArray(opt.series)) {
-            opt.series = opt.series.filter(function (s) {
-              var n = s && s.name ? String(s.name) : '';
-              if (n.indexOf('达成率') > -1) return false;
-              if (s && s.type === 'line' && s.yAxisIndex === 1) return false;
-              return true;
-            });
-          }
-          if (Array.isArray(opt.yAxis) && opt.yAxis.length > 1) {
-            opt.yAxis = [opt.yAxis[0]];
-          }
-          ins.setOption(opt, true);
+          ins.setOption(stripRateFromOption(opt), true);
         });
       }
 
@@ -95,6 +131,8 @@
 
       function applyNoRateView(win, doc) {
         if (!win || !doc) return;
+        patchEcharts(win);
+        ensureChartsWrapped(win, doc);
         hideFilterField(doc, 'filterPredR');
         hideFilterField(doc, 'filterRCompare');
         hideFilterField(doc, 'filterRValue');
@@ -113,7 +151,7 @@
         var t = win.setInterval(function () {
           tries++;
           applyNoRateView(win, doc);
-          if (tries >= 12) win.clearInterval(t);
+          if (tries >= 30) win.clearInterval(t);
         }, 120);
       });
     })();
