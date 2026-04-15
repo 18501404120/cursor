@@ -48,19 +48,21 @@
             var lg = opt.legend[0];
             if (Array.isArray(lg.data)) {
               lg.data = lg.data.filter(function (name) {
-                return String(name).indexOf('达成率') === -1 && !/^R[123]$/.test(String(name));
+                return String(name).indexOf('达成率') === -1;
               });
             }
             if (lg.selected) {
               Object.keys(lg.selected).forEach(function (k) {
-                if (String(k).indexOf('达成率') > -1 || /^R[123]$/.test(String(k))) delete lg.selected[k];
+                if (String(k).indexOf('达成率') > -1) delete lg.selected[k];
               });
             }
           }
           if (Array.isArray(opt.series)) {
             opt.series = opt.series.filter(function (s) {
               var n = s && s.name ? String(s.name) : '';
-              return n.indexOf('达成率') === -1 && !/^R[123]$/.test(n);
+              if (n.indexOf('达成率') > -1) return false;
+              if (s && s.type === 'line' && s.yAxisIndex === 1) return false;
+              return true;
             });
           }
           if (Array.isArray(opt.yAxis) && opt.yAxis.length > 1) {
@@ -71,16 +73,34 @@
       }
 
       function patchTable(doc) {
+        if (doc.getElementById('noRatePatchStyle')) return;
         var style = doc.createElement('style');
+        style.id = 'noRatePatchStyle';
         style.textContent = [
+          '.kpi.k1, .kpi.k2, .kpi.k3 { display:none !important; }',
           '#thR1, #thR2, #thR3 { display:none !important; }',
           '.rate-cell { display:none !important; }',
-          '.kpi-wrap { display:none !important; }',
           '.right-tools { display:none !important; }',
-          '#chkShowManual { display:none !important; }',
-          '#chkShowManual + * { display:none !important; }'
+          '.chart-toolbar { display:none !important; }'
         ].join('\n');
         doc.head.appendChild(style);
+      }
+
+      function patchCopy(win, doc) {
+        var h2 = doc.querySelector('.chart-panel h2');
+        if (h2 && h2.textContent.indexOf('销量预测与达成') > -1) {
+          h2.textContent = '销量预测';
+        }
+      }
+
+      function applyNoRateView(win, doc) {
+        if (!win || !doc) return;
+        hideFilterField(doc, 'filterPredR');
+        hideFilterField(doc, 'filterRCompare');
+        hideFilterField(doc, 'filterRValue');
+        patchCopy(win, doc);
+        patchTable(doc);
+        stripRateSeries(win, doc);
       }
 
       frame.addEventListener('load', function () {
@@ -88,15 +108,13 @@
         var doc = frame.contentDocument;
         if (!win || !doc) return;
 
-        hideFilterField(doc, 'filterPredR');
-        hideFilterField(doc, 'filterRCompare');
-        hideFilterField(doc, 'filterRValue');
-
-        var kpiPending = doc.getElementById('kpiMskuPendingCard');
-        if (kpiPending) kpiPending.style.display = 'none';
-
-        patchTable(doc);
-        stripRateSeries(win, doc);
+        applyNoRateView(win, doc);
+        var tries = 0;
+        var t = win.setInterval(function () {
+          tries++;
+          applyNoRateView(win, doc);
+          if (tries >= 12) win.clearInterval(t);
+        }, 120);
       });
     })();
   </script>
