@@ -9,7 +9,7 @@
       title: "页头：目标助手",
       html:
         "<p>本页为运营/计划侧主工作台：自上而下为<strong>筛选 → 预测模式 → 趋势图 → 明细表</strong>。</p>" +
-        "<p>产品<strong>不展示</strong>准确率、MAPE、达成率类指标；<strong>销量目标（BP）</strong>来自 GTM，<strong>预测目标</strong>为当前规则/模型输出。</p>" +
+        "<p>产品<strong>不展示</strong>准确率、MAPE、达成率类指标；<strong>GTM BP 目标</strong>来自 GTM，<strong>预测目标</strong>为当前规则/模型输出。</p>" +
         "<p>红点（说明版）用于点击查看字段与逻辑说明。</p>",
     },
     {
@@ -70,7 +70,7 @@
       anchorSelector: ".chart-panel h2",
       title: "区块：预测与目标",
       html:
-        "<p>对比<strong>BP目标值</strong>（GTM 销量目标拆解）、<strong>预测目标值</strong>（当前规则/模型输出）、<strong>实际销量</strong>（已关账月）；可选勾选「显示人工预测值」叠加人工柱。</p>" +
+        "<p>对比<strong>GTM BP 目标</strong>（GTM 销量目标拆解）、<strong>预测目标值</strong>（当前规则/模型输出）、<strong>实际销量</strong>（已关账月）；可选勾选「显示人工预测值」叠加人工柱。图表列名已统一为「GTM BP 目标」（原「BP目标值」等旧称已弃用）。</p>" +
         "<p><strong>单左轴数量</strong>，无达成率折线、无右侧百分比轴。</p>" +
         "<p>BP/预测/人工：柱为点估计，背后可带浅色区间带（口径见《预测销量上下限规则》）。</p>",
     },
@@ -98,7 +98,7 @@
       anchorSelector: "#btnAddRemarkBatch",
       title: "按钮：新增异常备注",
       html:
-        "<p>默认禁用，需先在表格勾选行；批量写入备注区间、是否参与预测计算等。</p>" +
+        "<p>默认禁用，需先在表格勾选行；批量写入备注区间与内容（仅记录与展示）。</p>" +
         "<p>用于计划、运营对异常活动或断货的事后标注，供复盘与审计。</p>",
     },
     {

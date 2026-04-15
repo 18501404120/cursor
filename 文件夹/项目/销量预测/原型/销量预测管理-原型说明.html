@@ -1148,7 +1148,7 @@
         return prdDemoSalesBandFromPoint(v, lab, anchor || getAnchorDate());
       }
 
-      /** 轴提示：列主值；BP/预测目标/人工预测柱附带当月演示上下限（与浅色带同为 §3 因子情景口径） */
+      /** 轴提示：列主值；GTM BP/预测目标/人工预测柱附带当月演示上下限（与浅色带同为 §3 因子情景口径） */
       function buildForecastAxisTooltipCompact(params) {
         if (!params || !params.length) return '';
         var axis = params[0].axisValueLabel || params[0].name || '';
@@ -1839,8 +1839,7 @@
           content: '断货15天',
           rangeText: '2025年1月1日到2025年2月12日',
           dateStart: '2025-01-01',
-          dateEnd: '2025-02-12',
-          participate: true
+          dateEnd: '2025-02-12'
         },
         {
           adjuster: '程凯武',
@@ -1848,8 +1847,7 @@
           content: '断货115天',
           rangeText: '2025年3月1日到2025年5月30日',
           dateStart: '2025-03-01',
-          dateEnd: '2025-05-30',
-          participate: false
+          dateEnd: '2025-05-30'
         }
       ];
 
@@ -1914,7 +1912,7 @@
       }
 
       /**
-       * 详情表：销售目标影响因子 α（0～1 权重）；无 GTM BP 目标 T 时必须为空。
+       * 详情表：GTM BP 融合权重（α）0～1；无 GTM BP 目标 T 时必须为空。
        * 与预测销量关系：当市场预测 M＞GTM BP 目标 T 时，预测销量 = T×α + M×(1−α)。
        */
       function demoDetailSalesTargetInfluence(mi, hasSalesTarget) {
@@ -1939,7 +1937,7 @@
       }
 
       /**
-       * 预测销量 P：M 为市场预测值，T 为 GTM BP 目标，α 为销售目标影响因子（0～1）。
+       * 预测销量 P：M 为市场预测值，T 为 GTM BP 目标，α 为 GTM BP 融合权重（0～1）。
        * 无 T：α 为空，P = M（演示）。
        * M≤T：P = T×1.05（将结果抬升至不低于目标的 5% 缓冲）。
        * M＞T：P = T×α + M×(1−α)。
@@ -1970,7 +1968,7 @@
         );
       }
 
-      /** 详情弹窗：基准/弹性/影响因子/市场预测/GTM BP 目标/销售目标因子 + 预测值 + 上下限 + forecast 填写 */
+      /** 详情弹窗：基准/弹性/影响因子/市场预测/GTM BP 目标/GTM BP 融合权重（α）+ 预测值 + 上下限 + forecast 填写 */
       function buildRowForecastDetailHtml(row) {
         var modeLabel = isPredML() ? '机器学习' : '系统规则';
         var anchor = getAnchorDate();
@@ -2043,10 +2041,10 @@
           '</b></p>' +
           '<p style="margin:10px 0 6px;font-size:13px">按月「<b>' +
           modeLabel +
-          '</b>」：<strong>市场预测值 M</strong>与<strong>GTM BP 目标 T</strong>比较——若 M≤T，则<strong>预测销量 = T×1.05</strong>；若 M＞T，则<strong>预测销量 = T×α + M×(1−α)</strong>（α 为销售目标影响因子，0～1）。<strong>无 T 时 α 为空</strong>，预测销量取 M；<strong>下限/上限</strong>均按《预测销量上下限规则》§3：以<strong>流量、转化率、竞争力、价格、广告花费</strong>悲观/乐观极值代入与点预测同构的公式得到（原型用确定性模拟倍数，与图表浅色带一致）。</p>' +
+          '</b>」：<strong>市场预测值 M</strong>与<strong>GTM BP 目标 T</strong>比较——若 M≤T，则<strong>预测销量 = T×1.05</strong>；若 M＞T，则<strong>预测销量 = T×α + M×(1−α)</strong>（α 为 <strong>GTM BP 融合权重</strong>，0～1）。<strong>无 T 时 α 为空</strong>，预测销量取 M；<strong>下限/上限</strong>均按《预测销量上下限规则》§3：以<strong>流量、转化率、竞争力、价格、广告花费</strong>悲观/乐观极值代入与点预测同构的公式得到（原型用确定性模拟倍数，与图表浅色带一致）。</p>' +
           '<div style="max-height:380px;overflow:auto">' +
           '<table class="data-table" style="font-size:12px;min-width:1120px"><thead><tr>' +
-          '<th>月份</th><th>基准销量</th><th>弹性系数</th><th>影响因子系数</th><th>市场预测值</th><th>GTM BP 目标</th><th>销售目标<br/>影响因子</th><th>预测销量</th><th>下限</th><th>上限</th><th>forecast填写</th>' +
+          '<th>月份</th><th>基准销量</th><th>弹性系数</th><th>影响因子系数</th><th>市场预测值</th><th>GTM BP 目标</th><th>GTM BP 融合权重（α）</th><th>预测销量</th><th>下限</th><th>上限</th><th>forecast填写</th>' +
           '</tr></thead><tbody>' +
           trs.join('') +
           '</tbody></table></div>'
@@ -2059,7 +2057,6 @@
         var content = opts.content != null ? opts.content : '';
         var ds = opts.dateStart || '';
         var de = opts.dateEnd || '';
-        var part = opts.participate !== false;
         var modUser = opts.modUser || '当前用户';
         var modTime = opts.modTime || (isEdit ? '2025-08-25 12:23:45' : '—');
         return (
@@ -2082,11 +2079,6 @@
           '<div class="form-row-dlg"><label>生效时间</label><div class="field">' +
           '<div id="remarkDateRangeMount"></div>' +
           '<div style="font-size:11px;color:#999;margin-top:4px;">请选择生效日期范围（必填）</div>' +
-          '</div></div>' +
-          '<div class="form-row-dlg"><label>是否参与预测计算</label><div class="field" style="padding-top:6px;">' +
-          '<label><input type="checkbox" id="remarkParticipate" ' +
-          (part ? 'checked' : '') +
-          ' /> 参与预测计算</label>' +
           '</div></div>'
         );
       }
@@ -2113,7 +2105,6 @@
                 content: rec.content,
                 dateStart: rec.dateStart,
                 dateEnd: rec.dateEnd,
-                participate: rec.participate,
                 modUser: rec.adjuster,
                 modTime: rec.time
               }
@@ -2158,8 +2149,6 @@
               '</td><td>' +
               item.rangeText +
               '</td><td>' +
-              (item.participate ? '是' : '否') +
-              '</td><td>' +
               '<span class="op-link" data-act="edit-remark" data-ri="' +
               ri +
               '" data-idx="' +
@@ -2175,7 +2164,7 @@
           })
           .join('');
         if (!rowsHtml) {
-          rowsHtml = '<tr><td colspan="6" style="text-align:center;color:#999;padding:16px;">暂无备注，请点击「新增异常备注」添加</td></tr>';
+          rowsHtml = '<tr><td colspan="5" style="text-align:center;color:#999;padding:16px;">暂无备注，请点击「新增异常备注」添加</td></tr>';
         }
         var body =
           '<button type="button" class="btn-add-remark" id="btnOpenAddRemark" data-ri="' +
@@ -2183,7 +2172,7 @@
           '">新增异常备注</button>' +
           '<div class="remark-table-scroll"><table class="remark-list-table">' +
           '<thead><tr>' +
-          '<th>调整人</th><th>调整时间</th><th>备注内容</th><th>生效时间</th><th>参与预测计算</th><th>操作</th>' +
+          '<th>调整人</th><th>调整时间</th><th>备注内容</th><th>生效时间</th><th>操作</th>' +
           '</tr></thead><tbody>' +
           rowsHtml +
           '</tbody></table></div>';
