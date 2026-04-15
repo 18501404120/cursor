@@ -129,7 +129,7 @@
       title: "列组：月份",
       html:
         "<p>子列由脚本按月份范围动态生成，展示各月实际、预测或备注单元格。</p>" +
-        "<p>主行展示<strong>预测目标</strong>；可展开系统规则行、forecast 行；单元格可含下钻、备注图标、MSKU 阈值类警示样式（非准确率 KPI）。</p>",
+        "<p>主行展示<strong>预测目标</strong>；可展开系统规则行、forecast 行；单元格可含下钻、备注图标。</p>",
     },
     {
       containerSelector: "#dataTable",

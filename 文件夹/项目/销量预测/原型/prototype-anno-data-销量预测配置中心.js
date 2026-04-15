@@ -96,26 +96,6 @@
         "<p>用于按月复盘系数是否在有效期内，或与预测任务调度月份对齐。</p>",
     },
     {
-      anchorSelector: "#cfgFilterR",
-      title: "筛选：预测批次",
-      html:
-        "<p>选择预测<strong>任务批次</strong>（演示为 P1/P2/P3），与「比较」「数值」组合成<strong>门槛过滤</strong>。</p>" +
-        "<p>与主工作台「非 R1～R3 达成」策略一致：此处<strong>不</strong>表示滚动轮次达成率，仅为技术侧批次/快照标识。</p>",
-    },
-    {
-      anchorSelector: "#cfgRCompare",
-      title: "筛选：比较",
-      html:
-        "<p>大于 / 小于，与所选批次的指标及右侧数值构成区间条件；具体比较字段以接口与需求文档为准（非产品内 MAPE/达成率考核）。</p>",
-    },
-    {
-      anchorSelector: "#cfgRValue",
-      title: "筛选：数值",
-      html:
-        "<p>输入门槛数值，与批次、比较符组成三元组过滤表格行。</p>" +
-        "<p>正式环境需校验数字格式与上下界，避免 NaN。</p>",
-    },
-    {
       anchorSelector: "#btnCfgSearch",
       attach: "afterend",
       title: "按钮：搜索",

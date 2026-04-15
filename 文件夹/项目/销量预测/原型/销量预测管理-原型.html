@@ -1007,7 +1007,7 @@
       }
 
       /** 演示用稳定点值：按目标月固定种子生成（不随锚定日滚动，仅原型；非业务冻结快照） */
-      function frozenTarget(lab) {
+      function demoStableTarget(lab) {
         var p = parseMonthLabel(lab);
         var seed = p.m * 31 + 47 + p.y * 7;
         return Math.round(112 + (seed % 88));
@@ -1020,7 +1020,7 @@
         [114, 120, 126, 112, 118, 124, 132, 130, 136, 142, 140, 146, 152]
       ];
 
-      /** 系统「预测目标值」：单月一条；邻近目标月用演示稳定点值（见 frozenTarget），其余月用滚动演示（见 rollingTarget） */
+      /** 系统「预测目标值」：单月一条；邻近目标月用演示稳定点值（见 demoStableTarget），其余月用滚动演示（见 rollingTarget） */
       function systemTargetFor(lab, anchor) {
         var i = months.indexOf(lab);
         if (i < 0) return 0;
@@ -1030,9 +1030,9 @@
           return hv != null ? hv : rollingTarget(lab, anchor);
         }
         var mLeft = monthsUntilMonthFirst(anchor, lab);
-        if (mLeft <= 1) return frozenTarget(lab);
-        if (mLeft === 2) return frozenTarget(lab);
-        if (mLeft === 3) return frozenTarget(lab);
+        if (mLeft <= 1) return demoStableTarget(lab);
+        if (mLeft === 2) return demoStableTarget(lab);
+        if (mLeft === 3) return demoStableTarget(lab);
         return rollingTarget(lab, anchor);
       }
 
@@ -1044,7 +1044,7 @@
         return Math.round(sys * bias);
       }
 
-      /** BP（销量目标）：演示为相对预测目标的规划带（正式版接 GTM 全年目标拆解） */
+      /** GTM BP 目标：演示为相对预测目标的规划带（正式版接 GTM 全年目标拆解） */
       function bpTargetFor(lab, anchor) {
         var sys = systemTargetFor(lab, anchor);
         var p = parseMonthLabel(lab);
@@ -1147,7 +1147,7 @@
         return prdDemoSalesBandFromPoint(v, lab, anchor || getAnchorDate());
       }
 
-      /** 轴提示：列主值；BP/预测目标/人工预测柱附带当月演示上下限（与浅色带同为 §3 因子情景口径） */
+      /** 轴提示：列主值；GTM BP/预测目标/人工预测柱附带当月演示上下限（与浅色带同为 §3 因子情景口径） */
       function buildForecastAxisTooltipCompact(params) {
         if (!params || !params.length) return '';
         var axis = params[0].axisValueLabel || params[0].name || '';
@@ -1159,7 +1159,7 @@
           var name = item.seriesName;
           var main = v == null || v === '' ? '—' : String(v);
           var line = item.marker + ' <b>' + name + '</b>：' + main;
-          if ((name === 'BP目标值' || name === '预测目标值' || name === '人工预测值') && typeof v === 'number' && !isNaN(v)) {
+          if ((name === 'GTM BP 目标' || name === '预测目标值' || name === '人工预测值') && typeof v === 'number' && !isNaN(v)) {
             var bh = forecastPointLowHigh(v, labMonth, getAnchorDate());
             if (bh) {
               line += ' <span style="color:#666;font-size:12px">（下限 ' + bh.low + ' · 上限 ' + bh.high + '）</span>';
@@ -1170,7 +1170,7 @@
         return lines.join('<br/>');
       }
 
-      var FORECAST_RANGE_MAIN_NAMES = ['BP目标值', '预测目标值', '人工预测值'];
+      var FORECAST_RANGE_MAIN_NAMES = ['GTM BP 目标', '预测目标值', '人工预测值'];
 
       function pushForecastRangeBands(out, mainName, dataArr, areaRgba, selectedMap) {
         var lows = [];
@@ -1239,10 +1239,10 @@
       function buildChartOption() {
         var p = buildChartPayload(getAnchorDate());
 
-        var legendNames = ['BP目标值', '预测目标值', '人工预测值', '实际销量'];
+        var legendNames = ['GTM BP 目标', '预测目标值', '人工预测值', '实际销量'];
 
         var selected = {
-          BP目标值: true,
+          'GTM BP 目标': true,
           预测目标值: true,
           人工预测值: false,
           实际销量: true
@@ -1255,12 +1255,12 @@
         var bandRgbaT = 'rgba(22,119,255,0.38)';
         var bandRgbaM = 'rgba(250,140,22,0.34)';
         var series = [];
-        pushForecastRangeBands(series, 'BP目标值', p.bp, bandRgbaBp, selected);
+        pushForecastRangeBands(series, 'GTM BP 目标', p.bp, bandRgbaBp, selected);
         pushForecastRangeBands(series, '预测目标值', p.targets, bandRgbaT, selected);
         pushForecastRangeBands(series, '人工预测值', p.manual, bandRgbaM, selected);
 
         series.push({
-          name: 'BP目标值',
+          name: 'GTM BP 目标',
           type: 'bar',
           data: p.bp,
           itemStyle: { color: '#722ed1' },
@@ -1538,12 +1538,6 @@
           var ent = SCENARIO_CATEGORY_LINE_ENTRIES[i % catLen];
           var tier = tiers[i % 4];
           var amazon = i % 7 !== 5;
-          var vol =
-            tier === 'EOL'
-              ? [12, 22, 40][i % 3]
-              : tier === 'P2'
-                ? [35, 400, 2500][i % 3]
-                : [500, 1500, 4000, 8000, 12000][i % 5];
           var base = 1800 + (i * 173) % 5200;
           var ml = [],
             sys = [],
@@ -1574,9 +1568,6 @@
             sku: samp.sku,
             pos: '定位: ' + tier + (tier === 'EOL' ? '清仓' : '稳定'),
             plat: amazon ? '亚马逊' : '淘宝',
-            channelAmazon: amazon,
-            productTier: tier,
-            recent30dVol: vol,
             msku: samp.msku,
             ml: ml,
             sys: sys,
@@ -1604,62 +1595,6 @@
         return arr[mi % arr.length];
       }
 
-      function isAmazonRow(row) {
-        if (row.channelAmazon === false) return false;
-        if (row.channelAmazon === true) return true;
-        return row.plat && String(row.plat).indexOf('亚马逊') >= 0;
-      }
-
-      /** 《MSKU预计阈值规则》P0 分档（2K～3K 未单列时用中间档） */
-      function p0ThresholdByVol(vol) {
-        var v = vol != null ? vol : 0;
-        if (v < 1000) return 0.2;
-        if (v < 2000) return 0.15;
-        if (v < 3000) return 0.125;
-        if (v < 5000) return 0.1;
-        if (v < 10000) return 0.05;
-        return 0.05;
-      }
-
-      function relDevFillBase(fill, base) {
-        var mx = Math.max(Math.abs(fill), Math.abs(base), 1e-9);
-        return Math.abs(fill - base) / mx;
-      }
-
-      function absDevFillBase(fill, base) {
-        return Math.abs(fill - base);
-      }
-
-      /** 单月 forecast vs 基准是否触发预警（不含渠道等额外过滤） */
-      function monthTriggersMskuWarn(row, fill, base) {
-        var vol = row.recent30dVol != null ? row.recent30dVol : 0;
-        var rel = relDevFillBase(fill, base);
-        var abs = absDevFillBase(fill, base);
-        var tier = row.productTier || 'P1';
-        if (tier === 'P0') return rel >= p0ThresholdByVol(vol);
-        if (tier === 'P1') return rel >= 0.2;
-        if (tier === 'P2') {
-          if (rel >= 0.4) return true;
-          return vol >= 0 && vol <= 60 && abs >= 30;
-        }
-        if (tier === 'EOL') {
-          if (vol >= 0 && vol <= 30 && abs >= 20) return true;
-          return vol > 30 && rel >= 0.5;
-        }
-        return rel >= 0.2;
-      }
-
-      /** forecast 与「机器学习预测」偏差触发《MSKU 阈值》时：亚马逊渠道下浅警示样式（业务预警，非准确率 KPI） */
-      function fillForecastDeviationClass(row, mi) {
-        var fillVal = seriesValueForCell(row, 'fill', mi);
-        if (fillVal == null || typeof fillVal !== 'number') return '';
-        var mlVal = seriesValueForCell(row, 'ml', mi);
-        if (mlVal == null || typeof mlVal !== 'number') return '';
-        if (!isAmazonRow(row)) return '';
-        if (!monthTriggersMskuWarn(row, fillVal, mlVal)) return '';
-        return ' fc-warn-yellow';
-      }
-
       function buildForecastCell(row, mi) {
         var ml = isPredML();
         var mainVal = seriesValueForCell(row, ml ? 'ml' : 'sys', mi);
@@ -1673,8 +1608,7 @@
           parts.push('<div class="fc-line fc-alt">' + altVal + '</div>');
         }
         if (chkFill && chkFill.checked && fillVal != null && fillVal !== '') {
-          var fw = fillForecastDeviationClass(row, mi);
-          parts.push('<div class="fc-line fc-fill' + fw + '">' + fillVal + '</div>');
+          parts.push('<div class="fc-line fc-fill">' + fillVal + '</div>');
         }
         return '<td class="forecast-stack"><div class="fc-stack">' + parts.join('') + '</div></td>';
       }
@@ -1979,8 +1913,8 @@
       }
 
       /**
-       * 详情表：销售目标影响因子 α（0～1 权重）；无销量目标（BP）时必须为空。
-       * 与预测销量关系：当市场预测 M＞销量目标 T 时，预测销量 = T×α + M×(1−α)。
+       * 详情表：销售目标影响因子 α（0～1 权重）；无 GTM BP 目标 T 时必须为空。
+       * 与预测销量关系：当市场预测 M＞GTM BP 目标 T 时，预测销量 = T×α + M×(1−α)。
        */
       function demoDetailSalesTargetInfluence(mi, hasSalesTarget) {
         if (!hasSalesTarget) return null;
@@ -1996,7 +1930,7 @@
       }
 
       /**
-       * 详情表：当月销量目标 T，取系统 BP；演示中少量格子为空（无 BP 则无因子、预测按市场单列）。
+       * 详情表：当月 GTM BP 目标 T；演示中少量格子为空（无 T 则无因子、预测按市场单列）。
        */
       function detailDemoSalesTargetBp(lab, anchor, rowIdx, mi) {
         if (rowIdx % 11 === 0 && mi % 5 === 0) return null;
@@ -2004,7 +1938,7 @@
       }
 
       /**
-       * 预测销量 P：M 为市场预测值，T 为销量目标（BP），α 为销售目标影响因子（0～1）。
+       * 预测销量 P：M 为市场预测值，T 为 GTM BP 目标，α 为销售目标影响因子（0～1）。
        * 无 T：α 为空，P = M（演示）。
        * M≤T：P = T×1.05（将结果抬升至不低于目标的 5% 缓冲）。
        * M＞T：P = T×α + M×(1−α)。
@@ -2035,7 +1969,7 @@
         );
       }
 
-      /** 详情弹窗：基准/弹性/影响因子/市场预测/销量目标(BP)/销售目标因子 + 预测值 + 上下限 + forecast 填写 */
+      /** 详情弹窗：基准/弹性/影响因子/市场预测/GTM BP 目标/销售目标因子 + 预测值 + 上下限 + forecast 填写 */
       function buildRowForecastDetailHtml(row) {
         var modeLabel = isPredML() ? '机器学习' : '系统规则';
         var anchor = getAnchorDate();
@@ -2108,10 +2042,10 @@
           '</b></p>' +
           '<p style="margin:10px 0 6px;font-size:13px">按月「<b>' +
           modeLabel +
-          '</b>」：<strong>市场预测值 M</strong>与<strong>销量目标 T</strong>（系统 BP）比较——若 M≤T，则<strong>预测销量 = T×1.05</strong>；若 M＞T，则<strong>预测销量 = T×α + M×(1−α)</strong>（α 为销售目标影响因子，0～1）。<strong>无 T 时 α 为空</strong>，预测销量取 M；<strong>下限/上限</strong>均按《预测销量上下限规则》§3：以<strong>流量、转化率、竞争力、价格、广告花费</strong>悲观/乐观极值代入与点预测同构的公式得到（原型用确定性模拟倍数，与图表浅色带一致）。</p>' +
+          '</b>」：<strong>市场预测值 M</strong>与<strong>GTM BP 目标 T</strong>比较——若 M≤T，则<strong>预测销量 = T×1.05</strong>；若 M＞T，则<strong>预测销量 = T×α + M×(1−α)</strong>（α 为销售目标影响因子，0～1）。<strong>无 T 时 α 为空</strong>，预测销量取 M；<strong>下限/上限</strong>均按《预测销量上下限规则》§3：以<strong>流量、转化率、竞争力、价格、广告花费</strong>悲观/乐观极值代入与点预测同构的公式得到（原型用确定性模拟倍数，与图表浅色带一致）。</p>' +
           '<div style="max-height:380px;overflow:auto">' +
           '<table class="data-table" style="font-size:12px;min-width:1120px"><thead><tr>' +
-          '<th>月份</th><th>基准销量</th><th>弹性系数</th><th>影响因子系数</th><th>市场预测值</th><th>销量目标<br/>（BP）</th><th>销售目标<br/>影响因子</th><th>预测销量</th><th>下限</th><th>上限</th><th>forecast填写</th>' +
+          '<th>月份</th><th>基准销量</th><th>弹性系数</th><th>影响因子系数</th><th>市场预测值</th><th>GTM BP 目标</th><th>销售目标<br/>影响因子</th><th>预测销量</th><th>下限</th><th>上限</th><th>forecast填写</th>' +
           '</tr></thead><tbody>' +
           trs.join('') +
           '</tbody></table></div>'
