@@ -43,8 +43,21 @@
         } catch (e) {
           out = opt;
         }
-        if (out.legend && out.legend[0]) {
-          var lg = out.legend[0];
+        if (out.legend && Array.isArray(out.legend)) {
+          out.legend.forEach(function (lg) {
+            if (Array.isArray(lg.data)) {
+              lg.data = lg.data.filter(function (name) {
+                return String(name).indexOf('达成率') === -1;
+              });
+            }
+            if (lg.selected) {
+              Object.keys(lg.selected).forEach(function (k) {
+                if (String(k).indexOf('达成率') > -1) delete lg.selected[k];
+              });
+            }
+          });
+        } else if (out.legend && !Array.isArray(out.legend)) {
+          var lg = out.legend;
           if (Array.isArray(lg.data)) {
             lg.data = lg.data.filter(function (name) {
               return String(name).indexOf('达成率') === -1;
