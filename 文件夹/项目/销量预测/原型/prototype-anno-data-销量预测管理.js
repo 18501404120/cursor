@@ -1,11 +1,11 @@
 /**
- * 销量预测管理-原型说明.html 专用
+ * 目标助手主工作台-原型说明.html 专用（文件名沿用销量预测管理-原型说明.html）
  */
 (function () {
   var ANNOS = [
     {
       containerSelector: ".header-title",
-      title: "页头：销量预测管理",
+      title: "页头：目标助手",
       html:
         "<p>本页为运营/计划侧主工作台：自上而下为<strong>筛选 → 预测模式 → KPI → 趋势图 → 明细表</strong>。</p>" +
         "<p>红点（说明版）用于点击查看字段与逻辑说明。</p>",
@@ -102,7 +102,7 @@
     },
     {
       anchorSelector: ".chart-panel h2",
-      title: "区块：销量预测与达成",
+      title: "区块：预测与目标达成",
       html:
         "<p>可视化对比<strong>BP目标值</strong>、<strong>预测目标值</strong>、可选的<strong>人工预测值</strong>、实际销量及达成率折线；横轴受月份筛选与数据可用性影响。</p>" +
         "<p><strong>默认图例</strong>展开「BP目标值」「预测目标值」与「实际销量」及达成率；人工序列默认收起，勾选「显示人工预测与达成率」后默认展开。</p>" +

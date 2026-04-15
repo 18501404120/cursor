@@ -1,5 +1,5 @@
 /**
- * 销量预测配置中心-原型说明.html 专用
+ * 目标助手 · 预测配置-原型说明.html 专用（文件名沿用销量预测配置中心-原型说明.html）
  */
 (function () {
   var GRID = "#screenConfig .panel--filters .filter-grid";
@@ -22,7 +22,7 @@
       containerSelector: GRID + " > .f:nth-child(3)",
       title: "筛选：店铺",
       html:
-        "<p>渠道店铺粒度，常与亚马逊/独立站等账号绑定；与销量预测管理页筛选口径应对齐。</p>",
+        "<p>渠道店铺粒度，常与亚马逊/独立站等账号绑定；与目标助手主工作台筛选口径应对齐。</p>",
     },
     {
       containerSelector: GRID + " > .f:nth-child(4)",
@@ -204,7 +204,7 @@
     {
       anchorSelector: "#linkBackCfg",
       attach: "afterend",
-      title: "返回：销量预测配置中心",
+      title: "返回：目标助手 · 预测配置",
       html:
         "<p>关闭子屏并回到主配置列表，不丢失主列表筛选状态（若会话内保存）。</p>",
     },
