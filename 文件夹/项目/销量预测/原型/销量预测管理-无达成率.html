@@ -587,7 +587,14 @@
       flex-direction: column;
       box-shadow: 0 8px 24px rgba(0,0,0,.15);
     }
-    .dialog.wide { max-width: 960px; }
+    .dialog.wide { max-width: 1120px; }
+    .detail-coef-cell {
+      font-size: 11px;
+      line-height: 1.4;
+      color: #595959;
+      white-space: normal;
+      text-align: left;
+    }
     .dialog .dh {
       padding: 12px 16px;
       border-bottom: 1px solid #f0f0f0;
@@ -2100,20 +2107,66 @@
         return String(v);
       }
 
+      /** 详情表：演示基准销量周期（与测算表结构对齐，非接口真实值） */
+      var DETAIL_BASELINE_PATTERN = [500, 600, 700, 500, 500, 500, 400, 400, 400, 400, 400, 500];
+      function demoDetailBaselineSales(mi) {
+        return DETAIL_BASELINE_PATTERN[mi % DETAIL_BASELINE_PATTERN.length];
+      }
+
+      /** 详情表：销售目标影响因子（演示，可按月微调） */
+      function demoDetailSalesTargetInfluence(mi) {
+        return (1 + (mi % 4) * 0.02).toFixed(2);
+      }
+
+      function detailElasticityCoefHtml() {
+        return (
+          '<div class="detail-coef-cell">流量弹性系数：1<br/>转化率弹性系数：1<br/>价格弹性系数：1<br/>竞争力弹性系数：1<br/>广告花费弹性系数：1</div>'
+        );
+      }
+
+      function detailInfluenceFactorCoefHtml() {
+        return (
+          '<div class="detail-coef-cell">流量系数：1<br/>转化率系数：1<br/>价格系数：1<br/>竞争力系数：1<br/>广告花费系数：1<br/>超参数系数：2<br/><strong>总系数：3.4</strong></div>'
+        );
+      }
+
+      /** 详情弹窗：基准/弹性/影响因子/销售目标因子 + 预测值 + 上下限 + forecast 填写 */
       function buildRowForecastDetailHtml(row) {
         var field = isPredML() ? 'ml' : 'sys';
         var modeLabel = isPredML() ? '机器学习' : '系统规则';
+        var n = months.length;
         var trs = [];
-        for (var mi = 0; mi < months.length; mi++) {
+        var rowspanElas =
+          '<td rowspan="' +
+          n +
+          '" style="vertical-align:top;padding:8px 6px">' +
+          detailElasticityCoefHtml() +
+          '</td>';
+        var rowspanInfl =
+          '<td rowspan="' +
+          n +
+          '" style="vertical-align:top;padding:8px 6px">' +
+          detailInfluenceFactorCoefHtml() +
+          '</td>';
+        for (var mi = 0; mi < n; mi++) {
           var lab = months[mi];
           var pred = seriesValueForCell(row, field, mi);
           var fillV = seriesValueForCell(row, 'fill', mi);
           var predNum = typeof pred === 'number' && !isNaN(pred) ? pred : null;
           var lo = predNum != null ? Math.round(predNum * 0.5) : '—';
           var hi = predNum != null ? Math.round(predNum * 1.5) : '—';
+          var baseline = demoDetailBaselineSales(mi);
+          var tgtInfl = demoDetailSalesTargetInfluence(mi);
+          var coefCells = mi === 0 ? rowspanElas + rowspanInfl : '';
           trs.push(
             '<tr><td>' +
               lab +
+              '</td><td>' +
+              baseline +
+              '</td>' +
+              coefCells +
+              '<td>' +
+              tgtInfl +
               '</td><td>' +
               formatDetailCellPlain(pred) +
               '</td><td>' +
@@ -2133,10 +2186,10 @@
           '</b></p>' +
           '<p style="margin:10px 0 6px;font-size:13px">按月「<b>' +
           modeLabel +
-          '</b>」预测销量与<strong>上下限</strong>（演示口径：预测值×50% / ×150%；图表上以<strong>浅色区间带</strong>表示区间，本表便于核对数值）</p>' +
+          '</b>」预测销量与<strong>上下限</strong>；含<strong>基准销量、弹性系数、影响因子系数、销售目标影响因子</strong>（演示字段，与测算表结构对齐；预测值×50% / ×150% 为区间口径；图表浅色带对应区间，本表便于核对）</p>' +
           '<div style="max-height:380px;overflow:auto">' +
-          '<table class="data-table" style="font-size:12px;min-width:520px"><thead><tr>' +
-          '<th>月份</th><th>预测销量</th><th>下限</th><th>上限</th><th>forecast填写</th>' +
+          '<table class="data-table" style="font-size:12px;min-width:960px"><thead><tr>' +
+          '<th>月份</th><th>基准销量</th><th>弹性系数</th><th>影响因子系数</th><th>销售目标<br/>影响因子</th><th>预测销量</th><th>下限</th><th>上限</th><th>forecast填写</th>' +
           '</tr></thead><tbody>' +
           trs.join('') +
           '</tbody></table></div>'
