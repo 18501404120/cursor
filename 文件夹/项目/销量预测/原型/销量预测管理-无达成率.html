@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>销量预测管理-无达成率</title>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #fff;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", "PingFang SC", "Microsoft YaHei", sans-serif;
+    }
+    #appFrame {
+      border: 0;
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+  </style>
+</head>
+<body>
+  <iframe id="appFrame" src="./销量预测管理-原型说明.html" title="销量预测管理-无达成率视图"></iframe>
+  <script>
+    (function () {
+      var frame = document.getElementById('appFrame');
+
+      function hideFilterField(doc, id) {
+        var el = doc.getElementById(id);
+        if (!el || !el.closest) return;
+        var box = el.closest('.f');
+        if (box) box.style.display = 'none';
+      }
+
+      function stripRateSeries(win, doc) {
+        if (!win.echarts) return;
+        var chartIds = ['chartMain', 'chartTrend'];
+        chartIds.forEach(function (id) {
+          var dom = doc.getElementById(id);
+          if (!dom) return;
+          var ins = win.echarts.getInstanceByDom(dom);
+          if (!ins) return;
+          var opt = ins.getOption() || {};
+          if (opt.legend && opt.legend[0]) {
+            var lg = opt.legend[0];
+            if (Array.isArray(lg.data)) {
+              lg.data = lg.data.filter(function (name) {
+                return String(name).indexOf('达成率') === -1 && !/^R[123]$/.test(String(name));
+              });
+            }
+            if (lg.selected) {
+              Object.keys(lg.selected).forEach(function (k) {
+                if (String(k).indexOf('达成率') > -1 || /^R[123]$/.test(String(k))) delete lg.selected[k];
+              });
+            }
+          }
+          if (Array.isArray(opt.series)) {
+            opt.series = opt.series.filter(function (s) {
+              var n = s && s.name ? String(s.name) : '';
+              return n.indexOf('达成率') === -1 && !/^R[123]$/.test(n);
+            });
+          }
+          if (Array.isArray(opt.yAxis) && opt.yAxis.length > 1) {
+            opt.yAxis = [opt.yAxis[0]];
+          }
+          ins.setOption(opt, true);
+        });
+      }
+
+      function patchTable(doc) {
+        var style = doc.createElement('style');
+        style.textContent = [
+          '#thR1, #thR2, #thR3 { display:none !important; }',
+          '.rate-cell { display:none !important; }',
+          '.kpi-wrap { display:none !important; }',
+          '.right-tools { display:none !important; }',
+          '#chkShowManual { display:none !important; }',
+          '#chkShowManual + * { display:none !important; }'
+        ].join('\n');
+        doc.head.appendChild(style);
+      }
+
+      frame.addEventListener('load', function () {
+        var win = frame.contentWindow;
+        var doc = frame.contentDocument;
+        if (!win || !doc) return;
+
+        hideFilterField(doc, 'filterPredR');
+        hideFilterField(doc, 'filterRCompare');
+        hideFilterField(doc, 'filterRValue');
+
+        var kpiPending = doc.getElementById('kpiMskuPendingCard');
+        if (kpiPending) kpiPending.style.display = 'none';
+
+        patchTable(doc);
+        stripRateSeries(win, doc);
+      });
+    })();
+  </script>
+</body>
+</html>
