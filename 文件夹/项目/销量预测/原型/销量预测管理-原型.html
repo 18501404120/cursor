@@ -1284,6 +1284,18 @@
         });
       }
 
+      /** 图例展示用：取序列首个有效预测点，拼出演示上下限（×0.5～×1.5） */
+      function legendBoundsSuffixFromSeries(arr) {
+        for (var i = 0; i < arr.length; i++) {
+          var v = arr[i];
+          if (typeof v === 'number' && !isNaN(v)) {
+            var bh = forecastPointLowHigh(v);
+            if (bh) return '（' + bh.low + '～' + bh.high + '）';
+          }
+        }
+        return '';
+      }
+
       function buildChartOption() {
         var p = buildChartPayload(getAnchorDate());
 
@@ -1398,6 +1410,12 @@
           });
         }
 
+        var legendBoundsSuffix = {};
+        for (var lbx = 0; lbx < 3; lbx++) {
+          legendBoundsSuffix['目标R' + (lbx + 1)] = legendBoundsSuffixFromSeries(p.targets[lbx]);
+          legendBoundsSuffix['人工R' + (lbx + 1)] = legendBoundsSuffixFromSeries(p.manual[lbx]);
+        }
+
         return {
           tooltip: {
             trigger: 'axis',
@@ -1408,7 +1426,11 @@
             type: 'scroll',
             bottom: 0,
             data: legendNames,
-            selected: selected
+            selected: selected,
+            formatter: function (nm) {
+              var sx = legendBoundsSuffix[nm];
+              return sx ? nm + sx : nm;
+            }
           },
           grid: { left: 52, right: 58, top: 14, bottom: 108 },
           xAxis: {
