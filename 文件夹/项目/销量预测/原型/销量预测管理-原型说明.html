@@ -2142,6 +2142,17 @@
         return (1 + (mi % 4) * 0.02).toFixed(2);
       }
 
+      /**
+       * 市场预测值：业务含义为**未叠销售目标**前的量；
+       * 原型演示：预测销量（已含销售目标口径）÷ 当月销售目标影响因子，因子为 1 时与预测销量一致。
+       */
+      function demoDetailMarketForecastDisplay(predNum, tgtInflStr) {
+        if (predNum == null || isNaN(predNum)) return '—';
+        var f = parseFloat(String(tgtInflStr), 10);
+        if (!isFinite(f) || f <= 0) return String(Math.round(predNum));
+        return String(Math.round(predNum / f));
+      }
+
       function detailElasticityCoefHtml() {
         return (
           '<div class="detail-coef-cell">流量弹性系数：1<br/>转化率弹性系数：1<br/>价格弹性系数：1<br/>竞争力弹性系数：1<br/>广告花费弹性系数：1</div>'
@@ -2154,7 +2165,7 @@
         );
       }
 
-      /** 详情弹窗：基准/弹性/影响因子/销售目标因子 + 预测值 + 上下限 + forecast 填写 */
+      /** 详情弹窗：基准/弹性/影响因子/市场预测/销售目标因子 + 预测值 + 上下限 + forecast 填写 */
       function buildRowForecastDetailHtml(row) {
         var field = isPredML() ? 'ml' : 'sys';
         var modeLabel = isPredML() ? '机器学习' : '系统规则';
@@ -2181,6 +2192,7 @@
           var hi = predNum != null ? Math.round(predNum * 1.5) : '—';
           var baseline = demoDetailBaselineSales(mi);
           var tgtInfl = demoDetailSalesTargetInfluence(mi);
+          var marketPred = demoDetailMarketForecastDisplay(predNum, tgtInfl);
           var coefCells = mi === 0 ? rowspanElas + rowspanInfl : '';
           trs.push(
             '<tr><td>' +
@@ -2190,6 +2202,8 @@
               '</td>' +
               coefCells +
               '<td>' +
+              marketPred +
+              '</td><td>' +
               tgtInfl +
               '</td><td>' +
               formatDetailCellPlain(pred) +
@@ -2210,10 +2224,10 @@
           '</b></p>' +
           '<p style="margin:10px 0 6px;font-size:13px">按月「<b>' +
           modeLabel +
-          '</b>」预测销量与<strong>上下限</strong>；含<strong>基准销量、弹性系数、影响因子系数、销售目标影响因子</strong>（演示字段，与测算表结构对齐；预测值×50% / ×150% 为区间口径；图表浅色带对应区间，本表便于核对）</p>' +
+          '</b>」预测销量与<strong>上下限</strong>；含<strong>基准销量、弹性系数、影响因子系数、市场预测值（不含销售目标）</strong>与<strong>销售目标影响因子</strong>及<strong>预测销量（含销售目标口径）</strong>等（演示字段；预测值×50% / ×150% 为区间口径；图表浅色带对应区间，本表便于核对）</p>' +
           '<div style="max-height:380px;overflow:auto">' +
-          '<table class="data-table" style="font-size:12px;min-width:960px"><thead><tr>' +
-          '<th>月份</th><th>基准销量</th><th>弹性系数</th><th>影响因子系数</th><th>销售目标<br/>影响因子</th><th>预测销量</th><th>下限</th><th>上限</th><th>forecast填写</th>' +
+          '<table class="data-table" style="font-size:12px;min-width:1040px"><thead><tr>' +
+          '<th>月份</th><th>基准销量</th><th>弹性系数</th><th>影响因子系数</th><th>市场预测值</th><th>销售目标<br/>影响因子</th><th>预测销量</th><th>下限</th><th>上限</th><th>forecast填写</th>' +
           '</tr></thead><tbody>' +
           trs.join('') +
           '</tbody></table></div>'
