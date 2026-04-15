@@ -1162,6 +1162,46 @@
 
       var chkMan = document.getElementById('chkShowManual');
 
+      function forecastPointLowHigh(v) {
+        if (typeof v !== 'number' || isNaN(v)) return null;
+        return { low: Math.round(v * 0.5), high: Math.round(v * 1.5) };
+      }
+
+      function buildAxisTooltipWithBounds(params) {
+        if (!params || !params.length) return '';
+        var axis = params[0].axisValueLabel || params[0].name || '';
+        var lines = ['<div style="font-weight:600;margin-bottom:4px">' + axis + '</div>'];
+        params.forEach(function (item) {
+          var v = item.value;
+          var name = item.seriesName;
+          lines.push(item.marker + ' <b>' + name + '</b>：' + (v == null || v === '' ? '—' : v));
+          if (/^(目标R[123]|人工R[123])$/.test(name) && typeof v === 'number' && !isNaN(v)) {
+            var bh = forecastPointLowHigh(v);
+            if (bh) {
+              lines.push(
+                '<span style="padding-left:12px;color:#888;font-size:12px">上下限：' + bh.low + ' ～ ' + bh.high + '</span>'
+              );
+            }
+          }
+        });
+        return lines.join('<br/>');
+      }
+
+      var predBarLabel = {
+        show: true,
+        position: 'top',
+        fontSize: 9,
+        lineHeight: 13,
+        color: '#595959',
+        formatter: function (params) {
+          var v = params.value;
+          if (typeof v !== 'number' || isNaN(v)) return '';
+          var bh = forecastPointLowHigh(v);
+          if (!bh) return String(v);
+          return v + '\n' + bh.low + '～' + bh.high;
+        }
+      };
+
       /** 无达成率版：仅柱状（目标/人工/实际），不含达成率折线与右侧百分比轴 */
       function buildChartOption() {
         var p = buildChartPayload(getAnchorDate());
@@ -1174,8 +1214,8 @@
 
         var selected = {
           目标R1: true,
-          目标R2: true,
-          目标R3: true,
+          目标R2: false,
+          目标R3: false,
           人工R1: false,
           人工R2: false,
           人工R3: false,
@@ -1183,8 +1223,8 @@
         };
         if (chkMan && chkMan.checked) {
           selected['人工R1'] = true;
-          selected['人工R2'] = true;
-          selected['人工R3'] = true;
+          selected['人工R2'] = false;
+          selected['人工R3'] = false;
         }
 
         var barColors = ['#1677ff', '#13c2c2', '#52c41a'];
@@ -1205,7 +1245,8 @@
             type: 'bar',
             data: p.targets[b],
             itemStyle: { color: barColors[b] },
-            barMaxWidth: 7
+            barMaxWidth: 7,
+            label: predBarLabel
           });
         }
         for (var mb = 0; mb < 3; mb++) {
@@ -1214,7 +1255,8 @@
             type: 'bar',
             data: p.manual[mb],
             itemStyle: manualBarStyle(['#fa8c16', '#eb2f96', '#2f54eb'][mb]),
-            barMaxWidth: 6
+            barMaxWidth: 6,
+            label: predBarLabel
           });
         }
         series.push({
@@ -1222,13 +1264,15 @@
           type: 'bar',
           data: p.actual,
           itemStyle: { color: '#fadb14', borderColor: '#d4b106', borderWidth: 1 },
-          barMaxWidth: 8
+          barMaxWidth: 8,
+          label: { show: false }
         });
 
         return {
           tooltip: {
             trigger: 'axis',
-            axisPointer: { type: 'cross' }
+            axisPointer: { type: 'cross' },
+            formatter: buildAxisTooltipWithBounds
           },
           legend: {
             type: 'scroll',
@@ -1236,7 +1280,7 @@
             data: legendNames,
             selected: selected
           },
-          grid: { left: 52, right: 32, top: 12, bottom: 108 },
+          grid: { left: 52, right: 32, top: 36, bottom: 108 },
           xAxis: {
             type: 'category',
             data: months,
@@ -1981,9 +2025,61 @@
         }
       });
 
-      function showDlgDetail(title, html) {
-        dlgBox.classList.remove('wide');
+      function showDlgDetail(title, html, opts) {
+        opts = opts || {};
+        if (opts.wide) dlgBox.classList.add('wide');
+        else dlgBox.classList.remove('wide');
         setDlg(title, html, '<button type="button" class="dlg-footer-btn" data-dlg="close">关闭</button>');
+      }
+
+      function formatDetailCellPlain(v) {
+        if (v == null || v === '') return '—';
+        if (typeof v === 'number' && !isNaN(v)) return String(v);
+        if (v === '—') return '—';
+        return String(v);
+      }
+
+      function buildRowForecastDetailHtml(row) {
+        var field = isPredML() ? 'ml' : 'sys';
+        var modeLabel = isPredML() ? '机器学习' : '系统规则';
+        var trs = [];
+        for (var mi = 0; mi < months.length; mi++) {
+          var lab = months[mi];
+          var pred = seriesValueForCell(row, field, mi);
+          var fillV = seriesValueForCell(row, 'fill', mi);
+          var predNum = typeof pred === 'number' && !isNaN(pred) ? pred : null;
+          var lo = predNum != null ? Math.round(predNum * 0.5) : '—';
+          var hi = predNum != null ? Math.round(predNum * 1.5) : '—';
+          trs.push(
+            '<tr><td>' +
+              lab +
+              '</td><td>' +
+              formatDetailCellPlain(pred) +
+              '</td><td>' +
+              lo +
+              '</td><td>' +
+              hi +
+              '</td><td>' +
+              (fillV != null && fillV !== '' ? formatDetailCellPlain(fillV) : '—') +
+              '</td></tr>'
+          );
+        }
+        return (
+          '<p>MSKU：<b>' +
+          row.msku +
+          '</b>　平台：<b>' +
+          row.plat +
+          '</b></p>' +
+          '<p style="margin:10px 0 6px;font-size:13px">按月「<b>' +
+          modeLabel +
+          '</b>」预测销量与<strong>上下限</strong>（演示口径：预测值×50% / ×150%，与上方销量预测图一致）</p>' +
+          '<div style="max-height:380px;overflow:auto">' +
+          '<table class="data-table" style="font-size:12px;min-width:520px"><thead><tr>' +
+          '<th>月份</th><th>预测销量</th><th>下限</th><th>上限</th><th>forecast填写</th>' +
+          '</tr></thead><tbody>' +
+          trs.join('') +
+          '</tbody></table></div>'
+        );
       }
 
       function buildRemarkFormHtml(opts) {
@@ -2148,7 +2244,7 @@
         if (t.getAttribute && t.getAttribute('data-act') === 'detail') {
           var ri = +t.getAttribute('data-ri');
           var r = tableRows[ri];
-          showDlgDetail('详情 - ' + r.sku, '<p>MSKU：' + r.msku + '</p><p>平台：' + r.plat + '</p><p>演示数据，无后端。</p>');
+          showDlgDetail('详情 - ' + r.sku, buildRowForecastDetailHtml(r), { wide: true });
         }
         if (t.getAttribute && t.getAttribute('data-act') === 'remark') {
           if (t.classList && t.classList.contains('op-link-disabled')) return;
