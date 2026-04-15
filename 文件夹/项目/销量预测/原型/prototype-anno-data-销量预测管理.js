@@ -2,8 +2,6 @@
  * 销量预测管理-原型说明.html 专用
  */
 (function () {
-  var FG = ".scroll .panel.rel .filter-grid";
-
   var ANNOS = [
     {
       containerSelector: ".header-title",
@@ -76,23 +74,6 @@
       html: "<p>过滤停售、缺货不可售等状态，减少无效 SKU 干扰预测评审。</p>",
     },
     {
-      anchorSelector: "#filterPredR",
-      title: "筛选：预测选择",
-      html:
-        "<p>选择 R1/R2/R3 中哪一轮预测值参与与「比较」「数值」组成的<strong>二次过滤</strong>。</p>" +
-        "<p>与表格上方「预测选择」下拉（leadSelect）不同：前者管筛选条件，后者常管展示/下钻默认轮次。</p>",
-    },
-    {
-      anchorSelector: "#filterRCompare",
-      title: "筛选：比较",
-      html: "<p>大于或小于，与所选 R 的指标及数值框组合使用，筛出偏高/偏低风险的行。</p>",
-    },
-    {
-      anchorSelector: "#filterRValue",
-      title: "筛选：数值",
-      html: "<p>门槛值；与比较符、R 轮次形成三元条件。需合法数字，避免空串当 0 的歧义。</p>",
-    },
-    {
       anchorSelector: "#monthRangeDrpWrap",
       title: "筛选：月份范围",
       html:
@@ -113,42 +94,32 @@
         "<p>切换后下方卡片、图表序列口径应切换，若某 SKU 仅一种模式有值需 UI 占位说明。</p>",
     },
     {
-      containerSelector: ".kpi.k1",
-      title: "KPI：R1 预测准确率",
+      anchorSelector: "#kpiAccuracyVal",
+      title: "KPI：预测准确率",
       html:
-        "<p>提前 1 个月锁定版本的预测与实际对比指标；仅统计「筛选月份内有实际销量」的月份参与汇总。</p>" +
-        "<p>汇总公式与分母定义以 PRD/数据口径文档为准，用于看整体偏差水平。</p>",
-    },
-    {
-      containerSelector: ".kpi.k2",
-      title: "KPI：R2 预测准确率",
-      html: "<p>提前 2 个月版本；通常比 R1 更难，数值略低属预期，用于观察长提前期能力。</p>",
-    },
-    {
-      containerSelector: ".kpi.k3",
-      title: "KPI：R3 预测准确率",
-      html: "<p>提前 3 个月版本；对季节品、大促品波动更敏感。</p>",
+        "<p>当前<strong>预测目标值</strong>与实际销量对比的汇总准确率；仅统计「筛选月份内有实际销量」的月份。</p>" +
+        "<p>汇总公式与分母定义以 PRD/数据口径文档为准。</p>",
     },
     {
       anchorSelector: ".chart-panel h2",
       title: "区块：销量预测与达成",
       html:
-        "<p>可视化对比实际销量、各轮<strong>目标</strong>预测与达成率；横轴受月份筛选与数据可用性影响。</p>" +
-        "<p><strong>默认图例</strong>仅展开「目标R1」与「实际销量」（及 R1 达成率折线，若有）；目标 R2/R3、人工 R 及对应达成率默认收起，可在图例中点击恢复。</p>" +
-        "<p>目标/人工各 R：柱体为<strong>点预测</strong>，背后用<strong>浅色半透明面积带</strong>表示演示上下限区间（预测值×50% / ×150%）；图上不堆叠区间文字，与列表、详情数值口径一致。</p>",
+        "<p>可视化对比<strong>预测目标值</strong>、可选的<strong>人工预测值</strong>、实际销量及达成率折线；横轴受月份筛选与数据可用性影响。</p>" +
+        "<p><strong>默认图例</strong>展开「预测目标值」与「实际销量」及达成率；人工序列默认收起，勾选「显示人工预测与达成率」后默认展开。</p>" +
+        "<p>预测目标/人工预测：柱体为<strong>点预测</strong>，背后用<strong>浅色半透明面积带</strong>表示演示上下限（预测值×50% / ×150%）；图上不堆叠区间文字。</p>",
     },
     {
       anchorSelector: "#chkShowManual",
-      title: "图表：显示人工预测 R1–R3 与达成率",
+      title: "图表：显示人工预测与达成率",
       html:
-        "<p>勾选后在图表中叠加<strong>人工 R1</strong>柱状及对应达成率折线（原型默认仍收起 R2/R3 人工序列，可在图例展开）。</p>" +
+        "<p>勾选后在图表中叠加<strong>人工预测值</strong>柱状及<strong>人工达成率</strong>折线。</p>" +
         "<p>未勾选时隐藏人工序列，避免视觉干扰快速浏览模式。</p>",
     },
     {
       containerSelector: "#chartMain",
       title: "图表区域",
       html:
-        "<p>主图渲染容器（ECharts）；图例控制显隐；轴 Tooltip 在目标/人工 R 行附<strong>当月</strong>演示下限/上限数字，达成率以百分比展示；区间以浅色带体现。</p>" +
+        "<p>主图渲染容器（ECharts）；图例控制显隐；轴 Tooltip 在「预测目标值」「人工预测值」行附<strong>当月</strong>演示下限/上限；达成率以百分比展示。</p>" +
         "<p>导出图表常随「导出」按钮或截图工具使用。</p>",
     },
     {
@@ -175,18 +146,6 @@
       title: "开关：forecast 填写销量",
       html:
         "<p>与业务线「forecast 填报」流程联动：勾选后可展示或编辑人工 forecast 列，并参与部分计算。</p>",
-    },
-    {
-      anchorSelector: "#leadSelect",
-      title: "表格工具栏：预测选择",
-      html:
-        "<p>原型<strong>默认 R1</strong>；下拉切换 R1/R2/R3 后，表格会按当前选定预测方式加载对应轮次的数据：</p>" +
-        "<ul>" +
-        "<li><strong>选择 R1：</strong>若当前是「机器学习」，展示机器学习的 R1 预测结果；若当前是「系统预测」，展示系统预测的 R1 结果；<strong>forecast填写销量</strong>同步取 R1 的填写值。</li>" +
-        "<li><strong>选择 R2：</strong>同理展示对应方式的 R2 预测结果，forecast 填写销量取 R2 填写值。</li>" +
-        "<li><strong>选择 R3：</strong>同理展示对应方式的 R3 预测结果，forecast 填写销量取 R3 填写值。</li>" +
-        "</ul>" +
-        "<p>与筛选区「预测选择」用途不同：筛选区用于过滤条件，工具栏这里用于当前表格展示口径切换。</p>",
     },
     {
       anchorSelector: "#chkSelectAll",
@@ -224,7 +183,7 @@
       title: "列组：月份",
       html:
         "<p>子列由脚本按月份范围动态生成，展示各月实际、预测或备注单元格。</p>" +
-        "<p>列表单元格中，<strong>机器学习/系统预测</strong>主行仍以文字形式附带演示区间<strong>（下限～上限）</strong>，规则为<strong>预测值×50% / ×150%</strong>（四舍五入）；与上方图表的<strong>浅色区间带</strong>为同一口径，图表不在柱顶堆字。</p>" +
+        "<p>列表单元格中，<strong>机器学习/系统预测</strong>主行仍以文字形式附带演示区间<strong>（下限～上限）</strong>，规则为<strong>预测值×50% / ×150%</strong>（四舍五入）；与上方图表的<strong>浅色区间带</strong>为同一口径。</p>" +
         "<p><strong>forecast填写销量</strong>行仅展示业务<strong>最终填报数值</strong>，不附加区间括号。</p>" +
         "<p>单元格内可含下钻、备注图标、颜色告警等，以交互稿为准。</p>",
     },
@@ -234,19 +193,10 @@
       html: "<p>常为小图或「查看」链接触发 trendPop 趋势弹窗，对比长周期销量。</p>",
     },
     {
-      anchorSelector: "#thR1",
-      title: "列：R1",
-      html: "<p>提前一月锁定预测值或准确率衍生列，依当前「预测方式」与列配置切换显示。</p>",
-    },
-    {
-      anchorSelector: "#thR2",
-      title: "列：R2",
-      html: "<p>提前两月版本列，解释同上。</p>",
-    },
-    {
-      anchorSelector: "#thR3",
-      title: "列：R3",
-      html: "<p>提前三月版本列，解释同上。</p>",
+      anchorSelector: "#thPredAcc",
+      title: "列：预测准确率",
+      html:
+        "<p>按当前「预测方式」与<strong>预测目标值</strong>口径，展示该行相对实际销量的准确率或衍生指标（演示数据）。</p>",
     },
     {
       anchorSelector: "#thOperation",

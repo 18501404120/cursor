@@ -806,7 +806,7 @@
     (function () {
       /**
        * 月份范围由筛选区「月份范围」控制，默认：锚定日前 6 个月～后 6 个月（含当月）。
-       * R1/R2/R3 的锁定规则按“距目标月还有几个月”来分段（见 systemTargetFor）。
+       * 「预测目标值」为单月一条；距目标月越近越趋近锁定快照（演示，见 systemTargetFor）。
        */
       var months = [];
 
@@ -971,7 +971,7 @@
         return startOfDay(anchor) > end;
       }
 
-      /** 滚动预测（随锚定日变化，模拟每日跑批）；R1/R2/R3 在未锁定阶段取同一个值 */
+      /** 滚动预测（随锚定日变化，模拟每日跑批） */
       function rollingTarget(lab, anchor) {
         var p = parseMonthLabel(lab);
         var d = anchor.getDate();
@@ -980,50 +980,41 @@
         return Math.round(105 + (seed % 95));
       }
 
-      /** 锁定快照：按 R 版本与目标月稳定生成（不随每日滚动改变） */
-      function frozenTarget(lab, rIndex) {
+      /** 锁定快照：按目标月稳定生成（不随每日滚动改变，演示） */
+      function frozenTarget(lab) {
         var p = parseMonthLabel(lab);
-        var seed = p.m * 31 + (rIndex + 1) * 47 + p.y * 7;
-        return Math.round(112 + (seed % 88) + rIndex * 4);
+        var seed = p.m * 31 + 47 + p.y * 7;
+        return Math.round(112 + (seed % 88));
       }
 
-      /** 非「未来月」时的演示目标基线（示意用）；0 表示走 rollingTarget 回退 */
+      /** 非「未来月」时的演示目标基线（示意用） */
       var HIST_SYS = [
         [122, 128, 135, 118, 125, 132, 140, 138, 145, 150, 148, 155, 160],
         [118, 124, 130, 115, 122, 128, 136, 134, 140, 146, 144, 150, 156],
         [114, 120, 126, 112, 118, 124, 132, 130, 136, 142, 140, 146, 152]
       ];
 
-      function systemTargetFor(lab, rIndex, anchor) {
+      /** 系统「预测目标值」：单月一条；距目标月越近越趋近锁定快照（演示） */
+      function systemTargetFor(lab, anchor) {
         var i = months.indexOf(lab);
         if (i < 0) return 0;
         if (!isFutureMonth(anchor, lab)) {
-          var rowH = HIST_SYS[rIndex];
+          var rowH = HIST_SYS[0];
           var hv = rowH && rowH[i];
           return hv != null ? hv : rollingTarget(lab, anchor);
         }
-        /**
-         * 锁定规则（目标月 M）：
-         * - 初始：R1/R2/R3 预测值相同（都取 rollingTarget）
-         * - 距 M 还有 3 个月（进入 M-3 月区间）开始：R3 锁定（后续每日预测仍跑，但 R3 不再变）
-         * - 距 M 还有 2 个月开始：R2 锁定
-         * - 距 M 还有 1 个月开始：R1 锁定
-         *
-         * 实现：monthsUntilMonthFirst(anchor, M) 的值为：
-         * 12..4：都滚动；3：锁 R3；2：锁 R2/R3；1：全锁
-         */
         var mLeft = monthsUntilMonthFirst(anchor, lab);
-        if (mLeft <= 1) return frozenTarget(lab, rIndex); // 1个月内：R1/R2/R3 全锁
-        if (mLeft === 2) return rIndex >= 1 ? frozenTarget(lab, rIndex) : rollingTarget(lab, anchor); // 锁R2/R3
-        if (mLeft === 3) return rIndex >= 2 ? frozenTarget(lab, rIndex) : rollingTarget(lab, anchor); // 锁R3
-        return rollingTarget(lab, anchor); // 4个月及以上：都滚动且相同
+        if (mLeft <= 1) return frozenTarget(lab);
+        if (mLeft === 2) return frozenTarget(lab);
+        if (mLeft === 3) return frozenTarget(lab);
+        return rollingTarget(lab, anchor);
       }
 
-      /** 人工预测：在系统目标上略偏，仅 R1–R3 */
-      function manualTargetFor(lab, rIndex, anchor) {
-        var sys = systemTargetFor(lab, rIndex, anchor);
+      /** 人工预测：在系统预测目标上略偏（演示） */
+      function manualTargetFor(lab, anchor) {
+        var sys = systemTargetFor(lab, anchor);
         var p = parseMonthLabel(lab);
-        var bias = 0.92 + ((p.m + rIndex * 3) % 10) * 0.008;
+        var bias = 0.92 + (p.m % 10) * 0.008;
         return Math.round(sys * bias);
       }
 
@@ -1034,41 +1025,10 @@
         return Math.round(110 + (seed * 17) % 55);
       }
 
-      /**
-       * 单期销量目标达成率：100% − |实际−目标| / max(实际,目标)
-       * 无实际或分母为 0 时返回 null（图表不画点）
-       */
-      function achievementRateOnePoint(actual, target) {
-        if (actual == null || target == null) return null;
-        var denom = Math.max(actual, target);
-        if (denom <= 0) return null;
-        return 1 - Math.abs(actual - target) / denom;
-      }
-
-      /**
-       * 跨月汇总：100% − Σ|实际−目标| / Σmax(实际,目标)（仅统计 actual 非空的月份）
-       */
-      function achievementRateAggregate(actualArr, targetArr) {
-        var sumAbs = 0;
-        var sumMax = 0;
-        for (var i = 0; i < actualArr.length; i++) {
-          var a = actualArr[i];
-          var t = targetArr[i];
-          if (a == null) continue;
-          if (t == null || typeof t !== 'number') continue;
-          sumAbs += Math.abs(a - t);
-          sumMax += Math.max(a, t);
-        }
-        if (sumMax <= 0) return null;
-        return 1 - sumAbs / sumMax;
-      }
-
       function buildChartPayload(anchor) {
-        var targets = [[], [], []];
-        var manual = [[], [], []];
+        var targets = [];
+        var manual = [];
         var actual = [];
-        var ach = [[], [], []];
-        var manAch = [[], [], []];
 
         var histActual = [119, 126, 132, 116, 124, 130, 138, 152, 148, 156, 162, 158, 165];
 
@@ -1080,46 +1040,15 @@
           }
           actual.push(act);
 
-          for (var r = 0; r < 3; r++) {
-            targets[r].push(systemTargetFor(lab, r, anchor));
-          }
-          for (var m = 0; m < 3; m++) {
-            manual[m].push(manualTargetFor(lab, m, anchor));
-          }
-
-          var a = actual[i];
-          for (var r2 = 0; r2 < 3; r2++) {
-            var t = targets[r2][i];
-            var ar = achievementRateOnePoint(a, t);
-            ach[r2].push(ar == null ? null : ar);
-          }
-          for (var m2 = 0; m2 < 3; m2++) {
-            var tm = manual[m2][i];
-            var mar = achievementRateOnePoint(a, tm);
-            manAch[m2].push(mar == null ? null : mar);
-          }
+          targets.push(systemTargetFor(lab, anchor));
+          manual.push(manualTargetFor(lab, anchor));
         }
 
-        return { targets: targets, manual: manual, actual: actual, ach: ach, manAch: manAch };
+        return { targets: targets, manual: manual, actual: actual };
       }
 
-      /** 无达成率版：不展示 R1–R3 预测准确率 KPI */
+      /** 无达成率版：不展示预测准确率 KPI */
       function updateKpiCards() {}
-
-      function hollowLineStyle(color) {
-        return {
-          color: color,
-          width: 2
-        };
-      }
-
-      function hollowSymbol(color) {
-        return {
-          color: '#fff',
-          borderColor: color,
-          borderWidth: 2
-        };
-      }
 
       var chkMan = document.getElementById('chkShowManual');
 
@@ -1128,7 +1057,7 @@
         return { low: Math.round(v * 0.5), high: Math.round(v * 1.5) };
       }
 
-      /** 轴提示：列主值；目标/人工 R 柱状系列附带当月演示上下限（与浅色带 ×0.5～×1.5 一致） */
+      /** 轴提示：列主值；预测目标/人工预测柱附带当月演示上下限（与浅色带 ×0.5～×1.5 一致） */
       function buildForecastAxisTooltipCompact(params) {
         if (!params || !params.length) return '';
         var axis = params[0].axisValueLabel || params[0].name || '';
@@ -1139,7 +1068,7 @@
           var name = item.seriesName;
           var main = v == null || v === '' ? '—' : String(v);
           var line = item.marker + ' <b>' + name + '</b>：' + main;
-          if ((/^目标R[123]$/.test(name) || /^人工R[123]$/.test(name)) && typeof v === 'number' && !isNaN(v)) {
+          if ((name === '预测目标值' || name === '人工预测值') && typeof v === 'number' && !isNaN(v)) {
             var bh = forecastPointLowHigh(v);
             if (bh) {
               line += ' <span style="color:#666;font-size:12px">（下限 ' + bh.low + ' · 上限 ' + bh.high + '）</span>';
@@ -1150,7 +1079,7 @@
         return lines.join('<br/>');
       }
 
-      var FORECAST_RANGE_MAIN_NAMES = ['目标R1', '目标R2', '目标R3', '人工R1', '人工R2', '人工R3'];
+      var FORECAST_RANGE_MAIN_NAMES = ['预测目标值', '人工预测值'];
 
       function pushForecastRangeBands(out, mainName, dataArr, areaRgba, selectedMap) {
         var lows = [];
@@ -1215,70 +1144,48 @@
         });
       }
 
-      /** 无达成率版：仅柱状（目标/人工/实际），不含达成率折线与右侧百分比轴 */
+      /** 无达成率版：仅柱状（预测目标值 / 人工预测值 / 实际），不含达成率折线与右侧百分比轴 */
       function buildChartOption() {
         var p = buildChartPayload(getAnchorDate());
 
-        var legendNames = [
-          '目标R1', '目标R2', '目标R3',
-          '人工R1', '人工R2', '人工R3',
-          '实际销量'
-        ];
+        var legendNames = ['预测目标值', '人工预测值', '实际销量'];
 
         var selected = {
-          目标R1: true,
-          目标R2: false,
-          目标R3: false,
-          人工R1: false,
-          人工R2: false,
-          人工R3: false,
+          预测目标值: true,
+          人工预测值: false,
           实际销量: true
         };
         if (chkMan && chkMan.checked) {
-          selected['人工R1'] = true;
-          selected['人工R2'] = false;
-          selected['人工R3'] = false;
+          selected['人工预测值'] = true;
         }
 
-        var barColors = ['#1677ff', '#13c2c2', '#52c41a'];
-        var manualBarStyle = function (hex) {
-          return {
-            color: hex,
-            opacity: 0.35,
-            borderColor: hex,
-            borderWidth: 1
-          };
-        };
-
-        var bandRgbaT = ['rgba(22,119,255,0.38)', 'rgba(19,194,194,0.36)', 'rgba(82,196,26,0.36)'];
-        var bandRgbaM = ['rgba(250,140,22,0.34)', 'rgba(235,47,150,0.3)', 'rgba(47,84,235,0.3)'];
+        var bandRgbaT = 'rgba(22,119,255,0.38)';
+        var bandRgbaM = 'rgba(250,140,22,0.34)';
         var series = [];
-        for (var bi = 0; bi < 3; bi++) {
-          pushForecastRangeBands(series, '目标R' + (bi + 1), p.targets[bi], bandRgbaT[bi], selected);
-        }
-        for (var mj = 0; mj < 3; mj++) {
-          pushForecastRangeBands(series, '人工R' + (mj + 1), p.manual[mj], bandRgbaM[mj], selected);
-        }
-        for (var b = 0; b < 3; b++) {
-          series.push({
-            name: '目标R' + (b + 1),
-            type: 'bar',
-            data: p.targets[b],
-            itemStyle: { color: barColors[b] },
-            barMaxWidth: 7,
-            z: 2
-          });
-        }
-        for (var mb = 0; mb < 3; mb++) {
-          series.push({
-            name: '人工R' + (mb + 1),
-            type: 'bar',
-            data: p.manual[mb],
-            itemStyle: manualBarStyle(['#fa8c16', '#eb2f96', '#2f54eb'][mb]),
-            barMaxWidth: 6,
-            z: 2
-          });
-        }
+        pushForecastRangeBands(series, '预测目标值', p.targets, bandRgbaT, selected);
+        pushForecastRangeBands(series, '人工预测值', p.manual, bandRgbaM, selected);
+
+        series.push({
+          name: '预测目标值',
+          type: 'bar',
+          data: p.targets,
+          itemStyle: { color: '#1677ff' },
+          barMaxWidth: 10,
+          z: 2
+        });
+        series.push({
+          name: '人工预测值',
+          type: 'bar',
+          data: p.manual,
+          itemStyle: {
+            color: '#fa8c16',
+            opacity: 0.35,
+            borderColor: '#fa8c16',
+            borderWidth: 1
+          },
+          barMaxWidth: 8,
+          z: 2
+        });
         series.push({
           name: '实际销量',
           type: 'bar',
@@ -1580,11 +1487,7 @@
             sys: sys,
             fill: fill,
             fillWarn: {},
-            r: [
-              { v: String(75 + (i % 20)), cls: 'ok' },
-              { v: String(r2Year) + '.0', cls: rCls },
-              { v: String(60 + (i % 25)), cls: 'ok' }
-            ]
+            r: [{ v: String(r2Year) + '.0', cls: rCls }]
           });
         }
         return rows;
