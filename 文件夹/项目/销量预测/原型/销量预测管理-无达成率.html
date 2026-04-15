@@ -1925,20 +1925,49 @@
         return DETAIL_BASELINE_PATTERN[mi % DETAIL_BASELINE_PATTERN.length];
       }
 
-      /** 详情表：销售目标影响因子（演示，可按月微调） */
-      function demoDetailSalesTargetInfluence(mi) {
-        return (1 + (mi % 4) * 0.02).toFixed(2);
+      /**
+       * 详情表：销售目标影响因子 α（0～1 权重）；无销量目标（BP）时必须为空。
+       * 与预测销量关系：当市场预测 M＞销量目标 T 时，预测销量 = T×α + M×(1−α)。
+       */
+      function demoDetailSalesTargetInfluence(mi, hasSalesTarget) {
+        if (!hasSalesTarget) return null;
+        var w = 0.3 + (mi % 4) * 0.12;
+        return w.toFixed(2);
+      }
+
+      /** 详情表：演示用原始市场预测 M（未叠销售目标），相对当月 BP 波动以展示 M≤T / M＞T 两条分支 */
+      function demoDetailRawMarketVsBp(bp, mi) {
+        if (bp == null || typeof bp !== 'number' || isNaN(bp)) return null;
+        var r = 0.9 + ((mi * 17 + 3) % 25) * 0.02;
+        return Math.round(bp * r);
       }
 
       /**
-       * 市场预测值：业务含义为**未叠销售目标**前的量；
-       * 原型演示：预测销量（已含销售目标口径）÷ 当月销售目标影响因子，因子为 1 时与预测销量一致。
+       * 详情表：当月销量目标 T，取系统 BP；演示中少量格子为空（无 BP 则无因子、预测按市场单列）。
        */
-      function demoDetailMarketForecastDisplay(predNum, tgtInflStr) {
-        if (predNum == null || isNaN(predNum)) return '—';
-        var f = parseFloat(String(tgtInflStr), 10);
-        if (!isFinite(f) || f <= 0) return String(Math.round(predNum));
-        return String(Math.round(predNum / f));
+      function detailDemoSalesTargetBp(lab, anchor, rowIdx, mi) {
+        if (rowIdx % 11 === 0 && mi % 5 === 0) return null;
+        return bpTargetFor(lab, anchor);
+      }
+
+      /**
+       * 预测销量 P：M 为市场预测值，T 为销量目标（BP），α 为销售目标影响因子（0～1）。
+       * 无 T：α 为空，P = M（演示）。
+       * M≤T：P = T×1.05。
+       * M＞T：P = T×α + M×(1−α)。
+       */
+      function detailPredictedSalesFromMarketAndTarget(M, T, inflStr) {
+        if (M == null || typeof M !== 'number' || isNaN(M)) return null;
+        if (T == null || typeof T !== 'number' || isNaN(T)) {
+          return Math.round(M);
+        }
+        var a = parseFloat(String(inflStr), 10);
+        if (!isFinite(a)) return Math.round(M);
+        a = Math.min(1, Math.max(0, a));
+        if (M <= T) {
+          return Math.round(T * 1.05);
+        }
+        return Math.round(T * a + M * (1 - a));
       }
 
       function detailElasticityCoefHtml() {
@@ -1953,10 +1982,12 @@
         );
       }
 
-      /** 详情弹窗：基准/弹性/影响因子/市场预测/销售目标因子 + 预测值 + 上下限 + forecast 填写 */
+      /** 详情弹窗：基准/弹性/影响因子/市场预测/销量目标(BP)/销售目标因子 + 预测值 + 上下限 + forecast 填写 */
       function buildRowForecastDetailHtml(row) {
-        var field = isPredML() ? 'ml' : 'sys';
         var modeLabel = isPredML() ? '机器学习' : '系统规则';
+        var anchor = getAnchorDate();
+        var rowIdx = tableRows.indexOf(row);
+        if (rowIdx < 0) rowIdx = 0;
         var n = months.length;
         var trs = [];
         var rowspanElas =
@@ -1973,14 +2004,18 @@
           '</td>';
         for (var mi = 0; mi < n; mi++) {
           var lab = months[mi];
-          var pred = seriesValueForCell(row, field, mi);
           var fillV = seriesValueForCell(row, 'fill', mi);
-          var predNum = typeof pred === 'number' && !isNaN(pred) ? pred : null;
+          var baseline = demoDetailBaselineSales(mi);
+          var salesTargetBp = detailDemoSalesTargetBp(lab, anchor, rowIdx, mi);
+          var hasT = salesTargetBp != null && typeof salesTargetBp === 'number' && !isNaN(salesTargetBp);
+          var tgtInfl = demoDetailSalesTargetInfluence(mi, hasT);
+          var M = demoDetailRawMarketVsBp(hasT ? salesTargetBp : bpTargetFor(lab, anchor), mi);
+          var predNum = detailPredictedSalesFromMarketAndTarget(M, hasT ? salesTargetBp : null, tgtInfl);
           var lo = predNum != null ? Math.round(predNum * 0.5) : '—';
           var hi = predNum != null ? Math.round(predNum * 1.5) : '—';
-          var baseline = demoDetailBaselineSales(mi);
-          var tgtInfl = demoDetailSalesTargetInfluence(mi);
-          var marketPred = demoDetailMarketForecastDisplay(predNum, tgtInfl);
+          var marketStr = M == null ? '—' : String(M);
+          var tgtStr = hasT ? String(salesTargetBp) : '—';
+          var inflStr = tgtInfl == null ? '—' : String(tgtInfl);
           var coefCells = mi === 0 ? rowspanElas + rowspanInfl : '';
           trs.push(
             '<tr><td>' +
@@ -1990,11 +2025,13 @@
               '</td>' +
               coefCells +
               '<td>' +
-              marketPred +
+              marketStr +
               '</td><td>' +
-              tgtInfl +
+              tgtStr +
               '</td><td>' +
-              formatDetailCellPlain(pred) +
+              inflStr +
+              '</td><td>' +
+              formatDetailCellPlain(predNum) +
               '</td><td>' +
               lo +
               '</td><td>' +
@@ -2012,10 +2049,10 @@
           '</b></p>' +
           '<p style="margin:10px 0 6px;font-size:13px">按月「<b>' +
           modeLabel +
-          '</b>」预测销量与<strong>上下限</strong>；含<strong>基准销量、弹性系数、影响因子系数、市场预测值（不含销售目标）</strong>与<strong>销售目标影响因子</strong>及<strong>预测销量（含销售目标口径）</strong>等（演示字段；预测值×50% / ×150% 为区间口径；图表浅色带对应区间，本表便于核对）</p>' +
+          '</b>」：<strong>市场预测值 M</strong>与<strong>销量目标 T</strong>（系统 BP）比较——若 M≤T，则<strong>预测销量 = T×1.05</strong>；若 M＞T，则<strong>预测销量 = T×α + M×(1−α)</strong>（α 为销售目标影响因子，0～1）。<strong>无 T 时 α 为空</strong>，演示中预测销量取 M。上下限为预测销量×50% / ×150%。</p>' +
           '<div style="max-height:380px;overflow:auto">' +
-          '<table class="data-table" style="font-size:12px;min-width:1040px"><thead><tr>' +
-          '<th>月份</th><th>基准销量</th><th>弹性系数</th><th>影响因子系数</th><th>市场预测值</th><th>销售目标<br/>影响因子</th><th>预测销量</th><th>下限</th><th>上限</th><th>forecast填写</th>' +
+          '<table class="data-table" style="font-size:12px;min-width:1120px"><thead><tr>' +
+          '<th>月份</th><th>基准销量</th><th>弹性系数</th><th>影响因子系数</th><th>市场预测值</th><th>销量目标<br/>（BP）</th><th>销售目标<br/>影响因子</th><th>预测销量</th><th>下限</th><th>上限</th><th>forecast填写</th>' +
           '</tr></thead><tbody>' +
           trs.join('') +
           '</tbody></table></div>'
