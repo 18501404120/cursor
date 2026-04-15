@@ -1018,6 +1018,14 @@
         return Math.round(sys * bias);
       }
 
+      /** BP（业务计划）目标值：演示为相对系统预测目标的规划带（正式版接经营计划/BP 口径） */
+      function bpTargetFor(lab, anchor) {
+        var sys = systemTargetFor(lab, anchor);
+        var p = parseMonthLabel(lab);
+        var k = 1.04 + (p.m % 5) * 0.012;
+        return Math.round(sys * k);
+      }
+
       /** 已结束月无数组位时的演示实际销量（按月份稳定） */
       function demoActualFromLab(lab) {
         var p = parseMonthLabel(lab);
@@ -1026,6 +1034,7 @@
       }
 
       function buildChartPayload(anchor) {
+        var bp = [];
         var targets = [];
         var manual = [];
         var actual = [];
@@ -1040,11 +1049,12 @@
           }
           actual.push(act);
 
+          bp.push(bpTargetFor(lab, anchor));
           targets.push(systemTargetFor(lab, anchor));
           manual.push(manualTargetFor(lab, anchor));
         }
 
-        return { targets: targets, manual: manual, actual: actual };
+        return { bp: bp, targets: targets, manual: manual, actual: actual };
       }
 
       /** 无达成率版：不展示预测准确率 KPI */
@@ -1068,7 +1078,7 @@
           var name = item.seriesName;
           var main = v == null || v === '' ? '—' : String(v);
           var line = item.marker + ' <b>' + name + '</b>：' + main;
-          if ((name === '预测目标值' || name === '人工预测值') && typeof v === 'number' && !isNaN(v)) {
+          if ((name === 'BP目标值' || name === '预测目标值' || name === '人工预测值') && typeof v === 'number' && !isNaN(v)) {
             var bh = forecastPointLowHigh(v);
             if (bh) {
               line += ' <span style="color:#666;font-size:12px">（下限 ' + bh.low + ' · 上限 ' + bh.high + '）</span>';
@@ -1079,7 +1089,7 @@
         return lines.join('<br/>');
       }
 
-      var FORECAST_RANGE_MAIN_NAMES = ['预测目标值', '人工预测值'];
+      var FORECAST_RANGE_MAIN_NAMES = ['BP目标值', '预测目标值', '人工预测值'];
 
       function pushForecastRangeBands(out, mainName, dataArr, areaRgba, selectedMap) {
         var lows = [];
@@ -1144,13 +1154,14 @@
         });
       }
 
-      /** 无达成率版：仅柱状（预测目标值 / 人工预测值 / 实际），不含达成率折线与右侧百分比轴 */
+      /** 无达成率版：仅柱状（BP目标值 / 预测目标值 / 人工预测值 / 实际），不含达成率折线与右侧百分比轴 */
       function buildChartOption() {
         var p = buildChartPayload(getAnchorDate());
 
-        var legendNames = ['预测目标值', '人工预测值', '实际销量'];
+        var legendNames = ['BP目标值', '预测目标值', '人工预测值', '实际销量'];
 
         var selected = {
+          BP目标值: true,
           预测目标值: true,
           人工预测值: false,
           实际销量: true
@@ -1159,18 +1170,28 @@
           selected['人工预测值'] = true;
         }
 
+        var bandRgbaBp = 'rgba(114,46,209,0.34)';
         var bandRgbaT = 'rgba(22,119,255,0.38)';
         var bandRgbaM = 'rgba(250,140,22,0.34)';
         var series = [];
+        pushForecastRangeBands(series, 'BP目标值', p.bp, bandRgbaBp, selected);
         pushForecastRangeBands(series, '预测目标值', p.targets, bandRgbaT, selected);
         pushForecastRangeBands(series, '人工预测值', p.manual, bandRgbaM, selected);
 
+        series.push({
+          name: 'BP目标值',
+          type: 'bar',
+          data: p.bp,
+          itemStyle: { color: '#722ed1' },
+          barMaxWidth: 7,
+          z: 2
+        });
         series.push({
           name: '预测目标值',
           type: 'bar',
           data: p.targets,
           itemStyle: { color: '#1677ff' },
-          barMaxWidth: 10,
+          barMaxWidth: 8,
           z: 2
         });
         series.push({
@@ -1183,7 +1204,7 @@
             borderColor: '#fa8c16',
             borderWidth: 1
           },
-          barMaxWidth: 8,
+          barMaxWidth: 7,
           z: 2
         });
         series.push({
@@ -1191,7 +1212,7 @@
           type: 'bar',
           data: p.actual,
           itemStyle: { color: '#fadb14', borderColor: '#d4b106', borderWidth: 1 },
-          barMaxWidth: 8,
+          barMaxWidth: 7,
           z: 2
         });
 

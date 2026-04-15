@@ -104,9 +104,9 @@
       anchorSelector: ".chart-panel h2",
       title: "区块：销量预测与达成",
       html:
-        "<p>可视化对比<strong>预测目标值</strong>、可选的<strong>人工预测值</strong>、实际销量及达成率折线；横轴受月份筛选与数据可用性影响。</p>" +
-        "<p><strong>默认图例</strong>展开「预测目标值」与「实际销量」及达成率；人工序列默认收起，勾选「显示人工预测与达成率」后默认展开。</p>" +
-        "<p>预测目标/人工预测：柱体为<strong>点预测</strong>，背后用<strong>浅色半透明面积带</strong>表示演示上下限（预测值×50% / ×150%）；图上不堆叠区间文字。</p>",
+        "<p>可视化对比<strong>BP目标值</strong>、<strong>预测目标值</strong>、可选的<strong>人工预测值</strong>、实际销量及达成率折线；横轴受月份筛选与数据可用性影响。</p>" +
+        "<p><strong>默认图例</strong>展开「BP目标值」「预测目标值」与「实际销量」及达成率；人工序列默认收起，勾选「显示人工预测与达成率」后默认展开。</p>" +
+        "<p>BP/预测目标/人工预测：柱体为<strong>点估计</strong>，背后用<strong>浅色半透明面积带</strong>表示演示上下限（预测值×50% / ×150%）；图上不堆叠区间文字。</p>",
     },
     {
       anchorSelector: "#chkShowManual",
@@ -119,7 +119,7 @@
       containerSelector: "#chartMain",
       title: "图表区域",
       html:
-        "<p>主图渲染容器（ECharts）；图例控制显隐；轴 Tooltip 在「预测目标值」「人工预测值」行附<strong>当月</strong>演示下限/上限；达成率以百分比展示。</p>" +
+        "<p>主图渲染容器（ECharts）；图例控制显隐；轴 Tooltip 在「BP目标值」「预测目标值」「人工预测值」行附<strong>当月</strong>演示下限/上限；达成率以百分比展示。</p>" +
         "<p>导出图表常随「导出」按钮或截图工具使用。</p>",
     },
     {
