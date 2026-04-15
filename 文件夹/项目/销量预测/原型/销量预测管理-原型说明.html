@@ -1207,42 +1207,86 @@
         return { low: Math.round(v * 0.5), high: Math.round(v * 1.5) };
       }
 
-      /** 轴提示中为目标/人工 R 系列补充一行「上下限」 */
-      function buildAxisTooltipWithBounds(params) {
+      /** 轴提示：不上图叠字；上下限仅由浅色区间带表达，此处只列各系列主值 */
+      function buildForecastAxisTooltipCompact(params) {
         if (!params || !params.length) return '';
         var axis = params[0].axisValueLabel || params[0].name || '';
         var lines = ['<div style="font-weight:600;margin-bottom:4px">' + axis + '</div>'];
         params.forEach(function (item) {
+          if (/^__band_/.test(item.seriesName)) return;
           var v = item.value;
           var name = item.seriesName;
-          lines.push(item.marker + ' <b>' + name + '</b>：' + (v == null || v === '' ? '—' : v));
-          if (/^(目标R[123]|人工R[123])$/.test(name) && typeof v === 'number' && !isNaN(v)) {
-            var bh = forecastPointLowHigh(v);
-            if (bh) {
-              lines.push(
-                '<span style="padding-left:12px;color:#888;font-size:12px">上下限：' + bh.low + ' ～ ' + bh.high + '</span>'
-              );
-            }
-          }
+          var main = v == null || v === '' ? '—' : String(v);
+          lines.push(item.marker + ' <b>' + name + '</b>：' + main);
         });
         return lines.join('<br/>');
       }
 
-      /** 柱状图顶标：主值 + 换行 + 下限～上限 */
-      var predBarLabel = {
-        show: true,
-        position: 'top',
-        fontSize: 9,
-        lineHeight: 13,
-        color: '#595959',
-        formatter: function (params) {
-          var v = params.value;
-          if (typeof v !== 'number' || isNaN(v)) return '';
-          var bh = forecastPointLowHigh(v);
-          if (!bh) return String(v);
-          return v + '\n' + bh.low + '～' + bh.high;
+      var FORECAST_RANGE_MAIN_NAMES = ['目标R1', '目标R2', '目标R3', '人工R1', '人工R2', '人工R3'];
+
+      /** 浅色透明区间带：下沿 + 堆叠高度，对应主柱状「合理预测值」为柱体本身 */
+      function pushForecastRangeBands(out, mainName, dataArr, areaRgba, selectedMap) {
+        var lows = [];
+        var spans = [];
+        for (var i = 0; i < dataArr.length; i++) {
+          var v = dataArr[i];
+          if (typeof v !== 'number' || isNaN(v)) {
+            lows.push(null);
+            spans.push(null);
+          } else {
+            var bh = forecastPointLowHigh(v);
+            lows.push(bh.low);
+            spans.push(bh.high - bh.low);
+          }
         }
-      };
+        var vis = selectedMap[mainName] !== false ? 1 : 0;
+        var stack = 'fb_' + mainName;
+        out.push({
+          name: '__band_lo_' + mainName,
+          type: 'line',
+          yAxisIndex: 0,
+          data: lows,
+          stack: stack,
+          showSymbol: false,
+          lineStyle: { width: 0 },
+          emphasis: { disabled: true },
+          silent: true,
+          legendHoverLink: false,
+          tooltip: { show: false },
+          z: 0,
+          itemStyle: { opacity: vis }
+        });
+        out.push({
+          name: '__band_hi_' + mainName,
+          type: 'line',
+          yAxisIndex: 0,
+          data: spans,
+          stack: stack,
+          showSymbol: false,
+          lineStyle: { width: 0 },
+          areaStyle: { color: areaRgba, opacity: 0.34 * vis },
+          emphasis: { disabled: true },
+          silent: true,
+          legendHoverLink: false,
+          tooltip: { show: false },
+          z: 0
+        });
+      }
+
+      function wireForecastBandLegend(ch) {
+        if (!ch || ch.__fbLegendBound) return;
+        ch.__fbLegendBound = true;
+        ch.on('legendselectchanged', function (e) {
+          var sel = e.selected || {};
+          var patch = [];
+          FORECAST_RANGE_MAIN_NAMES.forEach(function (k) {
+            var vis = sel[k] !== false ? 1 : 0;
+            patch.push({ name: '__band_lo_' + k, itemStyle: { opacity: vis } });
+            patch.push({ name: '__band_hi_' + k, areaStyle: { opacity: 0.34 * vis } });
+          });
+          ch.setOption({ series: patch });
+        });
+      }
 
       function buildChartOption() {
         var p = buildChartPayload(getAnchorDate());
@@ -1290,8 +1334,15 @@
           };
         };
 
+        var bandRgbaT = ['rgba(22,119,255,0.38)', 'rgba(19,194,194,0.36)', 'rgba(82,196,26,0.36)'];
+        var bandRgbaM = ['rgba(250,140,22,0.34)', 'rgba(235,47,150,0.3)', 'rgba(47,84,235,0.3)'];
         var series = [];
-
+        for (var bi = 0; bi < 3; bi++) {
+          pushForecastRangeBands(series, '目标R' + (bi + 1), p.targets[bi], bandRgbaT[bi], selected);
+        }
+        for (var mj = 0; mj < 3; mj++) {
+          pushForecastRangeBands(series, '人工R' + (mj + 1), p.manual[mj], bandRgbaM[mj], selected);
+        }
         for (var b = 0; b < 3; b++) {
           series.push({
             name: '目标R' + (b + 1),
@@ -1299,7 +1350,7 @@
             data: p.targets[b],
             itemStyle: { color: barColors[b] },
             barMaxWidth: 7,
-            label: predBarLabel
+            z: 2
           });
         }
         for (var mb = 0; mb < 3; mb++) {
@@ -1309,7 +1360,7 @@
             data: p.manual[mb],
             itemStyle: manualBarStyle(['#fa8c16', '#eb2f96', '#2f54eb'][mb]),
             barMaxWidth: 6,
-            label: predBarLabel
+            z: 2
           });
         }
         series.push({
@@ -1318,7 +1369,7 @@
           data: p.actual,
           itemStyle: { color: '#fadb14', borderColor: '#d4b106', borderWidth: 1 },
           barMaxWidth: 8,
-          label: { show: false }
+          z: 2
         });
 
         var lineColorsAch = ['#fa8c16', '#f5222d', '#1677ff'];
@@ -1356,7 +1407,7 @@
           tooltip: {
             trigger: 'axis',
             axisPointer: { type: 'cross' },
-            formatter: buildAxisTooltipWithBounds
+            formatter: buildForecastAxisTooltipCompact
           },
           legend: {
             type: 'scroll',
@@ -1364,7 +1415,7 @@
             data: legendNames,
             selected: selected
           },
-          grid: { left: 52, right: 58, top: 36, bottom: 108 },
+          grid: { left: 52, right: 58, top: 14, bottom: 108 },
           xAxis: {
             type: 'category',
             data: months,
@@ -1405,6 +1456,8 @@
       var elTrend = document.getElementById('chartTrend');
       var chartTrend = echarts.init(elTrend);
       chartTrend.setOption(buildChartOption());
+      wireForecastBandLegend(chartMain);
+      wireForecastBandLegend(chartTrend);
 
       function refreshCharts() {
         anchorDate = getAnchorDate();
@@ -2175,7 +2228,7 @@
           '</b></p>' +
           '<p style="margin:10px 0 6px;font-size:13px">按月「<b>' +
           modeLabel +
-          '</b>」预测销量与<strong>上下限</strong>（演示口径：预测值×50% / ×150%，与上方销量预测图一致）</p>' +
+          '</b>」预测销量与<strong>上下限</strong>（演示口径：预测值×50% / ×150%；图表上以<strong>浅色区间带</strong>表示区间，本表便于核对数值）</p>' +
           '<div style="max-height:380px;overflow:auto">' +
           '<table class="data-table" style="font-size:12px;min-width:520px"><thead><tr>' +
           '<th>月份</th><th>预测销量</th><th>下限</th><th>上限</th><th>forecast填写</th>' +
