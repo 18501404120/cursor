@@ -1062,15 +1062,58 @@
 
       var chkMan = document.getElementById('chkShowManual');
 
-      function forecastPointLowHigh(v) {
-        if (typeof v !== 'number' || isNaN(v)) return null;
-        return { low: Math.round(v * 0.5), high: Math.round(v * 1.5) };
+      /**
+       * 演示用上下限：与《预测销量上下限规则》§3 一致——由流量、转化率、竞争力、价格、广告花费
+       * 在悲观/乐观情景下的极值组合，折算为相对点值的合成倍数（原型用月份+锚定日+点值种子确定性模拟）。
+       */
+      function prdDemoSalesBandFromPoint(v, lab, anchor) {
+        if (typeof v !== 'number' || isNaN(v) || v === 0) return null;
+        var labKey = lab || '';
+        var p =
+          labKey.length >= 6
+            ? { y: +labKey.slice(0, 4), m: +labKey.slice(4, 6) }
+            : { y: 2026, m: 1 };
+        var t = anchor && anchor.getTime ? anchor.getTime() : 0;
+        var s = Math.abs((p.y * 401 + p.m * 59 + (t % 499999) + Math.round(Math.abs(v))) % 2000000);
+        function pick(lo, hi, off) {
+          var u = ((s + off * 7919) % 10000) / 10000;
+          return lo + (hi - lo) * u;
+        }
+        var trL = pick(0.88, 0.97, 1);
+        var cvL = pick(0.9, 0.98, 2);
+        var cmL = pick(0.89, 0.97, 3);
+        var prL = pick(0.86, 0.96, 4);
+        var adL = pick(0.9, 0.98, 5);
+        var mLo = trL * cvL * cmL * prL * adL;
+        mLo = Math.max(0.62, Math.min(0.94, mLo));
+        var trH = pick(1.02, 1.11, 6);
+        var cvH = pick(1.01, 1.09, 7);
+        var cmH = pick(1.02, 1.1, 8);
+        var prH = pick(1.01, 1.08, 9);
+        var adH = pick(1.02, 1.1, 10);
+        var mHi = trH * cvH * cmH * prH * adH;
+        mHi = Math.max(1.06, Math.min(1.42, mHi));
+        var low = Math.round(v * mLo);
+        var high = Math.round(v * mHi);
+        if (high < low) {
+          var tmp = low;
+          low = high;
+          high = tmp;
+        }
+        if (high <= low) high = low + 1;
+        return { low: low, high: high };
       }
 
-      /** 轴提示：列主值；预测目标/人工预测柱附带当月演示上下限（与浅色带 ×0.5～×1.5 一致） */
+      function forecastPointLowHigh(v, lab, anchor) {
+        if (typeof v !== 'number' || isNaN(v)) return null;
+        return prdDemoSalesBandFromPoint(v, lab, anchor || getAnchorDate());
+      }
+
+      /** 轴提示：列主值；BP/预测目标/人工预测柱附带当月演示上下限（与浅色带同为 §3 因子情景口径） */
       function buildForecastAxisTooltipCompact(params) {
         if (!params || !params.length) return '';
         var axis = params[0].axisValueLabel || params[0].name || '';
+        var labMonth = axis;
         var lines = ['<div style="font-weight:600;margin-bottom:4px">' + axis + '</div>'];
         params.forEach(function (item) {
           if (/^__band_/.test(item.seriesName)) return;
@@ -1079,7 +1122,7 @@
           var main = v == null || v === '' ? '—' : String(v);
           var line = item.marker + ' <b>' + name + '</b>：' + main;
           if ((name === 'BP目标值' || name === '预测目标值' || name === '人工预测值') && typeof v === 'number' && !isNaN(v)) {
-            var bh = forecastPointLowHigh(v);
+            var bh = forecastPointLowHigh(v, labMonth, getAnchorDate());
             if (bh) {
               line += ' <span style="color:#666;font-size:12px">（下限 ' + bh.low + ' · 上限 ' + bh.high + '）</span>';
             }
@@ -1100,7 +1143,8 @@
             lows.push(null);
             spans.push(null);
           } else {
-            var bh = forecastPointLowHigh(v);
+            var labM = months[i];
+            var bh = forecastPointLowHigh(v, labM, getAnchorDate());
             lows.push(bh.low);
             spans.push(bh.high - bh.low);
           }
@@ -1600,9 +1644,9 @@
         var chkAlt = document.getElementById('chkSysRuleForecast');
         var chkFill = document.getElementById('chkForecastFill');
         var parts = [];
-        parts.push('<div class="fc-line fc-main">' + formatForecastWithBounds(mainVal) + '</div>');
+        parts.push('<div class="fc-line fc-main">' + formatForecastWithBounds(mainVal, mi) + '</div>');
         if (chkAlt && chkAlt.checked) {
-          parts.push('<div class="fc-line fc-alt">' + formatForecastWithBounds(altVal) + '</div>');
+          parts.push('<div class="fc-line fc-alt">' + formatForecastWithBounds(altVal, mi) + '</div>');
         }
         if (chkFill && chkFill.checked && fillVal != null && fillVal !== '') {
           var fw = fillForecastDeviationClass(row, mi);
@@ -1618,12 +1662,15 @@
         return v;
       }
 
-      /** 机器学习/系统预测行：预测值（下限～上限），上下限暂按 50% / 150% 计算（不用于 forecast 填写行） */
-      function formatForecastWithBounds(v) {
+      /**
+       * 机器学习/系统预测行：主值后附（下限～上限），与《预测销量上下限规则》§3 及图表浅色带同口径（原型确定性模拟；不用于 forecast 填写行）。
+       */
+      function formatForecastWithBounds(v, mi) {
         if (typeof v !== 'number' || isNaN(v)) return v;
-        var low = Math.round(v * 0.5);
-        var high = Math.round(v * 1.5);
-        return v + '（' + low + '～' + high + '）';
+        var labM = months[mi] || months[0];
+        var bh = forecastPointLowHigh(v, labM, getAnchorDate());
+        if (!bh) return String(v);
+        return v + '（' + bh.low + '～' + bh.high + '）';
       }
 
       function sparkFromRow(row) {
@@ -2012,10 +2059,12 @@
           var M = demoDetailRawMarketVsBp(hasT ? salesTargetBp : bpTargetFor(lab, anchor), mi);
           var predNum = detailPredictedSalesFromMarketAndTarget(M, hasT ? salesTargetBp : null, tgtInfl);
           var bandBase = hasT ? predNum : M;
-          var lo =
-            bandBase != null && typeof bandBase === 'number' && !isNaN(bandBase) ? Math.round(bandBase * 0.5) : '—';
-          var hi =
-            bandBase != null && typeof bandBase === 'number' && !isNaN(bandBase) ? Math.round(bandBase * 1.5) : '—';
+          var bhBand =
+            bandBase != null && typeof bandBase === 'number' && !isNaN(bandBase)
+              ? prdDemoSalesBandFromPoint(bandBase, lab, anchor)
+              : null;
+          var lo = bhBand ? bhBand.low : '—';
+          var hi = bhBand ? bhBand.high : '—';
           var marketStr = M == null ? '—' : String(M);
           var tgtStr = hasT ? String(salesTargetBp) : '—';
           var inflStr = tgtInfl == null ? '—' : String(tgtInfl);
@@ -2052,7 +2101,7 @@
           '</b></p>' +
           '<p style="margin:10px 0 6px;font-size:13px">按月「<b>' +
           modeLabel +
-          '</b>」：<strong>市场预测值 M</strong>与<strong>销量目标 T</strong>（系统 BP）比较——若 M≤T，则<strong>预测销量 = T×1.05</strong>；若 M＞T，则<strong>预测销量 = T×α + M×(1−α)</strong>（α 为销售目标影响因子，0～1）。<strong>无 T 时 α 为空</strong>，预测销量取 M；此时<strong>下限/上限仅按 M×50% / M×150%</strong>。有 T 时上下限按<strong>预测销量 P×50% / ×150%</strong>。</p>' +
+          '</b>」：<strong>市场预测值 M</strong>与<strong>销量目标 T</strong>（系统 BP）比较——若 M≤T，则<strong>预测销量 = T×1.05</strong>；若 M＞T，则<strong>预测销量 = T×α + M×(1−α)</strong>（α 为销售目标影响因子，0～1）。<strong>无 T 时 α 为空</strong>，预测销量取 M；<strong>下限/上限</strong>均按《预测销量上下限规则》§3：以<strong>流量、转化率、竞争力、价格、广告花费</strong>悲观/乐观极值代入与点预测同构的公式得到（有 T 时以 **P** 为演示基底，无 T 时以 **M** 为基底；原型用确定性模拟倍数，与图表浅色带一致）。</p>' +
           '<div style="max-height:380px;overflow:auto">' +
           '<table class="data-table" style="font-size:12px;min-width:1120px"><thead><tr>' +
           '<th>月份</th><th>基准销量</th><th>弹性系数</th><th>影响因子系数</th><th>市场预测值</th><th>销量目标<br/>（BP）</th><th>销售目标<br/>影响因子</th><th>预测销量</th><th>下限</th><th>上限</th><th>forecast填写</th>' +
