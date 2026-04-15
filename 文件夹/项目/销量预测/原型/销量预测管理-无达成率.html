@@ -1167,6 +1167,7 @@
         return { low: Math.round(v * 0.5), high: Math.round(v * 1.5) };
       }
 
+      /** 轴提示：列主值；目标/人工 R 柱状系列附带当月演示上下限（与浅色带 ×0.5～×1.5 一致） */
       function buildForecastAxisTooltipCompact(params) {
         if (!params || !params.length) return '';
         var axis = params[0].axisValueLabel || params[0].name || '';
@@ -1176,7 +1177,14 @@
           var v = item.value;
           var name = item.seriesName;
           var main = v == null || v === '' ? '—' : String(v);
-          lines.push(item.marker + ' <b>' + name + '</b>：' + main);
+          var line = item.marker + ' <b>' + name + '</b>：' + main;
+          if ((/^目标R[123]$/.test(name) || /^人工R[123]$/.test(name)) && typeof v === 'number' && !isNaN(v)) {
+            var bh = forecastPointLowHigh(v);
+            if (bh) {
+              line += ' <span style="color:#666;font-size:12px">（下限 ' + bh.low + ' · 上限 ' + bh.high + '）</span>';
+            }
+          }
+          lines.push(line);
         });
         return lines.join('<br/>');
       }
@@ -1244,18 +1252,6 @@
           });
           ch.setOption({ series: patch });
         });
-      }
-
-      /** 图例展示用：取序列首个有效预测点，拼出演示上下限（×0.5～×1.5） */
-      function legendBoundsSuffixFromSeries(arr) {
-        for (var i = 0; i < arr.length; i++) {
-          var v = arr[i];
-          if (typeof v === 'number' && !isNaN(v)) {
-            var bh = forecastPointLowHigh(v);
-            if (bh) return '（' + bh.low + '～' + bh.high + '）';
-          }
-        }
-        return '';
       }
 
       /** 无达成率版：仅柱状（目标/人工/实际），不含达成率折线与右侧百分比轴 */
@@ -1331,12 +1327,6 @@
           z: 2
         });
 
-        var legendBoundsSuffix = {};
-        for (var lbx = 0; lbx < 3; lbx++) {
-          legendBoundsSuffix['目标R' + (lbx + 1)] = legendBoundsSuffixFromSeries(p.targets[lbx]);
-          legendBoundsSuffix['人工R' + (lbx + 1)] = legendBoundsSuffixFromSeries(p.manual[lbx]);
-        }
-
         return {
           tooltip: {
             trigger: 'axis',
@@ -1347,11 +1337,7 @@
             type: 'scroll',
             bottom: 0,
             data: legendNames,
-            selected: selected,
-            formatter: function (nm) {
-              var sx = legendBoundsSuffix[nm];
-              return sx ? nm + sx : nm;
-            }
+            selected: selected
           },
           grid: { left: 52, right: 32, top: 14, bottom: 108 },
           xAxis: {

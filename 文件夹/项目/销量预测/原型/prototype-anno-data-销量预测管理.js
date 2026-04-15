@@ -155,7 +155,7 @@
       containerSelector: "#chartMain",
       title: "图表区域",
       html:
-        "<p>主图渲染容器（ECharts）；图例控制显隐；目标/人工 R 图例名后附<strong>首月有效点</strong>的演示上下限数字；轴提示仅列主值，区间以浅色带体现。</p>" +
+        "<p>主图渲染容器（ECharts）；图例控制显隐；轴 Tooltip 在目标/人工 R 行附<strong>当月</strong>演示下限/上限数字，达成率以百分比展示；区间以浅色带体现。</p>" +
         "<p>导出图表常随「导出」按钮或截图工具使用。</p>",
     },
     {
