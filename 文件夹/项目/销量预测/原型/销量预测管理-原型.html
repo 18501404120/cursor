@@ -284,11 +284,11 @@
     }
     .radio-row label { display: flex; align-items: center; gap: 6px; cursor: pointer; color: var(--text); }
 
-    /* —— KPI 六卡（与截图同色倾向） —— */
+    /* —— KPI 三卡（R1～R3 准确率） —— */
     .kpi-wrap { margin-bottom: 12px; }
     .kpi-row {
       display: grid;
-      grid-template-columns: repeat(6, 1fr);
+      grid-template-columns: repeat(3, 1fr);
       gap: 10px;
     }
     @media (max-width: 1400px) {
@@ -308,18 +308,6 @@
     .kpi.k3 { background: linear-gradient(135deg, #e6fffb 0%, #f0fffc 100%); }
     .kpi.k4 { background: linear-gradient(135deg, #fcffe6 0%, #fffbe6 100%); }
     .kpi.k5 { background: linear-gradient(135deg, #f0f5ff 0%, #e8eeff 100%); }
-    .kpi.k6 { background: linear-gradient(135deg, #fff0f6 0%, #ffe8f0 100%); }
-    .kpi.k6 .v.kpi-msku-pending-val {
-      color: #1677ff;
-      cursor: pointer;
-      user-select: none;
-    }
-    .kpi.k6 .v.kpi-msku-pending-val:hover { text-decoration: underline; }
-    .kpi.k6.kpi-pending-active {
-      outline: 2px solid #1677ff;
-      outline-offset: 1px;
-      border-radius: 10px;
-    }
 
     /* —— 图表区 —— */
     .chart-section {
@@ -794,10 +782,6 @@
             <div class="kpi k3">
               <div class="t">R3（提前3个月）<br />预测准确率</div>
               <div class="v" id="kpiR3Val" title="筛选月份内有实际的各月，按汇总公式">—</div>
-            </div>
-            <div class="kpi k6" id="kpiMskuPendingCard" title="forecast 与当前预测方式偏差超阈值，且近一年 R2≥70%（亚马逊渠道）；点击数字筛选列表">
-              <div class="t">MSKU待处理<br />（偏差过大）</div>
-              <div class="v kpi-msku-pending-val" id="kpiPendingMskuVal">0</div>
             </div>
           </div>
         </div>
@@ -1484,9 +1468,6 @@
 
       function refreshAll() {
         anchorDate = getAnchorDate();
-        pendingMskuFilterActive = false;
-        var pc = document.getElementById('kpiMskuPendingCard');
-        if (pc) pc.classList.remove('kpi-pending-active');
         rebuildMonthHeaders();
         applyMonthRangeUI();
         applyTrendTitleUI();
@@ -1519,8 +1500,6 @@
       refreshCharts();
 
       /** 图三示例：ml/sys/fill 至少 12 个月演示数据，列数随「月份范围」扩展（超出按模循环补数） */
-      /** 点击「MSKU待处理」数字时：仅展示偏差过大行并勾选；再点恢复 */
-      var pendingMskuFilterActive = false;
 
       /**
        * 场景/品类/品线主数据（与《提示词/场景品类品线规则》一致）
@@ -1815,35 +1794,6 @@
         return '';
       }
 
-      /** 亚马逊 + 近一年 R2≥70 + 至少一月 forecast 相对当前预测方式超阈值 */
-      function rowIsPendingMsku(row) {
-        if (!isAmazonRow(row)) return false;
-        if (row.r2Year == null || row.r2Year < 70) return false;
-        var baseField = isPredML() ? 'ml' : 'sys';
-        for (var mi = 0; mi < months.length; mi++) {
-          var fillVal = seriesValueForCell(row, 'fill', mi);
-          if (fillVal == null || typeof fillVal !== 'number') continue;
-          var baseVal = seriesValueForCell(row, baseField, mi);
-          if (baseVal == null || typeof baseVal !== 'number') continue;
-          if (monthTriggersMskuWarn(row, fillVal, baseVal)) return true;
-        }
-        return false;
-      }
-
-      function getPendingRowIndices() {
-        var res = [];
-        for (var ri = 0; ri < tableRows.length; ri++) {
-          if (rowIsPendingMsku(tableRows[ri])) res.push(ri);
-        }
-        return res;
-      }
-
-      function updateKpiPendingMsku() {
-        var el = document.getElementById('kpiPendingMskuVal');
-        if (!el) return;
-        el.textContent = String(getPendingRowIndices().length);
-      }
-
       function buildForecastCell(row, mi) {
         var ml = isPredML();
         var mainVal = seriesValueForCell(row, ml ? 'ml' : 'sys', mi);
@@ -1966,29 +1916,20 @@
         var tb = document.getElementById('tbody');
         tb.innerHTML = '';
         var master = document.getElementById('chkSelectAll');
-        var showIndices = [];
-        if (pendingMskuFilterActive) {
-          showIndices = getPendingRowIndices().slice();
-        } else {
-          for (var si = 0; si < tableRows.length; si++) showIndices.push(si);
-        }
 
-        if (master && !pendingMskuFilterActive) {
+        if (master) {
           master.checked = false;
           master.indeterminate = false;
         }
 
-        showIndices.forEach(function (ri) {
+        for (var ri = 0; ri < tableRows.length; ri++) {
           var row = tableRows[ri];
           var tr = document.createElement('tr');
           var html = '';
-          var chkOn = pendingMskuFilterActive ? ' checked' : '';
           html +=
             '<td class="td-check"><input type="checkbox" class="row-chk" data-ri="' +
             ri +
-            '" aria-label="选择该行"' +
-            chkOn +
-            ' /></td>';
+            '" aria-label="选择该行" /></td>';
           html += '<td class="left">' + row.a + '</td>';
           html += '<td class="left">' + row.b + '</td>';
           html += '<td class="left td-sales-team">' + formatSalesTeamCell(row.c) + '</td>';
@@ -2012,20 +1953,9 @@
             '">详情</span></td>';
           tr.innerHTML = html;
           tb.appendChild(tr);
-        });
-
-        if (master && pendingMskuFilterActive) {
-          if (showIndices.length > 0) {
-            master.checked = true;
-            master.indeterminate = false;
-          } else {
-            master.checked = false;
-            master.indeterminate = false;
-          }
         }
 
         applySalesColWidth(getSalesColWidthPref());
-        updateKpiPendingMsku();
         updateRemarkAvailability();
       }
 
@@ -2091,18 +2021,6 @@
       renderForecastTable();
       initSalesColumnResize();
       initTableRowSelection();
-
-      var kpiPendingVal = document.getElementById('kpiPendingMskuVal');
-      var kpiPendingCard = document.getElementById('kpiMskuPendingCard');
-      if (kpiPendingVal) {
-        kpiPendingVal.addEventListener('click', function (e) {
-          e.preventDefault();
-          e.stopPropagation();
-          pendingMskuFilterActive = !pendingMskuFilterActive;
-          if (kpiPendingCard) kpiPendingCard.classList.toggle('kpi-pending-active', pendingMskuFilterActive);
-          renderForecastTable();
-        });
-      }
 
       document.querySelectorAll('input[name="predMode"]').forEach(function (el) {
         el.addEventListener('change', renderForecastTable);

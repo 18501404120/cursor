@@ -130,13 +130,6 @@
       html: "<p>提前 3 个月版本；对季节品、大促品波动更敏感。</p>",
     },
     {
-      anchorSelector: "#kpiMskuPendingCard",
-      title: "KPI：MSKU 待处理（偏差过大）",
-      html:
-        "<p>计数规则（原型 title 提示）：forecast 与当前预测方式偏差超阈值，且近一年 R2≥70%（亚马逊渠道）等条件命中条数。</p>" +
-        "<p>点击数字可下钻筛选列表，便于运营逐条处理异常。</p>",
-    },
-    {
       anchorSelector: ".chart-panel h2",
       title: "区块：销量预测与达成",
       html:
