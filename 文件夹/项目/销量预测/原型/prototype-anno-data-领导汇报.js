@@ -27,7 +27,7 @@
       containerSelector: ".hero-tags",
       title: "首屏：标签组",
       html:
-        "<p>三个 pill 概括范围：多渠道多仓、R1～R3 版本体系、可解释与人工纠偏。</p>",
+        "<p>三个 pill 概括范围：多渠道多仓、预测任务与可配置版本、可解释与人工纠偏。</p>",
     },
     {
       anchorSelector: "#sec-bg .sec-title",

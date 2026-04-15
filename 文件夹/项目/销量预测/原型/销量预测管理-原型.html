@@ -284,7 +284,7 @@
     }
     .radio-row label { display: flex; align-items: center; gap: 6px; cursor: pointer; color: var(--text); }
 
-    /* —— KPI：当前预测准确率（单卡） —— */
+    /* —— 预留：顶部指标区（本原型不展示准确率类 KPI） —— */
     .kpi-wrap { margin-bottom: 12px; }
     .kpi-row {
       display: grid;
@@ -759,20 +759,11 @@
           </div>
         </div>
 
-        <div class="kpi-wrap">
-          <div class="kpi-row">
-            <div class="kpi k1">
-              <div class="t">预测准确率<br />（预测目标值 vs 实际）</div>
-              <div class="v" id="kpiAccuracyVal" title="筛选月份内有实际销量的月份，按汇总公式">—</div>
-            </div>
-          </div>
-        </div>
-
         <div class="chart-section">
           <div class="chart-panel">
-            <h2>预测与目标达成</h2>
+            <h2>预测与目标</h2>
             <div class="chart-toolbar">
-              <label><input type="checkbox" id="chkShowManual" /> 显示人工预测与达成率</label>
+              <label><input type="checkbox" id="chkShowManual" /> 显示人工预测值</label>
             </div>
             <div id="chartMain"></div>
           </div>
@@ -805,7 +796,6 @@
                   <th rowspan="2">MSKU信息<br /><span style="font-weight:400;color:#999">平台 / MSKU</span></th>
                   <th id="thMonthGroup" colspan="13" style="text-align:center;border-bottom:1px solid #f0f0f0;">月份</th>
                   <th rowspan="2">历史销量趋势</th>
-                  <th rowspan="2" id="thPredAcc">预测准确率</th>
                   <th rowspan="2">操作</th>
                 </tr>
                 <tr id="monthHeadRow"></tr>
@@ -842,7 +832,7 @@
     (function () {
       /**
        * 月份范围由筛选区「月份范围」控制，默认：锚定日前 6 个月～后 6 个月（含当月）。
-       * 「预测目标值」为单月一条；距目标月越近越趋近锁定快照（演示，见 systemTargetFor）。
+       * 「预测目标值」为单月一条；邻近目标月的演示数值用稳定种子生成（见 systemTargetFor，**非**业务「锁定版最后一版预测」语义）。
        */
       var months = [];
 
@@ -1016,7 +1006,7 @@
         return Math.round(105 + (seed % 95));
       }
 
-      /** 锁定快照：按目标月稳定生成（不随每日滚动改变，演示） */
+      /** 演示用稳定点值：按目标月固定种子生成（不随锚定日滚动，仅原型；非业务冻结快照） */
       function frozenTarget(lab) {
         var p = parseMonthLabel(lab);
         var seed = p.m * 31 + 47 + p.y * 7;
@@ -1030,7 +1020,7 @@
         [114, 120, 126, 112, 118, 124, 132, 130, 136, 142, 140, 146, 152]
       ];
 
-      /** 系统「预测目标值」：单月一条；距目标月越近越趋近锁定快照（演示） */
+      /** 系统「预测目标值」：单月一条；邻近目标月用演示稳定点值（见 frozenTarget），其余月用滚动演示（见 rollingTarget） */
       function systemTargetFor(lab, anchor) {
         var i = months.indexOf(lab);
         if (i < 0) return 0;
@@ -1054,7 +1044,7 @@
         return Math.round(sys * bias);
       }
 
-      /** BP（业务计划）目标值：演示为相对系统预测目标的规划带（正式版接经营计划/BP 口径） */
+      /** BP（销量目标）：演示为相对预测目标的规划带（正式版接 GTM 全年目标拆解） */
       function bpTargetFor(lab, anchor) {
         var sys = systemTargetFor(lab, anchor);
         var p = parseMonthLabel(lab);
@@ -1069,42 +1059,11 @@
         return Math.round(110 + (seed * 17) % 55);
       }
 
-      /**
-       * 单期销量目标达成率：100% − |实际−目标| / max(实际,目标)
-       * 无实际或分母为 0 时返回 null（图表不画点）
-       */
-      function achievementRateOnePoint(actual, target) {
-        if (actual == null || target == null) return null;
-        var denom = Math.max(actual, target);
-        if (denom <= 0) return null;
-        return 1 - Math.abs(actual - target) / denom;
-      }
-
-      /**
-       * 跨月汇总：100% − Σ|实际−目标| / Σmax(实际,目标)（仅统计 actual 非空的月份）
-       */
-      function achievementRateAggregate(actualArr, targetArr) {
-        var sumAbs = 0;
-        var sumMax = 0;
-        for (var i = 0; i < actualArr.length; i++) {
-          var a = actualArr[i];
-          var t = targetArr[i];
-          if (a == null) continue;
-          if (t == null || typeof t !== 'number') continue;
-          sumAbs += Math.abs(a - t);
-          sumMax += Math.max(a, t);
-        }
-        if (sumMax <= 0) return null;
-        return 1 - sumAbs / sumMax;
-      }
-
       function buildChartPayload(anchor) {
         var bp = [];
         var targets = [];
         var manual = [];
         var actual = [];
-        var ach = [];
-        var manAch = [];
 
         var histActual = [119, 126, 132, 116, 124, 130, 138, 152, 148, 156, 162, 158, 165];
 
@@ -1119,23 +1078,9 @@
           bp.push(bpTargetFor(lab, anchor));
           targets.push(systemTargetFor(lab, anchor));
           manual.push(manualTargetFor(lab, anchor));
-
-          var a = actual[i];
-          var t = targets[i];
-          ach.push(achievementRateOnePoint(a, t));
-          var tm = manual[i];
-          manAch.push(achievementRateOnePoint(a, tm));
         }
 
-        return { bp: bp, targets: targets, manual: manual, actual: actual, ach: ach, manAch: manAch };
-      }
-
-      function updateKpiCards() {
-        var p = buildChartPayload(getAnchorDate());
-        var el = document.getElementById('kpiAccuracyVal');
-        if (!el) return;
-        var agg = achievementRateAggregate(p.actual, p.targets);
-        el.textContent = agg == null ? '—' : (agg * 100).toFixed(0) + '%';
+        return { bp: bp, targets: targets, manual: manual, actual: actual };
       }
 
       function hollowLineStyle(color) {
@@ -1202,7 +1147,7 @@
         return prdDemoSalesBandFromPoint(v, lab, anchor || getAnchorDate());
       }
 
-      /** 轴提示：列主值；BP/预测目标/人工预测柱附带当月演示上下限（与浅色带同为 §3 因子情景口径）；达成率以百分比展示 */
+      /** 轴提示：列主值；BP/预测目标/人工预测柱附带当月演示上下限（与浅色带同为 §3 因子情景口径） */
       function buildForecastAxisTooltipCompact(params) {
         if (!params || !params.length) return '';
         var axis = params[0].axisValueLabel || params[0].name || '';
@@ -1212,12 +1157,7 @@
           if (/^__band_/.test(item.seriesName)) return;
           var v = item.value;
           var name = item.seriesName;
-          var main;
-          if (/达成率$/.test(name) && typeof v === 'number' && !isNaN(v)) {
-            main = (v * 100).toFixed(1) + '%';
-          } else {
-            main = v == null || v === '' ? '—' : String(v);
-          }
+          var main = v == null || v === '' ? '—' : String(v);
           var line = item.marker + ' <b>' + name + '</b>：' + main;
           if ((name === 'BP目标值' || name === '预测目标值' || name === '人工预测值') && typeof v === 'number' && !isNaN(v)) {
             var bh = forecastPointLowHigh(v, labMonth, getAnchorDate());
@@ -1299,19 +1239,16 @@
       function buildChartOption() {
         var p = buildChartPayload(getAnchorDate());
 
-        var legendNames = ['BP目标值', '预测目标值', '人工预测值', '实际销量', '达成率', '人工达成率'];
+        var legendNames = ['BP目标值', '预测目标值', '人工预测值', '实际销量'];
 
         var selected = {
           BP目标值: true,
           预测目标值: true,
           人工预测值: false,
-          实际销量: true,
-          达成率: true,
-          人工达成率: false
+          实际销量: true
         };
         if (chkMan && chkMan.checked) {
           selected['人工预测值'] = true;
-          selected['人工达成率'] = true;
         }
 
         var bandRgbaBp = 'rgba(114,46,209,0.34)';
@@ -1360,31 +1297,6 @@
           z: 2
         });
 
-        series.push({
-          name: '达成率',
-          type: 'line',
-          yAxisIndex: 1,
-          data: p.ach,
-          connectNulls: false,
-          smooth: true,
-          symbol: 'circle',
-          symbolSize: 6,
-          itemStyle: hollowSymbol('#fa8c16'),
-          lineStyle: hollowLineStyle('#fa8c16')
-        });
-        series.push({
-          name: '人工达成率',
-          type: 'line',
-          yAxisIndex: 1,
-          data: p.manAch,
-          connectNulls: false,
-          smooth: true,
-          symbol: 'circle',
-          symbolSize: 5,
-          lineStyle: { width: 2, type: 'dashed', color: '#ffc069' },
-          itemStyle: { color: '#fff', borderColor: '#ffc069', borderWidth: 2 }
-        });
-
         return {
           tooltip: {
             trigger: 'axis',
@@ -1397,7 +1309,7 @@
             data: legendNames,
             selected: selected
           },
-          grid: { left: 52, right: 58, top: 14, bottom: 108 },
+          grid: { left: 52, right: 28, top: 14, bottom: 108 },
           xAxis: {
             type: 'category',
             data: months,
@@ -1412,18 +1324,6 @@
               splitNumber: 5,
               axisLabel: { fontSize: 10 },
               splitLine: { lineStyle: { type: 'dashed', color: '#e8e8e8' } }
-            },
-            {
-              type: 'value',
-              name: '达成率',
-              min: 0,
-              max: 1,
-              splitNumber: 5,
-              axisLabel: {
-                fontSize: 10,
-                formatter: function (v) { return (v * 100).toFixed(0) + '%'; }
-              },
-              splitLine: { show: false }
             }
           ],
           series: series
@@ -1446,7 +1346,6 @@
         var opt = buildChartOption();
         chartMain.setOption(opt, true);
         chartTrend.setOption(opt, true);
-        updateKpiCards();
       }
 
       function refreshAll() {
@@ -1628,7 +1527,7 @@
         { sku: 'H6072181', msku: 'H6072181-OF-US-DSV' }
       ];
 
-      /** 30 条演示数据：覆盖 P0/P1/P2/EOL、亚马逊/非亚马逊、R2 高/中/低、forecast 偏差/无偏差 */
+      /** 30 条演示数据：覆盖 P0/P1/P2/EOL、亚马逊/非亚马逊、forecast 偏差/无偏差 */
       function buildDemoTableRows() {
         var tiers = ['P0', 'P1', 'P2', 'EOL'];
         var regions = ['北美区/US/Amazon-US', '欧洲区/DE/Amazon-DE', '亚太区/JP/Amazon-JP', '英国区/UK/Amazon-UK'];
@@ -1639,10 +1538,6 @@
           var ent = SCENARIO_CATEGORY_LINE_ENTRIES[i % catLen];
           var tier = tiers[i % 4];
           var amazon = i % 7 !== 5;
-          var r2Year;
-          if (i < 10) r2Year = 80 + (i % 10);
-          else if (i < 20) r2Year = 70 + (i % 10);
-          else r2Year = 52 + (i % 18);
           var vol =
             tier === 'EOL'
               ? [12, 22, 40][i % 3]
@@ -1671,7 +1566,6 @@
               fill.push(null);
             }
           }
-          var rCls = r2Year >= 80 ? 'ok' : r2Year >= 70 ? 'warn-yellow' : 'bad';
           var samp = PRODUCT_DEMO_SAMPLES[i % sampleLen];
           rows.push({
             a: regions[i % 4] + (amazon ? '' : '-TB'),
@@ -1684,12 +1578,10 @@
             productTier: tier,
             recent30dVol: vol,
             msku: samp.msku,
-            r2Year: r2Year,
             ml: ml,
             sys: sys,
             fill: fill,
-            fillWarn: {},
-            r: [{ v: String(r2Year) + '.0', cls: rCls }]
+            fillWarn: {}
           });
         }
         return rows;
@@ -1738,7 +1630,7 @@
         return Math.abs(fill - base);
       }
 
-      /** 单月 forecast vs 基准是否触发预警（不含渠道/R2 过滤） */
+      /** 单月 forecast vs 基准是否触发预警（不含渠道等额外过滤） */
       function monthTriggersMskuWarn(row, fill, base) {
         var vol = row.recent30dVol != null ? row.recent30dVol : 0;
         var rel = relDevFillBase(fill, base);
@@ -1757,10 +1649,7 @@
         return rel >= 0.2;
       }
 
-      /**
-       * forecast 与「机器学习预测」偏差触发阈值时：亚马逊渠道下按近一年 R2 着色
-       * 红：R2≥80%；黄：70%≤R2<80%；R2<70 不额外着色（仍可按主数值样式）
-       */
+      /** forecast 与「机器学习预测」偏差触发《MSKU 阈值》时：亚马逊渠道下浅警示样式（业务预警，非准确率 KPI） */
       function fillForecastDeviationClass(row, mi) {
         var fillVal = seriesValueForCell(row, 'fill', mi);
         if (fillVal == null || typeof fillVal !== 'number') return '';
@@ -1768,9 +1657,7 @@
         if (mlVal == null || typeof mlVal !== 'number') return '';
         if (!isAmazonRow(row)) return '';
         if (!monthTriggersMskuWarn(row, fillVal, mlVal)) return '';
-        if (row.r2Year >= 80) return ' fc-warn-red';
-        if (row.r2Year >= 70) return ' fc-warn-yellow';
-        return '';
+        return ' fc-warn-yellow';
       }
 
       function buildForecastCell(row, mi) {
@@ -1918,12 +1805,6 @@
             html += buildForecastCell(row, mi);
           }
           html += '<td>' + sparkFromRow(row) + '</td>';
-          for (var rx = 0; rx < 1; rx++) {
-            var x = row.r[rx];
-            if (!x) x = { v: '—', cls: 'ok' };
-            var c = 'rate-cell ' + (x.cls === 'bad' ? 'bad' : x.cls === 'warn-yellow' ? 'warn-yellow' : 'ok');
-            html += '<td class="' + c + '">' + x.v + (x.v === '—' ? '' : '%') + '</td>';
-          }
           html +=
             '<td><span class="op-link op-link-disabled" data-act="remark" data-ri="' +
             ri +
@@ -2267,10 +2148,10 @@
           '<div id="remarkDateRangeMount"></div>' +
           '<div style="font-size:11px;color:#999;margin-top:4px;">请选择生效日期范围（必填）</div>' +
           '</div></div>' +
-          '<div class="form-row-dlg"><label>是否参与达成率计算</label><div class="field" style="padding-top:6px;">' +
+          '<div class="form-row-dlg"><label>是否参与预测计算</label><div class="field" style="padding-top:6px;">' +
           '<label><input type="checkbox" id="remarkParticipate" ' +
           (part ? 'checked' : '') +
-          ' /> 参与达成率计算</label>' +
+          ' /> 参与预测计算</label>' +
           '</div></div>'
         );
       }
@@ -2367,7 +2248,7 @@
           '">新增异常备注</button>' +
           '<div class="remark-table-scroll"><table class="remark-list-table">' +
           '<thead><tr>' +
-          '<th>调整人</th><th>调整时间</th><th>备注内容</th><th>生效时间</th><th>参与达成率计算</th><th>操作</th>' +
+          '<th>调整人</th><th>调整时间</th><th>备注内容</th><th>生效时间</th><th>参与预测计算</th><th>操作</th>' +
           '</tr></thead><tbody>' +
           rowsHtml +
           '</tbody></table></div>';

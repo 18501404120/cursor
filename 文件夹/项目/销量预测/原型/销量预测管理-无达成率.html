@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>目标助手 · 无达成率视图</title>
+  <title>目标助手 · 主工作台（扩展筛选演示）</title>
   <link rel="stylesheet" href="prototype-anno-kit.css" />
   <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
   <style>
@@ -721,7 +721,7 @@
             <div class="f"><label>TL</label><select id="filterTL"><option>全部</option></select></div>
             <div class="f"><label>Sales</label><select id="filterSales"><option>全部</option></select></div>
             <div class="f"><label>可售状态</label><select id="filterSellableStatus"><option>全部</option></select></div>
-            <!-- 无达成率版：不提供「预测选择 / 比较 / 数值」二次过滤（原用于与达成率/偏差门槛联动） -->
+            <!-- 本页不提供「预测选择 / 比较 / 数值」二次过滤（旧演示占位，与主 PRD v2.0 一致） -->
             <div class="f">
               <label>月份范围</label>
               <div class="month-range-wrap">
@@ -806,7 +806,7 @@
     (function () {
       /**
        * 月份范围由筛选区「月份范围」控制，默认：锚定日前 6 个月～后 6 个月（含当月）。
-       * 「预测目标值」为单月一条；距目标月越近越趋近锁定快照（演示，见 systemTargetFor）。
+       * 「预测目标值」为单月一条；邻近目标月的演示数值用稳定种子生成（见 systemTargetFor，非业务「锁定版」语义）。
        */
       var months = [];
 
@@ -980,7 +980,7 @@
         return Math.round(105 + (seed % 95));
       }
 
-      /** 锁定快照：按目标月稳定生成（不随每日滚动改变，演示） */
+      /** 演示用稳定点值：按目标月固定种子生成（仅原型；非业务冻结快照） */
       function frozenTarget(lab) {
         var p = parseMonthLabel(lab);
         var seed = p.m * 31 + 47 + p.y * 7;
@@ -994,7 +994,7 @@
         [114, 120, 126, 112, 118, 124, 132, 130, 136, 142, 140, 146, 152]
       ];
 
-      /** 系统「预测目标值」：单月一条；距目标月越近越趋近锁定快照（演示） */
+      /** 系统「预测目标值」：单月一条；邻近目标月用演示稳定点值，其余月用滚动演示 */
       function systemTargetFor(lab, anchor) {
         var i = months.indexOf(lab);
         if (i < 0) return 0;
@@ -1057,7 +1057,7 @@
         return { bp: bp, targets: targets, manual: manual, actual: actual };
       }
 
-      /** 无达成率版：不展示预测准确率 KPI */
+      /** 主工作台不展示准确率类 KPI（与 PRD v2.0 一致） */
       function updateKpiCards() {}
 
       var chkMan = document.getElementById('chkShowManual');
@@ -1198,7 +1198,7 @@
         });
       }
 
-      /** 无达成率版：仅柱状（BP目标值 / 预测目标值 / 人工预测值 / 实际），不含达成率折线与右侧百分比轴 */
+      /** 仅柱状（BP / 预测目标 / 人工 / 实际），单左轴数量，无达成率折线与右轴 */
       function buildChartOption() {
         var p = buildChartPayload(getAnchorDate());
 
@@ -1491,7 +1491,7 @@
         { sku: 'H6072181', msku: 'H6072181-OF-US-DSV' }
       ];
 
-      /** 30 条演示数据：覆盖 P0/P1/P2/EOL、亚马逊/非亚马逊、R2 高/中/低、forecast 偏差/无偏差 */
+      /** 30 条演示数据：覆盖 P0/P1/P2/EOL、亚马逊/非亚马逊、演示分档高/中/低、forecast 偏差/无偏差 */
       function buildDemoTableRows() {
         var tiers = ['P0', 'P1', 'P2', 'EOL'];
         var regions = ['北美区/US/Amazon-US', '欧洲区/DE/Amazon-DE', '亚太区/JP/Amazon-JP', '英国区/UK/Amazon-UK'];
@@ -1502,10 +1502,10 @@
           var ent = SCENARIO_CATEGORY_LINE_ENTRIES[i % catLen];
           var tier = tiers[i % 4];
           var amazon = i % 7 !== 5;
-          var r2Year;
-          if (i < 10) r2Year = 80 + (i % 10);
-          else if (i < 20) r2Year = 70 + (i % 10);
-          else r2Year = 52 + (i % 18);
+          var demoWarnScore;
+          if (i < 10) demoWarnScore = 80 + (i % 10);
+          else if (i < 20) demoWarnScore = 70 + (i % 10);
+          else demoWarnScore = 52 + (i % 18);
           var vol =
             tier === 'EOL'
               ? [12, 22, 40][i % 3]
@@ -1534,7 +1534,7 @@
               fill.push(null);
             }
           }
-          var rCls = r2Year >= 80 ? 'ok' : r2Year >= 70 ? 'warn-yellow' : 'bad';
+          var rCls = demoWarnScore >= 80 ? 'ok' : demoWarnScore >= 70 ? 'warn-yellow' : 'bad';
           var samp = PRODUCT_DEMO_SAMPLES[i % sampleLen];
           rows.push({
             a: regions[i % 4] + (amazon ? '' : '-TB'),
@@ -1547,12 +1547,12 @@
             productTier: tier,
             recent30dVol: vol,
             msku: samp.msku,
-            r2Year: r2Year,
+            demoWarnScore: demoWarnScore,
             ml: ml,
             sys: sys,
             fill: fill,
             fillWarn: {},
-            r: [{ v: String(r2Year) + '.0', cls: rCls }]
+            r: [{ v: String(demoWarnScore) + '.0', cls: rCls }]
           });
         }
         return rows;
@@ -1601,7 +1601,7 @@
         return Math.abs(fill - base);
       }
 
-      /** 单月 forecast vs 基准是否触发预警（不含渠道/R2 过滤） */
+      /** 单月 forecast vs 基准是否触发预警（不含渠道等额外过滤） */
       function monthTriggersMskuWarn(row, fill, base) {
         var vol = row.recent30dVol != null ? row.recent30dVol : 0;
         var rel = relDevFillBase(fill, base);
@@ -1621,8 +1621,8 @@
       }
 
       /**
-       * forecast 与「机器学习预测」偏差触发阈值时：亚马逊渠道下按近一年 R2 着色
-       * 红：R2≥80%；黄：70%≤R2<80%；R2<70 不额外着色（仍可按主数值样式）
+       * forecast 与「机器学习预测」偏差触发《MSKU 阈值》且为亚马逊渠道时：按演示分档 demoWarnScore 叠加警示色（非「R2 达成」口径）
+       * 红：≥80；黄：70～79；更低不额外着色
        */
       function fillForecastDeviationClass(row, mi) {
         var fillVal = seriesValueForCell(row, 'fill', mi);
@@ -1631,8 +1631,8 @@
         if (mlVal == null || typeof mlVal !== 'number') return '';
         if (!isAmazonRow(row)) return '';
         if (!monthTriggersMskuWarn(row, fillVal, mlVal)) return '';
-        if (row.r2Year >= 80) return ' fc-warn-red';
-        if (row.r2Year >= 70) return ' fc-warn-yellow';
+        if (row.demoWarnScore >= 80) return ' fc-warn-red';
+        if (row.demoWarnScore >= 70) return ' fc-warn-yellow';
         return '';
       }
 
@@ -2141,10 +2141,10 @@
           '<div id="remarkDateRangeMount"></div>' +
           '<div style="font-size:11px;color:#999;margin-top:4px;">请选择生效日期范围（必填）</div>' +
           '</div></div>' +
-          '<div class="form-row-dlg"><label>是否参与统计</label><div class="field" style="padding-top:6px;">' +
+          '<div class="form-row-dlg"><label>是否参与预测计算</label><div class="field" style="padding-top:6px;">' +
           '<label><input type="checkbox" id="remarkParticipate" ' +
           (part ? 'checked' : '') +
-          ' /> 参与统计</label>' +
+          ' /> 参与预测计算</label>' +
           '</div></div>'
         );
       }
@@ -2241,7 +2241,7 @@
           '">新增异常备注</button>' +
           '<div class="remark-table-scroll"><table class="remark-list-table">' +
           '<thead><tr>' +
-          '<th>调整人</th><th>调整时间</th><th>备注内容</th><th>生效时间</th><th>参与统计</th><th>操作</th>' +
+          '<th>调整人</th><th>调整时间</th><th>备注内容</th><th>生效时间</th><th>参与预测计算</th><th>操作</th>' +
           '</tr></thead><tbody>' +
           rowsHtml +
           '</tbody></table></div>';
