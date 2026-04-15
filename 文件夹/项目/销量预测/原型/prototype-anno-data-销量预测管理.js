@@ -13,18 +13,18 @@
         "<p>红点（说明版）用于点击查看字段与逻辑说明。</p>",
     },
     {
-      containerSelector: FG + " > .f:nth-child(1)",
+      anchorSelector: "#filterRegion",
       title: "筛选：区域",
       html:
         "<p>按业务大区过滤下方 KPI、图表与表格，保证与组织架构看数一致；选全部时不限区域。</p>",
     },
     {
-      containerSelector: FG + " > .f:nth-child(2)",
+      anchorSelector: "#filterCountry",
       title: "筛选：国家",
       html: "<p>在区域下细化到国家/站点，影响进口关税、物流等因子在部分视图中的解释维度。</p>",
     },
     {
-      containerSelector: FG + " > .f:nth-child(3)",
+      anchorSelector: "#filterStore",
       title: "筛选：店铺",
       html: "<p>渠道账号粒度，与订单、库存数据源对齐；多店铺合并时需防重复计量。</p>",
     },
@@ -40,7 +40,7 @@
       html: "<p>比品类更细的企划分组，便于品类负责人只看自己辖下 SKU。</p>",
     },
     {
-      containerSelector: FG + " > .f:nth-child(6)",
+      anchorSelector: "#filterProductPosition",
       title: "筛选：产品定位",
       html: "<p>如新品、主推、清仓等，用于与生命周期规则、预测策略模板对应。</p>",
     },
@@ -61,17 +61,17 @@
       html: "<p>与搜索方式下拉配合；回车是否触发搜索取决于产品交互，当前以「搜索」按钮为准。</p>",
     },
     {
-      containerSelector: FG + " > .f:nth-child(9)",
+      anchorSelector: "#filterTL",
       title: "筛选：TL",
       html: "<p>团队负责人维度，辅助按销售组织分锅；与配置中心 TL 筛选口径一致。</p>",
     },
     {
-      containerSelector: FG + " > .f:nth-child(10)",
+      anchorSelector: "#filterSales",
       title: "筛选：Sales",
       html: "<p>一线销售维度，权限接通后仅可看本人或本组相关 SKU。</p>",
     },
     {
-      containerSelector: FG + " > .f:nth-child(11)",
+      anchorSelector: "#filterSellableStatus",
       title: "筛选：可售状态",
       html: "<p>过滤停售、缺货不可售等状态，减少无效 SKU 干扰预测评审。</p>",
     },
@@ -100,7 +100,6 @@
     },
     {
       anchorSelector: "#btnSearch",
-      attach: "afterend",
       title: "按钮：搜索",
       html:
         "<p>应用全部筛选条件，刷新 KPI、图表与表格；若数据量大应配合加载态与分页。</p>",
@@ -159,14 +158,12 @@
     },
     {
       anchorSelector: "#btnExport",
-      attach: "afterend",
       title: "按钮：导出",
       html:
         "<p>导出当前筛选与列设置下的表格或报表；大表应异步任务 + 通知，避免浏览器超时。</p>",
     },
     {
       anchorSelector: "#btnAddRemarkBatch",
-      attach: "afterend",
       title: "按钮：新增异常备注",
       html:
         "<p>默认禁用，需先在表格勾选行；打开批量备注弹层，写入备注区间、是否参与计算等。</p>" +
@@ -197,12 +194,12 @@
       html: "<p>选择当前页全部数据行，用于批量备注、导出子集等。</p>",
     },
     {
-      containerSelector: "#dataTable thead tr:first-child th:nth-child(2)",
+      anchorSelector: "#thRegionCountryStore",
       title: "列：区域/国家/店铺",
       html: "<p>维度聚合文本列，快速识别行上下文。</p>",
     },
     {
-      containerSelector: "#dataTable thead tr:first-child th:nth-child(3)",
+      anchorSelector: "#thScenarioCategoryLine",
       title: "列：场景/品类/品线",
       html: "<p>商品分类路径，辅助核对筛选是否生效。</p>",
     },
@@ -213,12 +210,12 @@
         "<p>责任销售团队名称；右侧拖拽条可调整列宽（col-resize-handle）。</p>",
     },
     {
-      containerSelector: "#dataTable thead tr:first-child th:nth-child(5)",
+      anchorSelector: "#thSkuInfo",
       title: "列：SKU 信息",
       html: "<p>含 sku / 定位等子文案，主数据与运营标签的人口。</p>",
     },
     {
-      containerSelector: "#dataTable thead tr:first-child th:nth-child(6)",
+      anchorSelector: "#thMskuInfo",
       title: "列：MSKU 信息",
       html: "<p>平台侧 MSKU 与渠道，和亚马逊库存、广告联动。</p>",
     },
@@ -230,27 +227,27 @@
         "<p>单元格内可含下钻、备注图标、颜色告警等，以交互稿为准。</p>",
     },
     {
-      containerSelector: "#dataTable thead tr:first-child th:nth-child(8)",
+      anchorSelector: "#thHistoryTrend",
       title: "列：历史销量趋势",
       html: "<p>常为小图或「查看」链接触发 trendPop 趋势弹窗，对比长周期销量。</p>",
     },
     {
-      containerSelector: "#dataTable thead tr:first-child th:nth-child(9)",
+      anchorSelector: "#thR1",
       title: "列：R1",
       html: "<p>提前一月锁定预测值或准确率衍生列，依当前「预测方式」与列配置切换显示。</p>",
     },
     {
-      containerSelector: "#dataTable thead tr:first-child th:nth-child(10)",
+      anchorSelector: "#thR2",
       title: "列：R2",
       html: "<p>提前两月版本列，解释同上。</p>",
     },
     {
-      containerSelector: "#dataTable thead tr:first-child th:nth-child(11)",
+      anchorSelector: "#thR3",
       title: "列：R3",
       html: "<p>提前三月版本列，解释同上。</p>",
     },
     {
-      containerSelector: "#dataTable thead tr:first-child th:nth-child(12)",
+      anchorSelector: "#thOperation",
       title: "列：操作",
       html:
         "<p>行级操作：详情、备注、趋势、参与计算切换等（以行模板为准）。</p>" +

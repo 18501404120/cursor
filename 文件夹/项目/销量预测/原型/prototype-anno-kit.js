@@ -87,7 +87,14 @@
 
   function placeOn(box, btn) {
     var tag = box.tagName;
-    if (tag === "BUTTON" || tag === "INPUT" || tag === "SELECT" || tag === "TEXTAREA") {
+    if (tag === "BUTTON") {
+      if (getComputedStyle(box).position === "static") box.style.position = "relative";
+      btn.classList.add("proto-red-dot--on-btn");
+      if (box.querySelector && box.querySelector(":scope > .proto-red-dot")) return;
+      box.appendChild(btn);
+      return;
+    }
+    if (tag === "INPUT" || tag === "SELECT" || tag === "TEXTAREA") {
       btn.classList.add("proto-red-dot--inline");
       if (box.nextElementSibling && box.nextElementSibling.classList.contains("proto-red-dot")) return;
       box.insertAdjacentElement("afterend", btn);
@@ -149,9 +156,7 @@
           return;
         }
         if (tag === "BUTTON") {
-          btn.classList.add("proto-red-dot--inline");
-          if (a.nextElementSibling && a.nextElementSibling.classList.contains("proto-red-dot")) return;
-          a.insertAdjacentElement("afterend", btn);
+          placeOn(a, btn);
           return;
         }
         var box = resolveBox(a);
