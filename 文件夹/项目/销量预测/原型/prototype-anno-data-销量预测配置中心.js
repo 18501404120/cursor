@@ -6,6 +6,30 @@
 
   var ANNOS = [
     {
+      anchorSelector: "#headerTitle",
+      title: "页头：标题与上下文",
+      html:
+        "<p><strong>【基础】</strong><code>#headerTitle</code> 展示当前屏名称：「目标助手 · 预测配置」或进入子页时的「超参数因子管理」；<code>#headerSub</code> 为副标题（如从配置进入因子维护时的提示）。</p>" +
+        "<p><strong>【逻辑】</strong>与 <code>showConfig</code> / <code>showFactors</code> 脚本切换同步，帮助用户确认当前是否仍在同一应用壳内。</p>" +
+        "<p><strong>【交互】</strong>只读展示；返回主列表通过子页「返回」链接。</p>",
+    },
+    {
+      containerSelector: ".sidebar",
+      title: "左侧主导航（示意）",
+      html:
+        "<p><strong>【基础】</strong>窄栏图标菜单，与 ERP 壳层一致。</p>" +
+        "<p><strong>【逻辑】</strong>原型未接路由；正式版由权限裁剪模块。</p>" +
+        "<p><strong>【交互】</strong>当前高亮「计划」类入口为示意态。</p>",
+    },
+    {
+      containerSelector: "header.header .header-actions",
+      title: "顶栏右侧：全局入口",
+      html:
+        "<p><strong>【基础】</strong>项目平台、通知、物流、用户缩写等。</p>" +
+        "<p><strong>【逻辑】</strong>与配置业务无直接耦合，属门户集成。</p>" +
+        "<p><strong>【交互】</strong>原型为静态示意。</p>",
+    },
+    {
       containerSelector: "#screenConfig .scroll > .panel--filters",
       title: "页面：筛选面板总览",
       html:
@@ -144,20 +168,20 @@
         "<p><strong>【交互】</strong>点击打开模态层；确认/取消遵循弹窗内按钮说明。</p>",
     },
     {
-      containerSelector: "#screenConfig .toolbar > button:nth-child(2)",
+      anchorSelector: "#btnCfgImport",
       title: "按钮：导入",
       html:
-        "<p><strong>【基础】</strong>通过模板批量导入弹性系数或因子绑定。</p>" +
+        "<p><strong>【基础】</strong><code>id=\"btnCfgImport\"</code>，通过模板批量导入弹性系数或因子绑定。</p>" +
         "<p><strong>【逻辑】</strong>需校验列头、SKU 存在性、数值范围、冲突行报告；写审计日志。</p>" +
         "<p><strong>【交互】</strong>原型未接文件服务，仅占位；正式版为文件选择 + 异步解析结果页。</p>",
     },
     {
-      containerSelector: "#screenConfig .toolbar > button:nth-child(3)",
+      anchorSelector: "#btnCfgExport",
       title: "按钮：导出",
       html:
-        "<p><strong>【基础】</strong>导出当前筛选结果。</p>" +
+        "<p><strong>【基础】</strong><code>id=\"btnCfgExport\"</code>，导出当前筛选条件下的配置表。</p>" +
         "<p><strong>【逻辑】</strong>便于线下 Excel 评审或留档；应带筛选条件水印或元数据。</p>" +
-        "<p><strong>【交互】</strong>大表建议异步下载链接。</p>",
+        "<p><strong>【交互】</strong>大表建议异步下载链接；点击后 loading 防重复提交。</p>",
     },
     {
       anchorSelector: "#permBatch",
@@ -283,9 +307,18 @@
       containerSelector: "#cfgTable thead tr th:nth-child(15)",
       title: "列：操作",
       html:
-        "<p><strong>【基础】</strong>查看变更日志、解绑、单行编辑等入口。</p>" +
-        "<p><strong>【逻辑】</strong>高风险操作走后端校验与审计。</p>" +
-        "<p><strong>【交互】</strong>原型以脚本渲染为准。</p>",
+        "<p><strong>【基础】</strong>行级操作区：原型中展示<strong>蓝色因子编号链接</strong>（<code>a.link-f</code>，点击进入「超参数因子维护」子屏）与<strong>日志</strong>文字链（<code>data-log</code>，打开变更日志弹窗）。</p>" +
+        "<p><strong>【逻辑】</strong>因子链接携带当前行绑定编号；日志用于审计配置变更历史。</p>" +
+        "<p><strong>【交互】</strong>点击链接触发脚本切换 <code>#screenFactors</code> 或 <code>#modalLog</code>；正式版可扩展解绑、单行编辑等。</p>",
+    },
+    {
+      anchorSelector: "#batchModalClose",
+      attach: "afterend",
+      title: "批量弹窗：标题栏关闭",
+      html:
+        "<p><strong>【基础】</strong>关闭「批量设置超参数因子」模态层右上角 ×。</p>" +
+        "<p><strong>【逻辑】</strong>与「取消」类似，放弃未确认的批量写入。</p>" +
+        "<p><strong>【交互】</strong>点击关闭 <code>#modalBatch</code> 蒙层。</p>",
     },
     /* —— 子页：超参数因子维护 —— */
     {

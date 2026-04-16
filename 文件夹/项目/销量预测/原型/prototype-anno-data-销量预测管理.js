@@ -290,6 +290,134 @@
     },
   ];
 
+  /**
+   * 详情弹窗（showDlgDetail 写入 #dlgBody 后）动态挂载；由页面在 setDlg 之后调用 initProtoAnnos(PROTO_ANNO_FORECAST_DETAIL)。
+   */
+  var FORECAST_DETAIL_ANNOS = [
+    {
+      anchorSelector: "#detailSkuMeta",
+      title: "详情：MSKU / 平台",
+      html:
+        "<p><strong>【基础】</strong>展示当前行的渠道 <strong>MSKU</strong> 与<strong>平台</strong>（如亚马逊），与列表「MSKU信息」列同源。</p>" +
+        "<p><strong>【逻辑】</strong>用于确认下钻对象，避免跨站点看错行；与预测、BP 拆分到 MSKU 粒度时对齐。</p>" +
+        "<p><strong>【交互】</strong>只读文本；正式版可复制 MSKU 或跳转 Listing。</p>",
+    },
+    {
+      anchorSelector: "#detailParaLogic",
+      title: "详情：测算逻辑说明",
+      html:
+        "<p><strong>【基础】</strong>按月说明当前预测方式下 <strong>市场预测值 M</strong> 与 <strong>BP 目标 T</strong> 的组合规则，以及 <strong>预测销量</strong>、<strong>下限/上限</strong>与《预测销量上下限规则》的关系（原型为演示公式与确定性模拟）。</p>" +
+        "<p><strong>【逻辑】</strong>含 M≤T / M＞T 分支、α（BP目标融合权重）参与融合、无 T 时仅 M、forecast 与 BP 列为点值无演示区间等；与主图「预测目标值」浅色带口径一致。</p>" +
+        "<p><strong>【交互】</strong>只读；可随预测方式单选（机器学习/系统预测）切换文案前提（以页面脚本为准）。</p>",
+    },
+    {
+      anchorSelector: "#detailTableScroll",
+      title: "详情：表格滚动区",
+      html:
+        "<p><strong>【基础】</strong>明细表外包 <code>max-height</code> + <code>overflow:auto</code>，列多时可纵向/横向滚动。</p>" +
+        "<p><strong>【逻辑】</strong>行数等于当前「月份范围」内业务月个数；首行合并展示「弹性系数」「影响因子系数」两列（rowspan）。</p>" +
+        "<p><strong>【交互】</strong>滚轮在区域内滚动；表头随表体横向滚动（若未 sticky 锁定以实际样式为准）。</p>",
+    },
+    {
+      anchorSelector: "#detailThMonth",
+      title: "详情列：月份",
+      html:
+        "<p><strong>【基础】</strong>业务月标识，格式 YYYYMM，与主列表月度列、主图横轴同一窗口。</p>" +
+        "<p><strong>【逻辑】</strong>每行对应一个预测月，驱动上下限模拟种子（与锚定日、点值共同确定性生成演示区间）。</p>" +
+        "<p><strong>【交互】</strong>只读；不可在弹窗内直接改月（改筛选应关闭后回主表）。</p>",
+    },
+    {
+      anchorSelector: "#detailThBaseline",
+      title: "详情列：基准销量",
+      html:
+        "<p><strong>【基础】</strong>作为弹性或规则演算前的参考量级（原型用固定周期图案数演示）。</p>" +
+        "<p><strong>【逻辑】</strong>与配置中心「基准销量」概念对齐；非接口实时真值，仅用于结构对齐与测算演示。</p>" +
+        "<p><strong>【交互】</strong>只读。</p>",
+    },
+    {
+      anchorSelector: "#detailThElastic",
+      title: "详情列：弹性系数",
+      html:
+        "<p><strong>【基础】</strong>汇总展示流量、转化率、价格、竞争力、广告花费等<strong>弹性类</strong>系数示意（原型为 HTML 片段）。</p>" +
+        "<p><strong>【逻辑】</strong>与预测配置表中各弹性列同源思路；参与「预测目标」或 M 的拆解演示。</p>" +
+        "<p><strong>【交互】</strong>本列在首行 <code>rowspan</code> 全表月数，后续行不占格；只读。</p>",
+    },
+    {
+      anchorSelector: "#detailThInfl",
+      title: "详情列：影响因子系数",
+      html:
+        "<p><strong>【基础】</strong>汇总节假日、促销、季节、库存、超参数等对销量的乘性影响示意。</p>" +
+        "<p><strong>【逻辑】</strong>与「弹性系数」列分工：偏事件/政策类因子；原型用固定演示块。</p>" +
+        "<p><strong>【交互】</strong>同弹性列，首行 rowspan；只读。</p>",
+    },
+    {
+      anchorSelector: "#detailThMarket",
+      title: "详情列：市场预测值（M）",
+      html:
+        "<p><strong>【基础】</strong>算法或规则在<strong>未叠加 BP 销售目标约束前</strong>的市场侧点预测（演示数）。</p>" +
+        "<p><strong>【逻辑】</strong>与 BP 目标 T 比较决定融合分支；无 T 时预测销量退化为 M。</p>" +
+        "<p><strong>【交互】</strong>只读；与主图「预测目标值」存在口径层级差异（详见逻辑说明段）。</p>",
+    },
+    {
+      anchorSelector: "#detailThBp",
+      title: "详情列：BP 目标（T）",
+      html:
+        "<p><strong>【基础】</strong>业务侧拆解到该 MSKU/月的 BP 销量目标。</p>" +
+        "<p><strong>【逻辑】</strong>为空表示当月无 T，则 α 为空且预测销量取 M；有 T 时参与 M≤T / M＞T 公式。</p>" +
+        "<p><strong>【交互】</strong>只读；编辑入口通常在计划/BP 系统而非本弹窗。</p>",
+    },
+    {
+      anchorSelector: "#detailThAlpha",
+      title: "详情列：BP目标融合权重（α）",
+      html:
+        "<p><strong>【基础】</strong>0～1 小数，表示 BP 目标与市场预测融合时偏向 BP 的权重（与配置中心列名一致）。</p>" +
+        "<p><strong>【逻辑】</strong>当 M＞T 时预测销量按 T×α + M×(1−α) 类公式演示；无 T 时本列为「—」。</p>" +
+        "<p><strong>【交互】</strong>只读；配置在「预测配置」表对应列。</p>",
+    },
+    {
+      anchorSelector: "#detailThPred",
+      title: "详情列：预测销量",
+      html:
+        "<p><strong>【基础】</strong>在演示规则下合成的当月预测点值 P，对应主工作台主图中的「预测目标值」口径。</p>" +
+        "<p><strong>【逻辑】</strong>由 M、T、α 及当前预测方式共同决定；为<strong>下限/上限</strong>所围绕的中心点（见上下限规则）。</p>" +
+        "<p><strong>【交互】</strong>只读。</p>",
+    },
+    {
+      anchorSelector: "#detailThLo",
+      title: "详情列：下限",
+      html:
+        "<p><strong>【基础】</strong>对当月预测销量给出的演示<strong>悲观边界</strong>（与 PRD §3 因子极值组合一致，原型为确定性倍数）。</p>" +
+        "<p><strong>【逻辑】</strong>有预测点且可算带时展示数值，否则「—」；不作用于 BP/forecast 列。</p>" +
+        "<p><strong>【交互】</strong>只读。</p>",
+    },
+    {
+      anchorSelector: "#detailThHi",
+      title: "详情列：上限",
+      html:
+        "<p><strong>【基础】</strong>对当月预测销量给出的演示<strong>乐观边界</strong>。</p>" +
+        "<p><strong>【逻辑】</strong>与下限成对出现；与主图 Tooltip 中「下限·上限」附注同一套演示算法。</p>" +
+        "<p><strong>【交互】</strong>只读。</p>",
+    },
+    {
+      anchorSelector: "#detailThFc",
+      title: "详情列：forecast填写",
+      html:
+        "<p><strong>【基础】</strong>业务线 forecast 流程填报的销量或占位，与主表「forecast填写销量」开关联动展示。</p>" +
+        "<p><strong>【逻辑】</strong>为点值列，不参与演示上下限带；可与预测销量对比做执行偏差分析。</p>" +
+        "<p><strong>【交互】</strong>弹窗内只读；编辑在列表展开行或 forecast 录入页（正式版）。</p>",
+    },
+    {
+      anchorSelector: "#dlgDetailFooterClose",
+      title: "详情弹窗：按钮「关闭」",
+      html:
+        "<p><strong>【基础】</strong><code>data-dlg=\"close\"</code>，位于 <code>#dlgFooter</code>，仅详情弹窗使用 <code>id=\"dlgDetailFooterClose\"</code> 便于红点挂载。</p>" +
+        "<p><strong>【逻辑】</strong>关闭蒙层与对话框，销毁弹窗内临时控件（如日期控件）；未保存变更应丢弃或二次确认（正式产品）。</p>" +
+        "<p><strong>【交互】</strong>点击后与标题栏 ×、点遮罩关闭行为一致；关闭后红点随 DOM 销毁，下次打开详情会重新挂载。</p>",
+    },
+  ];
+
+  window.PROTO_ANNO_FORECAST_DETAIL = FORECAST_DETAIL_ANNOS;
+
   document.addEventListener("DOMContentLoaded", function () {
     if (typeof initProtoAnnos === "function") initProtoAnnos(ANNOS);
   });
