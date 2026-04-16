@@ -312,6 +312,15 @@
         "<p><strong>【交互】</strong>点击链接触发脚本切换 <code>#screenFactors</code> 或 <code>#modalLog</code>；正式版可扩展解绑、单行编辑等。</p>",
     },
     {
+      anchorSelector: "#logModalHeaderClose",
+      attach: "afterend",
+      title: "日志弹窗：标题栏关闭（×）",
+      html:
+        "<p><strong>【基础】</strong>与底部「关闭」等价，关闭行日志只读弹层。</p>" +
+        "<p><strong>【逻辑】</strong>不提交任何写操作。</p>" +
+        "<p><strong>【交互】</strong>点击移除 <code>#modalLog</code> 的 <code>show</code> 态；与点蒙层关闭一致。</p>",
+    },
+    {
       anchorSelector: "#batchModalClose",
       attach: "afterend",
       title: "批量弹窗：标题栏关闭",

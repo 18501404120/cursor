@@ -282,11 +282,11 @@
     {
       anchorSelector: "#dlgClose",
       attach: "afterend",
-      title: "弹层：详情 / 批量对话框关闭",
+      title: "弹层：详情 / 批量对话框关闭（×）",
       html:
-        "<p><strong>【基础】</strong>关闭 <code>#dlgBox</code>，同时可隐藏 <code>#dlgMask</code>。</p>" +
-        "<p><strong>【逻辑】</strong>用于详情、批量异常备注等通用容器。</p>" +
-        "<p><strong>【交互】</strong>关闭时若存在未保存编辑应二次确认（正式产品）。</p>",
+        "<p><strong>【基础】</strong>位于标题栏<strong>最右侧</strong>（<code>.dlg-hd-actions</code> 内），关闭 <code>#dlgBox</code> 并隐藏 <code>#dlgMask</code>。</p>" +
+        "<p><strong>【逻辑】</strong>用于详情、批量异常备注等通用容器；与底部「关闭/取消/确定」语义并存时，× 表示快速退出。</p>" +
+        "<p><strong>【交互】</strong>关闭时若存在未保存编辑应二次确认（正式产品）。布局须遵守《弹层与对话框-关闭按钮-全局UI规范》，红点与 × 同组避免 × 居中。</p>",
     },
   ];
 

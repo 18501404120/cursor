@@ -21,8 +21,10 @@
     m.innerHTML =
       '<div class="proto-anno-backdrop" data-close="1"></div>' +
       '<div class="proto-anno-panel">' +
-      '<div class="proto-anno-hd"><span id="proto-anno-title"></span>' +
-      '<button type="button" class="proto-anno-close" aria-label="关闭">×</button></div>' +
+      '<div class="proto-anno-hd">' +
+      '<span id="proto-anno-title" class="proto-anno-hd-title"></span>' +
+      '<div class="proto-anno-hd-actions">' +
+      '<button type="button" class="proto-anno-close" aria-label="关闭">×</button></div></div>' +
       '<div class="proto-anno-bd" id="proto-anno-body"></div></div>';
     document.body.appendChild(m);
     function close() {
