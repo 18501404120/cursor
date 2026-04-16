@@ -72,7 +72,7 @@
       html:
         "<p>对比<strong>GTM BP 目标</strong>（GTM 销量目标拆解）、<strong>预测目标值</strong>（当前规则/模型输出）、<strong>实际销量</strong>（已关账月）；可选勾选「显示人工预测值」叠加人工柱。图表列名已统一为「GTM BP 目标」（原「BP目标值」等旧称已弃用）。</p>" +
         "<p><strong>单左轴数量</strong>，无达成率折线、无右侧百分比轴。</p>" +
-        "<p>BP/预测/人工：柱为点估计，背后可带浅色区间带（口径见《预测销量上下限规则》）。</p>",
+        "<p><strong>GTM BP 目标</strong>与<strong>人工预测值</strong>为<strong>固定点值</strong>，主图无区间浅色带、Tooltip 不附下限/上限；仅<strong>预测目标值</strong>可展示 §3 口径演示区间（见《预测销量上下限规则》）。</p>",
     },
     {
       anchorSelector: "#chkShowManual",
@@ -85,7 +85,7 @@
       containerSelector: "#chartMain",
       title: "图表区域",
       html:
-        "<p>主图渲染容器（ECharts）；图例控制显隐；Tooltip 可在 BP/预测/人工行附<strong>当月</strong>演示下限/上限（若启用区间带）。</p>" +
+        "<p>主图渲染容器（ECharts）；图例控制显隐；Tooltip 仅在<strong>预测目标值</strong>行可附<strong>当月</strong>演示下限/上限（与浅色带一致）；GTM BP、人工预测仅点值。</p>" +
         "<p>导出图表常随「导出」按钮或截图工具使用。</p>",
     },
     {
