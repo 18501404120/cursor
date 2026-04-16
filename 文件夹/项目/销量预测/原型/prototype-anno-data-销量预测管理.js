@@ -1,5 +1,5 @@
 /**
- * 主工作台 HTML 原型（销量预测管理-原型.html）配套红点说明。
+ * 主工作台说明版（销量预测管理-原型说明.html）配套红点说明。
  * 若将 initProtoAnnos 嵌入其他同源页面，可复用本数据文件。
  */
 (function () {
@@ -146,17 +146,9 @@
       anchorSelector: ".chart-panel h2",
       title: "区块：预测与目标（主图）",
       html:
-        "<p><strong>【基础】</strong>主图对比 <strong>BP 目标</strong>、<strong>预测目标值</strong>、<strong>实际销量</strong>；可选勾选「显示人工预测值」叠加人工柱。图例文案为「BP 目标」。</p>" +
+        "<p><strong>【基础】</strong>主图对比 <strong>BP 目标</strong>、<strong>预测目标值</strong>、<strong>人工预测值</strong>、<strong>实际销量</strong>四柱（无页面级开关）；图例可单独隐藏「人工预测值」等序列。图例文案为「BP 目标」。</p>" +
         "<p><strong>【逻辑】</strong>仅<strong>单左轴数量</strong>；<strong>不展示</strong>达成率折线、<strong>无</strong>右侧百分比轴。BP 目标与人工预测为<strong>固定点值</strong>，无主图区间浅色带；仅<strong>预测目标值</strong>可按《预测销量上下限规则-PRD》展示演示用上下限区间与 Tooltip 附当月上下限。</p>" +
         "<p><strong>【交互】</strong>图例点击控制序列显隐；Tooltip 轴触发；不含达成率百分比行。</p>",
-    },
-    {
-      anchorSelector: "#chkShowManual",
-      title: "图表：显示人工预测值",
-      html:
-        "<p><strong>【基础】</strong><code>checkbox</code>，控制是否在主图叠加<strong>人工预测值</strong>柱状序列。</p>" +
-        "<p><strong>【逻辑】</strong>人工值来自填报或审批流，与算法预测并列展示便于对齐业务判断。</p>" +
-        "<p><strong>【交互】</strong>勾选即显示、取消即隐藏；不改变底层查询范围，仅控制图层。</p>",
     },
     {
       anchorSelector: "#chartMain",
