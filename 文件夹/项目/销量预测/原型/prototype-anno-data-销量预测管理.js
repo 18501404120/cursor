@@ -9,7 +9,7 @@
       title: "页头：目标助手",
       html:
         "<p>本页为运营/计划侧主工作台：自上而下为<strong>筛选 → 预测模式 → 趋势图 → 明细表</strong>。</p>" +
-        "<p>产品<strong>不展示</strong>准确率、MAPE、达成率类指标；<strong>GTM BP 目标</strong>来自 GTM，<strong>预测目标</strong>为当前规则/模型输出。</p>" +
+        "<p>产品<strong>不展示</strong>准确率、MAPE、达成率类指标；<strong>BP 目标</strong>来自业务侧 BP 拆解，<strong>预测目标</strong>为当前规则/模型输出。</p>" +
         "<p>红点（说明版）用于点击查看字段与逻辑说明。</p>",
     },
     {
@@ -70,9 +70,9 @@
       anchorSelector: ".chart-panel h2",
       title: "区块：预测与目标",
       html:
-        "<p>对比<strong>GTM BP 目标</strong>（GTM 销量目标拆解）、<strong>预测目标值</strong>（当前规则/模型输出）、<strong>实际销量</strong>（已关账月）；可选勾选「显示人工预测值」叠加人工柱。图表列名已统一为「GTM BP 目标」（原「BP目标值」等旧称已弃用）。</p>" +
+        "<p>对比<strong>BP 目标</strong>（业务侧销量目标拆解）、<strong>预测目标值</strong>（当前规则/模型输出）、<strong>实际销量</strong>（已关账月）；可选勾选「显示人工预测值」叠加人工柱。主图图例展示为「BP 目标」。</p>" +
         "<p><strong>单左轴数量</strong>，无达成率折线、无右侧百分比轴。</p>" +
-        "<p><strong>GTM BP 目标</strong>与<strong>人工预测值</strong>为<strong>固定点值</strong>，主图无区间浅色带、Tooltip 不附下限/上限；仅<strong>预测目标值</strong>可展示 §3 口径演示区间（见《预测销量上下限规则》）。</p>",
+        "<p><strong>BP 目标</strong>与<strong>人工预测值</strong>为<strong>固定点值</strong>，主图无区间浅色带、Tooltip 不附下限/上限；仅<strong>预测目标值</strong>可展示 §3 口径演示区间（见《预测销量上下限规则》）。</p>",
     },
     {
       anchorSelector: "#chkShowManual",
@@ -85,7 +85,7 @@
       containerSelector: "#chartMain",
       title: "图表区域",
       html:
-        "<p>主图渲染容器（ECharts）；图例控制显隐；Tooltip 仅在<strong>预测目标值</strong>行可附<strong>当月</strong>演示下限/上限（与浅色带一致）；GTM BP、人工预测仅点值。</p>" +
+        "<p>主图渲染容器（ECharts）；图例控制显隐；Tooltip 仅在<strong>预测目标值</strong>行可附<strong>当月</strong>演示下限/上限（与浅色带一致）；BP 目标、人工预测仅点值。</p>" +
         "<p>导出图表常随「导出」按钮或截图工具使用。</p>",
     },
     {
@@ -136,7 +136,7 @@
       title: "明细表",
       html:
         "<p>维度列 + 月度堆叠 + 历史趋势迷你图 + 操作（详情、异常备注）。</p>" +
-        "<p><strong>不包含</strong>「预测准确率」列；详情中销量目标 T 与 GTM BP 同源。</p>",
+        "<p><strong>不包含</strong>「预测准确率」列；详情中销量目标 T 与 BP 目标同源。</p>",
     },
     {
       anchorSelector: "#trendClose",

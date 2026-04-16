@@ -1065,7 +1065,7 @@
       /**
        * 演示用上下限（仅用于「预测目标值」）：与《预测销量上下限规则》§3 一致——由流量、转化率、竞争力、价格、广告花费
        * 在悲观/乐观情景下的极值组合，折算为相对点值的合成倍数（原型用月份+锚定日+点值种子确定性模拟）。
-       * GTM BP 目标、人工预测值为业务固定点值，主图不展示其区间带、Tooltip 不附下限/上限。
+       * BP 目标、人工预测值为业务固定点值，主图不展示其区间带、Tooltip 不附下限/上限。
        */
       function prdDemoSalesBandFromPoint(v, lab, anchor) {
         if (typeof v !== 'number' || isNaN(v) || v === 0) return null;
@@ -1110,7 +1110,7 @@
         return prdDemoSalesBandFromPoint(v, lab, anchor || getAnchorDate());
       }
 
-      /** 轴提示：列主值；仅「预测目标值」附当月演示上下限；GTM BP、人工预测为固定点值无区间文案 */
+      /** 轴提示：列主值；仅「预测目标值」附当月演示上下限；BP 目标、人工预测为固定点值无区间文案 */
       function buildForecastAxisTooltipCompact(params) {
         if (!params || !params.length) return '';
         var axis = params[0].axisValueLabel || params[0].name || '';
@@ -1203,10 +1203,10 @@
       function buildChartOption() {
         var p = buildChartPayload(getAnchorDate());
 
-        var legendNames = ['GTM BP 目标', '预测目标值', '人工预测值', '实际销量'];
+        var legendNames = ['BP 目标', '预测目标值', '人工预测值', '实际销量'];
 
         var selected = {
-          'GTM BP 目标': true,
+          'BP 目标': true,
           预测目标值: true,
           人工预测值: false,
           实际销量: true
@@ -1220,7 +1220,7 @@
         pushForecastRangeBands(series, '预测目标值', p.targets, bandRgbaT, selected);
 
         series.push({
-          name: 'GTM BP 目标',
+          name: 'BP 目标',
           type: 'bar',
           data: p.bp,
           itemStyle: { color: '#722ed1' },
@@ -1890,8 +1890,8 @@
       }
 
       /**
-       * 详情表：GTM BP 融合权重（α）0～1；无 GTM BP 目标 T 时必须为空。
-       * 与预测销量关系：当市场预测 M＞GTM BP 目标 T 时，预测销量 = T×α + M×(1−α)。
+       * 详情表：BP目标融合权重（α）0～1；无 BP 目标 T 时必须为空。
+       * 与预测销量关系：当市场预测 M＞BP 目标 T 时，预测销量 = T×α + M×(1−α)。
        */
       function demoDetailSalesTargetInfluence(mi, hasSalesTarget) {
         if (!hasSalesTarget) return null;
@@ -1907,7 +1907,7 @@
       }
 
       /**
-       * 详情表：当月 GTM BP 目标 T；演示中少量格子为空（无 T 则无因子、预测按市场单列）。
+       * 详情表：当月 BP 目标 T；演示中少量格子为空（无 T 则无因子、预测按市场单列）。
        */
       function detailDemoSalesTargetBp(lab, anchor, rowIdx, mi) {
         if (rowIdx % 11 === 0 && mi % 5 === 0) return null;
@@ -1915,7 +1915,7 @@
       }
 
       /**
-       * 预测销量 P：M 为市场预测值，T 为 GTM BP 目标，α 为 GTM BP 融合权重（0～1）。
+       * 预测销量 P：M 为市场预测值，T 为 BP 目标，α 为 BP目标融合权重（0～1）。
        * 无 T：α 为空，P = M（演示）。
        * M≤T：P = T×1.05。
        * M＞T：P = T×α + M×(1−α)。
@@ -1946,7 +1946,7 @@
         );
       }
 
-      /** 详情弹窗：基准/弹性/影响因子/市场预测/GTM BP 目标/GTM BP 融合权重（α）+ 预测值 + 上下限 + forecast 填写 */
+      /** 详情弹窗：基准/弹性/影响因子/市场预测/BP 目标/BP目标融合权重（α）+ 预测值 + 上下限 + forecast 填写 */
       function buildRowForecastDetailHtml(row) {
         var modeLabel = isPredML() ? '机器学习' : '系统规则';
         var anchor = getAnchorDate();
@@ -2018,10 +2018,10 @@
           '</b></p>' +
           '<p style="margin:10px 0 6px;font-size:13px">按月「<b>' +
           modeLabel +
-          '</b>」：<strong>市场预测值 M</strong>与<strong>GTM BP 目标 T</strong>比较——若 M≤T，则<strong>预测销量 = T×1.05</strong>；若 M＞T，则<strong>预测销量 = T×α + M×(1−α)</strong>（α 为 <strong>GTM BP 融合权重</strong>，0～1）。<strong>无 T 时 α 为空</strong>，预测销量取 M；<strong>GTM BP 目标</strong>与<strong>forecast 填写</strong>列为固定点值（无演示区间）。<strong>预测销量</strong>的<strong>下限/上限</strong>按《预测销量上下限规则》§3：以<strong>流量、转化率、竞争力、价格、广告花费</strong>悲观/乐观极值代入与点预测同构的公式得到（有 T 时以 <strong>P</strong> 为演示基底，无 T 时以 <strong>M</strong> 为基底；原型用确定性模拟倍数，与主图「预测目标值」浅色带一致）。</p>' +
+          '</b>」：<strong>市场预测值 M</strong>与<strong>BP 目标 T</strong>比较——若 M≤T，则<strong>预测销量 = T×1.05</strong>；若 M＞T，则<strong>预测销量 = T×α + M×(1−α)</strong>（α 为 <strong>BP目标融合权重</strong>，0～1）。<strong>无 T 时 α 为空</strong>，预测销量取 M；<strong>BP 目标</strong>与<strong>forecast 填写</strong>列为固定点值（无演示区间）。<strong>预测销量</strong>的<strong>下限/上限</strong>按《预测销量上下限规则》§3：以<strong>流量、转化率、竞争力、价格、广告花费</strong>悲观/乐观极值代入与点预测同构的公式得到（有 T 时以 <strong>P</strong> 为演示基底，无 T 时以 <strong>M</strong> 为基底；原型用确定性模拟倍数，与主图「预测目标值」浅色带一致）。</p>' +
           '<div style="max-height:380px;overflow:auto">' +
           '<table class="data-table" style="font-size:12px;min-width:1120px"><thead><tr>' +
-          '<th>月份</th><th>基准销量</th><th>弹性系数</th><th>影响因子系数</th><th>市场预测值</th><th>GTM BP 目标</th><th>GTM BP 融合权重（α）</th><th>预测销量</th><th>下限</th><th>上限</th><th>forecast填写</th>' +
+          '<th>月份</th><th>基准销量</th><th>弹性系数</th><th>影响因子系数</th><th>市场预测值</th><th>BP 目标</th><th>BP目标融合权重（α）</th><th>预测销量</th><th>下限</th><th>上限</th><th>forecast填写</th>' +
           '</tr></thead><tbody>' +
           trs.join('') +
           '</tbody></table></div>'
