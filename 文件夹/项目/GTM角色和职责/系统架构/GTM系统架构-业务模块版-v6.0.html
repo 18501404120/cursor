@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>GTM系统架构-业务模块版 v6.0（六阶段 × OC 口径 × 会议系统优先级）</title>
+  <style>
+    :root {
+      --bg: #f3f6fb;
+      --text: #1a2433;
+      --muted: #617086;
+      --line: #d7e0ec;
+      --white: #fff;
+      --shadow: 0 12px 24px rgba(16, 24, 40, 0.08);
+      --l1: #1f4b99;
+      --l2: #0f766e;
+      --l3: #9a3412;
+      --l4: #7c2d12;
+      --l5: #3f3f46;
+      --l6: #374151;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: "PingFang SC", "Microsoft YaHei", "Helvetica Neue", Arial, sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at 5% 0%, rgba(31, 75, 153, 0.08), transparent 24%),
+        radial-gradient(circle at 95% 0%, rgba(15, 118, 110, 0.08), transparent 24%),
+        linear-gradient(180deg, #f8fbff 0%, #edf3fa 100%);
+      line-height: 1.48;
+    }
+
+    .page {
+      max-width: 1700px;
+      margin: 0 auto;
+      padding: 20px 14px 36px;
+    }
+
+    .hero {
+      background: rgba(255, 255, 255, 0.94);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      box-shadow: var(--shadow);
+      padding: 14px 16px;
+      margin-bottom: 12px;
+    }
+
+    .hero h1 {
+      margin: 0 0 8px;
+      font-size: 30px;
+      line-height: 1.2;
+      letter-spacing: -0.03em;
+    }
+
+    .hero p {
+      margin: 0;
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    .legend {
+      margin-top: 10px;
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .legend span {
+      font-size: 12px;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      background: #f8fafc;
+      color: #3c4a5f;
+      padding: 5px 10px;
+    }
+
+    .layer {
+      margin: 10px 0;
+      border-radius: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.35);
+      box-shadow: var(--shadow);
+      padding: 10px;
+    }
+
+    .layer-title {
+      margin: 4px 0 5px;
+      text-align: center;
+      color: #fff;
+      font-size: 24px;
+      font-weight: 800;
+    }
+
+    .layer-subtitle {
+      margin: 0 0 9px;
+      text-align: center;
+      color: rgba(255, 255, 255, 0.92);
+      font-size: 12px;
+    }
+
+    .l1 { background: var(--l1); }
+    .l2 { background: var(--l2); }
+    .l3 { background: var(--l3); }
+    .l4 { background: var(--l4); }
+    .l5 { background: var(--l5); }
+    .l6 { background: var(--l6); }
+
+    .row {
+      display: grid;
+      gap: 8px;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .row.cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .row.cols-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+
+    .module {
+      border-radius: 10px;
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      background: rgba(255, 255, 255, 0.16);
+      padding: 8px;
+    }
+
+    .module h3 {
+      margin: 0 0 7px;
+      text-align: center;
+      color: #fff;
+      font-size: 14px;
+      font-weight: 800;
+      letter-spacing: 0.01em;
+    }
+
+    .func-grid {
+      display: grid;
+      gap: 6px;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .func-grid.cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+
+    .func {
+      min-height: 34px;
+      display: grid;
+      place-items: center;
+      text-align: center;
+      border-radius: 8px;
+      border: 1px solid var(--line);
+      background: var(--white);
+      color: #1f2937;
+      font-size: 12px;
+      line-height: 1.24;
+      padding: 5px 6px;
+    }
+
+    .tag {
+      display: inline-block;
+      margin-left: 4px;
+      padding: 1px 5px;
+      border-radius: 999px;
+      background: #eef4ff;
+      color: #3658a3;
+      border: 1px solid #cbdaf8;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+    }
+
+    .notes {
+      margin-top: 10px;
+      display: grid;
+      gap: 8px;
+      grid-template-columns: 1.2fr 1fr;
+    }
+
+    .note {
+      background: rgba(255, 255, 255, 0.94);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 10px;
+      font-size: 12px;
+      color: #334155;
+    }
+
+    .note h4 {
+      margin: 0 0 6px;
+      font-size: 13px;
+      color: #1d4ed8;
+    }
+
+    .note ul {
+      margin: 0;
+      padding-left: 16px;
+    }
+
+    .note li {
+      margin: 3px 0;
+    }
+
+    @media (max-width: 1280px) {
+      .row, .row.cols-2, .row.cols-4, .notes {
+        grid-template-columns: 1fr;
+      }
+      .func-grid, .func-grid.cols-3 {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <section class="hero">
+      <h1>GTM系统架构（业务模块版）v6.0</h1>
+      <p>
+        在 v5.1 基础上，按《GTM四角色职责全流程图 v8.1》的<strong>六阶段 × 四角色</strong>主线重排能力映射；纳入《OC工作内容》中的<strong>OC 组织构成</strong>（产品 GTM、区域 GTM、需求计划、商业洞察，及待建立的 FP&amp;A 经营分析）与<strong>3 月/7 月新品规划释放 → 4 月/8 月商业判定与上市节奏</strong>锚点；吸收《会议-GTM全流程》对<strong>BP→规划→跟踪→达成</strong>、三指标（销售 / 营销 / 经营）及系统优先级的讨论；参考《调研会议》对职责边界、预测前提、退市（EOM）分工与数字化落点的澄清。
+      </p>
+      <div class="legend">
+        <span>流程依据：四角色全流程 v8.1（阶段 01～06）</span>
+        <span>组织口径：OC + FP&amp;A（待建）</span>
+        <span>会议共识：PSI + 价格平台 + 管报 + 产品信息/项目 为近期主干</span>
+        <span>目标：洞察→BP→4P 策略→PSI 执行→三指标复盘的系统闭环</span>
+      </div>
+    </section>
+
+    <section class="layer l1">
+      <div class="layer-title">经营治理与规划模块层</div>
+      <div class="layer-subtitle">对应阶段 01～02：市场输入前置后启动 BP；衔接 3 月/7 月次年新品规划释放与 12 月复盘、1 月次年 BP 释放</div>
+      <div class="row cols-2">
+        <div class="module">
+          <h3>目标与 BP 管理</h3>
+          <div class="func-grid">
+            <div class="func">市场扫描 / 预测 / 挖掘结论入库</div>
+            <div class="func">全年 BP 目标与打和版本</div>
+            <div class="func">Baseline 建立与调整口径</div>
+            <div class="func">半年度 / 年度经营复盘输入</div>
+            <div class="func">（可选）中长期 SP 与 BP 衔接视图</div>
+            <div class="func">新品商业判定与节奏决策留痕</div>
+          </div>
+        </div>
+        <div class="module">
+          <h3>渠道经营协同</h3>
+          <div class="func-grid">
+            <div class="func">分渠道目标锁定与过程跟踪</div>
+            <div class="func">区域导入方案与执行基线</div>
+            <div class="func">月度操盘委员会策略调整</div>
+            <div class="func">PD / PFD / BFCM 大促节奏协同</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="layer l2">
+      <div class="layer-title">商品与策略中台模块层</div>
+      <div class="layer-subtitle">对应阶段 01～04：洞察转规划；产品状态、内容、全链条价格与 baseline 为区域与预测的共同前提</div>
+      <div class="row cols-4">
+        <div class="module">
+          <h3>商业洞察与机会池</h3>
+          <div class="func-grid">
+            <div class="func">市场扫描与份额结构</div>
+            <div class="func">预测与 SWOT / 机会清单</div>
+            <div class="func">竞品对标与 VOC 沉淀</div>
+            <div class="func">为预测模型提供系数与解释</div>
+            <div class="func">区域经营简报与复盘输入</div>
+          </div>
+        </div>
+        <div class="module">
+          <h3>商品主数据 PIM <span class="tag">M03</span></h3>
+          <div class="func-grid">
+            <div class="func">SPU/SKU 与生命周期状态</div>
+            <div class="func">多渠道类目与属性合规</div>
+            <div class="func">GTM 负责人 / 上市窗口 / 新品标签</div>
+            <div class="func">EOM 状态与新老品切换联动</div>
+          </div>
+        </div>
+        <div class="module">
+          <h3>内容资产 DAM <span class="tag">M08</span></h3>
+          <div class="func-grid">
+            <div class="func">素材版本与权限</div>
+            <div class="func">图 / KV / POS 交付流水线节点</div>
+            <div class="func">内容合规校验</div>
+            <div class="func">与上市里程碑联动提醒</div>
+          </div>
+        </div>
+        <div class="module">
+          <h3>价格与促销经营平台 <span class="tag">M06/M13</span></h3>
+          <div class="func-grid">
+            <div class="func">RRP / 首销期促销（产品 GTM 输入）</div>
+            <div class="func">FOB / 渠道点位 / 授权价</div>
+            <div class="func">全渠道调价与特商申请</div>
+            <div class="func">Baseline 与价格执行监控</div>
+            <div class="func">量价假设与经营测算衔接</div>
+            <div class="func">促销日历与渠道政策文档化</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="layer l3">
+      <div class="layer-title">渠道交易与增长运营模块层</div>
+      <div class="layer-subtitle">对应阶段 04～05：区域 4P 落地；营销侧以预算 / 项目里程碑与 GTM 项目互锁（能力可分期）</div>
+      <div class="row cols-4">
+        <div class="module">
+          <h3>渠道与店铺运营 <span class="tag">M04</span></h3>
+          <div class="func-grid">
+            <div class="func">多店组织与权限</div>
+            <div class="func">刊登与同步策略</div>
+            <div class="func">平台活动报名</div>
+            <div class="func">店铺健康度与划线价一致性</div>
+          </div>
+        </div>
+        <div class="module">
+          <h3>营销战役管理 <span class="tag">M05</span></h3>
+          <div class="func-grid">
+            <div class="func">活动排期与战役目标</div>
+            <div class="func">预算与项目事项同步 GTM</div>
+            <div class="func">触达编排</div>
+            <div class="func">战役效果与销售结果关联</div>
+          </div>
+        </div>
+        <div class="module">
+          <h3>客户运营 CRM <span class="tag">M07</span></h3>
+          <div class="func-grid">
+            <div class="func">One ID 与客户 360</div>
+            <div class="func">分群与旅程</div>
+            <div class="func">重点客户清单与 SO 视图</div>
+            <div class="func">与区域策略联动</div>
+          </div>
+        </div>
+        <div class="module">
+          <h3>B2B 订货协同 <span class="tag">M13</span></h3>
+          <div class="func-grid">
+            <div class="func">经销商订货门户</div>
+            <div class="func">渠道合同执行</div>
+            <div class="func">配额与返利核算</div>
+            <div class="func">渠道合规审计</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="layer l4">
+      <div class="layer-title">供需与履约执行模块层</div>
+      <div class="layer-subtitle">对应阶段 05：月度计划委会 + PSI；一级计划供需平衡、二级计划需求评审与准确率复盘</div>
+      <div class="row cols-4">
+        <div class="module">
+          <h3>PSI 与计划委会</h3>
+          <div class="func-grid">
+            <div class="func">销售预测与要货双主线</div>
+            <div class="func">一级 / 二级计划会议留痕</div>
+            <div class="func">全渠道分货与预留</div>
+            <div class="func">预测 / 要货准确率复盘</div>
+            <div class="func">（规划）情景测算与供需缺口</div>
+          </div>
+        </div>
+        <div class="module">
+          <h3>库存与分货 <span class="tag">M02</span></h3>
+          <div class="func-grid">
+            <div class="func">中央库存可视</div>
+            <div class="func">在途与调拨</div>
+            <div class="func">ATP 可售计算</div>
+            <div class="func">呆滞与周转监控</div>
+          </div>
+        </div>
+        <div class="module">
+          <h3>订单与履约 OMS <span class="tag">M01</span></h3>
+          <div class="func-grid">
+            <div class="func">全渠道订单归集</div>
+            <div class="func">拆合单与路由</div>
+            <div class="func">异常单处理</div>
+            <div class="func">发运状态追踪</div>
+          </div>
+        </div>
+        <div class="module">
+          <h3>供应与 NPI 协同</h3>
+          <div class="func-grid">
+            <div class="func">工艺 / 生产 / 发运计划对接</div>
+            <div class="func">NPI 导入与产能释放</div>
+            <div class="func">EOM 清库与核料回传</div>
+            <div class="func">物料风险与应急预警</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="layer l5">
+      <div class="layer-title">经营分析、管报与产品闭环模块层</div>
+      <div class="layer-subtitle">对应阶段 06：销售 / 营销 / 经营三指标；管报为财务输出、OC 消费视角；FP&amp;A 能力待建后与本层合并加强</div>
+      <div class="row cols-4">
+        <div class="module">
+          <h3>经营平台与 BI <span class="tag">M11</span></h3>
+          <div class="func-grid">
+            <div class="func">管报模板与业务视角对齐</div>
+            <div class="func">全渠道经营看板（销量 / 营收）</div>
+            <div class="func">利润、费用、周转与渠道健康度</div>
+            <div class="func">BP 达成偏差与归因</div>
+            <div class="func">与价格平台 / PSI 同源口径</div>
+          </div>
+        </div>
+        <div class="module">
+          <h3>FP&amp;A 经营分析 <span class="tag">待建立</span></h3>
+          <div class="func-grid">
+            <div class="func">三指标月度滚动跟踪</div>
+            <div class="func">营销预算与项目费效</div>
+            <div class="func">经营指标下钻至渠道 / SKU</div>
+            <div class="func">与财务系统 / 管报治理衔接</div>
+          </div>
+        </div>
+        <div class="module">
+          <h3>GTM 项目与 GR 协同</h3>
+          <div class="func-grid">
+            <div class="func">上市项目里程碑与交付件</div>
+            <div class="func">GR1～GR5 评审与结论闭环</div>
+            <div class="func">研发变更对前后端影响评估</div>
+            <div class="func">首单需求结构化收集</div>
+          </div>
+        </div>
+        <div class="module">
+          <h3>产品迭代与流程沉淀</h3>
+          <div class="func-grid">
+            <div class="func">NPS 与 VOC 回灌</div>
+            <div class="func">新品复盘与问题池</div>
+            <div class="func">EOM / 退市经验回灌</div>
+            <div class="func">PD ↔ GTM 闭环</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="layer l6">
+      <div class="layer-title">业务连接与流程编排模块层</div>
+      <div class="layer-subtitle">支撑四角色数据 handoff：Sell Out、客户 SO、外部平台数据、财务结果与状态变更广播</div>
+      <div class="row cols-2">
+        <div class="module">
+          <h3>集成与连接能力 <span class="tag">M12</span></h3>
+          <div class="func-grid cols-3">
+            <div class="func">标准连接器与 API</div>
+            <div class="func">字段映射模板</div>
+            <div class="func">流程编排与重试</div>
+            <div class="func">接口监控预警</div>
+            <div class="func">版本变更治理</div>
+            <div class="func">跨系统 SLA 追踪</div>
+          </div>
+        </div>
+        <div class="module">
+          <h3>全链路事件与主数据同步</h3>
+          <div class="func-grid cols-3">
+            <div class="func">渠道 Sell Out / 消耗回流</div>
+            <div class="func">客户 SO 接入（商超等）</div>
+            <div class="func">订单与库存变更广播</div>
+            <div class="func">PD 里程碑 / 参数变更通知 GTM</div>
+            <div class="func">产品状态机驱动（上市 / EOM）</div>
+            <div class="func">复盘动作与策略调整跟踪</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="notes">
+      <div class="note">
+        <h4>v6.0 相对 v5.1 的架构调整说明</h4>
+        <ul>
+          <li><strong>流程对齐</strong>：显式对齐 v8.1 六阶段（扫描与机会 → BP 准备 → 产品规划与立项 → 渠道价格区域策略 → 预测要货与落地 → 经营复盘迭代），各层 subtitle 标注阶段映射，便于需求排期与验收对照。</li>
+          <li><strong>OC 与 FP&amp;A</strong>：按《OC工作内容》保留四组主责；将会议中「财务管报 / 经营视角」上升为独立模块倾向，并以 FP&amp;A「待建立」占位，避免与纯 BI 报表混为一谈。</li>
+          <li><strong>会议-GTM全流程</strong>：强化「价格管理平台」与「经营管报 / 看板」联动；PSI 作为公司级中转；产品信息库与上市项目、GR 与 PD 里程碑互锁列为重点建设项（与 v8.1「系统与数据支撑」一致）。</li>
+          <li><strong>调研会议</strong>：预测需显式纳入 BP 目标 gap、资源投入假设；新老品迭代退市由产品 GTM / PCT 主导、区域主导无替代退市等边界在供应层与 PIM 状态中体现；全渠道数据接入（含 SO）归入集成层。</li>
+          <li><strong>延续 v5.1 收敛</strong>：仍不把客服售后、财务对账结算作为主模块展开；PCT 例会机制本身不作为系统模块，通过「项目与 GR」与通知类能力承载。</li>
+        </ul>
+      </div>
+      <div class="note">
+        <h4>分期建设建议（结合会议优先级表述）</h4>
+        <ul>
+          <li><strong>P0</strong>：PSI（预测 + 要货 + 一级二级计划委会）+ 全渠道关键数据接入 + 库存 / 订单主链路可读。</li>
+          <li><strong>P0+</strong>：价格与促销经营平台（RRP/FOB/授权价/调价/特商/baseline）与经营看板 / 管报口径对齐。</li>
+          <li><strong>P1</strong>：产品信息库深化 + GTM 项目与 GR 节点 + 区域执行与 baseline 过程管理数字化。</li>
+          <li><strong>P2</strong>：FP&amp;A 经营分析能力建制、营销项目深度编排、iPaaS 场景化自动化。</li>
+        </ul>
+      </div>
+    </section>
+  </div>
+</body>
+</html>
