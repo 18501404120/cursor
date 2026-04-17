@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>GTM系统架构-业务模块版 v3.0</title>
+  <style>
+    :root {
+      --bg: #f4f7fb;
+      --text: #182230;
+      --muted: #667085;
+      --line: #d9e1ec;
+      --white: #ffffff;
+      --shadow: 0 10px 24px rgba(16, 24, 40, 0.08);
+      --l1: #344054;
+      --l2: #0f766e;
+      --l3: #2563eb;
+      --l4: #c2410c;
+      --l5: #7c3aed;
+      --l6: #be185d;
+      --l7: #475467;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: "PingFang SC", "Microsoft YaHei", "Helvetica Neue", Arial, sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at top left, rgba(37,99,235,0.08), transparent 26%),
+        radial-gradient(circle at top right, rgba(15,118,110,0.08), transparent 28%),
+        linear-gradient(180deg, #f8fafd 0%, #eef3f9 100%);
+      line-height: 1.5;
+    }
+
+    .page {
+      max-width: 1680px;
+      margin: 0 auto;
+      padding: 22px 14px 40px;
+    }
+
+    .hero {
+      background: rgba(255,255,255,0.92);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      box-shadow: var(--shadow);
+      padding: 16px 18px;
+      margin-bottom: 12px;
+    }
+
+    .hero h1 {
+      margin: 0 0 8px;
+      font-size: 28px;
+      line-height: 1.2;
+      letter-spacing: -0.03em;
+    }
+
+    .hero p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    .legend span {
+      background: #f8fafc;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 6px 10px;
+      font-size: 12px;
+      color: #475467;
+    }
+
+    .layer {
+      border-radius: 12px;
+      box-shadow: var(--shadow);
+      margin: 10px 0;
+      padding: 10px;
+      border: 1px solid rgba(255,255,255,0.32);
+    }
+
+    .layer-title {
+      text-align: center;
+      color: #fff;
+      font-size: 24px;
+      font-weight: 800;
+      margin: 6px 0 6px;
+      letter-spacing: 0.02em;
+    }
+
+    .layer-subtitle {
+      text-align: center;
+      color: rgba(255,255,255,0.92);
+      font-size: 12px;
+      margin-bottom: 10px;
+    }
+
+    .l1 { background: var(--l1); }
+    .l2 { background: var(--l2); }
+    .l3 { background: var(--l3); }
+    .l4 { background: var(--l4); }
+    .l5 { background: var(--l5); }
+    .l6 { background: var(--l6); }
+    .l7 { background: var(--l7); }
+
+    .row {
+      display: grid;
+      gap: 8px;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+
+    .row.cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .row.cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+
+    .module {
+      background: rgba(255,255,255,0.18);
+      border: 1px solid rgba(255,255,255,0.28);
+      border-radius: 10px;
+      padding: 8px;
+    }
+
+    .module h3 {
+      margin: 0 0 8px;
+      text-align: center;
+      color: #fff;
+      font-size: 14px;
+      font-weight: 800;
+    }
+
+    .func-grid {
+      display: grid;
+      gap: 6px;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .func-grid.cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .func-grid.cols-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+
+    .func {
+      background: var(--white);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 6px 6px;
+      font-size: 12px;
+      color: #1f2937;
+      text-align: center;
+      min-height: 34px;
+      display: grid;
+      place-items: center;
+      line-height: 1.25;
+    }
+
+    .wide { grid-column: 1 / -1; }
+
+    .note {
+      background: rgba(255,255,255,0.92);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      margin-top: 10px;
+      padding: 9px 10px;
+      font-size: 12px;
+      color: #344054;
+    }
+
+    @media (max-width: 1280px) {
+      .row, .row.cols-3, .row.cols-2 { grid-template-columns: 1fr; }
+      .func-grid, .func-grid.cols-3, .func-grid.cols-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <section class="hero">
+      <h1>GTM系统架构（业务模块版）v3.1</h1>
+      <p>本版本按业务模块和功能分层设计，不包含网关、存储、基础设施等技术架构内容。核心目的是清晰表达 GTM 业务能力边界与模块协同。</p>
+      <div class="legend">
+        <span>设计维度：业务能力模块</span>
+        <span>核心中枢：PSI + 价格管理 + 产品信息库 + 经营分析</span>
+        <span>协同机制：PCT + 项目里程碑 + PD↔GTM双向闭环</span>
+      </div>
+    </section>
+
+    <section class="layer l1">
+      <div class="layer-title">全渠道系统层</div>
+      <div class="layer-subtitle">统一承接全渠道经营策略、目标与协同规则</div>
+      <div class="row cols-2">
+        <div class="func wide">全渠道经营中枢（策略统一、目标统一、节奏统一、复盘统一）</div>
+      </div>
+    </section>
+
+    <section class="layer l2">
+      <div class="layer-title">渠道系统层</div>
+      <div class="layer-subtitle">各渠道系统在全渠道经营中枢下协同运行</div>
+      <div class="row">
+        <div class="func">亚马逊渠道系统</div>
+        <div class="func">自营渠道系统</div>
+        <div class="func">商超/KA渠道系统</div>
+        <div class="func">服务与售后渠道系统</div>
+      </div>
+    </section>
+
+    <section class="layer l3">
+      <div class="layer-title">战略与规划模块层</div>
+      <div class="layer-subtitle">围绕年度目标与资源配置形成规划闭环</div>
+      <div class="row cols-3">
+        <div class="module">
+          <h3>BP目标管理</h3>
+          <div class="func-grid">
+            <div class="func">年度目标拆解</div>
+            <div class="func">季度滚动调整</div>
+            <div class="func">销售/营销/经营目标</div>
+            <div class="func">目标版本管理</div>
+          </div>
+        </div>
+        <div class="module">
+          <h3>商业判定与Baseline</h3>
+          <div class="func-grid">
+            <div class="func">新品商业判定</div>
+            <div class="func">优先级评审</div>
+            <div class="func">月度Baseline</div>
+            <div class="func">偏差监控</div>
+          </div>
+        </div>
+        <div class="module">
+          <h3>PCT协同机制</h3>
+          <div class="func-grid">
+            <div class="func">PCT例会</div>
+            <div class="func">跨部门决策</div>
+            <div class="func">四快一慢节奏</div>
+            <div class="func">交付件跟踪</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="layer l4">
+      <div class="layer-title">洞察与策略模块层</div>
+      <div class="layer-subtitle">把市场信号转成可执行策略输入</div>
+      <div class="row cols-3">
+        <div class="module">
+          <h3>商业洞察模块</h3>
+          <div class="func-grid">
+            <div class="func">市场扫描</div>
+            <div class="func">竞品分析</div>
+            <div class="func">用户洞察</div>
+            <div class="func">SWOT机会池</div>
+          </div>
+        </div>
+        <div class="module">
+          <h3>产品策略模块</h3>
+          <div class="func-grid">
+            <div class="func">路标承接</div>
+            <div class="func">上市窗口规划</div>
+            <div class="func">生命周期策略</div>
+            <div class="func">退市策略</div>
+          </div>
+        </div>
+        <div class="module">
+          <h3>区域策略模块</h3>
+          <div class="func-grid">
+            <div class="func">区域4P策略</div>
+            <div class="func">渠道策略</div>
+            <div class="func">客户策略</div>
+            <div class="func">资源策略</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="layer l5">
+      <div class="layer-title">产品商业化与价格模块层</div>
+      <div class="layer-subtitle">围绕产品上市成功与价格经营形成核心操盘能力</div>
+      <div class="row cols-2">
+        <div class="module">
+          <h3>产品GTM模块</h3>
+          <div class="func-grid cols-3">
+            <div class="func">GTM项目管理</div>
+            <div class="func">里程碑管理</div>
+            <div class="func">上市准备中心</div>
+            <div class="func">样机/素材齐套</div>
+            <div class="func">产品信息库</div>
+            <div class="func">状态流转</div>
+          </div>
+        </div>
+        <div class="module">
+          <h3>价格与渠道政策模块</h3>
+          <div class="func-grid cols-3">
+            <div class="func">定价管理</div>
+            <div class="func">RRP/FOB管理</div>
+            <div class="func">调价管理</div>
+            <div class="func">授权价管理</div>
+            <div class="func">特商管理</div>
+            <div class="func">渠道政策中心</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="layer l6">
+      <div class="layer-title">供需计划与履约模块层</div>
+      <div class="layer-subtitle">把策略转成预测、要货、交付与执行闭环</div>
+      <div class="row cols-3">
+        <div class="module">
+          <h3>销售计划模块</h3>
+          <div class="func-grid">
+            <div class="func">需求预测</div>
+            <div class="func">要货计划</div>
+            <div class="func">供需平衡</div>
+            <div class="func">风险预警</div>
+          </div>
+        </div>
+        <div class="module">
+          <h3>PSI中枢模块</h3>
+          <div class="func-grid">
+            <div class="func">Sell In</div>
+            <div class="func">Sell Out</div>
+            <div class="func">库存管理</div>
+            <div class="func">在途/发运</div>
+          </div>
+        </div>
+        <div class="module">
+          <h3>履约协同模块</h3>
+          <div class="func-grid">
+            <div class="func">计划员协同</div>
+            <div class="func">PMC协同</div>
+            <div class="func">NPI导入协同</div>
+            <div class="func">仓配履约协同</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="layer l7">
+      <div class="layer-title">营销增长模块层</div>
+      <div class="layer-subtitle">保证流量、转化、活动与库存节奏协同</div>
+      <div class="row cols-2">
+        <div class="module">
+          <h3>营销模块</h3>
+          <div class="func-grid">
+            <div class="func">战役管理</div>
+            <div class="func">活动排期</div>
+            <div class="func">素材管理</div>
+            <div class="func">传播节奏</div>
+          </div>
+        </div>
+        <div class="module">
+          <h3>广告模块</h3>
+          <div class="func-grid">
+            <div class="func">投放计划</div>
+            <div class="func">预算执行</div>
+            <div class="func">效果追踪</div>
+            <div class="func">投放库存联动</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="layer l1">
+      <div class="layer-title">经营复盘与持续优化模块层</div>
+      <div class="layer-subtitle">形成结果评估、归因诊断和下一轮规划输入</div>
+      <div class="row cols-2">
+        <div class="module">
+          <h3>经营分析模块</h3>
+          <div class="func-grid cols-3">
+            <div class="func">经营看板</div>
+            <div class="func">管理报表</div>
+            <div class="func">利润分析</div>
+            <div class="func">周转分析</div>
+            <div class="func">目标偏差归因</div>
+            <div class="func">策略建议</div>
+          </div>
+        </div>
+        <div class="module">
+          <h3>售后与质量闭环模块</h3>
+          <div class="func-grid cols-3">
+            <div class="func">售后工单</div>
+            <div class="func">退换修管理</div>
+            <div class="func">故障分类</div>
+            <div class="func">质量问题回流</div>
+            <div class="func">服务知识库</div>
+            <div class="func">产品迭代输入</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="layer l2">
+      <div class="layer-title">业务场景层（底层）</div>
+      <div class="layer-subtitle">全渠道系统最终服务的经营场景</div>
+      <div class="row">
+        <div class="func">新品上市场景</div>
+        <div class="func">稳定售卖场景</div>
+        <div class="func">促销活动场景</div>
+        <div class="func">退市与清货场景</div>
+      </div>
+    </section>
+
+    <section class="note">
+      <strong>模块建设顺序建议</strong><br />
+      P0：`PSI中枢 + 价格管理模块 + 产品信息库 + 经营分析看板`。<br />
+      P1：`PCT流程数字化 + 项目里程碑 + PD↔GTM双向接口 + 渠道SO自动回流`。<br />
+      P2：`预测优化 + 价格弹性/利润模拟 + 归因智能 + 售后问题自动闭环`。
+    </section>
+  </div>
+</body>
+</html>
