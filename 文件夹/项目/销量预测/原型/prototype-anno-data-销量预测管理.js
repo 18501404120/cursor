@@ -11,7 +11,7 @@
       title: "页头：目标助手",
       html:
         "<p><strong>【基础】</strong>本页为运营/计划侧主工作台，信息架构为：<strong>顶栏 → 筛选区 → 预测方式 → 主图「预测与目标」→ 明细表</strong>。</p>" +
-        "<p><strong>【逻辑】</strong>产品<strong>不展示</strong>准确率、MAPE、达成率类 KPI；<strong>BP 目标</strong>来自业务侧 BP 拆解，<strong>预测目标</strong>为当前所选预测方式（机器学习 / 系统预测）下的规则或模型输出；<strong>实际销量</strong>为已关账口径。</p>" +
+        "<p><strong>【逻辑】</strong>产品<strong>不展示</strong>准确率、MAPE、达成率类 KPI；主图含<strong>BP 目标</strong>、<strong>客观中值</strong>（规则/ML 客观情景点值）、<strong>系统推荐值</strong>（汇总层分支后分摊演示）、<strong>人工预测</strong>、<strong>实际销量</strong>；客观带不随目标/BP 变。<strong>会议依据：需求逻辑调整会</strong></p>" +
         "<p><strong>【交互】</strong>红点（说明版）挂载在控件旁，点击气泡阅读字段含义、数据口径与操作后果；与《销量预测管理-PRD》对齐。</p>",
     },
     {
@@ -139,15 +139,15 @@
       title: "预测方式：机器学习 / 系统预测",
       html:
         "<p><strong>【基础】</strong>单选组 <code>#predModeMl</code>（机器学习）、<code>#predModeSys</code>（系统预测）。</p>" +
-        "<p><strong>【逻辑】</strong><strong>机器学习：</strong>以算法管线输出为主，可叠加人工覆盖。<strong>系统预测：</strong>规则/基线为主，适合冷启动或可解释优先场景。切换后图表与表格中的「预测目标」序列口径须一致切换。</p>" +
+        "<p><strong>【逻辑】</strong><strong>机器学习：</strong>以算法管线输出客观中值为主。<strong>系统预测：</strong>规则/基线为主。切换后列表主行与详情中与预测方式相关的展示须一致切换（与 PRD v2.6 一致）。</p>" +
         "<p><strong>【交互】</strong>点击 radio 即时切换选中态；若后端按任务类型分接口，切换时可能触发重新拉数。</p>",
     },
     {
       anchorSelector: ".chart-panel h2",
       title: "区块：预测与目标（主图）",
       html:
-        "<p><strong>【基础】</strong>主图对比 <strong>BP 目标</strong>、<strong>预测目标值</strong>、<strong>人工预测值</strong>、<strong>实际销量</strong>四柱（无页面级开关）；图例可单独隐藏「人工预测值」等序列。图例文案为「BP 目标」。</p>" +
-        "<p><strong>【逻辑】</strong>仅<strong>单左轴数量</strong>；<strong>不展示</strong>达成率折线、<strong>无</strong>右侧百分比轴。BP 目标与人工预测为<strong>固定点值</strong>，无主图区间浅色带；仅<strong>预测目标值</strong>可按《预测销量上下限规则-PRD》展示演示用上下限区间与 Tooltip 附当月上下限。</p>" +
+        "<p><strong>【基础】</strong>主图对比 <strong>BP 目标</strong>、<strong>客观中值</strong>、<strong>系统推荐值</strong>、<strong>人工预测值</strong>、<strong>实际销量</strong>；图例可单独隐藏各序列。</p>" +
+        "<p><strong>【逻辑】</strong>仅<strong>单左轴数量</strong>；不展示达成率折线。仅<strong>客观中值</strong>带演示用<strong>客观下～上限</strong>浅色带及 Tooltip 附注；BP、系统推荐、人工、实际为点值柱。<strong>会议依据：需求逻辑调整会</strong>；详见《预测销量上下限规则-PRD》v2.0。</p>" +
         "<p><strong>【交互】</strong>图例点击控制序列显隐；Tooltip 轴触发；不含达成率百分比行。</p>",
     },
     {
@@ -155,7 +155,7 @@
       title: "图表渲染区",
       html:
         "<p><strong>【基础】</strong>ECharts 容器；承载柱状/折线组合（以 PRD 为准）。</p>" +
-        "<p><strong>【逻辑】</strong>Tooltip 仅在预测目标序列上可附当月演示下限/上限（与浅色带一致）；BP、人工仅为点值柱/折点。</p>" +
+        "<p><strong>【逻辑】</strong>Tooltip 仅在<strong>客观中值</strong>序列上可附当月演示客观下限/上限（与浅色带一致）；BP、系统推荐、人工仅为点值柱。</p>" +
         "<p><strong>【交互】</strong>缩放、图例、数据区域选择若启用需在 PRD 中单独定义；导出图表可走「导出」或截图。</p>",
     },
     {
@@ -243,7 +243,7 @@
       title: "列组：月份（动态子列）",
       html:
         "<p><strong>【基础】</strong><code>#monthHeadRow</code> 由脚本按「月份范围」生成多个月子列。</p>" +
-        "<p><strong>【逻辑】</strong>主行展示<strong>预测目标</strong>；展开后可有系统规则行、forecast 行；单元格可含备注图标、超限样式等。不包含「预测准确率」列。</p>" +
+        "<p><strong>【逻辑】</strong>主行展示当前预测方式下的销量点值（演示数据）；展开后可有系统规则行、forecast 行；不包含「预测准确率」列。与主图「客观中值/系统推荐」口径分层见 PRD。</p>" +
         "<p><strong>【交互】</strong>横向滚动查看；与主图时间窗一致；点击单元格可能打开详情或趋势（以脚本为准）。</p>",
     },
     {
@@ -259,7 +259,7 @@
       title: "列：操作",
       html:
         "<p><strong>【基础】</strong>行级操作入口：详情、异常备注等（以渲染为准）。</p>" +
-        "<p><strong>【逻辑】</strong>详情中销量目标 T 与 BP 目标同源说明见 PRD。</p>" +
+        "<p><strong>【逻辑】</strong>详情中「目标」与列表 BP/业务目标口径见 PRD v2.6。</p>" +
         "<p><strong>【交互】</strong>点击触发弹层或侧栏；与批量备注互不替代。</p>",
     },
     {
@@ -306,8 +306,8 @@
       anchorSelector: "#detailParaLogic",
       title: "详情：测算逻辑说明",
       html:
-        "<p><strong>【基础】</strong>按月说明当前预测方式下 <strong>市场预测值 M</strong> 与 <strong>BP 目标 T</strong> 的组合规则，以及 <strong>预测销量</strong>、<strong>下限/上限</strong>与《预测销量上下限规则》的关系（原型为演示公式与确定性模拟）。</p>" +
-        "<p><strong>【逻辑】</strong>含 M≤T / M＞T 分支、α（BP目标融合权重）参与融合、无 T 时仅 M、forecast 与 BP 列为点值无演示区间等；与主图「预测目标值」浅色带口径一致。</p>" +
+        "<p><strong>【基础】</strong>按月说明<strong>客观中值 / 目标 / 系统推荐值</strong>与<strong>客观下限～客观上限</strong>的关系；原型为 Cell 级简化演示。</p>" +
+        "<p><strong>【逻辑】</strong>与《预测销量上下限规则》v2.0、主图一致；<strong>废止</strong>旧版 M/T/α 与「目标×1.05」抬推荐。<strong>会议依据：需求逻辑调整会</strong></p>" +
         "<p><strong>【交互】</strong>只读；可随预测方式单选（机器学习/系统预测）切换文案前提（以页面脚本为准）。</p>",
     },
     {
@@ -339,7 +339,7 @@
       title: "详情列：弹性系数",
       html:
         "<p><strong>【基础】</strong>汇总展示流量、转化率、价格、竞争力、广告花费等<strong>弹性类</strong>系数示意（原型为 HTML 片段）。</p>" +
-        "<p><strong>【逻辑】</strong>与预测配置表中各弹性列同源思路；参与「预测目标」或 M 的拆解演示。</p>" +
+        "<p><strong>【逻辑】</strong>与预测配置表中各弹性列同源思路；参与客观中值情景拆解演示。</p>" +
         "<p><strong>【交互】</strong>本列在首行 <code>rowspan</code> 全表月数，后续行不占格；只读。</p>",
     },
     {
@@ -351,51 +351,43 @@
         "<p><strong>【交互】</strong>同弹性列，首行 rowspan；只读。</p>",
     },
     {
-      anchorSelector: "#detailThMarket",
-      title: "详情列：市场预测值（M）",
+      anchorSelector: "#detailThObjMid",
+      title: "详情列：客观中值",
       html:
-        "<p><strong>【基础】</strong>算法或规则在<strong>未叠加 BP 销售目标约束前</strong>的市场侧点预测（演示数）。</p>" +
-        "<p><strong>【逻辑】</strong>与 BP 目标 T 比较决定融合分支；无 T 时预测销量退化为 M。</p>" +
-        "<p><strong>【交互】</strong>只读；与主图「预测目标值」存在口径层级差异（详见逻辑说明段）。</p>",
-    },
-    {
-      anchorSelector: "#detailThBp",
-      title: "详情列：BP 目标（T）",
-      html:
-        "<p><strong>【基础】</strong>业务侧拆解到该 MSKU/月的 BP 销量目标。</p>" +
-        "<p><strong>【逻辑】</strong>为空表示当月无 T，则 α 为空且预测销量取 M；有 T 时参与 M≤T / M＞T 公式。</p>" +
-        "<p><strong>【交互】</strong>只读；编辑入口通常在计划/BP 系统而非本弹窗。</p>",
-    },
-    {
-      anchorSelector: "#detailThAlpha",
-      title: "详情列：BP目标融合权重（α）",
-      html:
-        "<p><strong>【基础】</strong>0～1 小数，表示 BP 目标与市场预测融合时偏向 BP 的权重（与配置中心列名一致）。</p>" +
-        "<p><strong>【逻辑】</strong>当 M＞T 时预测销量按 T×α + M×(1−α) 类公式演示；无 T 时本列为「—」。</p>" +
-        "<p><strong>【交互】</strong>只读；配置在「预测配置」表对应列。</p>",
-    },
-    {
-      anchorSelector: "#detailThPred",
-      title: "详情列：预测销量",
-      html:
-        "<p><strong>【基础】</strong>在演示规则下合成的当月预测点值 P，对应主工作台主图中的「预测目标值」口径。</p>" +
-        "<p><strong>【逻辑】</strong>由 M、T、α 及当前预测方式共同决定；为<strong>下限/上限</strong>所围绕的中心点（见上下限规则）。</p>" +
+        "<p><strong>【基础】</strong>由流量、价格、促销等客观因子与规则/ML 情景得到的点值（演示与主图「客观中值」同源函数）。</p>" +
+        "<p><strong>【逻辑】</strong>不随目标、BP、α 修改；为客观带计算锚点。</p>" +
         "<p><strong>【交互】</strong>只读。</p>",
     },
     {
-      anchorSelector: "#detailThLo",
-      title: "详情列：下限",
+      anchorSelector: "#detailThTarget",
+      title: "详情列：目标",
       html:
-        "<p><strong>【基础】</strong>对当月预测销量给出的演示<strong>悲观边界</strong>（与 PRD §3 因子极值组合一致，原型为确定性倍数）。</p>" +
-        "<p><strong>【逻辑】</strong>有预测点且可算带时展示数值，否则「—」；不作用于 BP/forecast 列。</p>" +
+        "<p><strong>【基础】</strong>业务输入的销量目标（原型演示为当月 BP 拆解量）。</p>" +
+        "<p><strong>【逻辑】</strong>可与客观三值任意高低组合；为空时系统推荐演示退化为客观中值。正式单位须与汇总分摊一致（额/量见 PRD）。</p>" +
+        "<p><strong>【交互】</strong>只读；编辑入口在计划/BP 或目标录入流程。</p>",
+    },
+    {
+      anchorSelector: "#detailThRec",
+      title: "详情列：系统推荐值",
+      html:
+        "<p><strong>【基础】</strong>汇总层分支后按比例分摊到本 SKU 的推荐量演示（单月 Cell 简化，与主图「系统推荐值」一致）。</p>" +
+        "<p><strong>【逻辑】</strong>禁止高于客观上限；禁止目标×1.05 旧逻辑。<strong>会议依据：需求逻辑调整会</strong></p>" +
         "<p><strong>【交互】</strong>只读。</p>",
     },
     {
-      anchorSelector: "#detailThHi",
-      title: "详情列：上限",
+      anchorSelector: "#detailThObjLo",
+      title: "详情列：客观下限",
       html:
-        "<p><strong>【基础】</strong>对当月预测销量给出的演示<strong>乐观边界</strong>。</p>" +
-        "<p><strong>【逻辑】</strong>与下限成对出现；与主图 Tooltip 中「下限·上限」附注同一套演示算法。</p>" +
+        "<p><strong>【基础】</strong>客观悲观情景边界（演示确定性倍数）。</p>" +
+        "<p><strong>【逻辑】</strong>仅锚定<strong>客观中值</strong>，不随目标/BP 融合变化（v2.0 §4）。</p>" +
+        "<p><strong>【交互】</strong>只读。</p>",
+    },
+    {
+      anchorSelector: "#detailThObjHi",
+      title: "详情列：客观上限",
+      html:
+        "<p><strong>【基础】</strong>客观乐观情景边界（演示）。</p>" +
+        "<p><strong>【逻辑】</strong>与客观下限成对；系统推荐不得超过客观上限。</p>" +
         "<p><strong>【交互】</strong>只读。</p>",
     },
     {
@@ -403,7 +395,7 @@
       title: "详情列：forecast填写",
       html:
         "<p><strong>【基础】</strong>业务线 forecast 流程填报的销量或占位，与主表「forecast填写销量」开关联动展示。</p>" +
-        "<p><strong>【逻辑】</strong>为点值列，不参与演示上下限带；可与预测销量对比做执行偏差分析。</p>" +
+        "<p><strong>【逻辑】</strong>为点值列，不参与客观带；可与系统推荐值、客观中值对比做执行偏差分析。</p>" +
         "<p><strong>【交互】</strong>弹窗内只读；编辑在列表展开行或 forecast 录入页（正式版）。</p>",
     },
     {

@@ -864,7 +864,7 @@
     (function () {
       /**
        * 月份范围由筛选区「月份范围」控制，默认：锚定日前 6 个月～后 6 个月（含当月）。
-       * 「预测目标值」为单月一条；邻近目标月的演示数值用稳定种子生成（见 systemTargetFor，**非**业务「锁定版最后一版预测」语义）。
+       * 「客观中值」为单月一条（脚本函数仍为 systemTargetFor）；邻近目标月的演示数值用稳定种子生成，**非**业务「锁定版最后一版预测」语义。**会议依据：需求逻辑调整会**。
        */
       var months = [];
 
@@ -1052,7 +1052,7 @@
         [114, 120, 126, 112, 118, 124, 132, 130, 136, 142, 140, 146, 152]
       ];
 
-      /** 系统「预测目标值」：单月一条；邻近目标月用演示稳定点值（见 demoStableTarget），其余月用滚动演示（见 rollingTarget） */
+      /** 系统「客观中值」（演示函数名 systemTargetFor）：单月一条；邻近目标月用演示稳定点值（见 demoStableTarget），其余月用滚动演示（见 rollingTarget） */
       function systemTargetFor(lab, anchor) {
         var i = months.indexOf(lab);
         if (i < 0) return 0;
@@ -1068,7 +1068,30 @@
         return rollingTarget(lab, anchor);
       }
 
-      /** 人工预测：在系统预测目标上略偏（演示） */
+      /**
+       * 主图/详情共用：按「目标」与当月客观中值、客观带（演示）得到系统推荐单点（整数）。
+       * 正式环境：专员 SKU 集合在汇总层分支定总额后，按比例分摊到各 SKU 客观中值（见 PRD v2.0 §5～§6）。**会议依据：需求逻辑调整会**
+       */
+      function detailDemoRecommended(mid, target, lab, anchor) {
+        if (mid == null || typeof mid !== 'number' || isNaN(mid)) return null;
+        var bh = prdDemoSalesBandFromPoint(mid, lab, anchor);
+        if (!bh) return Math.round(mid);
+        var lo = bh.low,
+          hi = bh.high;
+        if (target == null || typeof target !== 'number' || isNaN(target)) return Math.round(mid);
+        if (target > hi) return Math.round(hi);
+        if (target > mid) return Math.round(target);
+        if (target >= lo && target <= mid) return Math.round(target);
+        if (target < lo) return Math.round(mid);
+        return Math.round(mid);
+      }
+
+      /** 主图横轴：目标取当月 BP 演示值，调用 detailDemoRecommended */
+      function demoRecommendedMonth(lab, anchor) {
+        return detailDemoRecommended(systemTargetFor(lab, anchor), bpTargetFor(lab, anchor), lab, anchor);
+      }
+
+      /** 人工预测：在客观中值上略偏（演示） */
       function manualTargetFor(lab, anchor) {
         var sys = systemTargetFor(lab, anchor);
         var p = parseMonthLabel(lab);
@@ -1076,7 +1099,7 @@
         return Math.round(sys * bias);
       }
 
-      /** BP 目标：演示为相对预测目标的规划带（正式版接业务侧全年 BP 拆解） */
+      /** BP 目标：演示为相对客观中值的规划带（正式版接业务侧全年 BP 拆解） */
       function bpTargetFor(lab, anchor) {
         var sys = systemTargetFor(lab, anchor);
         var p = parseMonthLabel(lab);
@@ -1094,6 +1117,7 @@
       function buildChartPayload(anchor) {
         var bp = [];
         var targets = [];
+        var recommended = [];
         var manual = [];
         var actual = [];
 
@@ -1109,10 +1133,11 @@
 
           bp.push(bpTargetFor(lab, anchor));
           targets.push(systemTargetFor(lab, anchor));
+          recommended.push(demoRecommendedMonth(lab, anchor));
           manual.push(manualTargetFor(lab, anchor));
         }
 
-        return { bp: bp, targets: targets, manual: manual, actual: actual };
+        return { bp: bp, targets: targets, recommended: recommended, manual: manual, actual: actual };
       }
 
       function hollowLineStyle(color) {
@@ -1131,9 +1156,9 @@
       }
 
       /**
-       * 演示用上下限（仅用于「预测目标值」）：与《预测销量上下限规则》§3 一致——由流量、转化率、竞争力、价格、广告花费
+       * 演示用上下限（仅用于「客观中值」）：与《预测销量上下限规则》v2.0 §4 一致——由流量、转化率、竞争力、价格、广告花费
        * 在悲观/乐观情景下的极值组合，折算为相对点值的合成倍数（原型无因子明细库，用月份+锚定日+点值种子确定性模拟）。
-       * **BP 目标**、**人工预测值** 为业务固定点值，主图不展示区间带、Tooltip 不附下限/上限。
+       * **BP 目标**、**系统推荐值**、**人工预测值** 为点值，主图不展示客观区间带、Tooltip 不附客观下/上限。
        */
       function prdDemoSalesBandFromPoint(v, lab, anchor) {
         if (typeof v !== 'number' || isNaN(v) || v === 0) return null;
@@ -1178,7 +1203,7 @@
         return prdDemoSalesBandFromPoint(v, lab, anchor || getAnchorDate());
       }
 
-      /** 轴提示：列主值；仅「预测目标值」附当月演示上下限（与浅色带同为 §3 因子情景口径）；BP 目标、人工预测为固定点值无区间文案 */
+      /** 轴提示：列主值；仅「客观中值」附当月演示客观下～上（与浅色带同为 v2.0 §4 口径）；BP、系统推荐、人工为点值无区间文案 */
       function buildForecastAxisTooltipCompact(params) {
         if (!params || !params.length) return '';
         var axis = params[0].axisValueLabel || params[0].name || '';
@@ -1190,7 +1215,7 @@
           var name = item.seriesName;
           var main = v == null || v === '' ? '—' : String(v);
           var line = item.marker + ' <b>' + name + '</b>：' + main;
-          if (name === '预测目标值' && typeof v === 'number' && !isNaN(v)) {
+          if (name === '客观中值' && typeof v === 'number' && !isNaN(v)) {
             var bh = forecastPointLowHigh(v, labMonth, getAnchorDate());
             if (bh) {
               line += ' <span style="color:#666;font-size:12px">（下限 ' + bh.low + ' · 上限 ' + bh.high + '）</span>';
@@ -1201,7 +1226,7 @@
         return lines.join('<br/>');
       }
 
-      var FORECAST_RANGE_MAIN_NAMES = ['预测目标值'];
+      var FORECAST_RANGE_MAIN_NAMES = ['客观中值'];
 
       function pushForecastRangeBands(out, mainName, dataArr, areaRgba, selectedMap) {
         var lows = [];
@@ -1270,18 +1295,19 @@
       function buildChartOption() {
         var p = buildChartPayload(getAnchorDate());
 
-        var legendNames = ['BP 目标', '预测目标值', '人工预测值', '实际销量'];
+        var legendNames = ['BP 目标', '客观中值', '系统推荐值', '人工预测值', '实际销量'];
 
         var selected = {
           'BP 目标': true,
-          预测目标值: true,
+          客观中值: true,
+          系统推荐值: true,
           人工预测值: true,
           实际销量: true
         };
 
         var bandRgbaT = 'rgba(22,119,255,0.38)';
         var series = [];
-        pushForecastRangeBands(series, '预测目标值', p.targets, bandRgbaT, selected);
+        pushForecastRangeBands(series, '客观中值', p.targets, bandRgbaT, selected);
 
         series.push({
           name: 'BP 目标',
@@ -1292,11 +1318,19 @@
           z: 2
         });
         series.push({
-          name: '预测目标值',
+          name: '客观中值',
           type: 'bar',
           data: p.targets,
           itemStyle: { color: '#1677ff' },
           barMaxWidth: 8,
+          z: 2
+        });
+        series.push({
+          name: '系统推荐值',
+          type: 'bar',
+          data: p.recommended,
+          itemStyle: { color: '#13c2c2' },
+          barMaxWidth: 7,
           z: 2
         });
         series.push({
@@ -1343,7 +1377,7 @@
             {
               type: 'value',
               name: '数量',
-              max: 250,
+              max: 320,
               min: 0,
               splitNumber: 5,
               axisLabel: { fontSize: 10 },
@@ -1929,48 +1963,12 @@
       }
 
       /**
-       * 详情表：BP目标融合权重（α）0～1；无 BP 目标 T 时必须为空。
-       * 与预测销量关系：当市场预测 M＞BP 目标 T 时，预测销量 = T×α + M×(1−α)。
-       */
-      function demoDetailSalesTargetInfluence(mi, hasSalesTarget) {
-        if (!hasSalesTarget) return null;
-        var w = 0.3 + (mi % 4) * 0.12;
-        return w.toFixed(2);
-      }
-
-      /** 详情表：演示用原始市场预测 M（未叠销售目标），相对当月 BP 波动以展示 M≤T / M＞T 两条分支 */
-      function demoDetailRawMarketVsBp(bp, mi) {
-        if (bp == null || typeof bp !== 'number' || isNaN(bp)) return null;
-        var r = 0.9 + ((mi * 17 + 3) % 25) * 0.02;
-        return Math.round(bp * r);
-      }
-
-      /**
-       * 详情表：当月 BP 目标 T；演示中少量格子为空（无 T 则无因子、预测按市场单列）。
+       * 详情表：当月「目标」演示值（此处用 BP 拆解量占位）；少量格子为空表示无目标输入。
+       * **会议依据：需求逻辑调整会**（正式可与销售目标等业务目标同源，单位须与汇总一致）。
        */
       function detailDemoSalesTargetBp(lab, anchor, rowIdx, mi) {
         if (rowIdx % 11 === 0 && mi % 5 === 0) return null;
         return bpTargetFor(lab, anchor);
-      }
-
-      /**
-       * 预测销量 P：M 为市场预测值，T 为 BP 目标，α 为 BP目标融合权重（0～1）。
-       * 无 T：α 为空，P = M（演示）。
-       * M≤T：P = T×1.05（将结果抬升至不低于目标的 5% 缓冲）。
-       * M＞T：P = T×α + M×(1−α)。
-       */
-      function detailPredictedSalesFromMarketAndTarget(M, T, inflStr) {
-        if (M == null || typeof M !== 'number' || isNaN(M)) return null;
-        if (T == null || typeof T !== 'number' || isNaN(T)) {
-          return Math.round(M);
-        }
-        var a = parseFloat(String(inflStr), 10);
-        if (!isFinite(a)) return Math.round(M);
-        a = Math.min(1, Math.max(0, a));
-        if (M <= T) {
-          return Math.round(T * 1.05);
-        }
-        return Math.round(T * a + M * (1 - a));
       }
 
       function detailElasticityCoefHtml() {
@@ -1985,7 +1983,7 @@
         );
       }
 
-      /** 详情弹窗：基准/弹性/影响因子/市场预测/BP 目标/BP目标融合权重（α）+ 预测值 + 上下限 + forecast 填写 */
+      /** 详情弹窗：基准/弹性/影响因子/客观中值/目标/系统推荐/客观下上限/forecast（与 v2.0 废止 M/T/α/1.05） */
       function buildRowForecastDetailHtml(row) {
         var modeLabel = isPredML() ? '机器学习' : '系统规则';
         var anchor = getAnchorDate();
@@ -2009,22 +2007,15 @@
           var lab = months[mi];
           var fillV = seriesValueForCell(row, 'fill', mi);
           var baseline = demoDetailBaselineSales(mi);
-          var salesTargetBp = detailDemoSalesTargetBp(lab, anchor, rowIdx, mi);
-          var hasT = salesTargetBp != null && typeof salesTargetBp === 'number' && !isNaN(salesTargetBp);
-          var tgtInfl = demoDetailSalesTargetInfluence(mi, hasT);
-          var M = demoDetailRawMarketVsBp(hasT ? salesTargetBp : bpTargetFor(lab, anchor), mi);
-          var predNum = detailPredictedSalesFromMarketAndTarget(M, hasT ? salesTargetBp : null, tgtInfl);
-          /** 有 T：上下限按 P 与 §3 因子情景口径；无 T：仅按 M 与同口径 */
-          var bandBase = hasT ? predNum : M;
-          var bhBand =
-            bandBase != null && typeof bandBase === 'number' && !isNaN(bandBase)
-              ? prdDemoSalesBandFromPoint(bandBase, lab, anchor)
-              : null;
+          var targetCell = detailDemoSalesTargetBp(lab, anchor, rowIdx, mi);
+          var hasTarget = targetCell != null && typeof targetCell === 'number' && !isNaN(targetCell);
+          var objectiveMid = systemTargetFor(lab, anchor);
+          var recNum = detailDemoRecommended(objectiveMid, hasTarget ? targetCell : null, lab, anchor);
+          var bhBand = prdDemoSalesBandFromPoint(objectiveMid, lab, anchor);
           var lo = bhBand ? bhBand.low : '—';
           var hi = bhBand ? bhBand.high : '—';
-          var marketStr = M == null ? '—' : String(M);
-          var tgtStr = hasT ? String(salesTargetBp) : '—';
-          var inflStr = tgtInfl == null ? '—' : String(tgtInfl);
+          var midStr = String(objectiveMid);
+          var tgtStr = hasTarget ? String(targetCell) : '—';
           var coefCells = mi === 0 ? rowspanElas + rowspanInfl : '';
           trs.push(
             '<tr><td>' +
@@ -2034,13 +2025,11 @@
               '</td>' +
               coefCells +
               '<td>' +
-              marketStr +
+              midStr +
               '</td><td>' +
               tgtStr +
               '</td><td>' +
-              inflStr +
-              '</td><td>' +
-              formatDetailCellPlain(predNum) +
+              formatDetailCellPlain(recNum) +
               '</td><td>' +
               lo +
               '</td><td>' +
@@ -2058,10 +2047,10 @@
           '</b></p>' +
           '<p id="detailParaLogic" style="margin:10px 0 6px;font-size:13px">按月「<b>' +
           modeLabel +
-          '</b>」：<strong>市场预测值 M</strong>与<strong>BP 目标 T</strong>比较——若 M≤T，则<strong>预测销量 = T×1.05</strong>；若 M＞T，则<strong>预测销量 = T×α + M×(1−α)</strong>（α 为 <strong>BP目标融合权重</strong>，0～1）。<strong>无 T 时 α 为空</strong>，预测销量取 M；<strong>BP 目标</strong>与<strong>forecast 填写</strong>列为固定点值（无演示区间）。<strong>预测销量</strong>的<strong>下限/上限</strong>按《预测销量上下限规则》§3：以<strong>流量、转化率、竞争力、价格、广告花费</strong>悲观/乐观极值代入与点预测同构的公式得到（原型用确定性模拟倍数，与主图「预测目标值」浅色带一致）。</p>' +
+          '</b>」：<strong>客观下限 / 客观中值 / 客观上限</strong>仅由流量、价格、促销等客观因子情景得出，<strong>不</strong>随目标或 BP 调整。<strong>目标</strong>为业务输入（本表「目标」列演示为 BP 拆解量）。<strong>系统推荐值</strong>在正式环境为专员负责 SKU 在<strong>汇总层</strong>按 PRD v2.0 §5 分支定总额后<strong>按比例分摊</strong>到各 SKU 客观中值后展示；本弹窗为<strong>单月 Cell 简化</strong>（同主图「系统推荐值」演示算法），<strong>禁止</strong>使用「目标×1.05」等突破客观上限。<strong>客观下限/客观上限</strong>仅锚定<strong>客观中值</strong>（《预测销量上下限规则》v2.0 §4）。<strong>会议依据：需求逻辑调整会</strong></p>' +
           '<div id="detailTableScroll" style="max-height:380px;overflow:auto">' +
-          '<table class="data-table" id="detailForecastTable" style="font-size:12px;min-width:1120px"><thead><tr>' +
-          '<th id="detailThMonth">月份</th><th id="detailThBaseline">基准销量</th><th id="detailThElastic">弹性系数</th><th id="detailThInfl">影响因子系数</th><th id="detailThMarket">市场预测值</th><th id="detailThBp">BP 目标</th><th id="detailThAlpha">BP目标融合权重（α）</th><th id="detailThPred">预测销量</th><th id="detailThLo">下限</th><th id="detailThHi">上限</th><th id="detailThFc">forecast填写</th>' +
+          '<table class="data-table" id="detailForecastTable" style="font-size:12px;min-width:980px"><thead><tr>' +
+          '<th id="detailThMonth">月份</th><th id="detailThBaseline">基准销量</th><th id="detailThElastic">弹性系数</th><th id="detailThInfl">影响因子系数</th><th id="detailThObjMid">客观中值</th><th id="detailThTarget">目标<br/><span style="font-weight:400;color:#999;font-size:11px">演示：BP</span></th><th id="detailThRec">系统推荐值</th><th id="detailThObjLo">客观下限</th><th id="detailThObjHi">客观上限</th><th id="detailThFc">forecast填写</th>' +
           '</tr></thead><tbody>' +
           trs.join('') +
           '</tbody></table></div>'
