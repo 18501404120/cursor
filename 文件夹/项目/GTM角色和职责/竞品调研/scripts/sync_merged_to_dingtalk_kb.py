@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
 """
-将《全渠道模块竞品分析-合并版.md》上传到钉钉知识库（团队空间）指定目录。
+将本地 Markdown（默认《全渠道模块竞品分析-合并版.md》）上传到钉钉**知识库 / 团队空间**指定文件夹。
+
+上传后，在钉钉知识库中会以**文件**形式展示，可在钉钉内在线预览（具体预览能力与文件类型以钉钉客户端为准）。  
+若需**空白在线协作文档**再手工排版，可在钉钉内「新建文档」或使用开放平台「创建知识库文档」类接口（与本脚本的三步上传不同，需单独对接）。
 
 钉钉开放平台文档：「知识库上传文件」三步
   1) POST /v2.0/storage/spaces/files/{parentDentryUuid}/uploadInfos/query
@@ -11,13 +14,14 @@
   DINGTALK_APP_KEY           企业内部应用 Client ID（原 AppKey）
   DINGTALK_APP_SECRET        企业内部应用 Client Secret
   DINGTALK_UNION_ID          操作者 unionId（与知识库权限匹配的用户）
-  DINGTALK_PARENT_DENTRY_UUID 目标文件夹 dentryUuid（「cursorGTM系统规划」对应文件夹的 ID）
+  DINGTALK_PARENT_DENTRY_UUID 目标文件夹 dentryUuid（例如「竞品分析」文件夹的 ID）
 
 可选
-  DINGTALK_LOCAL_FILE        默认：本脚本所在目录上一级的「全渠道模块竞品分析-合并版.md」
+  DINGTALK_LOCAL_FILE        默认：脚本上一级目录的「全渠道模块竞品分析-合并版.md」
+  DINGTALK_COMMIT_NAME       钉钉中显示的文件名（默认与本地文件名一致；可改为带日期的名称）
   DINGTALK_CONFLICT_STRATEGY 默认 OVERWRITE（同名覆盖）
 
-获取 parentDentryUuid：在钉钉文档/知识库网页中打开「cursorGTM系统规划」文件夹，
+获取 parentDentryUuid：在钉钉文档/知识库网页中打开目标文件夹（如「竞品分析」），
 从浏览器开发者工具网络请求或开放平台「列举子文件」类接口中查看 dentryUuid。
 
 应用权限：需开通与「企业存储 / 知识库文件上传」相关的接口权限（以开放平台当前文案为准）。
@@ -120,6 +124,7 @@ def main() -> int:
 
     default_file = Path(__file__).resolve().parent.parent / "全渠道模块竞品分析-合并版.md"
     local = Path(os.environ.get("DINGTALK_LOCAL_FILE", str(default_file))).resolve()
+    commit_name = os.environ.get("DINGTALK_COMMIT_NAME", "").strip() or local.name
 
     if not all([app_key, app_secret, union_id, parent]):
         print(__doc__, file=sys.stderr)
@@ -134,9 +139,11 @@ def main() -> int:
         print(f"本地文件不存在: {local}", file=sys.stderr)
         return 1
 
+    print(f"上传本地文件: {local}\n钉钉显示文件名: {commit_name}\n目标 parent dentryUuid: {parent[:16]}…")
+
     body_bytes = local.read_bytes()
     size = len(body_bytes)
-    name = local.name
+    name = commit_name
 
     print("获取 accessToken …")
     token = get_access_token(app_key, app_secret)
@@ -146,7 +153,7 @@ def main() -> int:
         "protocol": "HEADER_SIGNATURE",
         "option": {
             "storageDriver": "DINGTALK",
-            "preCheckParam": {"name": name, "size": size},
+            "preCheckParam": {"name": commit_name, "size": size},
         },
     }
     q_path = (
