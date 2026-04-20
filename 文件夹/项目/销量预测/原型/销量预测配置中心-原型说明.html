@@ -339,9 +339,6 @@
                   <th style="min-width:100px">销售团队</th>
                   <th style="min-width:120px">SKU信息</th>
                   <th style="min-width:72px">基准销量</th>
-                  <th style="min-width:120px">
-                    <span class="th-with-tip">BP目标融合权重（α）<span class="field-tip" id="tipSalesTarget" title="">?</span></span>
-                  </th>
                   <th style="min-width:104px">
                     <span class="th-with-tip">流量弹性系数<span class="field-tip" id="tipFlow" title="">?</span></span>
                   </th>
@@ -461,11 +458,6 @@
   <script src="../../../规范/assets/date-range-picker.js"></script>
   <script>
     (function () {
-      var TIP_SALES_TARGET =
-        '点预测（最终预测销量）= 对应月份的 BP 目标 × BP目标融合权重 α + 既有预测销量 × (1 − α)。' +
-        '其中：BP 目标来源于业务系统全年目标拆解，按当前月份取值；既有预测销量为未融合 BP 前的系统预测。' +
-        'α 建议取值 0~1，越大表示点预测越偏向 BP 目标。' +
-        '预测下限与预测上限按《预测销量上下限规则》§3：在流量、转化率、竞争力、价格、广告花费五类因子的悲观情景与乐观情景下取规则规定的极值，代入与点预测同一套销量合成公式分别求得（同构）；不得采用对点预测乘以固定比例的简化区间。';
       var TIP_FLOW =
         '示例：流量增长10%，销量增长10%，弹性系数=1。' +
         '取近3个月的同比增长率，权重分别为0.2、0.3、0.5得到综合增长率；用预估月份的去年同期流量×综合增长率得到预估流量；' +
@@ -489,9 +481,9 @@
         '获取 MSKU 广告花费规划：用预估广告花费÷基准广告花费得到广告花费倍数；广告花费系数=1+广告花费倍数×广告花费弹性系数（与业务确认是否采用「倍数×弹性」或「1+倍数×弹性」口径）。' +
         '基准：近3个月平均广告花费；预估：有规划用规划，否则用近30天花费延续。';
 
-      ['tipSalesTarget', 'tipFlow', 'tipPrice', 'tipCvr', 'tipAd', 'tipComp'].forEach(function (id, i) {
+      ['tipFlow', 'tipPrice', 'tipCvr', 'tipAd', 'tipComp'].forEach(function (id, i) {
         var el = document.getElementById(id);
-        if (el) el.setAttribute('title', [TIP_SALES_TARGET, TIP_FLOW, TIP_PRICE, TIP_CVR, TIP_AD, TIP_COMP][i]);
+        if (el) el.setAttribute('title', [TIP_FLOW, TIP_PRICE, TIP_CVR, TIP_AD, TIP_COMP][i]);
       });
 
       var cfgRows = [
@@ -503,7 +495,6 @@
           sku: 'H6076113',
           msku: 'H6076113-ZY-US',
           base: 1280,
-          targetE: 0.35,
           flowE: 1,
           priceE: -2,
           cvrE: 1,
@@ -520,7 +511,6 @@
           sku: 'H607C311',
           msku: 'H607C311-APP-EU',
           base: 960,
-          targetE: 0.4,
           flowE: 1,
           priceE: -1,
           cvrE: -2,
@@ -537,7 +527,6 @@
           sku: 'B6062101',
           msku: 'B6062101-OF-US-DSV',
           base: 540,
-          targetE: 0.25,
           flowE: 0.8,
           priceE: -1.5,
           cvrE: 1.2,
@@ -565,7 +554,7 @@
           h += '<td>' + r.a + '</td><td>' + r.b + '</td><td>' + r.c + '</td>';
           h += '<td>' + r.sku + '<br/><span style="color:#999">' + r.msku + '</span></td>';
           h += '<td class="num">' + r.base + '</td>';
-          h += '<td class="num">' + r.targetE + '</td><td class="num">' + r.flowE + '</td><td class="num">' + r.priceE + '</td><td class="num">' + r.cvrE + '</td>';
+          h += '<td class="num">' + r.flowE + '</td><td class="num">' + r.priceE + '</td><td class="num">' + r.cvrE + '</td>';
           h += '<td class="num">' + r.adE + '</td><td class="num">' + r.compE + '</td>';
           h += '<td class="num">' + r.hpCoef + '</td>';
           h +=
@@ -577,7 +566,7 @@
           h += '<td><span class="op-cell"><span class="op" data-log="' + r.id + '">日志</span></span></td>';
           h += '</tr>';
         });
-        tb.innerHTML = h || '<tr><td colspan="15" style="text-align:center;padding:20px;color:var(--text-sec)">无数据</td></tr>';
+        tb.innerHTML = h || '<tr><td colspan="14" style="text-align:center;padding:20px;color:var(--text-sec)">无数据</td></tr>';
         document.getElementById('cfgChkAll').checked = false;
       }
 

@@ -240,14 +240,6 @@
         "<p><strong>【交互】</strong>只读或可编辑由权限决定（原型多为只读）。</p>",
     },
     {
-      anchorSelector: "#tipSalesTarget",
-      title: "列：BP目标融合权重（α）",
-      html:
-        "<p><strong>【基础】</strong>表头含「?」<code>field-tip</code>，点击可打开 kit 内嵌说明；控制 BP 目标与预测销量融合时的权重参数 α。</p>" +
-        "<p><strong>【逻辑】</strong>取值范围与默认值由预测引擎与业务约定；影响最终目标曲线形态。</p>" +
-        "<p><strong>【交互】</strong>红点补充业务语义；详细公式以算法文档为准；单元格内可数字编辑（若开放）。</p>",
-    },
-    {
       anchorSelector: "#tipFlow",
       title: "列：流量弹性系数",
       html:
@@ -288,7 +280,7 @@
         "<p><strong>【交互】</strong>与其它弹性列一致维护。</p>",
     },
     {
-      containerSelector: "#cfgTable thead tr th:nth-child(13)",
+      containerSelector: "#cfgTable thead tr th:nth-child(12)",
       title: "列：超参数因子系数",
       html:
         "<p><strong>【基础】</strong>展示当前行生效超参数对预测的最终乘数或加性影响结果（以公式为准）。</p>" +
@@ -296,7 +288,7 @@
         "<p><strong>【交互】</strong>若因子变更需刷新行。</p>",
     },
     {
-      containerSelector: "#cfgTable thead tr th:nth-child(14)",
+      containerSelector: "#cfgTable thead tr th:nth-child(13)",
       title: "列：超参数因子项",
       html:
         "<p><strong>【基础】</strong>可点击链接触发「超参数因子维护」子屏或因子详情。</p>" +
@@ -304,7 +296,7 @@
         "<p><strong>【交互】</strong>点击切换 <code>#screenFactors</code> 可见性（以脚本为准）。</p>",
     },
     {
-      containerSelector: "#cfgTable thead tr th:nth-child(15)",
+      containerSelector: "#cfgTable thead tr th:nth-child(14)",
       title: "列：操作",
       html:
         "<p><strong>【基础】</strong>行级操作区：原型中展示<strong>蓝色因子编号链接</strong>（<code>a.link-f</code>，点击进入「超参数因子维护」子屏）与<strong>日志</strong>文字链（<code>data-log</code>，打开变更日志弹窗）。</p>" +
