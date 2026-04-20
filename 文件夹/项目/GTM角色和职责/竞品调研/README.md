@@ -9,6 +9,24 @@
 |------|------|
 | **M01–M07、M11、M13 + 框架节选合并（单 Markdown；不含 M8/M9/M10/M12 成稿）** | [全渠道模块竞品分析-合并版.md](./全渠道模块竞品分析-合并版.md) |
 
+### 同步合并版到钉钉知识库（「cursorGTM系统规划」等文件夹）
+
+本仓库**无法代你登录钉钉**；可将合并版 Markdown **作为文件上传**到知识库目标目录。脚本：[scripts/sync_merged_to_dingtalk_kb.py](./scripts/sync_merged_to_dingtalk_kb.py)（依赖钉钉开放平台「知识库上传文件」三步接口）。
+
+1. 在钉钉开放平台创建**企业内部应用**，开通知识库/企业存储相关权限，取得 `appKey`、`appSecret`。  
+2. 准备操作者 `unionId`，以及目标文件夹的 `dentryUuid`（在钉钉网页打开「cursorGTM系统规划」文件夹后，从网络请求或列举接口中获取，对应环境变量 `DINGTALK_PARENT_DENTRY_UUID`）。  
+3. 在仓库本目录执行（勿将密钥提交到 Git）：
+
+```bash
+export DINGTALK_APP_KEY="你的ClientId"
+export DINGTALK_APP_SECRET="你的ClientSecret"
+export DINGTALK_UNION_ID="操作者unionId"
+export DINGTALK_PARENT_DENTRY_UUID="cursorGTM系统规划文件夹的dentryUuid"
+python3 scripts/sync_merged_to_dingtalk_kb.py
+```
+
+若接口字段与当前开放平台文档不一致，以 [钉钉开放平台 · 知识库上传文件](https://developers.dingtalk.com/document/development/upload-files-to-the-knowledge-base) 为准并调整脚本。
+
 ## 图文汇总（推荐演示）
 
 | 类型 | 链接 |
@@ -36,4 +54,4 @@
 | M12 集成与连接（iPaaS） | [M12-集成与连接iPaaS-竞品分析.md](./M12-集成与连接iPaaS-竞品分析.md) |
 | M13 B2B/经销与渠道政策 | [M13-B2B经销与渠道政策-竞品分析.md](./M13-B2B经销与渠道政策-竞品分析.md) |
 
-**版本**：v1.4 · 2026-04-20（合并版索引说明同步为不含 M8/M9/M10/M12 主文）
+**版本**：v1.5 · 2026-04-20（README 增加钉钉知识库上传合并版脚本说明）
