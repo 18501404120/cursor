@@ -864,7 +864,7 @@
     (function () {
       /**
        * 月份范围由筛选区「月份范围」控制，默认：锚定日前 6 个月～后 6 个月（含当月）。
-       * 「客观中值」为单月一条（脚本函数仍为 systemTargetFor）；邻近目标月的演示数值用稳定种子生成，**非**业务「锁定版最后一版预测」语义。**会议依据：需求逻辑调整会**。
+       * 「客观中值」为单月一条（脚本函数名 systemTargetFor）；演示数值按目标月与锚定日确定性规则生成，仅供原型预览。**会议依据：需求逻辑调整会**。
        */
       var months = [];
 
@@ -1038,7 +1038,7 @@
         return Math.round(105 + (seed % 95));
       }
 
-      /** 演示用稳定点值：按目标月固定种子生成（不随锚定日滚动，仅原型；非业务冻结快照） */
+      /** 演示用稳定点值：按目标月固定种子生成（不随锚定日滚动，仅原型） */
       function demoStableTarget(lab) {
         var p = parseMonthLabel(lab);
         var seed = p.m * 31 + 47 + p.y * 7;
@@ -1070,8 +1070,8 @@
 
       /**
        * 主图/详情共用：按「目标」与当月客观中值、客观带（演示）得到系统推荐单点（整数）。
-       * 与《预测销量上下限规则-终版》**同构的演示简化**（本处目标/三线均为**销量件数**，正式环境在汇总层用近30天均价折 `Rev*` 后以 `T_rev` 分支）。
-       * 演示规则：目标 &gt; 客观上限 → 推荐=上限；目标 &lt; 客观下限 → 推荐=中值；否则按终版「中间带」思路 **ROUND(中值×(目标÷中值))** 并夹在 [下限, 上限]（演示用销量代营收比例）。**会议依据：需求逻辑调整会**
+       * 本原型统一用**销量件数**展示；正式环境在汇总层用近30天均价折 `Rev*` 后以 `T_rev` 分支得 `R_i`（见《预测销量上下限规则-终版》）。
+       * 演示规则：目标 &gt; 客观上限 → 推荐=上限；目标 &lt; 客观下限 → 推荐=中值；否则 **ROUND(中值×(目标÷中值))** 并夹在 [下限, 上限]（演示用销量比例对应终版「中间带」）。**会议依据：需求逻辑调整会**
        */
       function detailDemoRecommended(mid, target, lab, anchor) {
         if (mid == null || typeof mid !== 'number' || isNaN(mid)) return null;
@@ -1965,8 +1965,8 @@
       }
 
       /**
-       * 详情表：当月「目标」演示值（此处用 BP 拆解量占位）；少量格子为空表示无目标输入。
-       * **会议依据：需求逻辑调整会**（正式可与销售目标等业务目标同源，单位须与汇总一致）。
+       * 详情表：当月「目标」演示值（BP 拆解量占位）；少量格子为空表示无目标输入。
+       * 正式可与销售目标等业务目标同源；单位须与汇总层口径一致。**会议依据：需求逻辑调整会**
        */
       function detailDemoSalesTargetBp(lab, anchor, rowIdx, mi) {
         if (rowIdx % 11 === 0 && mi % 5 === 0) return null;
@@ -2049,7 +2049,7 @@
           '</b></p>' +
           '<p id="detailParaLogic" style="margin:10px 0 6px;font-size:13px">按月「<b>' +
           modeLabel +
-          '</b>」：<strong>客观下限 / 客观中值 / 客观上限</strong>仅由流量、价格、促销等客观因子情景得出，<strong>不</strong>随目标或 BP 调整；点预测（客观中值）<strong>不与 BP 做加权融合</strong>。<strong>目标</strong>为业务输入（本表「目标」列演示为 BP 拆解量）。<strong>系统推荐值</strong>在正式环境见《预测销量上下限规则-终版》：汇总层用 <code>P_i</code>（近30天均价）折 <code>RevLo/RevMid/RevHi</code> 后与 <code>T_rev</code> 比较，再得各 SKU <code>R_i</code>；本弹窗为<strong>单月 Cell 简化</strong>（同主图「系统推荐值」演示算法），单 SKU 推荐须落在该 SKU 客观下～上限内。<strong>客观下限/客观上限</strong>与客观中值同构、因子取极值求得。<strong>会议依据：需求逻辑调整会</strong></p>' +
+          '</b>」：<strong>客观下限 / 客观中值 / 客观上限</strong>由流量、价格、促销等客观因子情景得出，<strong>不</strong>随目标或 BP 改变。<strong>目标</strong>为业务输入销量目标（本表「目标」列演示为 BP 拆解量）。<strong>系统推荐值</strong>与《预测销量上下限规则-终版》一致：汇总层用各 SKU 近30天均价 <code>P_i</code> 将销量折为 <code>RevLo/RevMid/RevHi</code>，与目标总营收 <code>T_rev</code> 比较后得各 SKU 推荐销量 <code>R_i</code>；本弹窗以销量为统一量纲演示，与主图「系统推荐值」同源，且单 SKU 须满足 客观下限 ≤ 系统推荐值 ≤ 客观上限。<strong>客观下限/客观上限</strong>与客观中值同构，因子情景取极值求得。<strong>会议依据：需求逻辑调整会</strong></p>' +
           '<div id="detailTableScroll" style="max-height:380px;overflow:auto">' +
           '<table class="data-table" id="detailForecastTable" style="font-size:12px;min-width:980px"><thead><tr>' +
           '<th id="detailThMonth">月份</th><th id="detailThBaseline">基准销量</th><th id="detailThElastic">弹性系数</th><th id="detailThInfl">影响因子系数</th><th id="detailThObjMid">客观中值</th><th id="detailThTarget">目标<br/><span style="font-weight:400;color:#999;font-size:11px">演示：BP</span></th><th id="detailThRec">系统推荐值</th><th id="detailThObjLo">客观下限</th><th id="detailThObjHi">客观上限</th><th id="detailThFc">forecast填写</th>' +

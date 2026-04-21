@@ -11,7 +11,7 @@
       title: "页头：目标助手",
       html:
         "<p><strong>【基础】</strong>本页为运营/计划侧主工作台，信息架构为：<strong>顶栏 → 筛选区 → 预测方式 → 主图「预测与目标」→ 明细表</strong>。</p>" +
-        "<p><strong>【逻辑】</strong>产品<strong>不展示</strong>准确率、MAPE、达成率类 KPI；主图含<strong>BP 目标</strong>、<strong>客观中值</strong>（规则/ML 客观情景点值）、<strong>系统推荐值</strong>（汇总层分支后分摊演示）、<strong>人工预测</strong>、<strong>实际销量</strong>；客观带不随目标/BP 变。<strong>会议依据：需求逻辑调整会</strong></p>" +
+        "<p><strong>【逻辑】</strong>主图含<strong>BP 目标</strong>、<strong>客观中值</strong>（规则/ML 点值及客观带）、<strong>系统推荐值</strong>、<strong>人工预测</strong>、<strong>实际销量</strong>；Y 轴为销量数量。客观带不随目标/BP 变化。<strong>会议依据：需求逻辑调整会</strong></p>" +
         "<p><strong>【交互】</strong>红点（说明版）挂载在控件旁，点击气泡阅读字段含义、数据口径与操作后果；与《销量预测管理-PRD》对齐。</p>",
     },
     {
@@ -139,7 +139,7 @@
       title: "预测方式：机器学习 / 系统预测",
       html:
         "<p><strong>【基础】</strong>单选组 <code>#predModeMl</code>（机器学习）、<code>#predModeSys</code>（系统预测）。</p>" +
-        "<p><strong>【逻辑】</strong><strong>机器学习：</strong>以算法管线输出客观中值为主。<strong>系统预测：</strong>规则/基线为主。切换后列表主行与详情中与预测方式相关的展示须一致切换（与 PRD v2.6 一致）。</p>" +
+        "<p><strong>【逻辑】</strong><strong>机器学习：</strong>以算法管线输出客观中值为主。<strong>系统预测：</strong>规则/基线为主。切换后列表主行与详情中与预测方式相关的展示须一致切换（与主 PRD 一致）。</p>" +
         "<p><strong>【交互】</strong>点击 radio 即时切换选中态；若后端按任务类型分接口，切换时可能触发重新拉数。</p>",
     },
     {
@@ -147,8 +147,8 @@
       title: "区块：预测与目标（主图）",
       html:
         "<p><strong>【基础】</strong>主图对比 <strong>BP 目标</strong>、<strong>客观中值</strong>、<strong>系统推荐值</strong>、<strong>人工预测值</strong>、<strong>实际销量</strong>；图例可单独隐藏各序列。</p>" +
-        "<p><strong>【逻辑】</strong>仅<strong>单左轴数量</strong>；不展示达成率折线。仅<strong>客观中值</strong>带演示用<strong>客观下～上限</strong>浅色带及 Tooltip 附注；BP、系统推荐、人工、实际为点值柱。<strong>会议依据：需求逻辑调整会</strong>；口径见《预测销量上下限规则-终版》（<code>需求文档/预测销量上下限规则-终版.md</code>）。</p>" +
-        "<p><strong>【交互】</strong>图例点击控制序列显隐；Tooltip 轴触发；不含达成率百分比行。</p>",
+        "<p><strong>【逻辑】</strong>单左轴为<strong>销量数量</strong>。<strong>客观中值</strong>带<strong>客观下～上限</strong>浅色带及 Tooltip；BP、系统推荐、人工、实际为点值柱。<strong>会议依据：需求逻辑调整会</strong>；口径见《预测销量上下限规则-终版》（<code>需求文档/预测销量上下限规则-终版.md</code>）。</p>" +
+        "<p><strong>【交互】</strong>图例点击控制序列显隐；Tooltip 轴触发。</p>",
     },
     {
       anchorSelector: "#chartMain",
@@ -259,7 +259,7 @@
       title: "列：操作",
       html:
         "<p><strong>【基础】</strong>行级操作入口：详情、异常备注等（以渲染为准）。</p>" +
-        "<p><strong>【逻辑】</strong>详情中「目标」与列表 BP/业务目标口径见 PRD v2.6。</p>" +
+        "<p><strong>【逻辑】</strong>详情中「目标」与列表 BP/业务目标口径与主 PRD 一致。</p>" +
         "<p><strong>【交互】</strong>点击触发弹层或侧栏；与批量备注互不替代。</p>",
     },
     {
@@ -306,8 +306,8 @@
       anchorSelector: "#detailParaLogic",
       title: "详情：测算逻辑说明",
       html:
-        "<p><strong>【基础】</strong>按月说明<strong>客观中值 / 目标 / 系统推荐值</strong>与<strong>客观下限～客观上限</strong>的关系；原型为 Cell 级简化演示。</p>" +
-        "<p><strong>【逻辑】</strong>与《预测销量上下限规则-终版》、主图一致：客观三值与目标解耦；汇总层 <code>Rev*</code> 与 <code>T_rev</code> 分支后得各 SKU <code>R_i</code>。<strong>会议依据：需求逻辑调整会</strong></p>" +
+        "<p><strong>【基础】</strong>按月说明<strong>客观中值 / 目标 / 系统推荐值</strong>与<strong>客观下限～客观上限</strong>的关系。</p>" +
+        "<p><strong>【逻辑】</strong>与《预测销量上下限规则-终版》、主图一致：客观三值由因子得出；汇总层用 <code>P_i</code> 折 <code>RevLo/RevMid/RevHi</code>，与 <code>T_rev</code> 比较后得各 SKU <code>R_i</code>。<strong>会议依据：需求逻辑调整会</strong></p>" +
         "<p><strong>【交互】</strong>只读；可随预测方式单选（机器学习/系统预测）切换文案前提（以页面脚本为准）。</p>",
     },
     {
@@ -363,15 +363,15 @@
       title: "详情列：目标",
       html:
         "<p><strong>【基础】</strong>业务输入的销量目标（原型演示为当月 BP 拆解量）。</p>" +
-        "<p><strong>【逻辑】</strong>可与客观三值任意高低组合；为空时系统推荐演示退化为客观中值。正式单位须与汇总分摊一致（额/量见 PRD）。</p>" +
+        "<p><strong>【逻辑】</strong>可与客观三值任意高低组合；为空时系统推荐演示退化为客观中值。正式单位须与汇总层 <code>Rev*</code>/<code>T_rev</code> 的额、量口径一致（见主 PRD）。</p>" +
         "<p><strong>【交互】</strong>只读；编辑入口在计划/BP 或目标录入流程。</p>",
     },
     {
       anchorSelector: "#detailThRec",
       title: "详情列：系统推荐值",
       html:
-        "<p><strong>【基础】</strong>汇总层分支后按比例分摊到本 SKU 的推荐量演示（单月 Cell 简化，与主图「系统推荐值」一致）。</p>" +
-        "<p><strong>【逻辑】</strong>禁止高于客观上限；禁止目标×1.05 旧逻辑。<strong>会议依据：需求逻辑调整会</strong></p>" +
+        "<p><strong>【基础】</strong>与主图「系统推荐值」同源演示列。</p>" +
+        "<p><strong>【逻辑】</strong>须满足 客观下限 ≤ 系统推荐值 ≤ 客观上限；计算口径见《预测销量上下限规则-终版》。<strong>会议依据：需求逻辑调整会</strong></p>" +
         "<p><strong>【交互】</strong>只读。</p>",
     },
     {
