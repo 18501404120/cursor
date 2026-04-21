@@ -1070,7 +1070,8 @@
 
       /**
        * 主图/详情共用：按「目标」与当月客观中值、客观带（演示）得到系统推荐单点（整数）。
-       * 正式环境：专员 SKU 集合在汇总层分支定总额后，按比例分摊到各 SKU 客观中值（见 PRD v2.0 §5～§6）。**会议依据：需求逻辑调整会**
+       * 与《预测销量上下限规则-终版》**同构的演示简化**（本处目标/三线均为**销量件数**，正式环境在汇总层用近30天均价折 `Rev*` 后以 `T_rev` 分支）。
+       * 演示规则：目标 &gt; 客观上限 → 推荐=上限；目标 &lt; 客观下限 → 推荐=中值；否则按终版「中间带」思路 **ROUND(中值×(目标÷中值))** 并夹在 [下限, 上限]（演示用销量代营收比例）。**会议依据：需求逻辑调整会**
        */
       function detailDemoRecommended(mid, target, lab, anchor) {
         if (mid == null || typeof mid !== 'number' || isNaN(mid)) return null;
@@ -1080,10 +1081,11 @@
           hi = bh.high;
         if (target == null || typeof target !== 'number' || isNaN(target)) return Math.round(mid);
         if (target > hi) return Math.round(hi);
-        if (target > mid) return Math.round(target);
-        if (target >= lo && target <= mid) return Math.round(target);
         if (target < lo) return Math.round(mid);
-        return Math.round(mid);
+        var r = mid === 0 ? 0 : Math.round(mid * (target / mid));
+        if (r < lo) return Math.round(lo);
+        if (r > hi) return Math.round(hi);
+        return r;
       }
 
       /** 主图横轴：目标取当月 BP 演示值，调用 detailDemoRecommended */
@@ -1156,7 +1158,7 @@
       }
 
       /**
-       * 演示用上下限（仅用于「客观中值」）：与《预测销量上下限规则》v2.0 §4 一致——由流量、转化率、竞争力、价格、广告花费
+       * 演示用上下限（仅用于「客观中值」）：与《预测销量上下限规则-终版》**第二节**五类因子思路一致——由流量、转化率、竞争力、价格、广告花费
        * 在悲观/乐观情景下的极值组合，折算为相对点值的合成倍数（原型无因子明细库，用月份+锚定日+点值种子确定性模拟）。
        * **BP 目标**、**系统推荐值**、**人工预测值** 为点值，主图不展示客观区间带、Tooltip 不附客观下/上限。
        */
@@ -1203,7 +1205,7 @@
         return prdDemoSalesBandFromPoint(v, lab, anchor || getAnchorDate());
       }
 
-      /** 轴提示：列主值；仅「客观中值」附当月演示客观下～上（与浅色带同为 v2.0 §4 口径）；BP、系统推荐、人工为点值无区间文案 */
+      /** 轴提示：列主值；仅「客观中值」附当月演示客观下～上（与浅色带同为《预测销量上下限规则-终版》因子思路）；BP、系统推荐、人工为点值无区间文案 */
       function buildForecastAxisTooltipCompact(params) {
         if (!params || !params.length) return '';
         var axis = params[0].axisValueLabel || params[0].name || '';
@@ -2047,7 +2049,7 @@
           '</b></p>' +
           '<p id="detailParaLogic" style="margin:10px 0 6px;font-size:13px">按月「<b>' +
           modeLabel +
-          '</b>」：<strong>客观下限 / 客观中值 / 客观上限</strong>仅由流量、价格、促销等客观因子情景得出，<strong>不</strong>随目标或 BP 调整；点预测（客观中值）<strong>不与 BP 做加权融合</strong>。<strong>目标</strong>为业务输入（本表「目标」列演示为 BP 拆解量）。<strong>系统推荐值</strong>在正式环境为专员负责 SKU 在<strong>汇总层</strong>按《预测销量上下限规则》§5 分支定总额后<strong>按比例分摊</strong>到各 SKU 展示；本弹窗为<strong>单月 Cell 简化</strong>（同主图「系统推荐值」演示算法），单 SKU 推荐须落在该 SKU 客观下～上限内。<strong>客观下限/客观上限</strong>按规则 §4 与客观中值同构求得。<strong>会议依据：需求逻辑调整会</strong></p>' +
+          '</b>」：<strong>客观下限 / 客观中值 / 客观上限</strong>仅由流量、价格、促销等客观因子情景得出，<strong>不</strong>随目标或 BP 调整；点预测（客观中值）<strong>不与 BP 做加权融合</strong>。<strong>目标</strong>为业务输入（本表「目标」列演示为 BP 拆解量）。<strong>系统推荐值</strong>在正式环境见《预测销量上下限规则-终版》：汇总层用 <code>P_i</code>（近30天均价）折 <code>RevLo/RevMid/RevHi</code> 后与 <code>T_rev</code> 比较，再得各 SKU <code>R_i</code>；本弹窗为<strong>单月 Cell 简化</strong>（同主图「系统推荐值」演示算法），单 SKU 推荐须落在该 SKU 客观下～上限内。<strong>客观下限/客观上限</strong>与客观中值同构、因子取极值求得。<strong>会议依据：需求逻辑调整会</strong></p>' +
           '<div id="detailTableScroll" style="max-height:380px;overflow:auto">' +
           '<table class="data-table" id="detailForecastTable" style="font-size:12px;min-width:980px"><thead><tr>' +
           '<th id="detailThMonth">月份</th><th id="detailThBaseline">基准销量</th><th id="detailThElastic">弹性系数</th><th id="detailThInfl">影响因子系数</th><th id="detailThObjMid">客观中值</th><th id="detailThTarget">目标<br/><span style="font-weight:400;color:#999;font-size:11px">演示：BP</span></th><th id="detailThRec">系统推荐值</th><th id="detailThObjLo">客观下限</th><th id="detailThObjHi">客观上限</th><th id="detailThFc">forecast填写</th>' +

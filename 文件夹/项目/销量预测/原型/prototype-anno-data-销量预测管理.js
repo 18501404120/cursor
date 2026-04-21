@@ -147,7 +147,7 @@
       title: "区块：预测与目标（主图）",
       html:
         "<p><strong>【基础】</strong>主图对比 <strong>BP 目标</strong>、<strong>客观中值</strong>、<strong>系统推荐值</strong>、<strong>人工预测值</strong>、<strong>实际销量</strong>；图例可单独隐藏各序列。</p>" +
-        "<p><strong>【逻辑】</strong>仅<strong>单左轴数量</strong>；不展示达成率折线。仅<strong>客观中值</strong>带演示用<strong>客观下～上限</strong>浅色带及 Tooltip 附注；BP、系统推荐、人工、实际为点值柱。<strong>会议依据：需求逻辑调整会</strong>；详见《预测销量上下限规则-PRD》v2.0。</p>" +
+        "<p><strong>【逻辑】</strong>仅<strong>单左轴数量</strong>；不展示达成率折线。仅<strong>客观中值</strong>带演示用<strong>客观下～上限</strong>浅色带及 Tooltip 附注；BP、系统推荐、人工、实际为点值柱。<strong>会议依据：需求逻辑调整会</strong>；口径见《预测销量上下限规则-终版》（<code>需求文档/预测销量上下限规则-终版.md</code>）。</p>" +
         "<p><strong>【交互】</strong>图例点击控制序列显隐；Tooltip 轴触发；不含达成率百分比行。</p>",
     },
     {
@@ -307,7 +307,7 @@
       title: "详情：测算逻辑说明",
       html:
         "<p><strong>【基础】</strong>按月说明<strong>客观中值 / 目标 / 系统推荐值</strong>与<strong>客观下限～客观上限</strong>的关系；原型为 Cell 级简化演示。</p>" +
-        "<p><strong>【逻辑】</strong>与《预测销量上下限规则》、主图一致：客观三值与目标解耦，推荐在汇总层分支与分摊后得到。<strong>会议依据：需求逻辑调整会</strong></p>" +
+        "<p><strong>【逻辑】</strong>与《预测销量上下限规则-终版》、主图一致：客观三值与目标解耦；汇总层 <code>Rev*</code> 与 <code>T_rev</code> 分支后得各 SKU <code>R_i</code>。<strong>会议依据：需求逻辑调整会</strong></p>" +
         "<p><strong>【交互】</strong>只读；可随预测方式单选（机器学习/系统预测）切换文案前提（以页面脚本为准）。</p>",
     },
     {
@@ -379,7 +379,7 @@
       title: "详情列：客观下限",
       html:
         "<p><strong>【基础】</strong>客观悲观情景边界（演示确定性倍数）。</p>" +
-        "<p><strong>【逻辑】</strong>仅锚定<strong>客观中值</strong>，不随目标/BP 改变客观因子情景（见《预测销量上下限规则》§4）。</p>" +
+        "<p><strong>【逻辑】</strong>仅锚定<strong>客观中值</strong>，不随目标/BP 改变客观因子情景（见《预测销量上下限规则-终版》第二节）。</p>" +
         "<p><strong>【交互】</strong>只读。</p>",
     },
     {
