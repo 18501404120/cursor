@@ -34,6 +34,7 @@
       title: "页面：筛选面板总览",
       html:
         "<p><strong>【基础】</strong>本屏为「销量预测 · 预测配置」：上方为<strong>与主工作台对齐</strong>的维度筛选（区域→店铺→品类树→model/SKU 组合）+ <strong>超参数因子</strong>下拉 + 「搜索」，<strong>不提供「月份范围」筛选控件</strong>（避免与主工作台月份口径重复配置）。</p>" +
+        "<p><strong>【逻辑 · 点预测与经营目标】</strong>表上展示的<strong>客观中值（点预测）</strong>仅由<strong>客观因子 + 规则/模型</strong>决定，<strong>不与</strong>任何经营类「BP/手工目标」输入耦合；目标类数字若出现应在主工作台或其它流程页，本页只做参数与因子绑定维护。</p>" +
         "<p><strong>【逻辑 · 默认时间轴】</strong>本页展示的弹性系数、因子绑定等<strong>与预测滚动窗口相关的后台计算</strong>，默认按业务约定取<strong>以服务器当前日为锚点：回溯 12 个自然月～顺推 12 个自然月</strong>所覆盖的月序列（与《预测销量上下限规则》中因子统计窗口径对齐；若需改窗由配置中心后台参数或版本发布说明调整，不在此页用月份控件暴露）。</p>" +
         "<p><strong>【逻辑 · 示例】</strong>假设今天是 2026-04-21，则默认参与汇总/校验的月份约为 2025-05～2027-04（按自然月边界落库时由服务对齐到月初月末）；用户仅通过「区域、SKU…」缩小<strong>MSKU 行集合</strong>，不改变全局默认月窗。</p>" +
         "<p><strong>【交互】</strong>修改任一筛选项后点「搜索」刷新 <code>#cfgTable</code>；导入导出携带当前筛选条件元数据。</p>",
@@ -228,50 +229,53 @@
     },
     {
       containerSelector: "#cfgTable thead tr th:nth-child(6)",
-      title: "列：基准销量",
+      title: "列：基准销量（计算规则，读懂再改弹性）",
       html:
-        "<p><strong>【基础】</strong>作为弹性或规则演算的基线参考量。</p>" +
-        "<p><strong>【逻辑】</strong>如近 N 周平滑销量；具体口径见算法说明。</p>" +
-        "<p><strong>【交互】</strong>只读或可编辑由权限决定（原型多为只读）。</p>",
+        "<p><strong>【基础】</strong>本列<strong>只读</strong>，表示后续弹性/因子演算的<strong>月销量参照基准</strong>（件/月，四舍五入展示）。</p>" +
+        "<p><strong>【规则 A · 已开售满 12 个月】</strong>从「第一单」起算已售 ≥12 个月时：<strong>基准销量 = 该 ASIN 近 12 个月总销量 ÷ 12</strong>（月均动销）。</p>" +
+        "<p><strong>【规则 B · 不足 12 个月（三步）】</strong>① <strong>参照月均销量</strong>：按优先级取「近 12 月总÷12」——先试<strong>同品类相关 SKU</strong>，不行再试<strong>该品类整体</strong>，仍不行再试<strong>该 SKU 归属场景</strong>（须与主数据场景口径一致），直到某一档能凑满 12 个月完整数据。② 取<strong>该 ASIN 上个月销量</strong>，以及<strong>与第①步同一维度</strong>的「上个月总销量」作分母（若①走品类则用<strong>品类上月总量</strong>；若①最终走场景则用<strong>场景上月总量</strong>）。③ <strong>该 ASIN 基准销量 = ①参照月均 ÷ ②分母 × 该 ASIN 上月销量</strong>。</p>" +
+        "<p><strong>【规则 C · 滚动】</strong>预测 <strong>T+1 月</strong>时用<strong>当月</strong>基础销量参与；得到 T+1 结果后再递推算 T+1 月基准，供后续月份使用（由引擎调度）。</p>" +
+        "<p><strong>【交互】</strong>不可手改；若与直觉不符应检查主数据归属、历史销量缺口或算法任务是否失败。</p>",
     },
     {
       anchorSelector: "#tipFlow",
-      title: "列：流量弹性系数",
+      title: "列：流量弹性系数（与引擎公式对齐）",
       html:
-        "<p><strong>【基础】</strong>对流量类驱动因子（曝光、会话等）的弹性系数。</p>" +
-        "<p><strong>【逻辑】</strong>与价格、转化率等弹性共同进入预测或规则引擎；异常值需校验防爆炸预测。</p>" +
-        "<p><strong>【交互】</strong>表头「?」打开字段说明；支持导入覆盖。</p>",
+        "<p><strong>【基础】</strong>表头「ⓘ」：对流量类驱动（曝光、会话等）的<strong>弹性系数</strong>，与下方「流量系数」不同——后者是引擎把增长率、倍数算完后的结果列（若原型未拆列则只在算法文档出现）。</p>" +
+        "<p><strong>【逻辑 · 计算要点】</strong>取<strong>近 3 个月同比增速</strong>，权重 <strong>0.2、0.3、0.5</strong> 合成综合增速 <code>g</code>；<strong>预估流量 ≈ 去年同期流量 × (1+g)</strong>；<strong>流量倍数 = 预估 ÷ 基准流量</strong>；<strong>流量系数 = 倍数 × 本列弹性</strong>。缺数时降级取数路径：<strong>ASIN → 关联 SKU → 品类 → 场景 → 渠道</strong>，哪一层能取满用哪一层。</p>" +
+        "<p><strong>【逻辑 · 风险】</strong>弹性绝对值过大可能放大噪声，需上下限与异常监控。</p>" +
+        "<p><strong>【交互】</strong>支持批量导入覆盖；与主表「?」提示文案、引擎实现<strong>三者同源</strong>。</p>",
     },
     {
       anchorSelector: "#tipPrice",
       title: "列：价格弹性系数",
       html:
-        "<p><strong>【基础】</strong>价格变动对销量影响的敏感系数。</p>" +
-        "<p><strong>【逻辑】</strong>常与市场促销、调价策略联动；可能与品类默认带值不同。</p>" +
-        "<p><strong>【交互】</strong>行内编辑失焦保存或统一保存按钮（正式版）。</p>",
+        "<p><strong>【基础】</strong>价格变动对销量的敏感系数（可为负：涨价抑制销量）。</p>" +
+        "<p><strong>【逻辑】</strong><strong>基准均价</strong>取近 3 个月销售额÷销量（不足走品类均）；<strong>预估均价</strong>有价格规划用规划，否则用近 30 天均价延续。<strong>价格倍数</strong> = (预估−基准)÷基准。<strong>价格系数</strong> = <code>1 + 价格倍数 × 本列弹性</code>（与引擎最终口径须一致）。</p>" +
+        "<p><strong>【交互】</strong>行内编辑或导入；与促销日历联动由后端处理。</p>",
     },
     {
       anchorSelector: "#tipCvr",
       title: "列：转化率弹性系数",
       html:
-        "<p><strong>【基础】</strong>转化率相关驱动因子的弹性。</p>" +
-        "<p><strong>【逻辑】</strong>与流量、广告花费等存在解释重叠时需在文档中定义优先级或正交化方法。</p>" +
-        "<p><strong>【交互】</strong>同其它弹性列，支持批量导入。</p>",
+        "<p><strong>【基础】</strong>转化率相关驱动的弹性系数。</p>" +
+        "<p><strong>【逻辑】</strong><strong>基准转化率</strong>优先 ASIN 近 12 月平均，不足则降级相关 SKU、品类、场景。<strong>近 2 个月环比增速</strong>按权重 <strong>0.4、0.6</strong> 合成 <code>h</code>；<strong>预估转化率</strong> ≈ 近 30 天平均×(1+<code>h</code>)；<strong>倍数</strong>=预估÷基准；<strong>方向系数</strong>=倍数×本列弹性（与引擎字段名对齐）。与流量/广告若重叠，由算法定义是否正交或顺序应用。</p>" +
+        "<p><strong>【交互】</strong>支持批量导入。</p>",
     },
     {
       anchorSelector: "#tipAd",
       title: "列：广告花费弹性系数",
       html:
         "<p><strong>【基础】</strong>广告投入对销量边际影响的弹性。</p>" +
-        "<p><strong>【逻辑】</strong>与活动期超参数因子可叠加或互斥，以引擎规则为准。</p>" +
-        "<p><strong>【交互】</strong>表头「?」查看定义。</p>",
+        "<p><strong>【逻辑】</strong><strong>基准</strong>取近 3 个月平均广告花费；<strong>预估</strong>有计划用计划，否则近 30 天延续。<strong>倍数</strong>=预估÷基准。最终<strong>广告花费系数</strong>口径由产品与算法二选一并全链统一：<strong>倍数×弹性</strong> 或 <strong>1+倍数×弹性</strong>；上线前必须写死一种并在列头提示与引擎一致。</p>" +
+        "<p><strong>【交互】</strong>表头「?」查看与引擎一致的文案。</p>",
     },
     {
       anchorSelector: "#tipComp",
       title: "列：竞争力弹性系数",
       html:
         "<p><strong>【基础】</strong>市场竞争、跟卖、类目排名等综合竞争力因子弹性。</p>" +
-        "<p><strong>【逻辑】</strong>数据源可能来自爬虫或第三方指数；缺失时应有默认或禁用策略。</p>" +
+        "<p><strong>【逻辑】</strong>小类、大类各自做近 2 个月同比增长并按 <strong>0.45、0.55</strong> 合成，再对小类/大类结果按 <strong>0.7、0.3</strong> 合成<strong>综合增长率</strong>；<strong>竞争力系数 = 1 + 综合增长率 × 本列弹性</strong>。数据缺失时要有降级或禁用策略，避免除零。</p>" +
         "<p><strong>【交互】</strong>与其它弹性列一致维护。</p>",
     },
     {
@@ -297,6 +301,15 @@
         "<p><strong>【基础】</strong>行级操作区：原型中展示<strong>蓝色因子编号链接</strong>（<code>a.link-f</code>，点击进入「超参数因子维护」子屏）与<strong>日志</strong>文字链（<code>data-log</code>，打开变更日志弹窗）。</p>" +
         "<p><strong>【逻辑】</strong>因子链接携带当前行绑定编号；日志用于审计配置变更历史。</p>" +
         "<p><strong>【交互】</strong>点击链接触发脚本切换 <code>#screenFactors</code> 或 <code>#modalLog</code>；正式版可扩展解绑、单行编辑等。</p>",
+    },
+    {
+      anchorSelector: "#logModalBody",
+      title: "行日志弹窗：内容与口径",
+      html:
+        "<p><strong>【基础】</strong>展示<strong>当前 MSKU 配置行</strong>上，各可调字段的历史变更。</p>" +
+        "<p><strong>【逻辑】</strong>列含<strong>调整人、调整时间、调整前、调整后</strong>；<strong>仅记录实际发生变化的字段</strong>，不输出未改字段，避免审计表刷屏。一次保存改多列时，可一行多字段或拆多行（以后端为准）。</p>" +
+        "<p><strong>【示例】</strong>只改「超参数因子系数」与「超参数因子项」→ 至少应看到这两条 diff，而不是重复打印未动的弹性列。</p>" +
+        "<p><strong>【交互】</strong>只读；标题 ×、底部关闭、点遮罩均可退出。</p>",
     },
     {
       anchorSelector: "#logModalHeaderClose",
