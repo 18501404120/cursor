@@ -160,14 +160,6 @@
         "<p><strong>【交互】</strong>只读。</p>",
     },
     {
-      anchorSelector: "#chkManualRAch",
-      title: "勾选：显示人工预测达成率（演示）",
-      html:
-        "<p><strong>【基础】</strong>控制主图是否追加<strong>人工预测达成率</strong>折线（右轴）。</p>" +
-        "<p><strong>【逻辑】</strong>与人工点预测及实际按同一达成率公式计算（演示数据）。</p>" +
-        "<p><strong>【交互】</strong>勾选即时重绘图表。</p>",
-    },
-    {
       containerSelector: ".radio-row",
       title: "预测方式：机器学习 / 系统预测",
       html:
@@ -224,7 +216,8 @@
       html:
         "<p><strong>【基础】</strong><code>checkbox</code>；与业务线 forecast 填报流程联动。</p>" +
         "<p><strong>【逻辑】</strong>勾选后列表展示或允许编辑 forecast 行（是否可编辑由权限与流程状态决定）。</p>" +
-        "<p><strong>【交互】</strong>与系统规则开关独立；取消勾选隐藏 forecast 行但不一定删除已存数（以后端为准）。</p>",
+        "<p><strong>【交互】</strong>与系统规则开关独立；取消勾选隐藏 forecast 行但不一定删除已存数（以后端为准）。</p>" +
+        "<p><strong>【开发 / 测试 · forecast 调机说明】</strong>主表月度单元格内 <code>fc-fill</code> 行为「forecast 填写」演示轨，数据来自 <code>seriesValueForCell(..., 'fill', mi)</code> 与行内 <code>row.fill</code> 等演示字段；与「详情」弹窗列 <code>#detailThFc</code> 同源展示逻辑。改月份范围、锚定日 URL 参数 <code>?anchor=YYYY-MM-DD</code> 后应回归：勾选开关能切换第三轨显隐、导出列与可见列一致。</p>",
     },
     {
       anchorSelector: "#chkSelectAll",
@@ -323,22 +316,20 @@
         "<p><strong>【交互】</strong>表格外包 <code>.table-scroll</code> 纵向滚动时表头 sticky（见全局表格规范）；列宽拖拽仅销售团队列示意。</p>",
     },
     {
-      anchorSelector: "#trendClose",
-      attach: "afterend",
-      title: "弹窗：趋势图关闭",
+      containerSelector: "#trendCloseWrap",
+      title: "弹窗：趋势图关闭（×）",
       html:
-        "<p><strong>【基础】</strong>关闭 <code>#trendPop</code>。</p>" +
-        "<p><strong>【逻辑】</strong>释放弹内 ECharts 实例避免内存泄漏。</p>" +
-        "<p><strong>【交互】</strong>点击 × 或点击遮罩（若启用）关闭。</p>",
+        "<p><strong>【基础】</strong>关闭右下角 <code>#trendPop</code>。</p>" +
+        "<p><strong>【逻辑】</strong>正式版应在关闭时 dispose 弹内 ECharts，避免重复打开泄漏。</p>" +
+        "<p><strong>【交互】</strong>点击 × 关闭；红点与 × 同置于 <code>#trendCloseWrap</code>，避免被裁切或错位。</p>",
     },
     {
-      anchorSelector: "#dlgClose",
-      attach: "afterend",
-      title: "弹层：详情 / 批量对话框关闭（×）",
+      containerSelector: "#dlgCloseWrap",
+      title: "弹层：标题栏关闭（×）",
       html:
-        "<p><strong>【基础】</strong>位于标题栏<strong>最右侧</strong>（<code>.dlg-hd-actions</code> 内），关闭 <code>#dlgBox</code> 并隐藏 <code>#dlgMask</code>。</p>" +
-        "<p><strong>【逻辑】</strong>用于详情、批量异常备注等通用容器；与底部「关闭/取消/确定」语义并存时，× 表示快速退出。</p>" +
-        "<p><strong>【交互】</strong>关闭时若存在未保存编辑应二次确认（正式产品）。布局须遵守《弹层与对话框-关闭按钮-全局UI规范》，红点与 × 同组避免 × 居中。</p>",
+        "<p><strong>【基础】</strong>关闭 <code>#dlgBox</code> 并隐藏 <code>#dlgMask</code>。</p>" +
+        "<p><strong>【逻辑】</strong>用于详情、异常备注表单/列表、批量备注等<strong>同一蒙层容器</strong>。</p>" +
+        "<p><strong>【交互】</strong>与底部「关闭/取消/确定」并存时，× 表示快速退出；未保存变更在正式产品应二次确认。标题栏结构须遵守《弹层与对话框-关闭按钮-全局UI规范》：标题 <code>flex:1</code>，× 与红点同组在右侧容器内。</p>",
     },
   ];
 
@@ -424,15 +415,16 @@
       html:
         "<p><strong>【基础】</strong>业务线 forecast 流程填报的销量或占位，与主表「forecast填写销量」开关联动展示。</p>" +
         "<p><strong>【逻辑】</strong>为点值列，不参与上下限带计算；可与各目标 Rk 对比做执行偏差分析。</p>" +
-        "<p><strong>【交互】</strong>弹窗内只读；编辑在列表展开行或 forecast 录入页（正式版）。</p>",
+        "<p><strong>【交互】</strong>弹窗内只读；编辑在列表展开行或 forecast 录入页（正式版）。</p>" +
+        "<p><strong>【开发 / 测试 · forecast 调机说明】</strong>本列值来自 <code>buildRowForecastDetailHtml</code> 内 <code>seriesValueForCell(row, 'fill', mi)</code>；与主表 <code>renderForecastTable</code> 中 fill 轨同一套演示数据。回归：切换 <code>#tablePredR</code> 只改 R 档四列，不改 fill；无 fill 时显示「—」。</p>",
     },
     {
-      anchorSelector: "#dlgDetailFooterClose",
+      containerSelector: "#dlgDetailFooterCloseWrap",
       title: "详情弹窗：按钮「关闭」",
       html:
-        "<p><strong>【基础】</strong><code>data-dlg=\"close\"</code>，位于 <code>#dlgFooter</code>，仅详情弹窗使用 <code>id=\"dlgDetailFooterClose\"</code> 便于红点挂载。</p>" +
-        "<p><strong>【逻辑】</strong>关闭蒙层与对话框，销毁弹窗内临时控件（如日期控件）；未保存变更应丢弃或二次确认（正式产品）。</p>" +
-        "<p><strong>【交互】</strong>点击后与标题栏 ×、点遮罩关闭行为一致；关闭后红点随 DOM 销毁，下次打开详情会重新挂载。</p>",
+        "<p><strong>【基础】</strong><code>data-dlg=\"close\"</code>，位于 <code>#dlgFooter</code> 内 <code>#dlgDetailFooterCloseWrap</code>。</p>" +
+        "<p><strong>【逻辑】</strong>关闭蒙层与对话框；销毁弹窗内临时控件（如日期范围选择器）。</p>" +
+        "<p><strong>【交互】</strong>与标题栏 ×、点遮罩关闭行为一致；关闭后动态挂载的红点随 DOM 销毁，下次打开详情会重新 <code>initProtoAnnos(PROTO_ANNO_FORECAST_DETAIL)</code>。</p>",
     },
   ];
 
@@ -442,19 +434,17 @@
   var REMARK_FORM_ANNOS = [
     {
       anchorSelector: "#chkRemarkExcludeAchieve",
-      title: "异常备注：生效月与预测达成率",
+      title: "异常备注：生效月与预测达成率（含开发/测试说明）",
       html:
-        "<p><strong>【基础】</strong>复选框 <code>#chkRemarkExcludeAchieve</code>，默认<strong>不勾选</strong>。</p>" +
-        "<p><strong>【逻辑】</strong><strong>勾选</strong>：生效日期范围内<strong>每个自然月</strong>均<strong>不参与</strong>该行「预测达成率」汇总（分子分母均不纳入该月）；<strong>不勾选</strong>则本条备注不影响预测达成率。与 PRD 异常备注章节一致。</p>" +
-        "<p><strong>【交互】</strong>与「生效时间」日期范围联动；保存后刷新列表与 KPI（演示）。</p>",
+        "<p><strong>【面向用户】</strong>复选框 <code>#chkRemarkExcludeAchieve</code>，默认<strong>不勾选</strong>。<strong>勾选</strong>后，生效日期范围内<strong>每个自然月</strong>整月<strong>不参与</strong>该行窗口聚合预测达成率（分子分母都不含该月）；<strong>不勾选</strong>则本备注不影响达成率。与主工作台红点「异常备注」及《销量预测管理-PRD》异常备注章节一致。</p>" +
+        "<p><strong>【开发 / 测试】</strong>演示脚本用 <code>remarkDemoData</code> 存 <code>excludeFromAchieve</code>；<code>monthOverlapsRemarkRange</code> / <code>isMonthExcludedByRemarks</code> 在列表与 KPI 重算时剔除整月。保存后应调用 <code>refreshAll()</code> 观察该行「R*预测达成率」与 KPI 卡变化；边界用跨月区间、多备注叠加做回归。</p>" +
+        "<p><strong>【交互】</strong>与「生效时间」日期范围联动；确定写入后关闭弹层。</p>",
     },
     {
       anchorSelector: "#remarkExcludeRow",
-      title: "表单行：预测达成率排除说明",
+      title: "表单行：预测达成率排除（占位行）",
       html:
-        "<p><strong>【基础】</strong>整行承载上述复选框与说明文案。</p>" +
-        "<p><strong>【逻辑】</strong>批量新增时写入所选多行；每行独立备注列表。</p>" +
-        "<p><strong>【交互】</strong>只读标签位留空，内容在右侧 <code>.field</code> 内。</p>",
+        "<p><strong>【说明】</strong>左侧标签列为空，右侧为复选框整行；详细逻辑见上一红点「异常备注：生效月与预测达成率」。</p>",
     },
   ];
 

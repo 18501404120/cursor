@@ -637,6 +637,7 @@
       align-items: center;
       flex-wrap: wrap;
       gap: 8px;
+      overflow: visible;
     }
     .dialog .df .dlg-footer-btn {
       height: 32px;
@@ -652,6 +653,24 @@
       color: #fff;
     }
     .dialog .df .btn-primary-dlg:hover { filter: brightness(1.05); }
+    /* 标题栏/页脚：× 与红点同组，避免红点挤出可视区或被裁切 */
+    .proto-hd-close-wrap {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      padding-right: 16px;
+    }
+    .proto-hd-close-wrap > .proto-red-dot {
+      top: 50% !important;
+      right: 2px !important;
+      transform: translateY(-50%);
+      margin-top: 0 !important;
+    }
+    .proto-hd-close-wrap > .proto-red-dot:hover {
+      transform: translateY(-50%) scale(1.08);
+    }
     .form-row-dlg {
       margin-bottom: 14px;
       display: flex;
@@ -735,7 +754,6 @@
     .kpi-r1 { background: linear-gradient(135deg, #1677ff, #0958d9); }
     .kpi-r2 { background: linear-gradient(135deg, #faad14, #d48806); }
     .kpi-r3 { background: linear-gradient(135deg, #52c41a, #389e0d); }
-    .chart-extra-opts { display: flex; align-items: center; gap: 12px; margin: 4px 0 8px; font-size: 12px; color: #595959; }
     .ach-cell { text-align: right; font-variant-numeric: tabular-nums; }
     .ach-cell.em { font-weight: 600; color: #1677ff; }
     .ach-cell.lo-warn { color: #f5222d; font-weight: 500; }
@@ -851,9 +869,6 @@
               <div class="kpi-val" id="kpiR3">—</div>
             </div>
           </div>
-          <div class="chart-extra-opts">
-            <label><input type="checkbox" id="chkManualRAch" /> 显示人工预测 R1～R3 达成率（演示）</label>
-          </div>
         </div>
 
         <div class="chart-section">
@@ -913,10 +928,12 @@
 
   <!-- 趋势图弹窗 -->
   <div class="trend-pop" id="trendPop">
-    <div class="hd">
+      <div class="hd">
       <span id="trendTitle" class="trend-hd-title">趋势图</span>
       <div class="trend-hd-actions">
-        <button type="button" id="trendClose" aria-label="关闭">×</button>
+        <div class="stack proto-hd-close-wrap" id="trendCloseWrap">
+          <button type="button" id="trendClose" aria-label="关闭">×</button>
+        </div>
       </div>
     </div>
     <div id="chartTrend"></div>
@@ -928,7 +945,9 @@
       <div class="dh">
         <span id="dlgTitle" class="dlg-hd-title">详情</span>
         <div class="dlg-hd-actions">
-          <button type="button" id="dlgClose" aria-label="关闭">×</button>
+          <div class="stack proto-hd-close-wrap" id="dlgCloseWrap">
+            <button type="button" id="dlgClose" aria-label="关闭">×</button>
+          </div>
         </div>
       </div>
       <div class="db" id="dlgBody"></div>
@@ -1163,14 +1182,6 @@
         return stableRFor(lab, k);
       }
 
-      /** 人工预测：在目标 R1 演示值上略偏（演示）；不参与锁定阶梯 */
-      function manualTargetFor(lab, anchor) {
-        var base = targetRkFor(lab, anchor, 1);
-        var p = parseMonthLabel(lab);
-        var bias = 0.92 + (p.m % 10) * 0.008;
-        return Math.round(base * bias);
-      }
-
       /** 单月：100% − |A−P| / max(A,P)（图表折线用） */
       function forecastAccuracyPct(actual, pred) {
         if (actual == null || pred == null) return null;
@@ -1246,12 +1257,10 @@
         var r1 = [];
         var r2 = [];
         var r3 = [];
-        var manual = [];
         var actual = [];
         var ach1 = [];
         var ach2 = [];
         var ach3 = [];
-        var achM = [];
 
         var histActual = [119, 126, 132, 116, 124, 130, 138, 152, 148, 156, 162, 158, 165];
 
@@ -1269,16 +1278,13 @@
           r1.push(v1);
           r2.push(v2);
           r3.push(v3);
-          var man = manualTargetFor(lab, anchor);
-          manual.push(man);
 
           ach1.push(act == null ? null : forecastAccuracyPct(act, v1));
           ach2.push(act == null ? null : forecastAccuracyPct(act, v2));
           ach3.push(act == null ? null : forecastAccuracyPct(act, v3));
-          achM.push(act == null ? null : forecastAccuracyPct(act, man));
         }
 
-        return { r1: r1, r2: r2, r3: r3, manual: manual, actual: actual, ach1: ach1, ach2: ach2, ach3: ach3, achM: achM };
+        return { r1: r1, r2: r2, r3: r3, actual: actual, ach1: ach1, ach2: ach2, ach3: ach3 };
       }
 
       function hollowLineStyle(color) {
@@ -1440,10 +1446,6 @@
         var p = buildChartPayload(anchor);
 
         var legendNames = ['目标R1', '目标R2', '目标R3', '实际销量', 'R1预测达成率', 'R2预测达成率', 'R3预测达成率'];
-        var chkMan = document.getElementById('chkManualRAch');
-        if (chkMan && chkMan.checked) {
-          legendNames.push('人工预测达成率（演示）');
-        }
 
         var selected = {
           目标R1: true,
@@ -1454,9 +1456,6 @@
           R2预测达成率: true,
           R3预测达成率: true
         };
-        if (chkMan && chkMan.checked) {
-          selected['人工预测达成率（演示）'] = true;
-        }
 
         var series = [];
         pushForecastRangeBands(series, '目标R1', p.r1, 'rgba(22,119,255,0.32)', selected);
@@ -1538,21 +1537,6 @@
           symbolSize: 5,
           z: lineZ
         });
-        if (chkMan && chkMan.checked) {
-          series.push({
-            name: '人工预测达成率（演示）',
-            type: 'line',
-            yAxisIndex: 1,
-            data: p.achM,
-            smooth: true,
-            itemStyle: { color: '#eb2f96' },
-            lineStyle: { width: 2, type: 'dashed' },
-            symbol: 'triangle',
-            symbolSize: 5,
-            z: lineZ + 1
-          });
-        }
-
         var maxL = 220;
         [p.r1, p.r2, p.r3, p.actual].forEach(function (arr) {
           arr.forEach(function (v) {
@@ -2221,15 +2205,6 @@
           renderForecastTable();
         });
       }
-      var chkManualRAch = document.getElementById('chkManualRAch');
-      if (chkManualRAch) {
-        chkManualRAch.addEventListener('change', function () {
-          refreshCharts();
-          chartMain.resize();
-          chartTrend.resize();
-        });
-      }
-
       var mask = document.getElementById('dlgMask');
       var dlgBox = document.getElementById('dlgBox');
       var dlgFooter = document.getElementById('dlgFooter');
@@ -2249,7 +2224,9 @@
       function setDlg(title, bodyHtml, footerHtml) {
         document.getElementById('dlgTitle').textContent = title;
         document.getElementById('dlgBody').innerHTML = bodyHtml;
-        dlgFooter.innerHTML = footerHtml || '<button type="button" class="dlg-footer-btn" data-dlg="close">关闭</button>';
+        dlgFooter.innerHTML =
+          footerHtml ||
+          '<div class="stack proto-hd-close-wrap" id="dlgGenericFooterCloseWrap"><button type="button" class="dlg-footer-btn" data-dlg="close">关闭</button></div>';
         mask.classList.add('show');
       }
 
@@ -2326,7 +2303,7 @@
         setDlg(
           title,
           html,
-          '<button type="button" id="dlgDetailFooterClose" class="dlg-footer-btn" data-dlg="close">关闭</button>'
+          '<div class="stack proto-hd-close-wrap" id="dlgDetailFooterCloseWrap"><button type="button" id="dlgDetailFooterClose" class="dlg-footer-btn" data-dlg="close">关闭</button></div>'
         );
         if (typeof initProtoAnnos === 'function' && window.PROTO_ANNO_FORECAST_DETAIL) {
           initProtoAnnos(window.PROTO_ANNO_FORECAST_DETAIL);
@@ -2482,7 +2459,7 @@
           '<input type="checkbox" id="chkRemarkExcludeAchieve" ' +
           (excludeFromAchieve ? 'checked' : '') +
           ' />' +
-          '<span><strong>生效区间内月份不参与预测达成率计算</strong><br/><span style="font-size:11px;color:#999">默认不勾选。<strong>勾选</strong>后，生效日期范围内<strong>每个自然月</strong>均不计入该行预测达成率汇总（公式见需求文档）；不勾选则本备注不影响预测达成率。</span></span>' +
+          '<span><strong>生效区间内月份不参与预测达成率计算</strong></span>' +
           '</label></div></div>'
         );
       }
@@ -2584,7 +2561,11 @@
           '</tr></thead><tbody>' +
           rowsHtml +
           '</tbody></table></div>';
-        setDlg('异常备注 — ' + r.sku, body, '<button type="button" class="dlg-footer-btn" data-dlg="close">关闭</button>');
+        setDlg(
+          '异常备注 — ' + r.sku,
+          body,
+          '<div class="stack proto-hd-close-wrap" id="dlgRemarkListFooterCloseWrap"><button type="button" class="dlg-footer-btn" data-dlg="close">关闭</button></div>'
+        );
       }
 
       document.getElementById('dlgBody').addEventListener('click', function (e) {
