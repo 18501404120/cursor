@@ -317,8 +317,8 @@
           </div>
           <div class="toolbar">
             <button type="button" class="btn btn-primary" id="btnOpenBatch" disabled title="请先勾选至少一行配置数据">批量设置超参数因子</button>
-            <button type="button" class="btn" id="btnCfgImport" disabled title="请先勾选至少一行配置数据">导入</button>
-            <button type="button" class="btn" id="btnCfgExport" disabled title="请先勾选至少一行配置数据">导出</button>
+            <button type="button" class="btn" id="btnCfgImport">导入</button>
+            <button type="button" class="btn" id="btnCfgExport">导出</button>
             <div class="perm">
               <span>批量设置权限模拟</span>
               <select id="permBatch">
@@ -405,7 +405,7 @@
       </div>
       <div class="mb">
         <p class="modal-note">
-          <strong>更新范围（本原型）：</strong>须先在主表<strong>勾选至少一行</strong>配置数据，方可打开本弹窗并完成写入；仅对<strong>勾选行</strong>批量绑定所选超参数因子。<strong>正式环境</strong>可在权限允许时另支持「按当前筛选全量更新」；此处用红点说明与「导入/导出」按钮的勾选前置规则一致。
+          <strong>更新范围（本原型）：</strong>须先在主表<strong>勾选至少一行</strong>配置数据，方可打开本弹窗并完成写入；仅对<strong>勾选行</strong>批量绑定所选超参数因子。<strong>正式环境</strong>可在权限允许时另支持「按当前筛选全量更新」。「导入」「导出」不受是否勾选影响，见各按钮红点。
         </p>
         <div class="filter-grid" style="margin-bottom:10px">
           <div class="f"><label>超参数编号</label><input type="text" id="batchFid" style="width:72px" placeholder="00001" /></div>
@@ -447,20 +447,11 @@
       </div>
       <div class="mb" id="importModalContent">
         <p class="modal-note" style="margin-top:0">
-          请先勾选主表中要更新的行，再选择文件导入；导入结果以异步任务与校验报告为准（本页为演示交互）。
+          导入/导出模版见：<a href="https://alidocs.dingtalk.com/i/nodes/2Amq4vjg89g6dmBPsPXmxZD3V3kdP0wQ" target="_blank" rel="noopener noreferrer">https://alidocs.dingtalk.com/i/nodes/2Amq4vjg89g6dmBPsPXmxZD3V3kdP0wQ</a>
         </p>
-        <div style="display:flex; gap:20px; flex-wrap:wrap; align-items:flex-start">
-          <div style="flex:1; min-width:260px">
-            <p style="margin:0 0 8px;font-weight:600">1. 选择导入文件</p>
-            <input type="file" id="importFileInput" accept=".xlsx,.xls,.csv,.xlsm" style="max-width:100%" />
-            <p class="modal-note" style="margin-top:8px;margin-bottom:0">支持 Excel / CSV；首行须为字段名，与模板一致。</p>
-          </div>
-          <div style="flex:1; min-width:260px; border-left:1px solid #f0f0f0; padding-left:18px">
-            <p style="margin:0 0 8px;font-weight:600">2. 下载导入模板</p>
-            <button type="button" class="btn btn-primary" id="btnDownloadTpl">下载模板（.xlsx）</button>
-            <p class="modal-note" style="margin-top:8px;margin-bottom:0">模板列说明见本区域红点「导入模板与字段说明」。</p>
-          </div>
-        </div>
+        <p style="margin:0 0 8px;font-weight:600">选择导入文件</p>
+        <input type="file" id="importFileInput" accept=".xlsx,.xls,.csv,.xlsm" style="max-width:100%" />
+        <p class="modal-note" style="margin-top:10px;margin-bottom:0">正式环境：上传后异步解析与校验报告；本页为演示交互。</p>
       </div>
       <div class="mf">
         <button type="button" class="btn" id="importCancel">取消</button>
@@ -574,21 +565,15 @@
         return document.querySelectorAll('.cfg-row-chk:checked').length;
       }
 
-      /** 批量 / 导入 / 导出：须先勾选至少一行（本原型）；批量另受权限模拟控制 */
+      /** 仅「批量设置」须先勾选行且具备权限模拟；导入/导出始终可操作 */
       function updateCfgToolbarBySelection() {
         var n = countCfgRowChecked();
         var perm = document.getElementById('permBatch').value === 'yes';
         var has = n > 0;
         var tip = has ? '' : '请先勾选至少一行配置数据';
         var batch = document.getElementById('btnOpenBatch');
-        var imp = document.getElementById('btnCfgImport');
-        var exp = document.getElementById('btnCfgExport');
         batch.disabled = !perm || !has;
         batch.title = !perm ? '无配置权限（权限模拟）' : tip;
-        imp.disabled = !has;
-        imp.title = tip;
-        exp.disabled = !has;
-        exp.title = tip;
       }
 
       function renderCfg() {
@@ -788,7 +773,6 @@
       }
 
       document.getElementById('btnCfgImport').addEventListener('click', function () {
-        if (this.disabled) return;
         openImportModal();
       });
       document.getElementById('importCancel').addEventListener('click', closeImportModal);
@@ -808,12 +792,6 @@
         alert('演示：已接收文件「' + f.name + '」，正式环境将进入异步解析与校验报告。');
         closeImportModal();
       });
-      document.getElementById('btnDownloadTpl').addEventListener('click', function () {
-        alert(
-          '演示：将下载「预测配置导入模板.xlsx」。\n首行字段须包含：区域/国家/店铺、场景/品类/品线、销售团队、SKU、MSKU、流量/价格/转化率/广告/竞争力弹性系数、超参数因子编号等（与红点「导入模板与字段说明」一致）。'
-        );
-      });
-
       function closeBatchModal() {
         document.getElementById('modalBatch').classList.remove('show');
       }
@@ -865,9 +843,9 @@
       });
 
       document.getElementById('btnCfgExport').addEventListener('click', function () {
-        if (this.disabled) return;
-        var n = countCfgRowChecked();
-        alert('演示导出：仅导出当前已勾选的 ' + n + ' 行（正式环境为异步任务 + 下载链接）。');
+        alert(
+          '演示导出：按当前筛选条件生成导出任务（正式环境为异步任务 + 下载链接）。\n导入/导出模版见：https://alidocs.dingtalk.com/i/nodes/2Amq4vjg89g6dmBPsPXmxZD3V3kdP0wQ'
+        );
       });
 
       function closeLogModal() {

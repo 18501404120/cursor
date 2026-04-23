@@ -38,7 +38,7 @@
         "<p><strong>【逻辑 · 默认时间轴】</strong>本页展示的弹性系数、因子绑定等<strong>与预测滚动窗口相关的后台计算</strong>，默认按业务约定取<strong>以服务器当前日为锚点：回溯 12 个自然月～顺推 12 个自然月</strong>所覆盖的月序列（与《预测销量上下限规则》中因子统计窗口径对齐；若需改窗由配置中心后台参数或版本发布说明调整，不在此页用月份控件暴露）。</p>" +
         "<p><strong>【逻辑 · 示例】</strong>假设今天是 2026-04-21，则默认参与汇总/校验的月份约为 2025-05～2027-04（按自然月边界落库时由服务对齐到月初月末）；用户仅通过「区域、SKU…」缩小<strong>MSKU 行集合</strong>，不改变全局默认月窗。</p>" +
         "<p><strong>【逻辑 · 基准销量（列表不展示该列）】</strong>主表已<strong>下线「基准销量」只读列</strong>，避免与弹性列并排造成「可改/不可改」误解；引擎侧仍须计算<strong>月均参照基准</strong>参与各弹性系数演算。<strong>规则摘要：</strong><strong>A</strong> 已开售满 12 个月→近 12 月总销量÷12；<strong>B</strong> 不足 12 个月三步（参照月均 ÷ 同维度上月总量 × 该 ASIN 上月销量，降级路径 ASIN→SKU→品类→场景）；<strong>C</strong> 滚动月 T+1 递推。全文见《预测销量上下限规则-终版》/PRD；本页红点「ⓘ 弹性列」仍与引擎公式对齐。</p>" +
-        "<p><strong>【交互】</strong>修改任一筛选项后点「搜索」刷新 <code>#cfgTable</code>；导入/导出须<strong>先勾选行</strong>（见工具栏按钮红点）。</p>",
+        "<p><strong>【交互】</strong>修改任一筛选项后点「搜索」刷新 <code>#cfgTable</code>。「导入」「导出」<strong>无需勾选行</strong>即可使用；「批量设置超参数因子」须先勾选行（见各按钮红点）。</p>",
     },
     {
       containerSelector: GRID + " > .f:nth-child(1)",
@@ -169,27 +169,22 @@
       attach: "afterend",
       title: "按钮：导入",
       html:
-        "<p><strong>【基础】</strong><code>#btnCfgImport</code>；<strong>未勾选主表行时禁用</strong>，勾选后打开 <code>#modalImport</code>。</p>" +
-        "<p><strong>【逻辑】</strong>上传文件经异步解析：校验列头、SKU/MSKU 存在性、数值范围、与当前权限可写范围；失败行写入报告，成功行写配置并记审计。</p>" +
-        "<p><strong>【交互】</strong>弹层内可选文件、下载模板；「开始导入」演示校验是否已选文件。模板列字典见同弹层红点「导入模板与字段说明」。</p>",
+        "<p><strong>【逻辑】</strong>无需先勾选表格行；点击打开 <code>#modalImport</code> 选择文件。正式环境：异步解析、校验报告、写库与审计。</p>" +
+        "<p>导入/导出模版见：<a href=\"https://alidocs.dingtalk.com/i/nodes/2Amq4vjg89g6dmBPsPXmxZD3V3kdP0wQ\" target=\"_blank\" rel=\"noopener noreferrer\">https://alidocs.dingtalk.com/i/nodes/2Amq4vjg89g6dmBPsPXmxZD3V3kdP0wQ</a></p>",
     },
     {
       anchorSelector: "#btnCfgExport",
       attach: "afterend",
       title: "按钮：导出",
       html:
-        "<p><strong>【基础】</strong><code>#btnCfgExport</code>；<strong>未勾选主表行时禁用</strong>；演示为对已勾选行导出子集。</p>" +
-        "<p><strong>【逻辑】</strong>导出列应与当前表头一致（已不含「基准销量」列）；携带筛选条件元数据或水印便于对账。</p>" +
-        "<p><strong>【交互】</strong>大表建议异步下载链接；点击后 loading 防重复提交。</p>",
+        "<p><strong>【逻辑】</strong>无需先勾选表格行；按当前筛选条件发起导出（正式环境异步任务 + 下载链接）。导出列与当前表头一致。</p>" +
+        "<p>导入/导出模版见：<a href=\"https://alidocs.dingtalk.com/i/nodes/2Amq4vjg89g6dmBPsPXmxZD3V3kdP0wQ\" target=\"_blank\" rel=\"noopener noreferrer\">https://alidocs.dingtalk.com/i/nodes/2Amq4vjg89g6dmBPsPXmxZD3V3kdP0wQ</a></p>",
     },
     {
       containerSelector: "#importModalContent",
-      title: "导入弹层：导入模板与字段说明",
+      title: "导入弹层：模版说明",
       html:
-        "<p><strong>【模板用途】</strong>批量维护<strong>弹性系数</strong>与<strong>超参数因子绑定</strong>（与主表列一致）；首行<strong>中文或英文列名须与系统导出模板一致</strong>，避免同义不同名。</p>" +
-        "<p><strong>【建议列（与当前主表一致，无基准销量列）】</strong>① 区域/国家/店铺　② 场景/品类/品线　③ 销售团队　④ SKU　⑤ MSKU（或平台+MSKU 拆列，以接口为准）　⑥ 流量弹性系数　⑦ 价格弹性系数　⑧ 转化率弹性系数　⑨ 广告花费弹性系数　⑩ 竞争力弹性系数　⑪ 超参数因子编号（5 位）或「清空」占位　⑫ 可选：批次号/备注列。</p>" +
-        "<p><strong>【校验规则（开发/测试）】</strong>数值列须为有限小数；编号须已存在于超参数因子主数据且状态允许绑定；一行多因子冲突时整行失败或按产品策略部分成功；导入前须校验<strong>勾选行集合</strong>与文件中 Key 的交集，防止改到未授权 MSKU。</p>" +
-        "<p><strong>【交互】</strong>左侧选文件、右侧下载空白模板；正式环境模板带<strong>示例行 + 校验说明 Sheet</strong>。</p>",
+        "<p>导入/导出模版见：<a href=\"https://alidocs.dingtalk.com/i/nodes/2Amq4vjg89g6dmBPsPXmxZD3V3kdP0wQ\" target=\"_blank\" rel=\"noopener noreferrer\">https://alidocs.dingtalk.com/i/nodes/2Amq4vjg89g6dmBPsPXmxZD3V3kdP0wQ</a></p>",
     },
     {
       containerSelector: "#importModalCloseWrap",
@@ -197,24 +192,6 @@
       html:
         "<p><strong>【基础】</strong>关闭 <code>#modalImport</code>，不提交导入。</p>" +
         "<p><strong>【交互】</strong>与「取消」等价；点遮罩关闭同效。</p>",
-    },
-    {
-      anchorSelector: "#btnDownloadTpl",
-      attach: "afterend",
-      title: "导入弹层：下载模板",
-      html:
-        "<p><strong>【基础】</strong>下载标准 <code>.xlsx</code>，含列头与一行样例（正式环境）。</p>" +
-        "<p><strong>【逻辑】</strong>列集合与「导入模板与字段说明」红点一致；版本变更时模板号与 PRD 同步。</p>" +
-        "<p><strong>【交互】</strong>演示为 <code>alert</code>；生产返回真实文件流。</p>",
-    },
-    {
-      anchorSelector: "#importFileInput",
-      attach: "afterend",
-      title: "导入弹层：选择文件",
-      html:
-        "<p><strong>【基础】</strong>本地文件选择；接受 <code>.xlsx/.xls/.csv/.xlsm</code>（以安全策略为准）。</p>" +
-        "<p><strong>【逻辑】</strong>前端只做大小/扩展名预检；解析在服务端。</p>" +
-        "<p><strong>【交互】</strong>未选文件点「开始导入」应提示错误。</p>",
     },
     {
       anchorSelector: "#permBatch",
@@ -229,7 +206,7 @@
       title: "表格：全选",
       html:
         "<p><strong>【基础】</strong>表头复选框，全选当前页配置行。</p>" +
-        "<p><strong>【逻辑】</strong>与行勾选联动；有勾选时启用<strong>批量设置 / 导入 / 导出</strong>（本原型）。</p>" +
+        "<p><strong>【逻辑】</strong>与行勾选联动；有勾选时启用<strong>批量设置超参数因子</strong>（本原型）。「导入」「导出」不依赖勾选。</p>" +
         "<p><strong>【交互】</strong>支持半选态 <code>indeterminate</code>（部分行勾选时）。</p>",
     },
     {
