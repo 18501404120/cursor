@@ -8,7 +8,7 @@
   var ANNOS = [
     {
       containerSelector: ".header-title",
-      title: "页头：目标助手",
+      title: "页头：销量预测",
       html:
         "<p><strong>【基础】</strong>本页为运营/计划侧主工作台，信息架构为：<strong>顶栏 → 筛选区 → 预测方式 → 主图「需求预测对照」→ 明细表</strong>。</p>" +
         "<p><strong>【逻辑】</strong>主图含<strong>客观中值</strong>（规则/ML 点值及客观带）、<strong>人工预测</strong>、<strong>实际销量</strong>；Y 轴为销量数量。客观三线<strong>仅</strong>由客观因子得出，<strong>不</strong>读取经营类目标输入。</p>" +
@@ -20,7 +20,7 @@
       html:
         "<p><strong>【基础】</strong>窄栏图标菜单：工作台（高亮）、计划、发货、退货、台账、信息、工具。</p>" +
         "<p><strong>【逻辑】</strong>原型未接路由，仅表达 ERP 壳层占位；正式环境由权限裁剪可见模块。</p>" +
-        "<p><strong>【交互】</strong>点击切换 <code>active</code> 态；当前页停留在「目标助手」工作台。</p>",
+        "<p><strong>【交互】</strong>点击切换 <code>active</code> 态；当前页停留在「销量预测」工作台。</p>",
     },
     {
       containerSelector: ".header-actions",

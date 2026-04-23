@@ -5,7 +5,7 @@
   var ANNOS = [
     {
       containerSelector: "header.header",
-      title: "页头：目标助手 · 超参数因子",
+      title: "页头：销量预测 · 超参数因子",
       html:
         "<p><strong>【基础】</strong>蓝色顶栏展示模块名；右侧为项目平台、通知、物流、用户缩写等全局入口（示意）。</p>" +
         "<p><strong>【逻辑】</strong>本页维护「超参数因子」主数据：编号、事件说明、系数、生效区间、状态；被预测配置中心批量绑定引用。</p>" +

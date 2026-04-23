@@ -1,5 +1,5 @@
 /**
- * 目标助手 · 预测配置-原型说明.html 专用（文件名沿用销量预测配置中心-原型说明.html）
+ * 销量预测 · 预测配置-原型说明.html 专用（文件名沿用销量预测配置中心-原型说明.html）
  */
 (function () {
   var GRID = "#screenConfig .panel--filters .filter-grid";
@@ -9,7 +9,7 @@
       anchorSelector: "#headerTitle",
       title: "页头：标题与上下文",
       html:
-        "<p><strong>【基础】</strong><code>#headerTitle</code> 展示当前屏名称：「目标助手 · 预测配置」或进入子页时的「超参数因子管理」；<code>#headerSub</code> 为副标题（如从配置进入因子维护时的提示）。</p>" +
+        "<p><strong>【基础】</strong><code>#headerTitle</code> 展示当前屏名称：「销量预测 · 预测配置」或进入子页时的「超参数因子管理」；<code>#headerSub</code> 为副标题（如从配置进入因子维护时的提示）。</p>" +
         "<p><strong>【逻辑】</strong>与 <code>showConfig</code> / <code>showFactors</code> 脚本切换同步，帮助用户确认当前是否仍在同一应用壳内。</p>" +
         "<p><strong>【交互】</strong>只读展示；返回主列表通过子页「返回」链接。</p>",
     },
@@ -33,7 +33,7 @@
       containerSelector: "#screenConfig .scroll > .panel--filters",
       title: "页面：筛选面板总览",
       html:
-        "<p><strong>【基础】</strong>本屏为「目标助手 · 预测配置」：上方为<strong>与主工作台对齐</strong>的维度筛选 + SKU 组合 + 超参数因子 + 月份范围，下方为工具栏与配置表。</p>" +
+        "<p><strong>【基础】</strong>本屏为「销量预测 · 预测配置」：上方为<strong>与主工作台对齐</strong>的维度筛选 + SKU 组合 + 超参数因子 + 月份范围，下方为工具栏与配置表。</p>" +
         "<p><strong>【逻辑】</strong>筛选结果集决定「批量设置超参数因子」「导入/导出」的作用范围；月份范围隐藏域 <code>cfgMonthFrom</code> / <code>cfgMonthTo</code> 与 MonthRangePicker 同步。</p>" +
         "<p><strong>【交互】</strong>修改任一筛选项后点击「搜索」刷新表格；红点逐项说明各控件。</p>",
     },
@@ -51,7 +51,7 @@
       html:
         "<p><strong>【基础】</strong><code>select</code>。</p>" +
         "<p><strong>【逻辑】</strong>在区域下过滤站点国家，影响列表 SKU 可视范围与批量写入范围。</p>" +
-        "<p><strong>【交互】</strong>与目标助手主工作台筛选口径应对齐。</p>",
+        "<p><strong>【交互】</strong>与销量预测主工作台筛选口径应对齐。</p>",
     },
     {
       containerSelector: GRID + " > .f:nth-child(3)",
@@ -325,7 +325,7 @@
     {
       anchorSelector: "#linkBackCfg",
       attach: "afterend",
-      title: "返回：目标助手 · 预测配置",
+      title: "返回：销量预测 · 预测配置",
       html:
         "<p><strong>【基础】</strong>从子页返回主配置列表。</p>" +
         "<p><strong>【逻辑】</strong>不丢失主列表筛选状态（若会话内保存）。</p>" +
