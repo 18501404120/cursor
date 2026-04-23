@@ -10,8 +10,8 @@
       containerSelector: ".header-title",
       title: "页头：目标助手",
       html:
-        "<p><strong>【基础】</strong>本页为运营/计划侧主工作台，信息架构为：<strong>顶栏 → 筛选区 → 预测方式 → 主图「预测与目标」→ 明细表</strong>。</p>" +
-        "<p><strong>【逻辑】</strong>主图含<strong>BP 目标</strong>、<strong>客观中值</strong>（规则/ML 点值及客观带）、<strong>系统推荐值</strong>、<strong>人工预测</strong>、<strong>实际销量</strong>；Y 轴为销量数量。客观带不随目标/BP 变化。<strong>会议依据：需求逻辑调整会</strong></p>" +
+        "<p><strong>【基础】</strong>本页为运营/计划侧主工作台，信息架构为：<strong>顶栏 → 筛选区 → 预测方式 → 主图「需求预测对照」→ 明细表</strong>。</p>" +
+        "<p><strong>【逻辑】</strong>主图含<strong>客观中值</strong>（规则/ML 点值及客观带）、<strong>人工预测</strong>、<strong>实际销量</strong>；Y 轴为销量数量。客观三线<strong>仅</strong>由客观因子得出，<strong>不</strong>读取经营类目标输入。</p>" +
         "<p><strong>【交互】</strong>红点（说明版）挂载在控件旁，点击气泡阅读字段含义、数据口径与操作后果；与《销量预测管理-PRD》对齐。</p>",
     },
     {
@@ -144,10 +144,10 @@
     },
     {
       anchorSelector: ".chart-panel h2",
-      title: "区块：预测与目标（主图）",
+      title: "区块：需求预测对照（主图）",
       html:
-        "<p><strong>【基础】</strong>主图对比 <strong>BP 目标</strong>、<strong>客观中值</strong>、<strong>系统推荐值</strong>、<strong>人工预测值</strong>、<strong>实际销量</strong>；图例可单独隐藏各序列。</p>" +
-        "<p><strong>【逻辑】</strong>单左轴为<strong>销量数量</strong>。<strong>客观中值</strong>带<strong>客观下～上限</strong>浅色带及 Tooltip；BP、系统推荐、人工、实际为点值柱。<strong>会议依据：需求逻辑调整会</strong>；口径见《预测销量上下限规则-终版》（<code>需求文档/预测销量上下限规则-终版.md</code>）。</p>" +
+        "<p><strong>【基础】</strong>主图对比 <strong>客观中值</strong>、<strong>人工预测值</strong>、<strong>实际销量</strong>；图例可单独隐藏各序列。</p>" +
+        "<p><strong>【逻辑】</strong>单左轴为<strong>销量数量</strong>。<strong>客观中值</strong>带<strong>客观下～上限</strong>浅色带及 Tooltip；人工、实际为点值柱。口径见《预测销量上下限规则-终版》（<code>需求文档/预测销量上下限规则-终版.md</code>）。</p>" +
         "<p><strong>【交互】</strong>图例点击控制序列显隐；Tooltip 轴触发。</p>",
     },
     {
@@ -155,7 +155,7 @@
       title: "图表渲染区",
       html:
         "<p><strong>【基础】</strong>ECharts 容器；承载柱状/折线组合（以 PRD 为准）。</p>" +
-        "<p><strong>【逻辑】</strong>Tooltip 仅在<strong>客观中值</strong>序列上可附当月演示客观下限/上限（与浅色带一致）；BP、系统推荐、人工仅为点值柱。</p>" +
+        "<p><strong>【逻辑】</strong>Tooltip 仅在<strong>客观中值</strong>序列上可附当月演示客观下限/上限（与浅色带一致）；人工、实际仅为点值柱。</p>" +
         "<p><strong>【交互】</strong>缩放、图例、数据区域选择若启用需在 PRD 中单独定义；导出图表可走「导出」或截图。</p>",
     },
     {
@@ -243,7 +243,7 @@
       title: "列组：月份（动态子列）",
       html:
         "<p><strong>【基础】</strong><code>#monthHeadRow</code> 由脚本按「月份范围」生成多个月子列。</p>" +
-        "<p><strong>【逻辑】</strong>主行展示当前预测方式下的销量点值（演示数据）；展开后可有系统规则行、forecast 行；不包含「预测准确率」列。与主图「客观中值/系统推荐」口径分层见 PRD。</p>" +
+        "<p><strong>【逻辑】</strong>主行展示当前预测方式下的<strong>客观中值</strong>（演示数据）；展开后可有系统规则行、forecast 行；不包含「预测准确率」列。与主图客观三线口径见 PRD v3.0。</p>" +
         "<p><strong>【交互】</strong>横向滚动查看；与主图时间窗一致；点击单元格可能打开详情或趋势（以脚本为准）。</p>",
     },
     {
@@ -259,7 +259,7 @@
       title: "列：操作",
       html:
         "<p><strong>【基础】</strong>行级操作入口：详情、异常备注等（以渲染为准）。</p>" +
-        "<p><strong>【逻辑】</strong>详情中「目标」与列表 BP/业务目标口径与主 PRD 一致。</p>" +
+        "<p><strong>【逻辑】</strong>详情展示客观三线及 forecast 等，与主 PRD v3.0 一致。</p>" +
         "<p><strong>【交互】</strong>点击触发弹层或侧栏；与批量备注互不替代。</p>",
     },
     {
@@ -299,15 +299,15 @@
       title: "详情：MSKU / 平台",
       html:
         "<p><strong>【基础】</strong>展示当前行的渠道 <strong>MSKU</strong> 与<strong>平台</strong>（如亚马逊），与列表「MSKU信息」列同源。</p>" +
-        "<p><strong>【逻辑】</strong>用于确认下钻对象，避免跨站点看错行；与预测、BP 拆分到 MSKU 粒度时对齐。</p>" +
+        "<p><strong>【逻辑】</strong>用于确认下钻对象，避免跨站点看错行；与预测结果在 MSKU 粒度对齐。</p>" +
         "<p><strong>【交互】</strong>只读文本；正式版可复制 MSKU 或跳转 Listing。</p>",
     },
     {
       anchorSelector: "#detailParaLogic",
       title: "详情：测算逻辑说明",
       html:
-        "<p><strong>【基础】</strong>按月说明<strong>客观中值 / 目标 / 系统推荐值</strong>与<strong>客观下限～客观上限</strong>的关系。</p>" +
-        "<p><strong>【逻辑】</strong>与《预测销量上下限规则-终版》、主图一致：客观三值由因子得出；汇总层用 <code>P_i</code> 折 <code>RevLo/RevMid/RevHi</code>，与 <code>T_rev</code> 比较后得各 SKU <code>R_i</code>。<strong>会议依据：需求逻辑调整会</strong></p>" +
+        "<p><strong>【基础】</strong>按月说明<strong>客观中值</strong>与<strong>客观下限～客观上限</strong>的关系。</p>" +
+        "<p><strong>【逻辑】</strong>与《预测销量上下限规则-终版》、主图一致：三档销量均由客观因子情景得出，<strong>不</strong>读取经营类目标输入。</p>" +
         "<p><strong>【交互】</strong>只读；可随预测方式单选（机器学习/系统预测）切换文案前提（以页面脚本为准）。</p>",
     },
     {
@@ -355,23 +355,7 @@
       title: "详情列：客观中值",
       html:
         "<p><strong>【基础】</strong>由流量、价格、促销等客观因子与规则/ML 情景得到的点值（演示与主图「客观中值」同源函数）。</p>" +
-        "<p><strong>【逻辑】</strong>不随目标、BP 修改；为客观带计算锚点。</p>" +
-        "<p><strong>【交互】</strong>只读。</p>",
-    },
-    {
-      anchorSelector: "#detailThTarget",
-      title: "详情列：目标",
-      html:
-        "<p><strong>【基础】</strong>业务输入的销量目标（原型演示为当月 BP 拆解量）。</p>" +
-        "<p><strong>【逻辑】</strong>可与客观三值任意高低组合；为空时系统推荐演示退化为客观中值。正式单位须与汇总层 <code>Rev*</code>/<code>T_rev</code> 的额、量口径一致（见主 PRD）。</p>" +
-        "<p><strong>【交互】</strong>只读；编辑入口在计划/BP 或目标录入流程。</p>",
-    },
-    {
-      anchorSelector: "#detailThRec",
-      title: "详情列：系统推荐值",
-      html:
-        "<p><strong>【基础】</strong>与主图「系统推荐值」同源演示列。</p>" +
-        "<p><strong>【逻辑】</strong>须满足 客观下限 ≤ 系统推荐值 ≤ 客观上限；计算口径见《预测销量上下限规则-终版》。<strong>会议依据：需求逻辑调整会</strong></p>" +
+        "<p><strong>【逻辑】</strong>不随经营类目标修改；为客观带计算锚点。</p>" +
         "<p><strong>【交互】</strong>只读。</p>",
     },
     {
@@ -379,7 +363,7 @@
       title: "详情列：客观下限",
       html:
         "<p><strong>【基础】</strong>客观悲观情景边界（演示确定性倍数）。</p>" +
-        "<p><strong>【逻辑】</strong>仅锚定<strong>客观中值</strong>，不随目标/BP 改变客观因子情景（见《预测销量上下限规则-终版》第二节）。</p>" +
+        "<p><strong>【逻辑】</strong>仅锚定<strong>客观中值</strong>，不随经营类目标改变客观因子情景（见《预测销量上下限规则-终版》第三节）。</p>" +
         "<p><strong>【交互】</strong>只读。</p>",
     },
     {
@@ -387,7 +371,7 @@
       title: "详情列：客观上限",
       html:
         "<p><strong>【基础】</strong>客观乐观情景边界（演示）。</p>" +
-        "<p><strong>【逻辑】</strong>与客观下限成对；系统推荐不得超过客观上限。</p>" +
+        "<p><strong>【逻辑】</strong>与客观下限成对；与客观中值同构公式在乐观情景下的边界。</p>" +
         "<p><strong>【交互】</strong>只读。</p>",
     },
     {
@@ -395,7 +379,7 @@
       title: "详情列：forecast填写",
       html:
         "<p><strong>【基础】</strong>业务线 forecast 流程填报的销量或占位，与主表「forecast填写销量」开关联动展示。</p>" +
-        "<p><strong>【逻辑】</strong>为点值列，不参与客观带；可与系统推荐值、客观中值对比做执行偏差分析。</p>" +
+        "<p><strong>【逻辑】</strong>为点值列，不参与客观带；可与客观中值对比做执行偏差分析。</p>" +
         "<p><strong>【交互】</strong>弹窗内只读；编辑在列表展开行或 forecast 录入页（正式版）。</p>",
     },
     {
