@@ -136,10 +136,10 @@
     },
     {
       anchorSelector: "#fltPredR",
-      title: "筛选：预测选择（主口径）",
+      title: "筛选：预测选择（达成率阈值用）",
       html:
         "<p><strong>【基础】</strong><code>#fltPredR</code> 选 R1/R2/R3，位于<strong>搜索</strong>前同一筛选栅格内。</p>" +
-        "<p><strong>【逻辑】</strong>驱动：① 列表与 KPI 使用的<strong>预测达成率</strong>档位；② 表头「R*预测达成率」列名；③ 详情弹窗仅展示当前档目标+上下限+预测达成率；④ 与后项「达成率」比较符、阈值一起做行过滤。</p>" +
+        "<p><strong>【逻辑】</strong><strong>仅</strong>与「达成率」比较符、<strong>阈值(%)</strong>组合：对每一行取该 R 档的<strong>窗口聚合预测达成率</strong>做比较，不满足的行不展示；<strong>不</strong>改变表格「R*预测达成率」列、表头文案及详情下钻列集（由表格工具栏 <code>#tablePredR</code> 控制）。</p>" +
         "<p><strong>【交互】</strong>变更后触发全页刷新（演示脚本）。</p>",
     },
     {
@@ -187,7 +187,7 @@
       title: "按钮：导出",
       html:
         "<p><strong>【基础】</strong>导出当前筛选结果下<strong>与页面表格可见列一致</strong>的数据（演示为提示文案）。</p>" +
-        "<p><strong>【逻辑】</strong>字段顺序与表头对齐：维度列 + 动态月份列 + 当前「预测选择」对应的 <strong>R*预测达成率</strong> 单列；详见《销量预测管理-导出模板说明》（<code>需求文档/销量预测管理-导出模板说明.md</code>）。正式版可提供 Excel 模板下载。</p>" +
+        "<p><strong>【逻辑】</strong>字段顺序与表头对齐：维度列 + 动态月份列 + 表格工具栏「预测选择」对应的 <strong>R*预测达成率</strong> 单列；详见《销量预测管理-导出模板说明》（<code>需求文档/销量预测管理-导出模板说明.md</code>）。正式版可提供 Excel 模板下载。</p>" +
         "<p><strong>【交互】</strong>大表建议异步任务 + 消息通知；进行中按钮 loading。</p>",
     },
     {
@@ -267,7 +267,7 @@
       title: "列组：月份（动态子列）",
       html:
         "<p><strong>【基础】</strong><code>#monthHeadRow</code> 由脚本按「月份范围」生成多个月子列。</p>" +
-        "<p><strong>【逻辑】</strong>主行展示当前预测方式下的系统预测数字（演示）；展开后可有系统规则行、forecast 行；右侧仅 <strong>一列「R*预测达成率」</strong>（随筛选区「预测选择」变化）。列表汇总公式与 PRD 图七一致。</p>" +
+        "<p><strong>【逻辑】</strong>主行展示当前预测方式下的系统预测数字（演示）；展开后可有系统规则行、forecast 行；右侧仅 <strong>一列「R*预测达成率」</strong>（随表格工具栏 <code>#tablePredR</code> 变化）。列表汇总公式与 PRD 图七一致。</p>" +
         "<p><strong>【交互】</strong>横向滚动查看；与主图时间窗一致；点击单元格可能打开详情或趋势（以脚本为准）。</p>",
     },
     {
@@ -279,10 +279,18 @@
         "<p><strong>【交互】</strong>点击常打开「趋势图」弹层 <code>#trendPop</code> 看大图。</p>",
     },
     {
-      anchorSelector: "#thPredAch",
-      title: "列：R*预测达成率（随预测选择）",
+      anchorSelector: "#tablePredR",
+      title: "表格工具栏：预测选择（列表/详情口径）",
       html:
-        "<p><strong>【基础】</strong>表头 <code>#thPredAch</code> 文案随 <code>#fltPredR</code> 在 R1/R2/R3 间切换。</p>" +
+        "<p><strong>【基础】</strong><code>#tablePredR</code>，位于明细表上方工具栏左侧。</p>" +
+        "<p><strong>【逻辑】</strong>控制：① 表体「R*预测达成率」列所用 R 档与表头列名；② 行内「详情」弹窗仅展示<strong>当前所选档</strong>的目标、下限、上限、预测达成率列；③ 导出时该预测达成率列与表头一致。<strong>与</strong>顶部筛选栏 <code>#fltPredR</code>（仅用于达成率阈值过滤）<strong>独立</strong>。</p>" +
+        "<p><strong>【交互】</strong>变更后仅刷新表格（演示脚本）。</p>",
+    },
+    {
+      anchorSelector: "#thPredAch",
+      title: "列：R*预测达成率（随表格预测选择）",
+      html:
+        "<p><strong>【基础】</strong>表头 <code>#thPredAch</code> 文案随 <code>#tablePredR</code> 在 R1/R2/R3 间切换。</p>" +
         "<p><strong>【逻辑】</strong>单元格为当前月份窗口内、已关账且未被异常备注排除的月份，按 <strong>100% − Σ|A−P| / Σ max(A,P)</strong> 聚合（与 PRD 图七一致）。</p>" +
         "<p><strong>【交互】</strong>只读。</p>",
     },
@@ -291,7 +299,7 @@
       title: "列：操作",
       html:
         "<p><strong>【基础】</strong>行级操作入口：详情、异常备注等（以渲染为准）。</p>" +
-        "<p><strong>【逻辑】</strong>详情仅展示<strong>当前预测选择</strong>对应档的目标、上下限与预测达成率列。</p>" +
+        "<p><strong>【逻辑】</strong>详情仅展示<strong>表格工具栏预测选择</strong>对应档的目标、上下限与预测达成率列。</p>" +
         "<p><strong>【交互】</strong>点击触发弹层；与批量备注互不替代。</p>",
     },
     {
@@ -378,7 +386,7 @@
       anchorSelector: "#detailThR1",
       title: "详情列：当前档目标（R1 示例）",
       html:
-        "<p><strong>【基础】</strong>仅当主筛选「预测选择」为 R1 时出现本组四列：<strong>目标R1</strong>、下限、上限、<strong>R1预测达成率</strong>。</p>" +
+        "<p><strong>【基础】</strong>仅当表格工具栏「预测选择」为 R1 时出现本组四列：<strong>目标R1</strong>、下限、上限、<strong>R1预测达成率</strong>。</p>" +
         "<p><strong>【逻辑】</strong>锁定提前量默认 30 天（可配置）；与主图 <code>targetRkFor(...,1)</code> 及《R1至R3规则说明》一致。</p>" +
         "<p><strong>【交互】</strong>只读。</p>",
     },
@@ -386,7 +394,7 @@
       anchorSelector: "#detailThR2",
       title: "详情列：当前档目标（R2 示例）",
       html:
-        "<p><strong>【基础】</strong>仅当「预测选择」为 R2 时出现；含 <strong>R2预测达成率</strong>。</p>" +
+        "<p><strong>【基础】</strong>仅当表格工具栏「预测选择」为 R2 时出现；含 <strong>R2预测达成率</strong>。</p>" +
         "<p><strong>【逻辑】</strong>默认锁定提前量 60 天（可配置）。</p>" +
         "<p><strong>【交互】</strong>只读。</p>",
     },
@@ -394,7 +402,7 @@
       anchorSelector: "#detailThR3",
       title: "详情列：当前档目标（R3 示例）",
       html:
-        "<p><strong>【基础】</strong>仅当「预测选择」为 R3 时出现；含 <strong>R3预测达成率</strong>。</p>" +
+        "<p><strong>【基础】</strong>仅当表格工具栏「预测选择」为 R3 时出现；含 <strong>R3预测达成率</strong>。</p>" +
         "<p><strong>【逻辑】</strong>默认锁定提前量 90 天（可配置）。</p>" +
         "<p><strong>【交互】</strong>只读。</p>",
     },
@@ -424,8 +432,8 @@
       anchorSelector: "#chkRemarkExcludeAchieve",
       title: "异常备注：生效月与预测达成率",
       html:
-        "<p><strong>【基础】</strong>复选框 <code>#chkRemarkExcludeAchieve</code>，默认<strong>勾选</strong>。</p>" +
-        "<p><strong>【逻辑】</strong><strong>勾选</strong>：生效日期范围内<strong>每个自然月</strong>均<strong>不参与</strong>该行「预测达成率」汇总（分子分母均不纳入该月）；<strong>取消勾选</strong>则本条备注不影响预测达成率。与 PRD 异常备注章节一致。</p>" +
+        "<p><strong>【基础】</strong>复选框 <code>#chkRemarkExcludeAchieve</code>，默认<strong>不勾选</strong>。</p>" +
+        "<p><strong>【逻辑】</strong><strong>勾选</strong>：生效日期范围内<strong>每个自然月</strong>均<strong>不参与</strong>该行「预测达成率」汇总（分子分母均不纳入该月）；<strong>不勾选</strong>则本条备注不影响预测达成率。与 PRD 异常备注章节一致。</p>" +
         "<p><strong>【交互】</strong>与「生效时间」日期范围联动；保存后刷新列表与 KPI（演示）。</p>",
     },
     {

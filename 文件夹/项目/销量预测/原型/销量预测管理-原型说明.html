@@ -346,6 +346,16 @@
       gap: 8px 12px;
       font-size: 12px;
     }
+    .tb-toolbar .table-pred-toolbar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding-right: 4px;
+    }
+    .tb-toolbar .table-pred-toolbar label {
+      color: #666;
+      white-space: nowrap;
+    }
     .tb-toolbar .btns { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
     .btn-ghost {
       height: 28px;
@@ -795,7 +805,7 @@
             <div class="f"><label>可售状态</label><select><option>全部</option></select></div>
             <div class="f">
               <label for="fltPredR">预测选择</label>
-              <select id="fltPredR" title="主口径：图表/列表/详情/达成率筛选均按所选 R 档">
+              <select id="fltPredR" title="仅用于「达成率」阈值筛选：与比较符、阈值比较时，取该行该 R 档的窗口聚合预测达成率">
                 <option value="r1" selected>R1</option>
                 <option value="r2">R2</option>
                 <option value="r3">R3</option>
@@ -855,6 +865,14 @@
 
         <div class="table-block">
           <div class="tb-toolbar">
+            <div class="table-pred-toolbar" title="控制本表「R*预测达成率」列及详情下钻展示的 R 档；与顶部筛选栏「预测选择」独立">
+              <label for="tablePredR">预测选择</label>
+              <select id="tablePredR">
+                <option value="r1" selected>R1</option>
+                <option value="r2">R2</option>
+                <option value="r3">R3</option>
+              </select>
+            </div>
             <div class="btns">
               <button type="button" class="btn-ghost" id="btnExport">导出</button>
               <button type="button" class="btn-ghost" id="btnAddRemarkBatch" disabled title="请先勾选列表中的行">新增异常备注</button>
@@ -1200,7 +1218,7 @@
 
       function monthOverlapsRemarkRange(lab, rec) {
         if (!rec || !rec.dateStart || !rec.dateEnd) return false;
-        if (rec.excludeFromAchieve === false) return false;
+        if (rec.excludeFromAchieve !== true) return false;
         var ms = ymMonthFirst(lab);
         var me = ymMonthLast(lab);
         var rs = parseIsoYmd(rec.dateStart);
@@ -2032,11 +2050,15 @@
         return cls;
       }
 
+      function getTablePredRKey() {
+        var el = document.getElementById('tablePredR');
+        return el && el.value ? el.value : 'r1';
+      }
+
       function updatePredAchTableHeader() {
         var th = document.getElementById('thPredAch');
-        var sel = document.getElementById('fltPredR');
-        if (!th || !sel) return;
-        var v = sel.value || 'r1';
+        if (!th) return;
+        var v = getTablePredRKey();
         var map = { r1: 'R1', r2: 'R2', r3: 'R3' };
         th.textContent = (map[v] || 'R') + '预测达成率';
       }
@@ -2083,8 +2105,7 @@
           master.indeterminate = false;
         }
 
-        var pr = document.getElementById('fltPredR');
-        var pick = pr && pr.value ? pr.value : 'r1';
+        var pick = getTablePredRKey();
 
         for (var ri = 0; ri < tableRows.length; ri++) {
           if (!passesAchieveFilter(ri)) continue;
@@ -2194,6 +2215,12 @@
           });
         }
       });
+      var tablePredR = document.getElementById('tablePredR');
+      if (tablePredR) {
+        tablePredR.addEventListener('change', function () {
+          renderForecastTable();
+        });
+      }
       var chkManualRAch = document.getElementById('chkManualRAch');
       if (chkManualRAch) {
         chkManualRAch.addEventListener('change', function () {
@@ -2239,7 +2266,7 @@
         if (act === 'confirm') {
           if (document.getElementById('remarkContentInput')) {
             var chkEx = document.getElementById('chkRemarkExcludeAchieve');
-            var excludeFromAchieve = chkEx ? !!chkEx.checked : true;
+            var excludeFromAchieve = chkEx ? !!chkEx.checked : false;
             var content = (document.getElementById('remarkContentInput') || {}).value || '';
             var dr = remarkDateDrp && remarkDateDrp.get ? remarkDateDrp.get() : { start: '', end: '' };
             if (!dr.start || !dr.end) {
@@ -2340,10 +2367,9 @@
         return '<td>' + mid + '</td><td>' + lo + '</td><td>' + hi + '</td><td>' + ac + '</td>';
       }
 
-      /** 与筛选区「预测选择」一致，详情仅展示当前 R 档 */
+      /** 与表格工具栏「预测选择」一致，详情仅展示当前 R 档 */
       function getDetailPredRK() {
-        var el = document.getElementById('fltPredR');
-        var v = el && el.value ? el.value : 'r1';
+        var v = getTablePredRKey();
         if (v === 'r2') return 2;
         if (v === 'r3') return 3;
         return 1;
@@ -2429,7 +2455,7 @@
         var content = opts.content != null ? opts.content : '';
         var modUser = opts.modUser || '当前用户';
         var modTime = opts.modTime || (isEdit ? '2025-08-25 12:23:45' : '—');
-        var excludeFromAchieve = opts.excludeFromAchieve !== false;
+        var excludeFromAchieve = opts.excludeFromAchieve === true;
         return (
           '<p style="margin:0 0 12px;color:#8c8c8c;font-size:12px;">' +
           (remarkContext.fromBatch
@@ -2456,7 +2482,7 @@
           '<input type="checkbox" id="chkRemarkExcludeAchieve" ' +
           (excludeFromAchieve ? 'checked' : '') +
           ' />' +
-          '<span><strong>生效区间内月份不参与预测达成率计算</strong><br/><span style="font-size:11px;color:#999">默认勾选。勾选后，生效日期范围内<strong>每个自然月</strong>均不计入该行预测达成率汇总（公式见需求文档）；取消勾选则本备注不影响预测达成率。</span></span>' +
+          '<span><strong>生效区间内月份不参与预测达成率计算</strong><br/><span style="font-size:11px;color:#999">默认不勾选。<strong>勾选</strong>后，生效日期范围内<strong>每个自然月</strong>均不计入该行预测达成率汇总（公式见需求文档）；不勾选则本备注不影响预测达成率。</span></span>' +
           '</label></div></div>'
         );
       }
@@ -2485,9 +2511,9 @@
                 dateEnd: rec.dateEnd,
                 modUser: rec.adjuster,
                 modTime: rec.time,
-                excludeFromAchieve: rec.excludeFromAchieve !== false
+                excludeFromAchieve: rec.excludeFromAchieve === true
               }
-            : { isEdit: false, dateStart: '2026-01-01', dateEnd: '2026-03-31', excludeFromAchieve: true }
+            : { isEdit: false, dateStart: '2026-01-01', dateEnd: '2026-03-31', excludeFromAchieve: false }
         );
         var footer =
           '<button type="button" class="dlg-footer-btn" data-dlg="cancel">取消</button>' +
@@ -2596,7 +2622,7 @@
 
       document.getElementById('btnExport').addEventListener('click', function () {
         alert(
-          '演示导出：按当前页面可见字段导出（维度列 + 所选月份列 + 当前「预测选择」对应的预测达成率列等），列顺序与表头一致；正式环境请使用《销量预测管理-导出模板说明》中的模板字段做映射与校验。'
+          '演示导出：按当前页面可见字段导出（维度列 + 所选月份列 + 表格工具栏「预测选择」对应的预测达成率列等），列顺序与表头一致；正式环境请使用《销量预测管理-导出模板说明》中的模板字段做映射与校验。'
         );
       });
       document.getElementById('btnAddRemarkBatch').addEventListener('click', function () {
