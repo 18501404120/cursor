@@ -709,6 +709,46 @@
       margin-bottom: 4px;
     }
     .btn-add-remark:hover { filter: brightness(1.05); }
+    .achieve-filter-row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px 14px;
+      margin-top: 8px;
+      padding-top: 10px;
+      border-top: 1px dashed #e8e8e8;
+    }
+    .achieve-filter-row .f { display: flex; align-items: center; gap: 6px; }
+    .achieve-filter-row label { color: var(--text-sec); font-size: 12px; white-space: nowrap; }
+    .achieve-filter-row select,
+    .achieve-filter-row input[type="number"] {
+      height: 28px;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      font-size: 12px;
+    }
+    .kpi-strip { display: flex; flex-wrap: wrap; gap: 10px; margin: 12px 0 6px; }
+    .kpi-card {
+      flex: 1;
+      min-width: 148px;
+      max-width: 240px;
+      border-radius: 8px;
+      padding: 10px 12px;
+      color: #fff;
+      font-size: 12px;
+      line-height: 1.45;
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+    }
+    .kpi-card .kpi-val { font-size: 20px; font-weight: 700; margin-top: 6px; }
+    .kpi-r1 { background: linear-gradient(135deg, #1677ff, #0958d9); }
+    .kpi-r2 { background: linear-gradient(135deg, #faad14, #d48806); }
+    .kpi-r3 { background: linear-gradient(135deg, #52c41a, #389e0d); }
+    .chart-extra-opts { display: flex; align-items: center; gap: 12px; margin: 4px 0 8px; font-size: 12px; color: #595959; }
+    .table-pred-pick { display: flex; align-items: center; gap: 8px; margin-right: 16px; font-size: 12px; }
+    .table-pred-pick span { color: #8c8c8c; }
+    .ach-cell { text-align: right; font-variant-numeric: tabular-nums; }
+    .ach-cell.em { font-weight: 600; color: #1677ff; }
+    .ach-cell.lo-warn { color: #f5222d; font-weight: 500; }
   </style>
 </head>
 <body>
@@ -781,21 +821,70 @@
             </div>
             <button type="button" class="btn-search" id="btnSearch">搜索</button>
           </div>
+          <div class="achieve-filter-row" aria-label="达成率筛选">
+            <div class="f">
+              <label for="fltAchR">预测选择</label>
+              <select id="fltAchR" title="以哪一档锁定目标的达成率筛选列表">
+                <option value="r1">R1</option>
+                <option value="r2">R2</option>
+                <option value="r3">R3</option>
+              </select>
+            </div>
+            <div class="f">
+              <label for="fltAchOp">达成率</label>
+              <select id="fltAchOp">
+                <option value="gt">大于</option>
+                <option value="gte">大于等于</option>
+                <option value="eq">等于</option>
+                <option value="lt">小于</option>
+                <option value="lte">小于等于</option>
+              </select>
+            </div>
+            <div class="f">
+              <label for="fltAchVal">阈值(%)</label>
+              <input type="number" id="fltAchVal" value="0" step="0.1" />
+            </div>
+          </div>
           <div class="radio-row">
             <label><input type="radio" name="predMode" value="ml" id="predModeMl" checked /> 机器学习</label>
             <label><input type="radio" name="predMode" value="sys" id="predModeSys" /> 系统预测</label>
+          </div>
+          <div class="kpi-strip" id="kpiStrip">
+            <div class="kpi-card kpi-r1">
+              <div>R1（M−1 锁定）预测准确率 · 当前筛选汇总（演示）</div>
+              <div class="kpi-val" id="kpiR1">—</div>
+            </div>
+            <div class="kpi-card kpi-r2">
+              <div>R2（M−2 锁定）预测准确率 · 当前筛选汇总（演示）</div>
+              <div class="kpi-val" id="kpiR2">—</div>
+            </div>
+            <div class="kpi-card kpi-r3">
+              <div>R3（M−3 锁定）预测准确率 · 当前筛选汇总（演示）</div>
+              <div class="kpi-val" id="kpiR3">—</div>
+            </div>
+          </div>
+          <div class="chart-extra-opts">
+            <label><input type="checkbox" id="chkManualRAch" /> 显示人工预测 R1～R3 达成率（演示）</label>
           </div>
         </div>
 
         <div class="chart-section">
           <div class="chart-panel">
-            <h2>需求预测对照</h2>
+            <h2>销量预测与达成</h2>
             <div id="chartMain"></div>
           </div>
         </div>
 
         <div class="table-block">
           <div class="tb-toolbar">
+            <div class="table-pred-pick">
+              <span>预测选择</span>
+              <select id="listPredR" title="列表中高亮对应达成率列（演示）">
+                <option value="r1">R1</option>
+                <option value="r2">R2</option>
+                <option value="r3" selected>R3</option>
+              </select>
+            </div>
             <div class="btns">
               <button type="button" class="btn-ghost" id="btnExport">导出</button>
               <button type="button" class="btn-ghost" id="btnAddRemarkBatch" disabled title="请先勾选列表中的行">新增异常备注</button>
@@ -821,6 +910,9 @@
                   <th rowspan="2">MSKU信息<br /><span style="font-weight:400;color:#999">平台 / MSKU</span></th>
                   <th id="thMonthGroup" colspan="13" style="text-align:center;border-bottom:1px solid #f0f0f0;">月份</th>
                   <th rowspan="2">历史销量趋势</th>
+                  <th rowspan="2">R1达成率</th>
+                  <th rowspan="2">R2达成率</th>
+                  <th rowspan="2">R3达成率</th>
                   <th rowspan="2">操作</th>
                 </tr>
                 <tr id="monthHeadRow"></tr>
@@ -864,7 +956,7 @@
     (function () {
       /**
        * 月份范围由筛选区「月份范围」控制，默认：锚定日前 6 个月～后 6 个月（含当月）。
-       * 「客观中值」为单月一条（脚本函数名 systemTargetFor）；演示数值按预测月与锚定日确定性规则生成，仅供原型预览。
+       * 「目标 R1/R2/R3」为锁定阶梯下的点预测（脚本 targetRkFor）；上下限带与《预测销量上下限规则-终版》同一套销量合成思路；达成率见《R1至R3规则说明》。演示数仅供预览。
        */
       var months = [];
 
@@ -1038,13 +1130,6 @@
         return Math.round(105 + (seed % 95));
       }
 
-      /** 演示用稳定点值：按目标月固定种子生成（不随锚定日滚动，仅原型） */
-      function demoStableTarget(lab) {
-        var p = parseMonthLabel(lab);
-        var seed = p.m * 31 + 47 + p.y * 7;
-        return Math.round(112 + (seed % 88));
-      }
-
       /** 非「未来月」时的演示目标基线（示意用） */
       var HIST_SYS = [
         [122, 128, 135, 118, 125, 132, 140, 138, 145, 150, 148, 155, 160],
@@ -1052,28 +1137,59 @@
         [114, 120, 126, 112, 118, 124, 132, 130, 136, 142, 140, 146, 152]
       ];
 
-      /** 系统「客观中值」（演示函数名 systemTargetFor）：单月一条；邻近目标月用演示稳定点值（见 demoStableTarget），其余月用滚动演示（见 rollingTarget） */
-      function systemTargetFor(lab, anchor) {
+      /** 锁定点上的演示稳定点值（按目标月 + 档位 k 确定性生成） */
+      function stableRFor(lab, k) {
+        var p = parseMonthLabel(lab);
+        var seed = p.m * 31 + 47 + p.y * 7 + k * 113;
+        return Math.round(108 + (seed % 92));
+      }
+
+      /**
+       * 目标 Rk（k=1,2,3）：M−k 月锁定演示；未进入各自锁定点前与滚动预测一致。
+       * 口径见《需求文档/R1至R3规则说明.md》。
+       */
+      function targetRkFor(lab, anchor, k) {
         var i = months.indexOf(lab);
         if (i < 0) return 0;
         if (!isFutureMonth(anchor, lab)) {
-          var rowH = HIST_SYS[0];
+          var rowH = HIST_SYS[k - 1];
           var hv = rowH && rowH[i];
-          return hv != null ? hv : rollingTarget(lab, anchor);
+          return hv != null ? hv : stableRFor(lab, k);
         }
         var mLeft = monthsUntilMonthFirst(anchor, lab);
-        if (mLeft <= 1) return demoStableTarget(lab);
-        if (mLeft === 2) return demoStableTarget(lab);
-        if (mLeft === 3) return demoStableTarget(lab);
-        return rollingTarget(lab, anchor);
+        var roll = rollingTarget(lab, anchor);
+        if (mLeft > 3) return roll;
+        if (mLeft === 3) {
+          if (k === 3) return stableRFor(lab, 3);
+          return roll;
+        }
+        if (mLeft === 2) {
+          if (k >= 2) return stableRFor(lab, k);
+          return roll;
+        }
+        if (mLeft === 1) {
+          if (k >= 1) return stableRFor(lab, k);
+          return roll;
+        }
+        return stableRFor(lab, k);
       }
 
-      /** 人工预测：在客观中值上略偏（演示）；与客观三线计算无关 */
+      /** 人工预测：在目标 R1 演示值上略偏（演示）；不参与锁定阶梯 */
       function manualTargetFor(lab, anchor) {
-        var sys = systemTargetFor(lab, anchor);
+        var base = targetRkFor(lab, anchor, 1);
         var p = parseMonthLabel(lab);
         var bias = 0.92 + (p.m % 10) * 0.008;
-        return Math.round(sys * bias);
+        return Math.round(base * bias);
+      }
+
+      /** 预测准确率 / 达成率（展示用）：100% − |A−P| / max(A,P) */
+      function forecastAccuracyPct(actual, pred) {
+        if (actual == null || pred == null) return null;
+        if (typeof actual !== 'number' || typeof pred !== 'number') return null;
+        if (isNaN(actual) || isNaN(pred)) return null;
+        var mx = Math.max(actual, pred);
+        if (mx <= 0) return null;
+        return 100 - (Math.abs(actual - pred) / mx) * 100;
       }
 
       /** 已结束月无数组位时的演示实际销量（按月份稳定） */
@@ -1084,9 +1200,15 @@
       }
 
       function buildChartPayload(anchor) {
-        var targets = [];
+        var r1 = [];
+        var r2 = [];
+        var r3 = [];
         var manual = [];
         var actual = [];
+        var ach1 = [];
+        var ach2 = [];
+        var ach3 = [];
+        var achM = [];
 
         var histActual = [119, 126, 132, 116, 124, 130, 138, 152, 148, 156, 162, 158, 165];
 
@@ -1098,11 +1220,22 @@
           }
           actual.push(act);
 
-          targets.push(systemTargetFor(lab, anchor));
-          manual.push(manualTargetFor(lab, anchor));
+          var v1 = targetRkFor(lab, anchor, 1);
+          var v2 = targetRkFor(lab, anchor, 2);
+          var v3 = targetRkFor(lab, anchor, 3);
+          r1.push(v1);
+          r2.push(v2);
+          r3.push(v3);
+          var man = manualTargetFor(lab, anchor);
+          manual.push(man);
+
+          ach1.push(act == null ? null : forecastAccuracyPct(act, v1));
+          ach2.push(act == null ? null : forecastAccuracyPct(act, v2));
+          ach3.push(act == null ? null : forecastAccuracyPct(act, v3));
+          achM.push(act == null ? null : forecastAccuracyPct(act, man));
         }
 
-        return { targets: targets, manual: manual, actual: actual };
+        return { r1: r1, r2: r2, r3: r3, manual: manual, actual: actual, ach1: ach1, ach2: ach2, ach3: ach3, achM: achM };
       }
 
       function hollowLineStyle(color) {
@@ -1121,9 +1254,8 @@
       }
 
       /**
-       * 演示用上下限（仅用于「客观中值」）：与《预测销量上下限规则-终版》**第三节**五类因子思路一致——由流量、转化率、竞争力、价格、广告花费
+       * 演示用上下限（用于各「目标 Rk」点预测）：与《预测销量上下限规则-终版》**第三节**五类因子思路一致——由流量、转化率、竞争力、价格、广告花费
        * 在悲观/乐观情景下的极值组合，折算为相对点值的合成倍数（原型无因子明细库，用月份+锚定日+点值种子确定性模拟）。
-       * **人工预测值** 为点值柱，主图不展示客观区间带、Tooltip 不附客观下/上限。
        */
       function prdDemoSalesBandFromPoint(v, lab, anchor) {
         if (typeof v !== 'number' || isNaN(v) || v === 0) return null;
@@ -1168,7 +1300,7 @@
         return prdDemoSalesBandFromPoint(v, lab, anchor || getAnchorDate());
       }
 
-      /** 轴提示：列主值；仅「客观中值」附当月演示客观下～上（与浅色带同为《预测销量上下限规则-终版》因子思路）；人工、实际为点值无区间文案 */
+      /** 轴提示：列主值；「目标 R1/R2/R3」附当月演示下～上（与浅色带一致） */
       function buildForecastAxisTooltipCompact(params) {
         if (!params || !params.length) return '';
         var axis = params[0].axisValueLabel || params[0].name || '';
@@ -1179,8 +1311,11 @@
           var v = item.value;
           var name = item.seriesName;
           var main = v == null || v === '' ? '—' : String(v);
+          if (/达成率/.test(name) && typeof v === 'number' && !isNaN(v)) {
+            main = v.toFixed(1) + '%';
+          }
           var line = item.marker + ' <b>' + name + '</b>：' + main;
-          if (name === '客观中值' && typeof v === 'number' && !isNaN(v)) {
+          if ((name === '目标R1' || name === '目标R2' || name === '目标R3') && typeof v === 'number' && !isNaN(v)) {
             var bh = forecastPointLowHigh(v, labMonth, getAnchorDate());
             if (bh) {
               line += ' <span style="color:#666;font-size:12px">（下限 ' + bh.low + ' · 上限 ' + bh.high + '）</span>';
@@ -1191,7 +1326,7 @@
         return lines.join('<br/>');
       }
 
-      var FORECAST_RANGE_MAIN_NAMES = ['客观中值'];
+      var FORECAST_RANGE_MAIN_NAMES = ['目标R1', '目标R2', '目标R3'];
 
       function pushForecastRangeBands(out, mainName, dataArr, areaRgba, selectedMap) {
         var lows = [];
@@ -1258,49 +1393,133 @@
       }
 
       function buildChartOption() {
-        var p = buildChartPayload(getAnchorDate());
+        var anchor = getAnchorDate();
+        var p = buildChartPayload(anchor);
 
-        var legendNames = ['客观中值', '人工预测值', '实际销量'];
+        var legendNames = ['目标R1', '目标R2', '目标R3', '实际销量', 'R1达成率', 'R2达成率', 'R3达成率'];
+        var chkMan = document.getElementById('chkManualRAch');
+        if (chkMan && chkMan.checked) {
+          legendNames.push('人工预测达成率（演示）');
+        }
 
         var selected = {
-          客观中值: true,
-          人工预测值: true,
-          实际销量: true
+          目标R1: true,
+          目标R2: true,
+          目标R3: true,
+          实际销量: true,
+          R1达成率: true,
+          R2达成率: true,
+          R3达成率: true
         };
+        if (chkMan && chkMan.checked) {
+          selected['人工预测达成率（演示）'] = true;
+        }
 
-        var bandRgbaT = 'rgba(22,119,255,0.38)';
         var series = [];
-        pushForecastRangeBands(series, '客观中值', p.targets, bandRgbaT, selected);
+        pushForecastRangeBands(series, '目标R1', p.r1, 'rgba(22,119,255,0.32)', selected);
+        pushForecastRangeBands(series, '目标R2', p.r2, 'rgba(250,173,20,0.32)', selected);
+        pushForecastRangeBands(series, '目标R3', p.r3, 'rgba(82,196,26,0.32)', selected);
 
         series.push({
-          name: '客观中值',
+          name: '目标R1',
           type: 'bar',
-          data: p.targets,
+          yAxisIndex: 0,
+          data: p.r1,
           itemStyle: { color: '#1677ff' },
-          barMaxWidth: 8,
+          barMaxWidth: 11,
+          barGap: '12%',
           z: 2
         });
         series.push({
-          name: '人工预测值',
+          name: '目标R2',
           type: 'bar',
-          data: p.manual,
-          itemStyle: {
-            color: '#fa8c16',
-            opacity: 0.35,
-            borderColor: '#fa8c16',
-            borderWidth: 1
-          },
-          barMaxWidth: 7,
+          yAxisIndex: 0,
+          data: p.r2,
+          itemStyle: { color: '#faad14' },
+          barMaxWidth: 11,
+          z: 2
+        });
+        series.push({
+          name: '目标R3',
+          type: 'bar',
+          yAxisIndex: 0,
+          data: p.r3,
+          itemStyle: { color: '#52c41a' },
+          barMaxWidth: 11,
           z: 2
         });
         series.push({
           name: '实际销量',
-          type: 'bar',
+          type: 'line',
+          yAxisIndex: 0,
           data: p.actual,
-          itemStyle: { color: '#fadb14', borderColor: '#d4b106', borderWidth: 1 },
-          barMaxWidth: 7,
-          z: 2
+          itemStyle: { color: '#722ed1' },
+          lineStyle: { width: 2.6 },
+          symbol: 'circle',
+          symbolSize: 7,
+          connectNulls: false,
+          z: 3
         });
+
+        var lineZ = 4;
+        series.push({
+          name: 'R1达成率',
+          type: 'line',
+          yAxisIndex: 1,
+          data: p.ach1,
+          smooth: true,
+          itemStyle: { color: '#1677ff' },
+          lineStyle: { width: 2 },
+          symbol: 'diamond',
+          symbolSize: 5,
+          z: lineZ
+        });
+        series.push({
+          name: 'R2达成率',
+          type: 'line',
+          yAxisIndex: 1,
+          data: p.ach2,
+          smooth: true,
+          itemStyle: { color: '#fa8c16' },
+          lineStyle: { width: 2 },
+          symbol: 'diamond',
+          symbolSize: 5,
+          z: lineZ
+        });
+        series.push({
+          name: 'R3达成率',
+          type: 'line',
+          yAxisIndex: 1,
+          data: p.ach3,
+          smooth: true,
+          itemStyle: { color: '#389e0d' },
+          lineStyle: { width: 2 },
+          symbol: 'diamond',
+          symbolSize: 5,
+          z: lineZ
+        });
+        if (chkMan && chkMan.checked) {
+          series.push({
+            name: '人工预测达成率（演示）',
+            type: 'line',
+            yAxisIndex: 1,
+            data: p.achM,
+            smooth: true,
+            itemStyle: { color: '#eb2f96' },
+            lineStyle: { width: 2, type: 'dashed' },
+            symbol: 'triangle',
+            symbolSize: 5,
+            z: lineZ + 1
+          });
+        }
+
+        var maxL = 220;
+        [p.r1, p.r2, p.r3, p.actual].forEach(function (arr) {
+          arr.forEach(function (v) {
+            if (typeof v === 'number' && !isNaN(v)) maxL = Math.max(maxL, v);
+          });
+        });
+        maxL = Math.ceil((maxL * 1.12) / 20) * 20;
 
         return {
           tooltip: {
@@ -1314,7 +1533,7 @@
             data: legendNames,
             selected: selected
           },
-          grid: { left: 52, right: 28, top: 14, bottom: 108 },
+          grid: { left: 52, right: 48, top: 14, bottom: 120 },
           xAxis: {
             type: 'category',
             data: months,
@@ -1323,12 +1542,21 @@
           yAxis: [
             {
               type: 'value',
-              name: '数量',
-              max: 320,
+              name: '销量(件)',
+              max: maxL,
               min: 0,
               splitNumber: 5,
               axisLabel: { fontSize: 10 },
               splitLine: { lineStyle: { type: 'dashed', color: '#e8e8e8' } }
+            },
+            {
+              type: 'value',
+              name: '达成率',
+              min: 0,
+              max: 100,
+              splitNumber: 5,
+              axisLabel: { fontSize: 10, formatter: '{value}%' },
+              splitLine: { show: false }
             }
           ],
           series: series
@@ -1683,6 +1911,82 @@
         } catch (err) {}
       }
 
+      function rowActualDemo(ri, lab) {
+        var p = parseMonthLabel(lab);
+        return Math.round(98 + ((ri * 37 + p.m * 19 + (p.y % 10) * 5) % 62));
+      }
+
+      function formatAchCell(v) {
+        if (v == null || typeof v !== 'number' || isNaN(v)) return '—';
+        return v.toFixed(1) + '%';
+      }
+
+      function rowAvgAccuracyForR(ri, rKey) {
+        var anchor = getAnchorDate();
+        var sum = 0;
+        var cnt = 0;
+        var k = rKey === 'r1' ? 1 : rKey === 'r2' ? 2 : 3;
+        for (var mi = 0; mi < months.length; mi++) {
+          var lab = months[mi];
+          if (!showsActualSales(anchor, lab)) continue;
+          var a = rowActualDemo(ri, lab);
+          var pred = targetRkFor(lab, anchor, k);
+          var ac = forecastAccuracyPct(a, pred);
+          if (ac != null) {
+            sum += ac;
+            cnt++;
+          }
+        }
+        return cnt ? sum / cnt : null;
+      }
+
+      function passesAchieveFilter(ri) {
+        var rEl = document.getElementById('fltAchR');
+        var opEl = document.getElementById('fltAchOp');
+        var vEl = document.getElementById('fltAchVal');
+        if (!rEl || !opEl || !vEl) return true;
+        var v = rowAvgAccuracyForR(ri, rEl.value);
+        if (v == null) return false;
+        var thr = parseFloat(vEl.value, 10);
+        if (isNaN(thr)) thr = 0;
+        var op = opEl.value;
+        if (op === 'gt') return v > thr;
+        if (op === 'gte') return v >= thr - 1e-9;
+        if (op === 'eq') return Math.abs(v - thr) < 0.45;
+        if (op === 'lt') return v < thr;
+        if (op === 'lte') return v <= thr + 1e-9;
+        return true;
+      }
+
+      function updateKpiStrip() {
+        var el1 = document.getElementById('kpiR1');
+        var el2 = document.getElementById('kpiR2');
+        var el3 = document.getElementById('kpiR3');
+        if (!el1 || !el2 || !el3) return;
+        function agg(rk) {
+          var sum = 0;
+          var n = 0;
+          for (var ri = 0; ri < tableRows.length; ri++) {
+            if (!passesAchieveFilter(ri)) continue;
+            var x = rowAvgAccuracyForR(ri, rk);
+            if (x != null) {
+              sum += x;
+              n++;
+            }
+          }
+          return n ? sum / n : null;
+        }
+        el1.textContent = formatAchCell(agg('r1'));
+        el2.textContent = formatAchCell(agg('r2'));
+        el3.textContent = formatAchCell(agg('r3'));
+      }
+
+      function achCellClass(pick, key, val) {
+        var cls = 'ach-cell' + (pick === key ? ' em' : '');
+        if (val != null && val < 35) cls += ' lo-warn';
+        return cls;
+      }
+
       function initSalesColumnResize() {
         var handle = document.getElementById('salesColResizeHandle');
         var th = document.getElementById('thColSales');
@@ -1725,7 +2029,11 @@
           master.indeterminate = false;
         }
 
+        var lp = document.getElementById('listPredR');
+        var pick = lp && lp.value ? lp.value : 'r3';
+
         for (var ri = 0; ri < tableRows.length; ri++) {
+          if (!passesAchieveFilter(ri)) continue;
           var row = tableRows[ri];
           var tr = document.createElement('tr');
           var html = '';
@@ -1742,6 +2050,12 @@
             html += buildForecastCell(row, mi);
           }
           html += '<td>' + sparkFromRow(row) + '</td>';
+          var a1 = rowAvgAccuracyForR(ri, 'r1');
+          var a2 = rowAvgAccuracyForR(ri, 'r2');
+          var a3 = rowAvgAccuracyForR(ri, 'r3');
+          html += '<td class="' + achCellClass(pick, 'r1', a1) + '">' + formatAchCell(a1) + '</td>';
+          html += '<td class="' + achCellClass(pick, 'r2', a2) + '">' + formatAchCell(a2) + '</td>';
+          html += '<td class="' + achCellClass(pick, 'r3', a3) + '">' + formatAchCell(a3) + '</td>';
           html +=
             '<td><span class="op-link" data-act="remark" data-ri="' +
             ri +
@@ -1754,6 +2068,7 @@
 
         applySalesColWidth(getSalesColWidthPref());
         updateRemarkAvailability();
+        updateKpiStrip();
       }
 
       function updateRemarkAvailability() {
@@ -1815,6 +2130,29 @@
       var chkForecastFill = document.getElementById('chkForecastFill');
       if (chkSysRuleForecast) chkSysRuleForecast.addEventListener('change', renderForecastTable);
       if (chkForecastFill) chkForecastFill.addEventListener('change', renderForecastTable);
+
+      ['fltAchR', 'fltAchOp', 'fltAchVal'].forEach(function (id) {
+        var el = document.getElementById(id);
+        if (!el) return;
+        el.addEventListener('change', function () {
+          refreshAll();
+        });
+        if (id === 'fltAchVal') {
+          el.addEventListener('input', function () {
+            refreshAll();
+          });
+        }
+      });
+      var listPredR = document.getElementById('listPredR');
+      if (listPredR) listPredR.addEventListener('change', renderForecastTable);
+      var chkManualRAch = document.getElementById('chkManualRAch');
+      if (chkManualRAch) {
+        chkManualRAch.addEventListener('change', function () {
+          refreshCharts();
+          chartMain.resize();
+          chartTrend.resize();
+        });
+      }
 
       var mask = document.getElementById('dlgMask');
       var dlgBox = document.getElementById('dlgBox');
@@ -1921,7 +2259,16 @@
         );
       }
 
-      /** 详情弹窗：基准 / 弹性 / 影响因子 / 客观中值 / 客观下上限 / forecast */
+      function detailTripleCellsHtml(lab, anchor, k, act) {
+        var mid = targetRkFor(lab, anchor, k);
+        var bhBand = prdDemoSalesBandFromPoint(mid, lab, anchor);
+        var lo = bhBand ? bhBand.low : '—';
+        var hi = bhBand ? bhBand.high : '—';
+        var ac = act == null ? '—' : formatAchCell(forecastAccuracyPct(act, mid));
+        return '<td>' + mid + '</td><td>' + lo + '</td><td>' + hi + '</td><td>' + ac + '</td>';
+      }
+
+      /** 详情弹窗：基准 / 弹性 / 影响因子 / 目标 R1～R3 与区间、达成率 / forecast */
       function buildRowForecastDetailHtml(row) {
         var modeLabel = isPredML() ? '机器学习' : '系统规则';
         var anchor = getAnchorDate();
@@ -1941,15 +2288,15 @@
           '" style="vertical-align:top;padding:8px 6px">' +
           detailInfluenceFactorCoefHtml() +
           '</td>';
+        var histActual = [119, 126, 132, 116, 124, 130, 138, 152, 148, 156, 162, 158, 165];
         for (var mi = 0; mi < n; mi++) {
           var lab = months[mi];
           var fillV = seriesValueForCell(row, 'fill', mi);
           var baseline = demoDetailBaselineSales(mi);
-          var objectiveMid = systemTargetFor(lab, anchor);
-          var bhBand = prdDemoSalesBandFromPoint(objectiveMid, lab, anchor);
-          var lo = bhBand ? bhBand.low : '—';
-          var hi = bhBand ? bhBand.high : '—';
-          var midStr = String(objectiveMid);
+          var act = null;
+          if (showsActualSales(anchor, lab)) {
+            act = histActual[mi] != null ? histActual[mi] : demoActualFromLab(lab);
+          }
           var coefCells = mi === 0 ? rowspanElas + rowspanInfl : '';
           trs.push(
             '<tr><td>' +
@@ -1958,13 +2305,10 @@
               baseline +
               '</td>' +
               coefCells +
+              detailTripleCellsHtml(lab, anchor, 1, act) +
+              detailTripleCellsHtml(lab, anchor, 2, act) +
+              detailTripleCellsHtml(lab, anchor, 3, act) +
               '<td>' +
-              midStr +
-              '</td><td>' +
-              lo +
-              '</td><td>' +
-              hi +
-              '</td><td>' +
               (fillV != null && fillV !== '' ? formatDetailCellPlain(fillV) : '—') +
               '</td></tr>'
           );
@@ -1977,10 +2321,14 @@
           '</b></p>' +
           '<p id="detailParaLogic" style="margin:10px 0 6px;font-size:13px">按月「<b>' +
           modeLabel +
-          '</b>」：<strong>客观下限、客观中值、客观上限</strong>由流量、价格、促销等客观因子情景得出；需求预测<strong>不读取</strong>经营类目标类输入。主图与下表数值为销量件数演示，口径见《预测销量上下限规则-终版》。</p>' +
+          '</b>」展示<strong>目标 R1、目标 R2、目标 R3</strong>及其<strong>下限～上限销量带</strong>（与《预测销量上下限规则-终版》同一套销量合成思路）及<strong>达成率</strong>（已关账月有实际时按《R1至R3规则说明》公式计算）。主图与下表数值为演示件数。</p>' +
           '<div id="detailTableScroll" style="max-height:380px;overflow:auto">' +
-          '<table class="data-table" id="detailForecastTable" style="font-size:12px;min-width:820px"><thead><tr>' +
-          '<th id="detailThMonth">月份</th><th id="detailThBaseline">基准销量</th><th id="detailThElastic">弹性系数</th><th id="detailThInfl">影响因子系数</th><th id="detailThObjMid">客观中值</th><th id="detailThObjLo">客观下限</th><th id="detailThObjHi">客观上限</th><th id="detailThFc">forecast填写</th>' +
+          '<table class="data-table" id="detailForecastTable" style="font-size:12px;min-width:1180px"><thead><tr>' +
+          '<th id="detailThMonth">月份</th><th id="detailThBaseline">基准销量</th><th id="detailThElastic">弹性系数</th><th id="detailThInfl">影响因子系数</th>' +
+          '<th id="detailThR1">目标R1</th><th id="detailThR1Lo">R1下限</th><th id="detailThR1Hi">R1上限</th><th id="detailThR1Ach">R1达成率</th>' +
+          '<th id="detailThR2">目标R2</th><th id="detailThR2Lo">R2下限</th><th id="detailThR2Hi">R2上限</th><th id="detailThR2Ach">R2达成率</th>' +
+          '<th id="detailThR3">目标R3</th><th id="detailThR3Lo">R3下限</th><th id="detailThR3Hi">R3上限</th><th id="detailThR3Ach">R3达成率</th>' +
+          '<th id="detailThFc">forecast填写</th>' +
           '</tr></thead><tbody>' +
           trs.join('') +
           '</tbody></table></div>'

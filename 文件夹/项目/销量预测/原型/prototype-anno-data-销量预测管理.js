@@ -10,9 +10,9 @@
       containerSelector: ".header-title",
       title: "页头：销量预测",
       html:
-        "<p><strong>【基础】</strong>本页为运营/计划侧主工作台，信息架构为：<strong>顶栏 → 筛选区 → 预测方式 → 主图「需求预测对照」→ 明细表</strong>。</p>" +
-        "<p><strong>【逻辑】</strong>主图含<strong>客观中值</strong>（规则/ML 点值及客观带）、<strong>人工预测</strong>、<strong>实际销量</strong>；Y 轴为销量数量。客观三线<strong>仅</strong>由客观因子得出，<strong>不</strong>读取经营类目标输入。</p>" +
-        "<p><strong>【交互】</strong>红点（说明版）挂载在控件旁，点击气泡阅读字段含义、数据口径与操作后果；与《销量预测管理-PRD》对齐。</p>",
+        "<p><strong>【基础】</strong>本页为运营/计划侧主工作台，信息架构为：<strong>顶栏 → 筛选区（含达成率筛选）→ 预测方式 → KPI 卡 → 主图「销量预测与达成」→ 明细表</strong>。</p>" +
+        "<p><strong>【逻辑】</strong>主图含<strong>目标 R1/R2/R3</strong>（柱+各档下限～上限浅色带）、<strong>实际销量</strong>、<strong>R1/R2/R3 达成率</strong>（右轴 %）；口径见《R1至R3规则说明》《预测销量上下限规则-终版》。</p>" +
+        "<p><strong>【交互】</strong>红点（说明版）挂载在控件旁，点击气泡阅读字段含义、数据口径与操作后果；与《销量预测管理-PRD》v4.0 对齐。</p>",
     },
     {
       containerSelector: ".sidebar",
@@ -131,32 +131,64 @@
       title: "按钮：搜索",
       html:
         "<p><strong>【基础】</strong>主操作按钮，应用当前筛选条全部条件。</p>" +
-        "<p><strong>【逻辑】</strong>触发图表与表体数据重算/重拉；若数据量大应配合加载态、分页或异步任务。</p>" +
+        "<p><strong>【逻辑】</strong>触发图表、KPI 卡与表体数据重算/重拉；若数据量大应配合加载态、分页或异步任务。</p>" +
         "<p><strong>【交互】</strong>点击后禁用连点或展示 loading；失败时 toast 提示并保持上次成功结果。</p>",
+    },
+    {
+      containerSelector: ".achieve-filter-row",
+      title: "筛选：达成率（预测选择 + 比较符 + 阈值）",
+      html:
+        "<p><strong>【基础】</strong><code>#fltAchR</code> 选 R1/R2/R3；<code>#fltAchOp</code> 比较符；<code>#fltAchVal</code> 阈值（%）。</p>" +
+        "<p><strong>【逻辑】</strong>以所选档位的<strong>行级汇总达成率</strong>与阈值比较，过滤列表（演示为当前月份窗口内已关账月的平均达成率）；与《R1至R3规则说明》第六节一致。</p>" +
+        "<p><strong>【交互】</strong>变更后与「搜索」联动刷新（演示脚本在 change/input 时即刷新）。</p>",
+    },
+    {
+      containerSelector: "#kpiStrip",
+      title: "KPI：R1 / R2 / R3 预测准确率汇总",
+      html:
+        "<p><strong>【基础】</strong>三张卡片展示当前筛选下、各档位达成率的<strong>演示汇总平均</strong>。</p>" +
+        "<p><strong>【逻辑】</strong>正式环境汇总口径（简单平均 / 销量加权等）由配置决定；与列表行过滤条件一致。</p>" +
+        "<p><strong>【交互】</strong>只读展示。</p>",
+    },
+    {
+      anchorSelector: "#chkManualRAch",
+      title: "勾选：显示人工预测达成率（演示）",
+      html:
+        "<p><strong>【基础】</strong>控制主图是否追加<strong>人工预测达成率</strong>折线（右轴）。</p>" +
+        "<p><strong>【逻辑】</strong>与人工点预测及实际按同一达成率公式计算（演示数据）。</p>" +
+        "<p><strong>【交互】</strong>勾选即时重绘图表。</p>",
     },
     {
       containerSelector: ".radio-row",
       title: "预测方式：机器学习 / 系统预测",
       html:
         "<p><strong>【基础】</strong>单选组 <code>#predModeMl</code>（机器学习）、<code>#predModeSys</code>（系统预测）。</p>" +
-        "<p><strong>【逻辑】</strong><strong>机器学习：</strong>以算法管线输出客观中值为主。<strong>系统预测：</strong>规则/基线为主。切换后列表主行与详情中与预测方式相关的展示须一致切换（与主 PRD 一致）。</p>" +
+        "<p><strong>【逻辑】</strong><strong>机器学习：</strong>以算法管线输出为主。<strong>系统预测：</strong>规则/基线为主。切换后列表主行与详情中与预测方式相关的展示须一致切换（与主 PRD v4.0 一致）。</p>" +
         "<p><strong>【交互】</strong>点击 radio 即时切换选中态；若后端按任务类型分接口，切换时可能触发重新拉数。</p>",
     },
     {
       anchorSelector: ".chart-panel h2",
-      title: "区块：需求预测对照（主图）",
+      title: "区块：销量预测与达成（主图）",
       html:
-        "<p><strong>【基础】</strong>主图对比 <strong>客观中值</strong>、<strong>人工预测值</strong>、<strong>实际销量</strong>；图例可单独隐藏各序列。</p>" +
-        "<p><strong>【逻辑】</strong>单左轴为<strong>销量数量</strong>。<strong>客观中值</strong>带<strong>客观下～上限</strong>浅色带及 Tooltip；人工、实际为点值柱。口径见《预测销量上下限规则-终版》（<code>需求文档/预测销量上下限规则-终版.md</code>）。</p>" +
+        "<p><strong>【基础】</strong>主图：<strong>目标 R1/R2/R3</strong> 分组柱 + 各档<strong>下限～上限</strong>浅色带 + <strong>实际销量</strong>折线 + <strong>R1/R2/R3 达成率</strong>折线（右轴 %）。</p>" +
+        "<p><strong>【逻辑】</strong>左轴销量件数、右轴达成率；锁定与达成率见《R1至R3规则说明》，上下限合成见《预测销量上下限规则-终版》。</p>" +
         "<p><strong>【交互】</strong>图例点击控制序列显隐；Tooltip 轴触发。</p>",
     },
     {
       anchorSelector: "#chartMain",
       title: "图表渲染区",
       html:
-        "<p><strong>【基础】</strong>ECharts 容器；承载柱状/折线组合（以 PRD 为准）。</p>" +
-        "<p><strong>【逻辑】</strong>Tooltip 仅在<strong>客观中值</strong>序列上可附当月演示客观下限/上限（与浅色带一致）；人工、实际仅为点值柱。</p>" +
-        "<p><strong>【交互】</strong>缩放、图例、数据区域选择若启用需在 PRD 中单独定义；导出图表可走「导出」或截图。</p>",
+        "<p><strong>【基础】</strong>ECharts 容器；柱状（三目标）+ 区间带 + 折线（实际 + 达成率）。</p>" +
+        "<p><strong>【逻辑】</strong>Tooltip 在<strong>目标R1/R2/R3</strong>柱上附当月演示下限/上限；达成率线展示百分比。</p>" +
+        "<p><strong>【交互】</strong>图例、`resize` 与趋势弹窗同源配置（演示）。</p>",
+    },
+    {
+      anchorSelector: "#listPredR",
+      title: "工具栏：预测选择（列表）",
+      html:
+        "<p><strong>【基础】</strong><code>#listPredR</code> 下拉 R1/R2/R3。</p>" +
+        "<p><strong>【逻辑】</strong>用于<strong>高亮</strong>表格中对应「R*达成率」列（演示样式）；与筛选区「预测选择（达成率筛选）」语义区分：一为列表阅读焦点，一为过滤阈值所依据档位。</p>" +
+        "<p><strong>【交互】</strong>变更后仅重绘表体，不必重拉图表。</p>",
     },
     {
       anchorSelector: "#btnExport",
@@ -243,7 +275,7 @@
       title: "列组：月份（动态子列）",
       html:
         "<p><strong>【基础】</strong><code>#monthHeadRow</code> 由脚本按「月份范围」生成多个月子列。</p>" +
-        "<p><strong>【逻辑】</strong>主行展示当前预测方式下的<strong>客观中值</strong>（演示数据）；展开后可有系统规则行、forecast 行；不包含「预测准确率」列。与主图客观三线口径见 PRD v3.0。</p>" +
+        "<p><strong>【逻辑】</strong>主行展示当前预测方式下的系统预测数字（演示）；展开后可有系统规则行、forecast 行；右侧有 <strong>R1/R2/R3 达成率</strong> 列。与主图口径见 PRD v4.0。</p>" +
         "<p><strong>【交互】</strong>横向滚动查看；与主图时间窗一致；点击单元格可能打开详情或趋势（以脚本为准）。</p>",
     },
     {
@@ -256,10 +288,34 @@
     },
     {
       containerSelector: "#dataTable thead tr:first-child th:nth-child(9)",
+      title: "列：R1达成率",
+      html:
+        "<p><strong>【基础】</strong>行级 <strong>R1</strong> 汇总达成率（%，演示）。</p>" +
+        "<p><strong>【逻辑】</strong>与《R1至R3规则说明》公式一致；由当前月份窗口内已关账月聚合。</p>" +
+        "<p><strong>【交互】</strong>只读；与工具栏「预测选择」联动高亮。</p>",
+    },
+    {
+      containerSelector: "#dataTable thead tr:first-child th:nth-child(10)",
+      title: "列：R2达成率",
+      html:
+        "<p><strong>【基础】</strong>行级 <strong>R2</strong> 汇总达成率（%，演示）。</p>" +
+        "<p><strong>【逻辑】</strong>同 R1 列，档位为 M−2 锁定目标。</p>" +
+        "<p><strong>【交互】</strong>只读。</p>",
+    },
+    {
+      containerSelector: "#dataTable thead tr:first-child th:nth-child(11)",
+      title: "列：R3达成率",
+      html:
+        "<p><strong>【基础】</strong>行级 <strong>R3</strong> 汇总达成率（%，演示）。</p>" +
+        "<p><strong>【逻辑】</strong>同 R1 列，档位为 M−3 锁定目标。</p>" +
+        "<p><strong>【交互】</strong>只读。</p>",
+    },
+    {
+      containerSelector: "#dataTable thead tr:first-child th:nth-child(12)",
       title: "列：操作",
       html:
         "<p><strong>【基础】</strong>行级操作入口：详情、异常备注等（以渲染为准）。</p>" +
-        "<p><strong>【逻辑】</strong>详情展示客观三线及 forecast 等，与主 PRD v3.0 一致。</p>" +
+        "<p><strong>【逻辑】</strong>详情展示目标 R1～R3、区间与达成率及 forecast 等，与主 PRD v4.0 一致。</p>" +
         "<p><strong>【交互】</strong>点击触发弹层或侧栏；与批量备注互不替代。</p>",
     },
     {
@@ -267,7 +323,7 @@
       title: "明细表整体",
       html:
         "<p><strong>【基础】</strong><code>#dataTable</code>，维度列 + 动态月度列 + 历史趋势 + 操作。</p>" +
-        "<p><strong>【逻辑】</strong>承接筛选与预测方式结果；支持多轨预测行展开；<strong>不包含</strong>预测准确率列。</p>" +
+        "<p><strong>【逻辑】</strong>承接筛选与预测方式结果；支持多轨预测行展开；含 <strong>R1/R2/R3 达成率</strong> 列。</p>" +
         "<p><strong>【交互】</strong>表格外包 <code>.table-scroll</code> 纵向滚动时表头 sticky（见全局表格规范）；列宽拖拽仅销售团队列示意。</p>",
     },
     {
@@ -306,9 +362,9 @@
       anchorSelector: "#detailParaLogic",
       title: "详情：测算逻辑说明",
       html:
-        "<p><strong>【基础】</strong>按月说明<strong>客观中值</strong>与<strong>客观下限～客观上限</strong>的关系。</p>" +
-        "<p><strong>【逻辑】</strong>与《预测销量上下限规则-终版》、主图一致：三档销量均由客观因子情景得出，<strong>不</strong>读取经营类目标输入。</p>" +
-        "<p><strong>【交互】</strong>只读；可随预测方式单选（机器学习/系统预测）切换文案前提（以页面脚本为准）。</p>",
+        "<p><strong>【基础】</strong>按月说明<strong>目标 R1/R2/R3</strong>、各档<strong>下限～上限</strong>及<strong>达成率</strong>。</p>" +
+        "<p><strong>【逻辑】</strong>与《R1至R3规则说明》《预测销量上下限规则-终版》及主图一致：上下限为客观因子情景边界；达成率在有实际时计算。</p>" +
+        "<p><strong>【交互】</strong>只读；可随预测方式单选切换。</p>",
     },
     {
       anchorSelector: "#detailTableScroll",
@@ -339,7 +395,7 @@
       title: "详情列：弹性系数",
       html:
         "<p><strong>【基础】</strong>汇总展示流量、转化率、价格、竞争力、广告花费等<strong>弹性类</strong>系数示意（原型为 HTML 片段）。</p>" +
-        "<p><strong>【逻辑】</strong>与预测配置表中各弹性列同源思路；参与客观中值情景拆解演示。</p>" +
+        "<p><strong>【逻辑】</strong>与预测配置表中各弹性列同源思路；参与销量情景拆解演示。</p>" +
         "<p><strong>【交互】</strong>本列在首行 <code>rowspan</code> 全表月数，后续行不占格；只读。</p>",
     },
     {
@@ -351,27 +407,27 @@
         "<p><strong>【交互】</strong>同弹性列，首行 rowspan；只读。</p>",
     },
     {
-      anchorSelector: "#detailThObjMid",
-      title: "详情列：客观中值",
+      anchorSelector: "#detailThR1",
+      title: "详情列：目标R1（及同组 R1下/上/达成）",
       html:
-        "<p><strong>【基础】</strong>由流量、价格、促销等客观因子与规则/ML 情景得到的点值（演示与主图「客观中值」同源函数）。</p>" +
-        "<p><strong>【逻辑】</strong>不随经营类目标修改；为客观带计算锚点。</p>" +
+        "<p><strong>【基础】</strong><strong>目标 R1</strong> 为 M−1 锁定点预测（件）；同组列 <code>#detailThR1Lo</code> / <code>#detailThR1Hi</code> 为演示下限/上限；<code>#detailThR1Ach</code> 为达成率。</p>" +
+        "<p><strong>【逻辑】</strong>与主图 <code>targetRkFor(...,1)</code> 及《R1至R3规则说明》一致。</p>" +
         "<p><strong>【交互】</strong>只读。</p>",
     },
     {
-      anchorSelector: "#detailThObjLo",
-      title: "详情列：客观下限",
+      anchorSelector: "#detailThR2",
+      title: "详情列：目标R2（及同组）",
       html:
-        "<p><strong>【基础】</strong>客观悲观情景边界（演示确定性倍数）。</p>" +
-        "<p><strong>【逻辑】</strong>仅锚定<strong>客观中值</strong>，不随经营类目标改变客观因子情景（见《预测销量上下限规则-终版》第三节）。</p>" +
+        "<p><strong>【基础】</strong><strong>目标 R2</strong> 为 M−2 锁定点预测及对应下限/上限/达成率列头。</p>" +
+        "<p><strong>【逻辑】</strong>同 R1，档位 k=2。</p>" +
         "<p><strong>【交互】</strong>只读。</p>",
     },
     {
-      anchorSelector: "#detailThObjHi",
-      title: "详情列：客观上限",
+      anchorSelector: "#detailThR3",
+      title: "详情列：目标R3（及同组）",
       html:
-        "<p><strong>【基础】</strong>客观乐观情景边界（演示）。</p>" +
-        "<p><strong>【逻辑】</strong>与客观下限成对；与客观中值同构公式在乐观情景下的边界。</p>" +
+        "<p><strong>【基础】</strong><strong>目标 R3</strong> 为 M−3 锁定点预测及对应下限/上限/达成率列头。</p>" +
+        "<p><strong>【逻辑】</strong>同 R1，档位 k=3。</p>" +
         "<p><strong>【交互】</strong>只读。</p>",
     },
     {
@@ -379,7 +435,7 @@
       title: "详情列：forecast填写",
       html:
         "<p><strong>【基础】</strong>业务线 forecast 流程填报的销量或占位，与主表「forecast填写销量」开关联动展示。</p>" +
-        "<p><strong>【逻辑】</strong>为点值列，不参与客观带；可与客观中值对比做执行偏差分析。</p>" +
+        "<p><strong>【逻辑】</strong>为点值列，不参与上下限带计算；可与各目标 Rk 对比做执行偏差分析。</p>" +
         "<p><strong>【交互】</strong>弹窗内只读；编辑在列表展开行或 forecast 录入页（正式版）。</p>",
     },
     {
