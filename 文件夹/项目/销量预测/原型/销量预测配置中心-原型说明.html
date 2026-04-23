@@ -139,6 +139,7 @@
     .btn-primary { background: var(--header-blue); border-color: var(--header-blue); color: #fff; }
     .btn-primary:hover { filter: brightness(1.05); }
     .btn-primary:disabled { opacity: 0.45; cursor: not-allowed; }
+    .btn:disabled { opacity: 0.45; cursor: not-allowed; }
     .toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 10px; }
     .toolbar .perm { margin-left: auto; display: flex; align-items: center; gap: 6px; color: var(--text-sec); font-size: 11px; }
     .toolbar .perm select { height: 26px; font-size: 11px; border-radius: 4px; border: 1px solid var(--border); }
@@ -147,7 +148,7 @@
       overflow: auto; max-height: calc(100vh - 320px);
     }
     table.cfg {
-      width: 100%; border-collapse: collapse; font-size: 11px; min-width: 1680px;
+      width: 100%; border-collapse: collapse; font-size: 11px; min-width: 1560px;
     }
     table.cfg th, table.cfg td {
       border: 1px solid #f0f0f0; padding: 6px 8px; text-align: left;
@@ -315,9 +316,9 @@
             </p>
           </div>
           <div class="toolbar">
-            <button type="button" class="btn btn-primary" id="btnOpenBatch">批量设置超参数因子</button>
-            <button type="button" class="btn" id="btnCfgImport">导入</button>
-            <button type="button" class="btn" id="btnCfgExport">导出</button>
+            <button type="button" class="btn btn-primary" id="btnOpenBatch" disabled title="请先勾选至少一行配置数据">批量设置超参数因子</button>
+            <button type="button" class="btn" id="btnCfgImport" disabled title="请先勾选至少一行配置数据">导入</button>
+            <button type="button" class="btn" id="btnCfgExport" disabled title="请先勾选至少一行配置数据">导出</button>
             <div class="perm">
               <span>批量设置权限模拟</span>
               <select id="permBatch">
@@ -335,7 +336,6 @@
                   <th style="min-width:100px">场景/品类/品线</th>
                   <th style="min-width:100px">销售团队</th>
                   <th style="min-width:120px">SKU信息</th>
-                  <th style="min-width:72px">基准销量</th>
                   <th style="min-width:104px">
                     <span class="th-with-tip">流量弹性系数<span class="field-tip" id="tipFlow" title="">?</span></span>
                   </th>
@@ -374,7 +374,7 @@
               <div class="f"><button type="button" class="btn btn-primary" id="subSearch">搜索</button></div>
             </div>
           </div>
-          <p style="font-size:11px;color:var(--text-sec);margin:0 0 8px;">以下为超参数因子主数据维护示意。<strong>业务规则、权限、基准销量与弹性算法</strong>均已拆入本页及子模块各控件的<strong>红点说明</strong>（见 <code>prototype-anno-data-*.js</code>）；不再维护独立 Markdown 需求副文档。</p>
+          <p style="font-size:11px;color:var(--text-sec);margin:0 0 8px;">以下为超参数因子主数据维护示意。<strong>业务规则、权限与弹性算法</strong>均已拆入本页及子模块各控件的<strong>红点说明</strong>（见 <code>prototype-anno-data-*.js</code>）；不再维护独立 Markdown 需求副文档。</p>
           <div class="table-wrap" style="max-height:calc(100vh - 220px)">
             <table class="cfg" style="min-width:900px" id="subTable">
               <thead>
@@ -405,7 +405,7 @@
       </div>
       <div class="mb">
         <p class="modal-note">
-          <strong>更新范围：</strong>若在配置列表中<strong>勾选了部分行</strong>，则仅对<strong>勾选的数据</strong>批量写入所选超参数因子；若<strong>未勾选任何行</strong>，则对<strong>当前筛选条件</strong>下的全部命中结果批量更新。<strong>正式环境需配置权限</strong>（原型可通过右上角「批量设置权限模拟」校验）。
+          <strong>更新范围（本原型）：</strong>须先在主表<strong>勾选至少一行</strong>配置数据，方可打开本弹窗并完成写入；仅对<strong>勾选行</strong>批量绑定所选超参数因子。<strong>正式环境</strong>可在权限允许时另支持「按当前筛选全量更新」；此处用红点说明与「导入/导出」按钮的勾选前置规则一致。
         </p>
         <div class="filter-grid" style="margin-bottom:10px">
           <div class="f"><label>超参数编号</label><input type="text" id="batchFid" style="width:72px" placeholder="00001" /></div>
@@ -430,6 +430,41 @@
         <button type="button" class="btn" id="batchClear">清空超参数因子</button>
         <button type="button" class="btn" id="batchCancel">取消</button>
         <button type="button" class="btn btn-primary" id="batchOk">确认</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 导入配置 -->
+  <div class="modal-mask" id="modalImport" role="dialog" aria-modal="true">
+    <div class="modal-box">
+      <div class="mh mh--with-close">
+        <span class="mh-title">导入配置</span>
+        <div class="mh-close-group">
+          <div class="stack proto-hd-close-wrap" id="importModalCloseWrap">
+            <button type="button" class="modal-close" id="importModalClose" aria-label="关闭">×</button>
+          </div>
+        </div>
+      </div>
+      <div class="mb" id="importModalContent">
+        <p class="modal-note" style="margin-top:0">
+          请先勾选主表中要更新的行，再选择文件导入；导入结果以异步任务与校验报告为准（本页为演示交互）。
+        </p>
+        <div style="display:flex; gap:20px; flex-wrap:wrap; align-items:flex-start">
+          <div style="flex:1; min-width:260px">
+            <p style="margin:0 0 8px;font-weight:600">1. 选择导入文件</p>
+            <input type="file" id="importFileInput" accept=".xlsx,.xls,.csv,.xlsm" style="max-width:100%" />
+            <p class="modal-note" style="margin-top:8px;margin-bottom:0">支持 Excel / CSV；首行须为字段名，与模板一致。</p>
+          </div>
+          <div style="flex:1; min-width:260px; border-left:1px solid #f0f0f0; padding-left:18px">
+            <p style="margin:0 0 8px;font-weight:600">2. 下载导入模板</p>
+            <button type="button" class="btn btn-primary" id="btnDownloadTpl">下载模板（.xlsx）</button>
+            <p class="modal-note" style="margin-top:8px;margin-bottom:0">模板列说明见本区域红点「导入模板与字段说明」。</p>
+          </div>
+        </div>
+      </div>
+      <div class="mf">
+        <button type="button" class="btn" id="importCancel">取消</button>
+        <button type="button" class="btn btn-primary" id="importOk">开始导入（演示）</button>
       </div>
     </div>
   </div>
@@ -489,7 +524,6 @@
           c: 'sales:kaiwu / TL:queena',
           sku: 'H6076113',
           msku: 'H6076113-ZY-US',
-          base: 1280,
           flowE: 1,
           priceE: -2,
           cvrE: 1,
@@ -505,7 +539,6 @@
           c: 'sales:lina / TL:max',
           sku: 'H607C311',
           msku: 'H607C311-APP-EU',
-          base: 960,
           flowE: 1,
           priceE: -1,
           cvrE: -2,
@@ -521,7 +554,6 @@
           c: 'sales:tom / TL:anna',
           sku: 'B6062101',
           msku: 'B6062101-OF-US-DSV',
-          base: 540,
           flowE: 0.8,
           priceE: -1.5,
           cvrE: 1.2,
@@ -538,6 +570,27 @@
         { code: '00003', event: '旺季物流补贴', factor: 1.2, start: '2026-01-01', end: '2026-03-31' }
       ];
 
+      function countCfgRowChecked() {
+        return document.querySelectorAll('.cfg-row-chk:checked').length;
+      }
+
+      /** 批量 / 导入 / 导出：须先勾选至少一行（本原型）；批量另受权限模拟控制 */
+      function updateCfgToolbarBySelection() {
+        var n = countCfgRowChecked();
+        var perm = document.getElementById('permBatch').value === 'yes';
+        var has = n > 0;
+        var tip = has ? '' : '请先勾选至少一行配置数据';
+        var batch = document.getElementById('btnOpenBatch');
+        var imp = document.getElementById('btnCfgImport');
+        var exp = document.getElementById('btnCfgExport');
+        batch.disabled = !perm || !has;
+        batch.title = !perm ? '无配置权限（权限模拟）' : tip;
+        imp.disabled = !has;
+        imp.title = tip;
+        exp.disabled = !has;
+        exp.title = tip;
+      }
+
       function renderCfg() {
         var flt = document.getElementById('fltFactor').value;
         var tb = document.getElementById('cfgTbody');
@@ -548,7 +601,6 @@
           h += '<td class="center"><input type="checkbox" class="cfg-row-chk" data-id="' + r.id + '" /></td>';
           h += '<td>' + r.a + '</td><td>' + r.b + '</td><td>' + r.c + '</td>';
           h += '<td>' + r.sku + '<br/><span style="color:#999">' + r.msku + '</span></td>';
-          h += '<td class="num">' + r.base + '</td>';
           h += '<td class="num">' + r.flowE + '</td><td class="num">' + r.priceE + '</td><td class="num">' + r.cvrE + '</td>';
           h += '<td class="num">' + r.adE + '</td><td class="num">' + r.compE + '</td>';
           h += '<td class="num">' + r.hpCoef + '</td>';
@@ -561,8 +613,9 @@
           h += '<td><span class="op-cell"><span class="op" data-log="' + r.id + '">日志</span></span></td>';
           h += '</tr>';
         });
-        tb.innerHTML = h || '<tr><td colspan="14" style="text-align:center;padding:20px;color:var(--text-sec)">无数据</td></tr>';
+        tb.innerHTML = h || '<tr><td colspan="13" style="text-align:center;padding:20px;color:var(--text-sec)">无数据</td></tr>';
         document.getElementById('cfgChkAll').checked = false;
+        updateCfgToolbarBySelection();
       }
 
       function pad5(n) {
@@ -648,7 +701,21 @@
         document.querySelectorAll('.cfg-row-chk').forEach(function (c) {
           c.checked = on;
         });
+        updateCfgToolbarBySelection();
       });
+
+      document.getElementById('cfgTbody').addEventListener('change', function (e) {
+        if (e.target && e.target.classList && e.target.classList.contains('cfg-row-chk')) {
+          var all = document.querySelectorAll('.cfg-row-chk');
+          var checked = document.querySelectorAll('.cfg-row-chk:checked');
+          var head = document.getElementById('cfgChkAll');
+          head.checked = all.length > 0 && checked.length === all.length;
+          head.indeterminate = checked.length > 0 && checked.length < all.length;
+          updateCfgToolbarBySelection();
+        }
+      });
+
+      document.getElementById('permBatch').addEventListener('change', updateCfgToolbarBySelection);
 
       document.getElementById('cfgTbody').addEventListener('click', function (e) {
         var a = e.target.closest('a.link-f');
@@ -700,11 +767,51 @@
       }
 
       document.getElementById('btnOpenBatch').addEventListener('click', function () {
+        if (this.disabled) return;
         if (document.getElementById('permBatch').value !== 'yes') {
           alert('您没有批量设置超参数因子的权限（原型模拟）。');
           return;
         }
+        if (countCfgRowChecked() === 0) {
+          alert('请先勾选至少一行配置数据。');
+          return;
+        }
         openBatchModal();
+      });
+
+      function openImportModal() {
+        document.getElementById('importFileInput').value = '';
+        document.getElementById('modalImport').classList.add('show');
+      }
+      function closeImportModal() {
+        document.getElementById('modalImport').classList.remove('show');
+      }
+
+      document.getElementById('btnCfgImport').addEventListener('click', function () {
+        if (this.disabled) return;
+        openImportModal();
+      });
+      document.getElementById('importCancel').addEventListener('click', closeImportModal);
+      document.getElementById('importModalClose').addEventListener('click', function (e) {
+        e.stopPropagation();
+        closeImportModal();
+      });
+      document.getElementById('modalImport').addEventListener('click', function (e) {
+        if (e.target === this) this.classList.remove('show');
+      });
+      document.getElementById('importOk').addEventListener('click', function () {
+        var f = document.getElementById('importFileInput').files && document.getElementById('importFileInput').files[0];
+        if (!f) {
+          alert('请先选择要导入的文件。');
+          return;
+        }
+        alert('演示：已接收文件「' + f.name + '」，正式环境将进入异步解析与校验报告。');
+        closeImportModal();
+      });
+      document.getElementById('btnDownloadTpl').addEventListener('click', function () {
+        alert(
+          '演示：将下载「预测配置导入模板.xlsx」。\n首行字段须包含：区域/国家/店铺、场景/品类/品线、销售团队、SKU、MSKU、流量/价格/转化率/广告/竞争力弹性系数、超参数因子编号等（与红点「导入模板与字段说明」一致）。'
+        );
       });
 
       function closeBatchModal() {
@@ -739,6 +846,11 @@
       });
 
       document.getElementById('batchOk').addEventListener('click', function () {
+        var rowChk = document.querySelectorAll('.cfg-row-chk:checked');
+        if (!rowChk.length) {
+          alert('请先勾选至少一行配置数据。');
+          return;
+        }
         var picks = [];
         document.querySelectorAll('.batch-pick:checked').forEach(function (c) {
           picks.push(c.getAttribute('data-code'));
@@ -747,13 +859,15 @@
           alert('请至少勾选一个超参数因子。');
           return;
         }
-        var rowChk = document.querySelectorAll('.cfg-row-chk:checked');
-        var mode =
-          rowChk.length > 0
-            ? '已勾选 ' + rowChk.length + ' 行配置数据'
-            : '未勾选行，将按当前筛选结果更新（示意：共 ' + cfgRows.length + ' 行命中）';
+        var mode = '已勾选 ' + rowChk.length + ' 行配置数据';
         alert('确认将因子 ' + picks.join('、') + ' 批量写入：' + mode + '。\n（原型仅提示，不写回表格。）');
         closeBatchModal();
+      });
+
+      document.getElementById('btnCfgExport').addEventListener('click', function () {
+        if (this.disabled) return;
+        var n = countCfgRowChecked();
+        alert('演示导出：仅导出当前已勾选的 ' + n + ' 行（正式环境为异步任务 + 下载链接）。');
       });
 
       function closeLogModal() {

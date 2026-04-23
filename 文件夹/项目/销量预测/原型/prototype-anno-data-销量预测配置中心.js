@@ -37,7 +37,8 @@
         "<p><strong>【逻辑 · 点预测与经营目标】</strong>表上展示的<strong>客观中值（点预测）</strong>仅由<strong>客观因子 + 规则/模型</strong>决定，<strong>不与</strong>任何经营类「BP/手工目标」输入耦合；目标类数字若出现应在主工作台或其它流程页，本页只做参数与因子绑定维护。</p>" +
         "<p><strong>【逻辑 · 默认时间轴】</strong>本页展示的弹性系数、因子绑定等<strong>与预测滚动窗口相关的后台计算</strong>，默认按业务约定取<strong>以服务器当前日为锚点：回溯 12 个自然月～顺推 12 个自然月</strong>所覆盖的月序列（与《预测销量上下限规则》中因子统计窗口径对齐；若需改窗由配置中心后台参数或版本发布说明调整，不在此页用月份控件暴露）。</p>" +
         "<p><strong>【逻辑 · 示例】</strong>假设今天是 2026-04-21，则默认参与汇总/校验的月份约为 2025-05～2027-04（按自然月边界落库时由服务对齐到月初月末）；用户仅通过「区域、SKU…」缩小<strong>MSKU 行集合</strong>，不改变全局默认月窗。</p>" +
-        "<p><strong>【交互】</strong>修改任一筛选项后点「搜索」刷新 <code>#cfgTable</code>；导入导出携带当前筛选条件元数据。</p>",
+        "<p><strong>【逻辑 · 基准销量（列表不展示该列）】</strong>主表已<strong>下线「基准销量」只读列</strong>，避免与弹性列并排造成「可改/不可改」误解；引擎侧仍须计算<strong>月均参照基准</strong>参与各弹性系数演算。<strong>规则摘要：</strong><strong>A</strong> 已开售满 12 个月→近 12 月总销量÷12；<strong>B</strong> 不足 12 个月三步（参照月均 ÷ 同维度上月总量 × 该 ASIN 上月销量，降级路径 ASIN→SKU→品类→场景）；<strong>C</strong> 滚动月 T+1 递推。全文见《预测销量上下限规则-终版》/PRD；本页红点「ⓘ 弹性列」仍与引擎公式对齐。</p>" +
+        "<p><strong>【交互】</strong>修改任一筛选项后点「搜索」刷新 <code>#cfgTable</code>；导入/导出须<strong>先勾选行</strong>（见工具栏按钮红点）。</p>",
     },
     {
       containerSelector: GRID + " > .f:nth-child(1)",
@@ -159,25 +160,61 @@
       title: "按钮：批量设置超参数因子",
       html:
         "<p><strong>【基础】</strong>打开 <code>#modalBatch</code>；弹窗内可对因子候选表按 **编号、事件说明、时间范围** 再筛选（其中时间范围控件**默认**为「今天−12个月～今天+12个月」，可手改）。</p>" +
-        "<p><strong>【逻辑】</strong>确认后对<strong>勾选行</strong>或<strong>当前筛选全量</strong>写入绑定（见弹窗顶部说明）；受 <code>#permBatch</code> 无权限时应禁用或提示。与主表「是否去掉月份筛选」独立：批量只关心<strong>写哪几条 MSKU 绑哪个因子</strong>。</p>" +
-        "<p><strong>【场景】</strong>运营要把「关税因子」统一绑到当前筛选下的所有落地灯 SKU：先筛品类，不勾行 → 打开批量 → 勾关税因子 → 确认 → 命中「当前筛选全量」规则。</p>" +
+        "<p><strong>【逻辑】</strong>本原型<strong>须先勾选至少一行</strong>主表配置数据方可打开弹窗；确认后仅对<strong>勾选行</strong>写入绑定。受 <code>#permBatch</code> 无权限时按钮禁用。正式环境若允许「按筛选全量」应在权限与二次确认中单独开关。</p>" +
+        "<p><strong>【场景】</strong>运营要把「关税因子」绑到若干 SKU：筛选缩小范围 → <strong>勾选目标行</strong> → 打开批量 → 在因子候选表勾选关税 → 确认。</p>" +
         "<p><strong>【交互】</strong>点击打开模态层；确认/取消遵循弹窗内按钮说明。</p>",
     },
     {
       anchorSelector: "#btnCfgImport",
+      attach: "afterend",
       title: "按钮：导入",
       html:
-        "<p><strong>【基础】</strong><code>id=\"btnCfgImport\"</code>，通过模板批量导入弹性系数或因子绑定。</p>" +
-        "<p><strong>【逻辑】</strong>需校验列头、SKU 存在性、数值范围、冲突行报告；写审计日志。</p>" +
-        "<p><strong>【交互】</strong>原型未接文件服务，仅占位；正式版为文件选择 + 异步解析结果页。</p>",
+        "<p><strong>【基础】</strong><code>#btnCfgImport</code>；<strong>未勾选主表行时禁用</strong>，勾选后打开 <code>#modalImport</code>。</p>" +
+        "<p><strong>【逻辑】</strong>上传文件经异步解析：校验列头、SKU/MSKU 存在性、数值范围、与当前权限可写范围；失败行写入报告，成功行写配置并记审计。</p>" +
+        "<p><strong>【交互】</strong>弹层内可选文件、下载模板；「开始导入」演示校验是否已选文件。模板列字典见同弹层红点「导入模板与字段说明」。</p>",
     },
     {
       anchorSelector: "#btnCfgExport",
+      attach: "afterend",
       title: "按钮：导出",
       html:
-        "<p><strong>【基础】</strong><code>id=\"btnCfgExport\"</code>，导出当前筛选条件下的配置表。</p>" +
-        "<p><strong>【逻辑】</strong>便于线下 Excel 评审或留档；应带筛选条件水印或元数据。</p>" +
+        "<p><strong>【基础】</strong><code>#btnCfgExport</code>；<strong>未勾选主表行时禁用</strong>；演示为对已勾选行导出子集。</p>" +
+        "<p><strong>【逻辑】</strong>导出列应与当前表头一致（已不含「基准销量」列）；携带筛选条件元数据或水印便于对账。</p>" +
         "<p><strong>【交互】</strong>大表建议异步下载链接；点击后 loading 防重复提交。</p>",
+    },
+    {
+      containerSelector: "#importModalContent",
+      title: "导入弹层：导入模板与字段说明",
+      html:
+        "<p><strong>【模板用途】</strong>批量维护<strong>弹性系数</strong>与<strong>超参数因子绑定</strong>（与主表列一致）；首行<strong>中文或英文列名须与系统导出模板一致</strong>，避免同义不同名。</p>" +
+        "<p><strong>【建议列（与当前主表一致，无基准销量列）】</strong>① 区域/国家/店铺　② 场景/品类/品线　③ 销售团队　④ SKU　⑤ MSKU（或平台+MSKU 拆列，以接口为准）　⑥ 流量弹性系数　⑦ 价格弹性系数　⑧ 转化率弹性系数　⑨ 广告花费弹性系数　⑩ 竞争力弹性系数　⑪ 超参数因子编号（5 位）或「清空」占位　⑫ 可选：批次号/备注列。</p>" +
+        "<p><strong>【校验规则（开发/测试）】</strong>数值列须为有限小数；编号须已存在于超参数因子主数据且状态允许绑定；一行多因子冲突时整行失败或按产品策略部分成功；导入前须校验<strong>勾选行集合</strong>与文件中 Key 的交集，防止改到未授权 MSKU。</p>" +
+        "<p><strong>【交互】</strong>左侧选文件、右侧下载空白模板；正式环境模板带<strong>示例行 + 校验说明 Sheet</strong>。</p>",
+    },
+    {
+      containerSelector: "#importModalCloseWrap",
+      title: "导入弹层：关闭（×）",
+      html:
+        "<p><strong>【基础】</strong>关闭 <code>#modalImport</code>，不提交导入。</p>" +
+        "<p><strong>【交互】</strong>与「取消」等价；点遮罩关闭同效。</p>",
+    },
+    {
+      anchorSelector: "#btnDownloadTpl",
+      attach: "afterend",
+      title: "导入弹层：下载模板",
+      html:
+        "<p><strong>【基础】</strong>下载标准 <code>.xlsx</code>，含列头与一行样例（正式环境）。</p>" +
+        "<p><strong>【逻辑】</strong>列集合与「导入模板与字段说明」红点一致；版本变更时模板号与 PRD 同步。</p>" +
+        "<p><strong>【交互】</strong>演示为 <code>alert</code>；生产返回真实文件流。</p>",
+    },
+    {
+      anchorSelector: "#importFileInput",
+      attach: "afterend",
+      title: "导入弹层：选择文件",
+      html:
+        "<p><strong>【基础】</strong>本地文件选择；接受 <code>.xlsx/.xls/.csv/.xlsm</code>（以安全策略为准）。</p>" +
+        "<p><strong>【逻辑】</strong>前端只做大小/扩展名预检；解析在服务端。</p>" +
+        "<p><strong>【交互】</strong>未选文件点「开始导入」应提示错误。</p>",
     },
     {
       anchorSelector: "#permBatch",
@@ -192,8 +229,8 @@
       title: "表格：全选",
       html:
         "<p><strong>【基础】</strong>表头复选框，全选当前页配置行。</p>" +
-        "<p><strong>【逻辑】</strong>供批量设置因子、导出子集使用。</p>" +
-        "<p><strong>【交互】</strong>与行勾选联动半选态（若实现）。</p>",
+        "<p><strong>【逻辑】</strong>与行勾选联动；有勾选时启用<strong>批量设置 / 导入 / 导出</strong>（本原型）。</p>" +
+        "<p><strong>【交互】</strong>支持半选态 <code>indeterminate</code>（部分行勾选时）。</p>",
     },
     {
       containerSelector: "#cfgTable thead tr th:nth-child(2)",
@@ -226,16 +263,6 @@
         "<p><strong>【基础】</strong>主数据 SKU 展示列。</p>" +
         "<p><strong>【逻辑】</strong>配置最小业务主键之一；导入导出对齐编码。</p>" +
         "<p><strong>【交互】</strong>可扩展复制、跳转主数据（正式版）。</p>",
-    },
-    {
-      containerSelector: "#cfgTable thead tr th:nth-child(6)",
-      title: "列：基准销量（计算规则，读懂再改弹性）",
-      html:
-        "<p><strong>【基础】</strong>本列<strong>只读</strong>，表示后续弹性/因子演算的<strong>月销量参照基准</strong>（件/月，四舍五入展示）。</p>" +
-        "<p><strong>【规则 A · 已开售满 12 个月】</strong>从「第一单」起算已售 ≥12 个月时：<strong>基准销量 = 该 ASIN 近 12 个月总销量 ÷ 12</strong>（月均动销）。</p>" +
-        "<p><strong>【规则 B · 不足 12 个月（三步）】</strong>① <strong>参照月均销量</strong>：按优先级取「近 12 月总÷12」——先试<strong>同品类相关 SKU</strong>，不行再试<strong>该品类整体</strong>，仍不行再试<strong>该 SKU 归属场景</strong>（须与主数据场景口径一致），直到某一档能凑满 12 个月完整数据。② 取<strong>该 ASIN 上个月销量</strong>，以及<strong>与第①步同一维度</strong>的「上个月总销量」作分母（若①走品类则用<strong>品类上月总量</strong>；若①最终走场景则用<strong>场景上月总量</strong>）。③ <strong>该 ASIN 基准销量 = ①参照月均 ÷ ②分母 × 该 ASIN 上月销量</strong>。</p>" +
-        "<p><strong>【规则 C · 滚动】</strong>预测 <strong>T+1 月</strong>时用<strong>当月</strong>基础销量参与；得到 T+1 结果后再递推算 T+1 月基准，供后续月份使用（由引擎调度）。</p>" +
-        "<p><strong>【交互】</strong>不可手改；若与直觉不符应检查主数据归属、历史销量缺口或算法任务是否失败。</p>",
     },
     {
       anchorSelector: "#tipFlow",
@@ -279,7 +306,7 @@
         "<p><strong>【交互】</strong>与其它弹性列一致维护。</p>",
     },
     {
-      containerSelector: "#cfgTable thead tr th:nth-child(12)",
+      containerSelector: "#cfgTable thead tr th:nth-child(11)",
       title: "列：超参数因子系数",
       html:
         "<p><strong>【基础】</strong>展示当前行生效超参数对预测的最终乘数或加性影响结果（以公式为准）。</p>" +
@@ -287,7 +314,7 @@
         "<p><strong>【交互】</strong>若因子变更需刷新行。</p>",
     },
     {
-      containerSelector: "#cfgTable thead tr th:nth-child(13)",
+      containerSelector: "#cfgTable thead tr th:nth-child(12)",
       title: "列：超参数因子项",
       html:
         "<p><strong>【基础】</strong>可点击链接触发「超参数因子维护」子屏或因子详情。</p>" +
@@ -295,7 +322,7 @@
         "<p><strong>【交互】</strong>点击切换 <code>#screenFactors</code> 可见性（以脚本为准）。</p>",
     },
     {
-      containerSelector: "#cfgTable thead tr th:nth-child(14)",
+      containerSelector: "#cfgTable thead tr th:nth-child(13)",
       title: "列：操作",
       html:
         "<p><strong>【基础】</strong>行级操作区：原型中展示<strong>蓝色因子编号链接</strong>（<code>a.link-f</code>，点击进入「超参数因子维护」子屏）与<strong>日志</strong>文字链（<code>data-log</code>，打开变更日志弹窗）。</p>" +
