@@ -170,7 +170,7 @@
       title: "按钮：导入",
       html:
         "<p><strong>【逻辑】</strong>无需先勾选表格行；点击打开 <code>#modalImport</code> 选择文件。正式环境：异步解析、校验报告、写库与审计。</p>" +
-        "<p>导入/导出模版见：<a href=\"https://alidocs.dingtalk.com/i/nodes/2Amq4vjg89g6dmBPsPXmxZD3V3kdP0wQ\" target=\"_blank\" rel=\"noopener noreferrer\">https://alidocs.dingtalk.com/i/nodes/2Amq4vjg89g6dmBPsPXmxZD3V3kdP0wQ</a></p>",
+        "<p><a href=\"https://alidocs.dingtalk.com/i/nodes/2Amq4vjg89g6dmBPsPXmxZD3V3kdP0wQ\" target=\"_blank\" rel=\"noopener noreferrer\">导入/导出模版见：https://alidocs.dingtalk.com/i/nodes/2Amq4vjg89g6dmBPsPXmxZD3V3kdP0wQ</a></p>",
     },
     {
       anchorSelector: "#btnCfgExport",
@@ -178,13 +178,13 @@
       title: "按钮：导出",
       html:
         "<p><strong>【逻辑】</strong>无需先勾选表格行；按当前筛选条件发起导出（正式环境异步任务 + 下载链接）。导出列与当前表头一致。</p>" +
-        "<p>导入/导出模版见：<a href=\"https://alidocs.dingtalk.com/i/nodes/2Amq4vjg89g6dmBPsPXmxZD3V3kdP0wQ\" target=\"_blank\" rel=\"noopener noreferrer\">https://alidocs.dingtalk.com/i/nodes/2Amq4vjg89g6dmBPsPXmxZD3V3kdP0wQ</a></p>",
+        "<p><a href=\"https://alidocs.dingtalk.com/i/nodes/2Amq4vjg89g6dmBPsPXmxZD3V3kdP0wQ\" target=\"_blank\" rel=\"noopener noreferrer\">导入/导出模版见：https://alidocs.dingtalk.com/i/nodes/2Amq4vjg89g6dmBPsPXmxZD3V3kdP0wQ</a></p>",
     },
     {
       containerSelector: "#importModalContent",
       title: "导入弹层：模版说明",
       html:
-        "<p>导入/导出模版见：<a href=\"https://alidocs.dingtalk.com/i/nodes/2Amq4vjg89g6dmBPsPXmxZD3V3kdP0wQ\" target=\"_blank\" rel=\"noopener noreferrer\">https://alidocs.dingtalk.com/i/nodes/2Amq4vjg89g6dmBPsPXmxZD3V3kdP0wQ</a></p>",
+        "<p><a href=\"https://alidocs.dingtalk.com/i/nodes/2Amq4vjg89g6dmBPsPXmxZD3V3kdP0wQ\" target=\"_blank\" rel=\"noopener noreferrer\">导入/导出模版见：https://alidocs.dingtalk.com/i/nodes/2Amq4vjg89g6dmBPsPXmxZD3V3kdP0wQ</a></p>",
     },
     {
       containerSelector: "#importModalCloseWrap",
