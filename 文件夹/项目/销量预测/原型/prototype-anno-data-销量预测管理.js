@@ -168,7 +168,7 @@
         "<p><strong>【交互】</strong>点击 radio 即时切换选中态；若后端按任务类型分接口，切换时可能触发重新拉数。</p>",
     },
     {
-      anchorSelector: ".chart-panel h2",
+      containerSelector: "#chartPanelHead",
       title: "区块：销量预测与达成（主图）",
       html:
         "<p><strong>【基础】</strong>主图：<strong>目标 R1/R2/R3</strong> 分组柱 + 各档<strong>下限～上限</strong>浅色带 + <strong>实际销量柱状</strong> + <strong>R1/R2/R3 预测达成率</strong>折线（右轴 %）。</p>" +
@@ -176,7 +176,7 @@
         "<p><strong>【交互】</strong>图例点击控制序列显隐；Tooltip 轴触发。</p>",
     },
     {
-      anchorSelector: "#chartMain",
+      containerSelector: "#chartMainWrap",
       title: "图表渲染区",
       html:
         "<p><strong>【基础】</strong>ECharts 容器；柱状（三目标 + 实际销量）+ 区间带 + 折线（预测达成率）。</p>" +
