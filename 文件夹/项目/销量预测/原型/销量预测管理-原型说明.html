@@ -709,24 +709,6 @@
       margin-bottom: 4px;
     }
     .btn-add-remark:hover { filter: brightness(1.05); }
-    .achieve-filter-row {
-      display: flex;
-      flex-wrap: wrap;
-      align-items: center;
-      gap: 8px 14px;
-      margin-top: 8px;
-      padding-top: 10px;
-      border-top: 1px dashed #e8e8e8;
-    }
-    .achieve-filter-row .f { display: flex; align-items: center; gap: 6px; }
-    .achieve-filter-row label { color: var(--text-sec); font-size: 12px; white-space: nowrap; }
-    .achieve-filter-row select,
-    .achieve-filter-row input[type="number"] {
-      height: 28px;
-      border: 1px solid var(--border);
-      border-radius: 4px;
-      font-size: 12px;
-    }
     .kpi-strip { display: flex; flex-wrap: wrap; gap: 10px; margin: 12px 0 6px; }
     .kpi-card {
       flex: 1;
@@ -744,8 +726,6 @@
     .kpi-r2 { background: linear-gradient(135deg, #faad14, #d48806); }
     .kpi-r3 { background: linear-gradient(135deg, #52c41a, #389e0d); }
     .chart-extra-opts { display: flex; align-items: center; gap: 12px; margin: 4px 0 8px; font-size: 12px; color: #595959; }
-    .table-pred-pick { display: flex; align-items: center; gap: 8px; margin-right: 16px; font-size: 12px; }
-    .table-pred-pick span { color: #8c8c8c; }
     .ach-cell { text-align: right; font-variant-numeric: tabular-nums; }
     .ach-cell.em { font-weight: 600; color: #1677ff; }
     .ach-cell.lo-warn { color: #f5222d; font-weight: 500; }
@@ -814,18 +794,9 @@
             <div class="f"><label>Sales</label><select><option>全部</option></select></div>
             <div class="f"><label>可售状态</label><select><option>全部</option></select></div>
             <div class="f">
-              <label>月份范围</label>
-              <div class="month-range-wrap">
-                <div id="monthRangeDrpWrap"></div>
-              </div>
-            </div>
-            <button type="button" class="btn-search" id="btnSearch">搜索</button>
-          </div>
-          <div class="achieve-filter-row" aria-label="达成率筛选">
-            <div class="f">
-              <label for="fltAchR">预测选择</label>
-              <select id="fltAchR" title="以哪一档锁定目标的达成率筛选列表">
-                <option value="r1">R1</option>
+              <label for="fltPredR">预测选择</label>
+              <select id="fltPredR" title="主口径：图表/列表/详情/达成率筛选均按所选 R 档">
+                <option value="r1" selected>R1</option>
                 <option value="r2">R2</option>
                 <option value="r3">R3</option>
               </select>
@@ -844,6 +815,13 @@
               <label for="fltAchVal">阈值(%)</label>
               <input type="number" id="fltAchVal" value="0" step="0.1" />
             </div>
+            <div class="f">
+              <label>月份范围</label>
+              <div class="month-range-wrap">
+                <div id="monthRangeDrpWrap"></div>
+              </div>
+            </div>
+            <button type="button" class="btn-search" id="btnSearch">搜索</button>
           </div>
           <div class="radio-row">
             <label><input type="radio" name="predMode" value="ml" id="predModeMl" checked /> 机器学习</label>
@@ -851,15 +829,15 @@
           </div>
           <div class="kpi-strip" id="kpiStrip">
             <div class="kpi-card kpi-r1">
-              <div>R1（M−1 锁定）预测准确率 · 当前筛选汇总（演示）</div>
+              <div>R1预测达成率</div>
               <div class="kpi-val" id="kpiR1">—</div>
             </div>
             <div class="kpi-card kpi-r2">
-              <div>R2（M−2 锁定）预测准确率 · 当前筛选汇总（演示）</div>
+              <div>R2预测达成率</div>
               <div class="kpi-val" id="kpiR2">—</div>
             </div>
             <div class="kpi-card kpi-r3">
-              <div>R3（M−3 锁定）预测准确率 · 当前筛选汇总（演示）</div>
+              <div>R3预测达成率</div>
               <div class="kpi-val" id="kpiR3">—</div>
             </div>
           </div>
@@ -877,14 +855,6 @@
 
         <div class="table-block">
           <div class="tb-toolbar">
-            <div class="table-pred-pick">
-              <span>预测选择</span>
-              <select id="listPredR" title="列表中高亮对应达成率列（演示）">
-                <option value="r1">R1</option>
-                <option value="r2">R2</option>
-                <option value="r3" selected>R3</option>
-              </select>
-            </div>
             <div class="btns">
               <button type="button" class="btn-ghost" id="btnExport">导出</button>
               <button type="button" class="btn-ghost" id="btnAddRemarkBatch" disabled title="请先勾选列表中的行">新增异常备注</button>
@@ -910,9 +880,7 @@
                   <th rowspan="2">MSKU信息<br /><span style="font-weight:400;color:#999">平台 / MSKU</span></th>
                   <th id="thMonthGroup" colspan="13" style="text-align:center;border-bottom:1px solid #f0f0f0;">月份</th>
                   <th rowspan="2">历史销量趋势</th>
-                  <th rowspan="2">R1达成率</th>
-                  <th rowspan="2">R2达成率</th>
-                  <th rowspan="2">R3达成率</th>
+                  <th rowspan="2" id="thPredAch">R1预测达成率</th>
                   <th rowspan="2">操作</th>
                 </tr>
                 <tr id="monthHeadRow"></tr>
@@ -983,6 +951,11 @@
       }
 
       var anchorDate = getAnchorDate();
+
+      /** R1/R2/R3 锁定提前量（天），可配置；默认 30 / 60 / 90（距目标月 1 号的剩余天数阈值） */
+      var ACH_LOCK_DAYS_R1 = 30;
+      var ACH_LOCK_DAYS_R2 = 60;
+      var ACH_LOCK_DAYS_R3 = 90;
 
       function compareMonthLabels(a, b) {
         var pa = parseMonthLabel(a),
@@ -1090,13 +1063,11 @@
         syncMonthRangePickerFromMonths();
       }
 
-      /** anchor 到目标月 1 号相差多少“整月”（向上取整到月维度） */
-      function monthsUntilMonthFirst(anchor, lab) {
+      /** 锚定日到目标月 1 号相差多少天（可为负：锚定日已过该月 1 号） */
+      function daysUntilTargetMonthFirst(anchor, lab) {
         var p = parseMonthLabel(lab);
         var ms = new Date(p.y, p.m - 1, 1);
-        var a0 = new Date(anchor.getFullYear(), anchor.getMonth(), 1);
-        var diff = (ms.getFullYear() - a0.getFullYear()) * 12 + (ms.getMonth() - a0.getMonth());
-        return diff;
+        return Math.floor((ms - startOfDay(anchor)) / 86400000);
       }
 
       /** 是否「未来月」：该月 1 号 &gt; 锚定日，才走滚动/冻结目标逻辑 */
@@ -1145,7 +1116,7 @@
       }
 
       /**
-       * 目标 Rk（k=1,2,3）：M−k 月锁定演示；未进入各自锁定点前与滚动预测一致。
+       * 目标 Rk（k=1,2,3）：按距目标月 1 号的剩余天数阶梯锁定（R3/R2/R1 默认 90/60/30 天，可配置）。
        * 口径见《需求文档/R1至R3规则说明.md》。
        */
       function targetRkFor(lab, anchor, k) {
@@ -1156,18 +1127,18 @@
           var hv = rowH && rowH[i];
           return hv != null ? hv : stableRFor(lab, k);
         }
-        var mLeft = monthsUntilMonthFirst(anchor, lab);
+        var d = daysUntilTargetMonthFirst(anchor, lab);
         var roll = rollingTarget(lab, anchor);
-        if (mLeft > 3) return roll;
-        if (mLeft === 3) {
+        if (d > ACH_LOCK_DAYS_R3) return roll;
+        if (d > ACH_LOCK_DAYS_R2) {
           if (k === 3) return stableRFor(lab, 3);
           return roll;
         }
-        if (mLeft === 2) {
+        if (d > ACH_LOCK_DAYS_R1) {
           if (k >= 2) return stableRFor(lab, k);
           return roll;
         }
-        if (mLeft === 1) {
+        if (d > 0) {
           if (k >= 1) return stableRFor(lab, k);
           return roll;
         }
@@ -1182,7 +1153,7 @@
         return Math.round(base * bias);
       }
 
-      /** 预测准确率 / 达成率（展示用）：100% − |A−P| / max(A,P) */
+      /** 单月：100% − |A−P| / max(A,P)（图表折线用） */
       function forecastAccuracyPct(actual, pred) {
         if (actual == null || pred == null) return null;
         if (typeof actual !== 'number' || typeof pred !== 'number') return null;
@@ -1190,6 +1161,60 @@
         var mx = Math.max(actual, pred);
         if (mx <= 0) return null;
         return 100 - (Math.abs(actual - pred) / mx) * 100;
+      }
+
+      /** 窗口聚合预测达成率：100% − Σ|A−P| / Σ max(A,P)（与 PRD 图七一致） */
+      function forecastAchievementAggFromPairs(actuals, preds) {
+        var num = 0;
+        var den = 0;
+        for (var i = 0; i < actuals.length; i++) {
+          var a = actuals[i];
+          var p = preds[i];
+          if (a == null || p == null || typeof a !== 'number' || typeof p !== 'number') continue;
+          if (isNaN(a) || isNaN(p)) continue;
+          num += Math.abs(a - p);
+          den += Math.max(a, p);
+        }
+        if (den <= 0) return null;
+        return 100 - (num / den) * 100;
+      }
+
+      function ymMonthFirst(ym) {
+        var y = +ym.slice(0, 4);
+        var m = +ym.slice(4, 6);
+        return new Date(y, m - 1, 1);
+      }
+
+      function ymMonthLast(ym) {
+        var y = +ym.slice(0, 4);
+        var m = +ym.slice(4, 6);
+        return new Date(y, m, 0);
+      }
+
+      function parseIsoYmd(s) {
+        if (!s || typeof s !== 'string') return null;
+        var p = s.trim().split('-');
+        if (p.length !== 3) return null;
+        return startOfDay(new Date(+p[0], +p[1] - 1, +p[2]));
+      }
+
+      function monthOverlapsRemarkRange(lab, rec) {
+        if (!rec || !rec.dateStart || !rec.dateEnd) return false;
+        if (rec.excludeFromAchieve === false) return false;
+        var ms = ymMonthFirst(lab);
+        var me = ymMonthLast(lab);
+        var rs = parseIsoYmd(rec.dateStart);
+        var re = parseIsoYmd(rec.dateEnd);
+        if (!rs || !re) return false;
+        return !(me < rs || ms > re);
+      }
+
+      function isMonthExcludedByRemarks(ri, lab) {
+        var list = remarkDemoData[ri] || [];
+        for (var i = 0; i < list.length; i++) {
+          if (monthOverlapsRemarkRange(lab, list[i])) return true;
+        }
+        return false;
       }
 
       /** 已结束月无数组位时的演示实际销量（按月份稳定） */
@@ -1311,7 +1336,7 @@
           var v = item.value;
           var name = item.seriesName;
           var main = v == null || v === '' ? '—' : String(v);
-          if (/达成率/.test(name) && typeof v === 'number' && !isNaN(v)) {
+          if (/预测达成率/.test(name) && typeof v === 'number' && !isNaN(v)) {
             main = v.toFixed(1) + '%';
           }
           var line = item.marker + ' <b>' + name + '</b>：' + main;
@@ -1396,7 +1421,7 @@
         var anchor = getAnchorDate();
         var p = buildChartPayload(anchor);
 
-        var legendNames = ['目标R1', '目标R2', '目标R3', '实际销量', 'R1达成率', 'R2达成率', 'R3达成率'];
+        var legendNames = ['目标R1', '目标R2', '目标R3', '实际销量', 'R1预测达成率', 'R2预测达成率', 'R3预测达成率'];
         var chkMan = document.getElementById('chkManualRAch');
         if (chkMan && chkMan.checked) {
           legendNames.push('人工预测达成率（演示）');
@@ -1407,9 +1432,9 @@
           目标R2: true,
           目标R3: true,
           实际销量: true,
-          R1达成率: true,
-          R2达成率: true,
-          R3达成率: true
+          R1预测达成率: true,
+          R2预测达成率: true,
+          R3预测达成率: true
         };
         if (chkMan && chkMan.checked) {
           selected['人工预测达成率（演示）'] = true;
@@ -1450,20 +1475,17 @@
         });
         series.push({
           name: '实际销量',
-          type: 'line',
+          type: 'bar',
           yAxisIndex: 0,
           data: p.actual,
-          itemStyle: { color: '#722ed1' },
-          lineStyle: { width: 2.6 },
-          symbol: 'circle',
-          symbolSize: 7,
-          connectNulls: false,
+          itemStyle: { color: '#722ed1', borderColor: '#531dab', borderWidth: 1 },
+          barMaxWidth: 10,
           z: 3
         });
 
         var lineZ = 4;
         series.push({
-          name: 'R1达成率',
+          name: 'R1预测达成率',
           type: 'line',
           yAxisIndex: 1,
           data: p.ach1,
@@ -1475,7 +1497,7 @@
           z: lineZ
         });
         series.push({
-          name: 'R2达成率',
+          name: 'R2预测达成率',
           type: 'line',
           yAxisIndex: 1,
           data: p.ach2,
@@ -1487,7 +1509,7 @@
           z: lineZ
         });
         series.push({
-          name: 'R3达成率',
+          name: 'R3预测达成率',
           type: 'line',
           yAxisIndex: 1,
           data: p.ach3,
@@ -1586,6 +1608,7 @@
         rebuildMonthHeaders();
         applyMonthRangeUI();
         applyTrendTitleUI();
+        updatePredAchTableHeader();
         renderForecastTable();
         refreshCharts();
       }
@@ -1812,6 +1835,30 @@
       populateScenarioCategoryFilters();
       var tableRows = buildDemoTableRows();
 
+      /** 演示用：每行 SKU 的异常备注历史（须早于首次 renderForecastTable） */
+      var remarkDemoData = {};
+      for (var rdi = 0; rdi < 30; rdi++) remarkDemoData[rdi] = [];
+      remarkDemoData[0] = [
+        {
+          adjuster: 'sykie',
+          time: '2025-08-25 12:23:45',
+          content: '断货15天',
+          rangeText: '2025年1月1日到2025年2月12日',
+          dateStart: '2025-01-01',
+          dateEnd: '2025-02-12',
+          excludeFromAchieve: true
+        },
+        {
+          adjuster: '程凯武',
+          time: '2025-07-10 09:15:22',
+          content: '断货115天',
+          rangeText: '2025年3月1日到2025年5月30日',
+          dateStart: '2025-03-01',
+          dateEnd: '2025-05-30',
+          excludeFromAchieve: true
+        }
+      ];
+
       function isPredML() {
         var el = document.querySelector('input[name="predMode"]:checked');
         return el && el.value === 'ml';
@@ -1921,31 +1968,29 @@
         return v.toFixed(1) + '%';
       }
 
-      function rowAvgAccuracyForR(ri, rKey) {
+      function rowPredictionAchieveAgg(ri, rKey) {
         var anchor = getAnchorDate();
-        var sum = 0;
-        var cnt = 0;
         var k = rKey === 'r1' ? 1 : rKey === 'r2' ? 2 : 3;
+        var actuals = [];
+        var preds = [];
         for (var mi = 0; mi < months.length; mi++) {
           var lab = months[mi];
           if (!showsActualSales(anchor, lab)) continue;
+          if (isMonthExcludedByRemarks(ri, lab)) continue;
           var a = rowActualDemo(ri, lab);
           var pred = targetRkFor(lab, anchor, k);
-          var ac = forecastAccuracyPct(a, pred);
-          if (ac != null) {
-            sum += ac;
-            cnt++;
-          }
+          actuals.push(a);
+          preds.push(pred);
         }
-        return cnt ? sum / cnt : null;
+        return forecastAchievementAggFromPairs(actuals, preds);
       }
 
       function passesAchieveFilter(ri) {
-        var rEl = document.getElementById('fltAchR');
+        var rEl = document.getElementById('fltPredR');
         var opEl = document.getElementById('fltAchOp');
         var vEl = document.getElementById('fltAchVal');
         if (!rEl || !opEl || !vEl) return true;
-        var v = rowAvgAccuracyForR(ri, rEl.value);
+        var v = rowPredictionAchieveAgg(ri, rEl.value);
         if (v == null) return false;
         var thr = parseFloat(vEl.value, 10);
         if (isNaN(thr)) thr = 0;
@@ -1968,7 +2013,7 @@
           var n = 0;
           for (var ri = 0; ri < tableRows.length; ri++) {
             if (!passesAchieveFilter(ri)) continue;
-            var x = rowAvgAccuracyForR(ri, rk);
+            var x = rowPredictionAchieveAgg(ri, rk);
             if (x != null) {
               sum += x;
               n++;
@@ -1981,10 +2026,19 @@
         el3.textContent = formatAchCell(agg('r3'));
       }
 
-      function achCellClass(pick, key, val) {
-        var cls = 'ach-cell' + (pick === key ? ' em' : '');
+      function achCellClass(val) {
+        var cls = 'ach-cell em';
         if (val != null && val < 35) cls += ' lo-warn';
         return cls;
+      }
+
+      function updatePredAchTableHeader() {
+        var th = document.getElementById('thPredAch');
+        var sel = document.getElementById('fltPredR');
+        if (!th || !sel) return;
+        var v = sel.value || 'r1';
+        var map = { r1: 'R1', r2: 'R2', r3: 'R3' };
+        th.textContent = (map[v] || 'R') + '预测达成率';
       }
 
       function initSalesColumnResize() {
@@ -2029,8 +2083,8 @@
           master.indeterminate = false;
         }
 
-        var lp = document.getElementById('listPredR');
-        var pick = lp && lp.value ? lp.value : 'r3';
+        var pr = document.getElementById('fltPredR');
+        var pick = pr && pr.value ? pr.value : 'r1';
 
         for (var ri = 0; ri < tableRows.length; ri++) {
           if (!passesAchieveFilter(ri)) continue;
@@ -2050,12 +2104,8 @@
             html += buildForecastCell(row, mi);
           }
           html += '<td>' + sparkFromRow(row) + '</td>';
-          var a1 = rowAvgAccuracyForR(ri, 'r1');
-          var a2 = rowAvgAccuracyForR(ri, 'r2');
-          var a3 = rowAvgAccuracyForR(ri, 'r3');
-          html += '<td class="' + achCellClass(pick, 'r1', a1) + '">' + formatAchCell(a1) + '</td>';
-          html += '<td class="' + achCellClass(pick, 'r2', a2) + '">' + formatAchCell(a2) + '</td>';
-          html += '<td class="' + achCellClass(pick, 'r3', a3) + '">' + formatAchCell(a3) + '</td>';
+          var ax = rowPredictionAchieveAgg(ri, pick);
+          html += '<td class="' + achCellClass(ax) + '">' + formatAchCell(ax) + '</td>';
           html +=
             '<td><span class="op-link" data-act="remark" data-ri="' +
             ri +
@@ -2068,6 +2118,7 @@
 
         applySalesColWidth(getSalesColWidthPref());
         updateRemarkAvailability();
+        updatePredAchTableHeader();
         updateKpiStrip();
       }
 
@@ -2131,7 +2182,7 @@
       if (chkSysRuleForecast) chkSysRuleForecast.addEventListener('change', renderForecastTable);
       if (chkForecastFill) chkForecastFill.addEventListener('change', renderForecastTable);
 
-      ['fltAchR', 'fltAchOp', 'fltAchVal'].forEach(function (id) {
+      ['fltPredR', 'fltAchOp', 'fltAchVal'].forEach(function (id) {
         var el = document.getElementById(id);
         if (!el) return;
         el.addEventListener('change', function () {
@@ -2143,8 +2194,6 @@
           });
         }
       });
-      var listPredR = document.getElementById('listPredR');
-      if (listPredR) listPredR.addEventListener('change', renderForecastTable);
       var chkManualRAch = document.getElementById('chkManualRAch');
       if (chkManualRAch) {
         chkManualRAch.addEventListener('change', function () {
@@ -2157,28 +2206,6 @@
       var mask = document.getElementById('dlgMask');
       var dlgBox = document.getElementById('dlgBox');
       var dlgFooter = document.getElementById('dlgFooter');
-
-      /** 演示用：每行 SKU 的异常备注历史（仅第 0 行预置示例） */
-      var remarkDemoData = {};
-      for (var rdi = 0; rdi < 30; rdi++) remarkDemoData[rdi] = [];
-      remarkDemoData[0] = [
-        {
-          adjuster: 'sykie',
-          time: '2025-08-25 12:23:45',
-          content: '断货15天',
-          rangeText: '2025年1月1日到2025年2月12日',
-          dateStart: '2025-01-01',
-          dateEnd: '2025-02-12'
-        },
-        {
-          adjuster: '程凯武',
-          time: '2025-07-10 09:15:22',
-          content: '断货115天',
-          rangeText: '2025年3月1日到2025年5月30日',
-          dateStart: '2025-03-01',
-          dateEnd: '2025-05-30'
-        }
-      ];
 
       var remarkContext = { rowIndex: null, editIndex: null, fromBatch: false };
       var remarkDateDrp = null;
@@ -2210,11 +2237,56 @@
         var act = btn.getAttribute('data-dlg');
         if (act === 'close' || act === 'cancel') hideDlg();
         if (act === 'confirm') {
+          if (document.getElementById('remarkContentInput')) {
+            var chkEx = document.getElementById('chkRemarkExcludeAchieve');
+            var excludeFromAchieve = chkEx ? !!chkEx.checked : true;
+            var content = (document.getElementById('remarkContentInput') || {}).value || '';
+            var dr = remarkDateDrp && remarkDateDrp.get ? remarkDateDrp.get() : { start: '', end: '' };
+            if (!dr.start || !dr.end) {
+              alert('请选择生效日期范围');
+              return;
+            }
+            var newRec = {
+              adjuster: '当前用户',
+              time: new Date().toISOString().slice(0, 19).replace('T', ' '),
+              content: content,
+              rangeText: dr.start + ' 至 ' + dr.end,
+              dateStart: dr.start,
+              dateEnd: dr.end,
+              excludeFromAchieve: excludeFromAchieve
+            };
+            if (remarkContext.editIndex != null && remarkContext.rowIndex != null) {
+              remarkDemoData[remarkContext.rowIndex][remarkContext.editIndex] = newRec;
+            } else if (remarkContext.fromBatch) {
+              var tb = document.getElementById('tbody');
+              var targets = [];
+              if (tb) {
+                tb.querySelectorAll('.row-chk:checked').forEach(function (c) {
+                  targets.push(+c.getAttribute('data-ri'));
+                });
+              }
+              if (!targets.length) {
+                alert('请先勾选至少一行');
+                return;
+              }
+              targets.forEach(function (ri) {
+                if (!remarkDemoData[ri]) remarkDemoData[ri] = [];
+                remarkDemoData[ri].push(JSON.parse(JSON.stringify(newRec)));
+              });
+            } else if (remarkContext.rowIndex != null) {
+              if (!remarkDemoData[remarkContext.rowIndex]) remarkDemoData[remarkContext.rowIndex] = [];
+              remarkDemoData[remarkContext.rowIndex].push(newRec);
+            }
+            hideDlg();
+            refreshAll();
+            if (remarkContext.returnToList && remarkContext.rowIndex != null) {
+              showRemarkList(remarkContext.rowIndex);
+            }
+            return;
+          }
           if (remarkContext.returnToList && remarkContext.rowIndex != null) {
-            alert('演示：已保存（无后端），返回列表');
             showRemarkList(remarkContext.rowIndex);
           } else {
-            alert('演示：已提交（无后端持久化）');
             hideDlg();
           }
         }
@@ -2268,12 +2340,35 @@
         return '<td>' + mid + '</td><td>' + lo + '</td><td>' + hi + '</td><td>' + ac + '</td>';
       }
 
-      /** 详情弹窗：基准 / 弹性 / 影响因子 / 目标 R1～R3 与区间、达成率 / forecast */
+      /** 与筛选区「预测选择」一致，详情仅展示当前 R 档 */
+      function getDetailPredRK() {
+        var el = document.getElementById('fltPredR');
+        var v = el && el.value ? el.value : 'r1';
+        if (v === 'r2') return 2;
+        if (v === 'r3') return 3;
+        return 1;
+      }
+
+      function detailTheadForK(k) {
+        if (k === 1) {
+          return (
+            '<th id="detailThR1">目标R1</th><th id="detailThR1Lo">R1下限</th><th id="detailThR1Hi">R1上限</th><th id="detailThR1Ach">R1预测达成率</th>'
+          );
+        }
+        if (k === 2) {
+          return (
+            '<th id="detailThR2">目标R2</th><th id="detailThR2Lo">R2下限</th><th id="detailThR2Hi">R2上限</th><th id="detailThR2Ach">R2预测达成率</th>'
+          );
+        }
+        return (
+          '<th id="detailThR3">目标R3</th><th id="detailThR3Lo">R3下限</th><th id="detailThR3Hi">R3上限</th><th id="detailThR3Ach">R3预测达成率</th>'
+        );
+      }
+
+      /** 详情弹窗：仅当前预测选择对应 R 的目标、上下限、预测达成率 + forecast */
       function buildRowForecastDetailHtml(row) {
-        var modeLabel = isPredML() ? '机器学习' : '系统规则';
         var anchor = getAnchorDate();
-        var rowIdx = tableRows.indexOf(row);
-        if (rowIdx < 0) rowIdx = 0;
+        var k = getDetailPredRK();
         var n = months.length;
         var trs = [];
         var rowspanElas =
@@ -2305,9 +2400,7 @@
               baseline +
               '</td>' +
               coefCells +
-              detailTripleCellsHtml(lab, anchor, 1, act) +
-              detailTripleCellsHtml(lab, anchor, 2, act) +
-              detailTripleCellsHtml(lab, anchor, 3, act) +
+              detailTripleCellsHtml(lab, anchor, k, act) +
               '<td>' +
               (fillV != null && fillV !== '' ? formatDetailCellPlain(fillV) : '—') +
               '</td></tr>'
@@ -2319,15 +2412,10 @@
           '</b>　平台：<b>' +
           row.plat +
           '</b></p>' +
-          '<p id="detailParaLogic" style="margin:10px 0 6px;font-size:13px">按月「<b>' +
-          modeLabel +
-          '</b>」展示<strong>目标 R1、目标 R2、目标 R3</strong>及其<strong>下限～上限销量带</strong>（与《预测销量上下限规则-终版》同一套销量合成思路）及<strong>达成率</strong>（已关账月有实际时按《R1至R3规则说明》公式计算）。主图与下表数值为演示件数。</p>' +
-          '<div id="detailTableScroll" style="max-height:380px;overflow:auto">' +
-          '<table class="data-table" id="detailForecastTable" style="font-size:12px;min-width:1180px"><thead><tr>' +
+          '<div id="detailTableScroll" style="max-height:380px;overflow:auto;margin-top:8px">' +
+          '<table class="data-table" id="detailForecastTable" style="font-size:12px;min-width:820px"><thead><tr>' +
           '<th id="detailThMonth">月份</th><th id="detailThBaseline">基准销量</th><th id="detailThElastic">弹性系数</th><th id="detailThInfl">影响因子系数</th>' +
-          '<th id="detailThR1">目标R1</th><th id="detailThR1Lo">R1下限</th><th id="detailThR1Hi">R1上限</th><th id="detailThR1Ach">R1达成率</th>' +
-          '<th id="detailThR2">目标R2</th><th id="detailThR2Lo">R2下限</th><th id="detailThR2Hi">R2上限</th><th id="detailThR2Ach">R2达成率</th>' +
-          '<th id="detailThR3">目标R3</th><th id="detailThR3Lo">R3下限</th><th id="detailThR3Hi">R3上限</th><th id="detailThR3Ach">R3达成率</th>' +
+          detailTheadForK(k) +
           '<th id="detailThFc">forecast填写</th>' +
           '</tr></thead><tbody>' +
           trs.join('') +
@@ -2339,10 +2427,9 @@
         opts = opts || {};
         var isEdit = !!opts.isEdit;
         var content = opts.content != null ? opts.content : '';
-        var ds = opts.dateStart || '';
-        var de = opts.dateEnd || '';
         var modUser = opts.modUser || '当前用户';
         var modTime = opts.modTime || (isEdit ? '2025-08-25 12:23:45' : '—');
+        var excludeFromAchieve = opts.excludeFromAchieve !== false;
         return (
           '<p style="margin:0 0 12px;color:#8c8c8c;font-size:12px;">' +
           (remarkContext.fromBatch
@@ -2363,7 +2450,14 @@
           '<div class="form-row-dlg"><label>生效时间</label><div class="field">' +
           '<div id="remarkDateRangeMount"></div>' +
           '<div style="font-size:11px;color:#999;margin-top:4px;">请选择生效日期范围（必填）</div>' +
-          '</div></div>'
+          '</div></div>' +
+          '<div class="form-row-dlg" id="remarkExcludeRow"><label></label><div class="field">' +
+          '<label style="display:flex;align-items:flex-start;gap:8px;font-weight:400;cursor:pointer;max-width:520px">' +
+          '<input type="checkbox" id="chkRemarkExcludeAchieve" ' +
+          (excludeFromAchieve ? 'checked' : '') +
+          ' />' +
+          '<span><strong>生效区间内月份不参与预测达成率计算</strong><br/><span style="font-size:11px;color:#999">默认勾选。勾选后，生效日期范围内<strong>每个自然月</strong>均不计入该行预测达成率汇总（公式见需求文档）；取消勾选则本备注不影响预测达成率。</span></span>' +
+          '</label></div></div>'
         );
       }
 
@@ -2390,9 +2484,10 @@
                 dateStart: rec.dateStart,
                 dateEnd: rec.dateEnd,
                 modUser: rec.adjuster,
-                modTime: rec.time
+                modTime: rec.time,
+                excludeFromAchieve: rec.excludeFromAchieve !== false
               }
-            : { isEdit: false, dateStart: '2026-01-01', dateEnd: '2026-03-31' }
+            : { isEdit: false, dateStart: '2026-01-01', dateEnd: '2026-03-31', excludeFromAchieve: true }
         );
         var footer =
           '<button type="button" class="dlg-footer-btn" data-dlg="cancel">取消</button>' +
@@ -2410,6 +2505,9 @@
             end: drEnd,
             onChange: function () {}
           });
+        }
+        if (typeof initProtoAnnos === 'function' && window.PROTO_ANNO_REMARK_FORM) {
+          initProtoAnnos(window.PROTO_ANNO_REMARK_FORM);
         }
       }
 
@@ -2497,7 +2595,9 @@
       });
 
       document.getElementById('btnExport').addEventListener('click', function () {
-        alert('演示：导出');
+        alert(
+          '演示导出：按当前页面可见字段导出（维度列 + 所选月份列 + 当前「预测选择」对应的预测达成率列等），列顺序与表头一致；正式环境请使用《销量预测管理-导出模板说明》中的模板字段做映射与校验。'
+        );
       });
       document.getElementById('btnAddRemarkBatch').addEventListener('click', function () {
         if (this.disabled) return;

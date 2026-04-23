@@ -135,20 +135,20 @@
         "<p><strong>【交互】</strong>点击后禁用连点或展示 loading；失败时 toast 提示并保持上次成功结果。</p>",
     },
     {
-      containerSelector: ".achieve-filter-row",
-      title: "筛选：达成率（预测选择 + 比较符 + 阈值）",
+      anchorSelector: "#fltPredR",
+      title: "筛选：预测选择（主口径）",
       html:
-        "<p><strong>【基础】</strong><code>#fltAchR</code> 选 R1/R2/R3；<code>#fltAchOp</code> 比较符；<code>#fltAchVal</code> 阈值（%）。</p>" +
-        "<p><strong>【逻辑】</strong>以所选档位的<strong>行级汇总达成率</strong>与阈值比较，过滤列表（演示为当前月份窗口内已关账月的平均达成率）；与《R1至R3规则说明》第六节一致。</p>" +
-        "<p><strong>【交互】</strong>变更后与「搜索」联动刷新（演示脚本在 change/input 时即刷新）。</p>",
+        "<p><strong>【基础】</strong><code>#fltPredR</code> 选 R1/R2/R3，位于<strong>搜索</strong>前同一筛选栅格内。</p>" +
+        "<p><strong>【逻辑】</strong>驱动：① 列表与 KPI 使用的<strong>预测达成率</strong>档位；② 表头「R*预测达成率」列名；③ 详情弹窗仅展示当前档目标+上下限+预测达成率；④ 与后项「达成率」比较符、阈值一起做行过滤。</p>" +
+        "<p><strong>【交互】</strong>变更后触发全页刷新（演示脚本）。</p>",
     },
     {
       containerSelector: "#kpiStrip",
-      title: "KPI：R1 / R2 / R3 预测准确率汇总",
+      title: "KPI：R1 / R2 / R3 预测达成率",
       html:
-        "<p><strong>【基础】</strong>三张卡片展示当前筛选下、各档位达成率的<strong>演示汇总平均</strong>。</p>" +
-        "<p><strong>【逻辑】</strong>正式环境汇总口径（简单平均 / 销量加权等）由配置决定；与列表行过滤条件一致。</p>" +
-        "<p><strong>【交互】</strong>只读展示。</p>",
+        "<p><strong>【基础】</strong>三张卡分别展示 <strong>R1/R2/R3 预测达成率</strong>标题与汇总数值。</p>" +
+        "<p><strong>【逻辑】</strong>列表行在通过「达成率」阈值筛选后，对每行按窗口内已关账月计算 <strong>100% − Σ|A−P| / Σ max(A,P)</strong>（与 PRD 图七一致），再对各行取平均得到卡上汇总（演示）。</p>" +
+        "<p><strong>【交互】</strong>只读。</p>",
     },
     {
       anchorSelector: "#chkManualRAch",
@@ -170,33 +170,25 @@
       anchorSelector: ".chart-panel h2",
       title: "区块：销量预测与达成（主图）",
       html:
-        "<p><strong>【基础】</strong>主图：<strong>目标 R1/R2/R3</strong> 分组柱 + 各档<strong>下限～上限</strong>浅色带 + <strong>实际销量</strong>折线 + <strong>R1/R2/R3 达成率</strong>折线（右轴 %）。</p>" +
-        "<p><strong>【逻辑】</strong>左轴销量件数、右轴达成率；锁定与达成率见《R1至R3规则说明》，上下限合成见《预测销量上下限规则-终版》。</p>" +
+        "<p><strong>【基础】</strong>主图：<strong>目标 R1/R2/R3</strong> 分组柱 + 各档<strong>下限～上限</strong>浅色带 + <strong>实际销量柱状</strong> + <strong>R1/R2/R3 预测达成率</strong>折线（右轴 %）。</p>" +
+        "<p><strong>【逻辑】</strong>左轴销量件数、右轴预测达成率；锁定提前量默认 30/60/90 天（可配置）见《R1至R3规则说明》；上下限见《预测销量上下限规则-终版》。</p>" +
         "<p><strong>【交互】</strong>图例点击控制序列显隐；Tooltip 轴触发。</p>",
     },
     {
       anchorSelector: "#chartMain",
       title: "图表渲染区",
       html:
-        "<p><strong>【基础】</strong>ECharts 容器；柱状（三目标）+ 区间带 + 折线（实际 + 达成率）。</p>" +
-        "<p><strong>【逻辑】</strong>Tooltip 在<strong>目标R1/R2/R3</strong>柱上附当月演示下限/上限；达成率线展示百分比。</p>" +
+        "<p><strong>【基础】</strong>ECharts 容器；柱状（三目标 + 实际销量）+ 区间带 + 折线（预测达成率）。</p>" +
+        "<p><strong>【逻辑】</strong>Tooltip 在<strong>目标R1/R2/R3</strong>柱上附当月演示下限/上限；预测达成率线展示单月口径百分比。</p>" +
         "<p><strong>【交互】</strong>图例、`resize` 与趋势弹窗同源配置（演示）。</p>",
-    },
-    {
-      anchorSelector: "#listPredR",
-      title: "工具栏：预测选择（列表）",
-      html:
-        "<p><strong>【基础】</strong><code>#listPredR</code> 下拉 R1/R2/R3。</p>" +
-        "<p><strong>【逻辑】</strong>用于<strong>高亮</strong>表格中对应「R*达成率」列（演示样式）；与筛选区「预测选择（达成率筛选）」语义区分：一为列表阅读焦点，一为过滤阈值所依据档位。</p>" +
-        "<p><strong>【交互】</strong>变更后仅重绘表体，不必重拉图表。</p>",
     },
     {
       anchorSelector: "#btnExport",
       title: "按钮：导出",
       html:
-        "<p><strong>【基础】</strong>导出当前筛选与列设置下的表格或报表文件。</p>" +
-        "<p><strong>【逻辑】</strong>大表建议异步任务 + 消息通知，避免浏览器超时；导出应带筛选条件元数据或水印。</p>" +
-        "<p><strong>【交互】</strong>点击打开格式选择或直链下载；进行中按钮 loading。</p>",
+        "<p><strong>【基础】</strong>导出当前筛选结果下<strong>与页面表格可见列一致</strong>的数据（演示为提示文案）。</p>" +
+        "<p><strong>【逻辑】</strong>字段顺序与表头对齐：维度列 + 动态月份列 + 当前「预测选择」对应的 <strong>R*预测达成率</strong> 单列；详见《销量预测管理-导出模板说明》（<code>需求文档/销量预测管理-导出模板说明.md</code>）。正式版可提供 Excel 模板下载。</p>" +
+        "<p><strong>【交互】</strong>大表建议异步任务 + 消息通知；进行中按钮 loading。</p>",
     },
     {
       anchorSelector: "#btnAddRemarkBatch",
@@ -275,7 +267,7 @@
       title: "列组：月份（动态子列）",
       html:
         "<p><strong>【基础】</strong><code>#monthHeadRow</code> 由脚本按「月份范围」生成多个月子列。</p>" +
-        "<p><strong>【逻辑】</strong>主行展示当前预测方式下的系统预测数字（演示）；展开后可有系统规则行、forecast 行；右侧有 <strong>R1/R2/R3 达成率</strong> 列。与主图口径见 PRD v4.0。</p>" +
+        "<p><strong>【逻辑】</strong>主行展示当前预测方式下的系统预测数字（演示）；展开后可有系统规则行、forecast 行；右侧仅 <strong>一列「R*预测达成率」</strong>（随筛选区「预测选择」变化）。列表汇总公式与 PRD 图七一致。</p>" +
         "<p><strong>【交互】</strong>横向滚动查看；与主图时间窗一致；点击单元格可能打开详情或趋势（以脚本为准）。</p>",
     },
     {
@@ -287,43 +279,27 @@
         "<p><strong>【交互】</strong>点击常打开「趋势图」弹层 <code>#trendPop</code> 看大图。</p>",
     },
     {
-      containerSelector: "#dataTable thead tr:first-child th:nth-child(9)",
-      title: "列：R1达成率",
+      anchorSelector: "#thPredAch",
+      title: "列：R*预测达成率（随预测选择）",
       html:
-        "<p><strong>【基础】</strong>行级 <strong>R1</strong> 汇总达成率（%，演示）。</p>" +
-        "<p><strong>【逻辑】</strong>与《R1至R3规则说明》公式一致；由当前月份窗口内已关账月聚合。</p>" +
-        "<p><strong>【交互】</strong>只读；与工具栏「预测选择」联动高亮。</p>",
+        "<p><strong>【基础】</strong>表头 <code>#thPredAch</code> 文案随 <code>#fltPredR</code> 在 R1/R2/R3 间切换。</p>" +
+        "<p><strong>【逻辑】</strong>单元格为当前月份窗口内、已关账且未被异常备注排除的月份，按 <strong>100% − Σ|A−P| / Σ max(A,P)</strong> 聚合（与 PRD 图七一致）。</p>" +
+        "<p><strong>【交互】</strong>只读。</p>",
     },
     {
       containerSelector: "#dataTable thead tr:first-child th:nth-child(10)",
-      title: "列：R2达成率",
-      html:
-        "<p><strong>【基础】</strong>行级 <strong>R2</strong> 汇总达成率（%，演示）。</p>" +
-        "<p><strong>【逻辑】</strong>同 R1 列，档位为 M−2 锁定目标。</p>" +
-        "<p><strong>【交互】</strong>只读。</p>",
-    },
-    {
-      containerSelector: "#dataTable thead tr:first-child th:nth-child(11)",
-      title: "列：R3达成率",
-      html:
-        "<p><strong>【基础】</strong>行级 <strong>R3</strong> 汇总达成率（%，演示）。</p>" +
-        "<p><strong>【逻辑】</strong>同 R1 列，档位为 M−3 锁定目标。</p>" +
-        "<p><strong>【交互】</strong>只读。</p>",
-    },
-    {
-      containerSelector: "#dataTable thead tr:first-child th:nth-child(12)",
       title: "列：操作",
       html:
         "<p><strong>【基础】</strong>行级操作入口：详情、异常备注等（以渲染为准）。</p>" +
-        "<p><strong>【逻辑】</strong>详情展示目标 R1～R3、区间与达成率及 forecast 等，与主 PRD v4.0 一致。</p>" +
-        "<p><strong>【交互】</strong>点击触发弹层或侧栏；与批量备注互不替代。</p>",
+        "<p><strong>【逻辑】</strong>详情仅展示<strong>当前预测选择</strong>对应档的目标、上下限与预测达成率列。</p>" +
+        "<p><strong>【交互】</strong>点击触发弹层；与批量备注互不替代。</p>",
     },
     {
       containerSelector: "#dataTable",
       title: "明细表整体",
       html:
         "<p><strong>【基础】</strong><code>#dataTable</code>，维度列 + 动态月度列 + 历史趋势 + 操作。</p>" +
-        "<p><strong>【逻辑】</strong>承接筛选与预测方式结果；支持多轨预测行展开；含 <strong>R1/R2/R3 达成率</strong> 列。</p>" +
+        "<p><strong>【逻辑】</strong>承接筛选与预测方式结果；支持多轨预测行展开；含单列 <strong>R*预测达成率</strong>。</p>" +
         "<p><strong>【交互】</strong>表格外包 <code>.table-scroll</code> 纵向滚动时表头 sticky（见全局表格规范）；列宽拖拽仅销售团队列示意。</p>",
     },
     {
@@ -357,14 +333,6 @@
         "<p><strong>【基础】</strong>展示当前行的渠道 <strong>MSKU</strong> 与<strong>平台</strong>（如亚马逊），与列表「MSKU信息」列同源。</p>" +
         "<p><strong>【逻辑】</strong>用于确认下钻对象，避免跨站点看错行；与预测结果在 MSKU 粒度对齐。</p>" +
         "<p><strong>【交互】</strong>只读文本；正式版可复制 MSKU 或跳转 Listing。</p>",
-    },
-    {
-      anchorSelector: "#detailParaLogic",
-      title: "详情：测算逻辑说明",
-      html:
-        "<p><strong>【基础】</strong>按月说明<strong>目标 R1/R2/R3</strong>、各档<strong>下限～上限</strong>及<strong>达成率</strong>。</p>" +
-        "<p><strong>【逻辑】</strong>与《R1至R3规则说明》《预测销量上下限规则-终版》及主图一致：上下限为客观因子情景边界；达成率在有实际时计算。</p>" +
-        "<p><strong>【交互】</strong>只读；可随预测方式单选切换。</p>",
     },
     {
       anchorSelector: "#detailTableScroll",
@@ -408,26 +376,26 @@
     },
     {
       anchorSelector: "#detailThR1",
-      title: "详情列：目标R1（及同组 R1下/上/达成）",
+      title: "详情列：当前档目标（R1 示例）",
       html:
-        "<p><strong>【基础】</strong><strong>目标 R1</strong> 为 M−1 锁定点预测（件）；同组列 <code>#detailThR1Lo</code> / <code>#detailThR1Hi</code> 为演示下限/上限；<code>#detailThR1Ach</code> 为达成率。</p>" +
-        "<p><strong>【逻辑】</strong>与主图 <code>targetRkFor(...,1)</code> 及《R1至R3规则说明》一致。</p>" +
+        "<p><strong>【基础】</strong>仅当主筛选「预测选择」为 R1 时出现本组四列：<strong>目标R1</strong>、下限、上限、<strong>R1预测达成率</strong>。</p>" +
+        "<p><strong>【逻辑】</strong>锁定提前量默认 30 天（可配置）；与主图 <code>targetRkFor(...,1)</code> 及《R1至R3规则说明》一致。</p>" +
         "<p><strong>【交互】</strong>只读。</p>",
     },
     {
       anchorSelector: "#detailThR2",
-      title: "详情列：目标R2（及同组）",
+      title: "详情列：当前档目标（R2 示例）",
       html:
-        "<p><strong>【基础】</strong><strong>目标 R2</strong> 为 M−2 锁定点预测及对应下限/上限/达成率列头。</p>" +
-        "<p><strong>【逻辑】</strong>同 R1，档位 k=2。</p>" +
+        "<p><strong>【基础】</strong>仅当「预测选择」为 R2 时出现；含 <strong>R2预测达成率</strong>。</p>" +
+        "<p><strong>【逻辑】</strong>默认锁定提前量 60 天（可配置）。</p>" +
         "<p><strong>【交互】</strong>只读。</p>",
     },
     {
       anchorSelector: "#detailThR3",
-      title: "详情列：目标R3（及同组）",
+      title: "详情列：当前档目标（R3 示例）",
       html:
-        "<p><strong>【基础】</strong><strong>目标 R3</strong> 为 M−3 锁定点预测及对应下限/上限/达成率列头。</p>" +
-        "<p><strong>【逻辑】</strong>同 R1，档位 k=3。</p>" +
+        "<p><strong>【基础】</strong>仅当「预测选择」为 R3 时出现；含 <strong>R3预测达成率</strong>。</p>" +
+        "<p><strong>【逻辑】</strong>默认锁定提前量 90 天（可配置）。</p>" +
         "<p><strong>【交互】</strong>只读。</p>",
     },
     {
@@ -449,6 +417,28 @@
   ];
 
   window.PROTO_ANNO_FORECAST_DETAIL = FORECAST_DETAIL_ANNOS;
+
+  /** 新增/编辑异常备注表单（动态插入 #dlgBody 后由页面 initProtoAnnos） */
+  var REMARK_FORM_ANNOS = [
+    {
+      anchorSelector: "#chkRemarkExcludeAchieve",
+      title: "异常备注：生效月与预测达成率",
+      html:
+        "<p><strong>【基础】</strong>复选框 <code>#chkRemarkExcludeAchieve</code>，默认<strong>勾选</strong>。</p>" +
+        "<p><strong>【逻辑】</strong><strong>勾选</strong>：生效日期范围内<strong>每个自然月</strong>均<strong>不参与</strong>该行「预测达成率」汇总（分子分母均不纳入该月）；<strong>取消勾选</strong>则本条备注不影响预测达成率。与 PRD 异常备注章节一致。</p>" +
+        "<p><strong>【交互】</strong>与「生效时间」日期范围联动；保存后刷新列表与 KPI（演示）。</p>",
+    },
+    {
+      anchorSelector: "#remarkExcludeRow",
+      title: "表单行：预测达成率排除说明",
+      html:
+        "<p><strong>【基础】</strong>整行承载上述复选框与说明文案。</p>" +
+        "<p><strong>【逻辑】</strong>批量新增时写入所选多行；每行独立备注列表。</p>" +
+        "<p><strong>【交互】</strong>只读标签位留空，内容在右侧 <code>.field</code> 内。</p>",
+    },
+  ];
+
+  window.PROTO_ANNO_REMARK_FORM = REMARK_FORM_ANNOS;
 
   document.addEventListener("DOMContentLoaded", function () {
     if (typeof initProtoAnnos === "function") initProtoAnnos(ANNOS);
