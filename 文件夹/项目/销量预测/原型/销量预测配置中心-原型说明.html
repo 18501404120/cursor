@@ -308,14 +308,11 @@
               <div class="f"><label>Sales</label><select><option>全部</option></select></div>
               <div class="f"><label>可售状态</label><select><option>全部</option></select></div>
               <div class="f"><label>超参数因子</label><select id="fltFactor"><option value="">全部</option><option value="00001">00001</option><option value="00002">00002</option><option value="00003">00003</option></select></div>
-              <div class="f">
-                <label>月份范围</label>
-                <input type="hidden" id="cfgMonthFrom" value="202601" />
-                <input type="hidden" id="cfgMonthTo" value="202612" />
-                <div id="wrapCfgMonth"></div>
-              </div>
               <div class="f"><button type="button" class="btn btn-primary" id="btnCfgSearch">搜索</button></div>
             </div>
+            <p style="font-size:11px;color:var(--text-sec);margin:8px 0 0;line-height:1.55;">
+              本页<strong>不提供「月份范围」</strong>筛选控件。与预测滚动窗口、弹性复盘相关的<strong>默认时间轴</strong>由系统固定为：<strong>以当前日为锚点，回溯 12 个月～顺推 12 个月</strong>（自然月边界由服务对齐）；此处仅用区域/SKU 等维度缩小 MSKU 行集合。详见红点说明。
+            </p>
           </div>
           <div class="toolbar">
             <button type="button" class="btn btn-primary" id="btnOpenBatch">批量设置超参数因子</button>
@@ -373,7 +370,6 @@
             <div class="filter-grid">
               <div class="f"><label for="subFid">超参数编号</label><input type="text" id="subFid" class="w-id" placeholder="00001" maxlength="5" /></div>
               <div class="f"><label for="subFevent">超参数事件</label><input type="text" id="subFevent" style="width:180px" placeholder="关键词" /></div>
-              <div class="f"><label>时间范围</label><div id="wrapSubDate" aria-label="时间范围"></div></div>
               <div class="f"><label>状态</label><select id="subStatus"><option value="">全部</option><option value="draft">草稿</option><option value="effective">生效</option></select></div>
               <div class="f"><button type="button" class="btn btn-primary" id="subSearch">搜索</button></div>
             </div>
@@ -454,7 +450,6 @@
     </div>
   </div>
 
-  <script src="../../../规范/assets/month-range-picker.js"></script>
   <script src="../../../规范/assets/date-range-picker.js"></script>
   <script>
     (function () {
@@ -576,17 +571,29 @@
         return s.slice(-5);
       }
 
+      /** 与超参数因子主列表一致：以「今天」为锚点，回溯 12 个月～顺推 12 个月（按自然日对齐，闭区间参与区间重叠判断） */
       function defaultRange() {
         var d = new Date();
-        var from = new Date(d.getFullYear(), d.getMonth() - 1, d.getDate());
-        var to = new Date(d.getFullYear(), d.getMonth() + 2, d.getDate());
-        return { from: from, to: to };
+        return {
+          from: new Date(d.getFullYear() - 1, d.getMonth(), d.getDate()),
+          to: new Date(d.getFullYear() + 1, d.getMonth(), d.getDate())
+        };
       }
       function fmtDate(d) {
         var y = d.getFullYear();
         var m = d.getMonth() + 1;
         var day = d.getDate();
         return y + '-' + (m < 10 ? '0' : '') + m + '-' + (day < 10 ? '0' : '') + day;
+      }
+      function parseYmd(s) {
+        if (!s) return null;
+        var p = String(s).split('-');
+        if (p.length !== 3) return null;
+        var dt = new Date(parseInt(p[0], 10), parseInt(p[1], 10) - 1, parseInt(p[2], 10));
+        return isNaN(dt.getTime()) ? null : dt;
+      }
+      function rangesOverlap(a0, a1, b0, b1) {
+        return a0 <= b1 && a1 >= b0;
       }
 
       function showConfig() {
@@ -600,12 +607,7 @@
         document.getElementById('screenConfig').hidden = true;
         document.getElementById('screenFactors').hidden = false;
         document.getElementById('headerTitle').textContent = '超参数因子管理';
-        document.getElementById('headerSub').textContent = '（从配置中心进入 · 已按编号筛选）';
-        var dr = defaultRange();
-        requestAnimationFrame(function () {
-          ensureSubDatePicker();
-          if (apiSubDate) apiSubDate.set(fmtDate(dr.from), fmtDate(dr.to));
-        });
+        document.getElementById('headerSub').textContent = '（从配置中心进入 · 已按编号筛选；列表默认仅展示与「过去12个月～未来12个月」有交集的因子）';
         document.getElementById('subFid').value = prefillCode || '';
         document.getElementById('subFevent').value = '';
         document.getElementById('subStatus').value = '';
@@ -617,6 +619,9 @@
         var ev = document.getElementById('subFevent').value.trim();
         var st = document.getElementById('subStatus').value;
         var tb = document.getElementById('subTbody');
+        var win = defaultRange();
+        var w0 = win.from.getTime();
+        var w1 = win.to.getTime();
         var h = '';
         factorLib.forEach(function (f) {
           if (idQ) {
@@ -627,6 +632,9 @@
           var status = f.code === '00002' ? '生效' : '草稿';
           if (st === 'draft' && status !== '草稿') return;
           if (st === 'effective' && status !== '生效') return;
+          var rs = parseYmd(f.start);
+          var re = parseYmd(f.end);
+          if (rs && re && !rangesOverlap(rs.getTime(), re.getTime(), w0, w1)) return;
           h += '<tr><td>' + f.code + '</td><td>' + f.event + '</td><td class="num">' + f.factor + '</td>';
           h += '<td>' + f.start + ' 至 ' + f.end + '</td><td>' + status + '</td></tr>';
         });
@@ -757,26 +765,7 @@
         if (e.target === this) this.classList.remove('show');
       });
 
-      var apiSubDate = null;
       var apiBatchDate = null;
-      var apiCfgMonth = null;
-
-      function pad2cfg(n) {
-        return (n < 10 ? '0' : '') + n;
-      }
-      /** 子页「超参数因子维护」在 hidden 容器内，须在展示后再挂载，否则易出现原生日期样式或未渲染 */
-      function ensureSubDatePicker() {
-        if (apiSubDate || typeof DateRangePicker === 'undefined') return;
-        var ws = document.getElementById('wrapSubDate');
-        if (!ws) return;
-        var sr = defaultRange();
-        apiSubDate = DateRangePicker.mount(ws, {
-          zIndex: 250,
-          start: fmtDate(sr.from),
-          end: fmtDate(sr.to),
-          onChange: function () {}
-        });
-      }
 
       /** 批量弹窗内挂载点，在弹窗打开后再初始化 */
       function ensureBatchDatePicker() {
@@ -791,45 +780,6 @@
           onChange: function () {}
         });
       }
-
-      function initDatePickers() {
-        if (typeof MonthRangePicker === 'undefined') return;
-        var wc = document.getElementById('wrapCfgMonth');
-        if (wc) {
-          var cf = document.getElementById('cfgMonthFrom');
-          var ct = document.getElementById('cfgMonthTo');
-          apiCfgMonth = MonthRangePicker.mount(wc, {
-            zIndex: 120,
-            start: MonthRangePicker.yyyyMmToYm(cf.value || '202601'),
-            end: MonthRangePicker.yyyyMmToYm(ct.value || '202612'),
-            onChange: function (s, e) {
-              if (!s || !e) return;
-              cf.value = MonthRangePicker.ymToYyyyMm(s);
-              ct.value = MonthRangePicker.ymToYyyyMm(e);
-            }
-          });
-        }
-      }
-
-      // 默认月份范围：未来12个月（从下个月起），存 YYYYMM 于隐藏域
-      function initMonthRange12() {
-        var fromEl = document.getElementById('cfgMonthFrom');
-        var toEl = document.getElementById('cfgMonthTo');
-        if (!fromEl || !toEl) return;
-        var now = new Date();
-        var base = new Date(now.getFullYear(), now.getMonth(), 1);
-        var from = new Date(base.getFullYear(), base.getMonth() + 1, 1);
-        var to = new Date(base.getFullYear(), base.getMonth() + 12, 1);
-        function fmt(y, mIdx0) {
-          var m = mIdx0 + 1;
-          return String(y) + (m < 10 ? '0' : '') + String(m);
-        }
-        fromEl.value = fmt(from.getFullYear(), from.getMonth());
-        toEl.value = fmt(to.getFullYear(), to.getMonth());
-      }
-
-      initMonthRange12();
-      initDatePickers();
 
       renderCfg();
     })();

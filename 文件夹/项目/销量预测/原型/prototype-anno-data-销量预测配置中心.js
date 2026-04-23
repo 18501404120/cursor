@@ -33,16 +33,18 @@
       containerSelector: "#screenConfig .scroll > .panel--filters",
       title: "页面：筛选面板总览",
       html:
-        "<p><strong>【基础】</strong>本屏为「销量预测 · 预测配置」：上方为<strong>与主工作台对齐</strong>的维度筛选 + SKU 组合 + 超参数因子 + 月份范围，下方为工具栏与配置表。</p>" +
-        "<p><strong>【逻辑】</strong>筛选结果集决定「批量设置超参数因子」「导入/导出」的作用范围；月份范围隐藏域 <code>cfgMonthFrom</code> / <code>cfgMonthTo</code> 与 MonthRangePicker 同步。</p>" +
-        "<p><strong>【交互】</strong>修改任一筛选项后点击「搜索」刷新表格；红点逐项说明各控件。</p>",
+        "<p><strong>【基础】</strong>本屏为「销量预测 · 预测配置」：上方为<strong>与主工作台对齐</strong>的维度筛选（区域→店铺→品类树→model/SKU 组合）+ <strong>超参数因子</strong>下拉 + 「搜索」，<strong>不提供「月份范围」筛选控件</strong>（避免与主工作台月份口径重复配置）。</p>" +
+        "<p><strong>【逻辑 · 默认时间轴】</strong>本页展示的弹性系数、因子绑定等<strong>与预测滚动窗口相关的后台计算</strong>，默认按业务约定取<strong>以服务器当前日为锚点：回溯 12 个自然月～顺推 12 个自然月</strong>所覆盖的月序列（与《预测销量上下限规则》中因子统计窗口径对齐；若需改窗由配置中心后台参数或版本发布说明调整，不在此页用月份控件暴露）。</p>" +
+        "<p><strong>【逻辑 · 示例】</strong>假设今天是 2026-04-21，则默认参与汇总/校验的月份约为 2025-05～2027-04（按自然月边界落库时由服务对齐到月初月末）；用户仅通过「区域、SKU…」缩小<strong>MSKU 行集合</strong>，不改变全局默认月窗。</p>" +
+        "<p><strong>【交互】</strong>修改任一筛选项后点「搜索」刷新 <code>#cfgTable</code>；导入导出携带当前筛选条件元数据。</p>",
     },
     {
       containerSelector: GRID + " > .f:nth-child(1)",
       title: "筛选：区域",
       html:
         "<p><strong>【基础】</strong><code>select</code>，默认「全部」。</p>" +
-        "<p><strong>【逻辑】</strong>限定配置列表地理/大区，与 ERP 组织或店铺归属一致；与<strong>国家、店铺</strong>逐级收窄。</p>" +
+        "<p><strong>【逻辑】</strong>限定配置列表地理/大区，与 ERP 组织或店铺归属一致；与<strong>国家、店铺</strong>逐级收窄。与「月份范围」无关：月份窗由系统默认，本控件只影响<strong>空间/组织维度</strong>上的 MSKU 集合。</p>" +
+        "<p><strong>【示例】</strong>选「北美区」+ 店铺「全部」→ 仍可能包含北美多店 SKU；再选店铺「Govee-US」→ 仅保留该店行。</p>" +
         "<p><strong>【交互】</strong>与其它筛选项为<strong>且</strong>关系；选全部不限制区域。</p>",
     },
     {
@@ -142,14 +144,6 @@
         "<p><strong>【交互】</strong>选具体编号仅看已绑定该因子的行（以产品定义为准）。</p>",
     },
     {
-      anchorSelector: "#wrapCfgMonth",
-      title: "筛选：月份范围",
-      html:
-        "<p><strong>【基础】</strong>月份范围挂载点；隐藏域 <code>#cfgMonthFrom</code>、<code>#cfgMonthTo</code> 存 YYYYMM。</p>" +
-        "<p><strong>【逻辑】</strong>限定配置所作用的预测滚动窗口月份；用于按月复盘系数是否在有效期内。</p>" +
-        "<p><strong>【交互】</strong>展示 <code>YYYY-MM - YYYY-MM</code>，面板为连续两年 3×4 月格；可清空。</p>",
-    },
-    {
       anchorSelector: "#btnCfgSearch",
       attach: "afterend",
       title: "按钮：搜索",
@@ -163,8 +157,9 @@
       attach: "afterend",
       title: "按钮：批量设置超参数因子",
       html:
-        "<p><strong>【基础】</strong>打开 <code>#modalBatch</code>，在弹窗内再选因子编号、事件、时间范围并筛选因子列表。</p>" +
-        "<p><strong>【逻辑】</strong>确认后对<strong>勾选行</strong>或<strong>当前筛选全量</strong>写入绑定（见弹窗顶部说明）；受 <code>#permBatch</code> 无权限时应禁用或提示。</p>" +
+        "<p><strong>【基础】</strong>打开 <code>#modalBatch</code>；弹窗内可对因子候选表按 **编号、事件说明、时间范围** 再筛选（其中时间范围控件**默认**为「今天−12个月～今天+12个月」，可手改）。</p>" +
+        "<p><strong>【逻辑】</strong>确认后对<strong>勾选行</strong>或<strong>当前筛选全量</strong>写入绑定（见弹窗顶部说明）；受 <code>#permBatch</code> 无权限时应禁用或提示。与主表「是否去掉月份筛选」独立：批量只关心<strong>写哪几条 MSKU 绑哪个因子</strong>。</p>" +
+        "<p><strong>【场景】</strong>运营要把「关税因子」统一绑到当前筛选下的所有落地灯 SKU：先筛品类，不勾行 → 打开批量 → 勾关税因子 → 确认 → 命中「当前筛选全量」规则。</p>" +
         "<p><strong>【交互】</strong>点击打开模态层；确认/取消遵循弹窗内按钮说明。</p>",
     },
     {
@@ -348,12 +343,13 @@
         "<p><strong>【交互】</strong>非空时子表仅保留说明列包含关键字的行。</p>",
     },
     {
-      anchorSelector: "#wrapSubDate",
-      title: "子页筛选：时间范围",
+      containerSelector: "#screenFactors .panel",
+      title: "子页（内嵌）：超参数因子维护总览",
       html:
-        "<p><strong>【基础】</strong>日期范围选择器挂载点（按日粒度）。</p>" +
-        "<p><strong>【逻辑】</strong>与因子生效起止做<strong>区间重叠</strong>判断，同超参数因子管理页。</p>" +
-        "<p><strong>【交互】</strong>展示 <code>YYYY-MM-DD 至 YYYY-MM-DD</code>，双月历面板；可清空。</p>",
+        "<p><strong>【基础】</strong>从主表「超参数因子项」链接进入；可带编号预填。</p>" +
+        "<p><strong>【逻辑 · 无日期筛选】</strong>子页<strong>不提供</strong>顶栏「时间范围」控件。列表数据在原型脚本中按<strong>固定默认窗</strong>过滤：以<strong>今天</strong>为锚点的 <code>[今天−12个月, 今天+12个月]</code>（自然日闭区间）与因子行的「开始～结束」求<strong>区间交集</strong>，有交集才显示；再与编号、事件关键词、状态做<strong>且</strong>过滤。</p>" +
+        "<p><strong>【示例】</strong>默认窗若为 2025-04-21～2027-04-21，因子区间 2025-09-15～2026-06-30 → 显示；因子区间 2028-01-01～2028-03-01 → 不显示。若因子起止未填全，原型中不参与交集判断（仍受其它筛选项约束）。</p>" +
+        "<p><strong>【交互】</strong>「搜索」刷新子表；「返回」回到主配置列表。</p>",
     },
     {
       anchorSelector: "#subStatus",
@@ -398,11 +394,12 @@
     },
     {
       containerSelector: "#subTable thead tr th:nth-child(4)",
-      title: "子页列：时间范围",
+      title: "子页列：时间范围（行内展示）",
       html:
-        "<p><strong>【基础】</strong>因子生效起止日期。</p>" +
-        "<p><strong>【逻辑】</strong>与筛选「时间范围」做交集过滤；过期因子不应出现在绑定候选。</p>" +
-        "<p><strong>【交互】</strong>只读。</p>",
+        "<p><strong>【基础】</strong>展示该因子主数据的<strong>生效起止日期</strong>（按日）。</p>" +
+        "<p><strong>【逻辑】</strong>子页<strong>无</strong>日期筛选器；是否出现在列表由「行区间 ∩ 默认12个月回溯～12个月顺推窗」决定（见本子页总览红点）。用于核对政策窗口是否仍落在业务关心的近两年跨度内。</p>" +
+        "<p><strong>【示例】</strong>关税因子 2025-09-15～2026-06-30 在默认窗内 → 可见；纯未来大促窗完全落在默认窗外 → 不可见（需到超参数因子主功能页或调后台窗宽排查）。</p>" +
+        "<p><strong>【交互】</strong>本内嵌子表为只读浏览列。</p>",
     },
     {
       containerSelector: "#subTable thead tr th:nth-child(5)",
@@ -439,11 +436,11 @@
     },
     {
       anchorSelector: "#wrapBatchDate",
-      title: "弹窗筛选：时间范围",
+      title: "弹窗筛选：时间范围（候选因子）",
       html:
-        "<p><strong>【基础】</strong>与因子有效期交集过滤。</p>" +
-        "<p><strong>【逻辑】</strong>避免选到已过期或尚未生效窗口外的因子。</p>" +
-        "<p><strong>【交互】</strong>同主列表日期范围控件规范。</p>",
+        "<p><strong>【基础】</strong>按日的起止范围控件；打开弹窗时<strong>默认填充</strong>为与主数据一致的 <code>[今天−12个月, 今天+12个月]</code>，可手动改窄以便在大量因子中定位某政策窗口。</p>" +
+        "<p><strong>【逻辑】</strong>点「筛选因子」时，候选表保留「因子行起止」与所选区间<strong>有交集</strong>的因子。场景示例：默认窗下看到关税因子；将结束日改到半年前再筛选，则已完全结束且与新区间无交集的因子被滤除。</p>" +
+        "<p><strong>【交互】</strong>遵循《日期范围选择框》全局规范；与编号、事件说明筛选为<strong>且</strong>关系（以正式接口为准）。</p>",
     },
     {
       anchorSelector: "#batchSearch",

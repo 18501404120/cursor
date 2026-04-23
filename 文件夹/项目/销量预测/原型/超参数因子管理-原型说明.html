@@ -196,10 +196,6 @@
                 <input type="text" id="fEvent" class="w-event" placeholder="事件说明关键词" />
               </div>
               <div class="f">
-                <label>时间范围</label>
-                <div id="wrapFilterDate"></div>
-              </div>
-              <div class="f">
                 <label for="fStatus">状态</label>
                 <select id="fStatus">
                   <option value="">全部</option>
@@ -211,6 +207,9 @@
                 <button type="button" class="btn btn-primary" id="btnSearch">搜索</button>
               </div>
             </div>
+            <p style="font-size:11px;color:var(--text-sec);margin:8px 0 0;line-height:1.55;">
+              默认列表：仅展示因子「开始～结束」与 <strong>今天回溯 12 个月～今天顺推 12 个月</strong>（按自然日对齐的闭区间）<strong>有交集</strong>的记录；与编号 / 事件 / 状态筛选为<strong>且</strong>关系。无顶栏日期筛选，详见红点说明。
+            </p>
           </div>
           <div class="toolbar">
             <button type="button" class="btn btn-primary" id="btnAdd">新增超参数因子</button>
@@ -290,11 +289,12 @@
         while (s.length < 5) s = '0' + s;
         return s.slice(-5);
       }
-      function defaultFilterRange() {
+      /** 列表默认时间窗（无筛选控件）：以今天为锚点，回溯 12 个月～顺推 12 个月；仅展示因子「生效起止」与该窗有交集的记录 */
+      function defaultListTimeWindow() {
         var d = new Date();
         return {
-          from: new Date(d.getFullYear(), d.getMonth() - 1, d.getDate()),
-          to: new Date(d.getFullYear(), d.getMonth() + 2, d.getDate())
+          from: new Date(d.getFullYear() - 1, d.getMonth(), d.getDate()),
+          to: new Date(d.getFullYear() + 1, d.getMonth(), d.getDate())
         };
       }
       function fmtDate(d) {
@@ -360,16 +360,6 @@
         h += '</tbody></table>';
         el.innerHTML = h;
       }
-      var apiFilterDate = null;
-      function getFilterRange() {
-        if (!apiFilterDate) return null;
-        var v = apiFilterDate.get();
-        var d0 = parseYmd(v.start);
-        var d1 = parseYmd(v.end);
-        if (!d0 || !d1) return null;
-        if (d0.getTime() > d1.getTime()) return null;
-        return { from: d0, to: d1 };
-      }
       function rowMatchesFilter(r) {
         var idQ = document.getElementById('fId').value.trim();
         if (idQ) {
@@ -384,13 +374,11 @@
         var st = document.getElementById('fStatus').value;
         if (st === 'draft' && r.status !== 'draft') return false;
         if (st === 'effective' && r.status !== 'effective') return false;
-        var fr = getFilterRange();
-        if (fr) {
-          var rs = parseYmd(r.start);
-          var re = parseYmd(r.end);
-          if (rs && re) {
-            if (!rangesOverlap(rs.getTime(), re.getTime(), fr.from.getTime(), fr.to.getTime())) return false;
-          }
+        var fr = defaultListTimeWindow();
+        var rs = parseYmd(r.start);
+        var re = parseYmd(r.end);
+        if (rs && re) {
+          if (!rangesOverlap(rs.getTime(), re.getTime(), fr.from.getTime(), fr.to.getTime())) return false;
         }
         return true;
       }
@@ -499,18 +487,6 @@
         var now = new Date();
         var ts = now.getFullYear() + '-' + pad2(now.getMonth() + 1) + '-' + pad2(now.getDate()) + ' ' + pad2(now.getHours()) + ':' + pad2(now.getMinutes()) + ':' + pad2(now.getSeconds());
         logsByCode[code].unshift({ user: user, time: ts, before: beforePartial, after: afterPartial });
-      }
-      function initDefaults() {
-        var dr = defaultFilterRange();
-        if (typeof DateRangePicker === 'undefined') return;
-        var el = document.getElementById('wrapFilterDate');
-        if (!el) return;
-        apiFilterDate = DateRangePicker.mount(el, {
-          zIndex: 120,
-          start: fmtDate(dr.from),
-          end: fmtDate(dr.to),
-          onChange: function () {}
-        });
       }
       var pendingDeleteIds = null;
 
@@ -677,7 +653,6 @@
         }
       });
 
-      initDefaults();
       renderTable();
       renderLogPanel();
     })();
