@@ -185,14 +185,11 @@
     },
     {
       anchorSelector: "#btnExport",
-      title: "按钮：导出（列字典，原《导出模板说明》合并于此）",
+      attach: "afterend",
+      title: "按钮：导出",
       html:
-        "<p><strong>【原则 1 · 按页】</strong>导出列必须与当前「搜索」结果下<strong>表格可见表头</strong>完全一致：从左到右依次包含<strong>所有维度列</strong>、<strong>所有动态月份列</strong>（格式 YYYYMM，与筛选「月份范围」一致）、以及<strong>恰好一列</strong>预测达成率——列名随表格工具栏 <code>#tablePredR</code>，例如当前选 R1 则列名导出为「R1预测达成率」。<strong>不要</strong>把顶部 <code>#fltPredR</code> 当成导出列名依据。</p>" +
-        "<p><strong>【原则 2 · 表头行】</strong>文件第一行建议为字段名（中文或英文由公司配置统一）；若存在导入模板，字段名须能<strong>双向映射</strong>，避免同义不同名。</p>" +
-        "<p><strong>【原则 3 · 数值】</strong>各月预测销量列导出为<strong>整数件数</strong>；预测达成率导出为<strong>数值型百分比</strong>（如 87.3 或 87.3%，二选一整仓统一）。历史趋势列可导出为图片占位、URL 或整列省略，由配置决定。</p>" +
-        "<p><strong>【建议列顺序（与原型主表一致）】</strong>① 区域/国家/店铺　② 场景/品类/品线　③ 销售团队　④ SKU / 定位　⑤ 平台 / MSKU　⑥… 各业务月多列　⑦ 历史销量趋势（可选）　⑧ <strong>当前 R*预测达成率</strong>单列　⑨ 「操作」列通常<strong>不导出</strong>；若需审计可另选导出「是否有未处理备注」等派生列。</p>" +
-        "<p><strong>【正式交付】</strong>可提供标准 <code>.xlsx</code>：首行字段名 + 一行样例 + 单独「校验说明」工作表；本说明版用红点替代原独立 Markdown《导出模板说明》。</p>" +
-        "<p><strong>【交互】</strong>演示为 <code>alert</code>；生产环境建议异步任务 + 下载链接 + 导出中 loading 防重复提交。</p>",
+        "<p><strong>【逻辑】</strong>无需先勾选表格行；按当前筛选条件发起导出（正式环境异步任务 + 下载链接）。导出列与当前表头一致。</p>" +
+        "<p>导入/导出模版见：<a href=\"https://alidocs.dingtalk.com/i/nodes/2Amq4vjg89g6dmBPsPXmxZD3V3kdP0wQ\" target=\"_blank\" rel=\"noopener noreferrer\">https://alidocs.dingtalk.com/i/nodes/2Amq4vjg89g6dmBPsPXmxZD3V3kdP0wQ</a></p>",
     },
     {
       anchorSelector: "#btnAddRemarkBatch",
