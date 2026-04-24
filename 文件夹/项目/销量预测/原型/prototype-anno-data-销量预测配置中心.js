@@ -263,7 +263,7 @@
       title: "列：转化率弹性系数",
       html:
         "<p><strong>【基础】</strong>转化率相关驱动的弹性系数。</p>" +
-        "<p><strong>【逻辑】</strong><strong>基准转化率</strong>优先 ASIN 近 12 月平均，不足则降级相关 SKU、品类、场景。<strong>近 2 个月环比增速</strong>按权重 <strong>0.4、0.6</strong> 合成 <code>h</code>；<strong>预估转化率</strong> ≈ 近 30 天平均×(1+<code>h</code>)；<strong>倍数</strong>=预估÷基准；<strong>方向系数</strong>=倍数×本列弹性（与引擎字段名对齐）。与流量/广告若重叠，由算法定义是否正交或顺序应用。</p>" +
+        "<p><strong>【逻辑】</strong>与《销量预测-分步计算说明》<strong>3.3</strong>一致：<strong>CR_d30</strong> 为近 30 天 Listing 转化率；<strong>r1、r2</strong> 为预测月前两月各自相对前月的转化环比增速；<strong>G_cvr=0.4×r1+0.6×r2</strong>；<strong>CR_est=CR_d30×(1+G_cvr)</strong>；<strong>CR_ref</strong> 优先 ASIN 近 12 月均，不足降级 SKU/品类/场景；<strong>M_cvr=CR_est/CR_ref</strong>；<strong>C_cvr=M_cvr×</strong>本列弹性。</p>" +
         "<p><strong>【交互】</strong>支持批量导入。</p>",
     },
     {
@@ -271,7 +271,7 @@
       title: "列：广告花费弹性系数",
       html:
         "<p><strong>【基础】</strong>广告投入对销量边际影响的弹性。</p>" +
-        "<p><strong>【逻辑】</strong><strong>基准</strong>取近 3 个月平均广告花费；<strong>预估</strong>有计划用计划，否则近 30 天延续。<strong>倍数</strong>=预估÷基准。最终<strong>广告花费系数</strong>口径由产品与算法二选一并全链统一：<strong>倍数×弹性</strong> 或 <strong>1+倍数×弹性</strong>；上线前必须写死一种并在列头提示与引擎一致。</p>" +
+        "<p><strong>【逻辑】</strong><strong>基准广告花费（A_ref）</strong>取近 3 个月月均；<strong>预估广告花费（A_est）</strong>有计划用计划，否则近 30 天延续。<strong>广告倍数（M_ad）</strong>=A_est÷A_ref。<strong>广告系数（C_ad）</strong>全链统一为 <strong>C_ad = 1 + M_ad × 本列弹性</strong>（与《销量预测-分步计算说明》<strong>3.4</strong>、主工作台引擎一致）。</p>" +
         "<p><strong>【交互】</strong>表头「?」查看与引擎一致的文案。</p>",
     },
     {

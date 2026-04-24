@@ -156,7 +156,7 @@
       title: "KPI：R1 / R2 / R3 预测达成率",
       html:
         "<p><strong>【基础】</strong>三张卡分别展示 <strong>R1/R2/R3 预测达成率</strong>标题与汇总数值。</p>" +
-        "<p><strong>【逻辑】</strong>列表行在通过「达成率」阈值筛选后，对每行按窗口内已关账月计算 <strong>100% − Σ|A−P| / Σ max(A,P)</strong>（与 PRD 图七一致），再对各行取平均得到卡上汇总（演示）。</p>" +
+        "<p><strong>【逻辑】</strong>列表行在通过「达成率」阈值筛选后，对每行按窗口内已关账月计算 <strong>100% − Σ|A−P| / Σ max(A,P)</strong>（与 PRD、R1 §5.2 一致），再对<strong>可见行等权算术平均</strong>得到卡上汇总（演示）。</p>" +
         "<p><strong>【交互】</strong>只读。</p>",
     },
     {
@@ -172,7 +172,7 @@
       title: "区块：销量预测与达成（主图）",
       html:
         "<p><strong>【基础】</strong>主图：<strong>目标 R1/R2/R3</strong> 分组柱 + 各档<strong>下限～上限</strong>浅色带 + <strong>实际销量柱状</strong> + <strong>R1/R2/R3 预测达成率</strong>折线（右轴 %）。</p>" +
-        "<p><strong>【逻辑】</strong>左轴销量件数、右轴预测达成率；锁定提前量默认 30/60/90 天（可配置）见《R1至R3规则说明》；上下限见《预测销量上下限规则-终版》。</p>" +
+        "<p><strong>【逻辑】</strong>左轴销量件数、右轴预测达成率；锁定提前量默认 30/60/90 天（可配置）见《R1至R3规则说明》；上下限见《预测销量上下限规则-终版》。<strong>实际销量柱</strong>：已关账有 <strong>A</strong> 的月照常绘制；某月若因 <strong>Q_pred=0</strong> 等不参与达成率，<strong>折线断点</strong>但<strong>实销柱仍画</strong>（PRD §5.7）。</p>" +
         "<p><strong>【交互】</strong>图例点击控制序列显隐；Tooltip 轴触发。</p>",
     },
     {
