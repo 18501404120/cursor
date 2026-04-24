@@ -255,7 +255,7 @@
       title: "列：价格弹性系数",
       html:
         "<p><strong>【基础】</strong>价格变动对销量的敏感系数（可为负：涨价抑制销量）。</p>" +
-        "<p><strong>【逻辑】</strong><strong>基准均价</strong>取近 3 个月销售额÷销量（不足走品类均）；<strong>预估均价</strong>有价格规划用规划，否则用近 30 天均价延续。<strong>价格倍数</strong> = (预估−基准)÷基准。<strong>价格系数</strong> = <code>1 + 价格倍数 × 本列弹性</code>（与引擎最终口径须一致）。</p>" +
+        "<p><strong>【逻辑】</strong><strong>价格基准（P_base）</strong>取近一年总销售额÷近一年总销量（近一年成交均价，与 Q_base 同窗口；不足走品类均）；<strong>预估价（P_est）</strong>有价格规划用规划，否则用近 30 天均价延续。<strong>价格倍数（M_pri）</strong> = P_est ÷ P_base。<strong>价格系数（C_pri）</strong> = <code>1 + M_pri × 本列弹性</code>（与《销量预测-分步计算说明》及引擎须一致）。</p>" +
         "<p><strong>【交互】</strong>行内编辑或导入；与促销日历联动由后端处理。</p>",
     },
     {
