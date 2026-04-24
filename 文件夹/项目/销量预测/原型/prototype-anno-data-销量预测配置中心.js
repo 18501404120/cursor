@@ -279,7 +279,7 @@
       title: "列：竞争力弹性系数",
       html:
         "<p><strong>【基础】</strong>市场竞争、跟卖、类目排名等综合竞争力因子弹性。</p>" +
-        "<p><strong>【逻辑】</strong>小类、大类各自做近 2 个月同比增长并按 <strong>0.45、0.55</strong> 合成，再对小类/大类结果按 <strong>0.7、0.3</strong> 合成<strong>综合增长率</strong>；<strong>竞争力系数 = 1 + 综合增长率 × 本列弹性</strong>。数据缺失时要有降级或禁用策略，避免除零。</p>" +
+        "<p><strong>【逻辑】</strong>小类、大类各用<strong>预测月前连续三个月</strong>的<strong>类目排名</strong>算两个月<strong>环比对称增速</strong>（<code>R_sym(本月,上月)=(本月−上月)/(本月+上月)</code>），月权 <strong>0.45、0.55</strong> 合成 <code>G_sub</code>/<code>G_cat</code>，再 <strong>0.7、0.3</strong> 得 <code>G_comp</code>；<strong>竞争力系数 C_comp = 1 + G_comp × 本列弹性</strong>。<strong>不看去年同期</strong>。若小类或大类<strong>任一侧</strong>三个月排名链不完整或分母为 0，则<strong>G_comp=0、C_comp=1</strong>（不参与调节）。口径见《销量预测-分步计算说明》<strong>3.5</strong>。</p>" +
         "<p><strong>【交互】</strong>与其它弹性列一致维护。</p>",
     },
     {
