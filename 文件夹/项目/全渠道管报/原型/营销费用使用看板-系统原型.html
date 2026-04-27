@@ -115,7 +115,8 @@
     }
     .f { display: flex; align-items: center; gap: 6px; }
     .f > label { color: var(--text-sec); white-space: nowrap; font-size: 12px; }
-    .f select {
+    .f select,
+    .f input[type="text"] {
       height: 28px;
       padding: 2px 8px;
       border: 1px solid var(--border);
@@ -126,16 +127,67 @@
       color: var(--text);
       background: #fff;
     }
-    .f select:focus {
+    .f select:focus,
+    .f input:focus {
       outline: none;
       border-color: var(--brand);
       box-shadow: 0 0 0 2px rgba(22, 119, 255, 0.12);
     }
-    .flt-line select {
-      min-width: 100px;
-      max-width: 120px;
-      font-family: ui-monospace, monospace;
+    .f-model select {
+      min-width: 120px;
+      max-width: 160px;
     }
+    .flt-line select {
+      min-width: 72px;
+      max-width: 88px;
+      font-family: ui-monospace, monospace;
+      letter-spacing: 0.02em;
+    }
+    .sku-input-group {
+      display: inline-flex;
+      align-items: stretch;
+      height: 28px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      overflow: hidden;
+      background: #fff;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+    .sku-input-group:hover { border-color: #4096ff; }
+    .sku-input-group:focus-within {
+      border-color: #1677ff;
+      box-shadow: 0 0 0 2px rgba(22, 119, 255, 0.12);
+    }
+    .sku-mode-select {
+      border: none;
+      height: 100%;
+      margin: 0;
+      padding: 0 22px 0 8px;
+      min-width: 88px;
+      max-width: 100px;
+      font-size: 12px;
+      color: var(--text);
+      background-color: #fafafa;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 12 12'%3E%3Cpath fill='%238c8c8c' d='M2.5 4.5L6 8l3.5-3.5'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 6px center;
+      cursor: pointer;
+      appearance: none;
+      -webkit-appearance: none;
+      outline: none;
+    }
+    .sku-input-main {
+      border: none;
+      border-left: 1px solid var(--border);
+      height: 100%;
+      min-width: 140px;
+      max-width: 200px;
+      padding: 0 10px;
+      font-size: 12px;
+      color: var(--text);
+      outline: none;
+    }
+    .sku-input-main::placeholder { color: #bfbfbf; }
     .btn-search {
       height: 28px;
       padding: 0 14px;
@@ -342,11 +394,27 @@
       background: #fff;
       border-radius: 8px;
       width: 100%;
-      max-width: 480px;
+      max-width: 520px;
       max-height: 90vh;
       overflow: auto;
       box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
     }
+    .line-check-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px 14px;
+      padding: 8px 0;
+    }
+    .line-check-grid label {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 13px;
+      color: var(--text);
+      cursor: pointer;
+      margin: 0;
+    }
+    .line-check-grid input { width: auto; }
     .modal-hd {
       display: flex;
       align-items: flex-start;
@@ -376,12 +444,14 @@
     .modal-close:hover { background: #f5f5f5; color: var(--text); }
     .modal-bd { padding: 16px; }
     .form-row { margin-bottom: 14px; }
-    .form-row label {
+    .form-row label,
+    .form-row-title {
       display: block;
       font-size: 12px;
       color: var(--text-sec);
       margin-bottom: 6px;
     }
+    .form-row-title { margin-bottom: 0; }
     .form-row input,
     .form-row select,
     .form-row textarea {
@@ -437,14 +507,72 @@
         <section class="panel">
           <div class="filter-panel">
             <div class="filter-grid">
+              <div class="f"><label for="fltScenario">场景品类</label><select id="fltScenario"><option value="">全部</option></select></div>
+              <div class="f"><label for="fltRegion">区域</label><select id="fltRegion"><option value="">全部</option></select></div>
+              <div class="f"><label for="fltCountry">国家</label><select id="fltCountry"><option value="">全部</option></select></div>
+              <div class="f"><label for="fltChannel">渠道</label><select id="fltChannel"><option value="">全部</option></select></div>
+              <div class="f"><label for="fltStore">店铺</label><select id="fltStore"><option value="">全部</option></select></div>
+              <div class="f f-model"><label for="fltModel">model</label><select id="fltModel"><option value="">请选择</option></select></div>
+              <div class="f"><label>SKU</label>
+                <div class="sku-input-group" id="skuInputGroup">
+                  <select class="sku-mode-select" id="fltSkuMode" aria-label="SKU搜索方式">
+                    <option value="fuzzy" selected>模糊</option>
+                    <option value="exact">精确</option>
+                    <option value="8digit">8位搜索</option>
+                  </select>
+                  <input class="sku-input-main" type="text" id="fltSku" placeholder="请输入SKU" autocomplete="off" />
+                </div>
+              </div>
+              <div class="f"><label for="fltTl">TL</label><select id="fltTl"><option value="">全部</option></select></div>
+              <div class="f"><label for="fltSales">Sales</label><select id="fltSales"><option value="">全部</option></select></div>
+              <div class="f flt-line"><label for="fltProductLine">品线</label><select id="fltProductLine"><option value="">全部</option></select></div>
               <div class="f"><label for="fltYear">年度</label><select id="fltYear"></select></div>
-              <div class="f flt-line"><label for="fltProductLine">品线</label><select id="fltProductLine"></select></div>
               <button type="button" class="btn-search" id="btnQuery">搜索</button>
             </div>
             <div class="filter-actions">
               <button type="button" class="btn btn-default" id="btnReset">重置</button>
-              <span class="hint" style="margin:0;flex:1;">列表按<strong>年度 + 品线</strong>过滤；品线选「全部」时含「全品线」活动。数据保存在本机 <code>localStorage</code>。</span>
+              <span class="hint" style="margin:0;flex:1;min-width:200px;">品线为 <strong>4 位编码</strong>下拉；SKU 为<strong>模式 + 输入一体组合</strong>（与《产品信息筛选区-全局UI规范》及营销费用规划页一致）。列表与 KPI 当前仅<strong>年度 + 品线</strong>生效；其余为界面预留。数据保存在本机 <code>localStorage</code>。</span>
             </div>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-head">
+            <span>全年里程碑</span>
+            <button type="button" class="btn btn-default" id="btnAddOpen">新增活动</button>
+          </div>
+          <div class="panel-body">
+            <p class="hint" style="margin-top:0;">点击某一<strong>月份</strong>：下方列表仅展示<strong>日期范围与该月有交集</strong>的活动；再次点击同一月或点「取消月份筛选」恢复全年。在弹窗中登记<strong>开始/结束日期</strong>与<strong>多品线</strong>或全品线。</p>
+            <div class="milestone-wrap">
+              <div class="milestone-rail" id="milestoneRail" aria-label="全年12月里程碑"></div>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-head">营销活动列表</div>
+          <div class="panel-body">
+            <div class="table-toolbar">
+              <span id="actCount" class="hint" style="margin:0;">共 0 条</span>
+              <button type="button" class="btn btn-default" id="btnClearMonth" style="display:none;">取消月份筛选</button>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>开始日期</th>
+                    <th>结束日期</th>
+                    <th>活动名称</th>
+                    <th>品线/品类</th>
+                    <th class="num">预算（USD）</th>
+                    <th class="num">实际（USD）</th>
+                    <th class="actions">操作</th>
+                  </tr>
+                </thead>
+                <tbody id="tbodyActs"></tbody>
+              </table>
+            </div>
+            <p class="hint">点击表格行查看下方「店铺 + MSKU」分摊；多品线活动时按各品线 BP 权重合并后再拆分。</p>
           </div>
         </section>
 
@@ -461,14 +589,14 @@
                 <div class="progress-fill" id="barTime" style="width:0%"></div>
               </div>
               <p class="hint" style="margin-top:8px;">
-                <strong>按时间进度费用预估</strong>＝筛选范围内活动<strong>预算合计</strong>×时间进度；用于与<strong>实际合计</strong>对比。紫色叠层表示「预估应花」占比，蓝色为已过时间占比。
+                <strong>按时间进度费用预估</strong>＝下方列表筛选（年度+品线，<strong>不含</strong>月份钻取）的<strong>预算合计</strong>×时间进度；用于与<strong>实际合计</strong>对比。紫色叠层表示「预估应花」占比，蓝色为已过时间占比。
               </p>
             </div>
             <div class="kpi-row" id="kpiRow">
               <div class="kpi-card brand">
                 <div class="lab">预算合计（USD）</div>
                 <div class="val" id="kpiBudget">$0</div>
-                <div class="sub">当前筛选下的全年活动预算</div>
+                <div class="sub">年度+品线下活动预算（全年）</div>
               </div>
               <div class="kpi-card ok">
                 <div class="lab">实际费用合计（USD）</div>
@@ -490,54 +618,19 @@
         </section>
 
         <section class="panel">
-          <div class="panel-head">
-            <span>全年里程碑</span>
-            <button type="button" class="btn btn-default" id="btnAddOpen">新增活动</button>
-          </div>
-          <div class="panel-body">
-            <p class="hint" style="margin-top:0;">点击某一<strong>月份里程碑</strong>可在该月登记营销活动（名称、费用、日期、品线）。活动可绑定单一 4 位品线或<strong>全品线</strong>。</p>
-            <div class="milestone-wrap">
-              <div class="milestone-rail" id="milestoneRail" aria-label="全年12月里程碑"></div>
-            </div>
-          </div>
-        </section>
-
-        <section class="panel">
-          <div class="panel-head">营销活动列表</div>
-          <div class="panel-body">
-            <div class="table-toolbar">
-              <span id="actCount" class="hint" style="margin:0;">共 0 条</span>
-            </div>
-            <div class="table-wrap">
-              <table>
-                <thead>
-                  <tr>
-                    <th>发生日期</th>
-                    <th>里程碑</th>
-                    <th>活动名称</th>
-                    <th>品线</th>
-                    <th class="num">预算（USD）</th>
-                    <th class="num">实际（USD）</th>
-                    <th class="actions">操作</th>
-                  </tr>
-                </thead>
-                <tbody id="tbodyActs"></tbody>
-              </table>
-            </div>
-            <p class="hint">点击表格行查看下方「店铺 + MSKU」分摊；<strong>预算</strong>与<strong>实际</strong>均按 BP 目标营收权重拆分（与规划原型一致逻辑）。</p>
-          </div>
-        </section>
-
-        <section class="panel">
           <div class="panel-head">店铺 + MSKU 分摊</div>
           <div class="panel-body">
             <p class="split-meta" id="splitCtx">请先在上方列表中选择一条活动。</p>
+            <p class="hint" style="margin-bottom:10px;">
+              <strong>MSKU 与筛选区全局约束一致（示意）</strong>：上方 SKU 为「左侧模式（模糊 / 精确 / 8位搜索）+ 右侧输入」一体组合，与《产品信息筛选区-全局UI规范》及<strong>营销费用规划</strong>页相同；下表 MSKU 为分摊示例编码（如 <code>MSKU-51-1xxx</code>），正式系统需与主数据 MSKU 档案对齐。
+            </p>
             <div class="table-wrap">
               <table>
                 <thead>
                   <tr>
                     <th>店铺</th>
                     <th>MSKU</th>
+                    <th>品线（权重来源）</th>
                     <th>权重</th>
                     <th class="num">分摊预算（USD）</th>
                     <th class="num">分摊实际（USD）</th>
@@ -567,12 +660,19 @@
           <input type="text" id="fName" placeholder="例如：Prime Day 投放" maxlength="120" />
         </div>
         <div class="form-row">
-          <label for="fDate">发生日期</label>
-          <input type="date" id="fDate" />
+          <label>活动日期范围</label>
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+            <input type="date" id="fDateStart" style="flex:1;min-width:140px;" />
+            <span style="color:var(--text-sec);">至</span>
+            <input type="date" id="fDateEnd" style="flex:1;min-width:140px;" />
+          </div>
         </div>
         <div class="form-row">
-          <label for="fLine">品线</label>
-          <select id="fLine"></select>
+          <span class="form-row-title">品线 / 品类（可多选）</span>
+          <label style="display:flex;align-items:center;gap:8px;margin:8px 0;">
+            <input type="checkbox" id="fLineAll" /> 全品线（含全部 4 位编码）
+          </label>
+          <div class="line-check-grid" id="fLineChecks"></div>
         </div>
         <div class="form-row">
           <label for="fBudget">预算费用（USD）</label>
@@ -598,7 +698,8 @@
 
   <script>
 (function () {
-  var STORAGE_KEY = "marketing_expense_usage_board_v1";
+  var STORAGE_KEY = "marketing_expense_usage_board_v2";
+  var LEGACY_KEY = "marketing_expense_usage_board_v1";
   var PRODUCT_LINES = [
     { code: "5115" }, { code: "8118" }, { code: "8610" }, { code: "8H11" }, { code: "7H11" }
   ];
@@ -607,7 +708,7 @@
   var currentYear = new Date().getFullYear();
   var currentPl = "";
   var selectedId = null;
-  var modalMonthHint = null;
+  var selectedMonth = null;
 
   function uid() {
     return "a_" + Date.now().toString(36) + "_" + Math.random().toString(36).slice(2, 8);
@@ -624,12 +725,54 @@
     return "$" + Number(n || 0).toLocaleString("en-US", { maximumFractionDigits: 0 });
   }
 
+  function migrateAct(a) {
+    if (a.dateStart && a.dateEnd && a.productLines && a.productLines.length) return a;
+    var ds = a.dateStart || a.dateStr || (a.year + "-01-01");
+    var de = a.dateEnd || ds;
+    var lines;
+    if (a.productLines && a.productLines.length) lines = a.productLines.slice();
+    else if (a.productLine === "ALL") lines = ["ALL"];
+    else lines = [a.productLine || "5115"];
+    return {
+      id: a.id,
+      year: a.year,
+      dateStart: ds,
+      dateEnd: de,
+      name: a.name,
+      productLines: lines,
+      budgetUsd: a.budgetUsd,
+      actualUsd: a.actualUsd,
+      note: a.note || ""
+    };
+  }
+
   function loadAll() {
     try {
       var raw = localStorage.getItem(STORAGE_KEY);
-      if (!raw) return [];
+      if (!raw) {
+        var leg = localStorage.getItem(LEGACY_KEY);
+        if (leg) {
+          try {
+            var arr0 = JSON.parse(leg);
+            if (Array.isArray(arr0) && arr0.length) {
+              var mig = arr0.map(migrateAct);
+              localStorage.setItem(STORAGE_KEY, JSON.stringify(mig));
+              return mig;
+            }
+          } catch (e2) {}
+        }
+        return [];
+      }
       var arr = JSON.parse(raw);
-      return Array.isArray(arr) ? arr : [];
+      if (!Array.isArray(arr)) return [];
+      var needSave = false;
+      var out = arr.map(function (a) {
+        var n = migrateAct(a);
+        if (JSON.stringify(n) !== JSON.stringify(a)) needSave = true;
+        return n;
+      });
+      if (needSave) localStorage.setItem(STORAGE_KEY, JSON.stringify(out));
+      return out;
     } catch (e) {
       return [];
     }
@@ -658,11 +801,32 @@
     return Math.min(1, Math.max(0, passed / daysInYear(y)));
   }
 
-  function monthFromDateStr(ds) {
-    var p = (ds || "").split("-");
-    if (p.length < 2) return 0;
-    var m = parseInt(p[1], 10);
-    return Math.min(12, Math.max(1, m)) - 1;
+  function parseYMD(s) {
+    var p = String(s || "").split("-");
+    if (p.length < 3) return new Date(0);
+    return new Date(parseInt(p[0], 10), parseInt(p[1], 10) - 1, parseInt(p[2], 10));
+  }
+
+  function lastDayOfMonth(y, m0to11) {
+    return new Date(y, m0to11 + 1, 0).getDate();
+  }
+
+  function overlapsMonth(y, dateStart, dateEnd, m0to11) {
+    var ms = new Date(y, m0to11, 1);
+    var me = new Date(y, m0to11 + 1, 0);
+    var d0 = parseYMD(dateStart);
+    var d1 = parseYMD(dateEnd);
+    return d0 <= me && d1 >= ms;
+  }
+
+  function linesIsAllOnly(lines) {
+    return lines && lines.length === 1 && lines[0] === "ALL";
+  }
+
+  function actCoversLine(a, code) {
+    var L = a.productLines || [];
+    if (L.indexOf("ALL") >= 0) return true;
+    return L.indexOf(code) >= 0;
   }
 
   function mockSkuRows(year, productLine) {
@@ -696,16 +860,41 @@
     return rows;
   }
 
+  function mockSkuRowsMulti(year, productLines) {
+    if (!productLines || productLines.length === 0) return mockSkuRows(year, "5115");
+    if (linesIsAllOnly(productLines)) return mockSkuRows(year, "ALL");
+    var map = {};
+    productLines.forEach(function (code) {
+      if (code === "ALL") return;
+      mockSkuRows(year, code).forEach(function (r) {
+        var k = r.shop + "\t" + r.msku + "\t" + r.productLine;
+        if (!map[k]) {
+          map[k] = {
+            year: year,
+            productLine: r.productLine,
+            shop: r.shop,
+            msku: r.msku,
+            bpRevenue: 0
+          };
+        }
+        map[k].bpRevenue += r.bpRevenue;
+      });
+    });
+    return Object.keys(map).map(function (k) {
+      return map[k];
+    });
+  }
+
   /** 同一套 BP 权重下拆分预算与实际，并分别做尾差对齐 */
-  function splitBudgetAndActual(budgetTotal, actualTotal, year, productLine) {
-    var pl = productLine === "ALL" ? "ALL" : productLine;
-    var skus = mockSkuRows(year, pl);
+  function splitBudgetAndActual(budgetTotal, actualTotal, year, productLines) {
+    var skus = mockSkuRowsMulti(year, productLines);
     var totalBp = skus.reduce(function (s, r) { return s + r.bpRevenue; }, 0);
     var rows = skus.map(function (r) {
       var w = totalBp > 0 ? r.bpRevenue / totalBp : 0;
       return {
         shop: r.shop,
         msku: r.msku,
+        sourceLine: r.productLine,
         weight: w,
         budget: Math.round(budgetTotal * w),
         actual: Math.round(actualTotal * w)
@@ -719,21 +908,30 @@
     return rows;
   }
 
-  function filteredActs() {
+  /** 年度 + 品线（与 KPI 一致，不含月份钻取） */
+  function filteredActsByYearPl() {
     return loadAll().filter(function (a) {
       if (String(a.year) !== String(currentYear)) return false;
       if (!currentPl) return true;
-      if (currentPl === "ALL_FILTER") return a.productLine === "ALL";
-      if (a.productLine === "ALL") return true;
-      return String(a.productLine) === String(currentPl);
+      if (currentPl === "ALL_FILTER") return linesIsAllOnly(a.productLines);
+      return actCoversLine(a, currentPl);
     }).sort(function (a, b) {
-      return String(a.dateStr).localeCompare(String(b.dateStr));
+      return String(a.dateStart).localeCompare(String(b.dateStart)) || String(a.dateEnd).localeCompare(String(b.dateEnd));
+    });
+  }
+
+  /** 列表：在 filteredActsByYearPl 上再按选中月份过滤 */
+  function tableActs() {
+    var base = filteredActsByYearPl();
+    if (selectedMonth == null) return base;
+    return base.filter(function (a) {
+      return overlapsMonth(currentYear, a.dateStart, a.dateEnd, selectedMonth);
     });
   }
 
   function actsInMonth(m0to11) {
-    return filteredActs().filter(function (a) {
-      return monthFromDateStr(a.dateStr) === m0to11;
+    return filteredActsByYearPl().filter(function (a) {
+      return overlapsMonth(currentYear, a.dateStart, a.dateEnd, m0to11);
     });
   }
 
@@ -759,31 +957,104 @@
     }
   }
 
-  function fillProductLineFilter() {
-    var sel = document.getElementById("fltProductLine");
-    var h = '<option value="">全部</option><option value="ALL_FILTER">仅全品线活动</option>';
-    PRODUCT_LINES.forEach(function (o) {
-      h += '<option value="' + o.code + '">' + o.code + "</option>";
-    });
-    sel.innerHTML = h;
+  function initFilterOptions() {
+    function fill(id, items, firstOpt) {
+      var el = document.getElementById(id);
+      if (!el) return;
+      var h = firstOpt || '<option value="">全部</option>';
+      items.forEach(function (t) {
+        h += '<option value="' + t + '">' + t + "</option>";
+      });
+      el.innerHTML = h;
+    }
+    fill("fltScenario", ["全屋智能", "商用照明", "户外便携"]);
+    fill("fltRegion", ["北美", "欧洲", "亚太", "拉美"]);
+    fill("fltCountry", ["美国", "德国", "英国", "日本"]);
+    fill("fltChannel", ["亚马逊", "独立站", "TikTok", "线下"]);
+    fill("fltStore", ["AMZ-US-01", "AMZ-EU-02", "独立站-01"]);
+    fill("fltModel", ["MDL-A01", "MDL-B02", "MDL-C88"], '<option value="">请选择</option>');
+    fill("fltTl", ["TL-01", "TL-02", "TL-03"]);
+    fill("fltSales", ["Sales-A", "Sales-B", "Sales-C"]);
+    var fltPl = document.getElementById("fltProductLine");
+    if (fltPl) {
+      var hp = '<option value="">全部</option><option value="ALL_FILTER">仅全品线活动</option>';
+      PRODUCT_LINES.forEach(function (o) {
+        hp += '<option value="' + o.code + '">' + o.code + "</option>";
+      });
+      fltPl.innerHTML = hp;
+    }
   }
 
-  function fillFormProductLine() {
-    var sel = document.getElementById("fLine");
-    var h = '<option value="ALL">全品线</option>';
+  function buildLineChecks() {
+    var wrap = document.getElementById("fLineChecks");
+    if (!wrap || wrap.dataset.ready) return;
+    wrap.dataset.ready = "1";
+    wrap.innerHTML = "";
     PRODUCT_LINES.forEach(function (o) {
-      h += '<option value="' + o.code + '">' + o.code + "</option>";
+      var lab = document.createElement("label");
+      lab.innerHTML =
+        '<input type="checkbox" class="f-line-cb" value="' +
+        o.code +
+        '" /> ' +
+        o.code;
+      wrap.appendChild(lab);
     });
-    sel.innerHTML = h;
+    document.getElementById("fLineAll").addEventListener("change", function () {
+      var on = this.checked;
+      wrap.querySelectorAll(".f-line-cb").forEach(function (c) {
+        c.disabled = on;
+        if (on) c.checked = false;
+      });
+    });
   }
 
   function defaultActs() {
     var y = new Date().getFullYear();
     return [
-      { id: uid(), year: y, dateStr: y + "-02-14", name: "情人节专题投放", productLine: "5115", budgetUsd: 48000, actualUsd: 45200, note: "" },
-      { id: uid(), year: y, dateStr: y + "-03-08", name: "春季品线联合活动", productLine: "ALL", budgetUsd: 120000, actualUsd: 88000, note: "跨品线" },
-      { id: uid(), year: y, dateStr: y + "-06-20", name: "618 大促", productLine: "8610", budgetUsd: 200000, actualUsd: 195000, note: "" },
-      { id: uid(), year: y, dateStr: y + "-11-28", name: "黑五预热", productLine: "8118", budgetUsd: 150000, actualUsd: 0, note: "待结算" }
+      {
+        id: uid(),
+        year: y,
+        dateStart: y + "-02-01",
+        dateEnd: y + "-02-20",
+        name: "情人节专题投放",
+        productLines: ["5115"],
+        budgetUsd: 48000,
+        actualUsd: 45200,
+        note: ""
+      },
+      {
+        id: uid(),
+        year: y,
+        dateStart: y + "-03-05",
+        dateEnd: y + "-05-18",
+        name: "春季多品线联合",
+        productLines: ["5115", "8610", "8118"],
+        budgetUsd: 120000,
+        actualUsd: 88000,
+        note: "跨品线品类"
+      },
+      {
+        id: uid(),
+        year: y,
+        dateStart: y + "-06-01",
+        dateEnd: y + "-06-25",
+        name: "618 大促",
+        productLines: ["ALL"],
+        budgetUsd: 200000,
+        actualUsd: 195000,
+        note: ""
+      },
+      {
+        id: uid(),
+        year: y,
+        dateStart: y + "-11-01",
+        dateEnd: y + "-12-05",
+        name: "黑五网一周期",
+        productLines: ["8118", "8H11"],
+        budgetUsd: 150000,
+        actualUsd: 62000,
+        note: "跨两个月"
+      }
     ];
   }
 
@@ -795,7 +1066,7 @@
   }
 
   function renderKpis() {
-    var acts = filteredActs();
+    var acts = filteredActsByYearPl();
     var budget = acts.reduce(function (s, a) { return s + (Number(a.budgetUsd) || 0); }, 0);
     var actual = acts.reduce(function (s, a) { return s + (Number(a.actualUsd) || 0); }, 0);
     var tp = timeProgressForYear(currentYear);
@@ -830,14 +1101,28 @@
       var node = document.createElement("button");
       node.type = "button";
       node.className = "ms-node" + (cnt ? " has-act" : "");
-      if (modalMonthHint === m) node.classList.add("active");
+      if (selectedMonth === m) node.classList.add("active");
       node.dataset.month = String(m);
       node.innerHTML =
         '<div class="ms-dot"></div>' +
         "<div class=\"ms-label\">" + MONTH_NAMES[m] + "</div>" +
         '<div class="ms-count">' + (cnt ? cnt + " 活动" : "—") + "</div>";
       node.addEventListener("click", function (mm) {
-        return function () {
+        return function (e) {
+          if (e.detail > 1) return;
+          selectedMonth = selectedMonth === mm ? null : mm;
+          document.getElementById("btnClearMonth").style.display =
+            selectedMonth == null ? "none" : "inline-flex";
+          refreshAll();
+          toast(selectedMonth == null ? "已显示全年活动" : "已筛选「" + MONTH_NAMES[mm] + "」内活动");
+        };
+      }(m));
+      node.addEventListener("dblclick", function (mm) {
+        return function (e) {
+          e.preventDefault();
+          selectedMonth = mm;
+          document.getElementById("btnClearMonth").style.display = "inline-flex";
+          refreshAll();
           openModal(null, mm);
         };
       }(m));
@@ -845,18 +1130,25 @@
     }
   }
 
-  function lineLabel(code) {
-    if (code === "ALL") return "全品线";
-    return String(code || "—");
+  function lineLabel(lines) {
+    if (!lines || !lines.length) return "—";
+    if (linesIsAllOnly(lines)) return "全品线";
+    if (lines.indexOf("ALL") >= 0) return "全品线";
+    return lines.join("、");
   }
 
   function renderTable() {
     var tbody = document.getElementById("tbodyActs");
-    var acts = filteredActs();
-    document.getElementById("actCount").textContent = "共 " + acts.length + " 条（筛选后）";
+    var acts = tableActs();
+    var suffix =
+      selectedMonth == null
+        ? "（筛选后）"
+        : "（已按「" + MONTH_NAMES[selectedMonth] + "」钻取）";
+    document.getElementById("actCount").textContent = "共 " + acts.length + " 条" + suffix;
     tbody.innerHTML = "";
     if (acts.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="7" class="empty">无活动，点击里程碑月份或「新增活动」登记。</td></tr>';
+      tbody.innerHTML =
+        '<tr><td colspan="7" class="empty">无活动。可<strong>单击</strong>里程碑月份筛选该月，<strong>双击</strong>同月在当月登记；或点「新增活动」。</td></tr>';
       selectedId = null;
       renderSplit();
       return;
@@ -865,12 +1157,11 @@
       var tr = document.createElement("tr");
       tr.dataset.id = a.id;
       if (selectedId === a.id) tr.classList.add("sel");
-      var m = monthFromDateStr(a.dateStr);
       tr.innerHTML =
-        "<td>" + escapeHtml(a.dateStr) + "</td>" +
-        "<td>" + escapeHtml(MONTH_NAMES[m]) + "</td>" +
+        "<td>" + escapeHtml(a.dateStart) + "</td>" +
+        "<td>" + escapeHtml(a.dateEnd) + "</td>" +
         "<td>" + escapeHtml(a.name || "—") + "</td>" +
-        "<td>" + escapeHtml(lineLabel(a.productLine)) + "</td>" +
+        "<td>" + escapeHtml(lineLabel(a.productLines)) + "</td>" +
         '<td class="num">' + formatUsd(a.budgetUsd) + "</td>" +
         '<td class="num">' + formatUsd(a.actualUsd) + "</td>" +
         '<td class="actions">' +
@@ -931,15 +1222,27 @@
       Number(a.budgetUsd) || 0,
       Number(a.actualUsd) || 0,
       a.year,
-      a.productLine
+      a.productLines || ["5115"]
     );
     ctx.textContent =
-      "「" + (a.name || "未命名") + "」· " + a.dateStr + " · 品线 " + lineLabel(a.productLine) + " · 预算 " + formatUsd(a.budgetUsd) + " · 实际 " + formatUsd(a.actualUsd);
+      "「" +
+      (a.name || "未命名") +
+      "」· " +
+      a.dateStart +
+      " ~ " +
+      a.dateEnd +
+      " · 品线 " +
+      lineLabel(a.productLines) +
+      " · 预算 " +
+      formatUsd(a.budgetUsd) +
+      " · 实际 " +
+      formatUsd(a.actualUsd);
     rows.forEach(function (r) {
       var tr = document.createElement("tr");
       tr.innerHTML =
         "<td>" + escapeHtml(r.shop) + "</td>" +
         "<td>" + escapeHtml(r.msku) + "</td>" +
+        "<td>" + escapeHtml(r.sourceLine || "—") + "</td>" +
         '<td class="num">' + (r.weight * 100).toFixed(2) + "%</td>" +
         '<td class="num">' + formatUsd(r.budget) + "</td>" +
         '<td class="num">' + formatUsd(r.actual) + "</td>";
@@ -948,13 +1251,42 @@
   }
 
   function refreshAll() {
+    document.getElementById("btnClearMonth").style.display =
+      selectedMonth == null ? "none" : "inline-flex";
     renderKpis();
     renderMilestones();
     renderTable();
   }
 
+  function syncFormLinesFromAct(act) {
+    var allEl = document.getElementById("fLineAll");
+    var wrap = document.getElementById("fLineChecks");
+    var lines = (act && act.productLines) || ["5115"];
+    if (linesIsAllOnly(lines)) {
+      allEl.checked = true;
+      wrap.querySelectorAll(".f-line-cb").forEach(function (c) {
+        c.checked = false;
+        c.disabled = true;
+      });
+    } else {
+      allEl.checked = false;
+      wrap.querySelectorAll(".f-line-cb").forEach(function (c) {
+        c.disabled = false;
+        c.checked = lines.indexOf(c.value) >= 0;
+      });
+    }
+  }
+
+  function readProductLinesFromForm() {
+    if (document.getElementById("fLineAll").checked) return ["ALL"];
+    var out = [];
+    document.querySelectorAll(".f-line-cb:checked").forEach(function (c) {
+      out.push(c.value);
+    });
+    return out;
+  }
+
   function openModal(act, presetMonth) {
-    modalMonthHint = presetMonth != null ? presetMonth : null;
     document.getElementById("modalTitle").textContent = act ? "编辑营销活动" : "登记营销活动";
     document.getElementById("fId").value = act ? act.id : "";
     document.getElementById("fName").value = act ? act.name : "";
@@ -962,16 +1294,31 @@
     document.getElementById("fActual").value = act ? String(act.actualUsd) : "";
     document.getElementById("fNote").value = act ? (act.note || "") : "";
     var y = currentYear;
-    var m = presetMonth != null ? presetMonth : act ? monthFromDateStr(act.dateStr) : new Date().getMonth();
-    var d = act ? act.dateStr : y + "-" + String(m + 1).padStart(2, "0") + "-15";
-    document.getElementById("fDate").value = d;
-    document.getElementById("fLine").value = act ? act.productLine : "5115";
+    var m =
+      presetMonth != null
+        ? presetMonth
+        : act
+          ? parseInt(String(act.dateStart).split("-")[1], 10) - 1
+          : selectedMonth != null
+            ? selectedMonth
+            : new Date().getMonth();
+    m = Math.max(0, Math.min(11, m));
+    var last = lastDayOfMonth(y, m);
+    if (act) {
+      document.getElementById("fDateStart").value = act.dateStart;
+      document.getElementById("fDateEnd").value = act.dateEnd;
+    } else {
+      document.getElementById("fDateStart").value =
+        y + "-" + String(m + 1).padStart(2, "0") + "-01";
+      document.getElementById("fDateEnd").value =
+        y + "-" + String(m + 1).padStart(2, "0") + "-" + String(last).padStart(2, "0");
+    }
+    syncFormLinesFromAct(act);
     document.getElementById("modalMask").classList.add("show");
     renderMilestones();
   }
 
   function closeModal() {
-    modalMonthHint = null;
     document.getElementById("modalMask").classList.remove("show");
     renderMilestones();
   }
@@ -979,8 +1326,9 @@
   function saveModal() {
     var id = document.getElementById("fId").value;
     var name = document.getElementById("fName").value.trim();
-    var dateStr = document.getElementById("fDate").value;
-    var pl = document.getElementById("fLine").value;
+    var ds = document.getElementById("fDateStart").value;
+    var de = document.getElementById("fDateEnd").value;
+    var lines = readProductLinesFromForm();
     var budget = parseFloat(document.getElementById("fBudget").value) || 0;
     var actual = parseFloat(document.getElementById("fActual").value) || 0;
     var note = document.getElementById("fNote").value.trim();
@@ -988,22 +1336,31 @@
       toast("请填写活动名称");
       return;
     }
-    if (!dateStr) {
-      toast("请选择发生日期");
+    if (!ds || !de) {
+      toast("请填写开始与结束日期");
       return;
     }
-    var y = parseInt(dateStr.slice(0, 4), 10);
-    if (String(y) !== String(currentYear)) {
-      toast("发生日期须在所选筛选年度 " + currentYear + " 年内");
+    if (parseYMD(ds) > parseYMD(de)) {
+      toast("结束日期不能早于开始日期");
+      return;
+    }
+    if (!lines || !lines.length) {
+      toast("请勾选全品线或至少一个品线编码");
+      return;
+    }
+    if (String(parseInt(ds.slice(0, 4), 10)) !== String(currentYear) ||
+        String(parseInt(de.slice(0, 4), 10)) !== String(currentYear)) {
+      toast("日期范围须在筛选年度 " + currentYear + " 年内");
       return;
     }
     var list = loadAll();
     var rec = {
       id: id || uid(),
       year: currentYear,
-      dateStr: dateStr,
+      dateStart: ds,
+      dateEnd: de,
       name: name,
-      productLine: pl,
+      productLines: lines,
       budgetUsd: budget,
       actualUsd: actual,
       note: note
@@ -1024,21 +1381,47 @@
   document.getElementById("btnQuery").addEventListener("click", function () {
     currentYear = parseInt(document.getElementById("fltYear").value, 10) || new Date().getFullYear();
     currentPl = document.getElementById("fltProductLine").value;
+    selectedMonth = null;
     refreshAll();
     toast("已查询");
   });
 
   document.getElementById("btnReset").addEventListener("click", function () {
+    [
+      "fltScenario",
+      "fltRegion",
+      "fltCountry",
+      "fltChannel",
+      "fltStore",
+      "fltModel",
+      "fltTl",
+      "fltSales",
+      "fltProductLine",
+      "fltYear"
+    ].forEach(function (id) {
+      var el = document.getElementById(id);
+      if (el) el.selectedIndex = 0;
+    });
+    var sku = document.getElementById("fltSku");
+    if (sku) sku.value = "";
+    var skuMode = document.getElementById("fltSkuMode");
+    if (skuMode) skuMode.value = "fuzzy";
     fillYearSelect();
-    document.getElementById("fltProductLine").selectedIndex = 0;
     currentYear = parseInt(document.getElementById("fltYear").value, 10);
     currentPl = "";
+    selectedMonth = null;
     refreshAll();
     toast("已重置");
   });
 
+  document.getElementById("btnClearMonth").addEventListener("click", function () {
+    selectedMonth = null;
+    refreshAll();
+    toast("已显示全年活动");
+  });
+
   document.getElementById("btnAddOpen").addEventListener("click", function () {
-    openModal(null, new Date().getMonth());
+    openModal(null, selectedMonth != null ? selectedMonth : new Date().getMonth());
   });
 
   document.getElementById("modalClose").addEventListener("click", closeModal);
@@ -1051,9 +1434,9 @@
     e.stopPropagation();
   });
 
+  initFilterOptions();
   fillYearSelect();
-  fillProductLineFilter();
-  fillFormProductLine();
+  buildLineChecks();
   ensureSeed();
   currentYear = parseInt(document.getElementById("fltYear").value, 10);
   refreshAll();
