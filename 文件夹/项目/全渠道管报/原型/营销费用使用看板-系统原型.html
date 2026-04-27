@@ -689,7 +689,7 @@
               <span id="actCount" class="hint" style="margin:0;">共 0 条</span>
               <button type="button" class="btn btn-default" id="btnClearMonth" style="display:none;">取消月份筛选</button>
             </div>
-            <div class="table-wrap">
+            <div class="table-wrap" id="actsTableWrap">
               <table>
                 <thead>
                   <tr>
@@ -1536,9 +1536,14 @@
       if (!id) return;
       tr.addEventListener("click", function (e) {
         if (e.target.closest(".js-edit, .js-del, button")) return;
-        selectedId = id;
+        if (selectedId === id) {
+          selectedId = null;
+        } else {
+          selectedId = id;
+        }
         renderTable();
         renderSplit();
+        e.stopPropagation();
       });
       var ed = tr.querySelector(".js-edit");
       if (ed) {
@@ -1561,13 +1566,9 @@
       }
     });
     if (selectedId && !acts.some(function (a) { return a.id === selectedId; })) {
-      selectedId = acts[0] ? acts[0].id : null;
+      selectedId = null;
     }
-    if (!selectedId && acts[0]) selectedId = acts[0].id;
     renderSplit();
-    document.querySelectorAll("#tbodyActs tr").forEach(function (tr) {
-      if (tr.dataset.id === selectedId) tr.classList.add("sel");
-    });
   }
 
   function renderSplit() {
@@ -1737,6 +1738,14 @@
     selectedMonth = null;
     refreshAll();
     toast("已显示全年活动");
+  });
+
+  /** 点击表头或表格外沿（非数据行）取消当前选中活动 */
+  document.getElementById("actsTableWrap").addEventListener("click", function () {
+    if (selectedId == null) return;
+    selectedId = null;
+    renderTable();
+    renderSplit();
   });
 
   document.getElementById("btnAddOpen").addEventListener("click", function () {
