@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>营销费用规划</title>
+  <style>
+    :root {
+      --bg: #eef2fb;
+      --surface: #fff;
+      --text: #0f172a;
+      --muted: #64748b;
+      --line: #e2e8f0;
+      --brand: #0b5ed7;
+      --brand-soft: #e8f1ff;
+      --ok: #0d9488;
+      --shadow: 0 8px 28px rgba(15, 23, 42, 0.08);
+      --radius: 14px;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "PingFang SC", "Microsoft YaHei", sans-serif;
+      background: linear-gradient(165deg, #e8eef8 0%, var(--bg) 50%);
+      color: var(--text);
+      min-height: 100vh;
+    }
+    .page { max-width: 1280px; margin: 0 auto; padding: 20px 16px 48px; }
+    .hero {
+      background: linear-gradient(125deg, #0c1f42, #1a4a9e 55%, #2563eb);
+      color: #fff;
+      border-radius: 20px;
+      padding: 20px 22px;
+      box-shadow: var(--shadow);
+      margin-bottom: 20px;
+    }
+    .hero h1 { margin: 0 0 8px; font-size: 1.35rem; font-weight: 700; }
+    .hero p { margin: 0; opacity: 0.9; font-size: 0.88rem; line-height: 1.55; max-width: 900px; }
+    .card {
+      background: var(--surface);
+      border-radius: var(--radius);
+      border: 1px solid var(--line);
+      box-shadow: var(--shadow);
+      margin-bottom: 18px;
+      overflow: hidden;
+    }
+    .card-h {
+      padding: 14px 18px;
+      border-bottom: 1px solid var(--line);
+      font-weight: 700;
+      font-size: 0.95rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+    .card-b { padding: 16px 18px; }
+    .toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+    }
+    label { font-size: 0.82rem; color: var(--muted); margin-right: 6px; }
+    select, input[type="text"], input[type="number"] {
+      padding: 8px 12px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      font-size: 0.88rem;
+      min-width: 120px;
+    }
+    input[type="number"] { width: 140px; }
+    input[type="file"] { display: none; }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      padding: 8px 16px;
+      border-radius: 8px;
+      border: 1px solid transparent;
+      font-size: 0.86rem;
+      cursor: pointer;
+      font-family: inherit;
+    }
+    .btn-primary { background: var(--brand); color: #fff; }
+    .btn-primary:hover { filter: brightness(1.05); }
+    .btn-secondary { background: #fff; border-color: var(--line); color: var(--text); }
+    .btn-secondary:hover { background: #f8fafc; }
+    .btn-ghost { background: var(--brand-soft); color: var(--brand); border-color: #bfdbfe; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.86rem;
+    }
+    th, td {
+      border: 1px solid var(--line);
+      padding: 10px 12px;
+      text-align: left;
+    }
+    th {
+      background: #f1f5f9;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+    tr:hover td { background: #fafbff; }
+    .num { text-align: right; font-variant-numeric: tabular-nums; }
+    .actions { white-space: nowrap; }
+    .actions button {
+      margin-right: 6px;
+      padding: 4px 10px;
+      font-size: 0.8rem;
+      border-radius: 6px;
+      border: 1px solid var(--line);
+      background: #fff;
+      cursor: pointer;
+    }
+    .actions button:hover { background: #f1f5f9; }
+    .actions button.danger { color: #b91c1c; border-color: #fecaca; }
+    .inp-inline {
+      width: 100%;
+      max-width: 160px;
+      padding: 6px 8px;
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+    }
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      padding: 12px 18px;
+      background: #0f172a;
+      color: #fff;
+      border-radius: 10px;
+      font-size: 0.86rem;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.25s;
+      z-index: 100;
+    }
+    .toast.show { opacity: 0.95; }
+    .hint { font-size: 0.78rem; color: var(--muted); margin-top: 8px; }
+    .split-meta { font-size: 0.8rem; color: var(--muted); margin-bottom: 10px; }
+    .badge { font-size: 0.72rem; padding: 2px 8px; border-radius: 6px; background: #ecfeff; color: #0e7490; }
+    .empty { text-align: center; color: var(--muted); padding: 36px; }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <header class="hero">
+      <h1>营销费用规划</h1>
+      <p>维护维度：<strong>品线 × 年度</strong>；拆分维度：<strong>店铺 + MSKU</strong>（按 BP 目标营收加权）。支持查询、导入、手工录入与修改；本期不含审批、不含与管报对接、不含实际对账。</p>
+    </header>
+
+    <section class="card">
+      <div class="card-h">
+        <span>查询条件</span>
+        <span class="badge">本地演示 · 数据存浏览器</span>
+      </div>
+      <div class="card-b">
+        <div class="toolbar">
+          <div>
+            <label for="qYear">年度</label>
+            <select id="qYear"></select>
+          </div>
+          <div>
+            <label for="qLine">品线</label>
+            <input type="text" id="qLine" placeholder="全部 / 输入关键字" />
+          </div>
+          <button type="button" class="btn btn-primary" id="btnQuery">查询</button>
+          <button type="button" class="btn btn-secondary" id="btnReset">重置</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="card-h">
+        <span>品线规划（录入 / 导入 / 编辑）</span>
+        <div class="toolbar">
+          <button type="button" class="btn btn-ghost" id="btnAdd">新增一行</button>
+          <button type="button" class="btn btn-secondary" id="btnImportPick">导入 CSV</button>
+          <input type="file" id="fileImport" accept=".csv,text/csv" />
+          <button type="button" class="btn btn-primary" id="btnSaveAll">保存全部</button>
+        </div>
+      </div>
+      <div class="card-b">
+        <p class="hint">CSV 示例列（首行表头）：<code>年度,品线,营销费用规划(元)</code> ；分隔符支持逗号或制表符。保存后数据写入本机 localStorage，刷新页面仍保留。</p>
+        <div style="overflow-x:auto;margin-top:12px;">
+          <table id="tblPlan">
+            <thead>
+              <tr>
+                <th>年度</th>
+                <th>品线</th>
+                <th>营销费用规划（元）</th>
+                <th>BP 目标营收合计（元·演示）</th>
+                <th class="actions">操作</th>
+              </tr>
+            </thead>
+            <tbody id="tbodyPlan"></tbody>
+          </table>
+        </div>
+        <p class="hint" id="planCount"></p>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="card-h">
+        <span>拆分结果：店铺 + MSKU</span>
+        <button type="button" class="btn btn-secondary" id="btnRefreshSplit">按当前表重算展示</button>
+      </div>
+      <div class="card-b">
+        <p class="split-meta" id="splitContext">请先在上方选择一条品线规划，或点击某行的「查看拆分」。</p>
+        <div style="overflow-x:auto;">
+          <table id="tblSplit">
+            <thead>
+              <tr>
+                <th>年度</th>
+                <th>品线</th>
+                <th>店铺</th>
+                <th>MSKU</th>
+                <th>BP 目标营收（元·演示）</th>
+                <th>权重</th>
+                <th class="num">拆分营销费用（元）</th>
+              </tr>
+            </thead>
+            <tbody id="tbodySplit"></tbody>
+          </table>
+        </div>
+        <p class="hint" id="splitSum"></p>
+      </div>
+    </section>
+  </div>
+  <div class="toast" id="toast"></div>
+
+  <script>
+(function () {
+  var STORAGE_KEY = "marketing_expense_plan_demo_v1";
+  var currentFilter = { year: "", line: "" };
+  var focusPlanId = null;
+
+  function uid() {
+    return "p_" + Date.now() + "_" + Math.random().toString(36).slice(2, 8);
+  }
+
+  function loadAll() {
+    try {
+      var raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return [];
+      var arr = JSON.parse(raw);
+      return Array.isArray(arr) ? arr : [];
+    } catch (e) {
+      return [];
+    }
+  }
+
+  function saveAll(list) {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+  }
+
+  function defaultPlans() {
+    return [
+      { id: uid(), year: 2026, productLine: "智能照明A", planAmount: 1200000 },
+      { id: uid(), year: 2026, productLine: "智能照明B", planAmount: 800000 }
+    ];
+  }
+
+  function ensureSeed() {
+    var list = loadAll();
+    if (list.length === 0) {
+      list = defaultPlans();
+      saveAll(list);
+    }
+    return list;
+  }
+
+  /** 演示：为某品线生成若干 店铺+MSKU 及 BP 目标营收 */
+  function mockSkuRows(year, productLine) {
+    var base = productLine.replace(/\s/g, "").split("").reduce(function (s, c) { return s + c.charCodeAt(0); }, 0) % 5000;
+    var shops = ["AMZ-US-01", "AMZ-EU-02", "独立站-01"];
+    var rows = [];
+    for (var i = 0; i < 5; i++) {
+      rows.push({
+        year: year,
+        productLine: productLine,
+        shop: shops[i % shops.length],
+        msku: "MSKU-" + productLine.slice(0, 2) + "-" + (1000 + i + base % 100),
+        bpRevenue: 80000 + (i * 17000) + (base % 9000)
+      });
+    }
+    return rows;
+  }
+
+  function splitPlan(plan) {
+    var skus = mockSkuRows(plan.year, plan.productLine);
+    var totalBp = skus.reduce(function (s, r) { return s + r.bpRevenue; }, 0);
+    return skus.map(function (r) {
+      var w = totalBp > 0 ? r.bpRevenue / totalBp : 0;
+      var amt = Math.round(plan.planAmount * w);
+      return {
+        year: r.year,
+        productLine: r.productLine,
+        shop: r.shop,
+        msku: r.msku,
+        bpRevenue: r.bpRevenue,
+        weight: w,
+        splitAmount: amt
+      };
+    });
+  }
+
+  function fixRounding(rows, targetTotal) {
+    var sum = rows.reduce(function (s, r) { return s + r.splitAmount; }, 0);
+    var diff = targetTotal - sum;
+    if (rows.length && diff !== 0) {
+      rows[rows.length - 1].splitAmount += diff;
+    }
+    return rows;
+  }
+
+  function fillYearSelect() {
+    var sel = document.getElementById("qYear");
+    var y = new Date().getFullYear();
+    sel.innerHTML = '<option value="">全部年度</option>';
+    for (var i = 0; i < 4; i++) {
+      var yy = y - i;
+      var o = document.createElement("option");
+      o.value = String(yy);
+      o.textContent = yy + " 年";
+      sel.appendChild(o);
+    }
+  }
+
+  function filteredList() {
+    var list = loadAll();
+    var y = currentFilter.year;
+    var kw = (currentFilter.line || "").trim().toLowerCase();
+    return list.filter(function (p) {
+      if (y && String(p.year) !== String(y)) return false;
+      if (kw && String(p.productLine).toLowerCase().indexOf(kw) === -1) return false;
+      return true;
+    });
+  }
+
+  function renderPlans() {
+    var tbody = document.getElementById("tbodyPlan");
+    var list = filteredList();
+    tbody.innerHTML = "";
+    if (list.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="5" class="empty">无数据，可点击「新增一行」或「导入 CSV」</td></tr>';
+      document.getElementById("planCount").textContent = "共 0 条";
+      return;
+    }
+    list.forEach(function (p) {
+      var tr = document.createElement("tr");
+      tr.dataset.id = p.id;
+      tr.innerHTML =
+        '<td><select class="js-year">' + yearOptionsHtml(p.year) + "</select></td>" +
+        '<td><input type="text" class="inp-inline js-line" value="' + escapeHtml(p.productLine) + '" /></td>' +
+        '<td><input type="number" class="inp-inline js-amt num" min="0" step="1" value="' + escapeHtml(String(p.planAmount)) + '" /></td>' +
+        '<td class="num">' + formatNum(mockSkuRows(p.year, p.productLine).reduce(function (s, r) { return s + r.bpRevenue; }, 0)) + "</td>" +
+        '<td class="actions">' +
+        '<button type="button" class="js-save">保存</button>' +
+        '<button type="button" class="js-split">查看拆分</button>' +
+        '<button type="button" class="js-del danger">删除</button>' +
+        "</td>";
+      tbody.appendChild(tr);
+      tr.querySelector(".js-year").value = String(p.year);
+    });
+    document.getElementById("planCount").textContent = "共 " + list.length + " 条（筛选后）";
+    bindPlanRowEvents();
+  }
+
+  function yearOptionsHtml(selected) {
+    var y = new Date().getFullYear();
+    var html = "";
+    for (var i = -1; i < 5; i++) {
+      var yy = y - i;
+      html += '<option value="' + yy + '"' + (String(yy) === String(selected) ? " selected" : "") + ">" + yy + "</option>";
+    }
+    return html;
+  }
+
+  function escapeHtml(s) {
+    return String(s)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/"/g, "&quot;");
+  }
+
+  function formatNum(n) {
+    return Number(n).toLocaleString("zh-CN");
+  }
+
+  function bindPlanRowEvents() {
+    document.querySelectorAll("#tbodyPlan tr").forEach(function (tr) {
+      var id = tr.dataset.id;
+      if (!id) return;
+      tr.querySelector(".js-save").addEventListener("click", function () {
+        persistRow(tr, id);
+        toast("已保存该行");
+        renderSplitIfFocused();
+      });
+      tr.querySelector(".js-split").addEventListener("click", function () {
+        persistRow(tr, id);
+        focusPlanId = id;
+        renderSplitForPlan(id);
+        toast("已切换拆分视图");
+      });
+      tr.querySelector(".js-del").addEventListener("click", function () {
+        if (!confirm("确定删除该行？")) return;
+        var list = loadAll().filter(function (p) { return p.id !== id; });
+        saveAll(list);
+        if (focusPlanId === id) focusPlanId = null;
+        toast("已删除");
+        renderPlans();
+        renderSplitIfFocused();
+      });
+    });
+  }
+
+  function persistRow(tr, id) {
+    var list = loadAll();
+    var p = list.find(function (x) { return x.id === id; });
+    if (!p) return;
+    p.year = parseInt(tr.querySelector(".js-year").value, 10);
+    p.productLine = tr.querySelector(".js-line").value.trim();
+    p.planAmount = parseFloat(tr.querySelector(".js-amt").value) || 0;
+    saveAll(list);
+    renderPlans();
+  }
+
+  function renderSplitIfFocused() {
+    if (focusPlanId) renderSplitForPlan(focusPlanId);
+    else clearSplitTable();
+  }
+
+  function clearSplitTable() {
+    document.getElementById("tbodySplit").innerHTML = "";
+    document.getElementById("splitContext").textContent = "请先在上方选择一条品线规划，或点击某行的「查看拆分」。";
+    document.getElementById("splitSum").textContent = "";
+  }
+
+  function renderSplitForPlan(id) {
+    var list = loadAll();
+    var p = list.find(function (x) { return x.id === id; });
+    var tbody = document.getElementById("tbodySplit");
+    var ctx = document.getElementById("splitContext");
+    var sumEl = document.getElementById("splitSum");
+    if (!p) {
+      clearSplitTable();
+      return;
+    }
+    var rows = splitPlan(p);
+    fixRounding(rows, p.planAmount);
+    tbody.innerHTML = "";
+    rows.forEach(function (r) {
+      var tr = document.createElement("tr");
+      tr.innerHTML =
+        "<td>" + escapeHtml(r.year) + "</td>" +
+        "<td>" + escapeHtml(r.productLine) + "</td>" +
+        "<td>" + escapeHtml(r.shop) + "</td>" +
+        "<td>" + escapeHtml(r.msku) + "</td>" +
+        '<td class="num">' + formatNum(r.bpRevenue) + "</td>" +
+        '<td class="num">' + (r.weight * 100).toFixed(2) + "%</td>" +
+        '<td class="num">' + formatNum(r.splitAmount) + "</td>";
+      tbody.appendChild(tr);
+    });
+    var s = rows.reduce(function (a, r) { return a + r.splitAmount; }, 0);
+    ctx.textContent =
+      "当前展示：「" + p.productLine + "」" + p.year + " 年 · 规划 " + formatNum(p.planAmount) + " 元；拆分条数 " + rows.length + "（BP 目标营收为演示数据）。";
+    sumEl.textContent = "拆分合计：" + formatNum(s) + " 元（与规划额对齐）。";
+  }
+
+  function toast(msg) {
+    var el = document.getElementById("toast");
+    el.textContent = msg;
+    el.classList.add("show");
+    clearTimeout(el._t);
+    el._t = setTimeout(function () { el.classList.remove("show"); }, 2200);
+  }
+
+  document.getElementById("btnQuery").addEventListener("click", function () {
+    currentFilter.year = document.getElementById("qYear").value;
+    currentFilter.line = document.getElementById("qLine").value;
+    renderPlans();
+    toast("已应用筛选");
+  });
+
+  document.getElementById("btnReset").addEventListener("click", function () {
+    document.getElementById("qYear").value = "";
+    document.getElementById("qLine").value = "";
+    currentFilter = { year: "", line: "" };
+    renderPlans();
+    toast("已重置筛选");
+  });
+
+  document.getElementById("btnAdd").addEventListener("click", function () {
+    var list = loadAll();
+    var y = parseInt(document.getElementById("qYear").value, 10) || new Date().getFullYear();
+    list.push({ id: uid(), year: y, productLine: "新品线", planAmount: 0 });
+    saveAll(list);
+    renderPlans();
+    toast("已新增一行，请编辑后保存");
+  });
+
+  document.getElementById("btnSaveAll").addEventListener("click", function () {
+    var list = loadAll();
+    document.querySelectorAll("#tbodyPlan tr").forEach(function (tr) {
+      var id = tr.dataset.id;
+      if (!id) return;
+      var p = list.find(function (x) { return x.id === id; });
+      if (!p) return;
+      p.year = parseInt(tr.querySelector(".js-year").value, 10);
+      p.productLine = tr.querySelector(".js-line").value.trim();
+      p.planAmount = parseFloat(tr.querySelector(".js-amt").value) || 0;
+    });
+    saveAll(list);
+    renderPlans();
+    toast("已全部写入本地");
+    renderSplitIfFocused();
+  });
+
+  document.getElementById("btnImportPick").addEventListener("click", function () {
+    document.getElementById("fileImport").click();
+  });
+
+  document.getElementById("fileImport").addEventListener("change", function (e) {
+    var f = e.target.files && e.target.files[0];
+    e.target.value = "";
+    if (!f) return;
+    var reader = new FileReader();
+    reader.onload = function () {
+      try {
+        var text = String(reader.result || "");
+        var lines = text.split(/\r?\n/).filter(function (l) { return l.trim().length; });
+        if (lines.length < 2) {
+          toast("CSV 至少需要表头+一行数据");
+          return;
+        }
+        var sep = lines[0].indexOf("\t") >= 0 ? "\t" : ",";
+        var header = lines[0].split(sep).map(function (h) { return h.trim().replace(/^\uFEFF/, ""); });
+        var iy = header.indexOf("年度");
+        var il = header.indexOf("品线");
+        var ia = header.indexOf("营销费用规划(元)");
+        if (iy < 0 || il < 0 || ia < 0) {
+          toast("表头需含：年度,品线,营销费用规划(元)");
+          return;
+        }
+        var list = loadAll();
+        for (var i = 1; i < lines.length; i++) {
+          var cols = lines[i].split(sep);
+          if (cols.length < 3) continue;
+          var year = parseInt(cols[iy], 10);
+          var line = (cols[il] || "").trim();
+          var amt = parseFloat(String(cols[ia]).replace(/,/g, "")) || 0;
+          if (!line || !year) continue;
+          list.push({ id: uid(), year: year, productLine: line, planAmount: amt });
+        }
+        saveAll(list);
+        renderPlans();
+        toast("导入完成");
+      } catch (err) {
+        toast("解析失败：" + (err.message || err));
+      }
+    };
+    reader.readAsText(f, "UTF-8");
+  });
+
+  document.getElementById("btnRefreshSplit").addEventListener("click", function () {
+    if (focusPlanId) renderSplitForPlan(focusPlanId);
+    else toast("请先点击某一行的「查看拆分」");
+  });
+
+  ensureSeed();
+  fillYearSelect();
+  renderPlans();
+  var first = filteredList()[0];
+  if (first) {
+    focusPlanId = first.id;
+    renderSplitForPlan(first.id);
+  }
+})();
+  </script>
+</body>
+</html>
