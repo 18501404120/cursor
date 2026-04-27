@@ -99,20 +99,6 @@
       font-weight: 600;
       letter-spacing: 0.02em;
     }
-    .top-header .right {
-      display: flex;
-      align-items: center;
-      gap: 16px;
-      font-size: 12px;
-      opacity: 0.92;
-    }
-    .top-header .tag-demo {
-      padding: 2px 8px;
-      border-radius: 4px;
-      background: rgba(255, 255, 255, 0.2);
-      font-size: 12px;
-    }
-
     /* 内容区：浅灰底 + 白卡片外框 */
     .content {
       flex: 1;
@@ -395,11 +381,7 @@
     </aside>
     <div class="main">
       <header class="top-header">
-        <span class="title">营销费用规划</span>
-        <div class="right">
-          <span class="tag-demo">本地演示</span>
-          <span>数据存浏览器</span>
-        </div>
+        <span class="title">营销费用规划（USD）</span>
       </header>
       <div class="content">
         <div class="breadcrumb">全渠道 / <span>营销费用规划</span></div>
@@ -431,7 +413,7 @@
             </div>
             <div class="filter-actions">
               <button type="button" class="btn btn-default" id="btnReset">重置</button>
-              <span class="hint" style="margin:0;flex:1;min-width:200px;">品线为 <strong>4 位编码</strong>下拉；其余下拉为演示数据。列表筛选当前仅<strong>年度 + 品线</strong>生效。</span>
+              <span class="hint" style="margin:0;flex:1;min-width:200px;">品线为 <strong>4 位编码</strong>下拉；其余条件为界面预留。列表筛选当前仅<strong>年度 + 品线</strong>生效。</span>
             </div>
           </div>
         </section>
@@ -446,15 +428,15 @@
               <button type="button" class="btn btn-default" id="btnExport">导出当前列表</button>
               <button type="button" class="btn btn-primary" id="btnSaveAll">保存全部</button>
             </div>
-            <p class="hint">维护 <strong>品线（4位编码）× 年度</strong>；拆分至 <strong>店铺 + MSKU</strong>（按 BP 目标营收演示加权）。CSV 表头：<code>年度,品线,营销费用规划(元)</code>（品线为 4 位）；逗号或制表符；保存至 localStorage。</p>
+            <p class="hint">维护 <strong>品线（4位编码）× 年度</strong>；金额单位为 <strong>美元（USD）</strong>。拆分至 <strong>店铺 + MSKU</strong>（按 BP 目标营收加权）。CSV 表头：<code>年度,品线,营销费用规划(美元)</code>（品线为 4 位）；逗号或制表符；数据保存在本机浏览器 localStorage。</p>
             <div class="table-wrap">
               <table id="tblPlan">
                 <thead>
                   <tr>
                     <th>年度</th>
                     <th>品线（4位）</th>
-                    <th>营销费用规划（元）</th>
-                    <th>BP 目标营收合计（元·演示）</th>
+                    <th>营销费用规划（USD）</th>
+                    <th>BP 目标营收合计（USD）</th>
                     <th class="actions">操作</th>
                   </tr>
                 </thead>
@@ -471,7 +453,7 @@
             <button type="button" class="btn btn-default" id="btnRefreshSplit">重算展示</button>
           </div>
           <div class="panel-body">
-            <p class="split-meta" id="splitContext">请先在上方点击某行的「查看拆分」。</p>
+            <p class="split-meta" id="splitContext">点击上表某一行可查看该品线×年度的拆分结果。</p>
             <div class="table-wrap">
               <table id="tblSplit">
                 <thead>
@@ -480,9 +462,9 @@
                     <th>品线（4位）</th>
                     <th>店铺</th>
                     <th>MSKU</th>
-                    <th>BP 目标营收（元·演示）</th>
+                    <th>BP 目标营收（USD）</th>
                     <th>权重</th>
-                    <th class="num">拆分营销费用（元）</th>
+                    <th class="num">拆分营销费用（USD）</th>
                   </tr>
                 </thead>
                 <tbody id="tbodySplit"></tbody>
@@ -498,7 +480,7 @@
 
   <script>
 (function () {
-  var STORAGE_KEY = "marketing_expense_plan_demo_v2";
+  var STORAGE_KEY = "marketing_expense_plan_usd_v2";
   /** 品线主数据：4 位编码（与业务表一致） */
   var PRODUCT_LINES = [
     { code: "5115" },
@@ -610,7 +592,7 @@
     return list;
   }
 
-  /** 演示：为某品线生成若干 店铺+MSKU 及 BP 目标营收 */
+  /** 原型示例：为某品线生成若干 店铺+MSKU 及 BP 目标营收（用于加权拆分） */
   function mockSkuRows(year, productLine) {
     var base = productLine.replace(/\s/g, "").split("").reduce(function (s, c) { return s + c.charCodeAt(0); }, 0) % 5000;
     var shops = ["AMZ-US-01", "AMZ-EU-02", "独立站-01"];
@@ -686,6 +668,8 @@
     if (list.length === 0) {
       tbody.innerHTML = '<tr><td colspan="5" class="empty">无数据，可点击「新增一行」或「导入 CSV」</td></tr>';
       document.getElementById("planCount").textContent = "共 0 条";
+      focusPlanId = null;
+      clearSplitTable();
       return;
     }
     list.forEach(function (p) {
@@ -695,10 +679,9 @@
         '<td><select class="inp-inline js-year">' + yearOptionsHtml(p.year) + "</select></td>" +
         "<td>" + tableLineSelectHtml(p.productLine) + "</td>" +
         '<td><input type="number" class="inp-inline js-amt num" min="0" step="1" value="' + escapeHtml(String(p.planAmount)) + '" /></td>' +
-        '<td class="num">' + formatNum(mockSkuRows(p.year, p.productLine).reduce(function (s, r) { return s + r.bpRevenue; }, 0)) + "</td>" +
+        '<td class="num">' + formatUsd(mockSkuRows(p.year, p.productLine).reduce(function (s, r) { return s + r.bpRevenue; }, 0)) + "</td>" +
         '<td class="actions">' +
         '<button type="button" class="link js-save">保存</button>' +
-        '<button type="button" class="link js-split">查看拆分</button>' +
         '<button type="button" class="link danger js-del">删除</button>' +
         "</td>";
       tbody.appendChild(tr);
@@ -706,6 +689,12 @@
     });
     document.getElementById("planCount").textContent = "共 " + list.length + " 条（筛选后）";
     bindPlanRowEvents();
+    var fl = filteredList();
+    if (fl.length) {
+      var ok = focusPlanId && fl.some(function (p) { return p.id === focusPlanId; });
+      if (!ok) focusPlanId = fl[0].id;
+      renderSplitForPlan(focusPlanId);
+    }
   }
 
   function yearOptionsHtml(selected) {
@@ -729,20 +718,23 @@
     return Number(n).toLocaleString("zh-CN");
   }
 
+  function formatUsd(n) {
+    return "$" + Number(n).toLocaleString("en-US", { maximumFractionDigits: 0 });
+  }
+
   function bindPlanRowEvents() {
     document.querySelectorAll("#tbodyPlan tr").forEach(function (tr) {
       var id = tr.dataset.id;
       if (!id) return;
+      tr.addEventListener("click", function (e) {
+        if (e.target.closest("button, input, select, textarea, label")) return;
+        focusPlanId = id;
+        renderSplitForPlan(id);
+      });
       tr.querySelector(".js-save").addEventListener("click", function () {
         persistRow(tr, id);
         toast("已保存该行");
         renderSplitIfFocused();
-      });
-      tr.querySelector(".js-split").addEventListener("click", function () {
-        persistRow(tr, id);
-        focusPlanId = id;
-        renderSplitForPlan(id);
-        toast("已切换拆分视图");
       });
       tr.querySelector(".js-del").addEventListener("click", function () {
         if (!confirm("确定删除该行？")) return;
@@ -757,6 +749,7 @@
   }
 
   function persistRow(tr, id) {
+    focusPlanId = id;
     var list = loadAll();
     var p = list.find(function (x) { return x.id === id; });
     if (!p) return;
@@ -774,7 +767,7 @@
 
   function clearSplitTable() {
     document.getElementById("tbodySplit").innerHTML = "";
-    document.getElementById("splitContext").textContent = "请先在上方选择一条品线规划，或点击某行的「查看拆分」。";
+    document.getElementById("splitContext").textContent = "暂无规划数据；新增或导入后，点击上表某一行可查看拆分。";
     document.getElementById("splitSum").textContent = "";
   }
 
@@ -798,15 +791,15 @@
         "<td>" + escapeHtml(r.productLine) + "</td>" +
         "<td>" + escapeHtml(r.shop) + "</td>" +
         "<td>" + escapeHtml(r.msku) + "</td>" +
-        '<td class="num">' + formatNum(r.bpRevenue) + "</td>" +
+        '<td class="num">' + formatUsd(r.bpRevenue) + "</td>" +
         '<td class="num">' + (r.weight * 100).toFixed(2) + "%</td>" +
-        '<td class="num">' + formatNum(r.splitAmount) + "</td>";
+        '<td class="num">' + formatUsd(r.splitAmount) + "</td>";
       tbody.appendChild(tr);
     });
     var s = rows.reduce(function (a, r) { return a + r.splitAmount; }, 0);
     ctx.textContent =
-      "当前展示：「" + p.productLine + "」" + p.year + " 年 · 规划 " + formatNum(p.planAmount) + " 元；拆分条数 " + rows.length + "（BP 目标营收为演示数据）。";
-    sumEl.textContent = "拆分合计：" + formatNum(s) + " 元（与规划额对齐）。";
+      "当前：「" + p.productLine + "」" + p.year + " 年 · 规划 " + formatUsd(p.planAmount) + "；拆分条数 " + rows.length + "。";
+    sumEl.textContent = "拆分合计：" + formatUsd(s) + "（与规划额对齐）。";
   }
 
   function toast(msg) {
@@ -882,7 +875,7 @@
 
   document.getElementById("btnExport").addEventListener("click", function () {
     var list = filteredList();
-    var header = "\uFEFF年度,品线,营销费用规划(元)\n";
+    var header = "\uFEFF年度,品线,营销费用规划(美元)\n";
     var rows = list
       .map(function (p) {
         return [p.year, '"' + String(p.productLine).replace(/"/g, '""') + '"', p.planAmount].join(",");
@@ -914,9 +907,10 @@
         var header = lines[0].split(sep).map(function (h) { return h.trim().replace(/^\uFEFF/, ""); });
         var iy = header.indexOf("年度");
         var il = header.indexOf("品线");
-        var ia = header.indexOf("营销费用规划(元)");
+        var ia = header.indexOf("营销费用规划(美元)");
+        if (ia < 0) ia = header.indexOf("营销费用规划(元)");
         if (iy < 0 || il < 0 || ia < 0) {
-          toast("表头需含：年度,品线,营销费用规划(元)");
+          toast("表头需含：年度,品线,营销费用规划(美元)");
           return;
         }
         var list = loadAll();
@@ -941,18 +935,13 @@
 
   document.getElementById("btnRefreshSplit").addEventListener("click", function () {
     if (focusPlanId) renderSplitForPlan(focusPlanId);
-    else toast("请先点击某一行的「查看拆分」");
+    else toast("请先在上表点击一行以选中规划");
   });
 
   initFilterOptions();
   ensureSeed();
   fillYearSelect();
   renderPlans();
-  var first = filteredList()[0];
-  if (first) {
-    focusPlanId = first.id;
-    renderSplitForPlan(first.id);
-  }
 })();
   </script>
 </body>
