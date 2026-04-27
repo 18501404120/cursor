@@ -1571,34 +1571,31 @@
     renderSplit();
   }
 
-  function renderSplit() {
-    var ctx = document.getElementById("splitCtx");
-    var tbody = document.getElementById("tbodySplit");
-    tbody.innerHTML = "";
-    var a = loadAll().find(function (x) { return x.id === selectedId; });
-    if (!a) {
-      ctx.textContent = "请先在上方列表中选择一条活动。";
-      return;
-    }
-    var rows = splitBudgetAndActual(
-      Number(a.budgetUsd) || 0,
-      Number(a.actualUsd) || 0,
-      a.year,
-      a.productLines || ["5115"]
-    );
-    ctx.textContent =
-      "「" +
-      (a.name || "未命名") +
-      "」· " +
-      a.dateStart +
-      " ~ " +
-      a.dateEnd +
-      " · 品线 " +
-      lineLabel(a.productLines) +
-      " · 预算 " +
-      formatUsd(a.budgetUsd) +
-      " · 实际 " +
-      formatUsd(a.actualUsd);
+  /** 将多条活动的分摊行按 店铺+MSKU+品线 合并预算/实际 */
+  function mergeSplitRowsByKey(rowArrays) {
+    var map = {};
+    rowArrays.forEach(function (rows) {
+      rows.forEach(function (r) {
+        var k = r.shop + "\t" + r.msku + "\t" + String(r.sourceLine || "");
+        if (!map[k]) {
+          map[k] = {
+            shop: r.shop,
+            msku: r.msku,
+            sourceLine: r.sourceLine,
+            budget: 0,
+            actual: 0
+          };
+        }
+        map[k].budget += r.budget;
+        map[k].actual += r.actual;
+      });
+    });
+    return Object.keys(map).map(function (k) {
+      return map[k];
+    });
+  }
+
+  function renderSplitRows(tbody, rows) {
     rows.forEach(function (r) {
       var tr = document.createElement("tr");
       tr.innerHTML =
@@ -1610,6 +1607,85 @@
         '<td class="num">' + formatUsd(r.actual) + "</td>";
       tbody.appendChild(tr);
     });
+  }
+
+  function renderSplit() {
+    var ctx = document.getElementById("splitCtx");
+    var tbody = document.getElementById("tbodySplit");
+    tbody.innerHTML = "";
+
+    if (selectedId) {
+      var a = loadAll().find(function (x) { return x.id === selectedId; });
+      if (!a) {
+        selectedId = null;
+        renderSplit();
+        return;
+      }
+      var rows = splitBudgetAndActual(
+        Number(a.budgetUsd) || 0,
+        Number(a.actualUsd) || 0,
+        a.year,
+        a.productLines || ["5115"]
+      );
+      ctx.textContent =
+        "「" +
+        (a.name || "未命名") +
+        "」· " +
+        a.dateStart +
+        " ~ " +
+        a.dateEnd +
+        " · 品线 " +
+        lineLabel(a.productLines) +
+        " · 预算 " +
+        formatUsd(a.budgetUsd) +
+        " · 实际 " +
+        formatUsd(a.actualUsd);
+      renderSplitRows(tbody, rows);
+      return;
+    }
+
+    /** 未选中：与列表一致，合并当前筛选下全部活动的分摊 */
+    var acts = tableActs();
+    if (acts.length === 0) {
+      ctx.textContent = "当前筛选下无活动，无分摊数据。";
+      return;
+    }
+    var perAct = acts.map(function (a) {
+      return splitBudgetAndActual(
+        Number(a.budgetUsd) || 0,
+        Number(a.actualUsd) || 0,
+        a.year,
+        a.productLines || ["5115"]
+      );
+    });
+    var merged = mergeSplitRowsByKey(perAct);
+    var totalB = merged.reduce(function (s, r) {
+      return s + r.budget;
+    }, 0);
+    var totalA = merged.reduce(function (s, r) {
+      return s + r.actual;
+    }, 0);
+    merged.forEach(function (r) {
+      r.weight = totalB > 0 ? r.budget / totalB : totalA > 0 ? r.actual / totalA : 0;
+    });
+    merged.sort(function (x, y) {
+      return String(x.shop).localeCompare(String(y.shop)) || String(x.msku).localeCompare(String(y.msku));
+    });
+    var sumBudgetActs = acts.reduce(function (s, a) {
+      return s + (Number(a.budgetUsd) || 0);
+    }, 0);
+    var sumActualActs = acts.reduce(function (s, a) {
+      return s + (Number(a.actualUsd) || 0);
+    }, 0);
+    ctx.textContent =
+      "当前列表 " +
+      acts.length +
+      " 条活动 · 合并分摊（预算合计 " +
+      formatUsd(sumBudgetActs) +
+      " · 实际合计 " +
+      formatUsd(sumActualActs) +
+      "）";
+    renderSplitRows(tbody, merged);
   }
 
   function refreshAll() {
