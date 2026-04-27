@@ -235,6 +235,127 @@
     }
     .btn-default { background: #fff; }
 
+    /* 品线多选（Ant Design Select multiple 风格，见《产品信息筛选区-全局UI规范》§8） */
+    .pl-multi-filter-wrap { position: relative; align-items: flex-start; }
+    .pl-multi-anchor { position: relative; flex: 0 1 auto; }
+    .pl-multi {
+      display: flex;
+      align-items: stretch;
+      min-width: 168px;
+      max-width: 220px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: #fff;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+    .pl-multi.open,
+    .pl-multi:focus-within {
+      border-color: var(--brand);
+      box-shadow: 0 0 0 2px rgba(22, 119, 255, 0.12);
+    }
+    .pl-multi-inner {
+      flex: 1;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 4px;
+      padding: 2px 4px 2px 8px;
+      min-height: 26px;
+      min-width: 0;
+    }
+    .pl-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 0 6px;
+      height: 22px;
+      font-size: 12px;
+      font-family: ui-monospace, monospace;
+      background: #f5f5f5;
+      border: 1px solid #e8e8e8;
+      border-radius: 4px;
+      color: var(--text);
+    }
+    .pl-tag-x {
+      border: none;
+      background: transparent;
+      cursor: pointer;
+      color: var(--text-sec);
+      padding: 0 2px;
+      font-size: 14px;
+      line-height: 1;
+    }
+    .pl-tag-x:hover { color: var(--danger); }
+    .pl-more {
+      font-size: 12px;
+      color: #595959;
+      font-weight: 500;
+      padding: 0 2px;
+    }
+    .pl-multi-input {
+      flex: 1;
+      min-width: 40px;
+      border: none;
+      outline: none;
+      font-size: 12px;
+      padding: 4px 2px;
+      background: transparent;
+    }
+    .pl-caret-btn {
+      flex-shrink: 0;
+      width: 28px;
+      border: none;
+      border-left: 1px solid var(--line);
+      background: #fafafa;
+      cursor: pointer;
+      color: var(--text-sec);
+      font-size: 10px;
+      padding: 0;
+    }
+    .pl-caret-btn:hover { color: var(--brand); }
+    .pl-multi.open .pl-caret-btn { transform: rotate(180deg); }
+    .pl-dropdown {
+      position: absolute;
+      left: 0;
+      top: calc(100% + 4px);
+      min-width: 100%;
+      max-height: 240px;
+      overflow-y: auto;
+      background: #fff;
+      border: 1px solid #e8e8e8;
+      border-radius: 6px;
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12);
+      z-index: 80;
+    }
+    .pl-dd-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      width: 100%;
+      padding: 8px 12px;
+      border: none;
+      background: #fff;
+      cursor: pointer;
+      font-size: 13px;
+      text-align: left;
+      font-family: ui-monospace, monospace;
+    }
+    .pl-dd-item:hover { background: #fafafa; }
+    .pl-dd-item.sel { color: var(--brand); font-weight: 500; }
+    .pl-dd-item .pl-check { color: var(--brand); font-weight: 700; }
+    .pl-dd-empty { padding: 12px; color: var(--text-sec); font-size: 12px; }
+    .flt-only-all {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin: 0;
+      font-size: 12px;
+      color: var(--text-sec);
+      cursor: pointer;
+      user-select: none;
+    }
+    .form-row .pl-multi { max-width: 100%; }
+
     /* KPI */
     .kpi-row {
       display: grid;
@@ -525,13 +646,29 @@
               </div>
               <div class="f"><label for="fltTl">TL</label><select id="fltTl"><option value="">全部</option></select></div>
               <div class="f"><label for="fltSales">Sales</label><select id="fltSales"><option value="">全部</option></select></div>
-              <div class="f flt-line"><label for="fltProductLine">品线</label><select id="fltProductLine"><option value="">全部</option></select></div>
+              <div class="f flt-line pl-multi-filter-wrap">
+                <label for="fltPlMultiInput">品线</label>
+                <div class="pl-multi-anchor">
+                  <div class="pl-multi" id="fltPlRoot">
+                    <div class="pl-multi-inner">
+                      <span id="fltPlTags"></span>
+                      <span id="fltPlMore" class="pl-more" hidden>+<span id="fltPlMoreN">0</span></span>
+                      <input id="fltPlMultiInput" class="pl-multi-input" type="text" autocomplete="off" aria-label="品线多选筛选" />
+                    </div>
+                    <button type="button" class="pl-caret-btn" id="fltPlCaret" aria-label="展开品线">▾</button>
+                  </div>
+                  <div class="pl-dropdown" id="fltPlDropdown" hidden></div>
+                </div>
+              </div>
+              <div class="f">
+                <label class="flt-only-all"><input type="checkbox" id="fltOnlyAll" /> 仅全品线活动</label>
+              </div>
               <div class="f"><label for="fltYear">年度</label><select id="fltYear"></select></div>
               <button type="button" class="btn-search" id="btnQuery">搜索</button>
             </div>
             <div class="filter-actions">
               <button type="button" class="btn btn-default" id="btnReset">重置</button>
-              <span class="hint" style="margin:0;flex:1;min-width:200px;">品线为 <strong>4 位编码</strong>下拉；SKU 为<strong>模式 + 输入一体组合</strong>（与《产品信息筛选区-全局UI规范》及营销费用规划页一致）。列表与 KPI 当前仅<strong>年度 + 品线</strong>生效；其余为界面预留。数据保存在本机 <code>localStorage</code>。</span>
+              <span class="hint" style="margin:0;flex:1;min-width:200px;">品线为 <strong>4 位编码多选</strong>（Tag + 下拉勾选，见《产品信息筛选区-全局UI规范》§8）；SKU 为<strong>模式 + 输入一体组合</strong>。列表与 KPI 当前仅<strong>年度 + 品线多选 / 仅全品线</strong>生效；其余为界面预留。数据保存在本机 <code>localStorage</code>。</span>
             </div>
           </div>
         </section>
@@ -622,7 +759,7 @@
           <div class="panel-body">
             <p class="split-meta" id="splitCtx">请先在上方列表中选择一条活动。</p>
             <p class="hint" style="margin-bottom:10px;">
-              <strong>MSKU 与筛选区全局约束一致（示意）</strong>：上方 SKU 为「左侧模式（模糊 / 精确 / 8位搜索）+ 右侧输入」一体组合，与《产品信息筛选区-全局UI规范》及<strong>营销费用规划</strong>页相同；下表 MSKU 为分摊示例编码（如 <code>MSKU-51-1xxx</code>），正式系统需与主数据 MSKU 档案对齐。
+              <strong>店铺 / MSKU 与销量预测原型示例一致</strong>：店铺为「区域/国家/店铺」路径（与《销量预测管理-原型说明》列表列一致），MSKU 取自该原型 <code>PRODUCT_DEMO_SAMPLES</code>（如 <code>H6076113-ZY-US</code>）。上方 SKU 组合控件仍遵循《产品信息筛选区-全局UI规范》。
             </p>
             <div class="table-wrap">
               <table>
@@ -668,11 +805,19 @@
           </div>
         </div>
         <div class="form-row">
-          <span class="form-row-title">品线 / 品类（可多选）</span>
-          <label style="display:flex;align-items:center;gap:8px;margin:8px 0;">
-            <input type="checkbox" id="fLineAll" /> 全品线（含全部 4 位编码）
-          </label>
-          <div class="line-check-grid" id="fLineChecks"></div>
+          <span class="form-row-title">品线 / 品类（多选，与筛选区一致）</span>
+          <div class="pl-multi-anchor" style="position:relative;">
+            <div class="pl-multi" id="formPlRoot">
+              <div class="pl-multi-inner">
+                <span id="formPlTags"></span>
+                <span id="formPlMore" class="pl-more" hidden>+<span id="formPlMoreN">0</span></span>
+                <input id="formPlMultiInput" class="pl-multi-input" type="text" autocomplete="off" aria-label="品线多选" />
+              </div>
+              <button type="button" class="pl-caret-btn" id="formPlCaret" aria-label="展开品线">▾</button>
+            </div>
+            <div class="pl-dropdown" id="formPlDropdown" hidden></div>
+          </div>
+          <p class="hint" style="margin-top:8px;margin-bottom:0;">下拉首行可选<strong>全品线（ALL）</strong>；选编码可多选叠加，与筛选条品线控件交互一致。</p>
         </div>
         <div class="form-row">
           <label for="fBudget">预算费用（USD）</label>
@@ -705,8 +850,46 @@
   ];
   var MONTH_NAMES = ["1月", "2月", "3月", "4月", "5月", "6月", "7月", "8月", "9月", "10月", "11月", "12月"];
 
+  /** 与《销量预测管理-原型说明》buildDemoTableRows 中 regions / PRODUCT_DEMO_SAMPLES 一致 */
+  var FORECAST_DEMO_REGIONS = [
+    "北美区/US/Amazon-US",
+    "欧洲区/DE/Amazon-DE",
+    "亚太区/JP/Amazon-JP",
+    "英国区/UK/Amazon-UK"
+  ];
+  var PRODUCT_DEMO_SAMPLES = [
+    { sku: "H6076113", msku: "H6076113-ZY-US" },
+    { sku: "H607C311", msku: "H607C311-ZY-EU" },
+    { sku: "H607C311", msku: "H607C311-APP-EU" },
+    { sku: "H60B0311", msku: "H60B0311-APP-EU" },
+    { sku: "H60B0311", msku: "H60B0311-ZY-EU" },
+    { sku: "H60B0111", msku: "H60B0111-APP-US" },
+    { sku: "H60B0111", msku: "H60B0111-APP-CA" },
+    { sku: "H60B0111", msku: "H60B0111-ZY-CA" },
+    { sku: "H60B0111", msku: "H60B0111-ZY-US" },
+    { sku: "H61951A1", msku: "H61951A1-V" },
+    { sku: "H61411A1-H61951A1", msku: "H61411A1-H61951A1" },
+    { sku: "B6062101", msku: "B6062101-OF-US" },
+    { sku: "B6062101", msku: "B6062101-OF-US-DSV" },
+    { sku: "H6049AD1", msku: "H6049AD1-OF-US" },
+    { sku: "H60521D1", msku: "H60521D1-OF-US" },
+    { sku: "H60521D1", msku: "H60521D1-OF-US-DSV" },
+    { sku: "H6052AD1", msku: "H6052AD1-OF-US" },
+    { sku: "H60541D1", msku: "H60541D1-OF-US-DSV" },
+    { sku: "H6055101", msku: "H6055101-OF-US-DSV" },
+    { sku: "H6072181", msku: "H6072181-OF-US" },
+    { sku: "H6072181", msku: "H6072181-OF-US-DSV" }
+  ];
+
   var currentYear = new Date().getFullYear();
-  var currentPl = "";
+  /** 筛选条品线多选（4 位编码），空数组表示不限品线 */
+  var filterLineCodes = [];
+  var onlyAllScope = false;
+  /** 弹窗品线多选 */
+  var formLineCodes = [];
+  var fltPlDropdownOpen = false;
+  var formPlDropdownOpen = false;
+
   var selectedId = null;
   var selectedMonth = null;
 
@@ -823,39 +1006,33 @@
     return lines && lines.length === 1 && lines[0] === "ALL";
   }
 
-  function actCoversLine(a, code) {
-    var L = a.productLines || [];
-    if (L.indexOf("ALL") >= 0) return true;
-    return L.indexOf(code) >= 0;
+  function forecastDemoRow(i, productLine, year) {
+    var reg = FORECAST_DEMO_REGIONS[i % FORECAST_DEMO_REGIONS.length];
+    var samp = PRODUCT_DEMO_SAMPLES[i % PRODUCT_DEMO_SAMPLES.length];
+    var base = String(productLine).replace(/\s/g, "").split("").reduce(function (s, c) { return s + c.charCodeAt(0); }, 0) % 5000;
+    return {
+      year: year,
+      productLine: productLine,
+      shop: reg,
+      msku: samp.msku,
+      bpRevenue: 80000 + (i % 5) * 17000 + base % 9000
+    };
   }
 
   function mockSkuRows(year, productLine) {
     if (productLine === "ALL") {
       var merged = [];
+      var idx = 0;
       PRODUCT_LINES.slice(0, 3).forEach(function (pl) {
-        mockSkuRows(year, pl.code).forEach(function (r) {
-          merged.push({
-            year: r.year,
-            productLine: pl.code,
-            shop: r.shop,
-            msku: r.msku + "-" + pl.code,
-            bpRevenue: r.bpRevenue
-          });
-        });
+        for (var j = 0; j < 3; j++) {
+          merged.push(forecastDemoRow(idx++, pl.code, year));
+        }
       });
-      return merged.slice(0, 8);
+      return merged.slice(0, 10);
     }
-    var base = String(productLine).replace(/\s/g, "").split("").reduce(function (s, c) { return s + c.charCodeAt(0); }, 0) % 5000;
-    var shops = ["AMZ-US-01", "AMZ-EU-02", "独立站-01"];
     var rows = [];
     for (var i = 0; i < 5; i++) {
-      rows.push({
-        year: year,
-        productLine: productLine,
-        shop: shops[i % shops.length],
-        msku: "MSKU-" + String(productLine).slice(0, 2) + "-" + (1000 + i + base % 100),
-        bpRevenue: 80000 + i * 17000 + base % 9000
-      });
+      rows.push(forecastDemoRow(i, productLine, year));
     }
     return rows;
   }
@@ -908,13 +1085,21 @@
     return rows;
   }
 
-  /** 年度 + 品线（与 KPI 一致，不含月份钻取） */
+  function actMatchesAnyLine(a, codes) {
+    var L = a.productLines || [];
+    if (L.indexOf("ALL") >= 0) return true;
+    return codes.some(function (c) {
+      return L.indexOf(c) >= 0;
+    });
+  }
+
+  /** 年度 + 品线多选 / 仅全品线（与 KPI 一致，不含月份钻取） */
   function filteredActsByYearPl() {
     return loadAll().filter(function (a) {
       if (String(a.year) !== String(currentYear)) return false;
-      if (!currentPl) return true;
-      if (currentPl === "ALL_FILTER") return linesIsAllOnly(a.productLines);
-      return actCoversLine(a, currentPl);
+      if (onlyAllScope) return linesIsAllOnly(a.productLines);
+      if (!filterLineCodes.length) return true;
+      return actMatchesAnyLine(a, filterLineCodes);
     }).sort(function (a, b) {
       return String(a.dateStart).localeCompare(String(b.dateStart)) || String(a.dateEnd).localeCompare(String(b.dateEnd));
     });
@@ -971,40 +1156,227 @@
     fill("fltRegion", ["北美", "欧洲", "亚太", "拉美"]);
     fill("fltCountry", ["美国", "德国", "英国", "日本"]);
     fill("fltChannel", ["亚马逊", "独立站", "TikTok", "线下"]);
-    fill("fltStore", ["AMZ-US-01", "AMZ-EU-02", "独立站-01"]);
+    fill("fltStore", FORECAST_DEMO_REGIONS.slice());
     fill("fltModel", ["MDL-A01", "MDL-B02", "MDL-C88"], '<option value="">请选择</option>');
     fill("fltTl", ["TL-01", "TL-02", "TL-03"]);
     fill("fltSales", ["Sales-A", "Sales-B", "Sales-C"]);
-    var fltPl = document.getElementById("fltProductLine");
-    if (fltPl) {
-      var hp = '<option value="">全部</option><option value="ALL_FILTER">仅全品线活动</option>';
-      PRODUCT_LINES.forEach(function (o) {
-        hp += '<option value="' + o.code + '">' + o.code + "</option>";
-      });
-      fltPl.innerHTML = hp;
+  }
+
+  function renderPlTags(prefix, selected, maxTags) {
+    var tagsEl = document.getElementById(prefix + "PlTags");
+    var moreEl = document.getElementById(prefix + "PlMore");
+    var moreN = document.getElementById(prefix + "PlMoreN");
+    if (!tagsEl) return;
+    maxTags = maxTags || 1;
+    tagsEl.innerHTML = "";
+    var show = selected.slice(0, maxTags);
+    var rest = selected.length - show.length;
+    show.forEach(function (code) {
+      var sp = document.createElement("span");
+      sp.className = "pl-tag";
+      var xb = document.createElement("button");
+      xb.type = "button";
+      xb.className = "pl-tag-x";
+      xb.setAttribute("data-code", code);
+      xb.setAttribute("data-prefix", prefix);
+      xb.textContent = "×";
+      sp.appendChild(document.createTextNode(code + " "));
+      sp.appendChild(xb);
+      tagsEl.appendChild(sp);
+    });
+    if (rest > 0) {
+      moreEl.hidden = false;
+      moreN.textContent = String(rest);
+    } else {
+      moreEl.hidden = true;
     }
   }
 
-  function buildLineChecks() {
-    var wrap = document.getElementById("fLineChecks");
-    if (!wrap || wrap.dataset.ready) return;
-    wrap.dataset.ready = "1";
-    wrap.innerHTML = "";
+  function fltPlRenderDropdown() {
+    var dd = document.getElementById("fltPlDropdown");
+    var q = (document.getElementById("fltPlMultiInput").value || "").trim().toLowerCase();
+    var h = "";
     PRODUCT_LINES.forEach(function (o) {
-      var lab = document.createElement("label");
-      lab.innerHTML =
-        '<input type="checkbox" class="f-line-cb" value="' +
+      if (q && String(o.code).toLowerCase().indexOf(q) < 0) return;
+      var sel = filterLineCodes.indexOf(o.code) >= 0;
+      h +=
+        '<button type="button" class="pl-dd-item' +
+        (sel ? " sel" : "") +
+        '" data-code="' +
         o.code +
-        '" /> ' +
-        o.code;
-      wrap.appendChild(lab);
+        '"><span>' +
+        o.code +
+        "</span>" +
+        (sel ? '<span class="pl-check">✓</span>' : "<span></span>") +
+        "</button>";
     });
-    document.getElementById("fLineAll").addEventListener("change", function () {
-      var on = this.checked;
-      wrap.querySelectorAll(".f-line-cb").forEach(function (c) {
-        c.disabled = on;
-        if (on) c.checked = false;
+    dd.innerHTML = h || '<div class="pl-dd-empty">无匹配项</div>';
+    dd.querySelectorAll(".pl-dd-item").forEach(function (btn) {
+      btn.addEventListener("click", function (ev) {
+        ev.stopPropagation();
+        var c = btn.getAttribute("data-code");
+        var ix = filterLineCodes.indexOf(c);
+        if (ix >= 0) filterLineCodes.splice(ix, 1);
+        else filterLineCodes.push(c);
+        fltPlSyncUi();
+        fltPlRenderDropdown();
       });
+    });
+  }
+
+  function fltPlSyncUi() {
+    document.getElementById("fltPlRoot").classList.toggle("open", fltPlDropdownOpen);
+    renderPlTags("flt", filterLineCodes, 1);
+  }
+
+  function formPlRenderDropdown() {
+    var dd = document.getElementById("formPlDropdown");
+    var q = (document.getElementById("formPlMultiInput").value || "").trim().toLowerCase();
+    var allSel = linesIsAllOnly(formLineCodes);
+    var h =
+      '<button type="button" class="pl-dd-item' +
+      (allSel ? " sel" : "") +
+      '" data-code="__ALL__"><span>全品线（ALL）</span>' +
+      (allSel ? '<span class="pl-check">✓</span>' : "<span></span>") +
+      "</button>";
+    PRODUCT_LINES.forEach(function (o) {
+      if (q && String(o.code).toLowerCase().indexOf(q) < 0) return;
+      var sel = !allSel && formLineCodes.indexOf(o.code) >= 0;
+      h +=
+        '<button type="button" class="pl-dd-item' +
+        (sel ? " sel" : "") +
+        '" data-code="' +
+        o.code +
+        '"><span>' +
+        o.code +
+        "</span>" +
+        (sel ? '<span class="pl-check">✓</span>' : "<span></span>") +
+        "</button>";
+    });
+    dd.innerHTML = h;
+    dd.querySelectorAll(".pl-dd-item").forEach(function (btn) {
+      btn.addEventListener("click", function (ev) {
+        ev.stopPropagation();
+        var c = btn.getAttribute("data-code");
+        if (c === "__ALL__") {
+          formLineCodes = ["ALL"];
+        } else {
+          formLineCodes = formLineCodes.filter(function (x) {
+            return x !== "ALL";
+          });
+          var ix = formLineCodes.indexOf(c);
+          if (ix >= 0) formLineCodes.splice(ix, 1);
+          else formLineCodes.push(c);
+        }
+        formPlSyncUi();
+        formPlRenderDropdown();
+      });
+    });
+  }
+
+  function formPlSyncUi() {
+    document.getElementById("formPlRoot").classList.toggle("open", formPlDropdownOpen);
+    renderPlTags("form", linesIsAllOnly(formLineCodes) ? ["ALL"] : formLineCodes, 1);
+  }
+
+  function wirePlMultiControls() {
+    document.getElementById("fltPlTags").addEventListener("click", function (e) {
+      var x = e.target.closest(".pl-tag-x");
+      if (!x) return;
+      e.stopPropagation();
+      var c = x.getAttribute("data-code");
+      filterLineCodes = filterLineCodes.filter(function (z) {
+        return z !== c;
+      });
+      fltPlSyncUi();
+      if (fltPlDropdownOpen) fltPlRenderDropdown();
+    });
+    document.getElementById("fltPlCaret").addEventListener("click", function (e) {
+      e.stopPropagation();
+      fltPlDropdownOpen = !fltPlDropdownOpen;
+      document.getElementById("fltPlDropdown").hidden = !fltPlDropdownOpen;
+      fltPlSyncUi();
+      if (fltPlDropdownOpen) fltPlRenderDropdown();
+    });
+    document.getElementById("fltPlMultiInput").addEventListener("click", function (e) {
+      e.stopPropagation();
+      fltPlDropdownOpen = true;
+      document.getElementById("fltPlDropdown").hidden = false;
+      fltPlSyncUi();
+      fltPlRenderDropdown();
+    });
+    document.getElementById("fltPlMultiInput").addEventListener("input", function () {
+      if (fltPlDropdownOpen) fltPlRenderDropdown();
+    });
+    document.getElementById("fltOnlyAll").addEventListener("change", function () {
+      if (this.checked) filterLineCodes = [];
+      fltPlSyncUi();
+    });
+
+    document.getElementById("formPlTags").addEventListener("click", function (e) {
+      var x = e.target.closest(".pl-tag-x");
+      if (!x) return;
+      e.stopPropagation();
+      var c = x.getAttribute("data-code");
+      if (c === "ALL") formLineCodes = [];
+      else
+        formLineCodes = formLineCodes.filter(function (z) {
+          return z !== c;
+        });
+      formPlSyncUi();
+      if (formPlDropdownOpen) formPlRenderDropdown();
+    });
+    document.getElementById("formPlCaret").addEventListener("click", function (e) {
+      e.stopPropagation();
+      formPlDropdownOpen = !formPlDropdownOpen;
+      document.getElementById("formPlDropdown").hidden = !formPlDropdownOpen;
+      formPlSyncUi();
+      if (formPlDropdownOpen) formPlRenderDropdown();
+    });
+    document.getElementById("formPlMultiInput").addEventListener("click", function (e) {
+      e.stopPropagation();
+      formPlDropdownOpen = true;
+      document.getElementById("formPlDropdown").hidden = false;
+      formPlSyncUi();
+      formPlRenderDropdown();
+    });
+    document.getElementById("formPlMultiInput").addEventListener("input", function () {
+      if (formPlDropdownOpen) formPlRenderDropdown();
+    });
+
+    document.addEventListener(
+      "mousedown",
+      function (e) {
+        if (!e.target.closest("#fltPlRoot") && !e.target.closest("#fltPlDropdown")) {
+          if (fltPlDropdownOpen) {
+            fltPlDropdownOpen = false;
+            var d = document.getElementById("fltPlDropdown");
+            if (d) d.hidden = true;
+            fltPlSyncUi();
+          }
+        }
+        if (!e.target.closest("#formPlRoot") && !e.target.closest("#formPlDropdown")) {
+          if (formPlDropdownOpen) {
+            formPlDropdownOpen = false;
+            var d2 = document.getElementById("formPlDropdown");
+            if (d2) d2.hidden = true;
+            formPlSyncUi();
+          }
+        }
+      },
+      true
+    );
+    document.getElementById("fltPlRoot").addEventListener("click", function (e) {
+      e.stopPropagation();
+    });
+    document.getElementById("fltPlDropdown").addEventListener("click", function (e) {
+      e.stopPropagation();
+    });
+    document.getElementById("formPlRoot").addEventListener("click", function (e) {
+      e.stopPropagation();
+    });
+    document.getElementById("formPlDropdown").addEventListener("click", function (e) {
+      e.stopPropagation();
     });
   }
 
@@ -1251,6 +1623,7 @@
   }
 
   function refreshAll() {
+    onlyAllScope = document.getElementById("fltOnlyAll").checked;
     document.getElementById("btnClearMonth").style.display =
       selectedMonth == null ? "none" : "inline-flex";
     renderKpis();
@@ -1259,31 +1632,17 @@
   }
 
   function syncFormLinesFromAct(act) {
-    var allEl = document.getElementById("fLineAll");
-    var wrap = document.getElementById("fLineChecks");
     var lines = (act && act.productLines) || ["5115"];
-    if (linesIsAllOnly(lines)) {
-      allEl.checked = true;
-      wrap.querySelectorAll(".f-line-cb").forEach(function (c) {
-        c.checked = false;
-        c.disabled = true;
-      });
-    } else {
-      allEl.checked = false;
-      wrap.querySelectorAll(".f-line-cb").forEach(function (c) {
-        c.disabled = false;
-        c.checked = lines.indexOf(c.value) >= 0;
-      });
-    }
+    formLineCodes = lines.slice();
+    formPlDropdownOpen = false;
+    var d2 = document.getElementById("formPlDropdown");
+    if (d2) d2.hidden = true;
+    formPlSyncUi();
   }
 
   function readProductLinesFromForm() {
-    if (document.getElementById("fLineAll").checked) return ["ALL"];
-    var out = [];
-    document.querySelectorAll(".f-line-cb:checked").forEach(function (c) {
-      out.push(c.value);
-    });
-    return out;
+    if (!formLineCodes.length) return [];
+    return formLineCodes.slice();
   }
 
   function openModal(act, presetMonth) {
@@ -1345,7 +1704,7 @@
       return;
     }
     if (!lines || !lines.length) {
-      toast("请勾选全品线或至少一个品线编码");
+      toast("请在品线多选中选择「全品线」或至少一个 4 位编码");
       return;
     }
     if (String(parseInt(ds.slice(0, 4), 10)) !== String(currentYear) ||
@@ -1380,7 +1739,6 @@
 
   document.getElementById("btnQuery").addEventListener("click", function () {
     currentYear = parseInt(document.getElementById("fltYear").value, 10) || new Date().getFullYear();
-    currentPl = document.getElementById("fltProductLine").value;
     selectedMonth = null;
     refreshAll();
     toast("已查询");
@@ -1396,7 +1754,6 @@
       "fltModel",
       "fltTl",
       "fltSales",
-      "fltProductLine",
       "fltYear"
     ].forEach(function (id) {
       var el = document.getElementById(id);
@@ -1406,9 +1763,15 @@
     if (sku) sku.value = "";
     var skuMode = document.getElementById("fltSkuMode");
     if (skuMode) skuMode.value = "fuzzy";
+    document.getElementById("fltOnlyAll").checked = false;
+    filterLineCodes = [];
+    onlyAllScope = false;
+    fltPlDropdownOpen = false;
+    document.getElementById("fltPlDropdown").hidden = true;
+    document.getElementById("fltPlMultiInput").value = "";
+    fltPlSyncUi();
     fillYearSelect();
     currentYear = parseInt(document.getElementById("fltYear").value, 10);
-    currentPl = "";
     selectedMonth = null;
     refreshAll();
     toast("已重置");
@@ -1436,7 +1799,8 @@
 
   initFilterOptions();
   fillYearSelect();
-  buildLineChecks();
+  wirePlMultiControls();
+  fltPlSyncUi();
   ensureSeed();
   currentYear = parseInt(document.getElementById("fltYear").value, 10);
   refreshAll();
