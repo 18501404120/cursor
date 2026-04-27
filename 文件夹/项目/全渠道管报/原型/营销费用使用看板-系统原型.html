@@ -1,0 +1,1063 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>营销费用使用看板</title>
+  <style>
+    :root {
+      --page-bg: #f0f2f5;
+      --sider-bg: #001529;
+      --header-bg: #1677ff;
+      --card-bg: #fff;
+      --card-border: #e8e8e8;
+      --card-radius: 6px;
+      --text: rgba(0, 0, 0, 0.88);
+      --text-sec: rgba(0, 0, 0, 0.45);
+      --line: #f0f0f0;
+      --brand: #1677ff;
+      --brand-hover: #4096ff;
+      --danger: #ff4d4f;
+      --border: #d9d9d9;
+      --milestone: #722ed1;
+      --ok: #52c41a;
+      --warn: #faad14;
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+      margin: 0;
+      font-family: "PingFang SC", "Microsoft YaHei", "Helvetica Neue", Arial, sans-serif;
+      font-size: 13px;
+      color: var(--text);
+      background: var(--page-bg);
+    }
+    .layout { display: flex; min-height: 100vh; }
+    .sider {
+      width: 56px;
+      flex-shrink: 0;
+      background: var(--sider-bg);
+      border-right: 1px solid #002140;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 12px 0;
+      gap: 6px;
+    }
+    .sider-logo {
+      width: 36px;
+      height: 36px;
+      border-radius: 6px;
+      background: linear-gradient(135deg, #1677ff, #0958d9);
+      margin-bottom: 16px;
+      flex-shrink: 0;
+    }
+    .sider-item {
+      width: 40px;
+      min-height: 40px;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: rgba(255, 255, 255, 0.65);
+      font-size: 11px;
+      cursor: default;
+      line-height: 1.15;
+      text-align: center;
+      padding: 2px;
+    }
+    .sider-item.active {
+      background: rgba(255, 255, 255, 0.12);
+      color: #fff;
+    }
+    .main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+    .top-header {
+      height: 48px;
+      flex-shrink: 0;
+      background: var(--header-bg);
+      color: #fff;
+      display: flex;
+      align-items: center;
+      padding: 0 20px;
+      box-shadow: 0 1px 4px rgba(0, 21, 41, 0.12);
+    }
+    .top-header .title { font-size: 16px; font-weight: 600; letter-spacing: 0.02em; }
+    .content { flex: 1; padding: 16px; overflow: auto; }
+    .breadcrumb { font-size: 12px; color: var(--text-sec); margin-bottom: 12px; }
+    .breadcrumb span { color: var(--text); }
+    .panel {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: var(--card-radius);
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+      margin-bottom: 16px;
+      overflow: hidden;
+    }
+    .panel-head {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--line);
+      font-weight: 600;
+      font-size: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 8px;
+      background: linear-gradient(180deg, #fafafa 0%, #fff 100%);
+    }
+    .panel-body { padding: 16px; }
+    .filter-panel { padding: 12px 14px; border-bottom: 1px solid #f0f0f0; }
+    .filter-grid {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px 10px;
+    }
+    .f { display: flex; align-items: center; gap: 6px; }
+    .f > label { color: var(--text-sec); white-space: nowrap; font-size: 12px; }
+    .f select {
+      height: 28px;
+      padding: 2px 8px;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      font-size: 12px;
+      min-width: 88px;
+      max-width: 140px;
+      color: var(--text);
+      background: #fff;
+    }
+    .f select:focus {
+      outline: none;
+      border-color: var(--brand);
+      box-shadow: 0 0 0 2px rgba(22, 119, 255, 0.12);
+    }
+    .flt-line select {
+      min-width: 100px;
+      max-width: 120px;
+      font-family: ui-monospace, monospace;
+    }
+    .btn-search {
+      height: 28px;
+      padding: 0 14px;
+      background: var(--header-bg);
+      color: #fff;
+      border: none;
+      border-radius: 4px;
+      font-size: 12px;
+      cursor: pointer;
+      margin-left: 4px;
+    }
+    .btn-search:hover { filter: brightness(1.05); }
+    .filter-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 10px;
+      padding-top: 10px;
+    }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      height: 32px;
+      padding: 0 15px;
+      font-size: 13px;
+      border-radius: 4px;
+      border: 1px solid #d9d9d9;
+      background: #fff;
+      color: var(--text);
+      cursor: pointer;
+      font-family: inherit;
+    }
+    .btn:hover { border-color: var(--brand); color: var(--brand); }
+    .btn-primary {
+      background: var(--brand);
+      border-color: var(--brand);
+      color: #fff;
+    }
+    .btn-primary:hover {
+      background: var(--brand-hover);
+      border-color: var(--brand-hover);
+      color: #fff;
+    }
+    .btn-default { background: #fff; }
+
+    /* KPI */
+    .kpi-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+    .kpi-card {
+      background: #fafafa;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: 12px 14px;
+    }
+    .kpi-card .lab { font-size: 12px; color: var(--text-sec); margin-bottom: 6px; }
+    .kpi-card .val { font-size: 18px; font-weight: 600; font-variant-numeric: tabular-nums; }
+    .kpi-card .sub { font-size: 11px; color: var(--text-sec); margin-top: 4px; line-height: 1.4; }
+    .kpi-card.warn .val { color: var(--warn); }
+    .kpi-card.ok .val { color: var(--ok); }
+    .kpi-card.brand .val { color: var(--brand); }
+
+    /* 年度时间进度条 */
+    .progress-block { margin-bottom: 8px; }
+    .progress-block .lab {
+      display: flex;
+      justify-content: space-between;
+      font-size: 12px;
+      color: var(--text-sec);
+      margin-bottom: 6px;
+    }
+    .progress-track {
+      height: 8px;
+      background: #e6f4ff;
+      border-radius: 4px;
+      overflow: hidden;
+      position: relative;
+    }
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #1677ff, #69b1ff);
+      border-radius: 4px;
+      transition: width 0.25s ease;
+    }
+    .progress-expected {
+      position: absolute;
+      top: 0;
+      left: 0;
+      height: 100%;
+      background: rgba(114, 46, 209, 0.35);
+      border-radius: 4px;
+      pointer-events: none;
+    }
+
+    /* 里程碑时间轴 */
+    .milestone-wrap { overflow-x: auto; padding: 8px 0 4px; }
+    .milestone-rail {
+      display: flex;
+      align-items: flex-start;
+      min-width: 720px;
+      gap: 0;
+    }
+    .ms-seg {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      min-width: 0;
+    }
+    .ms-line {
+      flex: 1;
+      height: 2px;
+      background: #d9d9d9;
+      min-width: 4px;
+    }
+    .ms-node {
+      flex-shrink: 0;
+      width: 56px;
+      text-align: center;
+      cursor: pointer;
+      padding: 4px 2px;
+      border-radius: 6px;
+      transition: background 0.15s;
+    }
+    .ms-node:hover { background: #f5f0ff; }
+    .ms-node.active { background: #efdbff; outline: 1px solid var(--milestone); }
+    .ms-dot {
+      width: 14px;
+      height: 14px;
+      margin: 0 auto 6px;
+      border-radius: 50%;
+      background: #fff;
+      border: 3px solid var(--milestone);
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+    }
+    .ms-node.has-act .ms-dot {
+      background: var(--milestone);
+      border-color: #531dab;
+    }
+    .ms-label { font-size: 11px; color: var(--text-sec); }
+    .ms-count {
+      font-size: 11px;
+      color: var(--milestone);
+      font-weight: 600;
+      margin-top: 2px;
+    }
+
+    .table-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 12px; }
+    .table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 4px; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th, td {
+      border-bottom: 1px solid var(--line);
+      border-right: 1px solid var(--line);
+      padding: 8px 12px;
+      text-align: left;
+    }
+    th:last-child, td:last-child { border-right: none; }
+    th {
+      background: #f0f5fa;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+    tbody tr { cursor: pointer; }
+    tbody tr:hover td { background: #fafafa; }
+    tbody tr.sel td { background: #e6f4ff; }
+    .num { text-align: right; font-variant-numeric: tabular-nums; }
+    .actions { white-space: nowrap; }
+    .actions .link {
+      background: none;
+      border: none;
+      padding: 0 8px 0 0;
+      color: var(--brand);
+      cursor: pointer;
+      font-size: 13px;
+    }
+    .actions .link:hover { text-decoration: underline; }
+    .actions .link.danger { color: var(--danger); }
+    .hint {
+      font-size: 12px;
+      color: var(--text-sec);
+      margin-top: 10px;
+      line-height: 1.5;
+    }
+    .hint code { font-size: 12px; background: #f5f5f5; padding: 1px 6px; border-radius: 3px; }
+    .empty { text-align: center; color: var(--text-sec); padding: 28px; }
+
+    /* Modal */
+    .modal-mask {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.45);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 300;
+      padding: 24px;
+    }
+    .modal-mask.show { display: flex; }
+    .modal {
+      background: #fff;
+      border-radius: 8px;
+      width: 100%;
+      max-width: 480px;
+      max-height: 90vh;
+      overflow: auto;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
+    }
+    .modal-hd {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--line);
+    }
+    .modal-title {
+      flex: 1;
+      margin: 0;
+      font-size: 15px;
+      font-weight: 600;
+      padding-top: 2px;
+    }
+    .modal-hd-actions { flex-shrink: 0; display: flex; align-items: center; gap: 8px; }
+    .modal-close {
+      width: 32px;
+      height: 32px;
+      border: none;
+      background: transparent;
+      font-size: 20px;
+      line-height: 1;
+      color: var(--text-sec);
+      cursor: pointer;
+      border-radius: 4px;
+    }
+    .modal-close:hover { background: #f5f5f5; color: var(--text); }
+    .modal-bd { padding: 16px; }
+    .form-row { margin-bottom: 14px; }
+    .form-row label {
+      display: block;
+      font-size: 12px;
+      color: var(--text-sec);
+      margin-bottom: 6px;
+    }
+    .form-row input,
+    .form-row select,
+    .form-row textarea {
+      width: 100%;
+      padding: 8px 10px;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      font-size: 13px;
+      font-family: inherit;
+    }
+    .form-row textarea { min-height: 64px; resize: vertical; }
+    .modal-ft {
+      padding: 12px 16px;
+      border-top: 1px solid var(--line);
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+    }
+
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      padding: 10px 16px;
+      background: rgba(0, 0, 0, 0.78);
+      color: #fff;
+      border-radius: 4px;
+      font-size: 13px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s;
+      z-index: 400;
+    }
+    .toast.show { opacity: 1; }
+  </style>
+</head>
+<body>
+  <div class="layout">
+    <aside class="sider" aria-label="侧栏导航示意">
+      <div class="sider-logo" title="系统"></div>
+      <div class="sider-item">管报</div>
+      <div class="sider-item active">营销</div>
+      <div class="sider-item">预测</div>
+      <div class="sider-item">设置</div>
+    </aside>
+    <div class="main">
+      <header class="top-header">
+        <span class="title">营销费用使用看板（USD）</span>
+      </header>
+      <div class="content">
+        <div class="breadcrumb">全渠道 / <span>营销费用使用看板</span></div>
+
+        <section class="panel">
+          <div class="filter-panel">
+            <div class="filter-grid">
+              <div class="f"><label for="fltYear">年度</label><select id="fltYear"></select></div>
+              <div class="f flt-line"><label for="fltProductLine">品线</label><select id="fltProductLine"></select></div>
+              <button type="button" class="btn-search" id="btnQuery">搜索</button>
+            </div>
+            <div class="filter-actions">
+              <button type="button" class="btn btn-default" id="btnReset">重置</button>
+              <span class="hint" style="margin:0;flex:1;">列表按<strong>年度 + 品线</strong>过滤；品线选「全部」时含「全品线」活动。数据保存在本机 <code>localStorage</code>。</span>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-head">进度与费用概览</div>
+          <div class="panel-body">
+            <div class="progress-block">
+              <div class="lab">
+                <span>时间进度（自然年）</span>
+                <span id="lblTimeProgress">—</span>
+              </div>
+              <div class="progress-track">
+                <div class="progress-expected" id="barExpected" style="width:0%"></div>
+                <div class="progress-fill" id="barTime" style="width:0%"></div>
+              </div>
+              <p class="hint" style="margin-top:8px;">
+                <strong>按时间进度费用预估</strong>＝筛选范围内活动<strong>预算合计</strong>×时间进度；用于与<strong>实际合计</strong>对比。紫色叠层表示「预估应花」占比，蓝色为已过时间占比。
+              </p>
+            </div>
+            <div class="kpi-row" id="kpiRow">
+              <div class="kpi-card brand">
+                <div class="lab">预算合计（USD）</div>
+                <div class="val" id="kpiBudget">$0</div>
+                <div class="sub">当前筛选下的全年活动预算</div>
+              </div>
+              <div class="kpi-card ok">
+                <div class="lab">实际费用合计（USD）</div>
+                <div class="val" id="kpiActual">$0</div>
+                <div class="sub">已登记实际发生</div>
+              </div>
+              <div class="kpi-card">
+                <div class="lab">按进度预估应花（USD）</div>
+                <div class="val" id="kpiExpected">$0</div>
+                <div class="sub">预算 × 时间进度</div>
+              </div>
+              <div class="kpi-card warn" id="kpiVarCard">
+                <div class="lab">实际 − 预估（USD）</div>
+                <div class="val" id="kpiVariance">$0</div>
+                <div class="sub">正为超支、负为节余（原型示意）</div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-head">
+            <span>全年里程碑</span>
+            <button type="button" class="btn btn-default" id="btnAddOpen">新增活动</button>
+          </div>
+          <div class="panel-body">
+            <p class="hint" style="margin-top:0;">点击某一<strong>月份里程碑</strong>可在该月登记营销活动（名称、费用、日期、品线）。活动可绑定单一 4 位品线或<strong>全品线</strong>。</p>
+            <div class="milestone-wrap">
+              <div class="milestone-rail" id="milestoneRail" aria-label="全年12月里程碑"></div>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-head">营销活动列表</div>
+          <div class="panel-body">
+            <div class="table-toolbar">
+              <span id="actCount" class="hint" style="margin:0;">共 0 条</span>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>发生日期</th>
+                    <th>里程碑</th>
+                    <th>活动名称</th>
+                    <th>品线</th>
+                    <th class="num">预算（USD）</th>
+                    <th class="num">实际（USD）</th>
+                    <th class="actions">操作</th>
+                  </tr>
+                </thead>
+                <tbody id="tbodyActs"></tbody>
+              </table>
+            </div>
+            <p class="hint">点击表格行查看下方「店铺 + MSKU」分摊；<strong>预算</strong>与<strong>实际</strong>均按 BP 目标营收权重拆分（与规划原型一致逻辑）。</p>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-head">店铺 + MSKU 分摊</div>
+          <div class="panel-body">
+            <p class="split-meta" id="splitCtx">请先在上方列表中选择一条活动。</p>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>店铺</th>
+                    <th>MSKU</th>
+                    <th>权重</th>
+                    <th class="num">分摊预算（USD）</th>
+                    <th class="num">分摊实际（USD）</th>
+                  </tr>
+                </thead>
+                <tbody id="tbodySplit"></tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-mask" id="modalMask" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <div class="modal" id="modalBox">
+      <div class="modal-hd">
+        <h2 class="modal-title" id="modalTitle">登记营销活动</h2>
+        <div class="modal-hd-actions">
+          <button type="button" class="modal-close" id="modalClose" aria-label="关闭">×</button>
+        </div>
+      </div>
+      <div class="modal-bd">
+        <input type="hidden" id="fId" />
+        <div class="form-row">
+          <label for="fName">活动名称</label>
+          <input type="text" id="fName" placeholder="例如：Prime Day 投放" maxlength="120" />
+        </div>
+        <div class="form-row">
+          <label for="fDate">发生日期</label>
+          <input type="date" id="fDate" />
+        </div>
+        <div class="form-row">
+          <label for="fLine">品线</label>
+          <select id="fLine"></select>
+        </div>
+        <div class="form-row">
+          <label for="fBudget">预算费用（USD）</label>
+          <input type="number" id="fBudget" min="0" step="1" placeholder="0" />
+        </div>
+        <div class="form-row">
+          <label for="fActual">实际费用（USD）</label>
+          <input type="number" id="fActual" min="0" step="1" placeholder="0" />
+        </div>
+        <div class="form-row">
+          <label for="fNote">备注</label>
+          <textarea id="fNote" placeholder="选填"></textarea>
+        </div>
+      </div>
+      <div class="modal-ft">
+        <button type="button" class="btn btn-default" id="modalCancel">取消</button>
+        <button type="button" class="btn btn-primary" id="modalSave">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+(function () {
+  var STORAGE_KEY = "marketing_expense_usage_board_v1";
+  var PRODUCT_LINES = [
+    { code: "5115" }, { code: "8118" }, { code: "8610" }, { code: "8H11" }, { code: "7H11" }
+  ];
+  var MONTH_NAMES = ["1月", "2月", "3月", "4月", "5月", "6月", "7月", "8月", "9月", "10月", "11月", "12月"];
+
+  var currentYear = new Date().getFullYear();
+  var currentPl = "";
+  var selectedId = null;
+  var modalMonthHint = null;
+
+  function uid() {
+    return "a_" + Date.now().toString(36) + "_" + Math.random().toString(36).slice(2, 8);
+  }
+
+  function escapeHtml(s) {
+    return String(s)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/"/g, "&quot;");
+  }
+
+  function formatUsd(n) {
+    return "$" + Number(n || 0).toLocaleString("en-US", { maximumFractionDigits: 0 });
+  }
+
+  function loadAll() {
+    try {
+      var raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return [];
+      var arr = JSON.parse(raw);
+      return Array.isArray(arr) ? arr : [];
+    } catch (e) {
+      return [];
+    }
+  }
+
+  function saveAll(list) {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+  }
+
+  function isLeap(y) {
+    return (y % 4 === 0 && y % 100 !== 0) || y % 400 === 0;
+  }
+
+  function daysInYear(y) {
+    return isLeap(y) ? 366 : 365;
+  }
+
+  /** 所选自然年的时间进度 0～1（非当年按边界处理） */
+  function timeProgressForYear(y) {
+    var now = new Date();
+    var cy = now.getFullYear();
+    if (y < cy) return 1;
+    if (y > cy) return 0;
+    var start = new Date(y, 0, 1);
+    var passed = Math.floor((now - start) / 86400000) + 1;
+    return Math.min(1, Math.max(0, passed / daysInYear(y)));
+  }
+
+  function monthFromDateStr(ds) {
+    var p = (ds || "").split("-");
+    if (p.length < 2) return 0;
+    var m = parseInt(p[1], 10);
+    return Math.min(12, Math.max(1, m)) - 1;
+  }
+
+  function mockSkuRows(year, productLine) {
+    if (productLine === "ALL") {
+      var merged = [];
+      PRODUCT_LINES.slice(0, 3).forEach(function (pl) {
+        mockSkuRows(year, pl.code).forEach(function (r) {
+          merged.push({
+            year: r.year,
+            productLine: pl.code,
+            shop: r.shop,
+            msku: r.msku + "-" + pl.code,
+            bpRevenue: r.bpRevenue
+          });
+        });
+      });
+      return merged.slice(0, 8);
+    }
+    var base = String(productLine).replace(/\s/g, "").split("").reduce(function (s, c) { return s + c.charCodeAt(0); }, 0) % 5000;
+    var shops = ["AMZ-US-01", "AMZ-EU-02", "独立站-01"];
+    var rows = [];
+    for (var i = 0; i < 5; i++) {
+      rows.push({
+        year: year,
+        productLine: productLine,
+        shop: shops[i % shops.length],
+        msku: "MSKU-" + String(productLine).slice(0, 2) + "-" + (1000 + i + base % 100),
+        bpRevenue: 80000 + i * 17000 + base % 9000
+      });
+    }
+    return rows;
+  }
+
+  /** 同一套 BP 权重下拆分预算与实际，并分别做尾差对齐 */
+  function splitBudgetAndActual(budgetTotal, actualTotal, year, productLine) {
+    var pl = productLine === "ALL" ? "ALL" : productLine;
+    var skus = mockSkuRows(year, pl);
+    var totalBp = skus.reduce(function (s, r) { return s + r.bpRevenue; }, 0);
+    var rows = skus.map(function (r) {
+      var w = totalBp > 0 ? r.bpRevenue / totalBp : 0;
+      return {
+        shop: r.shop,
+        msku: r.msku,
+        weight: w,
+        budget: Math.round(budgetTotal * w),
+        actual: Math.round(actualTotal * w)
+      };
+    });
+    if (!rows.length) return [];
+    var sumB = rows.reduce(function (s, r) { return s + r.budget; }, 0);
+    rows[rows.length - 1].budget += budgetTotal - sumB;
+    var sumA = rows.reduce(function (s, r) { return s + r.actual; }, 0);
+    rows[rows.length - 1].actual += actualTotal - sumA;
+    return rows;
+  }
+
+  function filteredActs() {
+    return loadAll().filter(function (a) {
+      if (String(a.year) !== String(currentYear)) return false;
+      if (!currentPl) return true;
+      if (currentPl === "ALL_FILTER") return a.productLine === "ALL";
+      if (a.productLine === "ALL") return true;
+      return String(a.productLine) === String(currentPl);
+    }).sort(function (a, b) {
+      return String(a.dateStr).localeCompare(String(b.dateStr));
+    });
+  }
+
+  function actsInMonth(m0to11) {
+    return filteredActs().filter(function (a) {
+      return monthFromDateStr(a.dateStr) === m0to11;
+    });
+  }
+
+  function toast(msg) {
+    var el = document.getElementById("toast");
+    el.textContent = msg;
+    el.classList.add("show");
+    clearTimeout(el._t);
+    el._t = setTimeout(function () { el.classList.remove("show"); }, 2200);
+  }
+
+  function fillYearSelect() {
+    var sel = document.getElementById("fltYear");
+    var y = new Date().getFullYear();
+    sel.innerHTML = "";
+    for (var i = 0; i < 4; i++) {
+      var yy = y - i;
+      var o = document.createElement("option");
+      o.value = String(yy);
+      o.textContent = yy + " 年";
+      if (i === 0) o.selected = true;
+      sel.appendChild(o);
+    }
+  }
+
+  function fillProductLineFilter() {
+    var sel = document.getElementById("fltProductLine");
+    var h = '<option value="">全部</option><option value="ALL_FILTER">仅全品线活动</option>';
+    PRODUCT_LINES.forEach(function (o) {
+      h += '<option value="' + o.code + '">' + o.code + "</option>";
+    });
+    sel.innerHTML = h;
+  }
+
+  function fillFormProductLine() {
+    var sel = document.getElementById("fLine");
+    var h = '<option value="ALL">全品线</option>';
+    PRODUCT_LINES.forEach(function (o) {
+      h += '<option value="' + o.code + '">' + o.code + "</option>";
+    });
+    sel.innerHTML = h;
+  }
+
+  function defaultActs() {
+    var y = new Date().getFullYear();
+    return [
+      { id: uid(), year: y, dateStr: y + "-02-14", name: "情人节专题投放", productLine: "5115", budgetUsd: 48000, actualUsd: 45200, note: "" },
+      { id: uid(), year: y, dateStr: y + "-03-08", name: "春季品线联合活动", productLine: "ALL", budgetUsd: 120000, actualUsd: 88000, note: "跨品线" },
+      { id: uid(), year: y, dateStr: y + "-06-20", name: "618 大促", productLine: "8610", budgetUsd: 200000, actualUsd: 195000, note: "" },
+      { id: uid(), year: y, dateStr: y + "-11-28", name: "黑五预热", productLine: "8118", budgetUsd: 150000, actualUsd: 0, note: "待结算" }
+    ];
+  }
+
+  function ensureSeed() {
+    var list = loadAll();
+    if (list.length === 0) {
+      saveAll(defaultActs());
+    }
+  }
+
+  function renderKpis() {
+    var acts = filteredActs();
+    var budget = acts.reduce(function (s, a) { return s + (Number(a.budgetUsd) || 0); }, 0);
+    var actual = acts.reduce(function (s, a) { return s + (Number(a.actualUsd) || 0); }, 0);
+    var tp = timeProgressForYear(currentYear);
+    var expected = Math.round(budget * tp);
+    var variance = actual - expected;
+    document.getElementById("kpiBudget").textContent = formatUsd(budget);
+    document.getElementById("kpiActual").textContent = formatUsd(actual);
+    document.getElementById("kpiExpected").textContent = formatUsd(expected);
+    document.getElementById("kpiVariance").textContent =
+      (variance > 0 ? "+" : "") + formatUsd(variance);
+    document.getElementById("lblTimeProgress").textContent = (tp * 100).toFixed(1) + "%（" + currentYear + " 年）";
+    document.getElementById("barTime").style.width = (tp * 100) + "%";
+    var expW = budget > 0 ? (expected / budget) * 100 : 0;
+    document.getElementById("barExpected").style.width = Math.min(100, expW) + "%";
+    var card = document.getElementById("kpiVarCard");
+    card.classList.remove("warn", "ok");
+    if (variance > 0) card.classList.add("warn");
+    else if (variance < 0) card.classList.add("ok");
+  }
+
+  function renderMilestones() {
+    var rail = document.getElementById("milestoneRail");
+    rail.innerHTML = "";
+    for (var m = 0; m < 12; m++) {
+      if (m > 0) {
+        var seg = document.createElement("div");
+        seg.className = "ms-seg";
+        seg.innerHTML = '<div class="ms-line" aria-hidden="true"></div>';
+        rail.appendChild(seg);
+      }
+      var cnt = actsInMonth(m).length;
+      var node = document.createElement("button");
+      node.type = "button";
+      node.className = "ms-node" + (cnt ? " has-act" : "");
+      if (modalMonthHint === m) node.classList.add("active");
+      node.dataset.month = String(m);
+      node.innerHTML =
+        '<div class="ms-dot"></div>' +
+        "<div class=\"ms-label\">" + MONTH_NAMES[m] + "</div>" +
+        '<div class="ms-count">' + (cnt ? cnt + " 活动" : "—") + "</div>";
+      node.addEventListener("click", function (mm) {
+        return function () {
+          openModal(null, mm);
+        };
+      }(m));
+      rail.appendChild(node);
+    }
+  }
+
+  function lineLabel(code) {
+    if (code === "ALL") return "全品线";
+    return String(code || "—");
+  }
+
+  function renderTable() {
+    var tbody = document.getElementById("tbodyActs");
+    var acts = filteredActs();
+    document.getElementById("actCount").textContent = "共 " + acts.length + " 条（筛选后）";
+    tbody.innerHTML = "";
+    if (acts.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="7" class="empty">无活动，点击里程碑月份或「新增活动」登记。</td></tr>';
+      selectedId = null;
+      renderSplit();
+      return;
+    }
+    acts.forEach(function (a) {
+      var tr = document.createElement("tr");
+      tr.dataset.id = a.id;
+      if (selectedId === a.id) tr.classList.add("sel");
+      var m = monthFromDateStr(a.dateStr);
+      tr.innerHTML =
+        "<td>" + escapeHtml(a.dateStr) + "</td>" +
+        "<td>" + escapeHtml(MONTH_NAMES[m]) + "</td>" +
+        "<td>" + escapeHtml(a.name || "—") + "</td>" +
+        "<td>" + escapeHtml(lineLabel(a.productLine)) + "</td>" +
+        '<td class="num">' + formatUsd(a.budgetUsd) + "</td>" +
+        '<td class="num">' + formatUsd(a.actualUsd) + "</td>" +
+        '<td class="actions">' +
+        '<button type="button" class="link js-edit">编辑</button>' +
+        '<button type="button" class="link danger js-del">删除</button>' +
+        "</td>";
+      tbody.appendChild(tr);
+    });
+    tbody.querySelectorAll("tr").forEach(function (tr) {
+      var id = tr.dataset.id;
+      if (!id) return;
+      tr.addEventListener("click", function (e) {
+        if (e.target.closest(".js-edit, .js-del, button")) return;
+        selectedId = id;
+        renderTable();
+        renderSplit();
+      });
+      var ed = tr.querySelector(".js-edit");
+      if (ed) {
+        ed.addEventListener("click", function (e) {
+          e.stopPropagation();
+          var a = loadAll().find(function (x) { return x.id === id; });
+          if (a) openModal(a, null);
+        });
+      }
+      var del = tr.querySelector(".js-del");
+      if (del) {
+        del.addEventListener("click", function (e) {
+          e.stopPropagation();
+          if (!confirm("确定删除该活动？")) return;
+          saveAll(loadAll().filter(function (x) { return x.id !== id; }));
+          if (selectedId === id) selectedId = null;
+          toast("已删除");
+          refreshAll();
+        });
+      }
+    });
+    if (selectedId && !acts.some(function (a) { return a.id === selectedId; })) {
+      selectedId = acts[0] ? acts[0].id : null;
+    }
+    if (!selectedId && acts[0]) selectedId = acts[0].id;
+    renderSplit();
+    document.querySelectorAll("#tbodyActs tr").forEach(function (tr) {
+      if (tr.dataset.id === selectedId) tr.classList.add("sel");
+    });
+  }
+
+  function renderSplit() {
+    var ctx = document.getElementById("splitCtx");
+    var tbody = document.getElementById("tbodySplit");
+    tbody.innerHTML = "";
+    var a = loadAll().find(function (x) { return x.id === selectedId; });
+    if (!a) {
+      ctx.textContent = "请先在上方列表中选择一条活动。";
+      return;
+    }
+    var rows = splitBudgetAndActual(
+      Number(a.budgetUsd) || 0,
+      Number(a.actualUsd) || 0,
+      a.year,
+      a.productLine
+    );
+    ctx.textContent =
+      "「" + (a.name || "未命名") + "」· " + a.dateStr + " · 品线 " + lineLabel(a.productLine) + " · 预算 " + formatUsd(a.budgetUsd) + " · 实际 " + formatUsd(a.actualUsd);
+    rows.forEach(function (r) {
+      var tr = document.createElement("tr");
+      tr.innerHTML =
+        "<td>" + escapeHtml(r.shop) + "</td>" +
+        "<td>" + escapeHtml(r.msku) + "</td>" +
+        '<td class="num">' + (r.weight * 100).toFixed(2) + "%</td>" +
+        '<td class="num">' + formatUsd(r.budget) + "</td>" +
+        '<td class="num">' + formatUsd(r.actual) + "</td>";
+      tbody.appendChild(tr);
+    });
+  }
+
+  function refreshAll() {
+    renderKpis();
+    renderMilestones();
+    renderTable();
+  }
+
+  function openModal(act, presetMonth) {
+    modalMonthHint = presetMonth != null ? presetMonth : null;
+    document.getElementById("modalTitle").textContent = act ? "编辑营销活动" : "登记营销活动";
+    document.getElementById("fId").value = act ? act.id : "";
+    document.getElementById("fName").value = act ? act.name : "";
+    document.getElementById("fBudget").value = act ? String(act.budgetUsd) : "";
+    document.getElementById("fActual").value = act ? String(act.actualUsd) : "";
+    document.getElementById("fNote").value = act ? (act.note || "") : "";
+    var y = currentYear;
+    var m = presetMonth != null ? presetMonth : act ? monthFromDateStr(act.dateStr) : new Date().getMonth();
+    var d = act ? act.dateStr : y + "-" + String(m + 1).padStart(2, "0") + "-15";
+    document.getElementById("fDate").value = d;
+    document.getElementById("fLine").value = act ? act.productLine : "5115";
+    document.getElementById("modalMask").classList.add("show");
+    renderMilestones();
+  }
+
+  function closeModal() {
+    modalMonthHint = null;
+    document.getElementById("modalMask").classList.remove("show");
+    renderMilestones();
+  }
+
+  function saveModal() {
+    var id = document.getElementById("fId").value;
+    var name = document.getElementById("fName").value.trim();
+    var dateStr = document.getElementById("fDate").value;
+    var pl = document.getElementById("fLine").value;
+    var budget = parseFloat(document.getElementById("fBudget").value) || 0;
+    var actual = parseFloat(document.getElementById("fActual").value) || 0;
+    var note = document.getElementById("fNote").value.trim();
+    if (!name) {
+      toast("请填写活动名称");
+      return;
+    }
+    if (!dateStr) {
+      toast("请选择发生日期");
+      return;
+    }
+    var y = parseInt(dateStr.slice(0, 4), 10);
+    if (String(y) !== String(currentYear)) {
+      toast("发生日期须在所选筛选年度 " + currentYear + " 年内");
+      return;
+    }
+    var list = loadAll();
+    var rec = {
+      id: id || uid(),
+      year: currentYear,
+      dateStr: dateStr,
+      name: name,
+      productLine: pl,
+      budgetUsd: budget,
+      actualUsd: actual,
+      note: note
+    };
+    if (id) {
+      var ix = list.findIndex(function (x) { return x.id === id; });
+      if (ix >= 0) list[ix] = rec;
+    } else {
+      list.push(rec);
+    }
+    saveAll(list);
+    selectedId = rec.id;
+    closeModal();
+    toast("已保存");
+    refreshAll();
+  }
+
+  document.getElementById("btnQuery").addEventListener("click", function () {
+    currentYear = parseInt(document.getElementById("fltYear").value, 10) || new Date().getFullYear();
+    currentPl = document.getElementById("fltProductLine").value;
+    refreshAll();
+    toast("已查询");
+  });
+
+  document.getElementById("btnReset").addEventListener("click", function () {
+    fillYearSelect();
+    document.getElementById("fltProductLine").selectedIndex = 0;
+    currentYear = parseInt(document.getElementById("fltYear").value, 10);
+    currentPl = "";
+    refreshAll();
+    toast("已重置");
+  });
+
+  document.getElementById("btnAddOpen").addEventListener("click", function () {
+    openModal(null, new Date().getMonth());
+  });
+
+  document.getElementById("modalClose").addEventListener("click", closeModal);
+  document.getElementById("modalCancel").addEventListener("click", closeModal);
+  document.getElementById("modalSave").addEventListener("click", saveModal);
+  document.getElementById("modalMask").addEventListener("click", function (e) {
+    if (e.target.id === "modalMask") closeModal();
+  });
+  document.getElementById("modalBox").addEventListener("click", function (e) {
+    e.stopPropagation();
+  });
+
+  fillYearSelect();
+  fillProductLineFilter();
+  fillFormProductLine();
+  ensureSeed();
+  currentYear = parseInt(document.getElementById("fltYear").value, 10);
+  refreshAll();
+})();
+  </script>
+</body>
+</html>
