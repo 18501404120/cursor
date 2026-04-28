@@ -457,9 +457,22 @@
       white-space: nowrap;
     }
     tbody tr:hover td { background: #fafafa; }
-    table th:nth-child(2),
-    table td:nth-child(2) {
+    #tblPlan th:nth-child(2),
+    #tblPlan td:nth-child(2),
+    #tblPlan th:nth-child(3),
+    #tblPlan td:nth-child(3) {
       text-align: center;
+    }
+    #tblSplit th:nth-child(2),
+    #tblSplit td:nth-child(2) {
+      text-align: center;
+    }
+    .plan-np-tag-cell .inp-inline.js-np-tag-row {
+      min-width: 120px;
+      max-width: 160px;
+    }
+    .plan-np-tag-na {
+      color: var(--text-sec);
     }
     .num { text-align: right; font-variant-numeric: tabular-nums; }
     .actions { white-space: nowrap; }
@@ -578,13 +591,14 @@
               <button type="button" class="btn btn-default" id="btnExport">导出当前列表</button>
               <button type="button" class="btn btn-primary" id="btnSaveAll">保存全部</button>
             </div>
-            <p class="hint">维护 <strong>年度 × 规划对象</strong>：支持<strong>场景全量</strong>（仅场景）、<strong>场景下品类</strong>、<strong>新品</strong>三种粒度；同一年度下<strong>相同粒度键不可重复</strong>，但「场景全量」与「其下某一品类」可同时存在、互不冲突。金额 <strong>USD</strong>；拆分为 <strong>店铺 + MSKU</strong> 示例（等额拆分，不含 BP）。CSV：<code>年度,规划粒度,场景,品类,新品标签,营销费用规划(美元)</code>，规划粒度取值 <code>scenario</code> / <code>category</code> / <code>new_product</code>；品类在场景全量时留空；新品时场景填 <code>新品</code>、品类填标识，<strong>新品标签</strong>填如 <code>2026年新品</code>（可空，空则按该行<strong>年度</strong>推导展示与筛选）。兼容旧表头 <code>年度,场景,品类,…</code>；数据 <code>localStorage</code>（<code>marketing_expense_plan_v3</code>）。</p>
+            <p class="hint">维护 <strong>年度 × 规划对象</strong>：表格<strong>场景品类</strong>与<strong>新品标签</strong>分两列；非新品行新品标签为「—」。<strong>新品</strong>行两列不能只空一维（标识在场景品类列、标签在第二列下拉）。支持<strong>场景全量</strong>、<strong>场景下品类</strong>、<strong>新品</strong>三种粒度；同一年度下<strong>相同粒度键不可重复</strong>。金额 <strong>USD</strong>；拆分为 <strong>店铺 + MSKU</strong> 示例。CSV：<code>年度,规划粒度,场景,品类,新品标签,营销费用规划(美元)</code>；新品标签可空则按<strong>年度</strong>推导。兼容旧表头；数据 <code>localStorage</code>（<code>marketing_expense_plan_v3</code>）。</p>
             <div class="table-wrap">
               <table id="tblPlan">
                 <thead>
                   <tr>
                     <th>年度</th>
-                    <th>规划对象</th>
+                    <th>场景品类</th>
+                    <th>新品标签</th>
                     <th>营销费用规划（USD）</th>
                     <th class="actions">操作</th>
                   </tr>
@@ -1023,14 +1037,13 @@
     return cat;
   }
 
-  function formatPlanLineLabel(like) {
+  /** 表格「场景品类」列：不含新品年份标签 */
+  function formatPlanScenarioCategoryOnly(like) {
     if (!like) return "—";
     var g = getPlanGranularity(like);
     if (g === PLAN_G_NEW) {
       var nc = String(like.category || "").trim();
-      var tag = planNpTagValue(like);
-      var base = nc ? NEW_PRODUCT_SCENE + " / " + nc : NEW_PRODUCT_SCENE + " / （请填写标识）";
-      return nc && tag ? base + " · " + tag : base;
+      return nc ? NEW_PRODUCT_SCENE + " / " + nc : NEW_PRODUCT_SCENE + " / （请填写标识）";
     }
     if (g === PLAN_G_SCENARIO) {
       var ss = String(like.scenario || "").trim();
@@ -1040,6 +1053,19 @@
     var cat = resolvedCategoryDisplay(like);
     if (!sc && !cat) return "—";
     return sc + " / " + cat;
+  }
+
+  /** 拆分区/上下文：场景品类 + 新品标签合一展示 */
+  function formatPlanLineLabel(like) {
+    if (!like) return "—";
+    var g = getPlanGranularity(like);
+    if (g === PLAN_G_NEW) {
+      var nc = String(like.category || "").trim();
+      var tag = planNpTagValue(like);
+      var base = formatPlanScenarioCategoryOnly(like);
+      return nc && tag ? base + " · " + tag : base;
+    }
+    return formatPlanScenarioCategoryOnly(like);
   }
 
   function getPlanRowEditTr() {
@@ -1097,7 +1123,7 @@
         like.newProductTag = fromPlan.newProductTag;
         like.year = fromPlan.year;
       }
-      btn.textContent = formatPlanLineLabel(like);
+      btn.textContent = formatPlanScenarioCategoryOnly(like);
     }
   }
 
@@ -1255,39 +1281,17 @@
         return x.id === id;
       });
       var yRow = parseInt(tr.querySelector(".js-year").value, 10) || (pRow && pRow.year) || new Date().getFullYear();
-      var lblSel = document.createElement("label");
-      lblSel.style.display = "block";
-      lblSel.style.marginTop = "8px";
-      lblSel.style.fontSize = "12px";
-      lblSel.style.color = "var(--text-sec)";
-      lblSel.textContent = "新品标签";
-      lblSel.setAttribute("for", "planRowNpTagSelect");
-      var selTag = document.createElement("select");
-      selTag.id = "planRowNpTagSelect";
-      selTag.className = "inp-inline";
-      selTag.style.marginTop = "4px";
-      selTag.style.maxWidth = "none";
-      NP_TAG_YEAR_OPTIONS.forEach(function (yy) {
-        var lab = planNpTagLabelForYear(yy);
-        var opt = document.createElement("option");
-        opt.value = lab;
-        opt.textContent = lab;
-        selTag.appendChild(opt);
-      });
-      var curTag = pRow && pRow.newProductTag ? String(pRow.newProductTag).trim() : "";
-      if (!curTag) curTag = planNpTagLabelForYear(yRow);
-      selTag.value = NP_TAG_YEAR_OPTIONS.some(function (yy) {
-        return planNpTagLabelForYear(yy) === curTag;
-      })
-        ? curTag
-        : planNpTagLabelForYear(yRow);
       function applyNewRow() {
         var v = inp.value.trim();
         if (!v) {
           toast("请填写新品标识");
           return;
         }
-        var tag = selTag.value ? String(selTag.value).trim() : planNpTagLabelForYear(yRow);
+        var tagSel = tr.querySelector(".js-np-tag-row");
+        var tag =
+          tagSel && tagSel.value
+            ? String(tagSel.value).trim()
+            : planNpTagLabelForYear(yRow);
         syncPlanRowScCatToModel(tr, id, NEW_PRODUCT_SCENE, v, tag);
       }
       inp.addEventListener("keydown", function (ev) {
@@ -1305,8 +1309,6 @@
         applyNewRow();
       });
       wrap.appendChild(inp);
-      wrap.appendChild(lblSel);
-      wrap.appendChild(selTag);
       wrap.appendChild(btn);
       el.appendChild(wrap);
       return;
@@ -1406,6 +1408,7 @@
       if (!planRowEditId || !host || host.hidden) return;
       if (host.contains(t)) return;
       if (t.closest && t.closest(".plan-sc-cat-wrap")) return;
+      if (t.closest && t.closest(".plan-np-tag-cell")) return;
       var npw = document.getElementById("fltNpTagWrap");
       if (npw && npw.contains(t)) return;
       closePlanRowScCatPop();
@@ -1430,7 +1433,7 @@
       sc = base.scenario;
       cat = base.categories[0] || "";
     }
-    var label = formatPlanLineLabel(p);
+    var label = formatPlanScenarioCategoryOnly(p);
     return (
       '<div class="plan-sc-cat-wrap sc-cat-wrap" data-plan-id="' +
       escapeHtml(p.id) +
@@ -1444,6 +1447,44 @@
       '<button type="button" class="sc-cat-trigger plan-sc-cat-trigger js-plan-sc-cat-trigger" aria-expanded="false" aria-haspopup="dialog">' +
       escapeHtml(label) +
       "</button></div>"
+    );
+  }
+
+  function planNpTagCellHtml(p) {
+    if (getPlanGranularity(p) !== PLAN_G_NEW) {
+      return '<span class="plan-np-tag-na">—</span>';
+    }
+    var cur = planNpTagValue(p);
+    var inList = NP_TAG_YEAR_OPTIONS.some(function (yy) {
+      return planNpTagLabelForYear(yy) === cur;
+    });
+    var extraOpt = "";
+    if (!inList && cur) {
+      extraOpt =
+        '<option value="' +
+        escapeHtml(cur) +
+        '" selected>' +
+        escapeHtml(cur) +
+        "</option>";
+    }
+    var opts = NP_TAG_YEAR_OPTIONS.map(function (yy) {
+      var lab = planNpTagLabelForYear(yy);
+      return (
+        '<option value="' +
+        escapeHtml(lab) +
+        '"' +
+        (lab === cur ? " selected" : "") +
+        ">" +
+        escapeHtml(lab) +
+        "</option>"
+      );
+    }).join("");
+    return (
+      '<div class="plan-np-tag-cell">' +
+      '<select class="inp-inline js-np-tag-row" aria-label="新品标签">' +
+      extraOpt +
+      opts +
+      "</select></div>"
     );
   }
 
@@ -1651,6 +1692,7 @@
       if (ph && ph.contains(e.target)) return;
       var scw = document.getElementById("fltScCatWrap");
       if (scw && scw.contains(e.target)) return;
+      if (e.target.closest && e.target.closest(".plan-np-tag-cell")) return;
       closeNpTagPop();
     });
   }
@@ -1684,6 +1726,7 @@
       if (npw && npw.contains(e.target)) return;
       var ph = document.getElementById("planScCatPopHost");
       if (ph && ph.contains(e.target)) return;
+      if (e.target.closest && e.target.closest(".plan-np-tag-cell")) return;
       closeScCatPop();
     });
   }
@@ -1807,7 +1850,7 @@
     }
     tbody.innerHTML = "";
     if (list.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="4" class="empty">无数据，可点击「新增一行」或「导入 CSV」</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="5" class="empty">无数据，可点击「新增一行」或「导入 CSV」</td></tr>';
       document.getElementById("planCount").textContent = "共 0 条";
       focusPlanId = null;
       clearSplitTable();
@@ -1819,6 +1862,7 @@
       tr.innerHTML =
         '<td><select class="inp-inline js-year">' + yearOptionsHtml(p.year) + "</select></td>" +
         "<td>" + scenarioCategoryCellHtml(p) + "</td>" +
+        "<td>" + planNpTagCellHtml(p) + "</td>" +
         '<td><input type="number" class="inp-inline js-amt num" min="0" step="1" value="' + escapeHtml(String(p.planAmount)) + '" /></td>' +
         '<td class="actions">' +
         '<button type="button" class="link js-save">保存</button>' +
@@ -1879,10 +1923,25 @@
         });
       }
       tr.addEventListener("click", function (e) {
-        if (e.target.closest("button, input, select, textarea, label, .plan-sc-cat-wrap")) return;
+        if (e.target.closest("button, input, select, textarea, label, .plan-sc-cat-wrap, .plan-np-tag-cell")) return;
         focusPlanId = id;
         renderSplitForPlan(id);
       });
+      var npRow = tr.querySelector(".js-np-tag-row");
+      if (npRow) {
+        npRow.addEventListener("change", function () {
+          var list2 = loadAll();
+          var pr = list2.find(function (x) {
+            return x.id === id;
+          });
+          if (!pr || getPlanGranularity(pr) !== PLAN_G_NEW) return;
+          pr.newProductTag = String(npRow.value || "").trim() || planNpTagLabelForYear(pr.year);
+          enrichPlanFromTree(pr);
+          saveAll(list2);
+          syncPlanRowScCatDom(tr, pr.scenario, pr.category != null ? String(pr.category) : "", pr);
+          if (focusPlanId === id) renderSplitForPlan(id);
+        });
+      }
       tr.querySelector(".js-save").addEventListener("click", function () {
         persistRow(tr, id);
         toast("已保存该行");
@@ -1909,6 +1968,19 @@
     p.scenario = tr.querySelector(".js-scenario").value;
     p.category = tr.querySelector(".js-category").value != null ? tr.querySelector(".js-category").value : "";
     assignStoredGranularity(p);
+    if (getPlanGranularity(p) === PLAN_G_NEW) {
+      var npSel = tr.querySelector(".js-np-tag-row");
+      var tagFromDom = npSel && npSel.value ? String(npSel.value).trim() : "";
+      if (!tagFromDom) tagFromDom = planNpTagLabelForYear(p.year);
+      p.newProductTag = tagFromDom;
+      if (!String(p.category || "").trim()) {
+        toast("新品行：场景品类（新品标识）与新品标签不能只空一维，请填写标识并选择标签");
+        renderPlans();
+        return;
+      }
+    } else {
+      delete p.newProductTag;
+    }
     var draft = {
       id: id,
       year: p.year,
@@ -2033,7 +2105,25 @@
       p.category = tr.querySelector(".js-category").value != null ? tr.querySelector(".js-category").value : "";
       p.planAmount = parseFloat(tr.querySelector(".js-amt").value) || 0;
       assignStoredGranularity(p);
+      var npSel = tr.querySelector(".js-np-tag-row");
+      if (getPlanGranularity(p) === PLAN_G_NEW) {
+        var tv = npSel && npSel.value ? String(npSel.value).trim() : "";
+        if (!tv) tv = planNpTagLabelForYear(p.year);
+        p.newProductTag = tv;
+      } else {
+        delete p.newProductTag;
+      }
     });
+    for (var j = 0; j < list.length; j++) {
+      var pj = list[j];
+      if (getPlanGranularity(pj) === PLAN_G_NEW) {
+        if (!String(pj.category || "").trim() || !String(planNpTagValue(pj) || "").trim()) {
+          toast("新品行：场景品类（标识）与新品标签不能只空一维，请补全后再保存全部");
+          renderPlans();
+          return;
+        }
+      }
+    }
     var seen = {};
     for (var i = 0; i < list.length; i++) {
       var k = planIdentityKey(list[i]);
