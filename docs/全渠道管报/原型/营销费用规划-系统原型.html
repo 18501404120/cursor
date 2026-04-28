@@ -355,6 +355,21 @@
       color: var(--text-sec);
       font-size: 11px;
     }
+    /* 新品标签筛选：单列年份项，与场景品类分列 */
+    .np-tag-wrap {
+      min-width: 160px;
+      max-width: 180px;
+    }
+    .np-tag-wrap .np-tag-pop {
+      min-width: 160px;
+      flex-direction: column;
+    }
+    .np-tag-wrap .np-tag-col {
+      width: 100%;
+      max-height: 280px;
+      overflow-y: auto;
+      border-right: none;
+    }
     .btn-search {
       height: 28px;
       padding: 0 14px;
@@ -517,6 +532,16 @@
                 </div>
                 <span class="sc-cat-clear" id="fltScCatClear" role="button" tabindex="0">清空</span>
               </div>
+              <div class="f">
+                <label for="fltNpTagTrigger">新品标签</label>
+                <div class="sc-cat-wrap np-tag-wrap" id="fltNpTagWrap">
+                  <button type="button" class="sc-cat-trigger" id="fltNpTagTrigger" aria-expanded="false" aria-haspopup="true">新品标签</button>
+                  <div class="sc-cat-pop np-tag-pop" id="fltNpTagPop" hidden role="dialog" aria-label="新品标签">
+                    <div class="sc-cat-col np-tag-col" id="fltNpTagList"></div>
+                  </div>
+                </div>
+                <span class="sc-cat-clear" id="fltNpTagClear" role="button" tabindex="0">清空</span>
+              </div>
               <div class="f"><label for="fltRegion">区域</label><select id="fltRegion"><option value="">全部</option></select></div>
               <div class="f"><label for="fltCountry">国家</label><select id="fltCountry"><option value="">全部</option></select></div>
               <div class="f"><label for="fltChannel">渠道</label><select id="fltChannel"><option value="">全部</option></select></div>
@@ -538,7 +563,7 @@
               <button type="button" class="btn-search" id="btnQuery">搜索</button>
             </div>
             <div class="filter-actions">
-              <span class="hint" style="margin:0;flex:1;min-width:200px;">场景品类为<strong>左场景、右品类</strong>级联：筛选区为<strong>多选</strong>（OR）；规划表支持<strong>场景全量 / 品类 / 新品</strong>三种粒度（右列首行「本场景维度」、左侧「新品」入口）。筛选在「场景全量」行上匹配<strong>该场景下任一已选叶子</strong>；<strong>新品</strong>行筛选开启时仍展示。主数据见 <code>文件夹/规范/基础数据/场景品类基础数据_v1.json</code>。</span>
+              <span class="hint" style="margin:0;flex:1;min-width:200px;"><strong>场景品类</strong>与<strong>新品标签</strong>为<strong>两列独立</strong>控件；点「搜索」时<strong>二者不可同时为空</strong>。仅场景品类、仅新品标签、或<strong>两维都选</strong>均可；两维都选时对列表取<strong>交集（AND）</strong>（新品标签仅约束<strong>新品</strong>粒度行；场景品类规则不变：<strong>新品</strong>行在仅场景品类筛选时仍展示）。场景品类为左场景、右品类级联多选（叶子间 OR）。新品标签为多选年份（OR）。主数据见 <code>文件夹/规范/基础数据/场景品类基础数据_v1.json</code>。</span>
             </div>
           </div>
         </section>
@@ -553,7 +578,7 @@
               <button type="button" class="btn btn-default" id="btnExport">导出当前列表</button>
               <button type="button" class="btn btn-primary" id="btnSaveAll">保存全部</button>
             </div>
-            <p class="hint">维护 <strong>年度 × 规划对象</strong>：支持<strong>场景全量</strong>（仅场景）、<strong>场景下品类</strong>、<strong>新品</strong>三种粒度；同一年度下<strong>相同粒度键不可重复</strong>，但「场景全量」与「其下某一品类」可同时存在、互不冲突。金额 <strong>USD</strong>；拆分为 <strong>店铺 + MSKU</strong> 示例（等额拆分，不含 BP）。CSV：<code>年度,规划粒度,场景,品类,营销费用规划(美元)</code>，规划粒度取值 <code>scenario</code> / <code>category</code> / <code>new_product</code>；品类在场景全量时留空；新品时场景填 <code>新品</code>、品类填标识。兼容旧表头 <code>年度,场景,品类,…</code>；数据 <code>localStorage</code>（<code>marketing_expense_plan_v3</code>）。</p>
+            <p class="hint">维护 <strong>年度 × 规划对象</strong>：支持<strong>场景全量</strong>（仅场景）、<strong>场景下品类</strong>、<strong>新品</strong>三种粒度；同一年度下<strong>相同粒度键不可重复</strong>，但「场景全量」与「其下某一品类」可同时存在、互不冲突。金额 <strong>USD</strong>；拆分为 <strong>店铺 + MSKU</strong> 示例（等额拆分，不含 BP）。CSV：<code>年度,规划粒度,场景,品类,新品标签,营销费用规划(美元)</code>，规划粒度取值 <code>scenario</code> / <code>category</code> / <code>new_product</code>；品类在场景全量时留空；新品时场景填 <code>新品</code>、品类填标识，<strong>新品标签</strong>填如 <code>2026年新品</code>（可空，空则按该行<strong>年度</strong>推导展示与筛选）。兼容旧表头 <code>年度,场景,品类,…</code>；数据 <code>localStorage</code>（<code>marketing_expense_plan_v3</code>）。</p>
             <div class="table-wrap">
               <table id="tblPlan">
                 <thead>
@@ -618,12 +643,30 @@
   var currentFilter = { year: "" };
   /** 筛选：场景×品类叶子多选，存「场景名\\t品类名」；空数组表示不过滤 */
   var filterLeafKeys = [];
+  /** 筛选：新品标签多选，存「YYYY年新品」；与场景品类分列；空数组表示该维不过滤 */
+  var filterNpTagKeys = [];
   var panelActiveScenario = "";
   /** 表格行内场景品类浮层（每行单选一条） */
   var planRowEditId = null;
   var planRowPanelScenario = "";
   var planRowOutsideCloseWired = false;
   var focusPlanId = null;
+
+  /** 新品标签可选年份（与筛选浮层一致，高→低） */
+  var NP_TAG_YEAR_OPTIONS = [2029, 2028, 2027, 2026, 2025, 2024, 2023];
+
+  function planNpTagLabelForYear(yr) {
+    var y = Number(yr);
+    if (!y || y !== y) y = new Date().getFullYear();
+    return y + "年新品";
+  }
+
+  function planNpTagValue(p) {
+    if (!p || getPlanGranularity(p) !== PLAN_G_NEW) return "";
+    var t = String(p.newProductTag || "").trim();
+    if (t) return t;
+    return planNpTagLabelForYear(p.year);
+  }
 
   /** 新品规划：场景列固定为「新品」，品类列为新品标识 */
   var NEW_PRODUCT_SCENE = "新品";
@@ -682,7 +725,8 @@
         planAmount: Number(p.planAmount) || 0,
         scene_code: p.scene_code,
         category_code: p.category_code,
-        planGranularity: inferPlanGranularity(p.scenario, cat)
+        planGranularity: inferPlanGranularity(p.scenario, cat),
+        newProductTag: p.newProductTag
       };
     }
     var line = String((p && p.productLine) || "").trim();
@@ -779,6 +823,7 @@
       scenario: NEW_PRODUCT_SCENE,
       category: "示例新品-A",
       planGranularity: PLAN_G_NEW,
+      newProductTag: planNpTagLabelForYear(2026),
       planAmount: 50000
     });
     rows.forEach(function (r) {
@@ -983,7 +1028,9 @@
     var g = getPlanGranularity(like);
     if (g === PLAN_G_NEW) {
       var nc = String(like.category || "").trim();
-      return nc ? NEW_PRODUCT_SCENE + " / " + nc : NEW_PRODUCT_SCENE + " / （请填写标识）";
+      var tag = planNpTagValue(like);
+      var base = nc ? NEW_PRODUCT_SCENE + " / " + nc : NEW_PRODUCT_SCENE + " / （请填写标识）";
+      return nc && tag ? base + " · " + tag : base;
     }
     if (g === PLAN_G_SCENARIO) {
       var ss = String(like.scenario || "").trim();
@@ -1034,22 +1081,27 @@
     };
   }
 
-  function syncPlanRowScCatDom(tr, scenario, category) {
+  function syncPlanRowScCatDom(tr, scenario, category, fromPlan) {
     var scIn = tr.querySelector(".js-scenario");
     var catIn = tr.querySelector(".js-category");
     var btn = tr.querySelector(".js-plan-sc-cat-trigger");
     if (scIn) scIn.value = scenario;
     if (catIn) catIn.value = category;
     if (btn) {
-      btn.textContent = formatPlanLineLabel({
+      var like = {
         scenario: scenario,
         category: category,
         planGranularity: inferPlanGranularity(scenario, category)
-      });
+      };
+      if (fromPlan) {
+        like.newProductTag = fromPlan.newProductTag;
+        like.year = fromPlan.year;
+      }
+      btn.textContent = formatPlanLineLabel(like);
     }
   }
 
-  function syncPlanRowScCatToModel(tr, id, scenario, category) {
+  function syncPlanRowScCatToModel(tr, id, scenario, category, optNewProductTag) {
     var list = loadAll();
     var p = list.find(function (x) {
       return x.id === id;
@@ -1062,21 +1114,35 @@
       scenario: scenario,
       category: category,
       planAmount: p.planAmount,
-      planGranularity: inferPlanGranularity(scenario, category)
+      planGranularity: inferPlanGranularity(scenario, category),
+      newProductTag: p.newProductTag
     };
+    if (getPlanGranularity(draft) === PLAN_G_NEW) {
+      var ot = optNewProductTag != null ? String(optNewProductTag).trim() : "";
+      draft.newProductTag = ot || p.newProductTag || planNpTagLabelForYear(year);
+    } else {
+      delete draft.newProductTag;
+    }
     if (!validatePlanUnique(list, draft, id)) {
       toast("同一年度下已存在相同规划对象，与已有行重复");
-      syncPlanRowScCatDom(tr, p.scenario, p.category != null ? String(p.category) : "");
+      syncPlanRowScCatDom(tr, p.scenario, p.category != null ? String(p.category) : "", p);
       renderPlanRowScCatSceneColumn();
       renderPlanRowScCatCatColumn();
       return;
     }
-    syncPlanRowScCatDom(tr, scenario, category != null ? String(category) : "");
     p.year = year;
     p.scenario = scenario;
     p.category = category != null ? String(category) : "";
     assignStoredGranularity(p);
+    if (getPlanGranularity(p) === PLAN_G_NEW) {
+      var tagIn = optNewProductTag != null ? String(optNewProductTag).trim() : "";
+      if (tagIn) p.newProductTag = tagIn;
+      else if (!String(p.newProductTag || "").trim()) p.newProductTag = planNpTagLabelForYear(year);
+    } else {
+      delete p.newProductTag;
+    }
     enrichPlanFromTree(p);
+    syncPlanRowScCatDom(tr, p.scenario, p.category != null ? String(p.category) : "", p);
     saveAll(list);
     if (focusPlanId === id) renderSplitForPlan(id);
     renderPlanRowScCatSceneColumn();
@@ -1184,15 +1250,50 @@
       inp.style.maxWidth = "none";
       inp.placeholder = "请输入新品名称或编码";
       inp.value = o.scenario === NEW_PRODUCT_SCENE ? o.category : "";
+      var listNp = loadAll();
+      var pRow = listNp.find(function (x) {
+        return x.id === id;
+      });
+      var yRow = parseInt(tr.querySelector(".js-year").value, 10) || (pRow && pRow.year) || new Date().getFullYear();
+      var lblSel = document.createElement("label");
+      lblSel.style.display = "block";
+      lblSel.style.marginTop = "8px";
+      lblSel.style.fontSize = "12px";
+      lblSel.style.color = "var(--text-sec)";
+      lblSel.textContent = "新品标签";
+      lblSel.setAttribute("for", "planRowNpTagSelect");
+      var selTag = document.createElement("select");
+      selTag.id = "planRowNpTagSelect";
+      selTag.className = "inp-inline";
+      selTag.style.marginTop = "4px";
+      selTag.style.maxWidth = "none";
+      NP_TAG_YEAR_OPTIONS.forEach(function (yy) {
+        var lab = planNpTagLabelForYear(yy);
+        var opt = document.createElement("option");
+        opt.value = lab;
+        opt.textContent = lab;
+        selTag.appendChild(opt);
+      });
+      var curTag = pRow && pRow.newProductTag ? String(pRow.newProductTag).trim() : "";
+      if (!curTag) curTag = planNpTagLabelForYear(yRow);
+      selTag.value = NP_TAG_YEAR_OPTIONS.some(function (yy) {
+        return planNpTagLabelForYear(yy) === curTag;
+      })
+        ? curTag
+        : planNpTagLabelForYear(yRow);
+      function applyNewRow() {
+        var v = inp.value.trim();
+        if (!v) {
+          toast("请填写新品标识");
+          return;
+        }
+        var tag = selTag.value ? String(selTag.value).trim() : planNpTagLabelForYear(yRow);
+        syncPlanRowScCatToModel(tr, id, NEW_PRODUCT_SCENE, v, tag);
+      }
       inp.addEventListener("keydown", function (ev) {
         if (ev.key === "Enter") {
           ev.preventDefault();
-          var v = inp.value.trim();
-          if (!v) {
-            toast("请填写新品标识");
-            return;
-          }
-          syncPlanRowScCatToModel(tr, id, NEW_PRODUCT_SCENE, v);
+          applyNewRow();
         }
       });
       var btn = document.createElement("button");
@@ -1201,14 +1302,11 @@
       btn.style.marginTop = "8px";
       btn.textContent = "应用到本行";
       btn.addEventListener("click", function () {
-        var v = inp.value.trim();
-        if (!v) {
-          toast("请填写新品标识");
-          return;
-        }
-        syncPlanRowScCatToModel(tr, id, NEW_PRODUCT_SCENE, v);
+        applyNewRow();
       });
       wrap.appendChild(inp);
+      wrap.appendChild(lblSel);
+      wrap.appendChild(selTag);
       wrap.appendChild(btn);
       el.appendChild(wrap);
       return;
@@ -1268,6 +1366,7 @@
 
   function openPlanRowScCat(tr, id) {
     closeScCatPop();
+    closeNpTagPop();
     planRowEditId = id;
     var o = readPlanRowEditsFromTr(tr);
     if (inferPlanGranularity(o.scenario, o.category) === PLAN_G_NEW) {
@@ -1307,6 +1406,8 @@
       if (!planRowEditId || !host || host.hidden) return;
       if (host.contains(t)) return;
       if (t.closest && t.closest(".plan-sc-cat-wrap")) return;
+      var npw = document.getElementById("fltNpTagWrap");
+      if (npw && npw.contains(t)) return;
       closePlanRowScCatPop();
     });
     window.addEventListener("resize", function () {
@@ -1417,6 +1518,7 @@
 
   function openScCatPop() {
     closePlanRowScCatPop();
+    closeNpTagPop();
     var pop = document.getElementById("fltScCatPop");
     var wrap = document.getElementById("fltScCatWrap");
     if (!pop || !wrap) return;
@@ -1442,6 +1544,118 @@
     document.getElementById("fltScCatTrigger").setAttribute("aria-expanded", "false");
   }
 
+  function npTagPopIsOpen() {
+    var pop = document.getElementById("fltNpTagPop");
+    return pop && !pop.hidden;
+  }
+
+  function updateNpTagTrigger() {
+    var trig = document.getElementById("fltNpTagTrigger");
+    if (!trig) return;
+    if (!filterNpTagKeys.length) trig.textContent = "新品标签";
+    else trig.textContent = "已选 " + filterNpTagKeys.length + " 项";
+  }
+
+  function refreshNpTagListIfOpen() {
+    if (npTagPopIsOpen()) renderNpTagList();
+  }
+
+  function renderNpTagList() {
+    var el = document.getElementById("fltNpTagList");
+    if (!el) return;
+    el.innerHTML = "";
+    NP_TAG_YEAR_OPTIONS.forEach(function (yy) {
+      var lab = planNpTagLabelForYear(yy);
+      var div = document.createElement("div");
+      div.className = "sc-cat-item";
+      var cb = document.createElement("input");
+      cb.type = "checkbox";
+      cb.checked = filterNpTagKeys.indexOf(lab) >= 0;
+      cb.addEventListener("click", function (e) {
+        e.stopPropagation();
+      });
+      cb.addEventListener("change", function () {
+        toggleNpTagLeaf(lab, cb.checked);
+      });
+      var lbl = document.createElement("span");
+      lbl.className = "lbl";
+      lbl.textContent = lab;
+      lbl.addEventListener("click", function (e) {
+        e.stopPropagation();
+        cb.checked = !cb.checked;
+        cb.dispatchEvent(new Event("change"));
+      });
+      div.appendChild(cb);
+      div.appendChild(lbl);
+      el.appendChild(div);
+    });
+  }
+
+  function toggleNpTagLeaf(tagStr, checked) {
+    var ix = filterNpTagKeys.indexOf(tagStr);
+    if (checked && ix < 0) filterNpTagKeys.push(tagStr);
+    if (!checked && ix >= 0) filterNpTagKeys.splice(ix, 1);
+    updateNpTagTrigger();
+    renderPlans();
+    refreshNpTagListIfOpen();
+  }
+
+  function openNpTagPop() {
+    closePlanRowScCatPop();
+    closeScCatPop();
+    var pop = document.getElementById("fltNpTagPop");
+    var wrap = document.getElementById("fltNpTagWrap");
+    if (!pop || !wrap) return;
+    pop.hidden = false;
+    wrap.classList.add("open");
+    document.getElementById("fltNpTagTrigger").setAttribute("aria-expanded", "true");
+    renderNpTagList();
+  }
+
+  function closeNpTagPop() {
+    var pop = document.getElementById("fltNpTagPop");
+    var wrap = document.getElementById("fltNpTagWrap");
+    if (!pop || !wrap) return;
+    pop.hidden = true;
+    wrap.classList.remove("open");
+    var trig = document.getElementById("fltNpTagTrigger");
+    if (trig) trig.setAttribute("aria-expanded", "false");
+  }
+
+  function wireNpTagFilter() {
+    var wrap = document.getElementById("fltNpTagWrap");
+    var trig = document.getElementById("fltNpTagTrigger");
+    var clear = document.getElementById("fltNpTagClear");
+    if (!wrap || !trig) return;
+    updateNpTagTrigger();
+    trig.addEventListener("click", function (e) {
+      e.stopPropagation();
+      var pop = document.getElementById("fltNpTagPop");
+      if (pop.hidden) openNpTagPop();
+      else closeNpTagPop();
+    });
+    if (clear) {
+      clear.addEventListener("click", function (e) {
+        e.stopPropagation();
+        filterNpTagKeys.length = 0;
+        updateNpTagTrigger();
+        closePlanRowScCatPop();
+        closeScCatPop();
+        closeNpTagPop();
+        renderPlans();
+        toast("已清空新品标签筛选");
+      });
+    }
+    document.addEventListener("mousedown", function (e) {
+      if (wrap.contains(e.target)) return;
+      var ph = document.getElementById("planScCatPopHost");
+      if (ph && ph.contains(e.target)) return;
+      var scw = document.getElementById("fltScCatWrap");
+      if (scw && scw.contains(e.target)) return;
+      closeNpTagPop();
+    });
+  }
+
   function wireScCatFilter() {
     var wrap = document.getElementById("fltScCatWrap");
     var trig = document.getElementById("fltScCatTrigger");
@@ -1461,12 +1675,15 @@
         updateScCatTrigger();
         closePlanRowScCatPop();
         closeScCatPop();
+        closeNpTagPop();
         renderPlans();
         toast("已清空场景品类筛选");
       });
     }
     document.addEventListener("mousedown", function (e) {
       if (wrap.contains(e.target)) return;
+      var npw = document.getElementById("fltNpTagWrap");
+      if (npw && npw.contains(e.target)) return;
       var ph = document.getElementById("planScCatPopHost");
       if (ph && ph.contains(e.target)) return;
       closeScCatPop();
@@ -1544,23 +1761,43 @@
     }
   }
 
+  function planMatchesScCatFilter(p) {
+    if (!filterLeafKeys.length) return true;
+    var g = getPlanGranularity(p);
+    if (g === PLAN_G_NEW) return true;
+    if (g === PLAN_G_SCENARIO) {
+      var sn = String(p.scenario || "");
+      return filterLeafKeys.some(function (fk) {
+        var parts = fk.split("\t");
+        return parts[0] === sn;
+      });
+    }
+    var pk = String(p.scenario || "") + "\t" + String(p.category || "");
+    return filterLeafKeys.indexOf(pk) >= 0;
+  }
+
+  function npTagMatchesSelected(p) {
+    if (!filterNpTagKeys.length) return true;
+    if (getPlanGranularity(p) !== PLAN_G_NEW) return false;
+    var v = planNpTagValue(p);
+    return v && filterNpTagKeys.indexOf(v) >= 0;
+  }
+
   function filteredList() {
     var list = loadAll();
     var y = currentFilter.year;
+    var hasSc = filterLeafKeys.length > 0;
+    var hasNp = filterNpTagKeys.length > 0;
     return list.filter(function (p) {
       if (y && String(p.year) !== String(y)) return false;
-      if (!filterLeafKeys.length) return true;
-      var g = getPlanGranularity(p);
-      if (g === PLAN_G_NEW) return true;
-      if (g === PLAN_G_SCENARIO) {
-        var sn = String(p.scenario || "");
-        return filterLeafKeys.some(function (fk) {
-          var parts = fk.split("\t");
-          return parts[0] === sn;
-        });
+      if (!hasSc && !hasNp) return true;
+      if (!hasSc && hasNp) {
+        return npTagMatchesSelected(p);
       }
-      var pk = String(p.scenario || "") + "\t" + String(p.category || "");
-      return filterLeafKeys.indexOf(pk) >= 0;
+      if (hasSc && !hasNp) {
+        return planMatchesScCatFilter(p);
+      }
+      return planMatchesScCatFilter(p) && (getPlanGranularity(p) !== PLAN_G_NEW || npTagMatchesSelected(p));
     });
   }
 
@@ -1753,9 +1990,17 @@
 
   document.getElementById("btnQuery").addEventListener("click", function () {
     closePlanRowScCatPop();
+    closeScCatPop();
+    closeNpTagPop();
+    var hasSc = filterLeafKeys.length > 0;
+    var hasNp = filterNpTagKeys.length > 0;
+    if (!hasSc && !hasNp) {
+      toast("场景品类与新品标签至少选其一，再搜索");
+      return;
+    }
     currentFilter.year = document.getElementById("fltYear").value;
     renderPlans();
-    toast("已查询（列表按年度、已选场景×品类 OR 组合筛选；其余下拉为界面预留）");
+    toast("已查询（场景品类 + 新品标签同时有选时取交集；仅新品行参与新品标签维度）");
   });
 
   document.getElementById("btnAdd").addEventListener("click", function () {
@@ -1816,14 +2061,17 @@
 
   document.getElementById("btnExport").addEventListener("click", function () {
     var list = filteredList();
-    var header = "\uFEFF年度,规划粒度,场景,品类,营销费用规划(美元)\n";
+    var header = "\uFEFF年度,规划粒度,场景,品类,新品标签,营销费用规划(美元)\n";
     var rows = list
       .map(function (p) {
+        var tagCell =
+          getPlanGranularity(p) === PLAN_G_NEW ? '"' + String(planNpTagValue(p)).replace(/"/g, '""') + '"' : "";
         return [
           p.year,
           getPlanGranularity(p),
           '"' + String(p.scenario).replace(/"/g, '""') + '"',
           '"' + String(p.category != null ? p.category : "").replace(/"/g, '""') + '"',
+          tagCell,
           p.planAmount
         ].join(",");
       })
@@ -1856,6 +2104,7 @@
         var isc = header.indexOf("场景");
         var icat = header.indexOf("品类");
         var ig = header.indexOf("规划粒度");
+        var intag = header.indexOf("新品标签");
         var il = header.indexOf("品线");
         var ia = header.indexOf("营销费用规划(美元)");
         if (ia < 0) ia = header.indexOf("营销费用规划(元)");
@@ -1878,6 +2127,7 @@
           if (modeNew) {
             var maxIx = Math.max(iy, isc, icat, ia);
             if (ig >= 0) maxIx = Math.max(maxIx, ig);
+            if (intag >= 0) maxIx = Math.max(maxIx, intag);
             if (cols.length <= maxIx) continue;
             var sc = String(cols[isc] || "")
               .replace(/^"|"$/g, "")
@@ -1892,6 +2142,12 @@
             assignStoredGranularity(row);
             if (getPlanGranularity(row) === PLAN_G_NEW) {
               row.scenario = NEW_PRODUCT_SCENE;
+              if (intag >= 0 && cols[intag] != null) {
+                var tImp = String(cols[intag] || "")
+                  .replace(/^"|"$/g, "")
+                  .trim();
+                if (tImp) row.newProductTag = tImp;
+              }
             }
             if (!row.scenario && getPlanGranularity(row) !== PLAN_G_NEW) continue;
             if (getPlanGranularity(row) === PLAN_G_NEW && !String(row.category || "").trim()) continue;
@@ -1932,6 +2188,7 @@
   function startApp() {
     initFilterOptions();
     wireScCatFilter();
+    wireNpTagFilter();
     wirePlanRowScCatOutsideClose();
     ensureSeed();
     fillYearSelect();
@@ -1963,7 +2220,9 @@
           renderPlans();
           renderSplitIfFocused();
           updateScCatTrigger();
+          updateNpTagTrigger();
           refreshScCatColumnsIfOpen();
+          refreshNpTagListIfOpen();
         })
         .catch(function () {
           tryFetch();
