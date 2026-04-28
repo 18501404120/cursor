@@ -1,0 +1,2183 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>全渠道管理报表看板</title>
+  <style>
+    :root {
+      --page-bg: #f0f2f5;
+      --panel: #ffffff;
+      --line: #d9d9d9;
+      --line-soft: #e8edf3;
+      --text: rgba(0, 0, 0, 0.88);
+      --text-sec: rgba(0, 0, 0, 0.45);
+      --blue: #1677ff;
+      --blue-soft: #eaf3ff;
+      --green: #52c41a;
+      --red: #ff4d4f;
+      --orange: #fa8c16;
+      --purple: #722ed1;
+      --purple-soft: #f9f0ff;
+      --sider: #001529;
+      --shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+    }
+
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+      margin: 0;
+      font-family: "PingFang SC", "Microsoft YaHei", -apple-system, sans-serif;
+      font-size: 13px;
+      color: var(--text);
+      background: var(--page-bg);
+    }
+
+    .layout {
+      display: flex;
+      min-height: 100vh;
+    }
+
+    .sider {
+      width: 56px;
+      flex-shrink: 0;
+      background: var(--sider);
+      border-right: 1px solid #002140;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      padding: 12px 0;
+    }
+
+    .sider-logo {
+      width: 36px;
+      height: 36px;
+      border-radius: 8px;
+      background: linear-gradient(135deg, #69b1ff, #2f54eb);
+      margin-bottom: 8px;
+    }
+
+    .sider-item {
+      width: 40px;
+      min-height: 40px;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: rgba(255, 255, 255, 0.65);
+      font-size: 11px;
+      line-height: 1.15;
+      text-align: center;
+      padding: 3px;
+    }
+
+    .sider-item.active {
+      background: rgba(255, 255, 255, 0.12);
+      color: #fff;
+    }
+
+    .main {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .header {
+      height: 48px;
+      background: var(--blue);
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 18px;
+      box-shadow: 0 1px 4px rgba(0, 21, 41, 0.12);
+    }
+
+    .header .title {
+      font-size: 16px;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+    }
+
+    .header .actions {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      font-size: 13px;
+    }
+
+    .page {
+      flex: 1;
+      overflow: auto;
+      padding: 16px;
+    }
+
+    .panel {
+      background: var(--panel);
+      border: 1px solid #e8e8e8;
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+      margin-bottom: 14px;
+      overflow: hidden;
+    }
+
+    .panel-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 16px;
+      border-bottom: 1px solid #f0f0f0;
+      background: linear-gradient(180deg, #fafafa 0%, #fff 100%);
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .panel-title {
+      font-size: 14px;
+      font-weight: 700;
+    }
+
+    .panel-sub {
+      font-size: 12px;
+      color: var(--text-sec);
+    }
+
+    .filter-panel {
+      padding: 12px 14px;
+      border-bottom: 1px solid #f0f0f0;
+    }
+
+    .filter-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px 10px;
+      align-items: center;
+    }
+
+    .f {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .f > label {
+      color: var(--text-sec);
+      white-space: nowrap;
+      font-size: 12px;
+    }
+
+    .f select,
+    .f input[type="text"] {
+      height: 28px;
+      padding: 2px 8px;
+      border: 1px solid var(--line);
+      border-radius: 4px;
+      font-size: 12px;
+      min-width: 88px;
+      max-width: 150px;
+      background: #fff;
+      color: var(--text);
+    }
+
+    .f input[type="date"] {
+      height: 28px;
+      padding: 2px 8px;
+      border: 1px solid var(--line);
+      border-radius: 4px;
+      font-size: 12px;
+      min-width: 138px;
+      background: #fff;
+      color: var(--text);
+    }
+
+    .f select:focus,
+    .f input:focus {
+      outline: none;
+      border-color: var(--blue);
+      box-shadow: 0 0 0 2px rgba(22, 119, 255, 0.12);
+    }
+
+    .date-range {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 2px 0;
+    }
+
+    .date-sep {
+      color: #94a3b8;
+      font-size: 12px;
+    }
+
+    .sku-input-group {
+      display: inline-flex;
+      align-items: stretch;
+      height: 28px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      overflow: hidden;
+      background: #fff;
+    }
+
+    .sku-mode {
+      border: none;
+      border-right: 1px solid var(--line);
+      background: #fafafa;
+      min-width: 90px;
+      font-size: 12px;
+      padding: 0 8px;
+    }
+
+    .sku-keyword {
+      border: none;
+      min-width: 150px;
+      padding: 0 10px;
+      font-size: 12px;
+    }
+
+    .toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 12px 14px;
+      flex-wrap: wrap;
+    }
+
+    .toolbar-left,
+    .toolbar-right,
+    .quick-tags,
+    .segment,
+    .switches {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .btn,
+    .tab,
+    .tag-btn,
+    .switch-btn {
+      height: 30px;
+      border-radius: 6px;
+      border: 1px solid var(--line);
+      background: #fff;
+      color: var(--text);
+      font-size: 12px;
+      padding: 0 12px;
+      cursor: pointer;
+      font-family: inherit;
+      transition: all 0.15s ease;
+    }
+
+    .btn:hover,
+    .tab:hover,
+    .tag-btn:hover,
+    .switch-btn:hover {
+      border-color: var(--blue);
+      color: var(--blue);
+    }
+
+    .btn-primary,
+    .tab.active,
+    .switch-btn.active {
+      background: var(--blue);
+      border-color: var(--blue);
+      color: #fff;
+    }
+
+    .tag-btn.active {
+      background: var(--purple-soft);
+      border-color: #d3adf7;
+      color: var(--purple);
+    }
+
+    .more-filters {
+      display: none;
+      border-top: 1px dashed #e6eaf0;
+      padding: 12px 14px;
+      background: #fafcff;
+    }
+
+    .more-filters.open {
+      display: block;
+    }
+
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(7, minmax(140px, 1fr));
+      gap: 10px;
+      padding: 0 14px 14px;
+    }
+
+    .card {
+      border: 1px solid var(--line-soft);
+      border-radius: 10px;
+      background: linear-gradient(180deg, #fff 0%, #fcfdff 100%);
+      padding: 12px;
+      min-height: 108px;
+      position: relative;
+    }
+
+    .card-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: #334155;
+    }
+
+    .card-value {
+      margin-top: 10px;
+      font-size: 28px;
+      font-weight: 800;
+      line-height: 1.05;
+      letter-spacing: -0.02em;
+    }
+
+    .card-sub {
+      margin-top: 8px;
+      display: flex;
+      gap: 10px;
+      font-size: 12px;
+      flex-wrap: wrap;
+    }
+
+    .card-note {
+      margin-top: 8px;
+      font-size: 11px;
+      color: var(--text-sec);
+    }
+
+    .trend-up { color: var(--red); }
+    .trend-down { color: var(--green); }
+    .trend-neutral { color: #475569; }
+
+    .status-grid {
+      display: grid;
+      grid-template-columns: 1.3fr 1fr 1fr 1fr;
+      gap: 10px;
+      padding: 0 14px 14px;
+    }
+
+    .status-card {
+      border: 1px solid var(--line-soft);
+      border-radius: 10px;
+      background: #fff;
+      padding: 12px;
+      min-height: 108px;
+    }
+
+    .status-card.warn {
+      background: linear-gradient(180deg, #fffaf0 0%, #fff 100%);
+      border-color: #ffd8bf;
+    }
+
+    .status-card .label {
+      font-size: 13px;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+
+    .status-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      height: 26px;
+      padding: 0 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      border: 1px solid #dbe7ff;
+      background: var(--blue-soft);
+      color: #1d4ed8;
+    }
+
+    .pill.warn {
+      border-color: #ffd8bf;
+      background: #fff7e6;
+      color: #d46b08;
+    }
+
+    .pill.danger {
+      border-color: #ffccc7;
+      background: #fff1f0;
+      color: #cf1322;
+    }
+
+    .chart-panel {
+      padding: 12px 14px 14px;
+    }
+
+    .flow-panel {
+      padding: 12px 14px 14px;
+      display: grid;
+      grid-template-columns: minmax(900px, 1fr) 360px;
+      gap: 14px;
+      align-items: start;
+    }
+
+    .flow-wrap {
+      border: 1px solid #d8e7ff;
+      border-radius: 10px;
+      background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+      overflow: hidden;
+    }
+
+    .flow-svg {
+      width: 100%;
+      min-width: 0;
+      height: auto;
+      aspect-ratio: 1560 / 620;
+      display: block;
+    }
+
+    .flow-detail {
+      border: 1px solid #e5eaf2;
+      border-radius: 10px;
+      background: #fff;
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .flow-detail-title {
+      font-size: 15px;
+      font-weight: 700;
+      margin-bottom: 6px;
+      color: #1e293b;
+      line-height: 1.4;
+    }
+
+    .flow-detail-sub {
+      font-size: 12px;
+      color: #64748b;
+      margin-bottom: 12px;
+      line-height: 1.5;
+    }
+
+    .flow-detail-list {
+      display: grid;
+      gap: 10px;
+      align-content: start;
+    }
+
+    .flow-detail-item {
+      border: 1px solid #dbe5f2;
+      border-radius: 8px;
+      padding: 10px 12px;
+      background: #f8fbff;
+    }
+
+    .flow-detail-item .k {
+      font-size: 13px;
+      color: #334155;
+      font-weight: 700;
+      line-height: 1.4;
+    }
+
+    .flow-detail-item .v {
+      margin-top: 6px;
+      font-size: 18px;
+      color: #0f172a;
+      font-weight: 700;
+    }
+
+    @media (max-width: 1360px) {
+      .flow-panel {
+        grid-template-columns: 1fr;
+      }
+
+      .flow-detail {
+        margin-top: 10px;
+        min-height: 0;
+      }
+    }
+
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .legend-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
+      color: #475569;
+      font-size: 12px;
+      user-select: none;
+    }
+
+    .legend-item.off {
+      opacity: 0.35;
+    }
+
+    .legend-line {
+      width: 14px;
+      height: 2px;
+      border-radius: 2px;
+    }
+
+    .chart-box {
+      margin-top: 10px;
+      border: 1px solid #cfe0ff;
+      border-radius: 8px;
+      background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+      padding: 12px 12px 4px;
+    }
+
+    svg.chart {
+      width: 100%;
+      height: 320px;
+      display: block;
+    }
+
+    .table-panel {
+      padding: 0;
+    }
+
+    .table-tools {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 12px 14px;
+      border-bottom: 1px solid #f0f0f0;
+      flex-wrap: wrap;
+      background: linear-gradient(180deg, #fafafa 0%, #fff 100%);
+    }
+
+    .table-wrap {
+      overflow: auto;
+      max-height: 58vh;
+    }
+
+    .export-wrap {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .export-menu {
+      position: absolute;
+      top: calc(100% + 6px);
+      right: 0;
+      min-width: 172px;
+      background: #fff;
+      border: 1px solid #dbe3ef;
+      border-radius: 6px;
+      box-shadow: 0 8px 20px rgba(15, 23, 42, 0.12);
+      padding: 6px;
+      z-index: 30;
+      display: none;
+    }
+
+    .export-menu.open {
+      display: block;
+    }
+
+    .export-option {
+      display: block;
+      width: 100%;
+      border: none;
+      background: #fff;
+      text-align: left;
+      font-size: 13px;
+      color: #0f172a;
+      padding: 8px 10px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-family: inherit;
+    }
+
+    .export-option:hover {
+      background: #f1f5ff;
+      color: #1d4ed8;
+    }
+
+    table {
+      border-collapse: collapse;
+      min-width: 4200px;
+      width: 100%;
+    }
+
+    th, td {
+      border: 1px solid #e5edf7;
+      padding: 7px 8px;
+      font-size: 12px;
+      text-align: center;
+      white-space: nowrap;
+      vertical-align: top;
+    }
+
+    th {
+      position: sticky;
+      top: 0;
+      z-index: 2;
+      background: #f8fbff;
+      color: #334155;
+      font-weight: 700;
+    }
+
+    thead tr.group th {
+      top: 0;
+      background: #eef5ff;
+      border-bottom-color: #d7e6ff;
+      z-index: 4;
+    }
+
+    thead tr.cols th {
+      top: 34px;
+      z-index: 3;
+    }
+
+    th.left,
+    td.left {
+      text-align: left;
+      position: sticky;
+      left: 0;
+      background: inherit;
+      z-index: 5;
+    }
+
+    th.left-2,
+    td.left-2 {
+      position: sticky;
+      left: 180px;
+      background: inherit;
+      z-index: 5;
+    }
+
+    th.left-3,
+    td.left-3 {
+      position: sticky;
+      left: 360px;
+      background: inherit;
+      z-index: 5;
+    }
+
+    th.left-4,
+    td.left-4 {
+      position: sticky;
+      left: 520px;
+      background: inherit;
+      z-index: 5;
+    }
+
+    .sticky-base {
+      background: #fff;
+    }
+
+    .metric-main {
+      font-weight: 700;
+      color: #111827;
+    }
+
+    .metric-sub {
+      margin-top: 3px;
+      font-size: 11px;
+      color: #64748b;
+    }
+
+    .row-toggle {
+      width: 18px;
+      height: 18px;
+      border: 1px solid #cbd5e1;
+      border-radius: 4px;
+      background: #fff;
+      color: #475569;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      margin-right: 8px;
+      cursor: pointer;
+      font-size: 11px;
+      vertical-align: middle;
+    }
+
+    .row-toggle.open {
+      background: #eaf3ff;
+      border-color: #91caff;
+      color: #1d4ed8;
+    }
+
+    .row-label {
+      display: inline-flex;
+      align-items: center;
+      min-height: 18px;
+    }
+
+    .row-meta {
+      line-height: 1.5;
+      white-space: normal;
+    }
+
+    .row-meta-sub {
+      color: #64748b;
+      font-size: 11px;
+    }
+
+    tr.summary-row td {
+      background: #fcfdff;
+      font-weight: 700;
+    }
+
+    tr.expand-row td {
+      background: #f8fbff;
+    }
+
+    tr.expand-row td.sticky-base {
+      background: #f8fbff;
+    }
+
+    .expand-label {
+      color: #1d4ed8;
+      font-weight: 700;
+    }
+
+    .state-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      border-radius: 999px;
+      padding: 1px 6px;
+      font-size: 11px;
+      border: 1px solid #d9e6ff;
+      background: #f5f9ff;
+      color: #1d4ed8;
+    }
+
+    .state-tag.partial {
+      border-color: #ffe7ba;
+      background: #fff7e6;
+      color: #d46b08;
+    }
+
+    .state-tag.missing {
+      border-color: #ffccc7;
+      background: #fff1f0;
+      color: #cf1322;
+    }
+
+    .state-tag.offline {
+      border-color: #e5e7eb;
+      background: #f9fafb;
+      color: #6b7280;
+    }
+
+    .cell-missing {
+      background: #fff7f7;
+    }
+
+    .cell-partial {
+      background: #fffaf0;
+    }
+
+    .th-title {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      line-height: 1.2;
+      white-space: normal;
+    }
+
+    .calc-icon {
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      border: 1px solid #91caff;
+      background: #eaf3ff;
+      color: #1d4ed8;
+      font-size: 11px;
+      font-weight: 700;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      user-select: none;
+      flex-shrink: 0;
+    }
+
+    .calc-pop {
+      display: none;
+      position: absolute;
+      left: 50%;
+      top: 30px;
+      transform: translateX(-50%);
+      width: 280px;
+      border: 1px solid #bfd7ff;
+      border-radius: 8px;
+      background: #ffffff;
+      box-shadow: 0 8px 20px rgba(15, 23, 42, 0.15);
+      text-align: left;
+      padding: 10px 12px;
+      font-size: 12px;
+      color: #334155;
+      z-index: 20;
+      white-space: normal;
+      line-height: 1.5;
+    }
+
+    .calc-pop.show {
+      display: block;
+    }
+
+    .req-dot {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 14px;
+      height: 14px;
+      margin-left: 6px;
+      border-radius: 50%;
+      background: #ef4444;
+      color: #fff;
+      font-size: 10px;
+      font-weight: 700;
+      cursor: pointer;
+      line-height: 1;
+      vertical-align: middle;
+      user-select: none;
+    }
+
+    .req-popover {
+      position: fixed;
+      z-index: 999;
+      display: none;
+      width: 420px;
+      max-width: calc(100vw - 24px);
+      border: 1px solid #fecaca;
+      border-radius: 10px;
+      background: #fff5f5;
+      box-shadow: 0 10px 24px rgba(15, 23, 42, 0.16);
+      padding: 10px 12px;
+      font-size: 12px;
+      color: #7f1d1d;
+      line-height: 1.55;
+      white-space: normal;
+    }
+
+    .req-popover.show {
+      display: block;
+    }
+
+    .tag {
+      font-size: 11px;
+      color: var(--purple);
+      background: var(--purple-soft);
+      border: 1px solid #d3adf7;
+      padding: 1px 5px;
+      border-radius: 999px;
+    }
+
+    @media (max-width: 1440px) {
+      .cards { grid-template-columns: repeat(4, minmax(140px, 1fr)); }
+      .status-grid { grid-template-columns: repeat(2, minmax(200px, 1fr)); }
+    }
+  </style>
+</head>
+<body>
+  <div class="layout">
+    <aside class="sider">
+      <div class="sider-logo"></div>
+      <div class="sider-item active">看板</div>
+      <div class="sider-item">分析</div>
+      <div class="sider-item">预算</div>
+      <div class="sider-item">对账</div>
+      <div class="sider-item">配置</div>
+    </aside>
+
+    <main class="main">
+      <header class="header">
+        <div class="title">全渠道管理报表看板</div>
+        <div class="actions">
+          <span>项目平台</span>
+          <span>物流系统</span>
+          <span>KA</span>
+        </div>
+      </header>
+
+      <div class="page">
+        <section class="panel">
+          <div class="panel-head">
+            <div>
+              <div class="panel-title">筛选与口径控制</div>
+            </div>
+          </div>
+
+          <div class="filter-panel">
+            <div class="filter-grid">
+              <div class="f">
+                <label>日期范围<span class="req-dot" data-req-key="filter-date-range">!</span></label>
+                <div class="date-range">
+                  <input type="date" id="dateStart" value="2026-04-01" />
+                  <span class="date-sep">至</span>
+                  <input type="date" id="dateEnd" value="2026-04-27" />
+                </div>
+              </div>
+              <div class="f"><label>区域<span class="req-dot" data-req-key="filter-region-country-link">!</span></label><select id="regionFilter"><option>全部</option><option>北美</option><option>欧洲</option></select></div>
+              <div class="f"><label>国家<span class="req-dot" data-req-key="filter-region-country-link">!</span></label><select id="countryFilter"><option>全部</option><option>US</option><option>DE</option></select></div>
+              <div class="f"><label>渠道</label><select><option>全部</option><option>亚马逊</option><option>独立站</option><option>TikTok</option></select></div>
+              <div class="f"><label>店铺</label><select><option>全部</option><option>Govee US</option><option>Amazon DE</option></select></div>
+              <div class="f"><label>部门</label><select><option>全部</option><option>销售</option><option>品牌</option></select></div>
+              <div class="f"><label>场景</label><select><option>全部</option><option>居家</option><option>氛围</option></select></div>
+              <div class="f"><label>品类</label><select><option>全部</option><option>落地灯</option><option>灯带</option></select></div>
+              <div class="f"><label>品线</label><select><option>全部</option><option>6011</option><option>6159</option></select></div>
+              <div class="f"><label>model</label><select><option>全部</option><option>H6011</option><option>H6159</option></select></div>
+              <div class="f"><label>模组</label><select><option>全部</option><option>001</option><option>002</option></select></div>
+              <div class="f">
+                <label>SKU<span class="req-dot" data-req-key="filter-sku-mode">!</span></label>
+                <div class="sku-input-group">
+                  <select class="sku-mode" id="skuMode"><option>模糊</option><option>精确</option></select>
+                  <input class="sku-keyword" id="skuKeyword" type="text" value="H6011" />
+                </div>
+              </div>
+              <div class="f"><label>新品标签</label><select><option>全部</option><option>新品</option><option>老品</option></select></div>
+              <div class="f"><label>销售状态</label><select><option>全部</option><option>在售</option><option>清仓</option></select></div>
+              <div class="f"><label>币种<span class="req-dot" data-req-key="filter-currency-rule">!</span></label><select id="currencyFilter" disabled><option value="USD">USD</option></select></div>
+              <div class="f"><label>费用项范围</label><select><option>全部</option><option>收入链路</option><option>成本费用链路</option></select></div>
+              <div class="f" style="display:flex;align-items:flex-end;">
+                <button class="btn btn-primary" id="searchBtn" type="button">搜索<span class="req-dot" data-req-key="search-trigger">!</span></button>
+              </div>
+            </div>
+          </div>
+
+          <div class="cards" id="cardsHost"></div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-head">
+            <div>
+              <div class="panel-title">趋势图</div>
+              <div class="panel-sub">支持图例开关与日/周/月切换。<span class="req-dot" data-req-key="trend-grain-rule">!</span></div>
+            </div>
+            <div class="toolbar-right">
+              <div class="segment" id="grainTabs">
+                <button class="tab active" type="button" data-grain="day">日</button>
+                <button class="tab" type="button" data-grain="week">周</button>
+                <button class="tab" type="button" data-grain="month">月</button>
+              </div>
+            </div>
+          </div>
+          <div class="chart-panel">
+            <div class="panel-sub" style="margin-bottom:8px;">图例口径说明<span class="req-dot" data-req-key="trend-legend-rule">!</span></div>
+            <div class="legend" id="legendHost"></div>
+            <div class="chart-box">
+              <svg class="chart" id="chartSvg" viewBox="0 0 1200 320" preserveAspectRatio="none" aria-label="趋势图"></svg>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-head">
+            <div>
+              <div class="panel-title">费用项关系图</div>
+            </div>
+          </div>
+          <div class="flow-panel">
+            <div class="flow-wrap">
+              <svg class="flow-svg" id="flowSvg" viewBox="0 0 1560 620" preserveAspectRatio="xMidYMid meet" aria-label="费用项关系图"></svg>
+            </div>
+            <div class="flow-detail" id="flowDetail"></div>
+          </div>
+        </section>
+
+        <section class="panel table-panel">
+          <div class="table-tools">
+            <div>
+              <div class="panel-title">明细表<span class="req-dot" data-req-key="table-finance-estimate">!</span></div>
+              <div class="panel-sub" id="tableDesc">主行展示业务维度，展开后查看财务维度与对照差异。</div>
+            </div>
+            <div class="export-wrap">
+              <button class="btn" id="exportBtn" type="button">导出</button>
+              <span class="req-dot" data-req-key="export-template">!</span>
+              <div class="export-menu" id="exportMenu">
+                <button class="export-option" type="button" data-export-type="date-summary">按日期合计导出</button>
+                <button class="export-option" type="button" data-export-type="date-detail">按日期明细导出</button>
+                <button class="export-option" type="button" data-export-type="month-detail">按月份明细导出</button>
+                <button class="export-option" type="button" data-export-type="year-detail">按年份明细导出</button>
+              </div>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table id="detailTable"></table>
+          </div>
+        </section>
+      </div>
+    </main>
+  </div>
+  <div class="req-popover" id="reqPopover"></div>
+
+  <script>
+    const feeColumns = [
+      "净销售额",
+      "运费收入",
+      "包装收入",
+      "销售额（计算值=净销售额+包装收入+运费收入）",
+      "折扣",
+      "直接扣减折扣",
+      "优惠合计（计算值=折扣+直接扣减折扣）",
+      "销售收款（计算值=销售额-优惠合计）",
+      "销售退款",
+      "销售净额（计算值=销售收款-销售退款）",
+      "销售税/VAT",
+      "收入净额（计算值=销售净额-销售税/VAT）",
+      "出货授权成本",
+      "退货成本",
+      "平台赔偿",
+      "货值成本净额（计算值=出货授权成本+退货成本+平台赔偿）",
+      "广告费",
+      "品牌营销费",
+      "推广费",
+      "样品费",
+      "广告宣传小计（计算值=广告费+品牌营销费+推广费+样品费）",
+      "头程运费",
+      "尾程运费/FBA物流",
+      "退货运费",
+      "仓储费",
+      "物流成本小计（计算值=头程运费+尾程运费/FBA物流+退货运费+仓储费）",
+      "FBA佣金",
+      "平台服务费",
+      "收单费用/Payment Discount",
+      "店铺费用",
+      "Commission Fee",
+      "交易及平台费用小计（计算值=FBA佣金+平台服务费+收单费用/Payment Discount+店铺费用+Commission Fee）",
+      "运杂费",
+      "（下线）边际贡献额（并入毛利口径，不再单独展示）",
+      "其他费用（过渡项，后续下线）",
+      "销量",
+      "营收",
+      "毛利"
+    ];
+
+    const feeStates = {
+      "净销售额": "ok",
+      "运费收入": "partial",
+      "包装收入": "partial",
+      "销售额（计算值=净销售额+包装收入+运费收入）": "calc",
+      "折扣": "ok",
+      "直接扣减折扣": "partial",
+      "优惠合计（计算值=折扣+直接扣减折扣）": "calc",
+      "销售收款（计算值=销售额-优惠合计）": "calc",
+      "销售退款": "ok",
+      "销售净额（计算值=销售收款-销售退款）": "calc",
+      "销售税/VAT": "ok",
+      "收入净额（计算值=销售净额-销售税/VAT）": "calc",
+      "出货授权成本": "partial",
+      "退货成本": "ok",
+      "平台赔偿": "partial",
+      "货值成本净额（计算值=出货授权成本+退货成本+平台赔偿）": "calc",
+      "广告费": "ok",
+      "品牌营销费": "missing",
+      "推广费": "partial",
+      "样品费": "partial",
+      "广告宣传小计（计算值=广告费+品牌营销费+推广费+样品费）": "calc",
+      "头程运费": "ok",
+      "尾程运费/FBA物流": "ok",
+      "退货运费": "partial",
+      "仓储费": "partial",
+      "物流成本小计（计算值=头程运费+尾程运费/FBA物流+退货运费+仓储费）": "calc",
+      "FBA佣金": "ok",
+      "平台服务费": "missing",
+      "收单费用/Payment Discount": "missing",
+      "店铺费用": "missing",
+      "Commission Fee": "partial",
+      "交易及平台费用小计（计算值=FBA佣金+平台服务费+收单费用/Payment Discount+店铺费用+Commission Fee）": "calc",
+      "运杂费": "missing",
+      "（下线）边际贡献额（并入毛利口径，不再单独展示）": "offline",
+      "其他费用（过渡项，后续下线）": "partial",
+      "销量": "ok",
+      "营收": "calc",
+      "毛利": "calc"
+    };
+
+    function round2(value) {
+      return Number(value.toFixed(2));
+    }
+
+    function buildBusinessValues(source) {
+      const values = {};
+      values["净销售额"] = round2(source.netSales);
+      values["运费收入"] = round2(source.freightIncome);
+      values["包装收入"] = round2(source.packageIncome);
+      values["销售额（计算值=净销售额+包装收入+运费收入）"] = round2(values["净销售额"] + values["运费收入"] + values["包装收入"]);
+      values["折扣"] = round2(source.discount);
+      values["直接扣减折扣"] = round2(source.directDiscount);
+      values["优惠合计（计算值=折扣+直接扣减折扣）"] = round2(values["折扣"] + values["直接扣减折扣"]);
+      values["销售收款（计算值=销售额-优惠合计）"] = round2(values["销售额（计算值=净销售额+包装收入+运费收入）"] - values["优惠合计（计算值=折扣+直接扣减折扣）"]);
+      values["销售退款"] = round2(source.refund);
+      values["销售净额（计算值=销售收款-销售退款）"] = round2(values["销售收款（计算值=销售额-优惠合计）"] - values["销售退款"]);
+      values["销售税/VAT"] = round2(source.tax);
+      values["收入净额（计算值=销售净额-销售税/VAT）"] = round2(values["销售净额（计算值=销售收款-销售退款）"] - values["销售税/VAT"]);
+      values["出货授权成本"] = round2(source.shipCost + source.dutyCost + source.reserveGross);
+      values["退货成本"] = round2(source.returnCost);
+      values["平台赔偿"] = round2(source.platformCompensation);
+      values["货值成本净额（计算值=出货授权成本+退货成本+平台赔偿）"] = round2(values["出货授权成本"] + values["退货成本"] + values["平台赔偿"]);
+      values["广告费"] = round2(source.adCost);
+      values["品牌营销费"] = round2(source.brandCost);
+      values["推广费"] = round2(source.promoCost);
+      values["样品费"] = round2(source.sampleCost);
+      values["广告宣传小计（计算值=广告费+品牌营销费+推广费+样品费）"] = round2(values["广告费"] + values["品牌营销费"] + values["推广费"] + values["样品费"]);
+      values["头程运费"] = round2(source.firstLeg);
+      values["尾程运费/FBA物流"] = round2(source.lastLeg);
+      values["退货运费"] = round2(source.returnFreight);
+      values["仓储费"] = round2(source.storageCost);
+      values["物流成本小计（计算值=头程运费+尾程运费/FBA物流+退货运费+仓储费）"] =
+        round2(values["头程运费"] + values["尾程运费/FBA物流"] + values["退货运费"] + values["仓储费"]);
+      values["FBA佣金"] = round2(source.fbaFee);
+      values["平台服务费"] = round2(source.platformFee);
+      values["收单费用/Payment Discount"] = round2(source.paymentFee);
+      values["店铺费用"] = round2(source.shopFee);
+      values["Commission Fee"] = round2(source.commissionFee);
+      values["交易及平台费用小计（计算值=FBA佣金+平台服务费+收单费用/Payment Discount+店铺费用+Commission Fee）"] =
+        round2(values["FBA佣金"] + values["平台服务费"] + values["收单费用/Payment Discount"] + values["店铺费用"] + values["Commission Fee"]);
+      values["运杂费"] = round2(source.miscCost);
+      values["（下线）边际贡献额（并入毛利口径，不再单独展示）"] = 0;
+      values["其他费用（过渡项，后续下线）"] = 0;
+      values["销量"] = Math.round(source.qty);
+      values["营收"] = values["收入净额（计算值=销售净额-销售税/VAT）"];
+      values["毛利"] = round2(
+        values["营收"]
+        - values["货值成本净额（计算值=出货授权成本+退货成本+平台赔偿）"]
+        - values["广告宣传小计（计算值=广告费+品牌营销费+推广费+样品费）"]
+        - values["物流成本小计（计算值=头程运费+尾程运费/FBA物流+退货运费+仓储费）"]
+        - values["交易及平台费用小计（计算值=FBA佣金+平台服务费+收单费用/Payment Discount+店铺费用+Commission Fee）"]
+        - values["运杂费"]
+      );
+      return values;
+    }
+
+    function createDetailRows(count = 50) {
+      const regions = [
+        { region: "北美区", country: "US", store: "Govee US" },
+        { region: "北美区", country: "CA", store: "Govee CA" },
+        { region: "欧洲区", country: "DE", store: "Govee DE" },
+        { region: "欧洲区", country: "FR", store: "Govee FR" },
+        { region: "亚太区", country: "JP", store: "Govee JP" }
+      ];
+      const channels = ["亚马逊", "独立站", "TikTok", "沃尔玛", "Temu"];
+      const scenes = [
+        { scene: "居家", category: "落地灯", line: "6011" },
+        { scene: "居家", category: "灯带", line: "6159" },
+        { scene: "氛围", category: "氛围灯", line: "6102" },
+        { scene: "娱乐", category: "电视灯", line: "6198" },
+        { scene: "户外", category: "庭院灯", line: "6201" }
+      ];
+      const salesOwners = ["kaiwu", "vicky", "allen", "raina", "jack"];
+      const tls = ["bingna", "harry", "luna", "mia", "evan"];
+
+      return Array.from({ length: count }, (_, idx) => {
+        const i = idx + 1;
+        const regionInfo = regions[idx % regions.length];
+        const channel = channels[idx % channels.length];
+        const sceneInfo = scenes[idx % scenes.length];
+        const owner = salesOwners[idx % salesOwners.length];
+        const tl = tls[idx % tls.length];
+        const skuCode = `H${6011000 + i}`;
+        const factor = 0.68 + ((idx % 9) * 0.07);
+        const bump = ((idx % 5) * 47);
+
+        const values = buildBusinessValues({
+          netSales: 7600 * factor + 3500 + bump,
+          freightIncome: 420 * factor + (idx % 4) * 60,
+          packageIncome: 210 * factor + (idx % 3) * 40,
+          discount: 260 * factor + (idx % 4) * 20,
+          directDiscount: 120 * factor + (idx % 3) * 18,
+          refund: 180 * factor + (idx % 4) * 16,
+          tax: 210 * factor + (idx % 4) * 22,
+          shipCost: 1750 * factor + (idx % 5) * 65,
+          returnCost: 150 * factor + (idx % 3) * 14,
+          platformCompensation: 12 * factor + (idx % 2) * 8,
+          adCost: 420 * factor + (idx % 3) * 35,
+          brandCost: 130 * factor + (idx % 4) * 16,
+          promoCost: 240 * factor + (idx % 4) * 20,
+          sampleCost: 55 * factor + (idx % 3) * 10,
+          firstLeg: 340 * factor + (idx % 4) * 24,
+          lastLeg: 470 * factor + (idx % 4) * 32,
+          returnFreight: 118 * factor + (idx % 3) * 11,
+          storageCost: 106 * factor + (idx % 3) * 10,
+          dutyCost: 74 * factor + (idx % 4) * 9,
+          fbaFee: 165 * factor + (idx % 4) * 14,
+          platformFee: 82 * factor + (idx % 3) * 10,
+          paymentFee: 44 * factor + (idx % 3) * 8,
+          shopFee: 32 * factor + (idx % 2) * 6,
+          commissionFee: 22 * factor + (idx % 4) * 4,
+          miscCost: 28 * factor + (idx % 3) * 5,
+          reserveGross: 105 * factor + (idx % 3) * 9,
+          qty: 650 * factor + (idx % 7) * 28
+        });
+
+        return {
+          region: `${regionInfo.region}/${regionInfo.country}/${regionInfo.store}`,
+          scene: `${sceneInfo.scene}/${sceneInfo.category}/${sceneInfo.line}`,
+          team: `sales: ${owner}`,
+          tl: `TL: ${tl}`,
+          sku: `sku:${skuCode}`,
+          msku: `${skuCode}+${channel}+${regionInfo.country}`,
+          values
+        };
+      });
+    }
+
+    const detailRows = createDetailRows(50);
+    const totalValues = {};
+    feeColumns.forEach((fee) => {
+      const sum = detailRows.reduce((acc, row) => acc + (Number(row.values[fee]) || 0), 0);
+      totalValues[fee] = fee === "销量" ? Math.round(sum) : round2(sum);
+    });
+
+    const baseRows = [
+      {
+        region: "总计",
+        scene: "全场景/全部品类/全部品线",
+        team: "sales: 全部",
+        tl: "TL: 全部",
+        sku: "sku: 全部SKU",
+        msku: "",
+        values: totalValues
+      },
+      ...detailRows
+    ];
+
+    const financeMultipliers = {
+      ok: 0.985,
+      partial: 0.78,
+      missing: null,
+      calc: null,
+      offline: null
+    };
+
+    function deriveFinanceValue(fee, businessValue) {
+      const state = feeStates[fee];
+      if (state === "calc") return null;
+      if (state === "offline") return null;
+      const multiplier = financeMultipliers[state];
+      if (multiplier === null) return null;
+      if (fee === "销量") return businessValue;
+      return Number((businessValue * multiplier).toFixed(2));
+    }
+
+    function deriveFinanceRow(row) {
+      const values = {};
+      feeColumns.forEach((fee) => {
+        values[fee] = deriveFinanceValue(fee, row.values[fee]);
+      });
+
+      const sales = (values["净销售额"] || 0) + (values["运费收入"] || 0) + (values["包装收入"] || 0);
+      values["销售额（计算值=净销售额+包装收入+运费收入）"] = sales || null;
+      values["优惠合计（计算值=折扣+直接扣减折扣）"] = (values["折扣"] || 0) + (values["直接扣减折扣"] || 0) || null;
+      values["销售收款（计算值=销售额-优惠合计）"] = sales && values["优惠合计（计算值=折扣+直接扣减折扣）"] !== null
+        ? Number((sales - (values["优惠合计（计算值=折扣+直接扣减折扣）"] || 0)).toFixed(2))
+        : null;
+      values["销售净额（计算值=销售收款-销售退款）"] = values["销售收款（计算值=销售额-优惠合计）"] !== null
+        ? Number((values["销售收款（计算值=销售额-优惠合计）"] - (values["销售退款"] || 0)).toFixed(2))
+        : null;
+      values["收入净额（计算值=销售净额-销售税/VAT）"] = values["销售净额（计算值=销售收款-销售退款）"] !== null
+        ? Number((values["销售净额（计算值=销售收款-销售退款）"] - (values["销售税/VAT"] || 0)).toFixed(2))
+        : null;
+      values["货值成本净额（计算值=出货授权成本+退货成本+平台赔偿）"] = (values["出货授权成本"] || 0) + (values["退货成本"] || 0) + (values["平台赔偿"] || 0) || null;
+      values["广告宣传小计（计算值=广告费+品牌营销费+推广费+样品费）"] = (values["广告费"] || 0) + (values["品牌营销费"] || 0) + (values["推广费"] || 0) + (values["样品费"] || 0) || null;
+      values["物流成本小计（计算值=头程运费+尾程运费/FBA物流+退货运费+仓储费）"] = (values["头程运费"] || 0) + (values["尾程运费/FBA物流"] || 0) + (values["退货运费"] || 0) + (values["仓储费"] || 0) || null;
+      values["交易及平台费用小计（计算值=FBA佣金+平台服务费+收单费用/Payment Discount+店铺费用+Commission Fee）"] =
+        (values["FBA佣金"] || 0) + (values["平台服务费"] || 0) + (values["收单费用/Payment Discount"] || 0) + (values["店铺费用"] || 0) + (values["Commission Fee"] || 0) || null;
+      values["营收"] = values["收入净额（计算值=销售净额-销售税/VAT）"];
+      values["毛利"] = values["营收"] !== null
+        ? Number((
+            values["营收"]
+            - (values["货值成本净额（计算值=出货授权成本+退货成本+平台赔偿）"] || 0)
+            - (values["广告宣传小计（计算值=广告费+品牌营销费+推广费+样品费）"] || 0)
+            - (values["物流成本小计（计算值=头程运费+尾程运费/FBA物流+退货运费+仓储费）"] || 0)
+            - (values["交易及平台费用小计（计算值=FBA佣金+平台服务费+收单费用/Payment Discount+店铺费用+Commission Fee）"] || 0)
+            - (values["运杂费"] || 0)
+          ).toFixed(2))
+        : null;
+      return { ...row, values };
+    }
+
+    const financeRows = baseRows.map(deriveFinanceRow);
+
+    function mean(values) {
+      if (!values.length) return 0;
+      return values.reduce((sum, v) => sum + v, 0) / values.length;
+    }
+
+    function toGrain(dayValues) {
+      const toBuckets = (targetLen) => Array.from({ length: targetLen }, (_, i) => {
+        const start = Math.floor((i * dayValues.length) / targetLen);
+        const end = Math.floor(((i + 1) * dayValues.length) / targetLen);
+        const bucket = dayValues.slice(start, Math.max(end, start + 1));
+        return Number(mean(bucket).toFixed(2));
+      });
+      return {
+        day: dayValues,
+        week: toBuckets(8),
+        month: toBuckets(6)
+      };
+    }
+
+    function isSingleMskuSelected() {
+      const mode = document.getElementById("skuMode")?.value || "";
+      const keyword = (document.getElementById("skuKeyword")?.value || "").trim();
+      return mode === "精确" && /^[A-Za-z0-9-]+\+[^+]+\+[A-Za-z]{2}$/.test(keyword);
+    }
+
+    function getTrendSeries() {
+      const salesDay = [61, 63, 60, 66, 68, 70, 69, 74, 76, 78, 80, 79];
+      const revenueMainDay = [52, 54, 55, 58, 59, 61, 60, 63, 65, 67, 68, 70];
+      const grossDay = [24, 25, 24, 26, 26, 27, 28, 29, 30, 31, 30, 32];
+      const trafficDay = [122, 128, 126, 134, 138, 142, 140, 146, 149, 152, 156, 154];
+      const cvrDay = [3.22, 3.28, 3.31, 3.35, 3.37, 3.4, 3.38, 3.43, 3.47, 3.49, 3.52, 3.55];
+      const grossRateDay = [38.6, 39.1, 38.9, 39.4, 39.6, 39.8, 39.7, 40.0, 40.2, 40.3, 40.5, 40.7];
+      const revenueDay = [52.5, 53.6, 53.2, 54.7, 55.1, 55.9, 55.6, 56.8, 57.2, 57.9, 58.3, 58.7]; // 总营收
+      const qtyDay = [11.8, 12.1, 12.0, 12.4, 12.7, 12.9, 12.8, 13.1, 13.4, 13.6, 13.8, 14.0]; // 总销量
+      const rrpDay = [5.6, 5.6, 5.5, 5.5, 5.4, 5.4, 5.4, 5.3, 5.3, 5.2, 5.2, 5.2];
+      const dealPriceDay = revenueDay.map((v, i) => Number((v / qtyDay[i]).toFixed(2))); // 成交价=总营收/销量
+      const promoDay = dealPriceDay.map((v, i) => Number((1 - (v / rrpDay[i])).toFixed(4)) * 100);
+
+      const series = [
+        { key: "销售额", color: "#60a5fa", data: toGrain(salesDay) },
+        { key: "营收", color: "#34d399", data: toGrain(revenueMainDay) },
+        { key: "毛利", color: "#f59e0b", data: toGrain(grossDay) },
+        { key: "流量", color: "#2563eb", data: toGrain(trafficDay) },
+        { key: "转化率", color: "#10b981", data: toGrain(cvrDay) },
+        { key: "毛利率", color: "#8b5cf6", data: toGrain(grossRateDay) }
+      ];
+      if (isSingleMskuSelected()) {
+        series.push(
+          { key: "成交价", color: "#f59e0b", data: toGrain(dealPriceDay) },
+          { key: "促销力度", color: "#ef4444", data: toGrain(promoDay) }
+        );
+      }
+      const moneySeries = new Set(["销售额", "营收", "毛利", "成交价"]);
+      const rate = currentCurrencyRate();
+      series.forEach((item) => {
+        if (!moneySeries.has(item.key)) return;
+        ["day", "week", "month"].forEach((grain) => {
+          item.data[grain] = item.data[grain].map((v) => Number((v * rate).toFixed(2)));
+        });
+      });
+      return series;
+    }
+
+    const displayFeeColumns = [
+      "销量",
+      "营收",
+      "毛利",
+      "净销售额",
+      "运费收入",
+      "包装收入",
+      "销售额（计算值=净销售额+包装收入+运费收入）",
+      "折扣",
+      "直接扣减折扣",
+      "优惠合计（计算值=折扣+直接扣减折扣）",
+      "销售收款（计算值=销售额-优惠合计）",
+      "销售退款",
+      "销售净额（计算值=销售收款-销售退款）",
+      "销售税/VAT",
+      "收入净额（计算值=销售净额-销售税/VAT）",
+      "出货授权成本",
+      "退货成本",
+      "平台赔偿",
+      "货值成本净额（计算值=出货授权成本+退货成本+平台赔偿）",
+      "广告费",
+      "品牌营销费",
+      "推广费",
+      "样品费",
+      "广告宣传小计（计算值=广告费+品牌营销费+推广费+样品费）",
+      "头程运费",
+      "尾程运费/FBA物流",
+      "退货运费",
+      "仓储费",
+      "物流成本小计（计算值=头程运费+尾程运费/FBA物流+退货运费+仓储费）",
+      "FBA佣金",
+      "平台服务费",
+      "收单费用/Payment Discount",
+      "店铺费用",
+      "Commission Fee",
+      "交易及平台费用小计（计算值=FBA佣金+平台服务费+收单费用/Payment Discount+店铺费用+Commission Fee）",
+      "运杂费"
+    ];
+
+    const state = {
+      view: "business",
+      grain: "day",
+      showRatio: true,
+      activeSeries: new Set(),
+      expandedRows: new Set()
+    };
+
+    const cardsHost = document.getElementById("cardsHost");
+    const legendHost = document.getElementById("legendHost");
+    const chartSvg = document.getElementById("chartSvg");
+    const flowSvg = document.getElementById("flowSvg");
+    const flowDetail = document.getElementById("flowDetail");
+    const detailTable = document.getElementById("detailTable");
+    const tableDesc = document.getElementById("tableDesc");
+    const reqPopover = document.getElementById("reqPopover");
+    const exportBtn = document.getElementById("exportBtn");
+    const exportMenu = document.getElementById("exportMenu");
+    const countryFilter = document.getElementById("countryFilter");
+    const currencyFilter = document.getElementById("currencyFilter");
+
+    const reqTextMap = {
+      "filter-date-range": `日期范围筛选逻辑：<br>
+1. 默认值为“上月开始日期 ~ 上月结束日期”。<br>
+2. 日期控件为范围选择，不允许结束日期早于开始日期。<br>
+3. 若跨月，后续财务维度计算按“有整月数据的月份可拆分、无整月数据的月份仅显示占比”处理。`,
+      "filter-region-country-link": `区域/国家筛选逻辑：<br>
+1. 区域支持多选，默认“全部”。<br>
+2. 国家支持多选，默认“全部”。<br>
+3. 国家下拉需与区域联动：先选区域，再只加载对应区域国家。<br>
+4. 区域为空或“全部”时，国家展示全量。`,
+      "filter-sku-mode": `SKU筛选逻辑：<br>
+1. 支持“模糊/精确”两种模式。<br>
+2. 精确模式下建议输入完整 MSKU（sku+渠道+国家），例如 H6011001+亚马逊+US。<br>
+3. 模糊模式用于关键词检索（SKU前缀/片段）。`,
+      "filter-currency-rule": `币种筛选逻辑：<br>
+1. 仅当“国家”筛选为单一国家时，币种可选。<br>
+2. 可选项仅保留“USD”和“本币”。<br>
+3. 选择“本币”后，页面金额按该国家本地币种统一刷新展示。<br>
+4. 当国家为“全部”或非单一国家时，币种固定为USD且不支持选择。`,
+      "search-trigger": `搜索按钮逻辑：<br>
+1. 点击后统一应用当前所有筛选条件刷新卡片、趋势图、费用项关系图、明细表。<br>
+2. 若筛选条件非法（如日期反向），需前置拦截并提示。<br>
+3. 不需要额外“重置/应用”按钮，当前页仅保留搜索按钮。`,
+      "trend-grain-rule": `趋势图时间粒度逻辑：<br>
+1. 日维度显示每日值。<br>
+2. 周/月维度显示平均值（按分桶后的均值展示）。<br>
+3. 需保留原有指标并新增流量、转化率、毛利率；不可替换原指标。`,
+      "trend-legend-rule": `趋势图图例逻辑：<br>
+1. 图例支持点击开关指标。<br>
+2. 成交价、促销力度仅在筛选结果为单个 MSKU 时显示。<br>
+3. 成交价 = 总营收 / 销量。<br>
+4. 促销力度 = 1 - 成交价 / RRP价。<br>
+5. 转化率、毛利率、促销力度走右侧纵轴，其余指标走左侧纵轴。`,
+      "table-finance-estimate": `财务维度数据只有整月数据。<br>
+1. 先用“整月财务数据 / 当月天数”得到当月日均值。<br>
+2. 再用“日均值 × 所选日期范围内的实际天数”得到预估财务维度金额。<br>
+3. 如果筛选时间刚好是整月，则应与财务真实整月数据对齐。<br>
+4. 如果筛选时间跨月且后续月份缺少财务整月数据（例如 2.1~3.9 但 3 月无财务数据），则不显示该缺失月份具体金额，只显示财务各项费用占比。<br>
+5. 时间与财务整月数据能对齐的月份按天拆分计算；不能对齐或无整月财务数据的月份不展示具体金额。`,
+      "table-delta-rule": `对照差异逻辑：<br>
+1. 对照差异 = 业务维度值 - 财务维度值。<br>
+2. 若财务维度缺失（无金额），对照差异显示为空/缺失态，不强行计算。<br>
+3. 对照差异行重点展示金额差，不作为财务确认口径。`,
+      "table-header-rule": `明细表字段逻辑：<br>
+1. 主行为业务维度数据。<br>
+2. 展开后依次展示“财务维度”“对照差异”。<br>
+3. 费用项命名需与Excel方案一致，计算项通过字段说明图标展示。`,
+      "export-template": `导出模版：https://alidocs.dingtalk.com/i/nodes/a9E05BDRVQ6gzQaAh2Y9g407J63zgkYA`
+    };
+
+    function parseCalcInfo(fee) {
+      const matched = fee.match(/^(.*?)（(计算值=.*)）$/);
+      if (!matched) return { title: fee, calc: null };
+      return { title: matched[1], calc: matched[2] };
+    }
+
+    const countryCurrencyMap = {
+      US: "USD",
+      DE: "EUR",
+      CA: "CAD",
+      FR: "EUR",
+      JP: "JPY"
+    };
+
+    const currencyRateMap = {
+      USD: 1,
+      EUR: 0.92,
+      CAD: 1.36,
+      JPY: 155.00,
+      CNY: 7.20
+    };
+
+    function isSingleCountrySelected() {
+      const countryNode = document.getElementById("countryFilter");
+      const country = (countryNode?.value || "").trim();
+      return !!country && country !== "全部" && !country.includes(",");
+    }
+
+    function currentCurrencyCode() {
+      const currencyNode = document.getElementById("currencyFilter");
+      const countryNode = document.getElementById("countryFilter");
+      if (!currencyNode) return "USD";
+      const raw = currencyNode.value;
+      if (raw === "LOCAL") {
+        const country = (countryNode?.value || "").trim();
+        return countryCurrencyMap[country] || "USD";
+      }
+      return raw || "USD";
+    }
+
+    function currentCurrencyRate() {
+      const code = currentCurrencyCode();
+      return currencyRateMap[code] || 1;
+    }
+
+    function convertAmount(value) {
+      const n = Number(value);
+      if (!Number.isFinite(n)) return value;
+      return n * currentCurrencyRate();
+    }
+
+    function updateCurrencyFilterByCountry() {
+      const currencyNode = document.getElementById("currencyFilter");
+      const countryNode = document.getElementById("countryFilter");
+      if (!currencyNode) return;
+      const singleCountry = isSingleCountrySelected();
+      if (!singleCountry) {
+        currencyNode.innerHTML = `<option value="USD">USD</option>`;
+        currencyNode.value = "USD";
+        currencyNode.disabled = true;
+        return;
+      }
+
+      const country = (countryNode?.value || "").trim();
+      const localCurrency = countryCurrencyMap[country] || "USD";
+      currencyNode.disabled = false;
+      currencyNode.innerHTML = `
+        <option value="USD">USD</option>
+        <option value="LOCAL">本币（${localCurrency}）</option>
+      `;
+      currencyNode.value = "USD";
+    }
+
+    function formatDateInputValue(date) {
+      const y = date.getFullYear();
+      const m = String(date.getMonth() + 1).padStart(2, "0");
+      const d = String(date.getDate()).padStart(2, "0");
+      return `${y}-${m}-${d}`;
+    }
+
+    function setDefaultDateRangeToLastMonth() {
+      const startNode = document.getElementById("dateStart");
+      const endNode = document.getElementById("dateEnd");
+      if (!startNode || !endNode) return;
+      const now = new Date();
+      const firstDayThisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+      const firstDayLastMonth = new Date(firstDayThisMonth.getFullYear(), firstDayThisMonth.getMonth() - 1, 1);
+      const lastDayLastMonth = new Date(firstDayThisMonth.getTime() - 24 * 60 * 60 * 1000);
+      startNode.value = formatDateInputValue(firstDayLastMonth);
+      endNode.value = formatDateInputValue(lastDayLastMonth);
+    }
+
+    function formatValue(value, fee) {
+      if (value === null || value === undefined) return "--";
+      if (fee === "销量") return String(Math.round(value));
+      if (typeof value === "number") return convertAmount(value).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      return String(value);
+    }
+
+    function calcRatioMap(values) {
+      const saleBase = values["销售额（计算值=净销售额+包装收入+运费收入）"] || 0;
+      const revenueBase = values["收入净额（计算值=销售净额-销售税/VAT）"] || 0;
+      const ratios = {};
+      feeColumns.forEach((fee) => {
+        const v = values[fee];
+        if (v === null || v === undefined || fee === "销量") {
+          ratios[fee] = null;
+          return;
+        }
+        if (fee === "毛利") {
+          ratios[fee] = saleBase ? (v / saleBase) * 100 : null;
+        } else if (fee.includes("成本") || fee.includes("费用") || fee.includes("税") || fee.includes("折扣") || fee === "运杂费" || fee === "平台赔偿") {
+          ratios[fee] = saleBase ? (v / saleBase) * 100 : null;
+        } else if (fee === "营收" || fee.includes("收入净额") || fee.includes("销售额") || fee.includes("销售净额") || fee.includes("销售收款")) {
+          ratios[fee] = saleBase ? (v / saleBase) * 100 : null;
+        } else {
+          ratios[fee] = revenueBase ? (v / revenueBase) * 100 : null;
+        }
+      });
+      return ratios;
+    }
+
+    function buildRowsForView(view) {
+      const src = view === "business" ? baseRows : financeRows;
+      const rows = src.map((row) => {
+        const ratios = calcRatioMap(row.values);
+        return { ...row, ratios };
+      });
+      if (view !== "delta") return rows;
+
+      return baseRows.map((row, idx) => {
+        const finance = financeRows[idx].values;
+        const values = {};
+        feeColumns.forEach((fee) => {
+          const b = row.values[fee];
+          const f = finance[fee];
+          values[fee] = (b !== null && b !== undefined && f !== null && f !== undefined) ? Number((b - f).toFixed(2)) : null;
+        });
+        return { ...row, values, ratios: calcRatioMap(values) };
+      });
+    }
+
+    function getVisibleFees() {
+      return displayFeeColumns;
+    }
+
+    function renderCards() {
+      const totalRow = buildRowsForView(state.view)[0];
+      const values = totalRow?.values || {};
+      const sale = convertAmount(values["销售额（计算值=净销售额+包装收入+运费收入）"] || 0);
+      const revenue = convertAmount(values["营收"] || 0);
+      const gross = convertAmount(values["毛利"] || 0);
+      const qty = values["销量"] || 0;
+      const currencyCode = currentCurrencyCode();
+      const cardMap = {
+        business: [
+          { title: "销售额", value: sale, unit: currencyCode, y: "+2.13%", m: "-12.31%", note: "净销售额 + 亚马逊运费收入 + 亚马逊包装收入", money: true },
+          { title: "营收", value: revenue, unit: currencyCode, y: "+1.82%", m: "-10.46%", note: "收入净额口径", money: true },
+          { title: "销量", value: qty, unit: "", y: "+2.13%", m: "-6.31%", note: "订单销量（扣减退货）" },
+          { title: "毛利", value: gross, unit: currencyCode, y: "+1.36%", m: "-8.12%", note: "业务口径毛利", money: true },
+          { title: "毛利率", value: "39.82%", unit: "", y: "+0.86%", m: "-0.32%", note: "" },
+          { title: "退款率", value: "2.68%", unit: "", y: "+0.13%", m: "-0.21%", note: "销售退款 / 销售额" },
+          { title: "税费率", value: "2.24%", unit: "", y: "+0.05%", m: "-0.11%", note: "销售税/VAT / 销售额" }
+        ],
+        finance: [
+          { title: "财务销售额", value: sale, unit: currencyCode, y: "+1.95%", m: "-11.22%", note: "按财务维度已接入字段汇总", money: true },
+          { title: "财务营收", value: revenue, unit: currencyCode, y: "+1.52%", m: "-9.63%", note: "月末确认口径", money: true },
+          { title: "财务毛利", value: gross, unit: currencyCode, y: "+1.10%", m: "-7.41%", note: "财务确认值", money: true },
+          { title: "已接入费用项", value: "18", unit: "项", y: "", m: "", note: "财务维度已可直接读取" },
+          { title: "部分缺失", value: "10", unit: "项", y: "", m: "", note: "需补齐映射或滚动预提" },
+          { title: "缺失项", value: "5", unit: "项", y: "", m: "", note: "平台服务费 / 收单费用 / 店铺费用等" },
+          { title: "确认率", value: "82%", unit: "", y: "+2.00%", m: "+1.00%", note: "已确认费用项 / 费用项总数" }
+        ],
+        delta: [
+          { title: "销售额差异", value: sale, unit: currencyCode, y: "", m: "", note: "业务 - 财务", money: true },
+          { title: "营收差异", value: revenue, unit: currencyCode, y: "", m: "", note: "收入净额差异", money: true },
+          { title: "毛利差异", value: gross, unit: currencyCode, y: "", m: "", note: "毛利口径差异", money: true },
+          { title: "偏差率", value: "3.59%", unit: "", y: "", m: "", note: "毛利差异 / 业务毛利" },
+          { title: "高风险缺口", value: "3", unit: "项", y: "", m: "", note: "平台服务费 / 收单费用 / 运杂费" },
+          { title: "待回写项", value: "9", unit: "项", y: "", m: "", note: "部分费用仅月末结账回写" },
+          { title: "预提依赖项", value: "7", unit: "项", y: "", m: "", note: "按店铺+渠道+费用项滚动占比预提" }
+        ]
+      };
+
+      cardsHost.innerHTML = cardMap[state.view].map((card) => `
+        <div class="card">
+          <div class="card-title">${card.title}</div>
+          <div class="card-value">${(typeof card.value === "number" && card.money) ? card.value.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : card.value}${card.unit ? `<span style="font-size:12px;color:#64748b;margin-left:4px;">${card.unit}</span>` : ""}</div>
+          <div class="card-sub">
+            ${card.y ? `<span class="trend-up">同比 ${card.y}</span>` : `<span class="trend-neutral">状态口径</span>`}
+            ${card.m ? `<span class="trend-down">环比 ${card.m}</span>` : `<span class="trend-neutral">按当前视图</span>`}
+          </div>
+        </div>
+      `).join("");
+    }
+
+    function renderLegend() {
+      const series = getTrendSeries();
+      if (!state.activeSeries.size) {
+        state.activeSeries = new Set(series.map((item) => item.key));
+      }
+      const validKeys = new Set(series.map((item) => item.key));
+      state.activeSeries = new Set(Array.from(state.activeSeries).filter((key) => validKeys.has(key)));
+      if (!state.activeSeries.size) state.activeSeries = new Set(series.map((item) => item.key));
+      legendHost.innerHTML = series.map((item) => `
+        <span class="legend-item ${state.activeSeries.has(item.key) ? "" : "off"}" data-series="${item.key}">
+          <i class="legend-line" style="background:${item.color}"></i>${item.key}
+        </span>
+      `).join("");
+
+      Array.from(legendHost.querySelectorAll(".legend-item")).forEach((node) => {
+        node.addEventListener("click", () => {
+          const key = node.dataset.series;
+          if (state.activeSeries.has(key)) {
+            state.activeSeries.delete(key);
+          } else {
+            state.activeSeries.add(key);
+          }
+          renderLegend();
+          renderChart();
+        });
+      });
+    }
+
+    function buildPath(points) {
+      if (!points.length) return "";
+      return points.map((point, idx) => `${idx === 0 ? "M" : "L"}${point[0]},${point[1]}`).join(" ");
+    }
+
+    function renderChart() {
+      const width = 1200;
+      const height = 320;
+      const padLeft = 48;
+      const padRight = 52;
+      const padTop = 24;
+      const padBottom = 34;
+      const plotW = width - padLeft - padRight;
+      const plotH = height - padTop - padBottom;
+      const series = getTrendSeries().filter((item) => state.activeSeries.has(item.key));
+      const rightAxisKeys = new Set(["转化率", "毛利率", "促销力度"]);
+      const leftSeries = series.filter((item) => !rightAxisKeys.has(item.key));
+      const rightSeries = series.filter((item) => rightAxisKeys.has(item.key));
+      const leftValues = leftSeries.flatMap((item) => item.data[state.grain]);
+      const rightValues = rightSeries.flatMap((item) => item.data[state.grain]);
+      const leftMin = 0;
+      const leftMax = Math.max(...leftValues, 1);
+      const rightMin = 0;
+      const rightMax = rightValues.length ? Math.max(...rightValues, 1) : 100;
+      const grid = [0, 0.25, 0.5, 0.75, 1];
+      const labelsMap = {
+        day: ["12-01", "12-03", "12-05", "12-07", "12-09", "12-11", "12-13", "12-15", "12-17", "12-19", "12-21", "12-23"],
+        week: ["W1", "W2", "W3", "W4", "W5", "W6", "W7", "W8"],
+        month: ["01月", "02月", "03月", "04月", "05月", "06月"]
+      };
+      const labels = labelsMap[state.grain];
+
+      let svg = `<defs>
+        <linearGradient id="chartBg" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#f8fbff" />
+          <stop offset="100%" stop-color="#ffffff" />
+        </linearGradient>
+      </defs>
+      <rect x="0" y="0" width="${width}" height="${height}" fill="url(#chartBg)"></rect>`;
+
+      grid.forEach((g) => {
+        const y = padTop + plotH * g;
+        svg += `<line x1="${padLeft}" y1="${y}" x2="${width - padRight}" y2="${y}" stroke="#e5edf7" stroke-width="1"></line>`;
+        svg += `<text x="8" y="${y + 4}" font-size="11" fill="#94a3b8">${Math.round(leftMax * (1 - g))}</text>`;
+        if (rightSeries.length) {
+          const rightLabel = Number((rightMax * (1 - g)).toFixed(1));
+          svg += `<text x="${width - 4}" y="${y + 4}" text-anchor="end" font-size="11" fill="#94a3b8">${rightLabel}</text>`;
+        }
+      });
+
+      labels.forEach((label, idx) => {
+        const x = padLeft + (plotW / Math.max(labels.length - 1, 1)) * idx;
+        svg += `<text x="${x}" y="${height - 10}" text-anchor="middle" font-size="11" fill="#94a3b8">${label}</text>`;
+      });
+
+      series.forEach((item) => {
+        const vals = item.data[state.grain];
+        const points = vals.map((value, idx) => {
+          const x = padLeft + (plotW / Math.max(vals.length - 1, 1)) * idx;
+          const isRight = rightAxisKeys.has(item.key);
+          const min = isRight ? rightMin : leftMin;
+          const max = isRight ? rightMax : leftMax;
+          const y = padTop + plotH * (1 - ((value - min) / (max - min || 1)));
+          return [x, y];
+        });
+        svg += `<path d="${buildPath(points)}" fill="none" stroke="${item.color}" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"></path>`;
+        points.forEach((point) => {
+          svg += `<circle cx="${point[0]}" cy="${point[1]}" r="2.8" fill="${item.color}"></circle>`;
+        });
+      });
+
+      chartSvg.innerHTML = svg;
+    }
+
+    function shortMoney(value, fee = "") {
+      if (value === null || value === undefined) return "--";
+      const n = Number(value);
+      if (!Number.isFinite(n)) return "--";
+      if (fee === "销量") return n.toLocaleString("en-US", { maximumFractionDigits: 0 });
+      return convertAmount(n).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+
+    function getFlowTitleLines(title) {
+      const map = {
+        "交易及平台费用小计": ["交易及平台", "费用小计"]
+      };
+      return map[title] || [title];
+    }
+
+    const flowNodeConfig = [
+      {
+        key: "优惠合计",
+        fee: "优惠合计（计算值=折扣+直接扣减折扣）",
+        children: ["折扣", "直接扣减折扣"],
+        lane: "top",
+        style: "orange"
+      },
+      {
+        key: "销售退款",
+        fee: "销售退款",
+        children: ["销售退款"],
+        lane: "top",
+        style: "orange"
+      },
+      {
+        key: "销售税/VAT",
+        fee: "销售税/VAT",
+        children: ["销售税/VAT"],
+        lane: "top",
+        style: "orange"
+      },
+      {
+        key: "货值成本净额",
+        fee: "货值成本净额（计算值=出货授权成本+退货成本+平台赔偿）",
+        children: ["出货授权成本", "退货成本", "平台赔偿"],
+        lane: "mid",
+        style: "purple"
+      },
+      {
+        key: "广告宣传小计",
+        fee: "广告宣传小计（计算值=广告费+品牌营销费+推广费+样品费）",
+        children: ["广告费", "品牌营销费", "推广费", "样品费"],
+        lane: "mid",
+        style: "purple"
+      },
+      {
+        key: "物流成本小计",
+        fee: "物流成本小计（计算值=头程运费+尾程运费/FBA物流+退货运费+仓储费）",
+        children: ["头程运费", "尾程运费/FBA物流", "退货运费", "仓储费"],
+        lane: "mid",
+        style: "purple"
+      },
+      {
+        key: "交易及平台费用小计",
+        fee: "交易及平台费用小计（计算值=FBA佣金+平台服务费+收单费用/Payment Discount+店铺费用+Commission Fee）",
+        children: ["FBA佣金", "平台服务费", "收单费用/Payment Discount", "店铺费用", "Commission Fee"],
+        lane: "mid",
+        style: "purple"
+      },
+      {
+        key: "运杂费",
+        fee: "运杂费",
+        children: ["运杂费"],
+        lane: "mid",
+        style: "purple"
+      },
+      
+    ];
+
+    function getTotalValues() {
+      const rows = buildRowsForView(state.view);
+      return rows[0] ? rows[0].values : {};
+    }
+
+    function flowItemBox(x, y, title, fee, values, style = "purple", active = false, boxWidth = 150) {
+      const val = values[fee];
+      const amount = shortMoney(val, fee);
+      const saleBase = values["销售额（计算值=净销售额+包装收入+运费收入）"] || 0;
+      const ratio = (saleBase && val !== null && val !== undefined) ? `${((Number(val) / saleBase) * 100).toFixed(2)}%` : "--";
+      const titleLines = getFlowTitleLines(title);
+      const stroke = style === "orange" ? "#f59e0b" : "#8b5cf6";
+      const fill = style === "orange" ? "#fff7ed" : "#faf5ff";
+      const activeStroke = style === "orange" ? "#d46b08" : "#6d28d9";
+      const centerX = x + (boxWidth / 2);
+      const titleFontSize = boxWidth <= 130 ? 12 : 13;
+      const amountFontSize = boxWidth <= 130 ? 13 : 14;
+      const titleSvg = titleLines.map((line, idx) => (
+        `<text x="${centerX}" y="${y + 23 + idx * 15}" text-anchor="middle" font-size="${titleFontSize}" font-weight="700" fill="#1f2937">${line}</text>`
+      )).join("");
+      const amountY = titleLines.length > 1 ? y + 54 : y + 47;
+      return `
+        <g class="flow-node" data-node-key="${title}" style="cursor:pointer;">
+          <rect x="${x}" y="${y}" width="${boxWidth}" height="66" rx="10" fill="${fill}" stroke="${active ? activeStroke : stroke}" stroke-width="${active ? 2.4 : 1.5}"></rect>
+          ${titleSvg}
+          <text x="${centerX}" y="${amountY}" text-anchor="middle" font-size="${amountFontSize}" font-weight="700" fill="#334155">${amount} (${ratio})</text>
+        </g>
+      `;
+    }
+
+    function renderFlowDiagram() {
+      const values = getTotalValues();
+      const selected = state.selectedFlowNode || "优惠合计";
+      const sales = shortMoney(values["销售额（计算值=净销售额+包装收入+运费收入）"]);
+      const revenue = shortMoney(values["收入净额（计算值=销售净额-销售税/VAT）"]);
+      const gross = shortMoney(values["毛利"]);
+      const saleBase = values["销售额（计算值=净销售额+包装收入+运费收入）"] || 0;
+      const revenueRatio = saleBase ? `${((values["收入净额（计算值=销售净额-销售税/VAT）"] || 0) / saleBase * 100).toFixed(2)}%` : "--";
+      const grossRatio = saleBase ? `${((values["毛利"] || 0) / saleBase * 100).toFixed(2)}%` : "--";
+
+      const svg = `
+        <rect x="14" y="14" width="1532" height="592" rx="12" fill="#fff" stroke="#eef2f8"></rect>
+
+        <polygon points="220,34 1340,34 1268,118 292,118" fill="#eef8ff" stroke="#38bdf8" stroke-width="3"></polygon>
+        <text x="780" y="77" text-anchor="middle" font-size="34" font-weight="700" fill="#0f172a">销售额</text>
+        <text x="780" y="107" text-anchor="middle" font-size="26" font-weight="700" fill="#334155">${sales} (100.00%)</text>
+
+        ${flowItemBox(300, 138, "优惠合计", "优惠合计（计算值=折扣+直接扣减折扣）", values, "orange", selected === "优惠合计")}
+        ${flowItemBox(700, 138, "销售退款", "销售退款", values, "orange", selected === "销售退款")}
+        ${flowItemBox(1100, 138, "销售税/VAT", "销售税/VAT", values, "orange", selected === "销售税/VAT")}
+
+        <polygon points="320,222 1240,222 1174,306 386,306" fill="#f0f9ff" stroke="#3b82f6" stroke-width="3"></polygon>
+        <text x="780" y="264" text-anchor="middle" font-size="32" font-weight="700" fill="#0f172a">营收</text>
+        <text x="780" y="294" text-anchor="middle" font-size="24" font-weight="700" fill="#334155">${revenue} (${revenueRatio})</text>
+
+        ${flowItemBox(453, 324, "货值成本净额", "货值成本净额（计算值=出货授权成本+退货成本+平台赔偿）", values, "purple", selected === "货值成本净额", 125)}
+        ${flowItemBox(586, 324, "广告宣传小计", "广告宣传小计（计算值=广告费+品牌营销费+推广费+样品费）", values, "purple", selected === "广告宣传小计", 125)}
+        ${flowItemBox(719, 324, "物流成本小计", "物流成本小计（计算值=头程运费+尾程运费/FBA物流+退货运费+仓储费）", values, "purple", selected === "物流成本小计", 125)}
+        ${flowItemBox(852, 324, "交易及平台费用小计", "交易及平台费用小计（计算值=FBA佣金+平台服务费+收单费用/Payment Discount+店铺费用+Commission Fee）", values, "purple", selected === "交易及平台费用小计", 125)}
+        ${flowItemBox(985, 324, "运杂费", "运杂费", values, "purple", selected === "运杂费", 125)}
+
+        <polygon points="450,410 1110,410 1040,506 520,506" fill="#f5f3ff" stroke="#8b5cf6" stroke-width="3"></polygon>
+        <text x="780" y="458" text-anchor="middle" font-size="32" font-weight="700" fill="#0f172a">毛利</text>
+        <text x="780" y="489" text-anchor="middle" font-size="24" font-weight="700" fill="#334155">${gross} (${grossRatio})</text>
+      `;
+
+      flowSvg.innerHTML = svg;
+      flowSvg.onclick = (event) => {
+        const node = event.target.closest(".flow-node");
+        if (!node) return;
+        const key = node.getAttribute("data-node-key");
+        state.selectedFlowNode = key;
+        renderFlowDiagram();
+        renderFlowDetail();
+      };
+    }
+
+    function renderFlowDetail() {
+      const selectedKey = state.selectedFlowNode || "优惠合计";
+      const selected = flowNodeConfig.find((item) => item.key === selectedKey) || flowNodeConfig[0];
+      const values = getTotalValues();
+      const saleBase = values["销售额（计算值=净销售额+包装收入+运费收入）"] || 0;
+      const list = selected.children.map((fee) => {
+        const amount = shortMoney(values[fee], fee);
+        const ratio = (saleBase && values[fee] !== null && values[fee] !== undefined)
+          ? `${((Number(values[fee]) / saleBase) * 100).toFixed(2)}%`
+          : "--";
+        return `<div class="flow-detail-item"><div class="k">${fee}</div><div class="v">${amount}</div><div class="v" style="font-size:12px;color:#64748b;font-weight:600;">占比 ${ratio}</div></div>`;
+      }).join("");
+      flowDetail.innerHTML = `
+        <div class="flow-detail-title">${selected.key} 包含的子费用项</div>
+        <div class="flow-detail-list">${list}</div>
+      `;
+    }
+
+    function getCellState(fee, view, value) {
+      const base = feeStates[fee];
+      if (view === "business") return "";
+      if (view === "delta") {
+        return value === null ? "cell-missing" : "";
+      }
+      if (base === "missing") return "cell-missing";
+      if (base === "partial") return "cell-partial";
+      return "";
+    }
+
+    function renderTable() {
+      const businessRows = buildRowsForView("business");
+      const financeRowsView = buildRowsForView("finance");
+      const deltaRows = buildRowsForView("delta");
+      const visibleFees = getVisibleFees();
+      const groupCount = {
+        result: visibleFees.filter((fee) => ["销量", "营收", "毛利"].includes(fee)).length,
+        revenue: visibleFees.filter((fee) => [
+          "净销售额", "运费收入", "包装收入", "销售额（计算值=净销售额+包装收入+运费收入）",
+          "折扣", "直接扣减折扣", "优惠合计（计算值=折扣+直接扣减折扣）",
+          "销售收款（计算值=销售额-优惠合计）", "销售退款", "销售净额（计算值=销售收款-销售退款）",
+          "销售税/VAT", "收入净额（计算值=销售净额-销售税/VAT）"
+        ].includes(fee)).length,
+        cost: visibleFees.filter((fee) => [
+          "出货授权成本", "退货成本", "平台赔偿", "货值成本净额（计算值=出货授权成本+退货成本+平台赔偿）",
+          "广告费", "品牌营销费", "推广费", "样品费", "广告宣传小计（计算值=广告费+品牌营销费+推广费+样品费）",
+          "头程运费", "尾程运费/FBA物流", "退货运费", "仓储费",
+          "物流成本小计（计算值=头程运费+尾程运费/FBA物流+退货运费+仓储费）",
+          "FBA佣金", "平台服务费", "收单费用/Payment Discount", "店铺费用", "Commission Fee",
+          "交易及平台费用小计（计算值=FBA佣金+平台服务费+收单费用/Payment Discount+店铺费用+Commission Fee）",
+          "运杂费"
+        ].includes(fee)).length
+      };
+
+      tableDesc.textContent = "主行展示业务维度，点击“+”展开查看财务维度与对照差异。";
+
+      let thead = `
+        <thead>
+          <tr class="group">
+            <th class="left sticky-base" style="min-width:180px;" rowspan="2">区域/国家/店铺</th>
+            <th class="left-2 sticky-base" style="min-width:180px;" rowspan="2">场景/品类/品线</th>
+            <th class="left-3 sticky-base" style="min-width:170px;" rowspan="2">销售/TL</th>
+            <th class="left-4 sticky-base" style="min-width:210px;" rowspan="2">SKU信息</th>
+            <th colspan="${groupCount.result}">结果指标<span class="req-dot" data-req-key="table-header-rule">!</span></th>
+            <th colspan="${groupCount.revenue}">收入链路<span class="req-dot" data-req-key="table-header-rule">!</span></th>
+            <th colspan="${groupCount.cost}">成本费用链路<span class="req-dot" data-req-key="table-header-rule">!</span></th>
+          </tr>
+          <tr class="cols">
+            ${visibleFees.map((fee) => {
+              const parsed = parseCalcInfo(fee);
+              const info = parsed.calc ? `
+                <span class="calc-icon" data-calc-trigger="1">i</span>
+                <div class="calc-pop">${parsed.calc}</div>
+              ` : "";
+              return `<th style="position:sticky;"><span class="th-title">${parsed.title}${info}</span></th>`;
+            }).join("")}
+          </tr>
+        </thead>
+      `;
+
+      const renderFeeCells = (row, view) => visibleFees.map((fee) => {
+        const value = row.values[fee];
+        const ratio = row.ratios[fee];
+        const cellCls = getCellState(fee, view, value);
+        let ratioText = "占比 --";
+        if (view === "delta") {
+          ratioText = value === null ? "财务缺失" : `${ratio && Number.isFinite(ratio) ? ratio.toFixed(2) : "0.00"}%`;
+        } else if (ratio !== null && Number.isFinite(ratio)) {
+          ratioText = `占比 ${ratio.toFixed(2)}%`;
+        }
+        return `
+          <td class="${cellCls}">
+            <div class="metric-main">${formatValue(value, fee)}</div>
+            ${(state.showRatio && fee !== "销量" && view !== "delta") ? `<div class="metric-sub">${ratioText}</div>` : ""}
+          </td>
+        `;
+      }).join("");
+
+      const tbody = businessRows.map((row, idx) => {
+        const rowId = `row-${idx}`;
+        const opened = state.expandedRows.has(rowId);
+        const financeRow = financeRowsView[idx];
+        const deltaRow = deltaRows[idx];
+        const isSummary = idx === 0;
+        const teamBlock = `
+          <div class="row-meta">
+            <div>${row.team || "--"}</div>
+            <div class="row-meta-sub">${row.tl || "--"}</div>
+          </div>
+        `;
+        const skuBlock = `
+          <div class="row-meta">
+            <div>${row.sku || "--"}</div>
+            ${row.msku ? `<div class="row-meta-sub">${row.msku}</div>` : ""}
+          </div>
+        `;
+
+        return `
+          <tr class="${isSummary ? "summary-row" : ""}">
+            <td class="left sticky-base">
+              <span class="row-label">
+                <button class="row-toggle ${opened ? "open" : ""}" type="button" data-row-toggle="${rowId}">${opened ? "−" : "+"}</button>${row.region}
+              </span>
+            </td>
+            <td class="left-2 sticky-base">${row.scene}</td>
+            <td class="left-3 sticky-base">${teamBlock}</td>
+            <td class="left-4 sticky-base">${skuBlock}</td>
+            ${renderFeeCells(row, "business")}
+          </tr>
+          ${opened ? `
+          <tr class="expand-row">
+            <td class="left sticky-base"><span class="expand-label">财务维度</span><span class="req-dot" data-req-key="table-finance-estimate">!</span></td>
+            <td class="left-2 sticky-base"></td>
+            <td class="left-3 sticky-base"></td>
+            <td class="left-4 sticky-base"></td>
+            ${renderFeeCells(financeRow, "finance")}
+          </tr>
+          <tr class="expand-row">
+            <td class="left sticky-base"><span class="expand-label">对照差异</span><span class="req-dot" data-req-key="table-delta-rule">!</span></td>
+            <td class="left-2 sticky-base"></td>
+            <td class="left-3 sticky-base"></td>
+            <td class="left-4 sticky-base"></td>
+            ${renderFeeCells(deltaRow, "delta")}
+          </tr>
+          ` : ""}
+        `;
+      }).join("");
+
+      detailTable.innerHTML = thead + `<tbody>${tbody}</tbody>`;
+    }
+
+    function setGrain(grain) {
+      state.grain = grain;
+      Array.from(document.querySelectorAll("#grainTabs .tab")).forEach((node) => {
+        node.classList.toggle("active", node.dataset.grain === grain);
+      });
+      renderChart();
+    }
+
+    function renderAll() {
+      renderCards();
+      renderLegend();
+      renderChart();
+      renderFlowDiagram();
+      renderFlowDetail();
+      renderTable();
+    }
+
+    document.getElementById("searchBtn").addEventListener("click", () => {
+      renderAll();
+    });
+
+    countryFilter?.addEventListener("change", () => {
+      updateCurrencyFilterByCountry();
+      renderAll();
+    });
+
+    currencyFilter?.addEventListener("change", () => {
+      renderAll();
+    });
+
+    exportBtn?.addEventListener("click", (event) => {
+      event.stopPropagation();
+      exportMenu?.classList.toggle("open");
+    });
+
+    exportMenu?.addEventListener("click", (event) => {
+      const option = event.target.closest("[data-export-type]");
+      if (!option) return;
+      exportMenu.classList.remove("open");
+    });
+
+    Array.from(document.querySelectorAll("#grainTabs .tab")).forEach((node) => {
+      node.addEventListener("click", () => setGrain(node.dataset.grain));
+    });
+
+
+    detailTable.addEventListener("click", (event) => {
+      const rowToggle = event.target.closest("[data-row-toggle]");
+      if (rowToggle) {
+        const id = rowToggle.dataset.rowToggle;
+        if (state.expandedRows.has(id)) {
+          state.expandedRows.delete(id);
+        } else {
+          state.expandedRows.add(id);
+        }
+        renderTable();
+        return;
+      }
+
+      const trigger = event.target.closest("[data-calc-trigger]");
+      if (!trigger) return;
+      const pop = trigger.nextElementSibling;
+      if (!pop) return;
+      Array.from(detailTable.querySelectorAll(".calc-pop.show")).forEach((node) => {
+        if (node !== pop) node.classList.remove("show");
+      });
+      pop.classList.toggle("show");
+      event.stopPropagation();
+    });
+
+    document.addEventListener("click", (event) => {
+      if (!event.target.closest(".export-wrap")) {
+        exportMenu?.classList.remove("open");
+      }
+
+      const reqDot = event.target.closest(".req-dot");
+      if (reqDot) {
+        const key = reqDot.dataset.reqKey;
+        const text = reqTextMap[key];
+        if (text) {
+          reqPopover.innerHTML = text;
+          const rect = reqDot.getBoundingClientRect();
+          const left = Math.max(12, Math.min(window.innerWidth - 432, rect.left - 180));
+          const top = Math.min(window.innerHeight - 24, rect.bottom + 8);
+          reqPopover.style.left = `${left}px`;
+          reqPopover.style.top = `${top}px`;
+          reqPopover.classList.add("show");
+        }
+        return;
+      }
+
+      if (!event.target.closest("#detailTable")) {
+        Array.from(detailTable.querySelectorAll(".calc-pop.show")).forEach((node) => node.classList.remove("show"));
+      }
+      reqPopover.classList.remove("show");
+    });
+
+    setDefaultDateRangeToLastMonth();
+    updateCurrencyFilterByCountry();
+    renderAll();
+  </script>
+</body>
+</html>
