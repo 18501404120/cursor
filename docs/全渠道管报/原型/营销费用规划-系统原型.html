@@ -351,6 +351,10 @@
     .plan-sc-cat-pop-host .sc-cat-pop {
       min-width: 360px;
     }
+    .sc-cat-meta-row .lbl {
+      color: var(--text-sec);
+      font-size: 11px;
+    }
     .btn-search {
       height: 28px;
       padding: 0 14px;
@@ -534,7 +538,7 @@
               <button type="button" class="btn-search" id="btnQuery">搜索</button>
             </div>
             <div class="filter-actions">
-              <span class="hint" style="margin:0;flex:1;min-width:200px;">场景品类为<strong>左场景、右品类</strong>级联：筛选区为<strong>多选</strong>（OR）；下表「场景品类规划」每行为<strong>同级联单选</strong>一条并即时写入本地。列表按<strong>年度</strong>与筛选区已选组合过滤；其余下拉为界面预留。主数据见 <code>文件夹/规范/基础数据/场景品类基础数据_v1.json</code>。</span>
+              <span class="hint" style="margin:0;flex:1;min-width:200px;">场景品类为<strong>左场景、右品类</strong>级联：筛选区为<strong>多选</strong>（OR）；规划表支持<strong>场景全量 / 品类 / 新品</strong>三种粒度（右列首行「本场景维度」、左侧「新品」入口）。筛选在「场景全量」行上匹配<strong>该场景下任一已选叶子</strong>；<strong>新品</strong>行筛选开启时仍展示。主数据见 <code>文件夹/规范/基础数据/场景品类基础数据_v1.json</code>。</span>
             </div>
           </div>
         </section>
@@ -549,15 +553,14 @@
               <button type="button" class="btn btn-default" id="btnExport">导出当前列表</button>
               <button type="button" class="btn btn-primary" id="btnSaveAll">保存全部</button>
             </div>
-            <p class="hint">维护 <strong>场景品类 × 年度</strong>（场景下挂品类）；金额单位为 <strong>美元（USD）</strong>。拆分至 <strong>店铺 + MSKU</strong>（按 BP 目标营收加权示例）。CSV 表头：<code>年度,场景,品类,营销费用规划(美元)</code>；兼容旧表头 <code>年度,品线,…</code> 导入；数据保存在本机 <code>localStorage</code>（<code>marketing_expense_plan_v3</code>）。</p>
+            <p class="hint">维护 <strong>年度 × 规划对象</strong>：支持<strong>场景全量</strong>（仅场景）、<strong>场景下品类</strong>、<strong>新品</strong>三种粒度；同一年度下<strong>相同粒度键不可重复</strong>，但「场景全量」与「其下某一品类」可同时存在、互不冲突。金额 <strong>USD</strong>；拆分为 <strong>店铺 + MSKU</strong> 示例（等额拆分，不含 BP）。CSV：<code>年度,规划粒度,场景,品类,营销费用规划(美元)</code>，规划粒度取值 <code>scenario</code> / <code>category</code> / <code>new_product</code>；品类在场景全量时留空；新品时场景填 <code>新品</code>、品类填标识。兼容旧表头 <code>年度,场景,品类,…</code>；数据 <code>localStorage</code>（<code>marketing_expense_plan_v3</code>）。</p>
             <div class="table-wrap">
               <table id="tblPlan">
                 <thead>
                   <tr>
                     <th>年度</th>
-                    <th>场景品类</th>
+                    <th>规划对象</th>
                     <th>营销费用规划（USD）</th>
-                    <th>BP 目标营收合计（USD）</th>
                     <th class="actions">操作</th>
                   </tr>
                 </thead>
@@ -574,17 +577,15 @@
             <button type="button" class="btn btn-default" id="btnRefreshSplit">重算展示</button>
           </div>
           <div class="panel-body">
-            <p class="split-meta" id="splitContext">点击上表某一行可查看该场景品类×年度的拆分结果。</p>
+            <p class="split-meta" id="splitContext">点击上表某一行可查看该规划对象×年度的拆分结果（示例等额拆分）。</p>
             <div class="table-wrap">
               <table id="tblSplit">
                 <thead>
                   <tr>
                     <th>年度</th>
-                    <th>场景品类</th>
+                    <th>规划对象</th>
                     <th>店铺</th>
                     <th>MSKU</th>
-                    <th>BP 目标营收（USD）</th>
-                    <th>权重</th>
                     <th class="num">拆分营销费用（USD）</th>
                   </tr>
                 </thead>
@@ -624,20 +625,64 @@
   var planRowOutsideCloseWired = false;
   var focusPlanId = null;
 
+  /** 新品规划：场景列固定为「新品」，品类列为新品标识 */
+  var NEW_PRODUCT_SCENE = "新品";
+  var PLAN_G_SCENARIO = "scenario";
+  var PLAN_G_CATEGORY = "category";
+  var PLAN_G_NEW = "new_product";
+
+  function inferPlanGranularity(scenario, category) {
+    var sc = String(scenario || "").trim();
+    var cat = String(category != null ? category : "").trim();
+    if (sc === NEW_PRODUCT_SCENE) return PLAN_G_NEW;
+    if (!cat) return PLAN_G_SCENARIO;
+    return PLAN_G_CATEGORY;
+  }
+
+  function getPlanGranularity(p) {
+    if (!p) return PLAN_G_CATEGORY;
+    if (p.planGranularity === PLAN_G_SCENARIO || p.planGranularity === PLAN_G_CATEGORY || p.planGranularity === PLAN_G_NEW) {
+      return p.planGranularity;
+    }
+    return inferPlanGranularity(p.scenario, p.category);
+  }
+
+  function assignStoredGranularity(p) {
+    p.planGranularity = getPlanGranularity(p);
+  }
+
+  function planIdentityKey(p) {
+    var y = String(p.year || "");
+    var g = getPlanGranularity(p);
+    if (g === PLAN_G_SCENARIO) return y + "\tS\t" + String(p.scenario || "").trim();
+    if (g === PLAN_G_CATEGORY) return y + "\tC\t" + String(p.scenario || "").trim() + "\t" + String(p.category || "").trim();
+    if (g === PLAN_G_NEW) return y + "\tN\t" + String(p.category || "").trim();
+    return y + "\tC\t" + String(p.scenario || "").trim() + "\t" + String(p.category || "").trim();
+  }
+
+  function validatePlanUnique(list, draft, excludeId) {
+    var k = planIdentityKey(draft);
+    return !list.some(function (q) {
+      return q.id !== excludeId && planIdentityKey(q) === k;
+    });
+  }
+
   function uid() {
     return "p_" + Date.now() + "_" + Math.random().toString(36).slice(2, 8);
   }
 
   function migratePlanRecord(p) {
-    if (p && p.scenario && p.category) {
+    if (p && p.scenario != null) {
+      var cat = p.category != null ? String(p.category) : "";
       return {
         id: p.id,
         year: p.year,
         scenario: p.scenario,
-        category: p.category,
+        category: cat,
         planAmount: Number(p.planAmount) || 0,
         scene_code: p.scene_code,
-        category_code: p.category_code
+        category_code: p.category_code,
+        planGranularity: inferPlanGranularity(p.scenario, cat)
       };
     }
     var line = String((p && p.productLine) || "").trim();
@@ -646,7 +691,8 @@
       year: p.year,
       scenario: "未映射（历史品线）",
       category: line || "—",
-      planAmount: Number(p.planAmount) || 0
+      planAmount: Number(p.planAmount) || 0,
+      planGranularity: PLAN_G_CATEGORY
     };
   }
 
@@ -656,7 +702,10 @@
       if (r3) {
         var arr3 = JSON.parse(r3);
         if (Array.isArray(arr3)) {
-          arr3.forEach(enrichPlanFromTree);
+          arr3.forEach(function (row) {
+            assignStoredGranularity(row);
+            enrichPlanFromTree(row);
+          });
           return arr3;
         }
       }
@@ -665,7 +714,10 @@
         var arr2 = JSON.parse(r2);
         if (Array.isArray(arr2) && arr2.length) {
           var mig = arr2.map(migratePlanRecord);
-          mig.forEach(enrichPlanFromTree);
+          mig.forEach(function (row) {
+            assignStoredGranularity(row);
+            enrichPlanFromTree(row);
+          });
           saveAll(mig);
           return mig;
         }
@@ -687,14 +739,52 @@
     var sens = SCENARIO_CATEGORY_TREE.find(function (n) {
       return n.scenario === "传感器及控制";
     });
+    var season = SCENARIO_CATEGORY_TREE.find(function (n) {
+      return n.scenario === "季节";
+    });
     if (!home || !home.categories || !home.categories.length) return [];
-    var rows = [
-      { id: uid(), year: 2026, scenario: home.scenario, category: home.categories[0], planAmount: 1200000 }
-    ];
-    if (sens && sens.categories && sens.categories[0]) {
-      rows.push({ id: uid(), year: 2026, scenario: sens.scenario, category: sens.categories[0], planAmount: 800000 });
+    var rows = [];
+    if (sens && sens.scenario) {
+      rows.push({
+        id: uid(),
+        year: 2026,
+        scenario: sens.scenario,
+        category: "",
+        planGranularity: PLAN_G_SCENARIO,
+        planAmount: 1200000
+      });
     }
-    rows.forEach(enrichPlanFromTree);
+    var starCat = home.categories.indexOf("星空灯") >= 0 ? "星空灯" : home.categories[0];
+    rows.push({
+      id: uid(),
+      year: 2026,
+      scenario: home.scenario,
+      category: starCat,
+      planGranularity: PLAN_G_CATEGORY,
+      planAmount: 800000
+    });
+    if (season && season.categories && season.categories[5]) {
+      rows.push({
+        id: uid(),
+        year: 2026,
+        scenario: season.scenario,
+        category: season.categories[5],
+        planGranularity: PLAN_G_CATEGORY,
+        planAmount: 2000
+      });
+    }
+    rows.push({
+      id: uid(),
+      year: 2026,
+      scenario: NEW_PRODUCT_SCENE,
+      category: "示例新品-A",
+      planGranularity: PLAN_G_NEW,
+      planAmount: 50000
+    });
+    rows.forEach(function (r) {
+      assignStoredGranularity(r);
+      enrichPlanFromTree(r);
+    });
     return rows;
   }
 
@@ -835,6 +925,20 @@
 
   function enrichPlanFromTree(p) {
     if (!p) return;
+    assignStoredGranularity(p);
+    var g = getPlanGranularity(p);
+    if (g === PLAN_G_NEW) {
+      delete p.scene_code;
+      delete p.category_code;
+      return;
+    }
+    if (g === PLAN_G_SCENARIO) {
+      delete p.category_code;
+      var nodeS = treeNodeByScenario(p.scenario);
+      if (nodeS) p.scene_code = nodeS.scene_code;
+      else delete p.scene_code;
+      return;
+    }
     if (!p.scenario || !p.category) {
       delete p.scene_code;
       delete p.category_code;
@@ -847,13 +951,6 @@
       p.scene_code = node.scene_code;
       p.category_code = code;
     }
-  }
-
-  function formatPlanRowTriggerLabel(scenario, category) {
-    var sc = String(scenario || "").trim();
-    var c = String(category || "").trim();
-    if (!sc && !c) return "请选择场景品类";
-    return sc + " / " + c;
   }
 
   function resolvedCategoryDisplay(like) {
@@ -882,7 +979,17 @@
   }
 
   function formatPlanLineLabel(like) {
-    var sc = String((like && like.scenario) || "").trim();
+    if (!like) return "—";
+    var g = getPlanGranularity(like);
+    if (g === PLAN_G_NEW) {
+      var nc = String(like.category || "").trim();
+      return nc ? NEW_PRODUCT_SCENE + " / " + nc : NEW_PRODUCT_SCENE + " / （请填写标识）";
+    }
+    if (g === PLAN_G_SCENARIO) {
+      var ss = String(like.scenario || "").trim();
+      return ss ? ss + " · 全场景" : "—";
+    }
+    var sc = String(like.scenario || "").trim();
     var cat = resolvedCategoryDisplay(like);
     if (!sc && !cat) return "—";
     return sc + " / " + cat;
@@ -933,42 +1040,64 @@
     var btn = tr.querySelector(".js-plan-sc-cat-trigger");
     if (scIn) scIn.value = scenario;
     if (catIn) catIn.value = category;
-    if (btn) btn.textContent = formatPlanRowTriggerLabel(scenario, category);
+    if (btn) {
+      btn.textContent = formatPlanLineLabel({
+        scenario: scenario,
+        category: category,
+        planGranularity: inferPlanGranularity(scenario, category)
+      });
+    }
   }
 
   function syncPlanRowScCatToModel(tr, id, scenario, category) {
-    syncPlanRowScCatDom(tr, scenario, category);
     var list = loadAll();
     var p = list.find(function (x) {
       return x.id === id;
     });
-    if (p) {
-      p.scenario = scenario;
-      p.category = category;
-      enrichPlanFromTree(p);
-      saveAll(list);
+    if (!p) return;
+    var year = parseInt(tr.querySelector(".js-year").value, 10) || p.year;
+    var draft = {
+      id: id,
+      year: year,
+      scenario: scenario,
+      category: category,
+      planAmount: p.planAmount,
+      planGranularity: inferPlanGranularity(scenario, category)
+    };
+    if (!validatePlanUnique(list, draft, id)) {
+      toast("同一年度下已存在相同规划对象，与已有行重复");
+      syncPlanRowScCatDom(tr, p.scenario, p.category != null ? String(p.category) : "");
+      renderPlanRowScCatSceneColumn();
+      renderPlanRowScCatCatColumn();
+      return;
     }
+    syncPlanRowScCatDom(tr, scenario, category != null ? String(category) : "");
+    p.year = year;
+    p.scenario = scenario;
+    p.category = category != null ? String(category) : "";
+    assignStoredGranularity(p);
+    enrichPlanFromTree(p);
+    saveAll(list);
     if (focusPlanId === id) renderSplitForPlan(id);
+    renderPlanRowScCatSceneColumn();
+    renderPlanRowScCatCatColumn();
   }
 
   function planRowSceneCheckboxState(node, tr) {
     var o = readPlanRowEditsFromTr(tr);
     if (o.scenario !== node.scenario) return { checked: false, indeterminate: false };
-    if (!o.category) return { checked: false, indeterminate: false };
-    if (node.categories.indexOf(o.category) >= 0) return { checked: true, indeterminate: false };
-    return { checked: true, indeterminate: false };
+    return { checked: inferPlanGranularity(o.scenario, o.category) === PLAN_G_SCENARIO, indeterminate: false };
   }
 
   function applyPlanRowSceneCheckbox(node, tr, id, checked) {
     if (checked) {
-      var first = node.categories[0] || "";
-      syncPlanRowScCatToModel(tr, id, node.scenario, first);
+      syncPlanRowScCatToModel(tr, id, node.scenario, "");
     } else {
       var o = readPlanRowEditsFromTr(tr);
-      if (o.scenario === node.scenario) syncPlanRowScCatToModel(tr, id, "", "");
+      if (o.scenario === node.scenario && inferPlanGranularity(o.scenario, o.category) === PLAN_G_SCENARIO) {
+        syncPlanRowScCatToModel(tr, id, "", "");
+      }
     }
-    renderPlanRowScCatSceneColumn();
-    renderPlanRowScCatCatColumn();
   }
 
   function togglePlanRowLeaf(tr, id, sceneName, catName, checked) {
@@ -978,8 +1107,6 @@
       var o = readPlanRowEditsFromTr(tr);
       if (o.scenario === sceneName && o.category === catName) syncPlanRowScCatToModel(tr, id, "", "");
     }
-    renderPlanRowScCatSceneColumn();
-    renderPlanRowScCatCatColumn();
   }
 
   function renderPlanRowScCatSceneColumn() {
@@ -1020,6 +1147,23 @@
       });
       el.appendChild(div);
     });
+    var divNp = document.createElement("div");
+    divNp.className = "sc-cat-item" + (planRowPanelScenario === NEW_PRODUCT_SCENE ? " active" : "");
+    var lblNp = document.createElement("span");
+    lblNp.className = "lbl";
+    lblNp.textContent = NEW_PRODUCT_SCENE;
+    lblNp.style.fontWeight = "600";
+    var arrNp = document.createElement("span");
+    arrNp.className = "arrow";
+    arrNp.textContent = "›";
+    divNp.appendChild(lblNp);
+    divNp.appendChild(arrNp);
+    divNp.addEventListener("click", function (e) {
+      planRowPanelScenario = NEW_PRODUCT_SCENE;
+      renderPlanRowScCatSceneColumn();
+      renderPlanRowScCatCatColumn();
+    });
+    el.appendChild(divNp);
   }
 
   function renderPlanRowScCatCatColumn() {
@@ -1029,9 +1173,73 @@
     if (!tr) return;
     var id = planRowEditId;
     el.innerHTML = "";
+    var o = readPlanRowEditsFromTr(tr);
+    if (planRowPanelScenario === NEW_PRODUCT_SCENE) {
+      var wrap = document.createElement("div");
+      wrap.style.padding = "10px";
+      var inp = document.createElement("input");
+      inp.type = "text";
+      inp.className = "inp-inline";
+      inp.style.width = "100%";
+      inp.style.maxWidth = "none";
+      inp.placeholder = "请输入新品名称或编码";
+      inp.value = o.scenario === NEW_PRODUCT_SCENE ? o.category : "";
+      inp.addEventListener("keydown", function (ev) {
+        if (ev.key === "Enter") {
+          ev.preventDefault();
+          var v = inp.value.trim();
+          if (!v) {
+            toast("请填写新品标识");
+            return;
+          }
+          syncPlanRowScCatToModel(tr, id, NEW_PRODUCT_SCENE, v);
+        }
+      });
+      var btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "btn btn-default";
+      btn.style.marginTop = "8px";
+      btn.textContent = "应用到本行";
+      btn.addEventListener("click", function () {
+        var v = inp.value.trim();
+        if (!v) {
+          toast("请填写新品标识");
+          return;
+        }
+        syncPlanRowScCatToModel(tr, id, NEW_PRODUCT_SCENE, v);
+      });
+      wrap.appendChild(inp);
+      wrap.appendChild(btn);
+      el.appendChild(wrap);
+      return;
+    }
     var node = treeNodeByScenario(planRowPanelScenario);
     if (!node) return;
-    var o = readPlanRowEditsFromTr(tr);
+    var rowScene = document.createElement("div");
+    rowScene.className = "sc-cat-item sc-cat-meta-row";
+    var cbS = document.createElement("input");
+    cbS.type = "checkbox";
+    cbS.checked = o.scenario === node.scenario && inferPlanGranularity(o.scenario, o.category) === PLAN_G_SCENARIO;
+    cbS.addEventListener("click", function (e) {
+      e.stopPropagation();
+    });
+    cbS.addEventListener("change", function () {
+      if (cbS.checked) syncPlanRowScCatToModel(tr, id, node.scenario, "");
+      else if (o.scenario === node.scenario && inferPlanGranularity(o.scenario, o.category) === PLAN_G_SCENARIO) {
+        syncPlanRowScCatToModel(tr, id, "", "");
+      }
+    });
+    var lblS = document.createElement("span");
+    lblS.className = "lbl";
+    lblS.textContent = "本场景维度（全场景）";
+    lblS.addEventListener("click", function (e) {
+      e.stopPropagation();
+      cbS.checked = !cbS.checked;
+      cbS.dispatchEvent(new Event("change"));
+    });
+    rowScene.appendChild(cbS);
+    rowScene.appendChild(lblS);
+    el.appendChild(rowScene);
     node.categories.forEach(function (cat) {
       var div = document.createElement("div");
       div.className = "sc-cat-item";
@@ -1062,16 +1270,20 @@
     closeScCatPop();
     planRowEditId = id;
     var o = readPlanRowEditsFromTr(tr);
-    var scenario = o.scenario;
-    var node = treeNodeByScenario(scenario);
-    if (node && node.scenario) planRowPanelScenario = scenario;
-    else {
-      var firstNon = SCENARIO_CATEGORY_TREE.find(function (n) {
-        return n.scenario !== "未分类";
-      });
-      planRowPanelScenario = firstNon
-        ? firstNon.scenario
-        : (SCENARIO_CATEGORY_TREE[0] && SCENARIO_CATEGORY_TREE[0].scenario) || "";
+    if (inferPlanGranularity(o.scenario, o.category) === PLAN_G_NEW) {
+      planRowPanelScenario = NEW_PRODUCT_SCENE;
+    } else {
+      var scenario = o.scenario;
+      var node = treeNodeByScenario(scenario);
+      if (node && node.scenario) planRowPanelScenario = scenario;
+      else {
+        var firstNon = SCENARIO_CATEGORY_TREE.find(function (n) {
+          return n.scenario !== "未分类";
+        });
+        planRowPanelScenario = firstNon
+          ? firstNon.scenario
+          : (SCENARIO_CATEGORY_TREE[0] && SCENARIO_CATEGORY_TREE[0].scenario) || "";
+      }
     }
     var host = document.getElementById("planScCatPopHost");
     var btn = tr.querySelector(".js-plan-sc-cat-trigger");
@@ -1107,14 +1319,17 @@
   }
 
   function scenarioCategoryCellHtml(p) {
-    var sc = (p && p.scenario) || "";
-    if (!sc && SCENARIO_CATEGORY_TREE.length) sc = SCENARIO_CATEGORY_TREE[0].scenario;
-    var cat = (p && p.category) || "";
-    if (!cat) {
-      var n0 = treeNodeByScenario(sc);
-      cat = (n0 && n0.categories[0]) || "";
+    var sc = p && p.scenario != null ? String(p.scenario) : "";
+    var cat = p && p.category != null ? String(p.category) : "";
+    if (!sc && !cat && SCENARIO_CATEGORY_TREE.length) {
+      var base =
+        SCENARIO_CATEGORY_TREE.find(function (n) {
+          return n.scenario !== "未分类";
+        }) || SCENARIO_CATEGORY_TREE[0];
+      sc = base.scenario;
+      cat = base.categories[0] || "";
     }
-    var label = formatPlanRowTriggerLabel(sc, cat);
+    var label = formatPlanLineLabel(p);
     return (
       '<div class="plan-sc-cat-wrap sc-cat-wrap" data-plan-id="' +
       escapeHtml(p.id) +
@@ -1267,40 +1482,41 @@
     return list;
   }
 
-  /** 原型示例：为某场景品类生成若干 店铺+MSKU 及 BP 目标营收（用于加权拆分） */
-  function mockSkuRows(year, scenario, category) {
-    var key = String(scenario || "") + "\t" + String(category || "");
+  /** 原型示例：生成若干 店铺+MSKU（等额拆分，不含 BP） */
+  function mockSkuRows(plan) {
+    var key = planIdentityKey(plan) + String(plan.planAmount || 0);
     var base = key.replace(/\s/g, "").split("").reduce(function (s, c) { return s + c.charCodeAt(0); }, 0) % 5000;
     var shops = ["AMZ-US-01", "AMZ-EU-02", "独立站-01"];
     var rows = [];
     for (var i = 0; i < 5; i++) {
       rows.push({
-        year: year,
-        scenario: scenario,
-        category: category,
+        year: plan.year,
+        scenario: plan.scenario,
+        category: plan.category != null ? plan.category : "",
+        planGranularity: getPlanGranularity(plan),
         shop: shops[i % shops.length],
-        msku: "MSKU-" + String(i + base % 1000),
-        bpRevenue: 80000 + (i * 17000) + (base % 9000)
+        msku: "MSKU-" + String(i + base % 1000)
       });
     }
     return rows;
   }
 
   function splitPlan(plan) {
-    var skus = mockSkuRows(plan.year, plan.scenario, plan.category);
-    var totalBp = skus.reduce(function (s, r) { return s + r.bpRevenue; }, 0);
+    var skus = mockSkuRows(plan);
+    var n = skus.length;
+    if (!n) return [];
+    var total = Number(plan.planAmount) || 0;
+    var each = n > 0 ? Math.floor(total / n) : 0;
     return skus.map(function (r) {
-      var w = totalBp > 0 ? r.bpRevenue / totalBp : 0;
-      var amt = Math.round(plan.planAmount * w);
       return {
         year: r.year,
         scenario: r.scenario,
         category: r.category,
+        planGranularity: r.planGranularity,
         shop: r.shop,
         msku: r.msku,
-        bpRevenue: r.bpRevenue,
-        weight: w,
-        splitAmount: amt
+        weight: 1 / n,
+        splitAmount: each
       };
     });
   }
@@ -1334,8 +1550,17 @@
     return list.filter(function (p) {
       if (y && String(p.year) !== String(y)) return false;
       if (!filterLeafKeys.length) return true;
-      var k = String(p.scenario || "") + "\t" + String(p.category || "");
-      return filterLeafKeys.indexOf(k) >= 0;
+      var g = getPlanGranularity(p);
+      if (g === PLAN_G_NEW) return true;
+      if (g === PLAN_G_SCENARIO) {
+        var sn = String(p.scenario || "");
+        return filterLeafKeys.some(function (fk) {
+          var parts = fk.split("\t");
+          return parts[0] === sn;
+        });
+      }
+      var pk = String(p.scenario || "") + "\t" + String(p.category || "");
+      return filterLeafKeys.indexOf(pk) >= 0;
     });
   }
 
@@ -1347,7 +1572,7 @@
     }
     tbody.innerHTML = "";
     if (list.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="5" class="empty">无数据，可点击「新增一行」或「导入 CSV」</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="4" class="empty">无数据，可点击「新增一行」或「导入 CSV」</td></tr>';
       document.getElementById("planCount").textContent = "共 0 条";
       focusPlanId = null;
       clearSplitTable();
@@ -1360,13 +1585,6 @@
         '<td><select class="inp-inline js-year">' + yearOptionsHtml(p.year) + "</select></td>" +
         "<td>" + scenarioCategoryCellHtml(p) + "</td>" +
         '<td><input type="number" class="inp-inline js-amt num" min="0" step="1" value="' + escapeHtml(String(p.planAmount)) + '" /></td>' +
-        '<td class="num">' +
-        formatUsd(
-          mockSkuRows(p.year, p.scenario, p.category).reduce(function (s, r) {
-            return s + r.bpRevenue;
-          }, 0)
-        ) +
-        "</td>" +
         '<td class="actions">' +
         '<button type="button" class="link js-save">保存</button>' +
         '<button type="button" class="link danger js-del">删除</button>' +
@@ -1454,9 +1672,23 @@
     if (!p) return;
     p.year = parseInt(tr.querySelector(".js-year").value, 10);
     p.scenario = tr.querySelector(".js-scenario").value;
-    p.category = tr.querySelector(".js-category").value;
+    p.category = tr.querySelector(".js-category").value != null ? tr.querySelector(".js-category").value : "";
+    assignStoredGranularity(p);
+    var draft = {
+      id: id,
+      year: p.year,
+      scenario: p.scenario,
+      category: p.category,
+      planAmount: parseFloat(tr.querySelector(".js-amt").value) || 0,
+      planGranularity: getPlanGranularity(p)
+    };
+    if (!validatePlanUnique(list, draft, id)) {
+      toast("与已有规划重复（同年度、同粒度键）");
+      renderPlans();
+      return;
+    }
+    p.planAmount = draft.planAmount;
     enrichPlanFromTree(p);
-    p.planAmount = parseFloat(tr.querySelector(".js-amt").value) || 0;
     saveAll(list);
     closePlanRowScCatPop();
     renderPlans();
@@ -1494,8 +1726,6 @@
         "<td>" + escapeHtml(splitLabel) + "</td>" +
         "<td>" + escapeHtml(r.shop) + "</td>" +
         "<td>" + escapeHtml(r.msku) + "</td>" +
-        '<td class="num">' + formatUsd(r.bpRevenue) + "</td>" +
-        '<td class="num">' + (r.weight * 100).toFixed(2) + "%</td>" +
         '<td class="num">' + formatUsd(r.splitAmount) + "</td>";
       tbody.appendChild(tr);
     });
@@ -1557,9 +1787,22 @@
       if (!p) return;
       p.year = parseInt(tr.querySelector(".js-year").value, 10);
       p.scenario = tr.querySelector(".js-scenario").value;
-      p.category = tr.querySelector(".js-category").value;
-      enrichPlanFromTree(p);
+      p.category = tr.querySelector(".js-category").value != null ? tr.querySelector(".js-category").value : "";
       p.planAmount = parseFloat(tr.querySelector(".js-amt").value) || 0;
+      assignStoredGranularity(p);
+    });
+    var seen = {};
+    for (var i = 0; i < list.length; i++) {
+      var k = planIdentityKey(list[i]);
+      if (seen[k]) {
+        toast("存在重复的年度+规划对象组合，请修正后再保存全部");
+        renderPlans();
+        return;
+      }
+      seen[k] = true;
+    }
+    list.forEach(function (p) {
+      enrichPlanFromTree(p);
     });
     saveAll(list);
     renderPlans();
@@ -1573,13 +1816,14 @@
 
   document.getElementById("btnExport").addEventListener("click", function () {
     var list = filteredList();
-    var header = "\uFEFF年度,场景,品类,营销费用规划(美元)\n";
+    var header = "\uFEFF年度,规划粒度,场景,品类,营销费用规划(美元)\n";
     var rows = list
       .map(function (p) {
         return [
           p.year,
+          getPlanGranularity(p),
           '"' + String(p.scenario).replace(/"/g, '""') + '"',
-          '"' + String(p.category).replace(/"/g, '""') + '"',
+          '"' + String(p.category != null ? p.category : "").replace(/"/g, '""') + '"',
           p.planAmount
         ].join(",");
       })
@@ -1611,6 +1855,7 @@
         var iy = header.indexOf("年度");
         var isc = header.indexOf("场景");
         var icat = header.indexOf("品类");
+        var ig = header.indexOf("规划粒度");
         var il = header.indexOf("品线");
         var ia = header.indexOf("营销费用规划(美元)");
         if (ia < 0) ia = header.indexOf("营销费用规划(元)");
@@ -1631,15 +1876,28 @@
           var amt = parseFloat(String(cols[ia] != null ? cols[ia] : "").replace(/,/g, "")) || 0;
           if (!year) continue;
           if (modeNew) {
-            if (cols.length <= Math.max(iy, isc, icat, ia)) continue;
+            var maxIx = Math.max(iy, isc, icat, ia);
+            if (ig >= 0) maxIx = Math.max(maxIx, ig);
+            if (cols.length <= maxIx) continue;
             var sc = String(cols[isc] || "")
               .replace(/^"|"$/g, "")
               .trim();
-            var cat = String(cols[icat] || "")
+            var cat = String(cols[icat] != null ? cols[icat] : "")
               .replace(/^"|"$/g, "")
               .trim();
-            if (!sc || !cat) continue;
-            list.push({ id: uid(), year: year, scenario: sc, category: cat, planAmount: amt });
+            var row = { id: uid(), year: year, scenario: sc, category: cat, planAmount: amt };
+            if (ig >= 0 && cols[ig] != null && String(cols[ig]).trim()) {
+              row.planGranularity = String(cols[ig]).trim();
+            }
+            assignStoredGranularity(row);
+            if (getPlanGranularity(row) === PLAN_G_NEW) {
+              row.scenario = NEW_PRODUCT_SCENE;
+            }
+            if (!row.scenario && getPlanGranularity(row) !== PLAN_G_NEW) continue;
+            if (getPlanGranularity(row) === PLAN_G_NEW && !String(row.category || "").trim()) continue;
+            if (!validatePlanUnique(list, row, row.id)) continue;
+            enrichPlanFromTree(row);
+            list.push(row);
           } else {
             if (cols.length <= Math.max(iy, il, ia)) continue;
             var line = String(cols[il] || "")
