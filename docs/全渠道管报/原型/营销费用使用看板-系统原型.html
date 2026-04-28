@@ -747,16 +747,16 @@
         </section>
 
         <section class="panel">
-          <div class="panel-head">品线汇总</div>
+          <div class="panel-head">规划维度汇总</div>
           <div class="panel-body">
             <p class="hint" style="margin-top:0;margin-bottom:10px;font-size:12px;">
-              规划费用来自「营销费用规划」原型本地数据（<code>marketing_expense_plan_usd_v2</code>）；按时间进度预估费用＝规划×自然年时间进度；实际花费为当前筛选年度下活动按品线拆分汇总（与 KPI 同口径，不含月份钻取）。
+              规划费用优先读「营销费用规划」<code>marketing_expense_plan_v3</code>（场景+品类）；若无则回退 <code>marketing_expense_plan_usd_v2</code>（品线）。按时间进度预估＝规划×自然年进度；实际花费仍为活动按<strong>4 位品线</strong>拆分（与 KPI 同口径）。
             </p>
             <div class="table-wrap">
               <table>
                 <thead>
                   <tr>
-                    <th>品线</th>
+                    <th>品线 / 场景品类</th>
                     <th class="num">规划费用（USD）</th>
                     <th class="num">按时间进度预估费用（USD）</th>
                     <th class="num">实际花费（USD）</th>
@@ -856,8 +856,9 @@
 (function () {
   var STORAGE_KEY = "marketing_expense_usage_board_v2";
   var LEGACY_KEY = "marketing_expense_usage_board_v1";
-  /** 与「营销费用规划」原型一致，用于品线规划费用 */
-  var PLAN_STORAGE_KEY = "marketing_expense_plan_usd_v2";
+  /** 与「营销费用规划」原型一致：v3 场景+品类，v2 历史品线 */
+  var PLAN_STORAGE_KEY_V3 = "marketing_expense_plan_v3";
+  var PLAN_STORAGE_KEY_V2 = "marketing_expense_plan_usd_v2";
   var PRODUCT_LINES = [
     { code: "5115" }, { code: "8118" }, { code: "8610" }, { code: "8H11" }, { code: "7H11" }
   ];
@@ -921,18 +922,31 @@
     return "$" + Number(n || 0).toLocaleString("en-US", { maximumFractionDigits: 0 });
   }
 
-  /** 读取规划原型中当前年度的品线 → 规划金额（多行同品线则累加） */
+  /** 读取规划：v3 按「场景\\t品类」为键；否则 v2 按 4 位品线 */
   function loadPlanMapForYear(y) {
+    var m = {};
     try {
-      var raw = localStorage.getItem(PLAN_STORAGE_KEY);
-      if (!raw) return {};
-      var arr = JSON.parse(raw);
-      if (!Array.isArray(arr)) return {};
-      var m = {};
-      arr.forEach(function (p) {
+      var raw3 = localStorage.getItem(PLAN_STORAGE_KEY_V3);
+      if (raw3) {
+        var arr3 = JSON.parse(raw3);
+        if (Array.isArray(arr3) && arr3.length) {
+          arr3.forEach(function (p) {
+            if (String(p.year) !== String(y) || !p.scenario) return;
+            var k = String(p.scenario) + "\t" + String(p.category || "");
+            m[k] = (m[k] || 0) + (Number(p.planAmount) || 0);
+          });
+          return m;
+        }
+      }
+      m = {};
+      var raw2 = localStorage.getItem(PLAN_STORAGE_KEY_V2);
+      if (!raw2) return {};
+      var arr2 = JSON.parse(raw2);
+      if (!Array.isArray(arr2)) return {};
+      arr2.forEach(function (p) {
         if (String(p.year) !== String(y) || !p.productLine) return;
-        var k = String(p.productLine);
-        m[k] = (m[k] || 0) + (Number(p.planAmount) || 0);
+        var k2 = String(p.productLine);
+        m[k2] = (m[k2] || 0) + (Number(p.planAmount) || 0);
       });
       return m;
     } catch (e) {
@@ -1805,9 +1819,10 @@
       var plan = planMap[code] || 0;
       var exp = Math.round(plan * tp);
       var act = actualByLine[code] || 0;
+      var label = code.indexOf("\t") >= 0 ? code.split("\t").join(" / ") : code;
       var tr = document.createElement("tr");
       tr.innerHTML =
-        "<td>" + escapeHtml(code) + "</td>" +
+        "<td>" + escapeHtml(label) + "</td>" +
         '<td class="num">' + formatUsd(plan) + "</td>" +
         '<td class="num">' + formatUsd(exp) + "</td>" +
         '<td class="num">' + formatUsd(act) + "</td>";

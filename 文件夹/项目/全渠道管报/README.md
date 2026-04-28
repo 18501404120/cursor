@@ -22,6 +22,6 @@ python3 -m http.server 8000
 
 ## 规划与原型的数据关系（说明）
 
-- 「营销费用规划」原型规划数据：`localStorage` key 为 `marketing_expense_plan_usd_v2`
+- 「营销费用规划」原型规划数据：`localStorage` key 为 `marketing_expense_plan_v3`（场景+品类）；历史数据可读入 `marketing_expense_plan_usd_v2` 并迁移
 - 「营销费用使用看板」原型活动数据：`localStorage` key 为 `marketing_expense_usage_board_v2`
 

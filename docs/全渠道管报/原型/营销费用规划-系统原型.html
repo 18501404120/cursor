@@ -238,6 +238,94 @@
       margin-top: 10px;
       padding-top: 10px;
     }
+
+    /* 场景品类级联筛选（参考：左场景、右品类；无全局规范时采用本页样式） */
+    .sc-cat-wrap {
+      position: relative;
+      min-width: 200px;
+      max-width: 260px;
+    }
+    .sc-cat-trigger {
+      width: 100%;
+      height: 28px;
+      padding: 0 26px 0 8px;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      background: #fff;
+      font-size: 12px;
+      color: var(--text);
+      text-align: left;
+      cursor: pointer;
+      position: relative;
+    }
+    .sc-cat-trigger::after {
+      content: "";
+      position: absolute;
+      right: 8px;
+      top: 50%;
+      margin-top: -3px;
+      border: 4px solid transparent;
+      border-top-color: #8c8c8c;
+    }
+    .sc-cat-wrap.open .sc-cat-trigger {
+      border-color: var(--brand);
+      box-shadow: 0 0 0 2px rgba(22, 119, 255, 0.12);
+    }
+    .sc-cat-pop {
+      position: absolute;
+      left: 0;
+      top: calc(100% + 4px);
+      z-index: 80;
+      display: flex;
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+      overflow: hidden;
+      min-width: 360px;
+    }
+    .sc-cat-col {
+      width: 180px;
+      max-height: 280px;
+      overflow-y: auto;
+      border-right: 1px solid var(--line);
+    }
+    .sc-cat-col:last-child { border-right: none; width: 200px; }
+    .sc-cat-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 10px;
+      font-size: 12px;
+      cursor: pointer;
+      color: var(--text);
+    }
+    .sc-cat-item:hover { background: #f5f5f5; }
+    .sc-cat-item.active {
+      background: #e6f4ff;
+      color: var(--brand);
+      font-weight: 600;
+    }
+    .sc-cat-item .arrow {
+      margin-left: auto;
+      color: var(--text-sec);
+      font-size: 10px;
+    }
+    .sc-cat-clear {
+      margin-left: 6px;
+      font-size: 12px;
+      color: var(--brand);
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .sc-cat-clear:hover { text-decoration: underline; }
+    .plan-sc-cell {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      align-items: stretch;
+    }
+    .plan-sc-cell select { max-width: 100%; min-width: 120px; }
     .btn-search {
       height: 28px;
       padding: 0 14px;
@@ -389,7 +477,17 @@
         <section class="panel">
           <div class="filter-panel">
             <div class="filter-grid">
-              <div class="f"><label for="fltScenario">场景品类</label><select id="fltScenario"><option value="">全部</option></select></div>
+              <div class="f">
+                <label for="fltScCatTrigger">场景品类</label>
+                <div class="sc-cat-wrap" id="fltScCatWrap">
+                  <button type="button" class="sc-cat-trigger" id="fltScCatTrigger" aria-expanded="false" aria-haspopup="true">全部</button>
+                  <div class="sc-cat-pop" id="fltScCatPop" hidden role="dialog" aria-label="场景品类">
+                    <div class="sc-cat-col" id="fltScCatScenes"></div>
+                    <div class="sc-cat-col" id="fltScCatCats"></div>
+                  </div>
+                </div>
+                <span class="sc-cat-clear" id="fltScCatClear" role="button" tabindex="0">清空</span>
+              </div>
               <div class="f"><label for="fltRegion">区域</label><select id="fltRegion"><option value="">全部</option></select></div>
               <div class="f"><label for="fltCountry">国家</label><select id="fltCountry"><option value="">全部</option></select></div>
               <div class="f"><label for="fltChannel">渠道</label><select id="fltChannel"><option value="">全部</option></select></div>
@@ -407,18 +505,17 @@
               </div>
               <div class="f"><label for="fltTl">TL</label><select id="fltTl"><option value="">全部</option></select></div>
               <div class="f"><label for="fltSales">Sales</label><select id="fltSales"><option value="">全部</option></select></div>
-              <div class="f flt-line"><label for="fltProductLine">品线</label><select id="fltProductLine"><option value="">全部</option></select></div>
               <div class="f"><label for="fltYear">年度</label><select id="fltYear"></select></div>
               <button type="button" class="btn-search" id="btnQuery">搜索</button>
             </div>
             <div class="filter-actions">
-              <span class="hint" style="margin:0;flex:1;min-width:200px;">品线为 <strong>4 位编码</strong>下拉；其余条件为界面预留。列表筛选当前仅<strong>年度 + 品线</strong>生效。</span>
+              <span class="hint" style="margin:0;flex:1;min-width:200px;">场景品类为<strong>左场景、右品类</strong>级联（与图示一致）；列表筛选当前仅<strong>年度 + 场景品类</strong>生效；其余下拉为界面预留。</span>
             </div>
           </div>
         </section>
 
         <section class="panel">
-          <div class="panel-head">品线规划</div>
+          <div class="panel-head">场景品类规划</div>
           <div class="panel-body">
             <div class="table-toolbar">
               <button type="button" class="btn btn-default" id="btnAdd">新增一行</button>
@@ -427,13 +524,13 @@
               <button type="button" class="btn btn-default" id="btnExport">导出当前列表</button>
               <button type="button" class="btn btn-primary" id="btnSaveAll">保存全部</button>
             </div>
-            <p class="hint">维护 <strong>品线（4位编码）× 年度</strong>；金额单位为 <strong>美元（USD）</strong>。拆分至 <strong>店铺 + MSKU</strong>（按 BP 目标营收加权）。CSV 表头：<code>年度,品线,营销费用规划(美元)</code>（品线为 4 位）；逗号或制表符；数据保存在本机浏览器 localStorage。</p>
+            <p class="hint">维护 <strong>场景品类 × 年度</strong>（场景下挂品类）；金额单位为 <strong>美元（USD）</strong>。拆分至 <strong>店铺 + MSKU</strong>（按 BP 目标营收加权示例）。CSV 表头：<code>年度,场景,品类,营销费用规划(美元)</code>；兼容旧表头 <code>年度,品线,…</code> 导入；数据保存在本机 <code>localStorage</code>（<code>marketing_expense_plan_v3</code>）。</p>
             <div class="table-wrap">
               <table id="tblPlan">
                 <thead>
                   <tr>
                     <th>年度</th>
-                    <th>品线（4位）</th>
+                    <th>场景品类</th>
                     <th>营销费用规划（USD）</th>
                     <th>BP 目标营收合计（USD）</th>
                     <th class="actions">操作</th>
@@ -452,13 +549,13 @@
             <button type="button" class="btn btn-default" id="btnRefreshSplit">重算展示</button>
           </div>
           <div class="panel-body">
-            <p class="split-meta" id="splitContext">点击上表某一行可查看该品线×年度的拆分结果。</p>
+            <p class="split-meta" id="splitContext">点击上表某一行可查看该场景品类×年度的拆分结果。</p>
             <div class="table-wrap">
               <table id="tblSplit">
                 <thead>
                   <tr>
                     <th>年度</th>
-                    <th>品线（4位）</th>
+                    <th>场景品类</th>
                     <th>店铺</th>
                     <th>MSKU</th>
                     <th>BP 目标营收（USD）</th>
@@ -479,41 +576,87 @@
 
   <script>
 (function () {
-  var STORAGE_KEY = "marketing_expense_plan_usd_v2";
-  /** 品线主数据：4 位编码（与业务表一致） */
-  var PRODUCT_LINES = [
-    { code: "5115" },
-    { code: "8118" },
-    { code: "8610" },
-    { code: "8H11" },
-    { code: "7H11" }
+  /** v3：场景+品类；v2：历史品线，读入时迁移 */
+  var STORAGE_KEY_V3 = "marketing_expense_plan_v3";
+  var STORAGE_KEY_V2 = "marketing_expense_plan_usd_v2";
+
+  /**
+   * 场景品类树：左列为场景，右列为该场景下品类（仓库《规范》暂无定义，按业务示意维护，可再对齐主数据）
+   */
+  var SCENARIO_CATEGORY_TREE = [
+    {
+      scenario: "传感器及控制",
+      categories: ["空气质量检测仪", "智能按键", "门窗传感器", "红外人体传感器", "人体存在传感器", "压力传感器"]
+    },
+    { scenario: "环境电器", categories: ["加湿器", "空气净化器", "新风系统"] },
+    { scenario: "厨房电器", categories: ["咖啡机", "电饭煲", "电磁炉"] },
+    { scenario: "居家", categories: ["清洁机器人", "扫地机配件"] },
+    { scenario: "户外", categories: ["便携电源", "露营灯"] },
+    { scenario: "观影", categories: ["投影仪", "幕布"] }
   ];
-  var currentFilter = { year: "", productLine: "" };
+
+  var currentFilter = { year: "" };
+  /** 筛选：空字符串表示不按场景品类过滤 */
+  var appliedScCat = { scenario: "", category: "" };
+  var panelActiveScenario = SCENARIO_CATEGORY_TREE[0].scenario;
   var focusPlanId = null;
 
   function uid() {
     return "p_" + Date.now() + "_" + Math.random().toString(36).slice(2, 8);
   }
 
+  function migratePlanRecord(p) {
+    if (p && p.scenario && p.category) {
+      return {
+        id: p.id,
+        year: p.year,
+        scenario: p.scenario,
+        category: p.category,
+        planAmount: Number(p.planAmount) || 0
+      };
+    }
+    var line = String((p && p.productLine) || "").trim();
+    return {
+      id: p.id,
+      year: p.year,
+      scenario: "未映射（历史品线）",
+      category: line || "—",
+      planAmount: Number(p.planAmount) || 0
+    };
+  }
+
   function loadAll() {
     try {
-      var raw = localStorage.getItem(STORAGE_KEY);
-      if (!raw) return [];
-      var arr = JSON.parse(raw);
-      return Array.isArray(arr) ? arr : [];
+      var r3 = localStorage.getItem(STORAGE_KEY_V3);
+      if (r3) {
+        var arr3 = JSON.parse(r3);
+        if (Array.isArray(arr3)) return arr3;
+      }
+      var r2 = localStorage.getItem(STORAGE_KEY_V2);
+      if (r2) {
+        var arr2 = JSON.parse(r2);
+        if (Array.isArray(arr2) && arr2.length) {
+          var mig = arr2.map(migratePlanRecord);
+          saveAll(mig);
+          return mig;
+        }
+      }
+      return [];
     } catch (e) {
       return [];
     }
   }
 
   function saveAll(list) {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+    localStorage.setItem(STORAGE_KEY_V3, JSON.stringify(list));
   }
 
   function defaultPlans() {
+    var t0 = SCENARIO_CATEGORY_TREE[0];
+    var t1 = SCENARIO_CATEGORY_TREE[2];
     return [
-      { id: uid(), year: 2026, productLine: "5115", planAmount: 1200000 },
-      { id: uid(), year: 2026, productLine: "8610", planAmount: 800000 }
+      { id: uid(), year: 2026, scenario: t0.scenario, category: t0.categories[0], planAmount: 1200000 },
+      { id: uid(), year: 2026, scenario: t1.scenario, category: t1.categories[0], planAmount: 800000 }
     ];
   }
 
@@ -527,7 +670,6 @@
       });
       sel.innerHTML = h;
     }
-    fill("fltScenario", ["全屋智能", "商用照明", "户外便携"]);
     fill("fltRegion", ["北美", "欧洲", "亚太", "拉美"]);
     fill("fltCountry", ["美国", "德国", "英国", "日本"]);
     fill("fltChannel", ["亚马逊", "独立站", "TikTok", "线下"]);
@@ -535,51 +677,166 @@
     fill("fltModel", ["MDL-A01", "MDL-B02", "MDL-C88"], '<option value="">请选择</option>');
     fill("fltTl", ["TL-01", "TL-02", "TL-03"]);
     fill("fltSales", ["Sales-A", "Sales-B", "Sales-C"]);
-    var fltPl = document.getElementById("fltProductLine");
-    if (fltPl) {
-      var hp = '<option value="">全部</option>';
-      PRODUCT_LINES.forEach(function (o) {
-        hp += '<option value="' + o.code + '">' + o.code + "</option>";
-      });
-      fltPl.innerHTML = hp;
-    }
   }
 
-  function tableLineSelectHtml(selected) {
-    var selStr = selected == null ? "" : String(selected);
-    var codes = PRODUCT_LINES.map(function (o) { return o.code; });
+  function formatScCatTriggerText() {
+    if (!appliedScCat.scenario && !appliedScCat.category) return "全部";
+    return appliedScCat.scenario + " / " + appliedScCat.category;
+  }
+
+  function treeNodeByScenario(name) {
+    return SCENARIO_CATEGORY_TREE.find(function (n) {
+      return n.scenario === name;
+    });
+  }
+
+  function scenarioSelectHtml(selectedScenario) {
     var h = "";
-    if (selStr && codes.indexOf(selStr) === -1) {
-      h += '<option value="' + escapeHtml(selStr) + '" selected>' + escapeHtml(selStr) + "</option>";
-      PRODUCT_LINES.forEach(function (o) {
-        h += '<option value="' + o.code + '">' + o.code + "</option>";
-      });
-      return '<select class="inp-inline js-line">' + h + "</select>";
+    SCENARIO_CATEGORY_TREE.forEach(function (node) {
+      var sel = node.scenario === selectedScenario ? " selected" : "";
+      h += '<option value="' + escapeHtml(node.scenario) + '"' + sel + ">" + escapeHtml(node.scenario) + "</option>";
+    });
+    if (
+      selectedScenario &&
+      !SCENARIO_CATEGORY_TREE.some(function (n) {
+        return n.scenario === selectedScenario;
+      })
+    ) {
+      h =
+        '<option value="' +
+        escapeHtml(selectedScenario) +
+        '" selected>' +
+        escapeHtml(selectedScenario) +
+        "</option>" +
+        h;
     }
-    if (!selStr) {
-      PRODUCT_LINES.forEach(function (o, idx) {
-        h +=
-          '<option value="' +
-          o.code +
-          '"' +
-          (idx === 0 ? " selected" : "") +
-          ">" +
-          o.code +
-          "</option>";
+    return '<select class="inp-inline js-scenario">' + h + "</select>";
+  }
+
+  function categorySelectHtml(scenarioName, selectedCategory) {
+    var node = treeNodeByScenario(scenarioName);
+    var cats = (node && node.categories) || [];
+    var h = "";
+    cats.forEach(function (c) {
+      var sel = c === selectedCategory ? " selected" : "";
+      h += '<option value="' + escapeHtml(c) + '"' + sel + ">" + escapeHtml(c) + "</option>";
+    });
+    if (
+      selectedCategory &&
+      cats.indexOf(selectedCategory) < 0
+    ) {
+      h =
+        '<option value="' +
+        escapeHtml(selectedCategory) +
+        '" selected>' +
+        escapeHtml(selectedCategory) +
+        "</option>" +
+        h;
+    }
+    return '<select class="inp-inline js-category">' + h + "</select>";
+  }
+
+  function scenarioCategoryCellHtml(p) {
+    var sc = (p && p.scenario) || SCENARIO_CATEGORY_TREE[0].scenario;
+    var cat = (p && p.category) || "";
+    if (!cat) {
+      var n0 = treeNodeByScenario(sc);
+      cat = (n0 && n0.categories[0]) || "";
+    }
+    return (
+      '<div class="plan-sc-cell">' +
+      scenarioSelectHtml(sc) +
+      categorySelectHtml(sc, cat) +
+      "</div>"
+    );
+  }
+
+  function renderScCatSceneColumn() {
+    var el = document.getElementById("fltScCatScenes");
+    if (!el) return;
+    el.innerHTML = "";
+    SCENARIO_CATEGORY_TREE.forEach(function (node) {
+      var div = document.createElement("div");
+      div.className = "sc-cat-item" + (node.scenario === panelActiveScenario ? " active" : "");
+      div.innerHTML = "<span>" + escapeHtml(node.scenario) + '</span><span class="arrow">›</span>';
+      div.addEventListener("click", function () {
+        panelActiveScenario = node.scenario;
+        renderScCatSceneColumn();
+        renderScCatCatColumn();
       });
-    } else {
-      PRODUCT_LINES.forEach(function (o) {
-        h +=
-          '<option value="' +
-          o.code +
-          '"' +
-          (o.code === selStr ? " selected" : "") +
-          ">" +
-          o.code +
-          "</option>";
+      el.appendChild(div);
+    });
+  }
+
+  function renderScCatCatColumn() {
+    var el = document.getElementById("fltScCatCats");
+    if (!el) return;
+    el.innerHTML = "";
+    var node = treeNodeByScenario(panelActiveScenario);
+    if (!node) return;
+    node.categories.forEach(function (cat) {
+      var div = document.createElement("div");
+      div.className = "sc-cat-item";
+      div.textContent = cat;
+      div.addEventListener("click", function () {
+        appliedScCat.scenario = node.scenario;
+        appliedScCat.category = cat;
+        document.getElementById("fltScCatTrigger").textContent = formatScCatTriggerText();
+        closeScCatPop();
+        renderPlans();
+        toast("已按场景品类筛选");
+      });
+      el.appendChild(div);
+    });
+  }
+
+  function openScCatPop() {
+    var pop = document.getElementById("fltScCatPop");
+    var wrap = document.getElementById("fltScCatWrap");
+    if (!pop || !wrap) return;
+    pop.hidden = false;
+    wrap.classList.add("open");
+    document.getElementById("fltScCatTrigger").setAttribute("aria-expanded", "true");
+    if (!panelActiveScenario) panelActiveScenario = SCENARIO_CATEGORY_TREE[0].scenario;
+    renderScCatSceneColumn();
+    renderScCatCatColumn();
+  }
+
+  function closeScCatPop() {
+    var pop = document.getElementById("fltScCatPop");
+    var wrap = document.getElementById("fltScCatWrap");
+    if (!pop || !wrap) return;
+    pop.hidden = true;
+    wrap.classList.remove("open");
+    document.getElementById("fltScCatTrigger").setAttribute("aria-expanded", "false");
+  }
+
+  function wireScCatFilter() {
+    var wrap = document.getElementById("fltScCatWrap");
+    var trig = document.getElementById("fltScCatTrigger");
+    var clear = document.getElementById("fltScCatClear");
+    if (!wrap || !trig) return;
+    trig.textContent = formatScCatTriggerText();
+    trig.addEventListener("click", function (e) {
+      e.stopPropagation();
+      var pop = document.getElementById("fltScCatPop");
+      if (pop.hidden) openScCatPop();
+      else closeScCatPop();
+    });
+    if (clear) {
+      clear.addEventListener("click", function (e) {
+        e.stopPropagation();
+        appliedScCat.scenario = "";
+        appliedScCat.category = "";
+        trig.textContent = formatScCatTriggerText();
+        closeScCatPop();
+        renderPlans();
+        toast("已清空场景品类筛选");
       });
     }
-    return '<select class="inp-inline js-line">' + h + "</select>";
+    document.addEventListener("mousedown", function (e) {
+      if (!wrap.contains(e.target)) closeScCatPop();
+    });
   }
 
   function ensureSeed() {
@@ -591,17 +848,19 @@
     return list;
   }
 
-  /** 原型示例：为某品线生成若干 店铺+MSKU 及 BP 目标营收（用于加权拆分） */
-  function mockSkuRows(year, productLine) {
-    var base = productLine.replace(/\s/g, "").split("").reduce(function (s, c) { return s + c.charCodeAt(0); }, 0) % 5000;
+  /** 原型示例：为某场景品类生成若干 店铺+MSKU 及 BP 目标营收（用于加权拆分） */
+  function mockSkuRows(year, scenario, category) {
+    var key = String(scenario || "") + "\t" + String(category || "");
+    var base = key.replace(/\s/g, "").split("").reduce(function (s, c) { return s + c.charCodeAt(0); }, 0) % 5000;
     var shops = ["AMZ-US-01", "AMZ-EU-02", "独立站-01"];
     var rows = [];
     for (var i = 0; i < 5; i++) {
       rows.push({
         year: year,
-        productLine: productLine,
+        scenario: scenario,
+        category: category,
         shop: shops[i % shops.length],
-        msku: "MSKU-" + productLine.slice(0, 2) + "-" + (1000 + i + base % 100),
+        msku: "MSKU-" + String(i + base % 1000),
         bpRevenue: 80000 + (i * 17000) + (base % 9000)
       });
     }
@@ -609,14 +868,15 @@
   }
 
   function splitPlan(plan) {
-    var skus = mockSkuRows(plan.year, plan.productLine);
+    var skus = mockSkuRows(plan.year, plan.scenario, plan.category);
     var totalBp = skus.reduce(function (s, r) { return s + r.bpRevenue; }, 0);
     return skus.map(function (r) {
       var w = totalBp > 0 ? r.bpRevenue / totalBp : 0;
       var amt = Math.round(plan.planAmount * w);
       return {
         year: r.year,
-        productLine: r.productLine,
+        scenario: r.scenario,
+        category: r.category,
         shop: r.shop,
         msku: r.msku,
         bpRevenue: r.bpRevenue,
@@ -652,10 +912,13 @@
   function filteredList() {
     var list = loadAll();
     var y = currentFilter.year;
-    var pl = (currentFilter.productLine || "").trim();
+    var fs = (appliedScCat.scenario || "").trim();
+    var fc = (appliedScCat.category || "").trim();
     return list.filter(function (p) {
       if (y && String(p.year) !== String(y)) return false;
-      if (pl && String(p.productLine) !== pl) return false;
+      if (fs || fc) {
+        if (String(p.scenario) !== fs || String(p.category) !== fc) return false;
+      }
       return true;
     });
   }
@@ -676,9 +939,15 @@
       tr.dataset.id = p.id;
       tr.innerHTML =
         '<td><select class="inp-inline js-year">' + yearOptionsHtml(p.year) + "</select></td>" +
-        "<td>" + tableLineSelectHtml(p.productLine) + "</td>" +
+        "<td>" + scenarioCategoryCellHtml(p) + "</td>" +
         '<td><input type="number" class="inp-inline js-amt num" min="0" step="1" value="' + escapeHtml(String(p.planAmount)) + '" /></td>' +
-        '<td class="num">' + formatUsd(mockSkuRows(p.year, p.productLine).reduce(function (s, r) { return s + r.bpRevenue; }, 0)) + "</td>" +
+        '<td class="num">' +
+        formatUsd(
+          mockSkuRows(p.year, p.scenario, p.category).reduce(function (s, r) {
+            return s + r.bpRevenue;
+          }, 0)
+        ) +
+        "</td>" +
         '<td class="actions">' +
         '<button type="button" class="link js-save">保存</button>' +
         '<button type="button" class="link danger js-del">删除</button>' +
@@ -725,6 +994,20 @@
     document.querySelectorAll("#tbodyPlan tr").forEach(function (tr) {
       var id = tr.dataset.id;
       if (!id) return;
+      var scSel = tr.querySelector(".js-scenario");
+      if (scSel) {
+        scSel.addEventListener("change", function () {
+          var sc = scSel.value;
+          var catWrap = tr.querySelector(".plan-sc-cell");
+          if (!catWrap) return;
+          var catSel = catWrap.querySelector(".js-category");
+          var prev = catSel ? catSel.value : "";
+          var node = treeNodeByScenario(sc);
+          var cats = (node && node.categories) || [];
+          var next = cats.indexOf(prev) >= 0 ? prev : cats[0] || "";
+          catSel.outerHTML = categorySelectHtml(sc, next);
+        });
+      }
       tr.addEventListener("click", function (e) {
         if (e.target.closest("button, input, select, textarea, label")) return;
         focusPlanId = id;
@@ -753,7 +1036,8 @@
     var p = list.find(function (x) { return x.id === id; });
     if (!p) return;
     p.year = parseInt(tr.querySelector(".js-year").value, 10);
-    p.productLine = tr.querySelector(".js-line").value;
+    p.scenario = tr.querySelector(".js-scenario").value;
+    p.category = tr.querySelector(".js-category").value;
     p.planAmount = parseFloat(tr.querySelector(".js-amt").value) || 0;
     saveAll(list);
     renderPlans();
@@ -787,7 +1071,7 @@
       var tr = document.createElement("tr");
       tr.innerHTML =
         "<td>" + escapeHtml(r.year) + "</td>" +
-        "<td>" + escapeHtml(r.productLine) + "</td>" +
+        "<td>" + escapeHtml(r.scenario + " / " + r.category) + "</td>" +
         "<td>" + escapeHtml(r.shop) + "</td>" +
         "<td>" + escapeHtml(r.msku) + "</td>" +
         '<td class="num">' + formatUsd(r.bpRevenue) + "</td>" +
@@ -797,7 +1081,17 @@
     });
     var s = rows.reduce(function (a, r) { return a + r.splitAmount; }, 0);
     ctx.textContent =
-      "当前：「" + p.productLine + "」" + p.year + " 年 · 规划 " + formatUsd(p.planAmount) + "；拆分条数 " + rows.length + "。";
+      "当前：" +
+      p.scenario +
+      " / " +
+      p.category +
+      " · " +
+      p.year +
+      " 年 · 规划 " +
+      formatUsd(p.planAmount) +
+      "；拆分条数 " +
+      rows.length +
+      "。";
     sumEl.textContent = "拆分合计：" + formatUsd(s) + "（与规划额对齐）。";
   }
 
@@ -811,16 +1105,15 @@
 
   document.getElementById("btnQuery").addEventListener("click", function () {
     currentFilter.year = document.getElementById("fltYear").value;
-    currentFilter.productLine = document.getElementById("fltProductLine").value;
     renderPlans();
-    toast("已查询（列表按年度、品线过滤；场景/区域/渠道等下拉为界面预留）");
+    toast("已查询（列表按年度、场景品类筛选；其余下拉为界面预留）");
   });
 
   document.getElementById("btnAdd").addEventListener("click", function () {
     var list = loadAll();
     var y = parseInt(document.getElementById("fltYear").value, 10) || new Date().getFullYear();
-    var line = PRODUCT_LINES[0].code;
-    list.push({ id: uid(), year: y, productLine: line, planAmount: 0 });
+    var t0 = SCENARIO_CATEGORY_TREE[0];
+    list.push({ id: uid(), year: y, scenario: t0.scenario, category: t0.categories[0], planAmount: 0 });
     saveAll(list);
     renderPlans();
     toast("已新增一行，请编辑后保存");
@@ -834,7 +1127,8 @@
       var p = list.find(function (x) { return x.id === id; });
       if (!p) return;
       p.year = parseInt(tr.querySelector(".js-year").value, 10);
-      p.productLine = tr.querySelector(".js-line").value;
+      p.scenario = tr.querySelector(".js-scenario").value;
+      p.category = tr.querySelector(".js-category").value;
       p.planAmount = parseFloat(tr.querySelector(".js-amt").value) || 0;
     });
     saveAll(list);
@@ -849,10 +1143,15 @@
 
   document.getElementById("btnExport").addEventListener("click", function () {
     var list = filteredList();
-    var header = "\uFEFF年度,品线,营销费用规划(美元)\n";
+    var header = "\uFEFF年度,场景,品类,营销费用规划(美元)\n";
     var rows = list
       .map(function (p) {
-        return [p.year, '"' + String(p.productLine).replace(/"/g, '""') + '"', p.planAmount].join(",");
+        return [
+          p.year,
+          '"' + String(p.scenario).replace(/"/g, '""') + '"',
+          '"' + String(p.category).replace(/"/g, '""') + '"',
+          p.planAmount
+        ].join(",");
       })
       .join("\n");
     var blob = new Blob([header + rows], { type: "text/csv;charset=utf-8" });
@@ -880,22 +1179,52 @@
         var sep = lines[0].indexOf("\t") >= 0 ? "\t" : ",";
         var header = lines[0].split(sep).map(function (h) { return h.trim().replace(/^\uFEFF/, ""); });
         var iy = header.indexOf("年度");
+        var isc = header.indexOf("场景");
+        var icat = header.indexOf("品类");
         var il = header.indexOf("品线");
         var ia = header.indexOf("营销费用规划(美元)");
         if (ia < 0) ia = header.indexOf("营销费用规划(元)");
-        if (iy < 0 || il < 0 || ia < 0) {
-          toast("表头需含：年度,品线,营销费用规划(美元)");
+        if (iy < 0 || ia < 0) {
+          toast("表头需含：年度、营销费用规划列");
+          return;
+        }
+        var modeNew = isc >= 0 && icat >= 0;
+        var modeOld = il >= 0;
+        if (!modeNew && !modeOld) {
+          toast("表头需含：年度,场景,品类,营销费用规划(美元) 或 年度,品线,营销费用规划(美元)");
           return;
         }
         var list = loadAll();
         for (var i = 1; i < lines.length; i++) {
           var cols = lines[i].split(sep);
-          if (cols.length < 3) continue;
           var year = parseInt(cols[iy], 10);
-          var line = (cols[il] || "").trim();
-          var amt = parseFloat(String(cols[ia]).replace(/,/g, "")) || 0;
-          if (!line || !year) continue;
-          list.push({ id: uid(), year: year, productLine: line, planAmount: amt });
+          var amt = parseFloat(String(cols[ia] != null ? cols[ia] : "").replace(/,/g, "")) || 0;
+          if (!year) continue;
+          if (modeNew) {
+            if (cols.length <= Math.max(iy, isc, icat, ia)) continue;
+            var sc = String(cols[isc] || "")
+              .replace(/^"|"$/g, "")
+              .trim();
+            var cat = String(cols[icat] || "")
+              .replace(/^"|"$/g, "")
+              .trim();
+            if (!sc || !cat) continue;
+            list.push({ id: uid(), year: year, scenario: sc, category: cat, planAmount: amt });
+          } else {
+            if (cols.length <= Math.max(iy, il, ia)) continue;
+            var line = String(cols[il] || "")
+              .replace(/^"|"$/g, "")
+              .trim();
+            if (!line) continue;
+            list.push(
+              migratePlanRecord({
+                id: uid(),
+                year: year,
+                productLine: line,
+                planAmount: amt
+              })
+            );
+          }
         }
         saveAll(list);
         renderPlans();
@@ -913,6 +1242,7 @@
   });
 
   initFilterOptions();
+  wireScCatFilter();
   ensureSeed();
   fillYearSelect();
   renderPlans();
