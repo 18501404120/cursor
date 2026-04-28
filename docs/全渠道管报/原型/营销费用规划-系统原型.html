@@ -471,9 +471,6 @@
       min-width: 120px;
       max-width: 160px;
     }
-    .plan-np-tag-na {
-      color: var(--text-sec);
-    }
     .num { text-align: right; font-variant-numeric: tabular-nums; }
     .actions { white-space: nowrap; }
     .actions .link {
@@ -576,7 +573,7 @@
               <button type="button" class="btn-search" id="btnQuery">搜索</button>
             </div>
             <div class="filter-actions">
-              <span class="hint" style="margin:0;flex:1;min-width:200px;"><strong>场景品类</strong>与<strong>新品标签</strong>为<strong>两列独立</strong>控件；点「搜索」时<strong>二者不可同时为空</strong>。仅场景品类、仅新品标签、或<strong>两维都选</strong>均可；两维都选时对列表取<strong>交集（AND）</strong>（新品标签仅约束<strong>新品</strong>粒度行；场景品类规则不变：<strong>新品</strong>行在仅场景品类筛选时仍展示）。场景品类为左场景、右品类级联多选（叶子间 OR）。新品标签为多选年份（OR）。主数据见 <code>文件夹/规范/基础数据/场景品类基础数据_v1.json</code>。</span>
+              <span class="hint" style="margin:0;flex:1;min-width:200px;"><strong>场景品类</strong>与<strong>新品标签</strong>为<strong>两列独立</strong>控件；点「搜索」时<strong>二者不可同时为空</strong>。仅场景品类、仅新品标签、或<strong>两维都选</strong>均可；两维都选时对列表取<strong>交集（AND）</strong>。场景品类级联<strong>不含「新品」</strong>（新品仅通过导入/存量 <code>new_product</code> 行体现）；场景品类可<strong>清空</strong>。新品标签为<strong>多选年份（OR）</strong>。主数据见 <code>文件夹/规范/基础数据/场景品类基础数据_v1.json</code>。</span>
             </div>
           </div>
         </section>
@@ -591,7 +588,7 @@
               <button type="button" class="btn btn-default" id="btnExport">导出当前列表</button>
               <button type="button" class="btn btn-primary" id="btnSaveAll">保存全部</button>
             </div>
-            <p class="hint">维护 <strong>年度 × 规划对象</strong>：表格<strong>场景品类</strong>与<strong>新品标签</strong>分两列；非新品行新品标签为「—」。<strong>新品</strong>行两列不能只空一维（标识在场景品类列、标签在第二列下拉）。支持<strong>场景全量</strong>、<strong>场景下品类</strong>、<strong>新品</strong>三种粒度；同一年度下<strong>相同粒度键不可重复</strong>。金额 <strong>USD</strong>；拆分为 <strong>店铺 + MSKU</strong> 示例。CSV：<code>年度,规划粒度,场景,品类,新品标签,营销费用规划(美元)</code>；新品标签可空则按<strong>年度</strong>推导。兼容旧表头；数据 <code>localStorage</code>（<code>marketing_expense_plan_v3</code>）。</p>
+            <p class="hint">维护 <strong>年度 × 规划对象</strong>：表格<strong>场景品类</strong>与<strong>新品标签</strong>分两列。场景品类<strong>可清空</strong>；行内级联<strong>不提供「新品」入口</strong>（<code>new_product</code> 行仍可通过导入或存量数据维护「新品/标识」）。<strong>新品标签</strong>每行均为<strong>下拉</strong>，默认<strong>当年新品</strong>（与行「年度」一致）。筛选与列表：新品标签对<strong>所有行</strong>生效；场景全量/品类/新品三种粒度及去重规则不变。金额 <strong>USD</strong>；CSV 含新品标签列。数据 <code>localStorage</code>（<code>marketing_expense_plan_v3</code>）。</p>
             <div class="table-wrap">
               <table id="tblPlan">
                 <thead>
@@ -675,8 +672,9 @@
     return y + "年新品";
   }
 
+  /** 行级/筛选用新品标签展示值：未存时默认「该行年度 + 年新品」 */
   function planNpTagValue(p) {
-    if (!p || getPlanGranularity(p) !== PLAN_G_NEW) return "";
+    if (!p) return "";
     var t = String(p.newProductTag || "").trim();
     if (t) return t;
     return planNpTagLabelForYear(p.year);
@@ -1047,25 +1045,27 @@
     }
     if (g === PLAN_G_SCENARIO) {
       var ss = String(like.scenario || "").trim();
-      return ss ? ss + " · 全场景" : "—";
+      return ss ? ss + " · 全场景" : "请选择场景品类";
     }
     var sc = String(like.scenario || "").trim();
     var cat = resolvedCategoryDisplay(like);
-    if (!sc && !cat) return "—";
+    if (!sc && !String(cat || "").trim()) return "请选择场景品类";
     return sc + " / " + cat;
   }
 
   /** 拆分区/上下文：场景品类 + 新品标签合一展示 */
   function formatPlanLineLabel(like) {
     if (!like) return "—";
+    var base = formatPlanScenarioCategoryOnly(like);
+    var tag = planNpTagValue(like);
     var g = getPlanGranularity(like);
     if (g === PLAN_G_NEW) {
       var nc = String(like.category || "").trim();
-      var tag = planNpTagValue(like);
-      var base = formatPlanScenarioCategoryOnly(like);
       return nc && tag ? base + " · " + tag : base;
     }
-    return formatPlanScenarioCategoryOnly(like);
+    if (tag && base !== "请选择场景品类" && base !== "—") return base + " · " + tag;
+    if (tag && (base === "请选择场景品类" || base === "—")) return tag;
+    return base;
   }
 
   function getPlanRowEditTr() {
@@ -1134,6 +1134,11 @@
     });
     if (!p) return;
     var year = parseInt(tr.querySelector(".js-year").value, 10) || p.year;
+    var npSel = tr.querySelector(".js-np-tag-row");
+    var tagFromRow = npSel && npSel.value ? String(npSel.value).trim() : "";
+    if (!tagFromRow) tagFromRow = planNpTagLabelForYear(year);
+    var optTag = optNewProductTag != null ? String(optNewProductTag).trim() : "";
+    var resolvedTag = optTag || tagFromRow;
     var draft = {
       id: id,
       year: year,
@@ -1141,14 +1146,8 @@
       category: category,
       planAmount: p.planAmount,
       planGranularity: inferPlanGranularity(scenario, category),
-      newProductTag: p.newProductTag
+      newProductTag: resolvedTag
     };
-    if (getPlanGranularity(draft) === PLAN_G_NEW) {
-      var ot = optNewProductTag != null ? String(optNewProductTag).trim() : "";
-      draft.newProductTag = ot || p.newProductTag || planNpTagLabelForYear(year);
-    } else {
-      delete draft.newProductTag;
-    }
     if (!validatePlanUnique(list, draft, id)) {
       toast("同一年度下已存在相同规划对象，与已有行重复");
       syncPlanRowScCatDom(tr, p.scenario, p.category != null ? String(p.category) : "", p);
@@ -1160,13 +1159,7 @@
     p.scenario = scenario;
     p.category = category != null ? String(category) : "";
     assignStoredGranularity(p);
-    if (getPlanGranularity(p) === PLAN_G_NEW) {
-      var tagIn = optNewProductTag != null ? String(optNewProductTag).trim() : "";
-      if (tagIn) p.newProductTag = tagIn;
-      else if (!String(p.newProductTag || "").trim()) p.newProductTag = planNpTagLabelForYear(year);
-    } else {
-      delete p.newProductTag;
-    }
+    p.newProductTag = resolvedTag;
     enrichPlanFromTree(p);
     syncPlanRowScCatDom(tr, p.scenario, p.category != null ? String(p.category) : "", p);
     saveAll(list);
@@ -1239,23 +1232,6 @@
       });
       el.appendChild(div);
     });
-    var divNp = document.createElement("div");
-    divNp.className = "sc-cat-item" + (planRowPanelScenario === NEW_PRODUCT_SCENE ? " active" : "");
-    var lblNp = document.createElement("span");
-    lblNp.className = "lbl";
-    lblNp.textContent = NEW_PRODUCT_SCENE;
-    lblNp.style.fontWeight = "600";
-    var arrNp = document.createElement("span");
-    arrNp.className = "arrow";
-    arrNp.textContent = "›";
-    divNp.appendChild(lblNp);
-    divNp.appendChild(arrNp);
-    divNp.addEventListener("click", function (e) {
-      planRowPanelScenario = NEW_PRODUCT_SCENE;
-      renderPlanRowScCatSceneColumn();
-      renderPlanRowScCatCatColumn();
-    });
-    el.appendChild(divNp);
   }
 
   function renderPlanRowScCatCatColumn() {
@@ -1266,7 +1242,7 @@
     var id = planRowEditId;
     el.innerHTML = "";
     var o = readPlanRowEditsFromTr(tr);
-    if (planRowPanelScenario === NEW_PRODUCT_SCENE) {
+    if (inferPlanGranularity(o.scenario, o.category) === PLAN_G_NEW) {
       var wrap = document.createElement("div");
       wrap.style.padding = "10px";
       var inp = document.createElement("input");
@@ -1308,11 +1284,34 @@
       btn.addEventListener("click", function () {
         applyNewRow();
       });
+      var btnClr = document.createElement("button");
+      btnClr.type = "button";
+      btnClr.className = "link";
+      btnClr.style.cssText = "font-size:12px;margin-top:6px;padding:0;display:block;";
+      btnClr.textContent = "清空场景品类";
+      btnClr.addEventListener("click", function (e) {
+        e.stopPropagation();
+        syncPlanRowScCatToModel(tr, id, "", "");
+      });
       wrap.appendChild(inp);
       wrap.appendChild(btn);
+      wrap.appendChild(btnClr);
       el.appendChild(wrap);
       return;
     }
+    var clrTop = document.createElement("div");
+    clrTop.className = "sc-cat-item sc-cat-meta-row";
+    var btnClrTop = document.createElement("button");
+    btnClrTop.type = "button";
+    btnClrTop.className = "link";
+    btnClrTop.style.cssText = "font-size:12px;padding:0;";
+    btnClrTop.textContent = "清空场景品类";
+    btnClrTop.addEventListener("click", function (e) {
+      e.stopPropagation();
+      syncPlanRowScCatToModel(tr, id, "", "");
+    });
+    clrTop.appendChild(btnClrTop);
+    el.appendChild(clrTop);
     var node = treeNodeByScenario(planRowPanelScenario);
     if (!node) return;
     var rowScene = document.createElement("div");
@@ -1425,15 +1424,10 @@
   function scenarioCategoryCellHtml(p) {
     var sc = p && p.scenario != null ? String(p.scenario) : "";
     var cat = p && p.category != null ? String(p.category) : "";
-    if (!sc && !cat && SCENARIO_CATEGORY_TREE.length) {
-      var base =
-        SCENARIO_CATEGORY_TREE.find(function (n) {
-          return n.scenario !== "未分类";
-        }) || SCENARIO_CATEGORY_TREE[0];
-      sc = base.scenario;
-      cat = base.categories[0] || "";
-    }
     var label = formatPlanScenarioCategoryOnly(p);
+    if (!String(sc).trim() && !String(cat).trim()) {
+      label = "请选择场景品类";
+    }
     return (
       '<div class="plan-sc-cat-wrap sc-cat-wrap" data-plan-id="' +
       escapeHtml(p.id) +
@@ -1451,9 +1445,6 @@
   }
 
   function planNpTagCellHtml(p) {
-    if (getPlanGranularity(p) !== PLAN_G_NEW) {
-      return '<span class="plan-np-tag-na">—</span>';
-    }
     var cur = planNpTagValue(p);
     var inList = NP_TAG_YEAR_OPTIONS.some(function (yy) {
       return planNpTagLabelForYear(yy) === cur;
@@ -1752,6 +1743,7 @@
         scenario: plan.scenario,
         category: plan.category != null ? plan.category : "",
         planGranularity: getPlanGranularity(plan),
+        newProductTag: plan.newProductTag,
         shop: shops[i % shops.length],
         msku: "MSKU-" + String(i + base % 1000)
       });
@@ -1771,6 +1763,7 @@
         scenario: r.scenario,
         category: r.category,
         planGranularity: r.planGranularity,
+        newProductTag: r.newProductTag,
         shop: r.shop,
         msku: r.msku,
         weight: 1 / n,
@@ -1819,7 +1812,6 @@
 
   function npTagMatchesSelected(p) {
     if (!filterNpTagKeys.length) return true;
-    if (getPlanGranularity(p) !== PLAN_G_NEW) return false;
     var v = planNpTagValue(p);
     return v && filterNpTagKeys.indexOf(v) >= 0;
   }
@@ -1838,7 +1830,7 @@
       if (hasSc && !hasNp) {
         return planMatchesScCatFilter(p);
       }
-      return planMatchesScCatFilter(p) && (getPlanGranularity(p) !== PLAN_G_NEW || npTagMatchesSelected(p));
+      return planMatchesScCatFilter(p) && npTagMatchesSelected(p);
     });
   }
 
@@ -1934,7 +1926,7 @@
           var pr = list2.find(function (x) {
             return x.id === id;
           });
-          if (!pr || getPlanGranularity(pr) !== PLAN_G_NEW) return;
+          if (!pr) return;
           pr.newProductTag = String(npRow.value || "").trim() || planNpTagLabelForYear(pr.year);
           enrichPlanFromTree(pr);
           saveAll(list2);
@@ -1968,19 +1960,10 @@
     p.scenario = tr.querySelector(".js-scenario").value;
     p.category = tr.querySelector(".js-category").value != null ? tr.querySelector(".js-category").value : "";
     assignStoredGranularity(p);
-    if (getPlanGranularity(p) === PLAN_G_NEW) {
-      var npSel = tr.querySelector(".js-np-tag-row");
-      var tagFromDom = npSel && npSel.value ? String(npSel.value).trim() : "";
-      if (!tagFromDom) tagFromDom = planNpTagLabelForYear(p.year);
-      p.newProductTag = tagFromDom;
-      if (!String(p.category || "").trim()) {
-        toast("新品行：场景品类（新品标识）与新品标签不能只空一维，请填写标识并选择标签");
-        renderPlans();
-        return;
-      }
-    } else {
-      delete p.newProductTag;
-    }
+    var npSel = tr.querySelector(".js-np-tag-row");
+    var tagFromDom = npSel && npSel.value ? String(npSel.value).trim() : "";
+    if (!tagFromDom) tagFromDom = planNpTagLabelForYear(p.year);
+    p.newProductTag = tagFromDom;
     var draft = {
       id: id,
       year: p.year,
@@ -2070,7 +2053,7 @@
     }
     currentFilter.year = document.getElementById("fltYear").value;
     renderPlans();
-    toast("已查询（场景品类 + 新品标签同时有选时取交集；仅新品行参与新品标签维度）");
+    toast("已查询（场景品类 + 新品标签同时有选时取交集；新品标签按行匹配）");
   });
 
   document.getElementById("btnAdd").addEventListener("click", function () {
@@ -2106,24 +2089,10 @@
       p.planAmount = parseFloat(tr.querySelector(".js-amt").value) || 0;
       assignStoredGranularity(p);
       var npSel = tr.querySelector(".js-np-tag-row");
-      if (getPlanGranularity(p) === PLAN_G_NEW) {
-        var tv = npSel && npSel.value ? String(npSel.value).trim() : "";
-        if (!tv) tv = planNpTagLabelForYear(p.year);
-        p.newProductTag = tv;
-      } else {
-        delete p.newProductTag;
-      }
+      var tv = npSel && npSel.value ? String(npSel.value).trim() : "";
+      if (!tv) tv = planNpTagLabelForYear(p.year);
+      p.newProductTag = tv;
     });
-    for (var j = 0; j < list.length; j++) {
-      var pj = list[j];
-      if (getPlanGranularity(pj) === PLAN_G_NEW) {
-        if (!String(pj.category || "").trim() || !String(planNpTagValue(pj) || "").trim()) {
-          toast("新品行：场景品类（标识）与新品标签不能只空一维，请补全后再保存全部");
-          renderPlans();
-          return;
-        }
-      }
-    }
     var seen = {};
     for (var i = 0; i < list.length; i++) {
       var k = planIdentityKey(list[i]);
@@ -2152,8 +2121,7 @@
     var header = "\uFEFF年度,规划粒度,场景,品类,新品标签,营销费用规划(美元)\n";
     var rows = list
       .map(function (p) {
-        var tagCell =
-          getPlanGranularity(p) === PLAN_G_NEW ? '"' + String(planNpTagValue(p)).replace(/"/g, '""') + '"' : "";
+        var tagCell = '"' + String(planNpTagValue(p)).replace(/"/g, '""') + '"';
         return [
           p.year,
           getPlanGranularity(p),
@@ -2230,14 +2198,13 @@
             assignStoredGranularity(row);
             if (getPlanGranularity(row) === PLAN_G_NEW) {
               row.scenario = NEW_PRODUCT_SCENE;
-              if (intag >= 0 && cols[intag] != null) {
-                var tImp = String(cols[intag] || "")
-                  .replace(/^"|"$/g, "")
-                  .trim();
-                if (tImp) row.newProductTag = tImp;
-              }
             }
-            if (!row.scenario && getPlanGranularity(row) !== PLAN_G_NEW) continue;
+            if (intag >= 0 && cols[intag] != null) {
+              var tImp = String(cols[intag] || "")
+                .replace(/^"|"$/g, "")
+                .trim();
+              if (tImp) row.newProductTag = tImp;
+            }
             if (getPlanGranularity(row) === PLAN_G_NEW && !String(row.category || "").trim()) continue;
             if (!validatePlanUnique(list, row, row.id)) continue;
             enrichPlanFromTree(row);
