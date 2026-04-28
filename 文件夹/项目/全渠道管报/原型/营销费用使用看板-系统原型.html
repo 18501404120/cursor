@@ -747,6 +747,28 @@
         </section>
 
         <section class="panel">
+          <div class="panel-head">品线汇总</div>
+          <div class="panel-body">
+            <p class="hint" style="margin-top:0;margin-bottom:10px;font-size:12px;">
+              规划费用来自「营销费用规划」原型本地数据（<code>marketing_expense_plan_usd_v2</code>）；按时间进度预估费用＝规划×自然年时间进度；实际花费为当前筛选年度下活动按品线拆分汇总（与 KPI 同口径，不含月份钻取）。
+            </p>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>品线</th>
+                    <th class="num">规划费用（USD）</th>
+                    <th class="num">按时间进度预估费用（USD）</th>
+                    <th class="num">实际花费（USD）</th>
+                  </tr>
+                </thead>
+                <tbody id="tbodyLineSummary"></tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel">
           <div class="panel-head">店铺 + MSKU 分摊</div>
           <div class="panel-body">
             <p class="split-meta" id="splitCtx">请先在上方列表中选择一条活动。</p>
@@ -834,6 +856,8 @@
 (function () {
   var STORAGE_KEY = "marketing_expense_usage_board_v2";
   var LEGACY_KEY = "marketing_expense_usage_board_v1";
+  /** 与「营销费用规划」原型一致，用于品线规划费用 */
+  var PLAN_STORAGE_KEY = "marketing_expense_plan_usd_v2";
   var PRODUCT_LINES = [
     { code: "5115" }, { code: "8118" }, { code: "8610" }, { code: "8H11" }, { code: "7H11" }
   ];
@@ -895,6 +919,46 @@
 
   function formatUsd(n) {
     return "$" + Number(n || 0).toLocaleString("en-US", { maximumFractionDigits: 0 });
+  }
+
+  /** 读取规划原型中当前年度的品线 → 规划金额（多行同品线则累加） */
+  function loadPlanMapForYear(y) {
+    try {
+      var raw = localStorage.getItem(PLAN_STORAGE_KEY);
+      if (!raw) return {};
+      var arr = JSON.parse(raw);
+      if (!Array.isArray(arr)) return {};
+      var m = {};
+      arr.forEach(function (p) {
+        if (String(p.year) !== String(y) || !p.productLine) return;
+        var k = String(p.productLine);
+        m[k] = (m[k] || 0) + (Number(p.planAmount) || 0);
+      });
+      return m;
+    } catch (e) {
+      return {};
+    }
+  }
+
+  /** 将活动金额按多品线均分（最后一行吃尾差），不含 ALL 活动 */
+  function splitAmountAcrossLines(total, lines) {
+    var clean = (lines || []).filter(function (c) {
+      return c && c !== "ALL";
+    });
+    var t = Math.round(Number(total) || 0);
+    if (!clean.length) return {};
+    var n = clean.length;
+    var out = {};
+    var sum = 0;
+    clean.forEach(function (code, i) {
+      if (i === n - 1) out[code] = t - sum;
+      else {
+        var v = Math.round(t / n);
+        out[code] = v;
+        sum += v;
+      }
+    });
+    return out;
   }
 
   function migrateAct(a) {
@@ -1688,6 +1752,69 @@
     renderSplitRows(tbody, merged);
   }
 
+  /** 品线维度：规划、规划×时间进度、活动实际按品线拆分汇总 */
+  function renderLineSummary() {
+    var tbody = document.getElementById("tbodyLineSummary");
+    if (!tbody) return;
+    tbody.innerHTML = "";
+    var tp = timeProgressForYear(currentYear);
+    var planMap = loadPlanMapForYear(currentYear);
+    var acts = filteredActsByYearPl();
+    var actualByLine = {};
+    var allScopeActual = 0;
+    acts.forEach(function (a) {
+      var L = a.productLines || [];
+      if (linesIsAllOnly(L) || L.indexOf("ALL") >= 0) {
+        allScopeActual += Number(a.actualUsd) || 0;
+        return;
+      }
+      var parts = splitAmountAcrossLines(a.actualUsd, L);
+      Object.keys(parts).forEach(function (code) {
+        actualByLine[code] = (actualByLine[code] || 0) + parts[code];
+      });
+    });
+    var ordered = PRODUCT_LINES.map(function (o) {
+      return o.code;
+    });
+    var seen = {};
+    ordered.forEach(function (c) {
+      seen[c] = true;
+    });
+    Object.keys(planMap).forEach(function (k) {
+      if (!seen[k]) {
+        seen[k] = true;
+        ordered.push(k);
+      }
+    });
+    Object.keys(actualByLine).forEach(function (k) {
+      if (!seen[k]) {
+        seen[k] = true;
+        ordered.push(k);
+      }
+    });
+    if (allScopeActual > 0) {
+      var trA = document.createElement("tr");
+      trA.innerHTML =
+        "<td>" + escapeHtml("全品线（ALL）") + "</td>" +
+        '<td class="num">—</td>' +
+        '<td class="num">—</td>' +
+        '<td class="num">' + formatUsd(allScopeActual) + "</td>";
+      tbody.appendChild(trA);
+    }
+    ordered.forEach(function (code) {
+      var plan = planMap[code] || 0;
+      var exp = Math.round(plan * tp);
+      var act = actualByLine[code] || 0;
+      var tr = document.createElement("tr");
+      tr.innerHTML =
+        "<td>" + escapeHtml(code) + "</td>" +
+        '<td class="num">' + formatUsd(plan) + "</td>" +
+        '<td class="num">' + formatUsd(exp) + "</td>" +
+        '<td class="num">' + formatUsd(act) + "</td>";
+      tbody.appendChild(tr);
+    });
+  }
+
   function refreshAll() {
     onlyAllScope = document.getElementById("fltOnlyAll").checked;
     document.getElementById("btnClearMonth").style.display =
@@ -1695,6 +1822,7 @@
     renderKpis();
     renderMilestones();
     renderTable();
+    renderLineSummary();
   }
 
   function syncFormLinesFromAct(act) {
