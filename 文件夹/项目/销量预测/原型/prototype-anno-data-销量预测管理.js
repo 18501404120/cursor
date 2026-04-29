@@ -10,17 +10,17 @@
       containerSelector: ".header-title",
       title: "页头：销量预测",
       html:
-        "<p><strong>【基础】</strong>本页为运营/计划侧主工作台，信息架构为：<strong>顶栏 → 筛选区（含达成率筛选）→ 预测方式 → KPI 卡 → 主图「销量预测与达成」→ 明细表</strong>。</p>" +
+        "<p><strong>【基础】</strong>本页为运营/计划侧主工作台，信息架构为：<strong>顶栏 → 筛选区 → 预测方式 → KPI 卡 → 主图「销量预测与达成」→ 明细表</strong>。</p>" +
         "<p><strong>【逻辑】</strong>主图含<strong>目标 R1/R2/R3</strong>（柱+各档下限～上限浅色带）、<strong>实际销量（柱）</strong>、<strong>R1/R2/R3 预测达成率</strong>（右轴 %）；口径见《R1至R3规则说明》《预测销量上下限规则-终版》。</p>",
     },
     {
       anchorSelector: "#workbenchMainPanel",
-      title: "主工作台：业务名词与双「预测选择」（读懂本页）",
+      title: "主工作台：关键概念（读懂本页）",
       html:
-        "<p><strong>【为何有两个「预测选择」】</strong>顶部栅格里的 <code>#fltPredR</code> <strong>只</strong>服务「达成率 + 比较符 + 阈值」：<strong>每一行</strong>先算出该行在<strong>当前月份窗口</strong>内、已关账且未被异常备注排除的月的 <strong>窗口聚合预测达成率</strong>公式 <code>100% − Σ|A−P| / Σ max(A,P)</code>（P 取所选 R 档锁定预测），再与阈值比较，<strong>不满足的行整行隐藏</strong>。<strong>不会</strong>因此改变表格里「R*预测达成率」列用哪一档。表格工具栏的 <code>#tablePredR</code> 才决定<strong>表头列名、单元格数值、详情弹窗</strong>展示 R1 还是 R2/R3。</p>" +
+        "<p><strong>【预测选择与列表】</strong>本原型<strong>顶部筛选区不提供</strong>「预测选择 + 达成率比较 + 阈值」整行过滤；明细表上方工具栏的 <code>#tablePredR</code> 决定<strong>表体「R*预测达成率」列名与数值、行内「详情」弹窗</strong>展示的 R1 / R2 / R3 档。</p>" +
         "<p><strong>【名词速查】</strong><strong>目标 R1/R2/R3</strong>：距目标月最后一天剩余天数分别 ≤ 各档<strong>可配置天数</strong>（演示默认 30/60/90）时锁定的预测件数。<strong>下限/上限</strong>：与点预测同构销量公式在悲观/乐观情景下的边界。<strong>单月预测达成率</strong>：<code>100%−|A−P|/max(A,P)</code>（主图折线演示用）。<strong>列表与 KPI 卡</strong>用<strong>窗口聚合</strong>上式（多个月分子分母各自求和再套公式）。</p>" +
         "<p><strong>【异常备注】</strong>「生效区间内月份不参与预测达成率计算」默认<strong>不勾选</strong>；<strong>勾选</strong>后，生效日期覆盖到的<strong>每个自然月</strong>整月<strong>不参与</strong>该行窗口聚合（分子分母都不含该月）。</p>" +
-        "<p><strong>【验收自测（UAT）】</strong>① 点「搜索」后表、图、KPI 时间切片一致。② 改阈值后行集合与 KPI 同步变。③ 主图实际销量为柱。④ 切 <code>#tablePredR</code> 表头与数值变、切 <code>#fltPredR</code> 只变「谁被阈值刷掉」。⑤ 详情只显示当前 <code>#tablePredR</code> 档。⑥ 导出列与可见表头一致（见「导出」红点）。⑦ 改备注勾选看该行达成率是否剔除对应月。</p>",
+        "<p><strong>【验收自测（UAT）】</strong>① 点「搜索」后表、图、KPI 时间切片一致。② 主图实际销量为柱。③ 切 <code>#tablePredR</code> 后表头「R*预测达成率」与单元格数值、详情弹窗 R 档一致变化。④ 导出列与可见表头一致（见「导出」红点）。⑤ 改备注勾选看该行达成率是否剔除对应月。</p>",
     },
     {
       skip: true,
@@ -132,18 +132,11 @@
         "<p><strong>【逻辑】</strong>触发图表、KPI 卡与表体数据重算/重拉；若数据量大应配合加载态、分页或异步任务。</p>",
     },
     {
-      anchorSelector: "#fltPredR",
-      title: "筛选：预测选择（达成率阈值用）",
-      html:
-        "<p><strong>【基础】</strong><code>#fltPredR</code> 选 R1/R2/R3，位于<strong>搜索</strong>前同一筛选栅格内。</p>" +
-        "<p><strong>【逻辑】</strong><strong>仅</strong>与「达成率」比较符、<strong>阈值(%)</strong>组合：对每一行取该 R 档的<strong>窗口聚合预测达成率</strong>做比较，不满足的行不展示；<strong>不</strong>改变表格「R*预测达成率」列、表头文案及详情下钻列集（由表格工具栏 <code>#tablePredR</code> 控制）。</p>",
-    },
-    {
       containerSelector: "#kpiStrip",
       title: "KPI：R1 / R2 / R3 预测达成率",
       html:
         "<p><strong>【基础】</strong>三张卡分别展示 <strong>R1/R2/R3 预测达成率</strong>标题与汇总数值。</p>" +
-        "<p><strong>【逻辑】</strong>列表行在通过「达成率」阈值筛选后，对每行按窗口内已关账月计算 <strong>100% − Σ|A−P| / Σ max(A,P)</strong>（与 PRD、R1 §5.2 一致），再对<strong>可见行等权算术平均</strong>得到卡上汇总（演示）。</p>",
+        "<p><strong>【逻辑】</strong>对列表<strong>全部演示行</strong>按窗口内已关账月计算 <strong>100% − Σ|A−P| / Σ max(A,P)</strong>（与 PRD、R1 §5.2 一致），再对各行结果<strong>等权算术平均</strong>得到卡上汇总（演示）。</p>",
     },
     {
       containerSelector: ".radio-row",
@@ -262,7 +255,7 @@
       title: "表格工具栏：预测选择（列表/详情口径）",
       html:
         "<p><strong>【基础】</strong><code>#tablePredR</code>，位于明细表上方工具栏左侧。</p>" +
-        "<p><strong>【逻辑】</strong>控制：① 表体「R*预测达成率」列所用 R 档与表头列名；② 行内「详情」弹窗仅展示<strong>当前所选档</strong>的目标、下限、上限、预测达成率列；③ 导出时该预测达成率列与表头一致。<strong>与</strong>顶部筛选栏 <code>#fltPredR</code>（仅用于达成率阈值过滤）<strong>独立</strong>。</p>",
+        "<p><strong>【逻辑】</strong>控制：① 表体「R*预测达成率」列所用 R 档与表头列名；② 行内「详情」弹窗仅展示<strong>当前所选档</strong>的目标、下限、上限、预测达成率列；③ 导出时该预测达成率列与表头一致。</p>",
     },
     {
       anchorSelector: "#thPredAch",
