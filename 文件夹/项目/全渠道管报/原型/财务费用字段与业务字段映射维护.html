@@ -212,6 +212,29 @@
       font-size: 12px;
     }
 
+    .field-desc-btn {
+      border: none;
+      background: transparent;
+      padding: 0;
+      margin: 0;
+      font: inherit;
+      color: var(--blue);
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      text-decoration: none;
+    }
+    .field-desc-btn:hover { text-decoration: underline; }
+    .page-notice-dot {
+      width: 8px;
+      height: 8px;
+      min-width: 8px;
+      border-radius: 50%;
+      background: #ff4d4f;
+      box-shadow: 0 0 0 1px rgba(255, 77, 79, 0.28);
+      flex-shrink: 0;
+    }
     .req-dot {
       display: inline-flex;
       width: 14px;
@@ -228,7 +251,7 @@
     }
     .popover {
       position: fixed;
-      max-width: 420px;
+      max-width: 520px;
       background: #fff;
       border: 1px solid #dbe3ef;
       box-shadow: 0 12px 30px rgba(2, 6, 23, 0.18);
@@ -313,7 +336,7 @@
       <div class="panel-head">
         <div>
           <div class="title">字段维护与映射配置</div>
-          <div class="sub">先维护字段，再通过拖拽/点击 + 或 - 组合映射到业务字段。</div>
+          <div class="sub">先维护字段池，再为「业务费用字段」配置由「财务费用字段」组成的加减表达式；详情见工具栏「字段说明」。</div>
         </div>
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
           <span class="pill" id="modeHint">当前方案：管理看板口径</span>
@@ -348,7 +371,11 @@
         </div>
         <button class="btn ghost" id="searchBtn" type="button">查询</button>
         <button class="btn ghost" id="resetBtn" type="button">重置</button>
-        <span class="sub">规则说明<span class="req-dot" data-req="map-rule">!</span></span>
+        <span class="sub" style="display:inline-flex;align-items:center;">
+          <button type="button" class="field-desc-btn" id="fieldDescBtn" data-req="map-rule" title="页面逻辑与映射说明">
+            字段说明<span class="page-notice-dot" aria-hidden="true"></span>
+          </button>
+        </span>
       </div>
 
       <div class="mapping-builder">
@@ -470,7 +497,17 @@
     };
 
     const reqText = {
-      "map-rule": `维护规则：<br>1. 先维护财务字段和业务字段（支持增改删与说明）。<br>2. 映射时先选业务字段，再用拖拽/点击将财务字段按 + 或 - 放入表达式。<br>3. 保存后更新当前方案映射，支持管理看板和渠道看板分别维护。`
+      "map-rule": `<strong>一、页面在做什么</strong><br>
+本页维护「当前映射方案」下，<strong>业务费用字段</strong>（管报/看板使用的业务口径项）如何由<strong>财务费用字段</strong>（更细粒度的财务科目或中间项）通过加减组合得到。三栏分工：左侧为可拖拽的财务字段池；中间为映射表达式构建区；右侧为待配置的业务字段池。底部表格是当前方案下<strong>已保存的映射汇总</strong>（一行对应一个业务字段及其表达式）。<br><br>
+<strong>二、「映射」是什么</strong><br>
+映射指：为某个<strong>业务费用字段</strong>指定一条（或多步编辑后的一条）<strong>映射表达式</strong>，即若干财务字段用「+ / -」连接的计算式。保存后，该业务字段在管报取数时按此式从财务侧汇总，而不是手工填数。<br><br>
+<strong>三、已映射 vs 未映射（及筛选含义）</strong><br>
+• <strong>已映射</strong>：底部表中存在该业务字段的记录，且状态为「已映射」——表达式已配置完整，发布生效后看板可按公式出数。<br>
+• <strong>未映射 / 不完整</strong>：业务字段池里有该项，但底部表<strong>没有</strong>对应行，或状态为「部分映射」「缺失」——系统不知道或不能完整推导该业务口径，对应指标在管报中可能为空、为 0 或触发校验告警（实现侧可定义）。筛选「部分映射」「缺失」即用于集中处理未完备项。<br><br>
+<strong>四、操作建议</strong><br>
+1. 在「财务费用字段维护 / 业务费用字段维护」中先维护两侧字段及说明。<br>
+2. 在右侧选中一个<strong>业务费用字段</strong>，从左侧将财务字段拖入（或点击加入）中间表达式区，用「+ / -」组合后点击「保存到当前业务字段」。<br>
+3. 切换「映射方案」可分别维护不同看板口径；「保存并发布」进入后续审核与生效流程。`
     };
 
     const state = {
@@ -881,20 +918,20 @@
     });
 
     document.addEventListener("click", (event) => {
-      const dot = event.target.closest(".req-dot");
-      if (dot) {
-        const key = dot.dataset.req;
-        const text = reqText[key];
-        if (text) {
-          popover.innerHTML = text;
-          const rect = dot.getBoundingClientRect();
-          popover.style.left = `${Math.max(12, Math.min(window.innerWidth - 432, rect.left - 180))}px`;
-          popover.style.top = `${Math.min(window.innerHeight - 24, rect.bottom + 8)}px`;
-          popover.classList.add("show");
-        }
+      const guide = event.target.closest("[data-req]");
+      if (guide && guide.dataset.req && reqText[guide.dataset.req]) {
+        const key = guide.dataset.req;
+        popover.innerHTML = reqText[key];
+        const rect = guide.getBoundingClientRect();
+        const popW = 532;
+        popover.style.left = `${Math.max(12, Math.min(window.innerWidth - popW - 12, rect.right - popW + 40))}px`;
+        popover.style.top = `${Math.min(window.innerHeight - 24, rect.bottom + 8)}px`;
+        popover.classList.add("show");
         return;
       }
-      if (!event.target.closest(".modal")) popover.classList.remove("show");
+      if (!event.target.closest(".modal") && !event.target.closest(".popover")) {
+        popover.classList.remove("show");
+      }
     });
 
     renderSchemeOptions("main");
