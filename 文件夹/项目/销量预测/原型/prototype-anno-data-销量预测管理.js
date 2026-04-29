@@ -197,9 +197,8 @@
       anchorSelector: "#chkForecastFill",
       title: "开关：forecast 填写销量",
       html:
-        "<p><strong>【基础】</strong><code>checkbox</code>；与业务线 forecast 填报流程联动。</p>" +
-        "<p><strong>【逻辑】</strong>勾选后列表展示或允许编辑 forecast 行（是否可编辑由权限与流程状态决定）。</p>" +
-        "<p><strong>【开发 / 测试 · forecast 调机说明】</strong>主表月度单元格内 <code>fc-fill</code> 行为「forecast 填写」演示轨，数据来自 <code>seriesValueForCell(..., 'fill', mi)</code> 与行内 <code>row.fill</code> 等演示字段；与「详情」弹窗列 <code>#detailThFc</code> 同源展示逻辑。改月份范围、锚定日 URL 参数 <code>?anchor=YYYY-MM-DD</code> 后应回归：勾选开关能切换第三轨显隐、导出列与可见列一致。</p>",
+        "<p><strong>【基础】</strong><code>checkbox</code>；与业务线 forecast 填报流程联动，控制主表是否展示「forecast 填写」数据轨。</p>" +
+        "<p><strong>【逻辑】</strong>勾选后增加 forecast 轨，数值按<strong>当前表格预测档（R1/R2/R3）对应的提前期</strong>拉取用户已落库的<strong>实际 forecast 填报</strong>：对每个业务月，取的是「相对该预测月满足提前期规则」的那一版填报数据（与填报流水对齐）。<strong>示例：</strong>工具栏为 <strong>R2</strong>（提前期 <strong>60 天</strong>）时，某业务月展示的是该月在<strong>提前 60 天</strong>规则下归档的 forecast 填写值；R1/R3 同理，提前量以产品配置（如 30/90 天）为准。是否可编辑由权限与流程状态决定；与「月份范围」等筛选一致，改条件后点「搜索」重拉。</p>",
     },
     {
       skip: true,
@@ -382,9 +381,8 @@
       anchorSelector: "#detailThFc",
       title: "详情列：forecast填写",
       html:
-        "<p><strong>【基础】</strong>业务线 forecast 流程填报的销量或占位，与主表「forecast填写销量」开关联动展示。</p>" +
-        "<p><strong>【逻辑】</strong>为点值列，不参与上下限带计算；可与各目标 Rk 对比做执行偏差分析。</p>" +
-        "<p><strong>【开发 / 测试 · forecast 调机说明】</strong>本列值来自 <code>buildRowForecastDetailHtml</code> 内 <code>seriesValueForCell(row, 'fill', mi)</code>；与主表 <code>renderForecastTable</code> 中 fill 轨同一套演示数据。回归：切换 <code>#tablePredR</code> 只改 R 档四列，不改 fill；无 fill 时显示「—」。</p>",
+        "<p><strong>【基础】</strong>与主表「forecast 填写销量」开关联动；展示业务线填报的 forecast 点值。</p>" +
+        "<p><strong>【逻辑】</strong>取数口径与主表 forecast 轨一致：按<strong>当前详情所随的 R 档提前期</strong>拉取各月用户已填报数据（如 R2=提前 60 天）。本列为点值，不参与上下限带；可与各档目标对比看执行偏差。无填报时显示「—」。</p>",
     },
     {
       containerSelector: "#dlgDetailFooterCloseWrap",
