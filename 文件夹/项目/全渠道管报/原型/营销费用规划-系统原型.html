@@ -112,14 +112,19 @@
     }
     .breadcrumb span { color: var(--text); }
 
-    /* 白卡片（外框） */
+    /* 白卡片（外框）；勿用 overflow:hidden，否则会裁切筛选区内绝对定位的下拉层 */
     .panel {
       background: var(--card-bg);
       border: 1px solid var(--card-border);
       border-radius: var(--card-radius);
       box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
       margin-bottom: 16px;
-      overflow: hidden;
+      overflow: visible;
+    }
+    /* 筛选下拉超出本卡片时，需压在下方的「场景品类规划」等板块之上 */
+    .panel.panel--filter {
+      position: relative;
+      z-index: 20;
     }
     .panel-head {
       padding: 12px 16px;
@@ -146,6 +151,12 @@
       flex-wrap: wrap;
       align-items: center;
       gap: 8px 10px;
+    }
+    /* 与带红点/多行标签的筛选项同一行时，与输入框垂直居中对齐（勿用 align-self:flex-end） */
+    .filter-grid .f.f-filter-search {
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
     }
     .f {
       display: flex;
@@ -280,7 +291,7 @@
       position: absolute;
       left: 0;
       top: calc(100% + 4px);
-      z-index: 80;
+      z-index: 100;
       display: flex;
       background: #fff;
       border: 1px solid var(--border);
@@ -288,6 +299,10 @@
       box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
       overflow: hidden;
       min-width: 360px;
+    }
+    /* 作者样式里 display:flex 会盖掉 [hidden] 的默认 none，导致下拉无法真正收起 */
+    .sc-cat-pop[hidden] {
+      display: none !important;
     }
     .sc-cat-col {
       width: 180px;
@@ -348,6 +363,9 @@
       z-index: 95;
       margin: 0;
     }
+    .plan-sc-cat-pop-host[hidden] {
+      display: none !important;
+    }
     .plan-sc-cat-pop-host .sc-cat-pop {
       min-width: 360px;
     }
@@ -371,6 +389,9 @@
       border-right: none;
     }
     .btn-search {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
       height: 28px;
       padding: 0 14px;
       background: var(--header-bg);
@@ -474,6 +495,9 @@
     .num { text-align: right; font-variant-numeric: tabular-nums; }
     .actions { white-space: nowrap; }
     .actions .link {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
       background: none;
       border: none;
       padding: 0 6px 0 0;
@@ -510,6 +534,208 @@
       z-index: 200;
     }
     .toast.show { opacity: 1; }
+
+    /* 开发/测试：红点（可点击打开说明，禁止仅靠 title 承载长文） */
+    button.logic-pin {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 16px;
+      height: 16px;
+      margin: 0;
+      padding: 0 4px;
+      border: none;
+      border-radius: 999px;
+      background: #ff4d4f;
+      color: #fff;
+      font-size: 10px;
+      font-weight: 700;
+      line-height: 1;
+      font-family: inherit;
+      cursor: pointer;
+      flex-shrink: 0;
+      box-shadow: 0 0 0 1px rgba(255, 77, 79, 0.35);
+    }
+    button.logic-pin:focus-visible {
+      outline: 2px solid #1677ff;
+      outline-offset: 1px;
+    }
+    button.logic-pin.logic-pin--wide {
+      min-width: 30px;
+      padding: 0 6px;
+    }
+    .lbl-dev-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+      margin-bottom: 4px;
+    }
+    .lbl-dev-row label {
+      margin: 0;
+    }
+    .f-with-pin {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+    }
+    th .th-inner {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+    .plan-cell-head-tools {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .plan-row-tool {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      flex-shrink: 0;
+    }
+    .field-hint-icon {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 18px;
+      height: 18px;
+      margin: 0;
+      padding: 0;
+      border: 1px solid #91caff;
+      border-radius: 50%;
+      background: #e6f4ff;
+      color: #1677ff;
+      font-size: 11px;
+      font-weight: 700;
+      font-style: italic;
+      font-family: Georgia, "Times New Roman", serif;
+      line-height: 1;
+      cursor: pointer;
+    }
+    .field-hint-icon:focus-visible {
+      outline: 2px solid #1677ff;
+      outline-offset: 1px;
+    }
+    .logic-breadcrumb-hint {
+      margin: 0 0 12px 0;
+      padding: 8px 12px;
+      font-size: 12px;
+      color: var(--text-sec);
+      background: #fafafa;
+      border: 1px solid var(--line);
+      border-radius: var(--card-radius);
+      line-height: 1.5;
+    }
+    .logic-breadcrumb-hint code {
+      font-size: 11px;
+    }
+    .logic-pop-toolbar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      padding: 6px 10px;
+      border-bottom: 1px solid var(--line);
+      background: #fafafa;
+    }
+    .toolbar-with-dev {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .panel-head-tools {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    /* 开发/测试说明弹层 */
+    .logic-modal {
+      position: fixed;
+      inset: 0;
+      z-index: 300;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+    .logic-modal[hidden] {
+      display: none !important;
+    }
+    .logic-modal-backdrop {
+      position: absolute;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.45);
+    }
+    .logic-modal-card {
+      position: relative;
+      z-index: 1;
+      width: min(520px, 100%);
+      max-height: min(72vh, 560px);
+      display: flex;
+      flex-direction: column;
+      background: #fff;
+      border-radius: 8px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
+      overflow: hidden;
+    }
+    .logic-modal-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--line);
+      font-weight: 600;
+      font-size: 14px;
+    }
+    .logic-modal-close {
+      border: none;
+      background: transparent;
+      font-size: 20px;
+      line-height: 1;
+      cursor: pointer;
+      color: var(--text-sec);
+      padding: 4px 8px;
+    }
+    .logic-modal-close:hover {
+      color: var(--text);
+    }
+    .logic-modal-body {
+      padding: 14px 16px;
+      overflow: auto;
+      font-size: 13px;
+      line-height: 1.65;
+      color: var(--text);
+    }
+    .logic-modal-body p {
+      margin: 0 0 10px 0;
+    }
+    .logic-modal-body p:last-child {
+      margin-bottom: 0;
+    }
+    .logic-modal-tag {
+      display: inline-block;
+      margin-right: 8px;
+      padding: 1px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 600;
+      vertical-align: middle;
+    }
+    .logic-modal-tag.dev {
+      background: #fff1f0;
+      color: #cf1322;
+      border: 1px solid #ffccc7;
+    }
+    .logic-modal-tag.user {
+      background: #e6f4ff;
+      color: #0958d9;
+      border: 1px solid #91caff;
+    }
   </style>
 </head>
 <body>
@@ -527,12 +753,19 @@
       </header>
       <div class="content">
         <div class="breadcrumb">全渠道 / <span>营销费用规划</span></div>
+        <p class="logic-breadcrumb-hint">
+          正式用户请点击字段或表头旁的「<strong>i</strong>」查看<strong>简要</strong>说明；开发/测试请点击<strong>红色编号</strong>查看<strong>完整</strong>实现细则（不展示在页面上）。规范文档：<code>ckw/规范/原型-红点逻辑标注与用户提示-全局UI规范.md</code>。
+        </p>
 
-        <section class="panel">
+        <section class="panel panel--filter">
           <div class="filter-panel">
             <div class="filter-grid">
-              <div class="f">
-                <label for="fltScCatTrigger">场景品类</label>
+              <div class="f f-with-pin">
+                <div class="lbl-dev-row">
+                  <label for="fltScCatTrigger">场景品类</label>
+                  <button type="button" class="logic-pin" data-logic-key="1" aria-label="开发测试说明 1">1</button>
+                  <button type="button" class="field-hint-icon" data-user-hint="filterScCat" aria-label="场景品类筛选说明">i</button>
+                </div>
                 <div class="sc-cat-wrap" id="fltScCatWrap">
                   <button type="button" class="sc-cat-trigger" id="fltScCatTrigger" aria-expanded="false" aria-haspopup="true">场景品类</button>
                   <div class="sc-cat-pop" id="fltScCatPop" hidden role="dialog" aria-label="场景品类">
@@ -542,8 +775,12 @@
                 </div>
                 <span class="sc-cat-clear" id="fltScCatClear" role="button" tabindex="0">清空</span>
               </div>
-              <div class="f">
-                <label for="fltNpTagTrigger">新品标签</label>
+              <div class="f f-with-pin">
+                <div class="lbl-dev-row">
+                  <label for="fltNpTagTrigger">新品标签</label>
+                  <button type="button" class="logic-pin" data-logic-key="2" aria-label="开发测试说明 2">2</button>
+                  <button type="button" class="field-hint-icon" data-user-hint="filterNpTag" aria-label="新品标签筛选说明">i</button>
+                </div>
                 <div class="sc-cat-wrap np-tag-wrap" id="fltNpTagWrap">
                   <button type="button" class="sc-cat-trigger" id="fltNpTagTrigger" aria-expanded="false" aria-haspopup="true">新品标签</button>
                   <div class="sc-cat-pop np-tag-pop" id="fltNpTagPop" hidden role="dialog" aria-label="新品标签">
@@ -570,10 +807,13 @@
               <div class="f"><label for="fltTl">TL</label><select id="fltTl"><option value="">全部</option></select></div>
               <div class="f"><label for="fltSales">Sales</label><select id="fltSales"><option value="">全部</option></select></div>
               <div class="f"><label for="fltYear">年度</label><select id="fltYear"></select></div>
-              <button type="button" class="btn-search" id="btnQuery">搜索</button>
+              <div class="f f-filter-search">
+                <button type="button" class="btn-search" id="btnQuery">搜索</button>
+                <button type="button" class="logic-pin" data-logic-key="3" aria-label="开发测试说明 3">3</button>
+              </div>
             </div>
             <div class="filter-actions">
-              <span class="hint" style="margin:0;flex:1;min-width:200px;"><strong>场景品类</strong>与<strong>新品标签</strong>为<strong>两列独立</strong>控件；点「搜索」时<strong>二者不可同时为空</strong>。仅场景品类、仅新品标签、或<strong>两维都选</strong>均可；两维都选时对列表取<strong>交集（AND）</strong>。场景品类级联<strong>不含「新品」</strong>（新品仅通过导入/存量 <code>new_product</code> 行体现）；场景品类可<strong>清空</strong>。新品标签为<strong>多选年份（OR）</strong>。主数据见 <code>文件夹/规范/基础数据/场景品类基础数据_v1.json</code>。</span>
+              <span class="hint" style="margin:0;flex:1;min-width:200px;">筛选：选场景品类、新品标签后点「搜索」。点「<strong>i</strong>」看用户说明；点<strong>红编号</strong>看开发细则。</span>
             </div>
           </div>
         </section>
@@ -582,20 +822,44 @@
           <div class="panel-head">场景品类规划</div>
           <div class="panel-body">
             <div class="table-toolbar">
-              <button type="button" class="btn btn-default" id="btnAdd">新增一行</button>
-              <button type="button" class="btn btn-default" id="btnImportPick">导入 CSV</button>
+              <div class="toolbar-with-dev">
+                <button type="button" class="btn btn-default" id="btnAdd">新增一行</button>
+                <button type="button" class="logic-pin" data-logic-key="8" aria-label="开发测试说明 8">8</button>
+              </div>
+              <div class="toolbar-with-dev">
+                <button type="button" class="btn btn-default" id="btnImportPick">导入 CSV</button>
+                <button type="button" class="logic-pin" data-logic-key="14" aria-label="开发测试说明 14">14</button>
+              </div>
               <input type="file" id="fileImport" accept=".csv,text/csv" />
               <button type="button" class="btn btn-default" id="btnExport">导出当前列表</button>
-              <button type="button" class="btn btn-primary" id="btnSaveAll">保存全部</button>
+              <div class="toolbar-with-dev">
+                <button type="button" class="btn btn-primary" id="btnSaveAll">保存全部</button>
+                <button type="button" class="logic-pin" data-logic-key="7" aria-label="开发测试说明 7">7</button>
+              </div>
             </div>
-            <p class="hint">维护 <strong>年度 × 规划对象</strong>：表格<strong>场景品类</strong>与<strong>新品标签</strong>分两列。场景品类<strong>可清空</strong>；行内级联<strong>不提供「新品」入口</strong>（<code>new_product</code> 行仍可通过导入或存量数据维护「新品/标识」）。<strong>新品标签</strong>每行均为<strong>下拉</strong>，首项为「请选择」，<strong>默认未选可清空</strong>；选定后为「YYYY年新品」。筛选与列表：新品标签对<strong>所有行</strong>生效；场景全量/品类/新品三种粒度及去重规则不变。金额 <strong>USD</strong>；CSV 含新品标签列。数据 <code>localStorage</code>（<code>marketing_expense_plan_v3</code>）。</p>
             <div class="table-wrap">
               <table id="tblPlan">
                 <thead>
                   <tr>
                     <th>年度</th>
-                    <th>场景品类</th>
-                    <th>新品标签</th>
+                    <th>
+                      <span class="th-inner">
+                        场景品类
+                        <span class="plan-cell-head-tools">
+                          <button type="button" class="logic-pin" data-logic-key="4" aria-label="开发测试说明 4">4</button>
+                          <button type="button" class="field-hint-icon" data-user-hint="planScCatCol" aria-label="场景品类列说明">i</button>
+                        </span>
+                      </span>
+                    </th>
+                    <th>
+                      <span class="th-inner">
+                        新品标签
+                        <span class="plan-cell-head-tools">
+                          <button type="button" class="logic-pin" data-logic-key="5" aria-label="开发测试说明 5">5</button>
+                          <button type="button" class="field-hint-icon" data-user-hint="planNpCol" aria-label="新品标签列说明">i</button>
+                        </span>
+                      </span>
+                    </th>
                     <th>营销费用规划（USD）</th>
                     <th class="actions">操作</th>
                   </tr>
@@ -609,19 +873,31 @@
 
         <section class="panel">
           <div class="panel-head">
-            <span>拆分结果（店铺 + MSKU）</span>
-            <button type="button" class="btn btn-default" id="btnRefreshSplit">重算展示</button>
+            <span class="panel-head-tools">
+              <span>拆分结果（店铺 + MSKU）</span>
+              <button type="button" class="logic-pin" data-logic-key="12" aria-label="开发测试说明 12">12</button>
+              <button type="button" class="field-hint-icon" data-user-hint="splitPanel" aria-label="拆分结果说明">i</button>
+            </span>
+            <span class="panel-head-tools">
+              <button type="button" class="btn btn-default" id="btnRefreshSplit">重算展示</button>
+              <button type="button" class="logic-pin" data-logic-key="13" aria-label="开发测试说明 13">13</button>
+            </span>
           </div>
           <div class="panel-body">
-            <p class="split-meta" id="splitContext">点击上表某一行可查看该规划对象×年度的拆分结果（示例等额拆分）。</p>
+            <p class="split-meta" id="splitContext">在上表选中一行后，下方展示该行规划金额按规则拆分至各 MSKU 的全部结果（同一 MSKU 可因命中多条规划行而多次出现）。</p>
             <div class="table-wrap">
               <table id="tblSplit">
                 <thead>
                   <tr>
                     <th>年度</th>
-                    <th>规划对象</th>
                     <th>店铺</th>
                     <th>MSKU</th>
+                    <th class="num">
+                      <span class="th-inner">
+                        BP营收权重
+                        <button type="button" class="logic-pin" data-logic-key="12b" aria-label="开发测试说明 BP列">12</button>
+                      </span>
+                    </th>
                     <th class="num">拆分营销费用（USD）</th>
                   </tr>
                 </thead>
@@ -632,6 +908,19 @@
           </div>
         </section>
       </div>
+    </div>
+  </div>
+  <div id="logicUnifiedModal" class="logic-modal" hidden aria-modal="true" role="dialog" aria-labelledby="logicUnifiedTitle">
+    <div id="logicUnifiedBackdrop" class="logic-modal-backdrop"></div>
+    <div class="logic-modal-card">
+      <div class="logic-modal-head">
+        <div style="display:flex;align-items:center;gap:8px;min-width:0;flex:1">
+          <span id="logicUnifiedTag" class="logic-modal-tag dev"></span>
+          <span id="logicUnifiedTitle" style="min-width:0"></span>
+        </div>
+        <button type="button" class="logic-modal-close" id="logicUnifiedModalClose" aria-label="关闭">×</button>
+      </div>
+      <div class="logic-modal-body" id="logicUnifiedBody"></div>
     </div>
   </div>
   <div class="toast" id="toast"></div>
@@ -682,35 +971,144 @@
   var NEW_PRODUCT_SCENE = "新品";
   var PLAN_G_SCENARIO = "scenario";
   var PLAN_G_CATEGORY = "category";
+  var PLAN_G_NP_TAG_ONLY = "np_tag_only";
   var PLAN_G_NEW = "new_product";
 
-  function inferPlanGranularity(scenario, category) {
-    var sc = String(scenario || "").trim();
-    var cat = String(category != null ? category : "").trim();
+  /** 示例主数据：MSKU × 场景 × 品类 × 新品标签 × BP 营收（原型用） */
+  var MOCK_MSKU_UNIVERSE = [];
+
+  /** 开发/测试：点击红点打开，全文不在页面上铺开 */
+  var LOGIC_DEV = (function () {
+    var o = {};
+    function add(k, title, body) {
+      o[k] = { title: title, body: body };
+    }
+    add(
+      "1",
+      "【1】筛选·场景品类",
+      "多选「场景×品类」叶子键，用于过滤下方「场景品类规划」表。\n与【2】组合使用。\n点击【3】搜索时：【1】与【2】不可同时为空（仅影响列表展示，不写入 localStorage；与规划行「保存」校验相互独立）。"
+    );
+    add(
+      "2",
+      "【2】筛选·新品标签",
+      "多选「YYYY年新品」（OR）。\n与【1】组合：两维都选时对规划行取交集（AND）；仅【2】有值时筛出新品标签命中的行。"
+    );
+    add("3", "【3】搜索", "执行筛选区校验后刷新规划表展示。\n不改变本地存储。");
+    add(
+      "4",
+      "【4】规划表·场景品类（行内下拉）",
+      "品类必须挂在场景下：不允许无场景的单独品类。\n左列选场景后，右列二选一：\n① 勾选「本场景维度（全场景）」→ 写入场景、品类为空，粒度为场景全量；\n② 勾选该场景下某一具体品类 → 写入场景+品类，粒度为品类。\n与「全场景」与「叶子品类」互斥（由勾选逻辑保证）。\n保存时见【7】：【4】与【5】不可同时为空（新品规划行见【6】）。"
+    );
+    add(
+      "5",
+      "【5】规划表·新品标签（行内下拉）",
+      "可选「YYYY年新品」或清空。\n与【4】至少其一有内容：保存【7】时【4】与【5】不可同时为空（新品规划行规则见【6】）。\n拆分时若填写了新品标签：命中 MSKU 需与 MSKU 上的新品标签一致后再参与 BP 占比分摊（交集）。"
+    );
+    add(
+      "6",
+      "【6】新品规划行",
+      "场景固定为「新品」；品类列承载「新品标识」（导入/存量/行内输入）。\n保存【7】时：新品标识必填。\n可与【5】新品标签列组合使用。"
+    );
+    add(
+      "7",
+      "【7】保存 / 保存单行",
+      "对当前行：\n(a) 非新品规划行：【4】与【5】不可同时为空。\n(b) 新品规划行：新品标识必填。\n(c) 校验「年度 + 规划对象」唯一键（场景/品类/新品标签组合与粒度推导一致）。\n通过后写入 localStorage（marketing_expense_plan_v3）。\n「保存全部」对每行重复上述逻辑。"
+    );
+    add("8", "【8】新增一行", "插入默认「场景 + 首个品类」作为合法初始态。\n不替代保存校验。");
+    add(
+      "9-11",
+      "【9～11】行内浮层·场景与品类",
+      "总原则：品类仅从属于当前左列所选场景。\n\n【9】清空场景品类：清空本行场景与品类。若【5】新品标签也为空，则保存【7】会失败。\n\n【10】本场景维度（全场景）：写入场景、品类为空；拆分时取该场景下全部 MSKU（示例主数据池）。若本行还选了【5】新品标签，则先与 MSKU 新品标签求交集，再按各 MSKU 该年度 BP 营收占比分摊费用。\n\n【11】具体品类勾选：写入「当前场景 + 该叶子品类」；拆分为该叶下 MSKU。若本行有【5】，再与新品标签取交集后按 BP 占比分摊。\n\n【10】与【11】互斥：勾选其一应取消另一路径（由交互保证）。"
+    );
+    add(
+      "12",
+      "【12】拆分结果",
+      "在命中 MSKU 集合内，按各 MSKU「该年度 BP 营收」占集合总 BP 的比例拆分规划金额；尾差加在最后一行。\n多条规划行可各自命中同一 MSKU：行间不去重，展示可重复。"
+    );
+    add(
+      "12b",
+      "【12】BP 营收权重列",
+      "列含义与【12】一致：展示参与分摊的权重（原型中为按 MSKU+年度哈希的稳定示例值，非真实接口）。"
+    );
+    add("13", "【13】重算展示", "按当前选中规划行数据重新计算拆分表；仅前端逻辑，不调接口。");
+    add(
+      "14",
+      "【14】导入 CSV",
+      "写入前静默跳过不满足【7】(a)(b) 的行。\n若行数据出现「有品类、无场景」：加载/导入时会尝试将品类挂到主数据中「第一个包含该品类名的场景」；无法匹配则清空品类，避免游离品类。"
+    );
+    return o;
+  })();
+
+  /** 正式用户：点击「i」打开；文案短、无实现细节 */
+  var USER_HINT = (function () {
+    var o = {};
+    function add(k, title, body) {
+      o[k] = { title: title, body: body };
+    }
+    add(
+      "filterScCat",
+      "场景品类筛选",
+      "在这里多选要看的「场景×品类」范围。\n选好后需点击「搜索」刷新下方列表。\n需与「新品标签筛选」至少选其一再搜索。"
+    );
+    add(
+      "filterNpTag",
+      "新品标签筛选",
+      "多选要筛选的新品年份标签。\n与「场景品类筛选」至少选其一，再点「搜索」。"
+    );
+    add(
+      "planScCatCol",
+      "场景品类（规划）",
+      "先选场景，再选「全场景」或下面某一个具体品类；品类不能脱离场景单独存在。\n与「新品标签」至少填一个，保存才会通过。"
+    );
+    add("planNpCol", "新品标签（规划）", "可选择该行对应的新品年份标签，也可留空。\n与「场景品类」至少填一个后再保存。");
+    add(
+      "planScCatPop",
+      "如何选择场景与品类",
+      "左侧点场景；右侧可「清空」、勾选「本场景全品类」，或勾选某个具体品类。\n若本行还选了新品标签，系统会只把费用摊到同时满足场景/品类/新品条件的商品上。"
+    );
+    add(
+      "planNewProductPop",
+      "新品规划",
+      "用于按「新品标识」做单独规划。\n请填写标识后点「应用到本行」。保存时标识必填。"
+    );
+    add(
+      "splitPanel",
+      "拆分结果",
+      "先在上表点选一行规划，这里会按规则把金额拆到店铺与 MSKU。\n拆分比例与业务 BP 营收相关（本页为示例数据）。"
+    );
+    return o;
+  })();
+
+  function inferPlanGranularityFromRecord(p) {
+    if (!p) return PLAN_G_CATEGORY;
+    var sc = String(p.scenario || "").trim();
+    var cat = String(p.category != null ? p.category : "").trim();
+    var tag = planNpTagValue(p);
     if (sc === NEW_PRODUCT_SCENE) return PLAN_G_NEW;
+    if (!sc && !cat && tag) return PLAN_G_NP_TAG_ONLY;
     if (!cat) return PLAN_G_SCENARIO;
     return PLAN_G_CATEGORY;
   }
 
   function getPlanGranularity(p) {
-    if (!p) return PLAN_G_CATEGORY;
-    if (p.planGranularity === PLAN_G_SCENARIO || p.planGranularity === PLAN_G_CATEGORY || p.planGranularity === PLAN_G_NEW) {
-      return p.planGranularity;
-    }
-    return inferPlanGranularity(p.scenario, p.category);
+    return inferPlanGranularityFromRecord(p);
   }
 
   function assignStoredGranularity(p) {
-    p.planGranularity = getPlanGranularity(p);
+    p.planGranularity = inferPlanGranularityFromRecord(p);
   }
 
   function planIdentityKey(p) {
     var y = String(p.year || "");
-    var g = getPlanGranularity(p);
-    if (g === PLAN_G_SCENARIO) return y + "\tS\t" + String(p.scenario || "").trim();
-    if (g === PLAN_G_CATEGORY) return y + "\tC\t" + String(p.scenario || "").trim() + "\t" + String(p.category || "").trim();
-    if (g === PLAN_G_NEW) return y + "\tN\t" + String(p.category || "").trim();
-    return y + "\tC\t" + String(p.scenario || "").trim() + "\t" + String(p.category || "").trim();
+    var g = inferPlanGranularityFromRecord(p);
+    var tag = planNpTagValue(p);
+    var sc = String(p.scenario || "").trim();
+    var cat = String(p.category != null ? p.category : "").trim();
+    if (g === PLAN_G_NEW) return y + "\tN\t" + cat;
+    if (g === PLAN_G_NP_TAG_ONLY) return y + "\tNP\t" + tag;
+    if (g === PLAN_G_SCENARIO) return y + "\tS\t" + sc + (tag ? "\t" + tag : "");
+    if (g === PLAN_G_CATEGORY) return y + "\tC\t" + sc + "\t" + cat + (tag ? "\t" + tag : "");
+    return y + "\tC\t" + sc + "\t" + cat;
   }
 
   function validatePlanUnique(list, draft, excludeId) {
@@ -735,7 +1133,7 @@
         planAmount: Number(p.planAmount) || 0,
         scene_code: p.scene_code,
         category_code: p.category_code,
-        planGranularity: inferPlanGranularity(p.scenario, cat),
+        planGranularity: inferPlanGranularityFromRecord({ scenario: p.scenario, category: cat, newProductTag: p.newProductTag }),
         newProductTag: p.newProductTag
       };
     }
@@ -903,6 +1301,102 @@
       var fb = SCENARIO_CATEGORY_TREE[0];
       panelActiveScenario = fb ? fb.scenario : "";
     }
+    rebuildMockMskuUniverse();
+  }
+
+  /** 原型用：MSKU 主数据池，含 BP 营收（按年度哈希，稳定可复现） */
+  function rebuildMockMskuUniverse() {
+    MOCK_MSKU_UNIVERSE = [];
+    if (!SCENARIO_CATEGORY_TREE.length) return;
+    var shops = ["AMZ-US-01", "AMZ-EU-02", "独立站-01"];
+    var tags = [planNpTagLabelForYear(2026), planNpTagLabelForYear(2025), planNpTagLabelForYear(2024), ""];
+    var idx = 0;
+    SCENARIO_CATEGORY_TREE.forEach(function (node) {
+      if (!node.categories) return;
+      node.categories.forEach(function (cat) {
+        for (var k = 0; k < 3; k++) {
+          var cc = node.categoryCodes && node.categoryCodes[cat] ? node.categoryCodes[cat] : "00";
+          var msku = "M-" + node.scene_code + "-" + cc + "-k" + k;
+          var tag = tags[idx % tags.length];
+          idx++;
+          MOCK_MSKU_UNIVERSE.push({
+            scenario: node.scenario,
+            category: cat,
+            shop: shops[idx % shops.length],
+            msku: msku,
+            newProductTag: tag,
+            _bp: {}
+          });
+        }
+      });
+    });
+  }
+
+  function bpRevenueForMockRow(m, year) {
+    var y = String(year || new Date().getFullYear());
+    if (!m._bp) m._bp = {};
+    if (m._bp[y] != null) return m._bp[y];
+    var seed = String(m.msku + y);
+    var h = 0;
+    for (var i = 0; i < seed.length; i++) {
+      h = ((h << 5) - h + seed.charCodeAt(i)) | 0;
+    }
+    var v = 800 + (Math.abs(h) % 48000);
+    m._bp[y] = v;
+    return v;
+  }
+
+  function mockSkuRowsNewProduct(plan) {
+    var key = planIdentityKey(plan) + String(plan.planAmount || 0);
+    var base = key.replace(/\s/g, "").split("").reduce(function (s, c) {
+      return s + c.charCodeAt(0);
+    }, 0) % 5000;
+    var shops = ["AMZ-US-01", "AMZ-EU-02", "独立站-01"];
+    var out = [];
+    for (var i = 0; i < 5; i++) {
+      out.push({
+        scenario: plan.scenario,
+        category: plan.category,
+        shop: shops[i % shops.length],
+        msku: "MSKU-NP-" + String(i + base % 1000),
+        newProductTag: planNpTagValue(plan),
+        _bp: {}
+      });
+    }
+    return out;
+  }
+
+  function collectEligibleMskus(plan) {
+    var g = inferPlanGranularityFromRecord(plan);
+    var tag = planNpTagValue(plan);
+    var sc = String(plan.scenario || "").trim();
+    var cat = String(plan.category != null ? plan.category : "").trim();
+
+    if (g === PLAN_G_NEW) {
+      return mockSkuRowsNewProduct(plan);
+    }
+    function tagOk(m) {
+      if (!tag) return true;
+      return String(m.newProductTag || "") === tag;
+    }
+    if (g === PLAN_G_NP_TAG_ONLY) {
+      return MOCK_MSKU_UNIVERSE.filter(function (m) {
+        return tagOk(m);
+      });
+    }
+    if (g === PLAN_G_SCENARIO) {
+      return MOCK_MSKU_UNIVERSE.filter(function (m) {
+        if (m.scenario !== sc) return false;
+        return tagOk(m);
+      });
+    }
+    if (g === PLAN_G_CATEGORY) {
+      return MOCK_MSKU_UNIVERSE.filter(function (m) {
+        if (m.scenario !== sc || m.category !== cat) return false;
+        return tagOk(m);
+      });
+    }
+    return [];
   }
 
   function leafKey(sceneName, catName) {
@@ -977,11 +1471,36 @@
     });
   }
 
+  /** 品类必须挂在场景下：历史「仅有品类」行尝试挂到主数据第一个含该品类的场景，否则清空品类 */
+  function normalizeCategoryUnderScene(p) {
+    if (!p) return;
+    if (String(p.scenario || "").trim() === NEW_PRODUCT_SCENE) return;
+    var sc = String(p.scenario || "").trim();
+    var cat = String(p.category != null ? p.category : "").trim();
+    if (!cat || sc) return;
+    var found = null;
+    for (var i = 0; i < SCENARIO_CATEGORY_TREE.length; i++) {
+      var n = SCENARIO_CATEGORY_TREE[i];
+      if (n.categories && n.categories.indexOf(cat) >= 0) {
+        found = n.scenario;
+        break;
+      }
+    }
+    if (found) p.scenario = found;
+    else p.category = "";
+  }
+
   function enrichPlanFromTree(p) {
     if (!p) return;
+    normalizeCategoryUnderScene(p);
     assignStoredGranularity(p);
-    var g = getPlanGranularity(p);
+    var g = inferPlanGranularityFromRecord(p);
     if (g === PLAN_G_NEW) {
+      delete p.scene_code;
+      delete p.category_code;
+      return;
+    }
+    if (g === PLAN_G_NP_TAG_ONLY) {
       delete p.scene_code;
       delete p.category_code;
       return;
@@ -1035,10 +1554,14 @@
   /** 表格「场景品类」列：不含新品年份标签 */
   function formatPlanScenarioCategoryOnly(like) {
     if (!like) return "—";
-    var g = getPlanGranularity(like);
+    var g = inferPlanGranularityFromRecord(like);
     if (g === PLAN_G_NEW) {
       var nc = String(like.category || "").trim();
       return nc ? NEW_PRODUCT_SCENE + " / " + nc : NEW_PRODUCT_SCENE + " / （请填写标识）";
+    }
+    if (g === PLAN_G_NP_TAG_ONLY) {
+      var tg0 = planNpTagValue(like);
+      return tg0 ? "（仅新品标签）·" + tg0 : "请选择场景品类或新品标签";
     }
     if (g === PLAN_G_SCENARIO) {
       var ss = String(like.scenario || "").trim();
@@ -1055,11 +1578,12 @@
     if (!like) return "—";
     var base = formatPlanScenarioCategoryOnly(like);
     var tag = planNpTagValue(like);
-    var g = getPlanGranularity(like);
+    var g = inferPlanGranularityFromRecord(like);
     if (g === PLAN_G_NEW) {
       var nc = String(like.category || "").trim();
       return nc && tag ? base + " · " + tag : base;
     }
+    if (g === PLAN_G_NP_TAG_ONLY) return base;
     if (tag && base !== "请选择场景品类" && base !== "—") return base + " · " + tag;
     if (tag && (base === "请选择场景品类" || base === "—")) return tag;
     return base;
@@ -1104,6 +1628,20 @@
     };
   }
 
+  function readNpTagFromPlanTr(tr) {
+    var npSel = tr && tr.querySelector(".js-np-tag-row");
+    return npSel && npSel.value != null ? String(npSel.value).trim() : "";
+  }
+
+  function inferGranularityFromTr(tr) {
+    var o = readPlanRowEditsFromTr(tr);
+    return inferPlanGranularityFromRecord({
+      scenario: o.scenario,
+      category: o.category,
+      newProductTag: readNpTagFromPlanTr(tr)
+    });
+  }
+
   function syncPlanRowScCatDom(tr, scenario, category, fromPlan) {
     var scIn = tr.querySelector(".js-scenario");
     var catIn = tr.querySelector(".js-category");
@@ -1114,7 +1652,11 @@
       var like = {
         scenario: scenario,
         category: category,
-        planGranularity: inferPlanGranularity(scenario, category)
+        planGranularity: inferPlanGranularityFromRecord({
+          scenario: scenario,
+          category: category,
+          newProductTag: fromPlan && fromPlan.newProductTag
+        })
       };
       if (fromPlan) {
         like.newProductTag = fromPlan.newProductTag;
@@ -1141,7 +1683,11 @@
       scenario: scenario,
       category: category,
       planAmount: p.planAmount,
-      planGranularity: inferPlanGranularity(scenario, category)
+      planGranularity: inferPlanGranularityFromRecord({
+        scenario: scenario,
+        category: category,
+        newProductTag: resolvedTag
+      })
     };
     if (resolvedTag) draft.newProductTag = resolvedTag;
     if (!validatePlanUnique(list, draft, id)) {
@@ -1168,7 +1714,7 @@
   function planRowSceneCheckboxState(node, tr) {
     var o = readPlanRowEditsFromTr(tr);
     if (o.scenario !== node.scenario) return { checked: false, indeterminate: false };
-    return { checked: inferPlanGranularity(o.scenario, o.category) === PLAN_G_SCENARIO, indeterminate: false };
+    return { checked: inferGranularityFromTr(tr) === PLAN_G_SCENARIO, indeterminate: false };
   }
 
   function applyPlanRowSceneCheckbox(node, tr, id, checked) {
@@ -1176,7 +1722,7 @@
       syncPlanRowScCatToModel(tr, id, node.scenario, "");
     } else {
       var o = readPlanRowEditsFromTr(tr);
-      if (o.scenario === node.scenario && inferPlanGranularity(o.scenario, o.category) === PLAN_G_SCENARIO) {
+      if (o.scenario === node.scenario && inferGranularityFromTr(tr) === PLAN_G_SCENARIO) {
         syncPlanRowScCatToModel(tr, id, "", "");
       }
     }
@@ -1239,7 +1785,14 @@
     var id = planRowEditId;
     el.innerHTML = "";
     var o = readPlanRowEditsFromTr(tr);
-    if (inferPlanGranularity(o.scenario, o.category) === PLAN_G_NEW) {
+    if (inferGranularityFromTr(tr) === PLAN_G_NEW) {
+      var stripN = document.createElement("div");
+      stripN.className = "logic-pop-toolbar";
+      stripN.innerHTML =
+        '<button type="button" class="logic-pin" data-logic-key="6" aria-label="开发测试说明 6">6</button>' +
+        '<button type="button" class="field-hint-icon" data-user-hint="planNewProductPop" aria-label="新品规划说明">i</button>' +
+        "<span style=\"font-size:12px;color:var(--text-sec)\">请输入新品标识并点「应用到本行」。</span>";
+      el.appendChild(stripN);
       var wrap = document.createElement("div");
       wrap.style.padding = "10px";
       var inp = document.createElement("input");
@@ -1290,6 +1843,10 @@
     }
     var clrTop = document.createElement("div");
     clrTop.className = "sc-cat-item sc-cat-meta-row";
+    clrTop.style.display = "flex";
+    clrTop.style.alignItems = "center";
+    clrTop.style.flexWrap = "wrap";
+    clrTop.style.gap = "6px";
     var btnClrTop = document.createElement("button");
     btnClrTop.type = "button";
     btnClrTop.className = "link";
@@ -1301,19 +1858,25 @@
     });
     clrTop.appendChild(btnClrTop);
     el.appendChild(clrTop);
+    var strip = document.createElement("div");
+    strip.className = "logic-pop-toolbar";
+    strip.innerHTML =
+      '<button type="button" class="logic-pin logic-pin--wide" data-logic-key="9-11" aria-label="开发测试说明 9～11">9-11</button>' +
+      '<button type="button" class="field-hint-icon" data-user-hint="planScCatPop" aria-label="场景与品类选择说明">i</button>';
+    el.appendChild(strip);
     var node = treeNodeByScenario(planRowPanelScenario);
     if (!node) return;
     var rowScene = document.createElement("div");
     rowScene.className = "sc-cat-item sc-cat-meta-row";
     var cbS = document.createElement("input");
     cbS.type = "checkbox";
-    cbS.checked = o.scenario === node.scenario && inferPlanGranularity(o.scenario, o.category) === PLAN_G_SCENARIO;
+    cbS.checked = o.scenario === node.scenario && inferGranularityFromTr(tr) === PLAN_G_SCENARIO;
     cbS.addEventListener("click", function (e) {
       e.stopPropagation();
     });
     cbS.addEventListener("change", function () {
       if (cbS.checked) syncPlanRowScCatToModel(tr, id, node.scenario, "");
-      else if (o.scenario === node.scenario && inferPlanGranularity(o.scenario, o.category) === PLAN_G_SCENARIO) {
+      else if (o.scenario === node.scenario && inferGranularityFromTr(tr) === PLAN_G_SCENARIO) {
         syncPlanRowScCatToModel(tr, id, "", "");
       }
     });
@@ -1331,6 +1894,9 @@
     node.categories.forEach(function (cat) {
       var div = document.createElement("div");
       div.className = "sc-cat-item";
+      div.style.display = "flex";
+      div.style.alignItems = "center";
+      div.style.gap = "6px";
       var cb = document.createElement("input");
       cb.type = "checkbox";
       cb.checked = o.scenario === node.scenario && o.category === cat;
@@ -1359,7 +1925,7 @@
     closeNpTagPop();
     planRowEditId = id;
     var o = readPlanRowEditsFromTr(tr);
-    if (inferPlanGranularity(o.scenario, o.category) === PLAN_G_NEW) {
+    if (inferPlanGranularityFromRecord({ scenario: o.scenario, category: o.category, newProductTag: readNpTagFromPlanTr(tr) }) === PLAN_G_NEW) {
       planRowPanelScenario = NEW_PRODUCT_SCENE;
     } else {
       var scenario = o.scenario;
@@ -1395,8 +1961,9 @@
       var t = e.target;
       if (!planRowEditId || !host || host.hidden) return;
       if (host.contains(t)) return;
+      if (t.closest && t.closest("#logicUnifiedModal")) return;
       if (t.closest && t.closest(".plan-sc-cat-wrap")) return;
-      if (t.closest && t.closest(".plan-np-tag-cell")) return;
+      if (t.closest && t.closest(".plan-cell-with-pin")) return;
       var npw = document.getElementById("fltNpTagWrap");
       if (npw && npw.contains(t)) return;
       closePlanRowScCatPop();
@@ -1418,7 +1985,8 @@
       label = "请选择场景品类";
     }
     return (
-      '<div class="plan-sc-cat-wrap sc-cat-wrap" data-plan-id="' +
+      '<div class="plan-cell-with-pin" style="display:flex;align-items:center;gap:4px;min-width:0">' +
+      '<div class="plan-sc-cat-wrap sc-cat-wrap" style="flex:1;min-width:0" data-plan-id="' +
       escapeHtml(p.id) +
       '">' +
       '<input type="hidden" class="js-scenario" value="' +
@@ -1429,7 +1997,9 @@
       '" />' +
       '<button type="button" class="sc-cat-trigger plan-sc-cat-trigger js-plan-sc-cat-trigger" aria-expanded="false" aria-haspopup="dialog">' +
       escapeHtml(label) +
-      "</button></div>"
+      "</button></div>" +
+      '<button type="button" class="field-hint-icon" data-user-hint="planScCatCol" aria-label="场景品类列说明">i</button>' +
+      "</div>"
     );
   }
 
@@ -1461,14 +2031,17 @@
     }).join("");
     var blankSel = !cur && !extraOpt ? " selected" : "";
     return (
-      '<div class="plan-np-tag-cell">' +
+      '<div class="plan-cell-with-pin" style="display:flex;align-items:center;gap:4px">' +
+      '<div class="plan-np-tag-cell" style="flex:1;min-width:0">' +
       '<select class="inp-inline js-np-tag-row" aria-label="新品标签">' +
       '<option value=""' +
       blankSel +
       ">请选择新品标签</option>" +
       extraOpt +
       opts +
-      "</select></div>"
+      "</select></div>" +
+      '<button type="button" class="field-hint-icon" data-user-hint="planNpCol" aria-label="新品标签列说明">i</button>' +
+      "</div>"
     );
   }
 
@@ -1674,9 +2247,8 @@
       if (wrap.contains(e.target)) return;
       var ph = document.getElementById("planScCatPopHost");
       if (ph && ph.contains(e.target)) return;
-      var scw = document.getElementById("fltScCatWrap");
-      if (scw && scw.contains(e.target)) return;
-      if (e.target.closest && e.target.closest(".plan-np-tag-cell")) return;
+      if (e.target.closest && e.target.closest("#logicUnifiedModal")) return;
+      if (e.target.closest && e.target.closest(".plan-cell-with-pin")) return;
       closeNpTagPop();
     });
   }
@@ -1706,11 +2278,10 @@
     }
     document.addEventListener("mousedown", function (e) {
       if (wrap.contains(e.target)) return;
-      var npw = document.getElementById("fltNpTagWrap");
-      if (npw && npw.contains(e.target)) return;
       var ph = document.getElementById("planScCatPopHost");
       if (ph && ph.contains(e.target)) return;
-      if (e.target.closest && e.target.closest(".plan-np-tag-cell")) return;
+      if (e.target.closest && e.target.closest("#logicUnifiedModal")) return;
+      if (e.target.closest && e.target.closest(".plan-cell-with-pin")) return;
       closeScCatPop();
     });
   }
@@ -1724,45 +2295,37 @@
     return list;
   }
 
-  /** 原型示例：生成若干 店铺+MSKU（等额拆分，不含 BP） */
-  function mockSkuRows(plan) {
-    var key = planIdentityKey(plan) + String(plan.planAmount || 0);
-    var base = key.replace(/\s/g, "").split("").reduce(function (s, c) { return s + c.charCodeAt(0); }, 0) % 5000;
-    var shops = ["AMZ-US-01", "AMZ-EU-02", "独立站-01"];
-    var rows = [];
-    for (var i = 0; i < 5; i++) {
-      rows.push({
-        year: plan.year,
+  function splitPlan(plan) {
+    var list = collectEligibleMskus(plan);
+    var year = Number(plan.year) || new Date().getFullYear();
+    var total = Number(plan.planAmount) || 0;
+    if (!list.length) return [];
+    var revs = list.map(function (m) {
+      return { m: m, r: bpRevenueForMockRow(m, year) };
+    });
+    var sumR = revs.reduce(function (s, x) {
+      return s + x.r;
+    }, 0);
+    var n = revs.length;
+    var rows = revs.map(function (x) {
+      var w = sumR > 0 ? x.r / sumR : 1 / n;
+      return {
+        year: year,
         scenario: plan.scenario,
         category: plan.category != null ? plan.category : "",
-        planGranularity: getPlanGranularity(plan),
+        planGranularity: inferPlanGranularityFromRecord(plan),
         newProductTag: plan.newProductTag,
-        shop: shops[i % shops.length],
-        msku: "MSKU-" + String(i + base % 1000)
-      });
-    }
-    return rows;
-  }
-
-  function splitPlan(plan) {
-    var skus = mockSkuRows(plan);
-    var n = skus.length;
-    if (!n) return [];
-    var total = Number(plan.planAmount) || 0;
-    var each = n > 0 ? Math.floor(total / n) : 0;
-    return skus.map(function (r) {
-      return {
-        year: r.year,
-        scenario: r.scenario,
-        category: r.category,
-        planGranularity: r.planGranularity,
-        newProductTag: r.newProductTag,
-        shop: r.shop,
-        msku: r.msku,
-        weight: 1 / n,
-        splitAmount: each
+        shop: x.m.shop,
+        msku: x.m.msku,
+        weight: w,
+        bpRev: x.r,
+        splitAmount: Math.floor(total * w),
+        mScenario: x.m.scenario,
+        mCategory: x.m.category
       };
     });
+    fixRounding(rows, total);
+    return rows;
   }
 
   function fixRounding(rows, targetTotal) {
@@ -1790,8 +2353,9 @@
 
   function planMatchesScCatFilter(p) {
     if (!filterLeafKeys.length) return true;
-    var g = getPlanGranularity(p);
+    var g = inferPlanGranularityFromRecord(p);
     if (g === PLAN_G_NEW) return true;
+    if (g === PLAN_G_NP_TAG_ONLY) return false;
     if (g === PLAN_G_SCENARIO) {
       var sn = String(p.scenario || "");
       return filterLeafKeys.some(function (fk) {
@@ -1884,12 +2448,118 @@
       .replace(/"/g, "&quot;");
   }
 
+  function parseExplainBody(text) {
+    var parts = String(text || "")
+      .split(/\n\n+/)
+      .map(function (p) {
+        return p.trim();
+      })
+      .filter(Boolean);
+    if (!parts.length) return "";
+    return (
+      "<p>" +
+      parts
+        .map(function (p) {
+          return escapeHtml(p).replace(/\n/g, "<br>");
+        })
+        .join("</p><p>") +
+      "</p>"
+    );
+  }
+
+  function openUnifiedExplain(mode, key) {
+    var modal = document.getElementById("logicUnifiedModal");
+    var backdrop = document.getElementById("logicUnifiedBackdrop");
+    var titleEl = document.getElementById("logicUnifiedTitle");
+    var tagEl = document.getElementById("logicUnifiedTag");
+    var bodyEl = document.getElementById("logicUnifiedBody");
+    if (!modal || !backdrop || !titleEl || !tagEl || !bodyEl) return;
+    var map = mode === "user" ? USER_HINT : LOGIC_DEV;
+    var item = map[key];
+    if (!item) return;
+    titleEl.textContent = item.title || "";
+    tagEl.textContent = mode === "user" ? "用户说明" : "开发/测试";
+    tagEl.className = "logic-modal-tag " + (mode === "user" ? "user" : "dev");
+    bodyEl.innerHTML = parseExplainBody(item.body || "");
+    modal.removeAttribute("hidden");
+    modal.classList.add("is-open");
+    backdrop.classList.add("is-open");
+    document.body.classList.add("logic-modal-open");
+  }
+
+  function closeUnifiedExplain() {
+    var modal = document.getElementById("logicUnifiedModal");
+    var backdrop = document.getElementById("logicUnifiedBackdrop");
+    if (modal) {
+      modal.classList.remove("is-open");
+      modal.setAttribute("hidden", "");
+    }
+    if (backdrop) backdrop.classList.remove("is-open");
+    document.body.classList.remove("logic-modal-open");
+  }
+
+  function wireUnifiedExplain() {
+    if (wireUnifiedExplain._ok) return;
+    wireUnifiedExplain._ok = true;
+    document.addEventListener("click", function (e) {
+      var pin = e.target && e.target.closest && e.target.closest("button.logic-pin[data-logic-key]");
+      if (pin) {
+        e.preventDefault();
+        e.stopPropagation();
+        openUnifiedExplain("dev", pin.getAttribute("data-logic-key"));
+        return;
+      }
+      var hi = e.target && e.target.closest && e.target.closest("button.field-hint-icon[data-user-hint]");
+      if (hi) {
+        e.preventDefault();
+        e.stopPropagation();
+        openUnifiedExplain("user", hi.getAttribute("data-user-hint"));
+      }
+    });
+    var closeBtn = document.getElementById("logicUnifiedModalClose");
+    var backdrop = document.getElementById("logicUnifiedBackdrop");
+    if (closeBtn) closeBtn.addEventListener("click", closeUnifiedExplain);
+    if (backdrop) backdrop.addEventListener("click", closeUnifiedExplain);
+    document.addEventListener("keydown", function (e) {
+      if (e.key === "Escape") closeUnifiedExplain();
+    });
+  }
+
   function formatNum(n) {
     return Number(n).toLocaleString("zh-CN");
   }
 
   function formatUsd(n) {
     return "$" + Number(n).toLocaleString("en-US", { maximumFractionDigits: 0 });
+  }
+
+  function formatPct01(ratio) {
+    if (!(ratio > 0) || ratio !== ratio) return "—";
+    return (ratio * 100).toFixed(2) + "%";
+  }
+
+  /** 场景品类列与新品标签列不可同时为空（新品规划行以标识为准） */
+  function validatePlanRowScope(p, silent) {
+    silent = !!silent;
+    var sc = String(p.scenario || "").trim();
+    var cat = String(p.category != null ? p.category : "").trim();
+    var tag = planNpTagValue(p);
+    if (sc === NEW_PRODUCT_SCENE || inferPlanGranularityFromRecord(p) === PLAN_G_NEW) {
+      if (!String(p.category || "").trim()) {
+        if (!silent) toast("新品规划请填写新品标识");
+        return false;
+      }
+      return true;
+    }
+    if (!sc && !cat && !tag) {
+      if (!silent) toast("场景品类与新品标签不能同时为空：请至少选择场景（含全场景或具体品类）或新品标签之一");
+      return false;
+    }
+    if (!sc && cat) {
+      if (!silent) toast("品类必须从属于场景：请先选择左侧场景再选具体品类");
+      return false;
+    }
+    return true;
   }
 
   function bindPlanRowEvents() {
@@ -1909,7 +2579,7 @@
         });
       }
       tr.addEventListener("click", function (e) {
-        if (e.target.closest("button, input, select, textarea, label, .plan-sc-cat-wrap, .plan-np-tag-cell")) return;
+        if (e.target.closest("button, input, select, textarea, label, .plan-sc-cat-wrap, .plan-cell-with-pin")) return;
         focusPlanId = id;
         renderSplitForPlan(id);
       });
@@ -1931,9 +2601,10 @@
         });
       }
       tr.querySelector(".js-save").addEventListener("click", function () {
-        persistRow(tr, id);
-        toast("已保存该行");
-        renderSplitIfFocused();
+        if (persistRow(tr, id)) {
+          toast("已保存该行");
+          renderSplitIfFocused();
+        }
       });
       tr.querySelector(".js-del").addEventListener("click", function () {
         if (!confirm("确定删除该行？")) return;
@@ -1951,33 +2622,39 @@
     focusPlanId = id;
     var list = loadAll();
     var p = list.find(function (x) { return x.id === id; });
-    if (!p) return;
+    if (!p) return false;
     p.year = parseInt(tr.querySelector(".js-year").value, 10);
     p.scenario = tr.querySelector(".js-scenario").value;
     p.category = tr.querySelector(".js-category").value != null ? tr.querySelector(".js-category").value : "";
-    assignStoredGranularity(p);
     var npSel = tr.querySelector(".js-np-tag-row");
     var tagFromDom = npSel && npSel.value != null ? String(npSel.value).trim() : "";
     if (tagFromDom) p.newProductTag = tagFromDom;
     else delete p.newProductTag;
+    assignStoredGranularity(p);
+    if (!validatePlanRowScope(p)) {
+      renderPlans();
+      return false;
+    }
     var draft = {
       id: id,
       year: p.year,
       scenario: p.scenario,
       category: p.category,
       planAmount: parseFloat(tr.querySelector(".js-amt").value) || 0,
-      planGranularity: getPlanGranularity(p)
+      planGranularity: inferPlanGranularityFromRecord(p)
     };
+    if (tagFromDom) draft.newProductTag = tagFromDom;
     if (!validatePlanUnique(list, draft, id)) {
       toast("与已有规划重复（同年度、同粒度键）");
       renderPlans();
-      return;
+      return false;
     }
     p.planAmount = draft.planAmount;
     enrichPlanFromTree(p);
     saveAll(list);
     closePlanRowScCatPop();
     renderPlans();
+    return true;
   }
 
   function renderSplitIfFocused() {
@@ -1987,7 +2664,8 @@
 
   function clearSplitTable() {
     document.getElementById("tbodySplit").innerHTML = "";
-    document.getElementById("splitContext").textContent = "暂无规划数据；新增或导入后，点击上表某一行可查看拆分。";
+    document.getElementById("splitContext").textContent =
+      "在上表选中一行后，此处展示该行拆分至各 MSKU 的全部结果。";
     document.getElementById("splitSum").textContent = "";
   }
 
@@ -2002,30 +2680,42 @@
       return;
     }
     var rows = splitPlan(p);
-    fixRounding(rows, p.planAmount);
     tbody.innerHTML = "";
+    if (!rows.length) {
+      tbody.innerHTML =
+        '<tr><td colspan="5" class="empty">未匹配到 MSKU（请调整场景/品类/新品标签组合，或确认示例主数据池中存在对应 MSKU）</td></tr>';
+      ctx.textContent =
+        "规划对象：" +
+        formatPlanLineLabel(p) +
+        " · " +
+        p.year +
+        " 年 · 规划额 " +
+        formatUsd(p.planAmount) +
+        "；下表为拆分结果，当前命中 MSKU 为 0 条。";
+      sumEl.textContent = "";
+      return;
+    }
     rows.forEach(function (r) {
       var tr = document.createElement("tr");
-      var splitLabel = formatPlanLineLabel(r);
       tr.innerHTML =
         "<td>" + escapeHtml(r.year) + "</td>" +
-        "<td>" + escapeHtml(splitLabel) + "</td>" +
         "<td>" + escapeHtml(r.shop) + "</td>" +
         "<td>" + escapeHtml(r.msku) + "</td>" +
+        '<td class="num">' + formatPct01(r.weight) + "</td>" +
         '<td class="num">' + formatUsd(r.splitAmount) + "</td>";
       tbody.appendChild(tr);
     });
     var s = rows.reduce(function (a, r) { return a + r.splitAmount; }, 0);
     ctx.textContent =
-      "当前：" +
+      "规划对象：" +
       formatPlanLineLabel(p) +
       " · " +
       p.year +
-      " 年 · 规划 " +
+      " 年 · 规划额 " +
       formatUsd(p.planAmount) +
-      "；拆分条数 " +
+      "；下表为按 BP 营收占比拆分至各 MSKU 的全部结果（共 " +
       rows.length +
-      "。";
+      " 行，同一 MSKU 可重复出现）。";
     sumEl.textContent = "拆分合计：" + formatUsd(s) + "（与规划额对齐）。";
   }
 
@@ -2049,7 +2739,7 @@
     }
     currentFilter.year = document.getElementById("fltYear").value;
     renderPlans();
-    toast("已查询（场景品类 + 新品标签同时有选时取交集；新品标签按行匹配）");
+    toast("已查询（场景品类 + 新品标签同时有选时取交集；列表行拆分按 BP 营收占比）");
   });
 
   document.getElementById("btnAdd").addEventListener("click", function () {
@@ -2083,12 +2773,19 @@
       p.scenario = tr.querySelector(".js-scenario").value;
       p.category = tr.querySelector(".js-category").value != null ? tr.querySelector(".js-category").value : "";
       p.planAmount = parseFloat(tr.querySelector(".js-amt").value) || 0;
-      assignStoredGranularity(p);
       var npSel = tr.querySelector(".js-np-tag-row");
       var tv = npSel && npSel.value != null ? String(npSel.value).trim() : "";
       if (tv) p.newProductTag = tv;
       else delete p.newProductTag;
+      assignStoredGranularity(p);
     });
+    for (var vi = 0; vi < list.length; vi++) {
+      if (!validatePlanRowScope(list[vi], true)) {
+        toast("第 " + (vi + 1) + " 行未通过保存校验（场景品类与新品标签不可同时为空，或新品规划缺少标识）");
+        renderPlans();
+        return;
+      }
+    }
     var seen = {};
     for (var i = 0; i < list.length; i++) {
       var k = planIdentityKey(list[i]);
@@ -2189,20 +2886,19 @@
               .replace(/^"|"$/g, "")
               .trim();
             var row = { id: uid(), year: year, scenario: sc, category: cat, planAmount: amt };
-            if (ig >= 0 && cols[ig] != null && String(cols[ig]).trim()) {
-              row.planGranularity = String(cols[ig]).trim();
-            }
-            assignStoredGranularity(row);
-            if (getPlanGranularity(row) === PLAN_G_NEW) {
-              row.scenario = NEW_PRODUCT_SCENE;
-            }
             if (intag >= 0 && cols[intag] != null) {
               var tImp = String(cols[intag] || "")
                 .replace(/^"|"$/g, "")
                 .trim();
               if (tImp) row.newProductTag = tImp;
             }
-            if (getPlanGranularity(row) === PLAN_G_NEW && !String(row.category || "").trim()) continue;
+            normalizeCategoryUnderScene(row);
+            assignStoredGranularity(row);
+            if (inferPlanGranularityFromRecord(row) === PLAN_G_NEW) {
+              row.scenario = NEW_PRODUCT_SCENE;
+            }
+            if (inferPlanGranularityFromRecord(row) === PLAN_G_NEW && !String(row.category || "").trim()) continue;
+            if (!validatePlanRowScope(row, true)) continue;
             if (!validatePlanUnique(list, row, row.id)) continue;
             enrichPlanFromTree(row);
             list.push(row);
@@ -2251,6 +2947,7 @@
   }
 
   function parseEmbedAndFetchThenStart() {
+    wireUnifiedExplain();
     var embedded = parseEmbeddedSceneJson();
     if (embedded) applyScenePayload(embedded);
     startApp();

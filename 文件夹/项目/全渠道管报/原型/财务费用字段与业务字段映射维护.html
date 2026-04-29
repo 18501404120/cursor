@@ -1,0 +1,906 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>财务费用字段与业务字段映射维护</title>
+  <style>
+    :root {
+      --bg: #f3f5f9;
+      --panel: #fff;
+      --line: #dbe3ef;
+      --text: #0f172a;
+      --sub: #64748b;
+      --blue: #1677ff;
+      --blue-soft: #eff6ff;
+      --green: #16a34a;
+      --orange: #f59e0b;
+      --red: #ef4444;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "PingFang SC", "Microsoft YaHei", -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      font-size: 13px;
+    }
+    .header {
+      height: 48px;
+      background: var(--blue);
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 16px;
+      font-weight: 700;
+    }
+    .page { padding: 14px; }
+    .panel {
+      background: var(--panel);
+      border: 1px solid #e6edf7;
+      border-radius: 10px;
+      margin-bottom: 12px;
+      overflow: hidden;
+    }
+    .panel-head {
+      padding: 12px 14px;
+      border-bottom: 1px solid #edf2f8;
+      background: linear-gradient(180deg,#fafcff,#fff);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .title { font-size: 15px; font-weight: 700; }
+    .sub { font-size: 12px; color: var(--sub); }
+    .toolbar {
+      padding: 12px 14px;
+      display: flex;
+      gap: 8px 10px;
+      align-items: center;
+      flex-wrap: wrap;
+      border-bottom: 1px solid #edf2f8;
+    }
+    .f { display: inline-flex; align-items: center; gap: 6px; }
+    .f label { color: var(--sub); font-size: 12px; }
+    select, input, textarea {
+      height: 30px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: 0 10px;
+      font-size: 12px;
+      background: #fff;
+      color: var(--text);
+      min-width: 120px;
+      font-family: inherit;
+    }
+    textarea {
+      height: 64px;
+      padding: 8px 10px;
+      line-height: 1.4;
+      resize: vertical;
+    }
+    .btn {
+      height: 30px;
+      border: 1px solid var(--line);
+      background: #fff;
+      color: var(--text);
+      border-radius: 6px;
+      padding: 0 12px;
+      cursor: pointer;
+      font-size: 12px;
+      font-family: inherit;
+    }
+    .btn.primary { background: var(--blue); border-color: var(--blue); color: #fff; }
+    .btn.ghost:hover { border-color: var(--blue); color: var(--blue); }
+    .btn.small { height: 26px; padding: 0 8px; font-size: 11px; }
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      border-radius: 999px;
+      padding: 0 10px;
+      height: 24px;
+      font-size: 12px;
+      background: var(--blue-soft);
+      color: #1d4ed8;
+      border: 1px solid #dbe9ff;
+    }
+    .status { font-weight: 700; }
+    .status.ok { color: var(--green); }
+    .status.partial { color: var(--orange); }
+    .status.miss { color: var(--red); }
+
+    .mapping-builder {
+      display: grid;
+      grid-template-columns: 1fr 1.3fr 1fr;
+      gap: 10px;
+      padding: 12px 14px;
+      border-bottom: 1px solid #edf2f8;
+      background: #fcfdff;
+    }
+    .card {
+      border: 1px solid #dbe3ef;
+      border-radius: 10px;
+      background: #fff;
+      min-height: 280px;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .card-head {
+      padding: 10px 10px;
+      border-bottom: 1px solid #edf2f8;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 6px;
+      font-weight: 700;
+      font-size: 12px;
+    }
+    .list {
+      padding: 8px;
+      overflow: auto;
+      max-height: 250px;
+    }
+    .field-item {
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 8px;
+      margin-bottom: 8px;
+      cursor: pointer;
+      background: #fff;
+    }
+    .field-item:hover { border-color: #93c5fd; background: #f8fbff; }
+    .field-item.active { border-color: var(--blue); box-shadow: 0 0 0 1px rgba(22,119,255,.12); }
+    .field-item .k { font-weight: 700; }
+    .field-item .d { margin-top: 4px; color: var(--sub); font-size: 12px; line-height: 1.35; white-space: normal; }
+
+    .expr-wrap { padding: 10px; display: flex; flex-direction: column; gap: 10px; }
+    .op-row { display: flex; gap: 8px; align-items: center; }
+    .op-btn { width: 30px; padding: 0; font-weight: 700; }
+    .op-btn.active { background: var(--blue); border-color: var(--blue); color: #fff; }
+    .drop-zone {
+      min-height: 124px;
+      border: 1px dashed #93c5fd;
+      border-radius: 10px;
+      background: #f8fbff;
+      padding: 8px;
+      display: flex;
+      flex-wrap: wrap;
+      align-content: flex-start;
+      gap: 6px;
+    }
+    .token {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      border: 1px solid #cfe0ff;
+      background: #fff;
+      border-radius: 999px;
+      height: 28px;
+      padding: 0 10px;
+      font-size: 12px;
+    }
+    .token .op { font-weight: 700; color: #1d4ed8; }
+    .token .del { border: none; background: transparent; cursor: pointer; color: #ef4444; font-size: 12px; padding: 0; }
+    .hint { color: var(--sub); font-size: 12px; line-height: 1.4; }
+
+    .table-wrap { overflow: auto; max-height: 48vh; }
+    table { border-collapse: collapse; width: 100%; min-width: 1700px; }
+    th, td {
+      border: 1px solid #e5edf7;
+      padding: 8px;
+      font-size: 12px;
+      text-align: left;
+      vertical-align: top;
+      white-space: nowrap;
+    }
+    th { position: sticky; top: 0; z-index: 2; background: #f5f9ff; color: #334155; }
+    .formula { white-space: normal; line-height: 1.5; color: #334155; max-width: 500px; }
+
+    .foot {
+      padding: 10px 14px;
+      border-top: 1px solid #edf2f8;
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: wrap;
+      color: var(--sub);
+      font-size: 12px;
+    }
+
+    .req-dot {
+      display: inline-flex;
+      width: 14px;
+      height: 14px;
+      border-radius: 999px;
+      align-items: center;
+      justify-content: center;
+      background: #ff4d4f;
+      color: #fff;
+      font-size: 10px;
+      font-weight: 700;
+      margin-left: 4px;
+      cursor: pointer;
+    }
+    .popover {
+      position: fixed;
+      max-width: 420px;
+      background: #fff;
+      border: 1px solid #dbe3ef;
+      box-shadow: 0 12px 30px rgba(2, 6, 23, 0.18);
+      border-radius: 8px;
+      padding: 10px 12px;
+      line-height: 1.55;
+      font-size: 12px;
+      color: #334155;
+      display: none;
+      z-index: 100;
+    }
+    .popover.show { display: block; }
+
+    .modal-mask {
+      position: fixed;
+      inset: 0;
+      background: rgba(15,23,42,.32);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 200;
+      padding: 16px;
+    }
+    .modal-mask.show { display: flex; }
+    .modal {
+      width: min(1080px, 100%);
+      max-height: 88vh;
+      background: #fff;
+      border-radius: 12px;
+      border: 1px solid #dbe3ef;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+    .modal-head {
+      padding: 12px 14px;
+      border-bottom: 1px solid #edf2f8;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: #f8fbff;
+      font-weight: 700;
+    }
+    .modal-body {
+      padding: 12px 14px;
+      overflow: auto;
+      display: grid;
+      grid-template-columns: 1fr 1.5fr;
+      gap: 12px;
+    }
+    .edit-form {
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      padding: 10px;
+      background: #fcfdff;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      align-self: start;
+    }
+    .modal-foot {
+      padding: 10px 14px;
+      border-top: 1px solid #edf2f8;
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+    }
+    @media (max-width: 1080px) {
+      .mapping-builder { grid-template-columns: 1fr; }
+      .modal-body { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div>财务费用字段与业务字段映射维护</div>
+    <div style="font-size:12px;font-weight:500;opacity:.92;">支持：全渠道管理报表看板 / 全渠道管理报表看板-渠道版</div>
+  </div>
+
+  <div class="page">
+    <section class="panel">
+      <div class="panel-head">
+        <div>
+          <div class="title">字段维护与映射配置</div>
+          <div class="sub">先维护字段，再通过拖拽/点击 + 或 - 组合映射到业务字段。</div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+          <span class="pill" id="modeHint">当前方案：管理看板口径</span>
+          <button class="btn ghost" id="openFinBtn" type="button">财务费用字段维护</button>
+          <button class="btn ghost" id="openBizBtn" type="button">业务费用字段维护</button>
+          <button class="btn ghost" id="copyBtn" type="button">复制当前方案</button>
+          <button class="btn primary" id="publishBtn" type="button">保存并发布</button>
+        </div>
+      </div>
+
+      <div class="toolbar">
+        <div class="f">
+          <label>映射方案</label>
+          <select id="schemeSelect">
+            <option value="main">全渠道管理报表看板</option>
+            <option value="channel">全渠道管理报表看板-渠道版</option>
+          </select>
+        </div>
+        <button class="btn ghost" id="addSchemeBtn" type="button">新增方案</button>
+        <div class="f">
+          <label>映射状态</label>
+          <select id="statusFilter">
+            <option value="all">全部</option>
+            <option value="ok">已映射</option>
+            <option value="partial">部分映射</option>
+            <option value="miss">缺失</option>
+          </select>
+        </div>
+        <div class="f">
+          <label>关键词</label>
+          <input id="keyword" type="text" placeholder="财务字段/业务字段/说明" />
+        </div>
+        <button class="btn ghost" id="searchBtn" type="button">查询</button>
+        <button class="btn ghost" id="resetBtn" type="button">重置</button>
+        <span class="sub">规则说明<span class="req-dot" data-req="map-rule">!</span></span>
+      </div>
+
+      <div class="mapping-builder">
+        <div class="card">
+          <div class="card-head">财务费用字段池 <span class="sub" id="finCount"></span></div>
+          <div class="list" id="finPool"></div>
+        </div>
+
+        <div class="card">
+          <div class="card-head">映射表达式构建区 <span class="sub">拖拽或点击左侧字段</span></div>
+          <div class="expr-wrap">
+            <div class="op-row">
+              <span class="sub">当前操作符</span>
+              <button class="btn op-btn active" id="opPlus" type="button">+</button>
+              <button class="btn op-btn" id="opMinus" type="button">-</button>
+              <button class="btn ghost" id="clearExprBtn" type="button">清空表达式</button>
+            </div>
+            <div class="drop-zone" id="exprZone"></div>
+            <div class="hint">规则：先在右侧选中一个业务字段，再构建表达式并保存映射。第一项默认使用“+”。</div>
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+              <span class="pill" id="selectedBizPill">未选择业务字段</span>
+              <button class="btn primary" id="saveMappingBtn" type="button">保存到当前业务字段</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-head">业务费用字段池 <span class="sub" id="bizCount"></span></div>
+          <div class="list" id="bizPool"></div>
+        </div>
+      </div>
+
+      <div class="table-wrap">
+        <table id="mapTable"></table>
+      </div>
+
+      <div class="foot">
+        <div id="summaryText">共 0 条映射</div>
+        <div>发布策略：保存后进入待审核，审核通过后生效到对应看板页面。</div>
+      </div>
+    </section>
+  </div>
+
+  <div class="popover" id="popover"></div>
+
+  <div class="modal-mask" id="fieldModalMask">
+    <div class="modal">
+      <div class="modal-head">
+        <span id="fieldModalTitle">字段维护</span>
+        <button class="btn ghost" id="closeFieldModalBtn" type="button">关闭</button>
+      </div>
+      <div class="modal-body">
+        <div class="edit-form">
+          <div class="sub" id="fieldFormMode">新增字段</div>
+          <div>
+            <div class="sub" style="margin-bottom:4px;">费用项名称</div>
+            <input id="fieldNameInput" type="text" placeholder="请输入费用项名称" style="width:100%;" />
+          </div>
+          <div>
+            <div class="sub" style="margin-bottom:4px;">费用项说明</div>
+            <textarea id="fieldDescInput" placeholder="请输入费用项说明"></textarea>
+          </div>
+          <div style="display:flex;gap:8px;">
+            <button class="btn primary" id="saveFieldBtn" type="button">保存</button>
+            <button class="btn ghost" id="resetFieldFormBtn" type="button">重置</button>
+          </div>
+        </div>
+        <div>
+          <div class="sub" style="margin-bottom:8px;">字段列表</div>
+          <div class="table-wrap" style="max-height:54vh;">
+            <table id="fieldTable"></table>
+          </div>
+        </div>
+      </div>
+      <div class="modal-foot">
+        <button class="btn primary" id="closeFieldModalBtn2" type="button">完成</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const defaultFinancialFields = [
+      ["销售额", "财务销售确认金额"], ["发货成本", "财务发货成本"], ["关税", "财务关税"], ["预留毛利", "财务预提毛利"],
+      ["头程运费", "国际头程运费"], ["尾程运费/FBA物流", "末端物流成本"], ["退货运费", "退货运输"], ["仓储费", "仓储相关成本"],
+      ["广告费", "广告投放费用"], ["品牌营销费", "品牌营销规划费用"], ["推广费", "平台推广费用"], ["样品费", "样品寄送费用"],
+      ["FBA佣金", "平台FBA佣金"], ["平台服务费", "平台服务费用"], ["收单费用/Payment Discount", "支付收单及折扣"], ["店铺费用", "店铺固定成本"],
+      ["Commission Fee", "交易佣金"], ["销售税/VAT", "销售税及VAT"], ["销售退款", "退款金额"], ["运杂费", "其他杂费"], ["平台赔偿", "平台赔付"],
+      ["运费收入", "亚马逊运费收入"], ["包装收入", "亚马逊包装收入"], ["折扣", "促销折扣"], ["直接扣减折扣", "订单直接扣减"],
+      ["净销售额", "RRP×销量（含退货）"], ["销量", "销售件数"], ["营收", "收入净额"], ["毛利", "毛利金额"]
+    ].map((x, idx) => ({ id: idx + 1, name: x[0], desc: x[1] }));
+
+    const defaultBusinessFields = [
+      ["净销售额", "RRP×销量（含退货）"], ["运费收入", "仅亚马逊渠道有值"], ["包装收入", "仅亚马逊渠道有值"], ["销售额", "净销售额+运费收入+包装收入"],
+      ["折扣", "促销折扣"], ["直接扣减折扣", "(RRP-成交价)×数量"], ["优惠合计", "折扣+直接扣减折扣"], ["销售收款", "销售额-优惠合计"],
+      ["销售退款", "退款金额"], ["销售净额", "销售收款-销售退款"], ["销售税/VAT", "税费"], ["收入净额", "销售净额-销售税/VAT"],
+      ["发货成本", "发货成本"], ["退货成本", "退货成本"], ["平台赔偿", "平台赔偿"], ["货值成本净额", "发货成本+退货成本+平台赔偿"],
+      ["广告费", "广告费用"], ["品牌营销费", "品牌营销费用"], ["推广费", "推广费用"], ["样品费", "样品费用"], ["广告宣传小计", "广告费+品牌营销费+推广费+样品费"],
+      ["头程运费", "头程运费"], ["尾程运费/FBA物流", "尾程/FBA物流"], ["退货运费", "退货运费"], ["仓储费", "仓储费"], ["关税", "关税"],
+      ["物流成本小计", "头程+尾程+退货运费+仓储费+关税"], ["FBA佣金", "FBA佣金"], ["平台服务费", "平台服务费"], ["收单费用/Payment Discount", "收单费用"],
+      ["店铺费用", "店铺费用"], ["Commission Fee", "佣金费用"], ["交易及平台费用小计", "FBA佣金+平台服务费+收单费用+店铺费用+Commission Fee"],
+      ["运杂费", "其他杂费"], ["预留毛利", "预留毛利"], ["出货授权成本", "发货成本+关税+预留毛利（渠道版）"], ["销量", "销量"], ["营收", "营收"], ["毛利", "毛利"]
+    ].map((x, idx) => ({ id: idx + 1, name: x[0], desc: x[1] }));
+
+    const mappingByScheme = {
+      main: [
+        { id: 1, bizField: "货值成本净额", expression: "+ 发货成本 + 退货成本 + 平台赔偿", status: "ok", note: "标准口径" },
+        { id: 2, bizField: "物流成本小计", expression: "+ 头程运费 + 尾程运费/FBA物流 + 退货运费 + 仓储费 + 关税", status: "ok", note: "标准口径" },
+        { id: 3, bizField: "毛利", expression: "+ 营收 - 货值成本净额 - 广告宣传小计 - 物流成本小计 - 交易及平台费用小计 - 运杂费 - 预留毛利", status: "ok", note: "标准口径" }
+      ],
+      channel: [
+        { id: 1, bizField: "出货授权成本", expression: "+ 发货成本 + 关税 + 预留毛利", status: "ok", note: "渠道版合并项" },
+        { id: 2, bizField: "货值成本净额", expression: "+ 出货授权成本 + 退货成本 + 平台赔偿", status: "ok", note: "渠道版口径" },
+        { id: 3, bizField: "物流成本小计", expression: "+ 头程运费 + 尾程运费/FBA物流 + 退货运费 + 仓储费", status: "ok", note: "渠道版去关税" }
+      ]
+    };
+    const schemeNames = {
+      main: "全渠道管理报表看板",
+      channel: "全渠道管理报表看板-渠道版"
+    };
+
+    const reqText = {
+      "map-rule": `维护规则：<br>1. 先维护财务字段和业务字段（支持增改删与说明）。<br>2. 映射时先选业务字段，再用拖拽/点击将财务字段按 + 或 - 放入表达式。<br>3. 保存后更新当前方案映射，支持管理看板和渠道看板分别维护。`
+    };
+
+    const state = {
+      financialFields: [...defaultFinancialFields],
+      businessFields: [...defaultBusinessFields],
+      selectedBizField: "",
+      expressionTokens: [],
+      currentOp: "+",
+      editingMapId: null,
+      fieldModalType: "financial",
+      editingFieldId: null
+    };
+
+    const schemeSelect = document.getElementById("schemeSelect");
+    const statusFilter = document.getElementById("statusFilter");
+    const keyword = document.getElementById("keyword");
+    const mapTable = document.getElementById("mapTable");
+    const summaryText = document.getElementById("summaryText");
+    const modeHint = document.getElementById("modeHint");
+    const popover = document.getElementById("popover");
+    const addSchemeBtn = document.getElementById("addSchemeBtn");
+
+    const finPool = document.getElementById("finPool");
+    const bizPool = document.getElementById("bizPool");
+    const exprZone = document.getElementById("exprZone");
+    const selectedBizPill = document.getElementById("selectedBizPill");
+    const finCount = document.getElementById("finCount");
+    const bizCount = document.getElementById("bizCount");
+
+    const fieldModalMask = document.getElementById("fieldModalMask");
+    const fieldModalTitle = document.getElementById("fieldModalTitle");
+    const fieldFormMode = document.getElementById("fieldFormMode");
+    const fieldNameInput = document.getElementById("fieldNameInput");
+    const fieldDescInput = document.getElementById("fieldDescInput");
+    const fieldTable = document.getElementById("fieldTable");
+
+    function statusText(status) {
+      if (status === "ok") return '<span class="status ok">已映射</span>';
+      if (status === "partial") return '<span class="status partial">部分映射</span>';
+      return '<span class="status miss">缺失</span>';
+    }
+
+    function currentMappings() {
+      return mappingByScheme[schemeSelect.value];
+    }
+
+    function renderSchemeOptions(selectedKey = schemeSelect.value) {
+      const keys = Object.keys(mappingByScheme);
+      schemeSelect.innerHTML = keys.map((key) => `<option value=\"${key}\">${schemeNames[key] || key}</option>`).join("");
+      if (selectedKey && mappingByScheme[selectedKey]) {
+        schemeSelect.value = selectedKey;
+      }
+    }
+
+    function getFilteredMappings() {
+      const st = statusFilter.value;
+      const kw = keyword.value.trim().toLowerCase();
+      return currentMappings().filter((row) => {
+        if (st !== "all" && row.status !== st) return false;
+        if (!kw) return true;
+        return [row.bizField, row.expression, row.note].join("|").toLowerCase().includes(kw);
+      });
+    }
+
+    function renderPools() {
+      finCount.textContent = `${state.financialFields.length}项`;
+      bizCount.textContent = `${state.businessFields.length}项`;
+
+      finPool.innerHTML = state.financialFields.map((f) => `
+        <div class="field-item" draggable="true" data-fin-name="${f.name}">
+          <div class="k">${f.name}</div>
+          <div class="d">${f.desc || "--"}</div>
+        </div>
+      `).join("");
+
+      bizPool.innerHTML = state.businessFields.map((b) => `
+        <div class="field-item ${state.selectedBizField === b.name ? "active" : ""}" data-biz-name="${b.name}">
+          <div class="k">${b.name}</div>
+          <div class="d">${b.desc || "--"}</div>
+        </div>
+      `).join("");
+
+      finPool.querySelectorAll("[data-fin-name]").forEach((node) => {
+        node.addEventListener("dragstart", (e) => {
+          e.dataTransfer.setData("text/plain", node.dataset.finName);
+        });
+        node.addEventListener("click", () => addToken(node.dataset.finName));
+      });
+
+      bizPool.querySelectorAll("[data-biz-name]").forEach((node) => {
+        node.addEventListener("click", () => {
+          state.selectedBizField = node.dataset.bizName;
+          state.editingMapId = null;
+          selectedBizPill.textContent = `已选择：${state.selectedBizField}`;
+          renderPools();
+        });
+      });
+    }
+
+    function renderExpression() {
+      exprZone.innerHTML = state.expressionTokens.length
+        ? state.expressionTokens.map((t, idx) => `
+          <span class="token">
+            <span class="op">${idx === 0 ? "+" : t.op}</span>
+            <span>${t.field}</span>
+            <button class="del" type="button" data-del-idx="${idx}">×</button>
+          </span>
+        `).join("")
+        : '<span class="sub">请拖拽财务费用字段到这里，或点击左侧字段添加。</span>';
+
+      exprZone.querySelectorAll("[data-del-idx]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const idx = Number(btn.dataset.delIdx);
+          state.expressionTokens.splice(idx, 1);
+          renderExpression();
+        });
+      });
+    }
+
+    function addToken(fieldName) {
+      const op = state.expressionTokens.length === 0 ? "+" : state.currentOp;
+      state.expressionTokens.push({ op, field: fieldName });
+      renderExpression();
+    }
+
+    function expressionToString(tokens) {
+      if (!tokens.length) return "";
+      return tokens.map((t, i) => `${i === 0 ? "+" : t.op} ${t.field}`).join(" ");
+    }
+
+    function parseExpression(expr) {
+      const parts = (expr || "").match(/[+-]\s*[^+-]+/g) || [];
+      return parts.map((p, idx) => {
+        const trimmed = p.trim();
+        const op = trimmed.startsWith("-") ? "-" : (idx === 0 ? "+" : "+");
+        const field = trimmed.replace(/^[+-]\s*/, "").trim();
+        return { op, field };
+      });
+    }
+
+    function renderTable() {
+      const rows = getFilteredMappings();
+      modeHint.textContent = `当前方案：${schemeNames[schemeSelect.value] || schemeSelect.value}`;
+      mapTable.innerHTML = `
+        <thead>
+          <tr>
+            <th style="min-width:80px;">序号</th>
+            <th style="min-width:220px;">业务费用字段</th>
+            <th style="min-width:560px;">映射表达式（财务字段加减）</th>
+            <th style="min-width:120px;">状态</th>
+            <th style="min-width:220px;">备注</th>
+            <th style="min-width:180px;">操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rows.map((row, idx) => `
+            <tr>
+              <td>${idx + 1}</td>
+              <td>${row.bizField}</td>
+              <td class="formula">${row.expression}</td>
+              <td>${statusText(row.status)}</td>
+              <td class="formula">${row.note || "--"}</td>
+              <td>
+                <button class="btn small ghost" type="button" data-edit-map="${row.id}">编辑</button>
+                <button class="btn small ghost" type="button" data-del-map="${row.id}">删除</button>
+              </td>
+            </tr>
+          `).join("")}
+        </tbody>
+      `;
+      summaryText.textContent = `共 ${rows.length} 条映射`;
+
+      mapTable.querySelectorAll("[data-edit-map]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const id = Number(btn.dataset.editMap);
+          const row = currentMappings().find((x) => x.id === id);
+          if (!row) return;
+          state.editingMapId = id;
+          state.selectedBizField = row.bizField;
+          state.expressionTokens = parseExpression(row.expression);
+          selectedBizPill.textContent = `编辑中：${row.bizField}`;
+          renderPools();
+          renderExpression();
+        });
+      });
+
+      mapTable.querySelectorAll("[data-del-map]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const id = Number(btn.dataset.delMap);
+          const rowsRef = currentMappings();
+          const idx = rowsRef.findIndex((x) => x.id === id);
+          if (idx >= 0) rowsRef.splice(idx, 1);
+          renderTable();
+        });
+      });
+    }
+
+    function toggleOp(op) {
+      state.currentOp = op;
+      document.getElementById("opPlus").classList.toggle("active", op === "+");
+      document.getElementById("opMinus").classList.toggle("active", op === "-");
+    }
+
+    function saveMapping() {
+      if (!state.selectedBizField) {
+        alert("请先选择一个业务费用字段。");
+        return;
+      }
+      if (!state.expressionTokens.length) {
+        alert("请先构建映射表达式。");
+        return;
+      }
+      const rows = currentMappings();
+      const expr = expressionToString(state.expressionTokens);
+
+      if (state.editingMapId) {
+        const row = rows.find((x) => x.id === state.editingMapId);
+        if (row) {
+          row.bizField = state.selectedBizField;
+          row.expression = expr;
+          row.status = "ok";
+        }
+      } else {
+        const id = (rows[rows.length - 1]?.id || 0) + 1;
+        rows.push({ id, bizField: state.selectedBizField, expression: expr, status: "ok", note: "手动维护" });
+      }
+      state.expressionTokens = [];
+      state.editingMapId = null;
+      selectedBizPill.textContent = `已选择：${state.selectedBizField}`;
+      renderExpression();
+      renderTable();
+    }
+
+    function openFieldModal(type) {
+      state.fieldModalType = type;
+      state.editingFieldId = null;
+      fieldNameInput.value = "";
+      fieldDescInput.value = "";
+      fieldFormMode.textContent = "新增字段";
+      fieldModalTitle.textContent = type === "financial" ? "财务费用字段维护" : "业务费用字段维护";
+      fieldModalMask.classList.add("show");
+      renderFieldTable();
+    }
+
+    function currentFieldList() {
+      return state.fieldModalType === "financial" ? state.financialFields : state.businessFields;
+    }
+
+    function renderFieldTable() {
+      const list = currentFieldList();
+      fieldTable.innerHTML = `
+        <thead>
+          <tr>
+            <th style="min-width:80px;">序号</th>
+            <th style="min-width:220px;">费用项</th>
+            <th style="min-width:500px;">费用项说明</th>
+            <th style="min-width:180px;">操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${list.map((x, i) => `
+            <tr>
+              <td>${i + 1}</td>
+              <td>${x.name}</td>
+              <td class="formula">${x.desc || "--"}</td>
+              <td>
+                <button class="btn small ghost" type="button" data-edit-field="${x.id}">修改</button>
+                <button class="btn small ghost" type="button" data-del-field="${x.id}">删除</button>
+              </td>
+            </tr>
+          `).join("")}
+        </tbody>
+      `;
+
+      fieldTable.querySelectorAll("[data-edit-field]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const id = Number(btn.dataset.editField);
+          const item = currentFieldList().find((x) => x.id === id);
+          if (!item) return;
+          state.editingFieldId = id;
+          fieldFormMode.textContent = "编辑字段";
+          fieldNameInput.value = item.name;
+          fieldDescInput.value = item.desc || "";
+        });
+      });
+
+      fieldTable.querySelectorAll("[data-del-field]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const id = Number(btn.dataset.delField);
+          const listRef = currentFieldList();
+          const idx = listRef.findIndex((x) => x.id === id);
+          if (idx >= 0) listRef.splice(idx, 1);
+          renderFieldTable();
+          renderPools();
+        });
+      });
+    }
+
+    function saveField() {
+      const name = fieldNameInput.value.trim();
+      const desc = fieldDescInput.value.trim();
+      if (!name) {
+        alert("费用项名称不能为空。");
+        return;
+      }
+      const list = currentFieldList();
+      if (state.editingFieldId) {
+        const item = list.find((x) => x.id === state.editingFieldId);
+        if (item) {
+          item.name = name;
+          item.desc = desc;
+        }
+      } else {
+        const id = (list[list.length - 1]?.id || 0) + 1;
+        list.push({ id, name, desc });
+      }
+      state.editingFieldId = null;
+      fieldFormMode.textContent = "新增字段";
+      fieldNameInput.value = "";
+      fieldDescInput.value = "";
+      renderFieldTable();
+      renderPools();
+    }
+
+    function closeFieldModal() {
+      fieldModalMask.classList.remove("show");
+    }
+
+    document.getElementById("openFinBtn").addEventListener("click", () => openFieldModal("financial"));
+    document.getElementById("openBizBtn").addEventListener("click", () => openFieldModal("business"));
+    document.getElementById("saveFieldBtn").addEventListener("click", saveField);
+    document.getElementById("resetFieldFormBtn").addEventListener("click", () => {
+      state.editingFieldId = null;
+      fieldFormMode.textContent = "新增字段";
+      fieldNameInput.value = "";
+      fieldDescInput.value = "";
+    });
+    document.getElementById("closeFieldModalBtn").addEventListener("click", closeFieldModal);
+    document.getElementById("closeFieldModalBtn2").addEventListener("click", closeFieldModal);
+
+    schemeSelect.addEventListener("change", () => {
+      state.selectedBizField = "";
+      state.expressionTokens = [];
+      state.editingMapId = null;
+      selectedBizPill.textContent = "未选择业务字段";
+      renderPools();
+      renderExpression();
+      renderTable();
+    });
+
+    statusFilter.addEventListener("change", renderTable);
+    document.getElementById("searchBtn").addEventListener("click", renderTable);
+    document.getElementById("resetBtn").addEventListener("click", () => {
+      statusFilter.value = "all";
+      keyword.value = "";
+      renderTable();
+    });
+
+    document.getElementById("copyBtn").addEventListener("click", () => {
+      const from = schemeSelect.value;
+      const to = from === "main" ? "channel" : "main";
+      mappingByScheme[to] = mappingByScheme[from].map((r, i) => ({ ...r, id: i + 1 }));
+      alert(`已复制到${to === "main" ? "管理看板口径" : "渠道看板口径"}`);
+    });
+
+    addSchemeBtn.addEventListener("click", () => {
+      const name = prompt("请输入新映射方案名称");
+      if (!name) return;
+      const trimmed = name.trim();
+      if (!trimmed) return;
+      const key = `scheme_${Date.now()}`;
+      schemeNames[key] = trimmed;
+      mappingByScheme[key] = currentMappings().map((r, i) => ({ ...r, id: i + 1 }));
+      renderSchemeOptions(key);
+      state.selectedBizField = "";
+      state.expressionTokens = [];
+      state.editingMapId = null;
+      selectedBizPill.textContent = "未选择业务字段";
+      renderPools();
+      renderExpression();
+      renderTable();
+    });
+
+    document.getElementById("publishBtn").addEventListener("click", () => {
+      alert(`已提交发布：${schemeSelect.value === "main" ? "全渠道管理报表看板" : "全渠道管理报表看板-渠道版"}`);
+    });
+
+    document.getElementById("opPlus").addEventListener("click", () => toggleOp("+"));
+    document.getElementById("opMinus").addEventListener("click", () => toggleOp("-"));
+    document.getElementById("clearExprBtn").addEventListener("click", () => {
+      state.expressionTokens = [];
+      renderExpression();
+    });
+    document.getElementById("saveMappingBtn").addEventListener("click", saveMapping);
+
+    exprZone.addEventListener("dragover", (e) => {
+      e.preventDefault();
+      exprZone.style.background = "#eef6ff";
+    });
+    exprZone.addEventListener("dragleave", () => {
+      exprZone.style.background = "#f8fbff";
+    });
+    exprZone.addEventListener("drop", (e) => {
+      e.preventDefault();
+      exprZone.style.background = "#f8fbff";
+      const fieldName = e.dataTransfer.getData("text/plain");
+      if (fieldName) addToken(fieldName);
+    });
+
+    document.addEventListener("click", (event) => {
+      const dot = event.target.closest(".req-dot");
+      if (dot) {
+        const key = dot.dataset.req;
+        const text = reqText[key];
+        if (text) {
+          popover.innerHTML = text;
+          const rect = dot.getBoundingClientRect();
+          popover.style.left = `${Math.max(12, Math.min(window.innerWidth - 432, rect.left - 180))}px`;
+          popover.style.top = `${Math.min(window.innerHeight - 24, rect.bottom + 8)}px`;
+          popover.classList.add("show");
+        }
+        return;
+      }
+      if (!event.target.closest(".modal")) popover.classList.remove("show");
+    });
+
+    renderSchemeOptions("main");
+    renderPools();
+    renderExpression();
+    renderTable();
+  </script>
+</body>
+</html>

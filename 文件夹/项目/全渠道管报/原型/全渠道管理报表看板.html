@@ -924,10 +924,10 @@
                   <input type="date" id="dateEnd" value="2026-04-27" />
                 </div>
               </div>
-              <div class="f"><label>区域<span class="req-dot" data-req-key="filter-region-country-link">!</span></label><select id="regionFilter"><option>全部</option><option>北美</option><option>欧洲</option></select></div>
-              <div class="f"><label>国家<span class="req-dot" data-req-key="filter-region-country-link">!</span></label><select id="countryFilter"><option>全部</option><option>US</option><option>DE</option></select></div>
-              <div class="f"><label>渠道</label><select><option>全部</option><option>亚马逊</option><option>独立站</option><option>TikTok</option></select></div>
-              <div class="f"><label>店铺</label><select><option>全部</option><option>Govee US</option><option>Amazon DE</option></select></div>
+              <div class="f"><label>区域<span class="req-dot" data-req-key="filter-region-country-link">!</span></label><select id="regionFilter"><option>全部</option></select></div>
+              <div class="f"><label>国家<span class="req-dot" data-req-key="filter-region-country-link">!</span></label><select id="countryFilter"><option>全部</option></select></div>
+              <div class="f"><label>渠道<span class="req-dot" data-req-key="filter-channel-store-link">!</span></label><select id="channelFilter"><option>全部</option></select></div>
+              <div class="f"><label>店铺<span class="req-dot" data-req-key="filter-channel-store-link">!</span></label><select id="storeFilter"><option>全部</option></select></div>
               <div class="f"><label>部门</label><select><option>全部</option><option>销售</option><option>品牌</option></select></div>
               <div class="f"><label>场景</label><select><option>全部</option><option>居家</option><option>氛围</option></select></div>
               <div class="f"><label>品类</label><select><option>全部</option><option>落地灯</option><option>灯带</option></select></div>
@@ -1435,7 +1435,10 @@
     const reqPopover = document.getElementById("reqPopover");
     const exportBtn = document.getElementById("exportBtn");
     const exportMenu = document.getElementById("exportMenu");
+    const regionFilter = document.getElementById("regionFilter");
     const countryFilter = document.getElementById("countryFilter");
+    const channelFilter = document.getElementById("channelFilter");
+    const storeFilter = document.getElementById("storeFilter");
     const currencyFilter = document.getElementById("currencyFilter");
 
     const reqTextMap = {
@@ -1444,14 +1447,19 @@
 2. 日期控件为范围选择，不允许结束日期早于开始日期。<br>
 3. 若跨月，后续财务维度计算按“有整月数据的月份可拆分、无整月数据的月份仅显示占比”处理。`,
       "filter-region-country-link": `区域/国家筛选逻辑：<br>
-1. 区域支持多选，默认“全部”。<br>
-2. 国家支持多选，默认“全部”。<br>
-3. 国家下拉需与区域联动：先选区域，再只加载对应区域国家。<br>
-4. 区域为空或“全部”时，国家展示全量。`,
+1. 区域默认“全部”，国家默认“全部”。<br>
+2. 国家下拉与区域联动：先选区域，再仅加载该区域国家。<br>
+3. 区域=“全部”时，国家展示全量国家。<br>
+4. 区域变更时，国家重置为“全部”。`,
       "filter-sku-mode": `SKU筛选逻辑：<br>
 1. 支持“模糊/精确”两种模式。<br>
 2. 精确模式下建议输入完整 MSKU（sku+渠道+国家），例如 H6011001+亚马逊+US。<br>
 3. 模糊模式用于关键词检索（SKU前缀/片段）。`,
+      "filter-channel-store-link": `渠道/店铺筛选逻辑：<br>
+1. 渠道默认“全部”，店铺默认“全部”。<br>
+2. 店铺下拉与渠道联动：先选渠道，再仅加载该渠道店铺。<br>
+3. 渠道=“全部”时，店铺展示全量店铺。<br>
+4. 渠道变更时，店铺重置为“全部”。`,
       "filter-currency-rule": `币种筛选逻辑：<br>
 1. 仅当“国家”筛选为单一国家时，币种可选。<br>
 2. 可选项仅保留“USD”和“本币”。<br>
@@ -1492,6 +1500,79 @@
       const matched = fee.match(/^(.*?)（(计算值=.*)）$/);
       if (!matched) return { title: fee, calc: null };
       return { title: matched[1], calc: matched[2] };
+    }
+
+    const REGION_COUNTRY_DATA = [
+      { region: "北美区", countries: ["US", "CA", "MX"] },
+      { region: "欧洲区", countries: ["GB", "DE", "FR", "IT", "ES", "SE", "NO", "FI", "DK", "PL", "CZ", "HU"] },
+      { region: "亚太区", countries: ["CN", "JP", "KR", "SG", "MY", "TH", "VN", "PH", "ID", "AU", "NZ"] },
+      { region: "拉美区", countries: ["BR", "CL", "CO"] },
+      { region: "中东及非洲区", countries: ["AE", "SA", "ZA", "NG"] },
+      { region: "南亚区", countries: ["IN", "PK", "BD"] }
+    ];
+    const CHANNEL_STORE_DATA = [
+      { channel: "Govee", stores: ["Govee_US","Govee_CA","Govee_MX","Govee_UK","Govee_DE","Govee_FR","Govee_IT","Govee_ES","Govee_NL","Govee_SE","Govee_PL","Govee_TR","Govee_BE","Govee_JP","Govee_AU","Govee_SG","Govee_AE","Govee_SA","Govee_IE"] },
+      { channel: "Govee EU", stores: ["Govee_DE_1","Govee_UK_1","Govee_FR_1","Govee_IT_1","Govee_ES_1","Govee_NL_1","Govee_SE_1","Govee_PL_1","Govee_BE_1","Govee_IE_1","Govee_AU_1"] },
+      { channel: "GoveeLife", stores: ["Goveelife_US","Goveelife_CA","Goveelife_MX","Goveelife_UK","Goveelife_FR","Goveelife_DE","Goveelife_IT","GoveeLife_ES","GoveeLife_NL","GoveeLife_SE","GoveeLife_PL","GoveeLife_BE","GoveeLife_JP"] },
+      { channel: "独立站", stores: ["独立站-US","独立站-UK","独立站-EU","独立站-CA","独立站-US-GL","独立站-EU-GL","独立站-UK-GL","独立站-CA-GL"] },
+      { channel: "TTS", stores: ["TTS-US"] },
+      { channel: "Offline", stores: ["Offline-MX","Offline-CA","Offline-US","Offline-Others"] },
+      { channel: "京东", stores: ["京东旗舰店"] },
+      { channel: "Wayfair-US", stores: ["Wayfair-US"] },
+      { channel: "小红书", stores: ["小红书旗舰店"] },
+      { channel: "APP商城", stores: ["APP商城-US","APP商城-CA","APP商城-UK","APP商城-EU"] },
+      { channel: "品牌推广", stores: ["品牌推广"] },
+      { channel: "APP", stores: ["Savvy User Store"] },
+      { channel: "WM 3P", stores: ["WM 3P-US"] },
+      { channel: "BBY 3P", stores: ["BBY 3P-US"] },
+      { channel: "Lowes 3P", stores: ["Lowes 3P-US"] },
+      { channel: "Govee_VC", stores: ["Govee_VC_JP"] },
+      { channel: "售后CS", stores: ["售后CS"] },
+      { channel: "GoveeLife_BT", stores: ["Goveelife_BT"] },
+      { channel: "Govee_BT", stores: ["Govee_BT"] }
+    ];
+
+    function setupRegionCountryLinkage() {
+      if (!regionFilter || !countryFilter) return;
+      regionFilter.innerHTML = `<option value="全部">全部</option>${REGION_COUNTRY_DATA.map((x) => `<option value="${x.region}">${x.region}</option>`).join("")}`;
+
+      const allCountries = Array.from(new Set(REGION_COUNTRY_DATA.flatMap((x) => x.countries)));
+      const renderCountryOptions = (countries) => {
+        countryFilter.innerHTML = `<option value="全部">全部</option>${countries.map((c) => `<option value="${c}">${c}</option>`).join("")}`;
+      };
+
+      renderCountryOptions(allCountries);
+      regionFilter.addEventListener("change", () => {
+        const selectedRegion = regionFilter.value;
+        if (!selectedRegion || selectedRegion === "全部") {
+          renderCountryOptions(allCountries);
+        } else {
+          const hit = REGION_COUNTRY_DATA.find((x) => x.region === selectedRegion);
+          renderCountryOptions(hit ? hit.countries : []);
+        }
+        countryFilter.value = "全部";
+        updateCurrencyFilterByCountry();
+      });
+    }
+
+    function setupChannelStoreLinkage() {
+      if (!channelFilter || !storeFilter) return;
+      channelFilter.innerHTML = `<option value="全部">全部</option>${CHANNEL_STORE_DATA.map((x) => `<option value="${x.channel}">${x.channel}</option>`).join("")}`;
+      const allStores = Array.from(new Set(CHANNEL_STORE_DATA.flatMap((x) => x.stores)));
+      const renderStoreOptions = (stores) => {
+        storeFilter.innerHTML = `<option value="全部">全部</option>${stores.map((s) => `<option value="${s}">${s}</option>`).join("")}`;
+      };
+      renderStoreOptions(allStores);
+      channelFilter.addEventListener("change", () => {
+        const selectedChannel = channelFilter.value;
+        if (!selectedChannel || selectedChannel === "全部") {
+          renderStoreOptions(allStores);
+        } else {
+          const hit = CHANNEL_STORE_DATA.find((x) => x.channel === selectedChannel);
+          renderStoreOptions(hit ? hit.stores : []);
+        }
+        storeFilter.value = "全部";
+      });
     }
 
     const countryCurrencyMap = {
@@ -2189,6 +2270,8 @@
       reqPopover.classList.remove("show");
     });
 
+    setupRegionCountryLinkage();
+    setupChannelStoreLinkage();
     setDefaultDateRangeToLastMonth();
     updateCurrencyFilterByCountry();
     renderAll();
