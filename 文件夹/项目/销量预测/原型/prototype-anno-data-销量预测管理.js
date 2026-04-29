@@ -106,6 +106,7 @@
         "<p><strong>【逻辑】</strong><ul><li><strong>模糊：</strong>子串匹配。</li><li><strong>精确：</strong>与完整 SKU 等值。</li><li><strong>8 位搜索：</strong>按内部短码规则（以主数据为准）。</li></ul></p>",
     },
     {
+      skip: true,
       containerSelector: FG + " > .f:nth-child(10)",
       title: "筛选：TL",
       html:
@@ -113,6 +114,7 @@
         "<p><strong>【逻辑】</strong>与组织权限、业绩归属一致；接权限服务后仅展示有权的 TL。</p>",
     },
     {
+      skip: true,
       containerSelector: FG + " > .f:nth-child(11)",
       title: "筛选：Sales",
       html:
@@ -120,6 +122,7 @@
         "<p><strong>【逻辑】</strong>一线常用其只看名下 SKU；与表格「销售团队」列可交叉校验。</p>",
     },
     {
+      skip: true,
       containerSelector: FG + " > .f:nth-child(12)",
       title: "筛选：可售状态",
       html:
@@ -275,6 +278,7 @@
         "<p><strong>【逻辑】</strong>单元格为当前月份窗口内、已关账且未被异常备注排除的月份，按 <strong>100% − Σ|A−P| / Σ max(A,P)</strong> 聚合（与 PRD 图七一致）。</p>",
     },
     {
+      skip: true,
       containerSelector: "#dataTable thead tr:first-child th:nth-child(10)",
       title: "列：操作",
       html:
