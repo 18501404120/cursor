@@ -144,6 +144,7 @@
         "<p><strong>【逻辑】</strong>与「批量设置超参数因子」配合：先筛出待统一换绑/纠偏的 SKU 集合。</p>",
     },
     {
+      skip: true,
       anchorSelector: "#btnCfgSearch",
       attach: "afterend",
       title: "按钮：搜索",
@@ -152,6 +153,7 @@
         "<p><strong>【逻辑】</strong>刷新 <code>#cfgTable</code>；应携带分页、排序参数（正式版）。</p>",
     },
     {
+      skip: true,
       anchorSelector: "#btnOpenBatch",
       attach: "afterend",
       title: "按钮：批量设置超参数因子",
