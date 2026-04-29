@@ -32,7 +32,7 @@
       containerSelector: "#screenConfig .scroll > .panel--filters",
       title: "页面：筛选面板总览",
       html:
-        "<p><strong>【基础】</strong>本屏为「销量预测 · 预测配置」：上方为<strong>与主工作台对齐</strong>的维度筛选（区域→店铺→品类树→model/SKU 组合）+ <strong>超参数因子</strong>下拉 + 「搜索」，<strong>不提供「月份范围」筛选控件</strong>（避免与主工作台月份口径重复配置）。</p>" +
+        "<p><strong>【基础】</strong>本屏为「销量预测 · 预测配置」：上方为<strong>与主工作台对齐</strong>的维度筛选（区域→国家→<strong>渠道→店铺</strong>→品类树→model/SKU 组合）+ <strong>超参数因子</strong>下拉 + 「搜索」，<strong>不提供「月份范围」筛选控件</strong>（避免与主工作台月份口径重复配置）。</p>" +
         "<p><strong>【逻辑 · 点预测与经营目标】</strong>表上展示的<strong>客观中值（点预测）</strong>仅由<strong>客观因子 + 规则/模型</strong>决定，<strong>不与</strong>任何经营类「BP/手工目标」输入耦合；目标类数字若出现应在主工作台或其它流程页，本页只做参数与因子绑定维护。</p>" +
         "<p><strong>【逻辑 · 默认时间轴】</strong>本页展示的弹性系数、因子绑定等<strong>与预测滚动窗口相关的后台计算</strong>，默认按业务约定取<strong>以服务器当前日为锚点：回溯 12 个自然月～顺推 12 个自然月</strong>所覆盖的月序列（与《预测销量上下限规则》中因子统计窗口径对齐；若需改窗由配置中心后台参数或版本发布说明调整，不在此页用月份控件暴露）。</p>" +
         "<p><strong>【逻辑 · 示例】</strong>假设今天是 2026-04-21，则默认参与汇总/校验的月份约为 2025-05～2027-04（按自然月边界落库时由服务对齐到月初月末）；用户仅通过「区域、SKU…」缩小<strong>MSKU 行集合</strong>，不改变全局默认月窗。</p>" +
@@ -43,8 +43,8 @@
       title: "筛选：区域",
       html:
         "<p><strong>【基础】</strong><code>select</code>，默认「全部」。</p>" +
-        "<p><strong>【逻辑】</strong>限定配置列表地理/大区，与 ERP 组织或店铺归属一致；与<strong>国家、店铺</strong>逐级收窄。与「月份范围」无关：月份窗由系统默认，本控件只影响<strong>空间/组织维度</strong>上的 MSKU 集合。</p>" +
-        "<p><strong>【示例】</strong>选「北美区」+ 店铺「全部」→ 仍可能包含北美多店 SKU；再选店铺「Govee-US」→ 仅保留该店行。</p>",
+        "<p><strong>【逻辑】</strong>限定配置列表地理/大区，与 ERP 组织或店铺归属一致；与<strong>国家、渠道、店铺</strong>逐级收窄（渠道与店铺联动见《产品信息筛选区》§2.5）。与「月份范围」无关：月份窗由系统默认，本控件只影响<strong>空间/组织维度</strong>上的 MSKU 集合。</p>" +
+        "<p><strong>【示例】</strong>选「北美区」+ 渠道「全部」+ 店铺「Govee_US」→ 仅保留该店行；先选渠道「Govee」再选店铺可缩小候选。</p>",
     },
     {
       containerSelector: GRID + " > .f:nth-child(2)",
@@ -54,15 +54,21 @@
         "<p><strong>【逻辑】</strong>在区域下过滤站点国家，影响列表 SKU 可视范围与批量写入范围。</p>",
     },
     {
-      skip: true,
-      containerSelector: GRID + " > .f:nth-child(3)",
-      title: "筛选：店铺",
+      anchorSelector: "#channelFilter",
+      title: "筛选：渠道",
       html:
-        "<p><strong>【基础】</strong><code>select</code>；渠道店铺粒度。</p>" +
-        "<p><strong>【逻辑】</strong>常与亚马逊/独立站账号绑定；批量更新因子时防止跨店误配。</p>",
+        "<p><strong>【基础】</strong><code>select#channelFilter</code>，默认「全部」；选项来自 <code>规范/基础数据/渠道店铺基础数据_v1.json</code>（与《产品信息筛选区》§2.5 一致）。</p>" +
+        "<p><strong>【逻辑】</strong>与店铺<strong>联动</strong>：渠道为「全部」时店铺下拉为全量店铺（按基础数据顺序去重）；选定某一渠道后仅展示该渠道下属店铺；<strong>变更渠道时店铺自动重置为「全部」</strong>并刷新店铺候选。</p>",
     },
     {
-      containerSelector: GRID + " > .f:nth-child(4)",
+      anchorSelector: "#storeFilter",
+      title: "筛选：店铺",
+      html:
+        "<p><strong>【基础】</strong><code>select#storeFilter</code>，默认「全部」；候选项随渠道变化。</p>" +
+        "<p><strong>【逻辑】</strong>与区域/国家、场景品类等维度为<strong>且</strong>关系；批量更新因子时防止跨渠道误选店铺。</p>",
+    },
+    {
+      containerSelector: GRID + " > .f:nth-child(5)",
       title: "筛选：场景品类",
       html:
         "<p><strong>【基础】</strong><code>select</code>。</p>" +
@@ -70,7 +76,7 @@
     },
     {
       skip: true,
-      containerSelector: GRID + " > .f:nth-child(5)",
+      containerSelector: GRID + " > .f:nth-child(6)",
       title: "筛选：品线",
       html:
         "<p><strong>【基础】</strong><code>select</code>。</p>" +
@@ -78,7 +84,7 @@
     },
     {
       skip: true,
-      containerSelector: GRID + " > .f:nth-child(6)",
+      containerSelector: GRID + " > .f:nth-child(7)",
       title: "筛选：产品定位",
       html:
         "<p><strong>【基础】</strong><code>select</code>；主推、长尾、清仓等。</p>" +
@@ -107,7 +113,7 @@
     },
     {
       skip: true,
-      containerSelector: GRID + " > .f:nth-child(9)",
+      containerSelector: GRID + " > .f:nth-child(10)",
       title: "筛选：TL",
       html:
         "<p><strong>【基础】</strong><code>select</code>；销售线负责人。</p>" +
@@ -115,14 +121,14 @@
     },
     {
       skip: true,
-      containerSelector: GRID + " > .f:nth-child(10)",
+      containerSelector: GRID + " > .f:nth-child(11)",
       title: "筛选：Sales",
       html:
         "<p><strong>【基础】</strong><code>select</code>；一线销售。</p>" +
         "<p><strong>【逻辑】</strong>一线只查看名下 SKU 配置行，减少误改他人数据。</p>",
     },
     {
-      containerSelector: GRID + " > .f:nth-child(11)",
+      containerSelector: GRID + " > .f:nth-child(12)",
       title: "筛选：可售状态",
       html:
         "<p><strong>【基础】</strong><code>select</code>；可售、停售、预售等。</p>" +

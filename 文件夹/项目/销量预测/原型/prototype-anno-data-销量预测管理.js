@@ -43,7 +43,7 @@
       title: "筛选：区域",
       html:
         "<p><strong>【基础】</strong>控件类型：<code>select</code>；选项含「全部」及大区（与 ERP 组织树一致）。</p>" +
-        "<p><strong>【逻辑】</strong>与<strong>国家、店铺</strong>为逐级收窄；与表格「区域/国家/店铺」列同源；变更后需点<strong>搜索</strong>刷新图表与表体。</p>",
+        "<p><strong>【逻辑】</strong>与<strong>国家、渠道、店铺</strong>为逐级收窄（渠道与店铺联动见《产品信息筛选区》§2.5）；与表格「区域/国家/店铺」列同源；变更后需点<strong>搜索</strong>刷新图表与表体。</p>",
     },
     {
       containerSelector: FG + " > .f:nth-child(2)",
@@ -53,12 +53,18 @@
         "<p><strong>【逻辑】</strong>在区域之下进一步限定 Listing / 店铺归属国；影响下方聚合粒度与可导出范围。</p>",
     },
     {
-      skip: true,
-      containerSelector: FG + " > .f:nth-child(3)",
+      anchorSelector: "#channelFilter",
+      title: "筛选：渠道",
+      html:
+        "<p><strong>【基础】</strong><code>select#channelFilter</code>，默认「全部」；选项与联动规则见 <code>规范/基础数据/渠道店铺基础数据_v1.json</code>、《产品信息筛选区》§2.5。</p>" +
+        "<p><strong>【逻辑】</strong>与店铺联动：渠道为「全部」时店铺为全量候选；选定渠道后店铺仅展示该渠道下属店；变更渠道时店铺重置为「全部」。</p>",
+    },
+    {
+      anchorSelector: "#storeFilter",
       title: "筛选：店铺",
       html:
-        "<p><strong>【基础】</strong><code>select</code>；渠道店铺（如亚马逊店铺账号）。</p>" +
-        "<p><strong>【逻辑】</strong>与预测配置中心、订单履约店铺主键应对齐，避免跨店串数。</p>",
+        "<p><strong>【基础】</strong><code>select#storeFilter</code>，默认「全部」；候选项随渠道刷新。</p>" +
+        "<p><strong>【逻辑】</strong>与预测配置中心、订单履约店铺主键应对齐，避免跨店串数；与其它筛选条件为<strong>且</strong>关系。</p>",
     },
     {
       anchorSelector: "#filterScenarioCategory",
@@ -76,7 +82,7 @@
         "<p><strong>【逻辑】</strong>品类负责人常用其辖下品线快速过滤 SKU 行集。</p>",
     },
     {
-      containerSelector: FG + " > .f:nth-child(6)",
+      containerSelector: FG + " > .f:nth-child(7)",
       title: "筛选：产品定位",
       html:
         "<p><strong>【基础】</strong><code>select</code>；如主推、长尾、清仓等主数据标签。</p>" +
@@ -97,21 +103,21 @@
         "<p><strong>【逻辑】</strong><ul><li><strong>模糊：</strong>子串匹配。</li><li><strong>精确：</strong>与完整 SKU 等值。</li><li><strong>8 位搜索：</strong>按内部短码规则（以主数据为准）。</li></ul></p>",
     },
     {
-      containerSelector: FG + " > .f:nth-child(9)",
+      containerSelector: FG + " > .f:nth-child(10)",
       title: "筛选：TL",
       html:
         "<p><strong>【基础】</strong><code>select</code>；Team Lead / 销售线负责人。</p>" +
         "<p><strong>【逻辑】</strong>与组织权限、业绩归属一致；接权限服务后仅展示有权的 TL。</p>",
     },
     {
-      containerSelector: FG + " > .f:nth-child(10)",
+      containerSelector: FG + " > .f:nth-child(11)",
       title: "筛选：Sales",
       html:
         "<p><strong>【基础】</strong><code>select</code>；销售人员维度。</p>" +
         "<p><strong>【逻辑】</strong>一线常用其只看名下 SKU；与表格「销售团队」列可交叉校验。</p>",
     },
     {
-      containerSelector: FG + " > .f:nth-child(11)",
+      containerSelector: FG + " > .f:nth-child(12)",
       title: "筛选：可售状态",
       html:
         "<p><strong>【基础】</strong><code>select</code>；如可售、停售、预售等。</p>" +
