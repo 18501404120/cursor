@@ -73,12 +73,11 @@
         "<p><strong>【逻辑】</strong>与区域/国家、场景品类等维度为<strong>且</strong>关系；批量更新因子时防止跨渠道误选店铺。</p>",
     },
     {
-      skip: true,
       containerSelector: GRID + " > .f:nth-child(5)",
       title: "筛选：场景品类",
       html:
-        "<p><strong>【基础】</strong><code>select</code>。</p>" +
-        "<p><strong>【逻辑】</strong>按运营场景或品类树过滤，品类运营只维护辖下弹性系数与因子绑定。</p>",
+        "<p><strong>【基础】</strong><code>select</code>，默认「全部」。控件形态与《<strong>产品信息筛选区-全局UI规范</strong>》<strong>§1 整体结构</strong>、<strong>§2.1 普通下拉</strong>一致（单行筛选条、中灰标签、圆角浅灰边 Select）。<strong>场景→品类</strong>候选须与主数据 <code>规范/基础数据/场景品类基础数据_v1.json</code>（及后续版本）对齐，<strong>禁止</strong>在页面内硬编码与基础数据不一致的场景/品类树。</p>" +
+        "<p><strong>【逻辑】</strong>与区域/国家、渠道、店铺、品线等维度为<strong>且</strong>关系，共同收窄配置表 MSKU 行集；变更后点<strong>「搜索」</strong>刷新列表。</p>",
     },
     {
       skip: true,

@@ -70,8 +70,8 @@
       anchorSelector: "#filterScenarioCategory",
       title: "筛选：场景品类",
       html:
-        "<p><strong>【基础】</strong><code>select</code>，<code>id=\"filterScenarioCategory\"</code>；运营场景或品类树节点。</p>" +
-        "<p><strong>【逻辑】</strong>常与营销日历、活动标签、品类负责人权限联动；选项可由后端按数据权限裁剪。</p>",
+        "<p><strong>【基础】</strong><code>select#filterScenarioCategory</code>，默认「全部」。布局与样式遵循《<strong>产品信息筛选区-全局UI规范</strong>》<strong>§1</strong>、<strong>§2.1 普通下拉</strong>。<strong>场景→品类</strong>数据源须与 <code>规范/基础数据/场景品类基础数据_v1.json</code>（及后续版本）一致，<strong>禁止</strong>硬编码与基础数据不一致的选项树。</p>" +
+        "<p><strong>【逻辑】</strong>与区域/国家、渠道、店铺、品线等维度为<strong>且</strong>关系；选项可由后端按数据权限裁剪。变更后点<strong>「搜索」</strong>刷新图表与表体。</p>",
     },
     {
       skip: true,
@@ -82,6 +82,7 @@
         "<p><strong>【逻辑】</strong>品类负责人常用其辖下品线快速过滤 SKU 行集。</p>",
     },
     {
+      skip: true,
       containerSelector: FG + " > .f:nth-child(7)",
       title: "筛选：产品定位",
       html:
