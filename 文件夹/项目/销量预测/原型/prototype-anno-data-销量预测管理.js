@@ -89,6 +89,7 @@
         "<p><strong>【逻辑】</strong>可与规则引擎生命周期策略联动，用于分策略复盘或活动期对比。</p>",
     },
     {
+      skip: true,
       anchorSelector: "#modelQuery",
       title: "筛选：model 查询",
       html:
@@ -96,6 +97,7 @@
         "<p><strong>【逻辑】</strong>按产品型号过滤；与 SKU 输入为<strong>且</strong>关系，先缩型号再精确定位 SKU。</p>",
     },
     {
+      skip: true,
       anchorSelector: "#skuInputGroup",
       title: "筛选：SKU（模式 + 输入一体）",
       html:

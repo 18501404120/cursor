@@ -36,7 +36,7 @@
         "<p><strong>【逻辑 · 点预测与经营目标】</strong>表上展示的<strong>客观中值（点预测）</strong>仅由<strong>客观因子 + 规则/模型</strong>决定，<strong>不与</strong>任何经营类「BP/手工目标」输入耦合；目标类数字若出现应在主工作台或其它流程页，本页只做参数与因子绑定维护。</p>" +
         "<p><strong>【逻辑 · 默认时间轴】</strong>本页展示的弹性系数、因子绑定等<strong>与预测滚动窗口相关的后台计算</strong>，默认按业务约定取<strong>以服务器当前日为锚点：回溯 12 个自然月～顺推 12 个自然月</strong>所覆盖的月序列（与《预测销量上下限规则》中因子统计窗口径对齐；若需改窗由配置中心后台参数或版本发布说明调整，不在此页用月份控件暴露）。</p>" +
         "<p><strong>【逻辑 · 示例】</strong>假设今天是 2026-04-21，则默认参与汇总/校验的月份约为 2025-05～2027-04（按自然月边界落库时由服务对齐到月初月末）；用户仅通过「区域、SKU…」缩小<strong>MSKU 行集合</strong>，不改变全局默认月窗。</p>" +
-        "<p><strong>【逻辑 · 基准销量（列表不展示该列）】</strong>主表已<strong>下线「基准销量」只读列</strong>，避免与弹性列并排造成「可改/不可改」误解；引擎侧仍须计算<strong>月均参照基准</strong>参与各弹性系数演算。<strong>规则摘要：</strong><strong>A</strong> 已开售满 12 个月→近 12 月总销量÷12；<strong>B</strong> 不足 12 个月三步（参照月均 ÷ 同维度上月总量 × 该 ASIN 上月销量，降级路径 ASIN→SKU→品类→场景）；<strong>C</strong> 滚动月 T+1 递推。全文见《预测销量上下限规则-终版》/PRD；本页红点「ⓘ 弹性列」仍与引擎公式对齐。</p>",
+        "<p><strong>【逻辑 · 基准销量（列表不展示该列）】</strong>主表已<strong>下线「基准销量」只读列</strong>，避免与弹性列并排造成「可改/不可改」误解；引擎侧仍须计算<strong>月均参照基准</strong>参与各弹性系数演算。<strong>规则摘要：</strong><strong>A</strong> 已开售满 12 个月→近 12 月总销量÷12；<strong>B</strong> 不足 12 个月三步（参照月均 ÷ 同维度上月总量 × 该 ASIN 上月销量，降级路径 ASIN→SKU→品类→场景）；<strong>C</strong> 滚动月 T+1 递推。全文见《预测销量上下限规则-终版》/PRD；表头「ⓘ」与引擎公式对齐（原型不再挂载弹性列红点）。</p>",
     },
     {
       containerSelector: GRID + " > .f:nth-child(1)",
@@ -90,6 +90,7 @@
         "<p><strong>【逻辑】</strong>可与规则引擎生命周期策略联动，分策略批处理系数。</p>",
     },
     {
+      skip: true,
       anchorSelector: "#fltModel",
       title: "筛选：model 查询",
       html:
@@ -97,6 +98,7 @@
         "<p><strong>【逻辑】</strong>按型号过滤配置表；与 SKU 关键字为<strong>且</strong>关系，精确定位可配置行。</p>",
     },
     {
+      skip: true,
       anchorSelector: "#skuMode",
       title: "筛选：SKU 匹配模式",
       html:
@@ -104,6 +106,7 @@
         "<p><strong>【逻辑】</strong>决定 <code>#skuInput</code> 的匹配算法，与主工作台 SKU 筛选语义一致。</p>",
     },
     {
+      skip: true,
       anchorSelector: "#skuInput",
       title: "筛选：SKU 关键字",
       html:
@@ -234,6 +237,7 @@
         "<p><strong>【逻辑】</strong>配置最小业务主键之一；导入导出对齐编码。</p>",
     },
     {
+      skip: true,
       anchorSelector: "#tipFlow",
       title: "列：流量弹性系数（与引擎公式对齐）",
       html:
@@ -242,6 +246,7 @@
         "<p><strong>【逻辑 · 风险】</strong>弹性绝对值过大可能放大噪声，需上下限与异常监控。</p>",
     },
     {
+      skip: true,
       anchorSelector: "#tipPrice",
       title: "列：价格弹性系数",
       html:
@@ -249,6 +254,7 @@
         "<p><strong>【逻辑】</strong><strong>价格基准（P_base）</strong>取近一年总销售额÷近一年总销量（近一年成交均价，与 Q_base 同窗口；不足走品类均）；<strong>预估价（P_est）</strong>有价格规划用规划，否则用近 30 天均价延续。<strong>价格倍数（M_pri）</strong> = P_est ÷ P_base。<strong>价格系数（C_pri）</strong> = <code>1 + M_pri × 本列弹性</code>（与《销量预测-分步计算说明》及引擎须一致）。</p>",
     },
     {
+      skip: true,
       anchorSelector: "#tipCvr",
       title: "列：转化率弹性系数",
       html:
@@ -256,6 +262,7 @@
         "<p><strong>【逻辑】</strong>与《销量预测-分步计算说明》<strong>3.3</strong>一致：<strong>CR_d30</strong> 为近 30 天 Listing 转化率；<strong>r1、r2</strong> 为预测月前两月各自相对前月的转化环比增速；<strong>G_cvr=0.4×r1+0.6×r2</strong>；<strong>CR_est=CR_d30×(1+G_cvr)</strong>；<strong>CR_ref</strong> 优先 ASIN 近 12 月均，不足降级 SKU/品类/场景；<strong>M_cvr=CR_est/CR_ref</strong>；<strong>C_cvr=M_cvr×</strong>本列弹性。</p>",
     },
     {
+      skip: true,
       anchorSelector: "#tipAd",
       title: "列：广告花费弹性系数",
       html:
@@ -263,6 +270,7 @@
         "<p><strong>【逻辑】</strong><strong>基准广告花费（A_ref）</strong>取近 3 个月月均；<strong>预估广告花费（A_est）</strong>有计划用计划，否则近 30 天延续。<strong>广告倍数（M_ad）</strong>=A_est÷A_ref。<strong>广告系数（C_ad）</strong>全链统一为 <strong>C_ad = 1 + M_ad × 本列弹性</strong>（与《销量预测-分步计算说明》<strong>3.4</strong>、主工作台引擎一致）。</p>",
     },
     {
+      skip: true,
       anchorSelector: "#tipComp",
       title: "列：竞争力弹性系数",
       html:
