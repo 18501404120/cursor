@@ -206,6 +206,7 @@
         "<p><strong>【逻辑】</strong>作用于分页当前页；跨页全选若需要应单独产品设计。</p>",
     },
     {
+      skip: true,
       containerSelector: "#dataTable thead tr:first-child th:nth-child(2)",
       title: "列：区域/国家/店铺",
       html:
@@ -240,15 +241,15 @@
       containerSelector: "#dataTable thead tr:first-child th:nth-child(6)",
       title: "列：MSKU信息",
       html:
-        "<p><strong>【基础】</strong>平台与 MSKU 展示，与渠道 Listing 对齐。</p>" +
-        "<p><strong>【逻辑】</strong>同一 SKU 多站点多 MSKU 时拆行或聚合策略以后端为准。</p>",
+        "<p><strong>【基础】</strong>展示本行的<strong>平台</strong>（如亚马逊）与<strong>MSKU</strong>编码，与渠道侧 Listing 主数据一致。</p>" +
+        "<p><strong>【逻辑 · 与筛选框联动】</strong>本列与顶栏<strong>区域 → 国家 → 渠道 → 店铺</strong>（及 model/SKU 等）为<strong>同一套口径</strong>：列表只保留当前筛选条件下仍成立的 MSKU 行；<strong>渠道、店铺</strong>变更会收窄或切换候选店铺，本列「平台 / MSKU」须与所选<strong>渠道、店铺</strong>上下文一致，避免跨店串看。变更任一筛选项后须点击<strong>「搜索」</strong>重拉表体，本列才与最新筛选同步。同一主数据 SKU 在多站点、多 MSKU 下是拆多行还是合并展示，由后端策略与权限决定。</p>",
     },
     {
       anchorSelector: "#thMonthGroup",
       title: "列组：月份（动态子列）",
       html:
-        "<p><strong>【基础】</strong><code>#monthHeadRow</code> 由脚本按「月份范围」生成多个月子列。</p>" +
-        "<p><strong>【逻辑】</strong>主行展示当前预测方式下的系统预测数字（演示）；展开后可有系统规则行、forecast 行；右侧仅 <strong>一列「R*预测达成率」</strong>（随表格工具栏 <code>#tablePredR</code> 变化）。列表汇总公式与 PRD 图七一致。</p>",
+        "<p><strong>【基础】</strong>表头「月份」下的 <code>#monthHeadRow</code> 由脚本生成<strong>多个月子列</strong>；子列覆盖区间<strong>完全由顶栏筛选</strong> <code>#monthRangeDrpWrap</code>（<strong>月份范围</strong>，展示格式 <code>YYYY-MM - YYYY-MM</code>）决定，与全局月份范围控件规范一致。</p>" +
+        "<p><strong>【逻辑 · 与筛选框联动】</strong>① 在月份范围控件内改起止月 → 点<strong>「搜索」</strong>后，<code>#monthHeadRow</code> 重算子列，表体内各月单元格与主图横轴对齐同一业务月窗口。② 子列<strong>不包含</strong>「R*预测达成率」固定列（该列在月组右侧单独一列）。③ 主行展示当前预测方式下的系统预测数字（演示）；展开后可有系统规则行、forecast 行；右侧<strong>「R*预测达成率」</strong>表头与数值口径随表格工具栏 <code>#tablePredR</code> 在 R1/R2/R3 间切换。④ 列表汇总公式与 PRD 图七一致。</p>",
     },
     {
       skip: true,
