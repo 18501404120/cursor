@@ -42,8 +42,8 @@
       containerSelector: FG + " > .f:nth-child(1)",
       title: "筛选：区域",
       html:
-        "<p><strong>【基础】</strong>控件类型：<code>select</code>；选项含「全部」及大区（与 ERP 组织树一致）。</p>" +
-        "<p><strong>【逻辑】</strong>与<strong>国家、渠道、店铺</strong>为逐级收窄（渠道与店铺联动见《产品信息筛选区》§2.5）；与表格「区域/国家/店铺」列同源；变更后需点<strong>搜索</strong>刷新图表与表体。</p>",
+        "<p><strong>【基础】</strong>控件类型：<code>select</code>；默认「全部」及各大区选项须符合《<strong>产品信息筛选区-全局UI规范</strong>》<strong>§2.4 区域-国家联动（强制）</strong>：数据来自 <code>规范/基础数据/区域国家基础数据_v1.json</code>，<strong>禁止</strong>硬编码与基础数据不一致的区域/国家源。</p>" +
+        "<p><strong>【逻辑】</strong>① 区域与国家<strong>联动</strong>：区域=全部时国家为全量；区域=某大区时国家仅该区域下属列表；<strong>区域变更时国家重置为「全部」</strong>并刷新候选。② 再与<strong>渠道、店铺</strong>（§2.5）及后续筛选项逐级收窄，与表格「区域/国家/店铺」列同源。③ 变更后需点<strong>搜索</strong>刷新图表与表体。</p>",
     },
     {
       containerSelector: FG + " > .f:nth-child(2)",

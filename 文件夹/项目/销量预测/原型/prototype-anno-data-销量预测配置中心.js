@@ -42,9 +42,8 @@
       containerSelector: GRID + " > .f:nth-child(1)",
       title: "筛选：区域",
       html:
-        "<p><strong>【基础】</strong><code>select</code>，默认「全部」。</p>" +
-        "<p><strong>【逻辑】</strong>限定配置列表地理/大区，与 ERP 组织或店铺归属一致；与<strong>国家、渠道、店铺</strong>逐级收窄（渠道与店铺联动见《产品信息筛选区》§2.5）。与「月份范围」无关：月份窗由系统默认，本控件只影响<strong>空间/组织维度</strong>上的 MSKU 集合。</p>" +
-        "<p><strong>【示例】</strong>选「北美区」+ 渠道「全部」+ 店铺「Govee_US」→ 仅保留该店行；先选渠道「Govee」再选店铺可缩小候选。</p>",
+        "<p><strong>【基础】</strong><code>select</code>，默认「全部」。选项须与《<strong>产品信息筛选区-全局UI规范</strong>》<strong>§2.4 区域-国家联动（强制）</strong>一致：数据源统一为 <code>规范/基础数据/区域国家基础数据_v1.json</code>（或后续版本），<strong>禁止</strong>在页面内硬编码与基础数据不一致的大区/国家树。</p>" +
+        "<p><strong>【逻辑】</strong>① 区域为「全部」时，<strong>国家</strong>下拉展示全量国家（去重后按基础数据顺序）；区域为某一<strong>大区</strong>时，国家仅展示该区域下属国家。② <strong>区域变更时国家自动重置为「全部」</strong>并刷新国家候选列表。③ 与<strong>国家、渠道、店铺</strong>在空间/组织维度上逐级收窄配置表 MSKU 行集（渠道与店铺联动见同规范 <strong>§2.5</strong>）。④ 本页不提供「月份范围」控件，时间窗由系统默认；区域筛选<strong>不参与</strong>时间维，仅影响地理/组织维。</p>",
     },
     {
       containerSelector: GRID + " > .f:nth-child(2)",
