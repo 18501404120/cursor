@@ -6,6 +6,7 @@
 
   var ANNOS = [
     {
+      skip: true,
       anchorSelector: "#headerTitle",
       title: "页头：标题与上下文",
       html:
@@ -29,6 +30,7 @@
         "<p><strong>【逻辑】</strong>与配置业务无直接耦合，属门户集成。</p>",
     },
     {
+      skip: true,
       containerSelector: "#screenConfig .scroll > .panel--filters",
       title: "页面：筛选面板总览",
       html:
@@ -39,6 +41,7 @@
         "<p><strong>【逻辑 · 基准销量（列表不展示该列）】</strong>主表已<strong>下线「基准销量」只读列</strong>，避免与弹性列并排造成「可改/不可改」误解；引擎侧仍须计算<strong>月均参照基准</strong>参与各弹性系数演算。<strong>规则摘要：</strong><strong>A</strong> 已开售满 12 个月→近 12 月总销量÷12；<strong>B</strong> 不足 12 个月三步（参照月均 ÷ 同维度上月总量 × 该 ASIN 上月销量，降级路径 ASIN→SKU→品类→场景）；<strong>C</strong> 滚动月 T+1 递推。全文见《预测销量上下限规则-终版》/PRD；表头「ⓘ」与引擎公式对齐（原型不再挂载弹性列红点）。</p>",
     },
     {
+      skip: true,
       containerSelector: GRID + " > .f:nth-child(1)",
       title: "筛选：区域",
       html:
@@ -46,6 +49,7 @@
         "<p><strong>【逻辑】</strong>① 区域为「全部」时，<strong>国家</strong>下拉展示全量国家（去重后按基础数据顺序）；区域为某一<strong>大区</strong>时，国家仅展示该区域下属国家。② <strong>区域变更时国家自动重置为「全部」</strong>并刷新国家候选列表。③ 与<strong>国家、渠道、店铺</strong>在空间/组织维度上逐级收窄配置表 MSKU 行集（渠道与店铺联动见同规范 <strong>§2.5</strong>）。④ 本页不提供「月份范围」控件，时间窗由系统默认；区域筛选<strong>不参与</strong>时间维，仅影响地理/组织维。</p>",
     },
     {
+      skip: true,
       containerSelector: GRID + " > .f:nth-child(2)",
       title: "筛选：国家",
       html:
@@ -53,6 +57,7 @@
         "<p><strong>【逻辑】</strong>在区域下过滤站点国家，影响列表 SKU 可视范围与批量写入范围。</p>",
     },
     {
+      skip: true,
       anchorSelector: "#channelFilter",
       title: "筛选：渠道",
       html:
@@ -60,6 +65,7 @@
         "<p><strong>【逻辑】</strong>与店铺<strong>联动</strong>：渠道为「全部」时店铺下拉为全量店铺（按基础数据顺序去重）；选定某一渠道后仅展示该渠道下属店铺；<strong>变更渠道时店铺自动重置为「全部」</strong>并刷新店铺候选。</p>",
     },
     {
+      skip: true,
       anchorSelector: "#storeFilter",
       title: "筛选：店铺",
       html:
@@ -67,6 +73,7 @@
         "<p><strong>【逻辑】</strong>与区域/国家、场景品类等维度为<strong>且</strong>关系；批量更新因子时防止跨渠道误选店铺。</p>",
     },
     {
+      skip: true,
       containerSelector: GRID + " > .f:nth-child(5)",
       title: "筛选：场景品类",
       html:
@@ -130,6 +137,7 @@
         "<p><strong>【逻辑】</strong>一线只查看名下 SKU 配置行，减少误改他人数据。</p>",
     },
     {
+      skip: true,
       containerSelector: GRID + " > .f:nth-child(12)",
       title: "筛选：可售状态",
       html:
@@ -137,6 +145,7 @@
         "<p><strong>【逻辑】</strong>与库存/Listing 状态源同步，避免对已下架 SKU 误改系数。</p>",
     },
     {
+      skip: true,
       anchorSelector: "#fltFactor",
       title: "筛选：超参数因子",
       html:
@@ -163,6 +172,7 @@
         "<p><strong>【场景】</strong>运营要把「关税因子」绑到若干 SKU：筛选缩小范围 → <strong>勾选目标行</strong> → 打开批量 → 在因子候选表勾选关税 → 确认。</p>",
     },
     {
+      skip: true,
       anchorSelector: "#btnCfgImport",
       attach: "afterend",
       title: "按钮：导入",
@@ -171,6 +181,7 @@
         "<p><a href=\"https://alidocs.dingtalk.com/i/nodes/2Amq4vjg89g6dmBPsPXmxZD3V3kdP0wQ\" target=\"_blank\" rel=\"noopener noreferrer\">导入/导出模版见：https://alidocs.dingtalk.com/i/nodes/2Amq4vjg89g6dmBPsPXmxZD3V3kdP0wQ</a></p>",
     },
     {
+      skip: true,
       anchorSelector: "#btnCfgExport",
       attach: "afterend",
       title: "按钮：导出",
@@ -193,6 +204,7 @@
         "<p><strong>【基础】</strong>关闭 <code>#modalImport</code>，不提交导入。</p>",
     },
     {
+      skip: true,
       anchorSelector: "#permBatch",
       title: "批量设置权限模拟",
       html:
@@ -200,6 +212,7 @@
         "<p><strong>【逻辑】</strong>原型用于演示批量按钮与弹窗确认态差异；生产环境由 RBAC 替代。</p>",
     },
     {
+      skip: true,
       anchorSelector: "#cfgChkAll",
       title: "表格：全选",
       html:
@@ -304,6 +317,7 @@
         "<p><strong>【逻辑】</strong>因子链接携带当前行绑定编号；日志用于审计配置变更历史。</p>",
     },
     {
+      skip: true,
       anchorSelector: "#logModalBody",
       title: "行日志弹窗：内容与口径",
       html:
@@ -356,6 +370,7 @@
         "<p><strong>【逻辑】</strong>按业务场景名检索，缩小候选因子集合。</p>",
     },
     {
+      skip: true,
       containerSelector: "#screenFactors .panel",
       title: "子页（内嵌）：超参数因子维护总览",
       html:
@@ -405,6 +420,7 @@
         "<p><strong>【逻辑】</strong>直接影响预测或后处理幅度。</p>",
     },
     {
+      skip: true,
       containerSelector: "#subTable thead tr th:nth-child(4)",
       title: "子页列：时间范围（行内展示）",
       html:
@@ -422,6 +438,7 @@
     },
     /* —— 批量弹窗 —— */
     {
+      skip: true,
       containerSelector: "#modalBatch .modal-note",
       title: "弹窗说明：更新范围",
       html:
@@ -445,6 +462,7 @@
         "<p><strong>【逻辑】</strong>与编号、日期且关系。</p>",
     },
     {
+      skip: true,
       anchorSelector: "#wrapBatchDate",
       title: "弹窗筛选：时间范围（候选因子）",
       html:
