@@ -994,8 +994,8 @@
         <section class="panel table-panel">
           <div class="table-tools">
             <div>
-              <div class="panel-title">明细表<span class="req-dot" data-req-key="table-finance-estimate">!</span></div>
-              <div class="panel-sub" id="tableDesc">主行展示业务维度，展开后查看财务维度与对照差异。</div>
+              <div class="panel-title">明细表<span class="req-dot" data-req-key="table-detail-overview">!</span></div>
+              <div class="panel-sub" id="tableDesc">主行为业务系统取数；展开「财务维度」为财务系统取数（按映射配置），与主行独立；再下为对照差异。</div>
             </div>
             <div class="export-wrap">
               <button class="btn" id="exportBtn" type="button">导出</button>
@@ -1435,7 +1435,7 @@
       "filter-date-range": `日期范围筛选逻辑：<br>
 1. 默认值为“上月开始日期 ~ 上月结束日期”。<br>
 2. 日期控件为范围选择，不允许结束日期早于开始日期。<br>
-3. 若跨月，后续财务维度计算按“有整月数据的月份可拆分、无整月数据的月份仅显示占比”处理。`,
+3. 若跨月，财务维度行在时间与结账粒度上的拆分与展示规则见明细表「财务维度」说明。`,
       "filter-region-country-link": `区域/国家筛选逻辑：<br>
 1. 区域默认“全部”，国家默认“全部”。<br>
 2. 国家下拉与区域联动：先选区域，再仅加载该区域国家。<br>
@@ -1469,20 +1469,30 @@
 3. 成交价 = 总营收 / 销量。<br>
 4. 促销力度 = 1 - 成交价 / RRP价。<br>
 5. 转化率、毛利率、促销力度走右侧纵轴，其余指标走左侧纵轴。`,
-      "table-finance-estimate": `财务维度数据只有整月数据。<br>
-1. 先用“整月财务数据 / 当月天数”得到当月日均值。<br>
-2. 再用“日均值 × 所选日期范围内的实际天数”得到预估财务维度金额。<br>
-3. 如果筛选时间刚好是整月，则应与财务真实整月数据对齐。<br>
-4. 如果筛选时间跨月且后续月份缺少财务整月数据（例如 2.1~3.9 但 3 月无财务数据），则不显示该缺失月份具体金额，只显示财务各项费用占比。<br>
-5. 时间与财务整月数据能对齐的月份按天拆分计算；不能对齐或无整月财务数据的月份不展示具体金额。`,
+      "table-detail-overview": `明细表结构（业务 / 财务 双轨）：<br>
+1. <strong>主行「业务维度」</strong>：各列金额来自<strong>业务系统</strong>及其汇总规则，与财务关账无必然同时性。<br>
+2. 展开<strong>「财务维度」</strong>行：同一列表头下，单元格为<strong>财务系统</strong>在该指标上的结果；取数路径与主行<strong>完全独立</strong>，具体由「业务指标 ↔ 财务系统字段」映射配置（含一对一、多科目合并等）。<strong>不是</strong>把业务主行数值复制为财务口径。<br>
+3. <strong>「对照差异」</strong>行：在业务值与财务值均存在时，差额 = 业务维度值 − 财务维度值，用于经营对照。<br>
+4. 映射在「财务费用字段与业务字段映射维护」中配置，发布后对明细表财务维度行生效。`,
+      "table-finance-dimension": `<strong>财务维度行：两套取数 + 映射填数</strong><br>
+1. <strong>独立链路</strong>：业务主行与财务维度行分别走业务系统、财务系统，数据源与加工逻辑不同。<br>
+2. <strong>按映射填格</strong>：每个业务列表头对应一项业务指标。若映射为「业务销售额 ↔ 财务销售额」，则该列财务维度格为<strong>财务系统</strong>销售额汇总；若映射为「业务 A ↔ 财务 B + C（及允许的减项）」，则该格为财务系统中 B、C 等按配置运算后的汇总。<br>
+3. <strong>无映射则空</strong>：某业务列未配置任何「业务→财务」映射时，<strong>财务维度</strong>在该列下为<strong>空</strong>（不默认沿用业务主行值）。<br><br>
+<strong>时间粒度与预估（财务常为整月）</strong><br>
+1. 财务侧多为<strong>整月关账</strong>粒度，非逐日即席。<br>
+2. 非整月区间可用「整月财务 / 当月天数 × 区间内落当月天数」等方式做<strong>预估展示</strong>（以数据模块定义为准）。<br>
+3. 筛选为整月时与财务关账整月数对齐。<br>
+4. 跨月且某月缺少财务整月数据时，该月可不展示金额、仅保留占比类展示（若产品开启）。<br>
+5. 有整月数据的月份可按日拆分估算；无整月财务数据则不强行展示金额。`,
       "table-delta-rule": `对照差异逻辑：<br>
-1. 对照差异 = 业务维度值 - 财务维度值。<br>
-2. 若财务维度缺失（无金额），对照差异显示为空/缺失态，不强行计算。<br>
-3. 对照差异行重点展示金额差，不作为财务确认口径。`,
-      "table-header-rule": `明细表字段逻辑：<br>
-1. 主行为业务维度数据。<br>
-2. 展开后依次展示“财务维度”“对照差异”。<br>
-3. 费用项命名需与Excel方案一致，计算项通过字段说明图标展示。`,
+1. 对照差异 = 业务维度值 − 财务维度值（同一列、同一展开维度下对齐相减）。<br>
+2. 若<strong>财务维度为空</strong>（含：未配置映射、无财务关账数据、不满足展示条件等），<strong>不强行计算</strong>，该格为空或缺失态。<br>
+3. 本行用于经营对照与排查，不作为财务确认或记账依据。`,
+      "table-header-rule": `明细表列与展开行：<br>
+1. 列分组及命名需与管报 Excel 方案一致。<br>
+2. 主行为<strong>业务维度</strong>；展开依次为「财务维度」「对照差异」。<br>
+3. 「财务维度」各列按<strong>映射从财务系统</strong>取数，与主行业务值无必然相等。<br>
+4. 带「（计算值=…）」类列有单独口径，可点击字段说明查看。`,
       "export-template": `导出模版：https://alidocs.dingtalk.com/i/nodes/a9E05BDRVQ6gzQaAh2Y9g407J63zgkYA`
     };
 
@@ -2062,7 +2072,7 @@
         ].includes(fee)).length
       };
 
-      tableDesc.textContent = "主行展示业务维度，点击“+”展开查看财务维度与对照差异。";
+      tableDesc.textContent = "主行为业务系统取数；点击「+」展开「财务维度」（财务系统、按映射）与「对照差异」。";
 
       let thead = `
         <thead>
@@ -2139,7 +2149,7 @@
           </tr>
           ${opened ? `
           <tr class="expand-row">
-            <td class="left sticky-base"><span class="expand-label">财务维度</span><span class="req-dot" data-req-key="table-finance-estimate">!</span></td>
+            <td class="left sticky-base"><span class="expand-label">财务维度</span><span class="req-dot" data-req-key="table-finance-dimension">!</span></td>
             <td class="left-2 sticky-base"></td>
             <td class="left-3 sticky-base"></td>
             <td class="left-4 sticky-base"></td>

@@ -336,12 +336,12 @@
       <div class="panel-head">
         <div>
           <div class="title">字段维护与映射配置</div>
-          <div class="sub">先维护字段池，再为「业务费用字段」配置由「财务费用字段」组成的加减表达式；详情见工具栏「字段说明」。</div>
+          <div class="sub">业务与财务为两套独立取数；本页维护「业务列/业务指标 ↔ 财务系统字段」对应关系（可多项加减合并），用于明细表「财务维度」行按财务系统出数；无映射则该列财务格为空。详见「字段说明」。</div>
         </div>
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
           <span class="pill" id="modeHint">当前方案：管理看板口径</span>
-          <button class="btn ghost" id="openFinBtn" type="button">财务费用字段维护</button>
-          <button class="btn ghost" id="openBizBtn" type="button">业务费用字段维护</button>
+          <button class="btn ghost" id="openFinBtn" type="button">财务系统字段维护</button>
+          <button class="btn ghost" id="openBizBtn" type="button">业务指标字段维护</button>
           <button class="btn ghost" id="copyBtn" type="button">复制当前方案</button>
           <button class="btn primary" id="publishBtn" type="button">保存并发布</button>
         </div>
@@ -380,12 +380,12 @@
 
       <div class="mapping-builder">
         <div class="card">
-          <div class="card-head">财务费用字段池 <span class="sub" id="finCount"></span></div>
+          <div class="card-head">财务系统字段池 <span class="sub" id="finCount"></span></div>
           <div class="list" id="finPool"></div>
         </div>
 
         <div class="card">
-          <div class="card-head">映射表达式构建区 <span class="sub">拖拽或点击左侧字段</span></div>
+          <div class="card-head">映射表达式构建区 <span class="sub">组合财务系统侧字段，对应右侧某一业务指标</span></div>
           <div class="expr-wrap">
             <div class="op-row">
               <span class="sub">当前操作符</span>
@@ -394,7 +394,7 @@
               <button class="btn ghost" id="clearExprBtn" type="button">清空表达式</button>
             </div>
             <div class="drop-zone" id="exprZone"></div>
-            <div class="hint">规则：先在右侧选中一个业务字段，再构建表达式并保存映射。第一项默认使用“+”。</div>
+            <div class="hint">规则：先在右侧选中一个<strong>业务指标</strong>（与明细表列对齐），再在中间用左侧<strong>财务字段</strong>拼出「财务系统里应汇总哪些科目」；保存后，看板「财务维度」行在该业务列下展示财务系统按此式汇总的结果。第一项默认使用“+”。</div>
             <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
               <span class="pill" id="selectedBizPill">未选择业务字段</span>
               <button class="btn primary" id="saveMappingBtn" type="button">保存到当前业务字段</button>
@@ -403,7 +403,7 @@
         </div>
 
         <div class="card">
-          <div class="card-head">业务费用字段池 <span class="sub" id="bizCount"></span></div>
+          <div class="card-head">业务指标字段池（明细表业务列） <span class="sub" id="bizCount"></span></div>
           <div class="list" id="bizPool"></div>
         </div>
       </div>
@@ -414,7 +414,7 @@
 
       <div class="foot">
         <div id="summaryText">共 0 条映射</div>
-        <div>发布策略：保存后进入待审核，审核通过后生效到对应看板页面。</div>
+        <div>发布策略：保存后进入待审核，审核通过后生效到看板明细表「财务维度」行的取数逻辑（与业务主行取数链路独立）。</div>
       </div>
     </section>
   </div>
@@ -497,17 +497,21 @@
     };
 
     const reqText = {
-      "map-rule": `<strong>一、页面在做什么</strong><br>
-本页维护「当前映射方案」下，<strong>业务费用字段</strong>（管报/看板使用的业务口径项）如何由<strong>财务费用字段</strong>（更细粒度的财务科目或中间项）通过加减组合得到。三栏分工：左侧为可拖拽的财务字段池；中间为映射表达式构建区；右侧为待配置的业务字段池。底部表格是当前方案下<strong>已保存的映射汇总</strong>（一行对应一个业务字段及其表达式）。<br><br>
-<strong>二、「映射」是什么</strong><br>
-映射指：为某个<strong>业务费用字段</strong>指定一条（或多步编辑后的一条）<strong>映射表达式</strong>，即若干财务字段用「+ / -」连接的计算式。保存后，该业务字段在管报取数时按此式从财务侧汇总，而不是手工填数。<br><br>
-<strong>三、已映射 vs 未映射（及筛选含义）</strong><br>
-• <strong>已映射</strong>：底部表中存在该业务字段的记录，且状态为「已映射」——表达式已配置完整，发布生效后看板可按公式出数。<br>
-• <strong>未映射 / 不完整</strong>：业务字段池里有该项，但底部表<strong>没有</strong>对应行，或状态为「部分映射」「缺失」——系统不知道或不能完整推导该业务口径，对应指标在管报中可能为空、为 0 或触发校验告警（实现侧可定义）。筛选「部分映射」「缺失」即用于集中处理未完备项。<br><br>
-<strong>四、操作建议</strong><br>
-1. 在「财务费用字段维护 / 业务费用字段维护」中先维护两侧字段及说明。<br>
-2. 在右侧选中一个<strong>业务费用字段</strong>，从左侧将财务字段拖入（或点击加入）中间表达式区，用「+ / -」组合后点击「保存到当前业务字段」。<br>
-3. 切换「映射方案」可分别维护不同看板口径；「保存并发布」进入后续审核与生效流程。`
+      "map-rule": `<strong>一、前提：业务与财务两套取数</strong><br>
+管报明细表中，<strong>主行「业务维度」</strong>与<strong>展开行「财务维度」</strong>来自<strong>两套完全独立的取数与加工链路</strong>（不同系统/不同接口/不同时点与关账逻辑）。本页配置的是<strong>对照关系</strong>：在「财务维度」这一行里，每个<strong>业务列表头</strong>下的金额，应从<strong>财务系统</strong>的哪些字段、按何种加减合并取出，<strong>不是</strong>把业务主行的数复制或推导成「另一种业务口径」。<br><br>
+<strong>二、本页在做什么</strong><br>
+维护「当前映射方案」下：<strong>某一业务指标（与明细表列一致）</strong> ↔ <strong>财务系统侧若干费用/收入字段</strong> 的对应关系。左侧为财务字段池；中间用「+ / −」拼出财务侧汇总式；右侧为业务指标池。底部表为已保存配置（一行通常对应一个业务指标及其财务侧组合式）。发布后，看板在<strong>财务维度行</strong>按该式从<strong>财务系统</strong>取数填入对应列。<br><br>
+<strong>三、「映射」含义与示例</strong><br>
+• <strong>一对一</strong>：业务列「销售额」若只映射财务「销售额」，则财务维度行在该列展示<strong>财务系统</strong>的销售额汇总。<br>
+• <strong>一对多合并</strong>：业务指标「A」若映射财务「B + C」（或含减项），则该列财务维度格为财务系统中 B、C 等按配置运算后的汇总。<br>
+• <strong>无映射</strong>：某业务列<strong>未在本页配置</strong>任何财务侧组合，则明细表该列下<strong>财务维度行为空</strong>（不默认等于业务值）。<br><br>
+<strong>四、已映射 vs 未映射（筛选）</strong><br>
+• <strong>已映射</strong>：底部表有该业务指标记录且状态为「已映射」——财务维度行该列可按配置从财务系统出数。<br>
+• <strong>未映射 / 不完整</strong>：无记录或状态为「部分映射」「缺失」——财务维度该列将空或不可用（实现可定义告警）；用于排查待补映射。<br><br>
+<strong>五、操作建议</strong><br>
+1. 先在「财务系统字段维护 / 业务指标字段维护」中维护两侧名称与说明（与各自系统字典对齐）。<br>
+2. 在右侧选中<strong>业务指标</strong>，在中间用左侧财务字段构建表达式，保存到当前业务指标。<br>
+3. 切换「映射方案」可区分不同看板口径；「保存并发布」后影响对应看板明细表的财务维度行。`
     };
 
     const state = {
@@ -616,7 +620,7 @@
             <button class="del" type="button" data-del-idx="${idx}">×</button>
           </span>
         `).join("")
-        : '<span class="sub">请拖拽财务费用字段到这里，或点击左侧字段添加。</span>';
+        : '<span class="sub">请拖拽财务系统字段到这里，或点击左侧字段添加。</span>';
 
       exprZone.querySelectorAll("[data-del-idx]").forEach((btn) => {
         btn.addEventListener("click", () => {
@@ -655,8 +659,8 @@
         <thead>
           <tr>
             <th style="min-width:80px;">序号</th>
-            <th style="min-width:220px;">业务费用字段</th>
-            <th style="min-width:560px;">映射表达式（财务字段加减）</th>
+            <th style="min-width:220px;">业务指标（明细表业务列）</th>
+            <th style="min-width:560px;">映射表达式（财务系统字段组合，供财务维度行）</th>
             <th style="min-width:120px;">状态</th>
             <th style="min-width:220px;">备注</th>
             <th style="min-width:180px;">操作</th>
@@ -713,7 +717,7 @@
 
     function saveMapping() {
       if (!state.selectedBizField) {
-        alert("请先选择一个业务费用字段。");
+        alert("请先选择一个业务指标（右侧业务列）。");
         return;
       }
       if (!state.expressionTokens.length) {
@@ -747,7 +751,7 @@
       fieldNameInput.value = "";
       fieldDescInput.value = "";
       fieldFormMode.textContent = "新增字段";
-      fieldModalTitle.textContent = type === "financial" ? "财务费用字段维护" : "业务费用字段维护";
+      fieldModalTitle.textContent = type === "financial" ? "财务系统字段维护" : "业务指标字段维护";
       fieldModalMask.classList.add("show");
       renderFieldTable();
     }
