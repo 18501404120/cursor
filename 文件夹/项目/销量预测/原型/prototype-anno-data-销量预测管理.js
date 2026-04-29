@@ -19,7 +19,7 @@
       title: "主工作台：业务名词与双「预测选择」（读懂本页）",
       html:
         "<p><strong>【为何有两个「预测选择」】</strong>顶部栅格里的 <code>#fltPredR</code> <strong>只</strong>服务「达成率 + 比较符 + 阈值」：<strong>每一行</strong>先算出该行在<strong>当前月份窗口</strong>内、已关账且未被异常备注排除的月的 <strong>窗口聚合预测达成率</strong>公式 <code>100% − Σ|A−P| / Σ max(A,P)</code>（P 取所选 R 档锁定预测），再与阈值比较，<strong>不满足的行整行隐藏</strong>。<strong>不会</strong>因此改变表格里「R*预测达成率」列用哪一档。表格工具栏的 <code>#tablePredR</code> 才决定<strong>表头列名、单元格数值、详情弹窗</strong>展示 R1 还是 R2/R3。</p>" +
-        "<p><strong>【名词速查】</strong><strong>目标 R1/R2/R3</strong>：距目标月 1 号剩余天数分别 ≤ 各档<strong>可配置天数</strong>（演示默认 30/60/90）时锁定的预测件数。<strong>下限/上限</strong>：与点预测同构销量公式在悲观/乐观情景下的边界。<strong>单月预测达成率</strong>：<code>100%−|A−P|/max(A,P)</code>（主图折线演示用）。<strong>列表与 KPI 卡</strong>用<strong>窗口聚合</strong>上式（多个月分子分母各自求和再套公式）。</p>" +
+        "<p><strong>【名词速查】</strong><strong>目标 R1/R2/R3</strong>：距目标月最后一天剩余天数分别 ≤ 各档<strong>可配置天数</strong>（演示默认 30/60/90）时锁定的预测件数。<strong>下限/上限</strong>：与点预测同构销量公式在悲观/乐观情景下的边界。<strong>单月预测达成率</strong>：<code>100%−|A−P|/max(A,P)</code>（主图折线演示用）。<strong>列表与 KPI 卡</strong>用<strong>窗口聚合</strong>上式（多个月分子分母各自求和再套公式）。</p>" +
         "<p><strong>【异常备注】</strong>「生效区间内月份不参与预测达成率计算」默认<strong>不勾选</strong>；<strong>勾选</strong>后，生效日期覆盖到的<strong>每个自然月</strong>整月<strong>不参与</strong>该行窗口聚合（分子分母都不含该月）。</p>" +
         "<p><strong>【验收自测（UAT）】</strong>① 点「搜索」后表、图、KPI 时间切片一致。② 改阈值后行集合与 KPI 同步变。③ 主图实际销量为柱。④ 切 <code>#tablePredR</code> 表头与数值变、切 <code>#fltPredR</code> 只变「谁被阈值刷掉」。⑤ 详情只显示当前 <code>#tablePredR</code> 档。⑥ 导出列与可见表头一致（见「导出」红点）。⑦ 改备注勾选看该行达成率是否剔除对应月。</p>",
     },

@@ -827,8 +827,8 @@
       <div class="scroll">
         <div class="panel" id="workbenchMainPanel">
           <div class="filter-grid">
-            <div class="f"><label>区域</label><select><option>全部</option></select></div>
-            <div class="f"><label>国家</label><select><option>全部</option></select></div>
+            <div class="f"><label>区域</label><select id="regionFilter"><option>全部</option></select></div>
+            <div class="f"><label>国家</label><select id="countryFilter"><option>全部</option></select></div>
             <div class="f"><label>店铺</label><select><option>全部</option></select></div>
             <div class="f"><label>场景品类</label><select id="filterScenarioCategory"><option value="">全部</option></select></div>
             <div class="f"><label>品线</label><select id="filterProductLine"><option value="">全部</option></select></div>
@@ -989,6 +989,43 @@
   <script src="../../../规范/assets/date-range-picker.js"></script>
   <script>
     (function () {
+      var REGION_COUNTRY_DATA = [
+        { region: '北美区', countries: ['US', 'CA', 'MX'] },
+        { region: '欧洲区', countries: ['GB', 'DE', 'FR', 'IT', 'ES', 'SE', 'NO', 'FI', 'DK', 'PL', 'CZ', 'HU'] },
+        { region: '亚太区', countries: ['CN', 'JP', 'KR', 'SG', 'MY', 'TH', 'VN', 'PH', 'ID', 'AU', 'NZ'] },
+        { region: '拉美区', countries: ['BR', 'CL', 'CO'] },
+        { region: '中东及非洲区', countries: ['AE', 'SA', 'ZA', 'NG'] },
+        { region: '南亚区', countries: ['IN', 'PK', 'BD'] }
+      ];
+
+      function setupRegionCountryLinkage() {
+        var regionNode = document.getElementById('regionFilter');
+        var countryNode = document.getElementById('countryFilter');
+        if (!regionNode || !countryNode) return;
+        regionNode.innerHTML =
+          '<option value=\"全部\">全部</option>' +
+          REGION_COUNTRY_DATA.map(function (x) { return '<option value=\"' + x.region + '\">' + x.region + '</option>'; }).join('');
+
+        var allCountries = Array.from(new Set([].concat.apply([], REGION_COUNTRY_DATA.map(function (x) { return x.countries; }))));
+        function renderCountryOptions(list) {
+          countryNode.innerHTML =
+            '<option value=\"全部\">全部</option>' +
+            list.map(function (c) { return '<option value=\"' + c + '\">' + c + '</option>'; }).join('');
+        }
+
+        renderCountryOptions(allCountries);
+        regionNode.addEventListener('change', function () {
+          var selected = regionNode.value;
+          if (!selected || selected === '全部') {
+            renderCountryOptions(allCountries);
+          } else {
+            var hit = REGION_COUNTRY_DATA.find(function (x) { return x.region === selected; });
+            renderCountryOptions(hit ? hit.countries : []);
+          }
+          countryNode.value = '全部';
+        });
+      }
+
       /**
        * 月份范围由筛选区「月份范围」控制，默认：锚定日前 6 个月～后 6 个月（含当月）。
        * 「目标 R1/R2/R3」为锁定阶梯下的点预测（脚本 targetRkFor）；上下限带与《预测销量上下限规则-终版》同一套销量合成思路；达成率见《R1至R3规则说明》。演示数仅供预览。
@@ -1019,7 +1056,7 @@
 
       var anchorDate = getAnchorDate();
 
-      /** R1/R2/R3 锁定提前量（天），可配置；默认 30 / 60 / 90（距目标月 1 号的剩余天数阈值） */
+      /** R1/R2/R3 锁定提前量（天），可配置；默认 30 / 60 / 90（距目标月最后一天的剩余天数阈值） */
       var ACH_LOCK_DAYS_R1 = 30;
       var ACH_LOCK_DAYS_R2 = 60;
       var ACH_LOCK_DAYS_R3 = 90;
@@ -1130,23 +1167,26 @@
         syncMonthRangePickerFromMonths();
       }
 
-      /** 锚定日到目标月 1 号相差多少天（可为负：锚定日已过该月 1 号） */
-      function daysUntilTargetMonthFirst(anchor, lab) {
-        var p = parseMonthLabel(lab);
-        var ms = new Date(p.y, p.m - 1, 1);
-        return Math.floor((ms - startOfDay(anchor)) / 86400000);
-      }
-
-      /** 是否「未来月」：该月 1 号 &gt; 锚定日，才走滚动/冻结目标逻辑 */
-      function isFutureMonth(anchor, lab) {
-        var p = parseMonthLabel(lab);
-        var ms = new Date(p.y, p.m - 1, 1);
-        return ms > anchor;
-      }
-
       /** 该月最后一天（日历月） */
       function lastDayOfMonth(y, m1to12) {
         return new Date(y, m1to12, 0);
+      }
+
+      /** 锚定日到目标月最后一天相差多少天（可为负：锚定日已过该月最后一天） */
+      function daysUntilTargetMonthLast(anchor, lab) {
+        var p = parseMonthLabel(lab);
+        var end = startOfDay(lastDayOfMonth(p.y, p.m));
+        return Math.floor((end - startOfDay(anchor)) / 86400000);
+      }
+
+      /**
+       * 是否仍处目标月 M 的「滚动 / 锁定」阶段：锚定日不晚于 M 的最后一天则走滚动 / 冻结目标逻辑；
+       * 锚定日晚于 M 月末则用演示历史基线（与 PRD 以月末为剩余天数锚点一致）。
+       */
+      function isFutureMonth(anchor, lab) {
+        var p = parseMonthLabel(lab);
+        var end = startOfDay(lastDayOfMonth(p.y, p.m));
+        return startOfDay(anchor) <= end;
       }
 
       /**
@@ -1183,7 +1223,7 @@
       }
 
       /**
-       * 目标 Rk（k=1,2,3）：按距目标月 1 号的剩余天数阶梯锁定（R3/R2/R1 默认 90/60/30 天，可配置）。
+       * 目标 Rk（k=1,2,3）：按距目标月最后一天的剩余天数阶梯锁定（R3/R2/R1 默认 90/60/30 天，可配置）。
        * 口径见《需求文档/R1至R3规则说明.md》。
        */
       function targetRkFor(lab, anchor, k) {
@@ -1194,7 +1234,7 @@
           var hv = rowH && rowH[i];
           return hv != null ? hv : stableRFor(lab, k);
         }
-        var d = daysUntilTargetMonthFirst(anchor, lab);
+        var d = daysUntilTargetMonthLast(anchor, lab);
         var roll = rollingTarget(lab, anchor);
         if (d > ACH_LOCK_DAYS_R3) return roll;
         if (d > ACH_LOCK_DAYS_R2) {
@@ -2645,6 +2685,8 @@
         remarkContext.returnToList = false;
         showRemarkForm('add');
       });
+
+      setupRegionCountryLinkage();
     })();
   </script>
   <script src="prototype-anno-kit.js"></script>
