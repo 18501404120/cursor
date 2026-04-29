@@ -594,6 +594,11 @@
       font-family: inherit;
     }
     .form-row textarea { min-height: 64px; resize: vertical; }
+    .form-row select.form-multi {
+      min-height: 96px;
+      padding: 6px 8px;
+      line-height: 1.35;
+    }
     .modal-ft {
       padding: 12px 16px;
       border-top: 1px solid var(--line);
@@ -1057,13 +1062,13 @@
           </div>
         </div>
         <div class="form-row">
-          <label for="fScenario">场景</label>
-          <select id="fScenario"></select>
+          <label for="fScenario">场景（可多选）</label>
+          <select id="fScenario" class="form-multi" multiple size="5" aria-label="场景多选"></select>
         </div>
         <div class="form-row">
-          <label for="fCategory">品类</label>
-          <select id="fCategory"></select>
-          <p class="hint" style="margin-top:8px;margin-bottom:0;">选场景后可选具体品类，或选「（本场景全品类）」表示仅场景维度；与规划页粒度一致。</p>
+          <label for="fCategory">品类（可多选）</label>
+          <select id="fCategory" class="form-multi" multiple size="6" aria-label="品类多选"></select>
+          <p class="hint" style="margin-top:8px;margin-bottom:0;">支持「全场景」；在指定场景下可选「全品类」、各场景的「本场景全品类」或具体「场景 / 品类」组合。按住 Ctrl / ⌘ 多选。与规划页粒度一致。</p>
         </div>
         <div class="form-row">
           <label for="fNewProductTag">新品标签</label>
@@ -1128,6 +1133,9 @@
   var PLAN_G_CATEGORY = "category";
   var PLAN_G_NP_TAG_ONLY = "np_tag_only";
   var PLAN_G_NEW = "new_product";
+  /** 活动弹窗多选：全场景（与筛选任意叶子匹配）；品类侧「全品类」在保存时展开为各已选场景的「本场景全品类」叶子 */
+  var ACT_ALL_SCENES = "__ALL_SCENES__";
+  var ACT_ALL_CATS_OPT = "__ALL_CATS_PER_SEL__";
 
   /** 与《销量预测管理-原型说明》buildDemoTableRows 中 regions / PRODUCT_DEMO_SAMPLES 一致 */
   var FORECAST_DEMO_REGIONS = [
@@ -1176,8 +1184,44 @@
     return String(p.newProductTag || "").trim();
   }
 
+  function normalizeLeavesArray(leaves) {
+    var seen = {};
+    var out = [];
+    (leaves || []).forEach(function (x) {
+      var k = String(x || "").trim();
+      if (!k || seen[k]) return;
+      seen[k] = 1;
+      out.push(k);
+    });
+    out.sort();
+    return out;
+  }
+
+  /** 活动上的场景×品类叶子：优先 sceneCategoryLeaves，否则由 scenario+category 推导一条 */
+  function getActivityLeaves(act) {
+    if (!act) return [];
+    if (Array.isArray(act.sceneCategoryLeaves) && act.sceneCategoryLeaves.length > 0) {
+      return normalizeLeavesArray(act.sceneCategoryLeaves);
+    }
+    var sc = String(act.scenario || "").trim();
+    var cat = String(act.category != null ? act.category : "").trim();
+    if (!sc && !cat) return [];
+    return [leafKey(sc, cat)];
+  }
+
   function inferPlanGranularityFromRecord(p) {
     if (!p) return PLAN_G_CATEGORY;
+    var L = getActivityLeaves(p);
+    if (L.length) {
+      if (L.indexOf(ACT_ALL_SCENES) >= 0) return PLAN_G_SCENARIO;
+      if (L.length > 1) return PLAN_G_CATEGORY;
+      var parts = L[0].split("\t");
+      var sc0 = String(parts[0] || "").trim();
+      var cat0 = String(parts[1] != null ? parts[1] : "").trim();
+      if (sc0 === NEW_PRODUCT_SCENE) return PLAN_G_NEW;
+      if (!cat0) return PLAN_G_SCENARIO;
+      return PLAN_G_CATEGORY;
+    }
     var sc = String(p.scenario || "").trim();
     var cat = String(p.category != null ? p.category : "").trim();
     var tag = planNpTagValue(p);
@@ -1189,15 +1233,28 @@
 
   function planIdentityKey(p) {
     var y = String(p.year || "");
-    var g = inferPlanGranularityFromRecord(p);
     var tag = planNpTagValue(p);
-    var sc = String(p.scenario || "").trim();
-    var cat = String(p.category != null ? p.category : "").trim();
-    if (g === PLAN_G_NEW) return y + "\tN\t" + cat;
+    var L = getActivityLeaves(p);
+    if (L.length) {
+      if (L.indexOf(ACT_ALL_SCENES) >= 0) return y + "\tALLSC\t" + (tag || "");
+      if (L.length > 1) return y + "\tMUL\t" + L.slice().sort().join("|") + "\t" + (tag || "");
+      var parts = L[0].split("\t");
+      var sc = String(parts[0] || "").trim();
+      var cat = String(parts[1] != null ? parts[1] : "").trim();
+      var faux = { year: p.year, scenario: sc, category: cat, newProductTag: p.newProductTag };
+      var g = inferPlanGranularityFromRecord(faux);
+      if (g === PLAN_G_NEW) return y + "\tN\t" + cat;
+      if (g === PLAN_G_SCENARIO) return y + "\tS\t" + sc + (tag ? "\t" + tag : "");
+      return y + "\tC\t" + sc + "\t" + cat + (tag ? "\t" + tag : "");
+    }
+    var g = inferPlanGranularityFromRecord(p);
+    var sc2 = String(p.scenario || "").trim();
+    var cat2 = String(p.category != null ? p.category : "").trim();
+    if (g === PLAN_G_NEW) return y + "\tN\t" + cat2;
     if (g === PLAN_G_NP_TAG_ONLY) return y + "\tNP\t" + tag;
-    if (g === PLAN_G_SCENARIO) return y + "\tS\t" + sc + (tag ? "\t" + tag : "");
-    if (g === PLAN_G_CATEGORY) return y + "\tC\t" + sc + "\t" + cat + (tag ? "\t" + tag : "");
-    return y + "\tC\t" + sc + "\t" + cat;
+    if (g === PLAN_G_SCENARIO) return y + "\tS\t" + sc2 + (tag ? "\t" + tag : "");
+    if (g === PLAN_G_CATEGORY) return y + "\tC\t" + sc2 + "\t" + cat2 + (tag ? "\t" + tag : "");
+    return y + "\tC\t" + sc2 + "\t" + cat2;
   }
 
   function closePlanRowScCatPop() {}
@@ -1397,7 +1454,7 @@
   function migrateAct(a) {
     if (!a) return a;
     if (!(a.productLines && a.productLines.length)) {
-      return {
+      var out0 = {
         id: a.id,
         year: a.year,
         dateStart: a.dateStart || a.dateStr || (a.year + "-01-01"),
@@ -1410,6 +1467,10 @@
         actualUsd: a.actualUsd,
         note: a.note || ""
       };
+      if (Array.isArray(a.sceneCategoryLeaves) && a.sceneCategoryLeaves.length) {
+        out0.sceneCategoryLeaves = normalizeLeavesArray(a.sceneCategoryLeaves);
+      }
+      return out0;
     }
     var ds = a.dateStart || a.dateStr || (a.year + "-01-01");
     var de = a.dateEnd || ds;
@@ -1878,6 +1939,17 @@
 
   function formatPlanScenarioCategoryOnly(like) {
     if (!like) return "—";
+    var L0 = getActivityLeaves(like);
+    if (L0.length) {
+      if (L0.indexOf(ACT_ALL_SCENES) >= 0) return "全场景 · 全品类";
+      return L0.map(function (k) {
+        var p = k.split("\t");
+        var s = String(p[0] || "").trim();
+        var c = String(p[1] != null ? p[1] : "").trim();
+        if (!c) return s + " · 全品类";
+        return s + " / " + c;
+      }).join("、");
+    }
     var g = inferPlanGranularityFromRecord(like);
     if (g === PLAN_G_NEW) {
       var nc = String(like.category || "").trim();
@@ -1889,7 +1961,7 @@
     }
     if (g === PLAN_G_SCENARIO) {
       var ss = String(like.scenario || "").trim();
-      return ss ? ss + " · 全场景" : "不限场景品类";
+      return ss ? ss + " · 全品类" : "不限场景品类";
     }
     var sc = String(like.scenario || "").trim();
     var cat = resolvedCategoryDisplay(like);
@@ -1905,6 +1977,7 @@
   /** 是否已在数据上选择「场景」或「场景+品类」（不含仅新品标签、不含空场景下的占位文案） */
   function hasEffectiveScenarioCategory(like) {
     if (!like) return false;
+    if (getActivityLeaves(like).length > 0) return true;
     var g = inferPlanGranularityFromRecord(like);
     if (g === PLAN_G_NEW) return true;
     if (g === PLAN_G_NP_TAG_ONLY) return false;
@@ -1939,14 +2012,45 @@
     return filterLeafKeys.indexOf(pk) >= 0;
   }
 
+  /** 不限场景品类：仅「场景+品类皆空且无新品标签」；含仅新品标签或显式多叶子时不视为全市场 */
   function actUniversalScene(a) {
-    return !String(a.scenario || "").trim() && !String(a.category != null ? a.category : "").trim();
+    if (!a) return true;
+    if (a.sceneCategoryLeaves && a.sceneCategoryLeaves.length > 0) return false;
+    var sc = String(a.scenario || "").trim();
+    var cat = String(a.category != null ? a.category : "").trim();
+    if (sc || cat) return false;
+    if (planNpTagValue(a)) return false;
+    return true;
+  }
+
+  function activityLeafMatchesFilterLeaf(actLeaf, filterLeaf) {
+    if (actLeaf === ACT_ALL_SCENES) return true;
+    var ap = String(actLeaf).split("\t");
+    var fp = String(filterLeaf).split("\t");
+    var as = String(ap[0] || "").trim();
+    var ac = String(ap[1] != null ? ap[1] : "").trim();
+    var fs = String(fp[0] || "").trim();
+    if (as !== fs) return false;
+    if (!ac) return true;
+    var fc = String(fp[1] != null ? fp[1] : "").trim();
+    return ac === fc;
+  }
+
+  function activityMatchesFilterLeaves(a) {
+    var L = getActivityLeaves(a);
+    if (!L.length) return inferPlanGranularityFromRecord(a) !== PLAN_G_NP_TAG_ONLY;
+    if (L.indexOf(ACT_ALL_SCENES) >= 0) return true;
+    return L.some(function (al) {
+      return filterLeafKeys.some(function (fk) {
+        return activityLeafMatchesFilterLeaf(al, fk);
+      });
+    });
   }
 
   function actMatchesScCatFilter(a) {
     if (!filterLeafKeys.length) return true;
     if (actUniversalScene(a)) return true;
-    return planMatchesScCatFilter(a);
+    return activityMatchesFilterLeaves(a);
   }
 
   function npTagMatchesSelectedForAct(a) {
@@ -1997,6 +2101,33 @@
 
   function mockSkuRowsForAct(act, year) {
     if (actUniversalScene(act)) return mockSkuRowsForUniversal(year);
+    var L = getActivityLeaves(act);
+    if (L.indexOf(ACT_ALL_SCENES) >= 0) return mockSkuRowsForUniversal(year);
+    if (L.length > 1) {
+      var merged = [];
+      var idx = 0;
+      L.forEach(function (one) {
+        var p = one.split("\t");
+        var scn = String(p[0] || "").trim();
+        var catn = String(p[1] != null ? p[1] : "").trim();
+        var dk = leafKey(scn, catn || resolvedCategoryDisplay({ scenario: scn, category: catn }));
+        var rows = mockSkuRows(year, dk + "\t" + planNpTagValue(act));
+        rows.forEach(function (r) {
+          merged.push(r);
+        });
+      });
+      return merged.slice(0, 12);
+    }
+    if (L.length === 1) {
+      var p2 = L[0].split("\t");
+      var sc2 = String(p2[0] || "").trim();
+      var cat2 = String(p2[1] != null ? p2[1] : "").trim();
+      var dim =
+        leafKey(sc2, cat2 ? cat2 : resolvedCategoryDisplay({ scenario: sc2, category: cat2 })) +
+        "\t" +
+        planNpTagValue(act);
+      return mockSkuRows(year, dim || "demo");
+    }
     var dim =
       leafKey(act.scenario, resolvedCategoryDisplay(act)) +
       "\t" +
@@ -2124,41 +2255,104 @@
     if (cur) sel.value = cur;
   }
 
+  function getSelectedMulti(sel) {
+    if (!sel || !sel.options) return [];
+    var out = [];
+    for (var i = 0; i < sel.options.length; i++) {
+      if (sel.options[i].selected) out.push(sel.options[i].value);
+    }
+    return out;
+  }
+
+  function setSelectedMulti(sel, values) {
+    if (!sel || !sel.options) return;
+    var map = {};
+    (values || []).forEach(function (v) {
+      map[String(v)] = true;
+    });
+    for (var i = 0; i < sel.options.length; i++) {
+      sel.options[i].selected = !!map[sel.options[i].value];
+    }
+  }
+
   function fillModalScenarioOptions() {
     var sel = document.getElementById("fScenario");
     if (!sel) return;
-    var cur = sel.value;
-    var h = '<option value="">请选择场景</option>';
+    var prev = getSelectedMulti(sel);
+    sel.innerHTML = "";
+    sel.multiple = true;
+    sel.classList.add("form-multi");
+    var oa = document.createElement("option");
+    oa.value = ACT_ALL_SCENES;
+    oa.textContent = "全场景";
+    sel.appendChild(oa);
     SCENARIO_CATEGORY_TREE.forEach(function (n) {
-      h +=
-        '<option value="' +
-        escapeHtml(n.scenario) +
-        '">' +
-        escapeHtml(n.scenario) +
-        "</option>";
+      if (n.scenario === "未分类") return;
+      var o = document.createElement("option");
+      o.value = n.scenario;
+      o.textContent = n.scenario;
+      sel.appendChild(o);
     });
-    sel.innerHTML = h;
-    if (cur && SCENARIO_CATEGORY_TREE.some(function (x) { return x.scenario === cur; })) sel.value = cur;
+    var keep = prev.filter(function (v) {
+      return (
+        v === ACT_ALL_SCENES ||
+        SCENARIO_CATEGORY_TREE.some(function (x) {
+          return x.scenario === v;
+        })
+      );
+    });
+    if (keep.length) setSelectedMulti(sel, keep);
   }
 
-  function fillModalCategoryOptions(scenario, selectedCat) {
-    var sel = document.getElementById("fCategory");
-    if (!sel) return;
-    var node = treeNodeByScenario(scenario);
-    var h = '<option value="">（本场景全品类）</option>';
-    if (node && node.categories) {
-      node.categories.forEach(function (c) {
-        h +=
-          '<option value="' +
-          escapeHtml(c) +
-          '">' +
-          escapeHtml(c) +
-          "</option>";
-      });
+  /** 根据当前场景多选重建品类选项；preserveLeafValues 为叶子键数组（如 居家\t吊灯） */
+  function fillModalCategoryOptionsFromScenarioMulti(preserveLeafValues) {
+    var fCat = document.getElementById("fCategory");
+    if (!fCat) return;
+    var prevPreserve =
+      preserveLeafValues && preserveLeafValues.length
+        ? preserveLeafValues.slice()
+        : getSelectedMulti(fCat);
+    var selSc = getSelectedMulti(document.getElementById("fScenario"));
+    var hasAllScenes = selSc.indexOf(ACT_ALL_SCENES) >= 0;
+    fCat.innerHTML = "";
+    fCat.multiple = true;
+    fCat.classList.add("form-multi");
+    if (hasAllScenes || selSc.length === 0) {
+      var o0 = document.createElement("option");
+      o0.value = ACT_ALL_CATS_OPT;
+      o0.textContent = hasAllScenes ? "全品类（与全场景一致）" : "请先选择场景";
+      fCat.appendChild(o0);
+      if (hasAllScenes) setSelectedMulti(fCat, [ACT_ALL_CATS_OPT]);
+      else setSelectedMulti(fCat, []);
+      return;
     }
-    sel.innerHTML = h;
-    if (selectedCat && node && node.categories.indexOf(selectedCat) >= 0) sel.value = selectedCat;
-    else sel.value = "";
+    var oAll = document.createElement("option");
+    oAll.value = ACT_ALL_CATS_OPT;
+    oAll.textContent = "全品类（各已选场景下全品类）";
+    fCat.appendChild(oAll);
+    selSc.forEach(function (scen) {
+      if (scen === ACT_ALL_SCENES) return;
+      var node = treeNodeByScenario(scen);
+      var og = document.createElement("option");
+      og.value = leafKey(scen, "");
+      og.textContent = scen + " / （本场景全品类）";
+      fCat.appendChild(og);
+      if (node && node.categories) {
+        node.categories.forEach(function (c) {
+          var oc = document.createElement("option");
+          oc.value = leafKey(scen, c);
+          oc.textContent = scen + " / " + c;
+          fCat.appendChild(oc);
+        });
+      }
+    });
+    var valid = prevPreserve.filter(function (v) {
+      for (var j = 0; j < fCat.options.length; j++) {
+        if (fCat.options[j].value === v) return true;
+      }
+      return false;
+    });
+    if (valid.length) setSelectedMulti(fCat, valid);
   }
 
   function wireModalScenarioChangeOnce() {
@@ -2166,7 +2360,11 @@
     if (!sc || sc._wired) return;
     sc._wired = true;
     sc.addEventListener("change", function () {
-      fillModalCategoryOptions(sc.value, "");
+      var arr = getSelectedMulti(sc);
+      if (arr.indexOf(ACT_ALL_SCENES) >= 0 && arr.length > 1) {
+        setSelectedMulti(sc, [ACT_ALL_SCENES]);
+      }
+      fillModalCategoryOptionsFromScenarioMulti(null);
     });
   }
 
@@ -2174,39 +2372,111 @@
     fillModalScenarioOptions();
     fillModalNpOptions();
     wireModalScenarioChangeOnce();
-    var sc = act && String(act.scenario || "").trim();
-    var cat = act && String(act.category != null ? act.category : "").trim();
+    var fSc = document.getElementById("fScenario");
+    var fCat = document.getElementById("fCategory");
+    var fNp = document.getElementById("fNewProductTag");
+    if (!fSc || !fCat) return;
     var tag = act ? planNpTagValue(act) : "";
     if (!act) {
       var base =
         SCENARIO_CATEGORY_TREE.find(function (n) {
           return n.scenario !== "未分类";
         }) || SCENARIO_CATEGORY_TREE[0];
-      sc = base ? base.scenario : "";
-      cat = base && base.categories && base.categories.length ? base.categories[0] : "";
+      setSelectedMulti(fSc, [base.scenario]);
+      fillModalCategoryOptionsFromScenarioMulti(null);
+      if (base && base.categories && base.categories.length) {
+        setSelectedMulti(fCat, [leafKey(base.scenario, base.categories[0])]);
+      }
       tag = planNpTagLabelForYear(new Date().getFullYear());
+    } else {
+      var leaves = getActivityLeaves(act);
+      if (leaves.length === 1 && leaves[0] === ACT_ALL_SCENES) {
+        setSelectedMulti(fSc, [ACT_ALL_SCENES]);
+        fillModalCategoryOptionsFromScenarioMulti(null);
+      } else if (leaves.length) {
+        var scenes = [];
+        leaves.forEach(function (L) {
+          var p = L.split("\t");
+          var sn = String(p[0] || "").trim();
+          if (sn && sn !== ACT_ALL_SCENES && scenes.indexOf(sn) < 0) scenes.push(sn);
+        });
+        setSelectedMulti(fSc, scenes.length ? scenes : []);
+        fillModalCategoryOptionsFromScenarioMulti(leaves);
+      } else {
+        setSelectedMulti(fSc, []);
+        fillModalCategoryOptionsFromScenarioMulti(null);
+        setSelectedMulti(fCat, []);
+      }
     }
-    var fSc = document.getElementById("fScenario");
-    var fCat = document.getElementById("fCategory");
-    var fNp = document.getElementById("fNewProductTag");
-    if (fSc) {
-      fSc.value = sc || "";
-      fillModalCategoryOptions(fSc.value || sc, cat);
-    }
-    if (fNp) {
-      fNp.value = tag || "";
-    }
+    if (fNp) fNp.value = tag || "";
+  }
+
+  function deriveScenarioCategoryFromLeaves(leaves) {
+    if (!leaves || !leaves.length) return { scenario: "", category: "" };
+    if (leaves.length === 1 && leaves[0] === ACT_ALL_SCENES) return { scenario: "", category: "" };
+    var parts = String(leaves[0]).split("\t");
+    return {
+      scenario: String(parts[0] || "").trim(),
+      category: String(parts[1] != null ? parts[1] : "").trim()
+    };
   }
 
   function readActDimsFromForm() {
-    var fSc = document.getElementById("fScenario");
-    var fCat = document.getElementById("fCategory");
     var fNp = document.getElementById("fNewProductTag");
+    var scen = getSelectedMulti(document.getElementById("fScenario"));
+    var catSel = getSelectedMulti(document.getElementById("fCategory"));
+    var leaves = [];
+    if (scen.indexOf(ACT_ALL_SCENES) >= 0) {
+      leaves = [ACT_ALL_SCENES];
+    } else if (scen.length) {
+      var hasAllCat = catSel.indexOf(ACT_ALL_CATS_OPT) >= 0;
+      if (hasAllCat) {
+        scen.forEach(function (s) {
+          if (s && s !== ACT_ALL_SCENES) leaves.push(leafKey(s, ""));
+        });
+      } else {
+        catSel.forEach(function (v) {
+          if (v !== ACT_ALL_CATS_OPT) leaves.push(v);
+        });
+      }
+      leaves = normalizeLeavesArray(leaves);
+    }
+    var leg = deriveScenarioCategoryFromLeaves(leaves);
     return {
-      scenario: fSc ? String(fSc.value || "").trim() : "",
-      category: fCat ? String(fCat.value || "").trim() : "",
+      sceneCategoryLeaves: leaves,
+      scenario: leg.scenario,
+      category: leg.category,
       newProductTag: fNp ? String(fNp.value || "").trim() : ""
     };
+  }
+
+  function validateModalSceneCategoryCombination(dims) {
+    var scen = getSelectedMulti(document.getElementById("fScenario"));
+    var leaves = normalizeLeavesArray(dims.sceneCategoryLeaves || []);
+    if (scen.indexOf(ACT_ALL_SCENES) >= 0) return { ok: true };
+    if (!scen.length) return { ok: true };
+    if (!leaves.length) {
+      return {
+        ok: false,
+        msg: "已选择场景时，请再勾选「全品类」、某个「本场景全品类」或至少一条具体「场景 / 品类」"
+      };
+    }
+    var covered = {};
+    leaves.forEach(function (L) {
+      var p = L.split("\t");
+      covered[String(p[0] || "").trim()] = true;
+    });
+    for (var i = 0; i < scen.length; i++) {
+      var s = scen[i];
+      if (s === ACT_ALL_SCENES) continue;
+      if (!covered[s]) {
+        return {
+          ok: false,
+          msg: "每个已选场景都须有品类范围：勾选「全品类」、该场景的「本场景全品类」或该场景下的具体品类"
+        };
+      }
+    }
+    return { ok: true };
   }
 
   function defaultActs() {
@@ -2234,10 +2504,11 @@
         name: "春季场景联合",
         scenario: "居家",
         category: "吸顶灯",
+        sceneCategoryLeaves: ["居家\t吸顶灯", "观影\tTV灯带"],
         newProductTag: "",
         budgetUsd: 120000,
         actualUsd: 88000,
-        note: "同场景多品类轮播"
+        note: "多场景多品类（弹窗多选示例）"
       },
       {
         id: uid(),
@@ -2714,10 +2985,15 @@
       toast("结束日期不能早于开始日期");
       return;
     }
-    var hasSc = String(dims.scenario || "").trim();
+    var hasSc = !!(dims.sceneCategoryLeaves && dims.sceneCategoryLeaves.length);
     var hasTag = String(dims.newProductTag || "").trim();
     if (!hasSc && !hasTag) {
-      toast("请至少选择场景（可选本场景全品类）或选择新品标签；亦可两者同时填写");
+      toast("请至少选择场景品类（含全场景 / 全品类）或选择新品标签；亦可两者同时填写");
+      return;
+    }
+    var vc = validateModalSceneCategoryCombination(dims);
+    if (!vc.ok) {
+      toast(vc.msg);
       return;
     }
     if (String(parseInt(ds.slice(0, 4), 10)) !== String(currentYear) ||
@@ -2739,6 +3015,9 @@
       actualUsd: actual,
       note: note
     };
+    if (dims.sceneCategoryLeaves && dims.sceneCategoryLeaves.length) {
+      rec.sceneCategoryLeaves = dims.sceneCategoryLeaves;
+    }
     if (id) {
       var ix = list.findIndex(function (x) { return x.id === id; });
       if (ix >= 0) list[ix] = rec;
