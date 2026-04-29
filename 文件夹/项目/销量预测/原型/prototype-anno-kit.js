@@ -140,6 +140,7 @@
   function initProtoAnnos(items) {
     ensureModal();
     (items || []).forEach(function (item) {
+      if (item.skip) return;
       var btn = makeBtn(item.title, item.html);
       if (item.anchorSelector) {
         var a = document.querySelector(item.anchorSelector);
