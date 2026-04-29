@@ -1902,6 +1902,27 @@
     return v || "—";
   }
 
+  /** 是否已在数据上选择「场景」或「场景+品类」（不含仅新品标签、不含空场景下的占位文案） */
+  function hasEffectiveScenarioCategory(like) {
+    if (!like) return false;
+    var g = inferPlanGranularityFromRecord(like);
+    if (g === PLAN_G_NEW) return true;
+    if (g === PLAN_G_NP_TAG_ONLY) return false;
+    if (g === PLAN_G_SCENARIO) return !!String(like.scenario || "").trim();
+    if (g === PLAN_G_CATEGORY) {
+      var sc = String(like.scenario || "").trim();
+      var cat = String(like.category != null ? like.category : "").trim();
+      return !!sc && !!cat;
+    }
+    return false;
+  }
+
+  /** 活动表 / 规划汇总「场景品类」列：未选则半角 "-"，不把新品标签说明塞进本列 */
+  function formatSceneCategoryColumnForBoard(like) {
+    if (!hasEffectiveScenarioCategory(like)) return "-";
+    return formatPlanScenarioCategoryOnly(like);
+  }
+
   function planMatchesScCatFilter(p) {
     if (!filterLeafKeys.length) return true;
     var g = inferPlanGranularityFromRecord(p);
@@ -1989,7 +2010,7 @@
       return s + r.bpRevenue;
     }, 0);
     var label =
-      formatPlanScenarioCategoryOnly(act) +
+      formatSceneCategoryColumnForBoard(act) +
       (planNpTagValue(act) ? " · " + planNpTagValue(act) : "");
     var rows = skus.map(function (r) {
       var w = totalBp > 0 ? r.bpRevenue / totalBp : 0;
@@ -2343,7 +2364,7 @@
         "<td>" + escapeHtml(a.dateStart) + "</td>" +
         "<td>" + escapeHtml(a.dateEnd) + "</td>" +
         "<td>" + escapeHtml(a.name || "—") + "</td>" +
-        "<td>" + escapeHtml(formatPlanScenarioCategoryOnly(a)) + "</td>" +
+        "<td>" + escapeHtml(formatSceneCategoryColumnForBoard(a)) + "</td>" +
         "<td>" + escapeHtml(formatNpTagColumn(a)) + "</td>" +
         '<td class="num">' + formatUsd(a.budgetUsd) + "</td>" +
         '<td class="num">' + formatUsd(a.actualUsd) + "</td>" +
@@ -2451,8 +2472,8 @@
         a.dateStart +
         " ~ " +
         a.dateEnd +
-        " · " +
-        formatPlanScenarioCategoryOnly(a) +
+        " · 场景品类 " +
+        formatSceneCategoryColumnForBoard(a) +
         " · 新品 " +
         formatNpTagColumn(a) +
         " · 预算 " +
@@ -2576,7 +2597,7 @@
             var actv = actualByKey[k] || 0;
             var tr = document.createElement("tr");
             tr.innerHTML =
-              "<td>" + escapeHtml(formatPlanScenarioCategoryOnly(ref)) + "</td>" +
+              "<td>" + escapeHtml(formatSceneCategoryColumnForBoard(ref)) + "</td>" +
               "<td>" + escapeHtml(formatNpTagColumn(ref)) + "</td>" +
               '<td class="num">' + formatUsd(plan) + "</td>" +
               '<td class="num">' + formatUsd(exp) + "</td>" +
