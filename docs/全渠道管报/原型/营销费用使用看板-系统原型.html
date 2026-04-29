@@ -85,13 +85,18 @@
     .content { flex: 1; padding: 16px; overflow: auto; }
     .breadcrumb { font-size: 12px; color: var(--text-sec); margin-bottom: 12px; }
     .breadcrumb span { color: var(--text); }
+    /* 勿用 overflow:hidden，避免裁切筛选区场景品类下拉浮层（与《营销费用规划》原型一致） */
     .panel {
       background: var(--card-bg);
       border: 1px solid var(--card-border);
       border-radius: var(--card-radius);
       box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
       margin-bottom: 16px;
-      overflow: hidden;
+      overflow: visible;
+    }
+    .panel.panel--filter {
+      position: relative;
+      z-index: 20;
     }
     .panel-head {
       padding: 12px 16px;
@@ -112,6 +117,12 @@
       flex-wrap: wrap;
       align-items: center;
       gap: 8px 10px;
+    }
+    .filter-grid .f.f-filter-search {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
     }
     .f { display: flex; align-items: center; gap: 6px; }
     .f > label { color: var(--text-sec); white-space: nowrap; font-size: 12px; }
@@ -189,6 +200,9 @@
     }
     .sku-input-main::placeholder { color: #bfbfbf; }
     .btn-search {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
       height: 28px;
       padding: 0 14px;
       background: var(--header-bg);
@@ -197,9 +211,126 @@
       border-radius: 4px;
       font-size: 12px;
       cursor: pointer;
-      margin-left: 4px;
+      margin-left: 0;
+      font-family: inherit;
     }
     .btn-search:hover { filter: brightness(1.05); }
+    /* 场景品类 / 新品标签筛选（与《营销费用规划》原型一致） */
+    .sc-cat-wrap {
+      position: relative;
+      min-width: 200px;
+      max-width: 260px;
+    }
+    .sc-cat-trigger {
+      width: 100%;
+      height: 28px;
+      padding: 0 26px 0 8px;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      background: #fff;
+      font-size: 12px;
+      color: var(--text);
+      text-align: left;
+      cursor: pointer;
+      position: relative;
+    }
+    .sc-cat-trigger::after {
+      content: "";
+      position: absolute;
+      right: 8px;
+      top: 50%;
+      margin-top: -3px;
+      border: 4px solid transparent;
+      border-top-color: #8c8c8c;
+    }
+    .sc-cat-wrap.open .sc-cat-trigger {
+      border-color: var(--brand);
+      box-shadow: 0 0 0 2px rgba(22, 119, 255, 0.12);
+    }
+    .sc-cat-wrap.open .sc-cat-trigger::after {
+      margin-top: -5px;
+      border-top-color: transparent;
+      border-bottom-color: #8c8c8c;
+    }
+    .sc-cat-pop {
+      position: absolute;
+      left: 0;
+      top: calc(100% + 4px);
+      z-index: 100;
+      display: flex;
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+      overflow: hidden;
+      min-width: 360px;
+    }
+    .sc-cat-pop[hidden] {
+      display: none !important;
+    }
+    .sc-cat-col {
+      width: 180px;
+      max-height: 280px;
+      overflow-y: auto;
+      border-right: 1px solid var(--line);
+    }
+    .sc-cat-col:last-child { border-right: none; width: 200px; }
+    .sc-cat-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 10px;
+      font-size: 12px;
+      cursor: pointer;
+      color: var(--text);
+    }
+    .sc-cat-item:hover { background: #f5f5f5; }
+    .sc-cat-item.active {
+      background: #e6f4ff;
+      color: var(--brand);
+      font-weight: 600;
+    }
+    .sc-cat-item .arrow {
+      margin-left: auto;
+      color: var(--text-sec);
+      font-size: 10px;
+      flex-shrink: 0;
+    }
+    .sc-cat-item input[type="checkbox"] {
+      width: 14px;
+      height: 14px;
+      margin: 0;
+      flex-shrink: 0;
+      cursor: pointer;
+      accent-color: var(--brand);
+    }
+    .sc-cat-item .lbl {
+      flex: 1;
+      min-width: 0;
+      cursor: pointer;
+    }
+    .sc-cat-clear {
+      margin-left: 6px;
+      font-size: 12px;
+      color: var(--brand);
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .sc-cat-clear:hover { text-decoration: underline; }
+    .np-tag-wrap {
+      min-width: 160px;
+      max-width: 180px;
+    }
+    .np-tag-wrap .np-tag-pop {
+      min-width: 160px;
+      flex-direction: column;
+    }
+    .np-tag-wrap .np-tag-col {
+      width: 100%;
+      max-height: 280px;
+      overflow-y: auto;
+      border-right: none;
+    }
     .filter-actions {
       display: flex;
       align-items: center;
@@ -234,127 +365,6 @@
       color: #fff;
     }
     .btn-default { background: #fff; }
-
-    /* 品线多选（Ant Design Select multiple 风格，见《产品信息筛选区-全局UI规范》§8） */
-    .pl-multi-filter-wrap { position: relative; align-items: flex-start; }
-    .pl-multi-anchor { position: relative; flex: 0 1 auto; }
-    .pl-multi {
-      display: flex;
-      align-items: stretch;
-      min-width: 168px;
-      max-width: 220px;
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      background: #fff;
-      transition: border-color 0.15s, box-shadow 0.15s;
-    }
-    .pl-multi.open,
-    .pl-multi:focus-within {
-      border-color: var(--brand);
-      box-shadow: 0 0 0 2px rgba(22, 119, 255, 0.12);
-    }
-    .pl-multi-inner {
-      flex: 1;
-      display: flex;
-      flex-wrap: wrap;
-      align-items: center;
-      gap: 4px;
-      padding: 2px 4px 2px 8px;
-      min-height: 26px;
-      min-width: 0;
-    }
-    .pl-tag {
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
-      padding: 0 6px;
-      height: 22px;
-      font-size: 12px;
-      font-family: ui-monospace, monospace;
-      background: #f5f5f5;
-      border: 1px solid #e8e8e8;
-      border-radius: 4px;
-      color: var(--text);
-    }
-    .pl-tag-x {
-      border: none;
-      background: transparent;
-      cursor: pointer;
-      color: var(--text-sec);
-      padding: 0 2px;
-      font-size: 14px;
-      line-height: 1;
-    }
-    .pl-tag-x:hover { color: var(--danger); }
-    .pl-more {
-      font-size: 12px;
-      color: #595959;
-      font-weight: 500;
-      padding: 0 2px;
-    }
-    .pl-multi-input {
-      flex: 1;
-      min-width: 40px;
-      border: none;
-      outline: none;
-      font-size: 12px;
-      padding: 4px 2px;
-      background: transparent;
-    }
-    .pl-caret-btn {
-      flex-shrink: 0;
-      width: 28px;
-      border: none;
-      border-left: 1px solid var(--line);
-      background: #fafafa;
-      cursor: pointer;
-      color: var(--text-sec);
-      font-size: 10px;
-      padding: 0;
-    }
-    .pl-caret-btn:hover { color: var(--brand); }
-    .pl-multi.open .pl-caret-btn { transform: rotate(180deg); }
-    .pl-dropdown {
-      position: absolute;
-      left: 0;
-      top: calc(100% + 4px);
-      min-width: 100%;
-      max-height: 240px;
-      overflow-y: auto;
-      background: #fff;
-      border: 1px solid #e8e8e8;
-      border-radius: 6px;
-      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12);
-      z-index: 80;
-    }
-    .pl-dd-item {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      width: 100%;
-      padding: 8px 12px;
-      border: none;
-      background: #fff;
-      cursor: pointer;
-      font-size: 13px;
-      text-align: left;
-      font-family: ui-monospace, monospace;
-    }
-    .pl-dd-item:hover { background: #fafafa; }
-    .pl-dd-item.sel { color: var(--brand); font-weight: 500; }
-    .pl-dd-item .pl-check { color: var(--brand); font-weight: 700; }
-    .pl-dd-empty { padding: 12px; color: var(--text-sec); font-size: 12px; }
-    .flt-only-all {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      margin: 0;
-      font-size: 12px;
-      color: var(--text-sec);
-      cursor: pointer;
-      user-select: none;
-    }
-    .form-row .pl-multi { max-width: 100%; }
 
     /* KPI */
     .kpi-row {
@@ -607,6 +617,183 @@
       z-index: 400;
     }
     .toast.show { opacity: 1; }
+
+    /* 与《原型-红点逻辑标注与用户提示-全局UI规范》及《营销费用规划》原型对齐 */
+    button.logic-pin {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 16px;
+      height: 16px;
+      margin: 0;
+      padding: 0 4px;
+      border: none;
+      border-radius: 999px;
+      background: #ff4d4f;
+      color: #fff;
+      font-size: 10px;
+      font-weight: 700;
+      line-height: 1;
+      font-family: inherit;
+      cursor: pointer;
+      flex-shrink: 0;
+      box-shadow: 0 0 0 1px rgba(255, 77, 79, 0.35);
+    }
+    button.logic-pin:focus-visible {
+      outline: 2px solid #1677ff;
+      outline-offset: 1px;
+    }
+    .lbl-dev-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+      margin-bottom: 4px;
+    }
+    .lbl-dev-row label {
+      margin: 0;
+    }
+    .f-with-pin {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+    }
+    .field-hint-icon {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 18px;
+      height: 18px;
+      margin: 0;
+      padding: 0;
+      border: 1px solid #91caff;
+      border-radius: 50%;
+      background: #e6f4ff;
+      color: #1677ff;
+      font-size: 11px;
+      font-weight: 700;
+      font-style: italic;
+      font-family: Georgia, "Times New Roman", serif;
+      line-height: 1;
+      cursor: pointer;
+    }
+    .field-hint-icon:focus-visible {
+      outline: 2px solid #1677ff;
+      outline-offset: 1px;
+    }
+    .logic-breadcrumb-hint {
+      margin: 0 0 12px 0;
+      padding: 8px 12px;
+      font-size: 12px;
+      color: var(--text-sec);
+      background: #fafafa;
+      border: 1px solid var(--line);
+      border-radius: var(--card-radius);
+      line-height: 1.5;
+    }
+    .logic-breadcrumb-hint code {
+      font-size: 11px;
+    }
+    .toolbar-with-dev {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .panel-head-tools {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .split-meta {
+      font-size: 12px;
+      color: var(--text-sec);
+      margin-bottom: 10px;
+      line-height: 1.55;
+    }
+    .logic-modal {
+      position: fixed;
+      inset: 0;
+      z-index: 360;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+    .logic-modal[hidden] {
+      display: none !important;
+    }
+    .logic-modal-backdrop {
+      position: absolute;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.45);
+    }
+    .logic-modal-card {
+      position: relative;
+      z-index: 1;
+      width: min(520px, 100%);
+      max-height: min(72vh, 560px);
+      display: flex;
+      flex-direction: column;
+      background: #fff;
+      border-radius: 8px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
+      overflow: hidden;
+    }
+    .logic-modal-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--line);
+      font-weight: 600;
+      font-size: 14px;
+    }
+    .logic-modal-close {
+      border: none;
+      background: transparent;
+      font-size: 20px;
+      line-height: 1;
+      cursor: pointer;
+      color: var(--text-sec);
+      padding: 4px 8px;
+    }
+    .logic-modal-close:hover {
+      color: var(--text);
+    }
+    .logic-modal-body {
+      padding: 14px 16px;
+      overflow: auto;
+      font-size: 13px;
+      line-height: 1.65;
+      color: var(--text);
+    }
+    .logic-modal-body p {
+      margin: 0 0 10px 0;
+    }
+    .logic-modal-body p:last-child {
+      margin-bottom: 0;
+    }
+    .logic-modal-tag {
+      display: inline-block;
+      margin-right: 8px;
+      padding: 1px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 600;
+      vertical-align: middle;
+    }
+    .logic-modal-tag.dev {
+      background: #fff1f0;
+      color: #cf1322;
+      border: 1px solid #ffccc7;
+    }
+    .logic-modal-tag.user {
+      background: #e6f4ff;
+      color: #0958d9;
+      border: 1px solid #91caff;
+    }
   </style>
 </head>
 <body>
@@ -624,11 +811,46 @@
       </header>
       <div class="content">
         <div class="breadcrumb">全渠道 / <span>营销费用使用看板</span></div>
+        <p class="logic-breadcrumb-hint">
+          正式用户请点击「<strong>i</strong>」查看简要说明；开发/测试请点击<strong>红色编号</strong>查看本页逻辑细则（不铺在主界面上）。规范：<code>ckw/规范/原型-红点逻辑标注与用户提示-全局UI规范.md</code>；与规划页对齐的数据键：<code>marketing_expense_plan_v3</code> / <code>marketing_expense_plan_usd_v2</code>。
+        </p>
 
-        <section class="panel">
+        <section class="panel panel--filter">
           <div class="filter-panel">
             <div class="filter-grid">
-              <div class="f"><label for="fltScenario">场景品类</label><select id="fltScenario"><option value="">全部</option></select></div>
+              <div class="f f-with-pin" style="align-items:flex-start">
+                <div class="lbl-dev-row">
+                  <span style="font-size:12px;color:var(--text-sec);">场景品类</span>
+                  <button type="button" class="logic-pin" data-logic-key="b1" aria-label="开发测试说明 场景品类">1</button>
+                  <button type="button" class="field-hint-icon" data-user-hint="filterScCat" aria-label="场景品类筛选说明">i</button>
+                </div>
+                <div style="display:flex;align-items:center;flex-wrap:wrap;gap:4px;">
+                  <div class="sc-cat-wrap" id="fltScCatWrap">
+                    <button type="button" class="sc-cat-trigger" id="fltScCatTrigger" aria-expanded="false" aria-haspopup="true">场景品类</button>
+                    <div class="sc-cat-pop" id="fltScCatPop" hidden role="dialog" aria-label="场景品类">
+                      <div class="sc-cat-col" id="fltScCatScenes"></div>
+                      <div class="sc-cat-col" id="fltScCatCats"></div>
+                    </div>
+                  </div>
+                  <span class="sc-cat-clear" id="fltScCatClear" role="button" tabindex="0">清空</span>
+                </div>
+              </div>
+              <div class="f f-with-pin" style="align-items:flex-start">
+                <div class="lbl-dev-row">
+                  <span style="font-size:12px;color:var(--text-sec);">新品标签</span>
+                  <button type="button" class="logic-pin" data-logic-key="b2" aria-label="开发测试说明 新品标签">2</button>
+                  <button type="button" class="field-hint-icon" data-user-hint="filterNpTag" aria-label="新品标签筛选说明">i</button>
+                </div>
+                <div style="display:flex;align-items:center;flex-wrap:wrap;gap:4px;">
+                  <div class="sc-cat-wrap np-tag-wrap" id="fltNpTagWrap">
+                    <button type="button" class="sc-cat-trigger" id="fltNpTagTrigger" aria-expanded="false" aria-haspopup="true">新品标签</button>
+                    <div class="sc-cat-pop np-tag-pop" id="fltNpTagPop" hidden role="dialog" aria-label="新品标签">
+                      <div class="sc-cat-col np-tag-col" id="fltNpTagList"></div>
+                    </div>
+                  </div>
+                  <span class="sc-cat-clear" id="fltNpTagClear" role="button" tabindex="0">清空</span>
+                </div>
+              </div>
               <div class="f"><label for="fltRegion">区域</label><select id="fltRegion"><option value="">全部</option></select></div>
               <div class="f"><label for="fltCountry">国家</label><select id="fltCountry"><option value="">全部</option></select></div>
               <div class="f"><label for="fltChannel">渠道</label><select id="fltChannel"><option value="">全部</option></select></div>
@@ -646,36 +868,29 @@
               </div>
               <div class="f"><label for="fltTl">TL</label><select id="fltTl"><option value="">全部</option></select></div>
               <div class="f"><label for="fltSales">Sales</label><select id="fltSales"><option value="">全部</option></select></div>
-              <div class="f flt-line pl-multi-filter-wrap">
-                <label for="fltPlMultiInput">品线</label>
-                <div class="pl-multi-anchor">
-                  <div class="pl-multi" id="fltPlRoot">
-                    <div class="pl-multi-inner">
-                      <span id="fltPlTags"></span>
-                      <span id="fltPlMore" class="pl-more" hidden>+<span id="fltPlMoreN">0</span></span>
-                      <input id="fltPlMultiInput" class="pl-multi-input" type="text" autocomplete="off" aria-label="品线多选筛选" />
-                    </div>
-                    <button type="button" class="pl-caret-btn" id="fltPlCaret" aria-label="展开品线">▾</button>
-                  </div>
-                  <div class="pl-dropdown" id="fltPlDropdown" hidden></div>
-                </div>
-              </div>
-              <div class="f">
-                <label class="flt-only-all"><input type="checkbox" id="fltOnlyAll" /> 仅全品线活动</label>
-              </div>
               <div class="f"><label for="fltYear">年度</label><select id="fltYear"></select></div>
-              <button type="button" class="btn-search" id="btnQuery">搜索</button>
+              <div class="f f-filter-search">
+                <button type="button" class="btn-search" id="btnQuery">搜索</button>
+                <button type="button" class="logic-pin" data-logic-key="b3" aria-label="开发测试说明 搜索">3</button>
+              </div>
             </div>
+            <p class="hint" style="margin:10px 0 0;font-size:12px;">
+              与《营销费用规划》一致：场景品类、新品标签至少选其一后点「搜索」同步年度并刷新整块看板；勾选筛选条件时会即时刷新列表与 KPI。
+            </p>
           </div>
         </section>
 
         <section class="panel">
           <div class="panel-head">
-            <span>全年里程碑</span>
+            <span class="panel-head-tools">
+              <span>全年里程碑</span>
+              <button type="button" class="logic-pin" data-logic-key="b5" aria-label="开发测试说明 里程碑">5</button>
+              <button type="button" class="field-hint-icon" data-user-hint="milestonePanel" aria-label="里程碑说明">i</button>
+            </span>
             <button type="button" class="btn btn-default" id="btnAddOpen">新增活动</button>
           </div>
           <div class="panel-body">
-            <p class="hint" style="margin-top:0;">点击某一<strong>月份</strong>：下方列表仅展示<strong>日期范围与该月有交集</strong>的活动；再次点击同一月或点「取消月份筛选」恢复全年。在弹窗中登记<strong>开始/结束日期</strong>与<strong>多品线</strong>或全品线。</p>
+            <p class="hint" style="margin-top:0;">点选月份可筛下方活动；规则说明见标题旁「<strong>i</strong>」或红「<strong>5</strong>」。新增活动时在弹窗中填写日期、场景品类与新品标签（与《营销费用规划》维度一致）。</p>
             <div class="milestone-wrap">
               <div class="milestone-rail" id="milestoneRail" aria-label="全年12月里程碑"></div>
             </div>
@@ -683,7 +898,13 @@
         </section>
 
         <section class="panel">
-          <div class="panel-head">营销活动列表</div>
+          <div class="panel-head">
+            <span class="panel-head-tools">
+              <span>营销活动列表</span>
+              <button type="button" class="logic-pin" data-logic-key="b6" aria-label="开发测试说明 活动列表">6</button>
+              <button type="button" class="field-hint-icon" data-user-hint="actListPanel" aria-label="活动列表说明">i</button>
+            </span>
+          </div>
           <div class="panel-body">
             <div class="table-toolbar">
               <span id="actCount" class="hint" style="margin:0;">共 0 条</span>
@@ -696,7 +917,8 @@
                     <th>开始日期</th>
                     <th>结束日期</th>
                     <th>活动名称</th>
-                    <th>品线/品类</th>
+                    <th>场景品类</th>
+                    <th>新品标签</th>
                     <th class="num">预算（USD）</th>
                     <th class="num">实际（USD）</th>
                     <th class="actions">操作</th>
@@ -709,7 +931,13 @@
         </section>
 
         <section class="panel">
-          <div class="panel-head">进度与费用概览</div>
+          <div class="panel-head">
+            <span class="panel-head-tools">
+              <span>进度与费用概览</span>
+              <button type="button" class="logic-pin" data-logic-key="b7" aria-label="开发测试说明 KPI">7</button>
+              <button type="button" class="field-hint-icon" data-user-hint="kpiPanel" aria-label="进度与费用说明">i</button>
+            </span>
+          </div>
           <div class="panel-body">
             <div class="progress-block">
               <div class="lab">
@@ -725,7 +953,7 @@
               <div class="kpi-card brand">
                 <div class="lab">预算合计（USD）</div>
                 <div class="val" id="kpiBudget">$0</div>
-                <div class="sub">年度+品线下活动预算（全年）</div>
+                <div class="sub">年度 + 筛选维度下活动预算（全年）</div>
               </div>
               <div class="kpi-card ok">
                 <div class="lab">实际费用合计（USD）</div>
@@ -747,16 +975,23 @@
         </section>
 
         <section class="panel">
-          <div class="panel-head">规划维度汇总</div>
+          <div class="panel-head">
+            <span class="panel-head-tools">
+              <span>规划维度汇总</span>
+              <button type="button" class="logic-pin" data-logic-key="b8" aria-label="开发测试说明 规划汇总">8</button>
+              <button type="button" class="field-hint-icon" data-user-hint="planSummaryPanel" aria-label="规划维度汇总说明">i</button>
+            </span>
+          </div>
           <div class="panel-body">
             <p class="hint" style="margin-top:0;margin-bottom:10px;font-size:12px;">
-              规划费用优先读「营销费用规划」<code>marketing_expense_plan_v3</code>（键为「场景\\t品类」，含场景全量、具体品类、新品等行）；若无则回退 <code>marketing_expense_plan_usd_v2</code>（品线）。按时间进度预估＝规划×自然年进度；实际花费仍为活动按<strong>4 位品线</strong>拆分（与 KPI 同口径）。
+              与「营销费用规划」原型一致：优先读 <code>marketing_expense_plan_v3</code>（场景、品类、新品标签等组合）；无则回退 <code>marketing_expense_plan_usd_v2</code>（历史品线键，仅作兼容展示）。详细口径见本块标题旁「<strong>i</strong>」或红「<strong>8</strong>」。
             </p>
             <div class="table-wrap">
               <table>
                 <thead>
                   <tr>
-                    <th>品线 / 场景品类</th>
+                    <th>场景品类</th>
+                    <th>新品标签</th>
                     <th class="num">规划费用（USD）</th>
                     <th class="num">按时间进度预估费用（USD）</th>
                     <th class="num">实际花费（USD）</th>
@@ -769,7 +1004,13 @@
         </section>
 
         <section class="panel">
-          <div class="panel-head">店铺 + MSKU 分摊</div>
+          <div class="panel-head">
+            <span class="panel-head-tools">
+              <span>店铺 + MSKU 分摊</span>
+              <button type="button" class="logic-pin" data-logic-key="b9" aria-label="开发测试说明 分摊表">9</button>
+              <button type="button" class="field-hint-icon" data-user-hint="splitPanel" aria-label="分摊表说明">i</button>
+            </span>
+          </div>
           <div class="panel-body">
             <p class="split-meta" id="splitCtx">请先在上方列表中选择一条活动。</p>
             <div class="table-wrap">
@@ -778,7 +1019,7 @@
                   <tr>
                     <th>店铺</th>
                     <th>MSKU</th>
-                    <th>品线（权重来源）</th>
+                    <th>场景维度（权重示意）</th>
                     <th>权重</th>
                     <th class="num">分摊预算（USD）</th>
                     <th class="num">分摊实际（USD）</th>
@@ -816,19 +1057,18 @@
           </div>
         </div>
         <div class="form-row">
-          <span class="form-row-title">品线 / 品类（多选，与筛选区一致）</span>
-          <div class="pl-multi-anchor" style="position:relative;">
-            <div class="pl-multi" id="formPlRoot">
-              <div class="pl-multi-inner">
-                <span id="formPlTags"></span>
-                <span id="formPlMore" class="pl-more" hidden>+<span id="formPlMoreN">0</span></span>
-                <input id="formPlMultiInput" class="pl-multi-input" type="text" autocomplete="off" aria-label="品线多选" />
-              </div>
-              <button type="button" class="pl-caret-btn" id="formPlCaret" aria-label="展开品线">▾</button>
-            </div>
-            <div class="pl-dropdown" id="formPlDropdown" hidden></div>
-          </div>
-          <p class="hint" style="margin-top:8px;margin-bottom:0;">下拉首行可选<strong>全品线（ALL）</strong>；选编码可多选叠加，与筛选条品线控件交互一致。</p>
+          <label for="fScenario">场景</label>
+          <select id="fScenario"></select>
+        </div>
+        <div class="form-row">
+          <label for="fCategory">品类</label>
+          <select id="fCategory"></select>
+          <p class="hint" style="margin-top:8px;margin-bottom:0;">选场景后可选具体品类，或选「（本场景全品类）」表示仅场景维度；与规划页粒度一致。</p>
+        </div>
+        <div class="form-row">
+          <label for="fNewProductTag">新品标签</label>
+          <select id="fNewProductTag"></select>
+          <p class="hint" style="margin-top:8px;margin-bottom:0;">可与场景品类组合；保存时「场景品类」与「新品标签」不可同时为空。</p>
         </div>
         <div class="form-row">
           <label for="fBudget">预算费用（USD）</label>
@@ -850,19 +1090,44 @@
     </div>
   </div>
 
+  <div id="logicUnifiedModal" class="logic-modal" hidden aria-modal="true" role="dialog" aria-labelledby="logicUnifiedTitle">
+    <div id="logicUnifiedBackdrop" class="logic-modal-backdrop"></div>
+    <div class="logic-modal-card">
+      <div class="logic-modal-head">
+        <div style="display:flex;align-items:center;gap:8px;min-width:0;flex:1">
+          <span id="logicUnifiedTag" class="logic-modal-tag dev"></span>
+          <span id="logicUnifiedTitle" style="min-width:0"></span>
+        </div>
+        <button type="button" class="logic-modal-close" id="logicUnifiedModalClose" aria-label="关闭">×</button>
+      </div>
+      <div class="logic-modal-body" id="logicUnifiedBody"></div>
+    </div>
+  </div>
+
   <div class="toast" id="toast"></div>
+
+  <script type="application/json" id="sceneCategorySchemaEmbed">{"version":"1.0","source":"用户提供系统截图","note":"后续场景/品类数据以本文件为准；仅包含截图中出现的编码与名称。","scenes":[{"scene_code":"0","scene_name":"未分类","categories":[{"category_code":"0001","category_name":"未分类"}]},{"scene_code":"1","scene_name":"居家","categories":[{"category_code":"1001","category_name":"吊灯"},{"category_code":"1002","category_name":"吸顶灯"},{"category_code":"1003","category_name":"风扇灯"},{"category_code":"1004","category_name":"球泡"},{"category_code":"1005","category_name":"筒灯"},{"category_code":"1006","category_name":"落地灯"},{"category_code":"1007","category_name":"床头灯"},{"category_code":"1008","category_name":"星空灯"},{"category_code":"1009","category_name":"其他"},{"category_code":"1010","category_name":"灯带"},{"category_code":"1011","category_name":"新形态灯带"},{"category_code":"1012","category_name":"传感器&盒子"},{"category_code":"1013","category_name":"室内壁灯"}]},{"scene_code":"2","scene_name":"观影","categories":[{"category_code":"2001","category_name":"灯柱"},{"category_code":"2002","category_name":"摄像头取色系列"},{"category_code":"2003","category_name":"TV灯带"},{"category_code":"2004","category_name":"HDMI盒子系列"}]},{"scene_code":"3","scene_name":"户外","categories":[{"category_code":"3001","category_name":"球泡灯串"},{"category_code":"3002","category_name":"户外灯带"},{"category_code":"3003","category_name":"射灯"},{"category_code":"3004","category_name":"泛光灯"},{"category_code":"3005","category_name":"庭院灯"},{"category_code":"3006","category_name":"路径灯"},{"category_code":"3007","category_name":"路灯"},{"category_code":"3008","category_name":"壁灯"},{"category_code":"3009","category_name":"户外投影灯"},{"category_code":"3010","category_name":"植物灯"},{"category_code":"3011","category_name":"屋檐灯"},{"category_code":"3012","category_name":"礼盒"},{"category_code":"3013","category_name":"车灯"},{"category_code":"3014","category_name":"传感器&盒子"}]},{"scene_code":"5","scene_name":"传感器及控制","categories":[{"category_code":"5001","category_name":"空气质量检测仪"},{"category_code":"5002","category_name":"智能按键"},{"category_code":"5003","category_name":"门窗传感器"},{"category_code":"5004","category_name":"红外人体传感器"},{"category_code":"5005","category_name":"人体存在传感器"},{"category_code":"5006","category_name":"压力传感器"},{"category_code":"5007","category_name":"温湿度计"},{"category_code":"5008","category_name":"漏水报警器"},{"category_code":"5009","category_name":"智能插座"},{"category_code":"5010","category_name":"烤肉温度计"},{"category_code":"5011","category_name":"网关"},{"category_code":"5012","category_name":"二氧化碳检测仪"},{"category_code":"5013","category_name":"浇水控制器"}]},{"scene_code":"6","scene_name":"季节","categories":[{"category_code":"6001","category_name":"窗帘灯"},{"category_code":"6002","category_name":"贴片灯串"},{"category_code":"6003","category_name":"插件灯串"},{"category_code":"6004","category_name":"树衣灯"},{"category_code":"6005","category_name":"瀑布灯"},{"category_code":"6006","category_name":"冰帘灯"},{"category_code":"6007","category_name":"圣诞树灯"},{"category_code":"6008","category_name":"草莓灯"},{"category_code":"6009","category_name":"造型灯"},{"category_code":"6010","category_name":"灌木丛灯"},{"category_code":"6011","category_name":"礼盒"},{"category_code":"6012","category_name":"流星雨灯"}]},{"scene_code":"7","scene_name":"环境电器","categories":[{"category_code":"7001","category_name":"塔扇"},{"category_code":"7002","category_name":"台扇"},{"category_code":"7003","category_name":"空净"},{"category_code":"7004","category_name":"暖风机"},{"category_code":"7005","category_name":"加湿器"},{"category_code":"7006","category_name":"除湿机"},{"category_code":"7007","category_name":"香薰机"},{"category_code":"7008","category_name":"环电配件"}]},{"scene_code":"8","scene_name":"厨房电器","categories":[{"category_code":"8001","category_name":"冰食料理机"},{"category_code":"8002","category_name":"制冰机"},{"category_code":"8003","category_name":"冰淇淋机"},{"category_code":"8004","category_name":"厨余垃圾处理机"},{"category_code":"8005","category_name":"电水壶"},{"category_code":"8006","category_name":"电饭煲"},{"category_code":"8007","category_name":"厨电配件"}]},{"scene_code":"9","scene_name":"游戏","categories":[{"category_code":"9001","category_name":"方块灯"},{"category_code":"9002","category_name":"条状灯"},{"category_code":"9003","category_name":"像素灯"},{"category_code":"9005","category_name":"室内激光灯"},{"category_code":"9006","category_name":"HDMI盒子系列"},{"category_code":"9007","category_name":"游戏灯带"},{"category_code":"9008","category_name":"灯柱"},{"category_code":"9009","category_name":"新潮灯具"}]}]}</script>
 
   <script>
 (function () {
-  var STORAGE_KEY = "marketing_expense_usage_board_v2";
-  var LEGACY_KEY = "marketing_expense_usage_board_v1";
+  var STORAGE_KEY = "marketing_expense_usage_board_v3";
+  var LEGACY_KEY_V2 = "marketing_expense_usage_board_v2";
+  var LEGACY_KEY_V1 = "marketing_expense_usage_board_v1";
   /** 与「营销费用规划」原型一致：v3 场景+品类，v2 历史品线 */
   var PLAN_STORAGE_KEY_V3 = "marketing_expense_plan_v3";
   var PLAN_STORAGE_KEY_V2 = "marketing_expense_plan_usd_v2";
-  var PRODUCT_LINES = [
-    { code: "5115" }, { code: "8118" }, { code: "8610" }, { code: "8H11" }, { code: "7H11" }
-  ];
   var MONTH_NAMES = ["1月", "2月", "3月", "4月", "5月", "6月", "7月", "8月", "9月", "10月", "11月", "12月"];
+
+  var SCENARIO_CATEGORY_TREE = [];
+  var panelActiveScenario = "";
+  var filterLeafKeys = [];
+  var filterNpTagKeys = [];
+  var NP_TAG_YEAR_OPTIONS = [2029, 2028, 2027, 2026, 2025, 2024, 2023];
+  var NEW_PRODUCT_SCENE = "新品";
+  var PLAN_G_SCENARIO = "scenario";
+  var PLAN_G_CATEGORY = "category";
+  var PLAN_G_NP_TAG_ONLY = "np_tag_only";
+  var PLAN_G_NEW = "new_product";
 
   /** 与《销量预测管理-原型说明》buildDemoTableRows 中 regions / PRODUCT_DEMO_SAMPLES 一致 */
   var FORECAST_DEMO_REGIONS = [
@@ -896,16 +1161,46 @@
   ];
 
   var currentYear = new Date().getFullYear();
-  /** 筛选条品线多选（4 位编码），空数组表示不限品线 */
-  var filterLineCodes = [];
-  var onlyAllScope = false;
-  /** 弹窗品线多选 */
-  var formLineCodes = [];
-  var fltPlDropdownOpen = false;
-  var formPlDropdownOpen = false;
 
   var selectedId = null;
   var selectedMonth = null;
+
+  function planNpTagLabelForYear(yr) {
+    var y = Number(yr);
+    if (!y || y !== y) y = new Date().getFullYear();
+    return y + "年新品";
+  }
+
+  function planNpTagValue(p) {
+    if (!p) return "";
+    return String(p.newProductTag || "").trim();
+  }
+
+  function inferPlanGranularityFromRecord(p) {
+    if (!p) return PLAN_G_CATEGORY;
+    var sc = String(p.scenario || "").trim();
+    var cat = String(p.category != null ? p.category : "").trim();
+    var tag = planNpTagValue(p);
+    if (sc === NEW_PRODUCT_SCENE) return PLAN_G_NEW;
+    if (!sc && !cat && tag) return PLAN_G_NP_TAG_ONLY;
+    if (!cat) return PLAN_G_SCENARIO;
+    return PLAN_G_CATEGORY;
+  }
+
+  function planIdentityKey(p) {
+    var y = String(p.year || "");
+    var g = inferPlanGranularityFromRecord(p);
+    var tag = planNpTagValue(p);
+    var sc = String(p.scenario || "").trim();
+    var cat = String(p.category != null ? p.category : "").trim();
+    if (g === PLAN_G_NEW) return y + "\tN\t" + cat;
+    if (g === PLAN_G_NP_TAG_ONLY) return y + "\tNP\t" + tag;
+    if (g === PLAN_G_SCENARIO) return y + "\tS\t" + sc + (tag ? "\t" + tag : "");
+    if (g === PLAN_G_CATEGORY) return y + "\tC\t" + sc + "\t" + cat + (tag ? "\t" + tag : "");
+    return y + "\tC\t" + sc + "\t" + cat;
+  }
+
+  function closePlanRowScCatPop() {}
 
   function uid() {
     return "a_" + Date.now().toString(36) + "_" + Math.random().toString(36).slice(2, 8);
@@ -918,78 +1213,217 @@
       .replace(/"/g, "&quot;");
   }
 
+  /** 本页开发/测试说明（键与按钮 data-logic-key 一致） */
+  var LOGIC_DEV = (function () {
+    var o = {};
+    function add(k, title, body) {
+      o[k] = { title: title, body: body };
+    }
+    add(
+      "b1",
+      "【1】场景品类（筛选）",
+      "与《营销费用规划》同一套页面内嵌 sceneCategorySchemaEmbed：多选「场景×品类」叶子键（场景名\\t品类名）。\n与【2】组合：两维都选时对活动取交集（AND）；仅【2】有值时按新品标签筛。\n勾选变更会即时刷新列表；点【3】搜索时须已选场景品类或新品标签至少其一，并同步刷新「年度」下拉所选年。"
+    );
+    add(
+      "b2",
+      "【2】新品标签（筛选）",
+      "多选「YYYY年新品」（OR）。与【1】组合规则同上。\n活动数据字段为 newProductTag，与规划 v3 一致。"
+    );
+    add(
+      "b3",
+      "【3】搜索",
+      "校验：场景品类与新品标签不可同时为空。\n通过后以当前「年度」刷新里程碑、活动表、KPI、规划汇总与分摊区，并重置「按月份筛选」。"
+    );
+    add(
+      "b5",
+      "【5】全年里程碑",
+      "12 个月节点：点击某月则下方活动列表仅保留「活动日期范围与该自然月有交集」的记录；再点同月或点「取消月份筛选」恢复全年。\n「新增活动」会带上当前选中月作为默认起止月（可改）。"
+    );
+    add(
+      "b6",
+      "【6】营销活动列表",
+      "行点击：选中活动并驱动「店铺+MSKU 分摊」区；点击表格外沿（非行）取消选中。\n数据存 localStorage 键 marketing_expense_usage_board_v3（由 v2/v1 迁移）。"
+    );
+    add(
+      "b7",
+      "【7】进度与费用概览",
+      "时间进度＝自然年内已过天数比例；「按进度预估应花」≈ 当前筛选下活动预算合计 × 时间进度（示意）。\n「实际 − 预估」为 KPI 示意，非财务结账口径。"
+    );
+    add(
+      "b8",
+      "【8】规划维度汇总",
+      "读取顺序：\n① localStorage marketing_expense_plan_v3：按规划行 planAmount 聚合到「场景品类 + 新品标签」两列展示（与规划粒度一致）。\n② 若无 v3 可读数据，则回退 marketing_expense_plan_usd_v2（历史品线键，新品列显示「—」）。\n本表「实际花费」来自活动层按「场景+品类+新品标签」汇总键拆分，与 KPI 同口径，与规划行无自动核销关系（原型说明）。"
+    );
+    add(
+      "b9",
+      "【9】店铺 + MSKU 分摊",
+      "依赖上方列表选中活动；按活动 budgetUsd/actualUsd 与 DEMO MSKU 列表做示意拆分（权重为原型占位）。\n与规划页「按 BP 营收拆分 MSKU」为不同模块，本看板侧重活动执行视角。"
+    );
+    return o;
+  })();
+
+  var USER_HINT = (function () {
+    var o = {};
+    function add(k, title, body) {
+      o[k] = { title: title, body: body };
+    }
+    add(
+      "filterScCat",
+      "场景品类筛选",
+      "与《营销费用规划》相同：多选场景×品类叶子。\n与「新品标签筛选」至少选其一后，点「搜索」刷新（勾选变更也会即时刷新列表）。"
+    );
+    add(
+      "filterNpTag",
+      "新品标签筛选",
+      "多选新品年份标签；与场景品类组合时取交集（AND）。"
+    );
+    add("milestonePanel", "里程碑", "点某个月，下面列表只显示与该月有交集的活动；再点一次同月或点「取消月份筛选」恢复看全年。");
+    add("actListPanel", "活动列表", "点一行会选中该活动，最下面会显示分摊示例。点表格空白处可取消选中。");
+    add(
+      "kpiPanel",
+      "进度与费用",
+      "看预算、实际和按时间进度估算的对比。数字来自本页示例与本地缓存，不等同真实财务报表。"
+    );
+    add(
+      "planSummaryPanel",
+      "规划维度汇总",
+      "优先用「营销费用规划」v3；没有则兼容 v2 历史品线。这里的「实际」按活动上的场景品类与新品标签汇总，和规划表不是一张账。"
+    );
+    add("splitPanel", "分摊表", "选中一条活动后，这里用示例规则把预算和实际拆到店铺和 MSKU，方便和列表对照。");
+    return o;
+  })();
+
+  function parseExplainBody(text) {
+    var parts = String(text || "")
+      .split(/\n\n+/)
+      .map(function (p) {
+        return p.trim();
+      })
+      .filter(Boolean);
+    if (!parts.length) return "";
+    return (
+      "<p>" +
+      parts
+        .map(function (p) {
+          return escapeHtml(p).replace(/\n/g, "<br>");
+        })
+        .join("</p><p>") +
+      "</p>"
+    );
+  }
+
+  function openUnifiedExplain(mode, key) {
+    var modal = document.getElementById("logicUnifiedModal");
+    var backdrop = document.getElementById("logicUnifiedBackdrop");
+    var titleEl = document.getElementById("logicUnifiedTitle");
+    var tagEl = document.getElementById("logicUnifiedTag");
+    var bodyEl = document.getElementById("logicUnifiedBody");
+    if (!modal || !backdrop || !titleEl || !tagEl || !bodyEl) return;
+    var map = mode === "user" ? USER_HINT : LOGIC_DEV;
+    var item = map[key];
+    if (!item) return;
+    titleEl.textContent = item.title || "";
+    tagEl.textContent = mode === "user" ? "用户说明" : "开发/测试";
+    tagEl.className = "logic-modal-tag " + (mode === "user" ? "user" : "dev");
+    bodyEl.innerHTML = parseExplainBody(item.body || "");
+    modal.removeAttribute("hidden");
+    modal.classList.add("is-open");
+    backdrop.classList.add("is-open");
+    document.body.classList.add("logic-modal-open");
+  }
+
+  function closeUnifiedExplain() {
+    var modal = document.getElementById("logicUnifiedModal");
+    var backdrop = document.getElementById("logicUnifiedBackdrop");
+    if (modal) {
+      modal.classList.remove("is-open");
+      modal.setAttribute("hidden", "");
+    }
+    if (backdrop) backdrop.classList.remove("is-open");
+    document.body.classList.remove("logic-modal-open");
+  }
+
+  function wireUnifiedExplain() {
+    if (wireUnifiedExplain._ok) return;
+    wireUnifiedExplain._ok = true;
+    document.addEventListener("click", function (e) {
+      var pin = e.target && e.target.closest && e.target.closest("button.logic-pin[data-logic-key]");
+      if (pin) {
+        e.preventDefault();
+        e.stopPropagation();
+        openUnifiedExplain("dev", pin.getAttribute("data-logic-key"));
+        return;
+      }
+      var hi = e.target && e.target.closest && e.target.closest("button.field-hint-icon[data-user-hint]");
+      if (hi) {
+        e.preventDefault();
+        e.stopPropagation();
+        openUnifiedExplain("user", hi.getAttribute("data-user-hint"));
+      }
+    });
+    var closeBtn = document.getElementById("logicUnifiedModalClose");
+    var backdrop = document.getElementById("logicUnifiedBackdrop");
+    if (closeBtn) closeBtn.addEventListener("click", closeUnifiedExplain);
+    if (backdrop) backdrop.addEventListener("click", closeUnifiedExplain);
+    document.addEventListener("keydown", function (e) {
+      if (e.key === "Escape") closeUnifiedExplain();
+    });
+  }
+
   function formatUsd(n) {
     return "$" + Number(n || 0).toLocaleString("en-US", { maximumFractionDigits: 0 });
   }
 
-  /** 读取规划：v3 按「场景\\t品类」为键；否则 v2 按 4 位品线 */
-  function loadPlanMapForYear(y) {
-    var m = {};
-    try {
-      var raw3 = localStorage.getItem(PLAN_STORAGE_KEY_V3);
-      if (raw3) {
-        var arr3 = JSON.parse(raw3);
-        if (Array.isArray(arr3) && arr3.length) {
-          arr3.forEach(function (p) {
-            if (String(p.year) !== String(y) || !p.scenario) return;
-            var k = String(p.scenario) + "\t" + String(p.category || "");
-            m[k] = (m[k] || 0) + (Number(p.planAmount) || 0);
-          });
-          return m;
-        }
-      }
-      m = {};
-      var raw2 = localStorage.getItem(PLAN_STORAGE_KEY_V2);
-      if (!raw2) return {};
-      var arr2 = JSON.parse(raw2);
-      if (!Array.isArray(arr2)) return {};
-      arr2.forEach(function (p) {
-        if (String(p.year) !== String(y) || !p.productLine) return;
-        var k2 = String(p.productLine);
-        m[k2] = (m[k2] || 0) + (Number(p.planAmount) || 0);
-      });
-      return m;
-    } catch (e) {
-      return {};
-    }
+  function linesIsAllOnly(lines) {
+    return lines && lines.length === 1 && lines[0] === "ALL";
   }
 
-  /** 将活动金额按多品线均分（最后一行吃尾差），不含 ALL 活动 */
-  function splitAmountAcrossLines(total, lines) {
-    var clean = (lines || []).filter(function (c) {
-      return c && c !== "ALL";
-    });
-    var t = Math.round(Number(total) || 0);
-    if (!clean.length) return {};
-    var n = clean.length;
-    var out = {};
-    var sum = 0;
-    clean.forEach(function (code, i) {
-      if (i === n - 1) out[code] = t - sum;
-      else {
-        var v = Math.round(t / n);
-        out[code] = v;
-        sum += v;
-      }
-    });
-    return out;
+  function mapProductLinesToScene(lines) {
+    if (!lines || !lines.length || lines.indexOf("ALL") >= 0 || linesIsAllOnly(lines)) {
+      return { scenario: "", category: "", newProductTag: "" };
+    }
+    var line = String(lines[0] || "5115");
+    var map = {
+      "5115": { scenario: "居家", category: "吊灯" },
+      "8610": { scenario: "居家", category: "吸顶灯" },
+      "8118": { scenario: "观影", category: "TV灯带" },
+      "8H11": { scenario: "户外", category: "户外灯带" },
+      "7H11": { scenario: "居家", category: "球泡" }
+    };
+    var one = map[line] || { scenario: "居家", category: "吊灯" };
+    return { scenario: one.scenario, category: one.category, newProductTag: "" };
   }
 
   function migrateAct(a) {
-    if (a.dateStart && a.dateEnd && a.productLines && a.productLines.length) return a;
+    if (!a) return a;
+    if (!(a.productLines && a.productLines.length)) {
+      return {
+        id: a.id,
+        year: a.year,
+        dateStart: a.dateStart || a.dateStr || (a.year + "-01-01"),
+        dateEnd: a.dateEnd || a.dateStart || (a.year + "-01-01"),
+        name: a.name || "",
+        scenario: String(a.scenario != null ? a.scenario : ""),
+        category: String(a.category != null ? a.category : ""),
+        newProductTag: planNpTagValue(a),
+        budgetUsd: a.budgetUsd,
+        actualUsd: a.actualUsd,
+        note: a.note || ""
+      };
+    }
     var ds = a.dateStart || a.dateStr || (a.year + "-01-01");
     var de = a.dateEnd || ds;
-    var lines;
-    if (a.productLines && a.productLines.length) lines = a.productLines.slice();
-    else if (a.productLine === "ALL") lines = ["ALL"];
-    else lines = [a.productLine || "5115"];
+    var lines = a.productLines.slice();
+    var sc = mapProductLinesToScene(lines);
     return {
       id: a.id,
       year: a.year,
       dateStart: ds,
       dateEnd: de,
       name: a.name,
-      productLines: lines,
+      scenario: sc.scenario,
+      category: sc.category,
+      newProductTag: sc.newProductTag,
       budgetUsd: a.budgetUsd,
       actualUsd: a.actualUsd,
       note: a.note || ""
@@ -1000,8 +1434,10 @@
     try {
       var raw = localStorage.getItem(STORAGE_KEY);
       if (!raw) {
-        var leg = localStorage.getItem(LEGACY_KEY);
-        if (leg) {
+        var tryKeys = [LEGACY_KEY_V2, LEGACY_KEY_V1];
+        for (var ti = 0; ti < tryKeys.length; ti++) {
+          var leg = localStorage.getItem(tryKeys[ti]);
+          if (!leg) continue;
           try {
             var arr0 = JSON.parse(leg);
             if (Array.isArray(arr0) && arr0.length) {
@@ -1069,107 +1505,533 @@
     return d0 <= me && d1 >= ms;
   }
 
-  function linesIsAllOnly(lines) {
-    return lines && lines.length === 1 && lines[0] === "ALL";
+  function parseEmbeddedSceneJson() {
+    var el = document.getElementById("sceneCategorySchemaEmbed");
+    if (!el) return null;
+    var raw = String(el.textContent || "").trim();
+    if (!raw) return null;
+    try {
+      return JSON.parse(raw);
+    } catch (e) {
+      return null;
+    }
   }
 
-  function forecastDemoRow(i, productLine, year) {
+  function applyScenePayload(data) {
+    var scenes = data && data.scenes;
+    if (!Array.isArray(scenes)) return;
+    SCENARIO_CATEGORY_TREE = scenes.map(function (s) {
+      var codes = {};
+      var names = (s.categories || []).map(function (c) {
+        codes[c.category_name] = String(c.category_code);
+        return c.category_name;
+      });
+      return {
+        scene_code: String(s.scene_code),
+        scenario: s.scene_name,
+        categories: names,
+        categoryCodes: codes
+      };
+    });
+    if (!panelActiveScenario && SCENARIO_CATEGORY_TREE.length) {
+      var firstNon = SCENARIO_CATEGORY_TREE.find(function (n) {
+        return n.scenario !== "未分类";
+      });
+      panelActiveScenario = (firstNon || SCENARIO_CATEGORY_TREE[0]).scenario;
+    }
+  }
+
+  function leafKey(sceneName, catName) {
+    return String(sceneName || "") + "\t" + String(catName || "");
+  }
+
+  function treeNodeByScenario(name) {
+    return SCENARIO_CATEGORY_TREE.find(function (n) {
+      return n.scenario === name;
+    });
+  }
+
+  function hasLeaf(sceneName, catName) {
+    return filterLeafKeys.indexOf(leafKey(sceneName, catName)) >= 0;
+  }
+
+  function countSelectedInScene(node) {
+    var n = 0;
+    var len = node.categories.length;
+    for (var i = 0; i < len; i++) {
+      if (hasLeaf(node.scenario, node.categories[i])) n++;
+    }
+    return n;
+  }
+
+  function sceneCheckboxState(node) {
+    var n = countSelectedInScene(node);
+    var len = node.categories.length;
+    if (n === 0) return { checked: false, indeterminate: false };
+    if (len > 0 && n === len) return { checked: true, indeterminate: false };
+    return { checked: false, indeterminate: true };
+  }
+
+  function updateScCatTrigger() {
+    var trig = document.getElementById("fltScCatTrigger");
+    if (!trig) return;
+    if (!filterLeafKeys.length) trig.textContent = "场景品类";
+    else trig.textContent = "已选 " + filterLeafKeys.length + " 项";
+  }
+
+  function scCatPopIsOpen() {
+    var pop = document.getElementById("fltScCatPop");
+    return pop && !pop.hidden;
+  }
+
+  function refreshScCatColumnsIfOpen() {
+    if (scCatPopIsOpen()) {
+      renderScCatSceneColumn();
+      renderScCatCatColumn();
+    }
+  }
+
+  function setLeavesForScene(node, checked) {
+    node.categories.forEach(function (cat) {
+      var k = leafKey(node.scenario, cat);
+      var ix = filterLeafKeys.indexOf(k);
+      if (checked && ix < 0) filterLeafKeys.push(k);
+      if (!checked && ix >= 0) filterLeafKeys.splice(ix, 1);
+    });
+    updateScCatTrigger();
+    refreshAll();
+    refreshScCatColumnsIfOpen();
+  }
+
+  function toggleLeaf(sceneName, catName, checked) {
+    var k = leafKey(sceneName, catName);
+    var ix = filterLeafKeys.indexOf(k);
+    if (checked && ix < 0) filterLeafKeys.push(k);
+    if (!checked && ix >= 0) filterLeafKeys.splice(ix, 1);
+    updateScCatTrigger();
+    refreshAll();
+    refreshScCatColumnsIfOpen();
+  }
+
+  function renderScCatSceneColumn() {
+    var el = document.getElementById("fltScCatScenes");
+    if (!el) return;
+    el.innerHTML = "";
+    SCENARIO_CATEGORY_TREE.forEach(function (node) {
+      var div = document.createElement("div");
+      div.className = "sc-cat-item" + (node.scenario === panelActiveScenario ? " active" : "");
+      var st = sceneCheckboxState(node);
+      var cb = document.createElement("input");
+      cb.type = "checkbox";
+      cb.checked = st.checked;
+      cb.indeterminate = st.indeterminate;
+      cb.addEventListener("click", function (e) {
+        e.stopPropagation();
+      });
+      cb.addEventListener("change", function () {
+        setLeavesForScene(node, cb.checked);
+      });
+      var lbl = document.createElement("span");
+      lbl.className = "lbl";
+      lbl.textContent = node.scenario;
+      var arr = document.createElement("span");
+      arr.className = "arrow";
+      arr.textContent = "›";
+      div.appendChild(cb);
+      div.appendChild(lbl);
+      div.appendChild(arr);
+      div.addEventListener("click", function (e) {
+        if (e.target && e.target.closest && e.target.closest('input[type="checkbox"]')) return;
+        panelActiveScenario = node.scenario;
+        renderScCatSceneColumn();
+        renderScCatCatColumn();
+      });
+      el.appendChild(div);
+    });
+  }
+
+  function renderScCatCatColumn() {
+    var el = document.getElementById("fltScCatCats");
+    if (!el) return;
+    el.innerHTML = "";
+    var node = treeNodeByScenario(panelActiveScenario);
+    if (!node) return;
+    node.categories.forEach(function (cat) {
+      var div = document.createElement("div");
+      div.className = "sc-cat-item";
+      var cb = document.createElement("input");
+      cb.type = "checkbox";
+      cb.checked = hasLeaf(node.scenario, cat);
+      cb.addEventListener("click", function (e) {
+        e.stopPropagation();
+      });
+      cb.addEventListener("change", function () {
+        toggleLeaf(node.scenario, cat, cb.checked);
+      });
+      var lbl = document.createElement("span");
+      lbl.className = "lbl";
+      lbl.textContent = cat;
+      lbl.addEventListener("click", function (e) {
+        e.stopPropagation();
+        cb.checked = !cb.checked;
+        toggleLeaf(node.scenario, cat, cb.checked);
+      });
+      div.appendChild(cb);
+      div.appendChild(lbl);
+      el.appendChild(div);
+    });
+  }
+
+  function openScCatPop() {
+    closeNpTagPop();
+    var pop = document.getElementById("fltScCatPop");
+    var wrap = document.getElementById("fltScCatWrap");
+    if (!pop || !wrap) return;
+    pop.hidden = false;
+    wrap.classList.add("open");
+    document.getElementById("fltScCatTrigger").setAttribute("aria-expanded", "true");
+    if (!panelActiveScenario && SCENARIO_CATEGORY_TREE.length) {
+      var firstNon = SCENARIO_CATEGORY_TREE.find(function (n) {
+        return n.scenario !== "未分类";
+      });
+      panelActiveScenario = (firstNon || SCENARIO_CATEGORY_TREE[0]).scenario;
+    }
+    renderScCatSceneColumn();
+    renderScCatCatColumn();
+  }
+
+  function closeScCatPop() {
+    var pop = document.getElementById("fltScCatPop");
+    var wrap = document.getElementById("fltScCatWrap");
+    if (!pop || !wrap) return;
+    pop.hidden = true;
+    wrap.classList.remove("open");
+    var trig = document.getElementById("fltScCatTrigger");
+    if (trig) trig.setAttribute("aria-expanded", "false");
+  }
+
+  function npTagPopIsOpen() {
+    var pop = document.getElementById("fltNpTagPop");
+    return pop && !pop.hidden;
+  }
+
+  function updateNpTagTrigger() {
+    var trig = document.getElementById("fltNpTagTrigger");
+    if (!trig) return;
+    if (!filterNpTagKeys.length) trig.textContent = "新品标签";
+    else trig.textContent = "已选 " + filterNpTagKeys.length + " 项";
+  }
+
+  function refreshNpTagListIfOpen() {
+    if (npTagPopIsOpen()) renderNpTagList();
+  }
+
+  function renderNpTagList() {
+    var el = document.getElementById("fltNpTagList");
+    if (!el) return;
+    el.innerHTML = "";
+    NP_TAG_YEAR_OPTIONS.forEach(function (yy) {
+      var lab = planNpTagLabelForYear(yy);
+      var div = document.createElement("div");
+      div.className = "sc-cat-item";
+      var cb = document.createElement("input");
+      cb.type = "checkbox";
+      cb.checked = filterNpTagKeys.indexOf(lab) >= 0;
+      cb.addEventListener("click", function (e) {
+        e.stopPropagation();
+      });
+      cb.addEventListener("change", function () {
+        toggleNpTagLeaf(lab, cb.checked);
+      });
+      var lbl = document.createElement("span");
+      lbl.className = "lbl";
+      lbl.textContent = lab;
+      lbl.addEventListener("click", function (e) {
+        e.stopPropagation();
+        cb.checked = !cb.checked;
+        cb.dispatchEvent(new Event("change"));
+      });
+      div.appendChild(cb);
+      div.appendChild(lbl);
+      el.appendChild(div);
+    });
+  }
+
+  function toggleNpTagLeaf(tagStr, checked) {
+    var ix = filterNpTagKeys.indexOf(tagStr);
+    if (checked && ix < 0) filterNpTagKeys.push(tagStr);
+    if (!checked && ix >= 0) filterNpTagKeys.splice(ix, 1);
+    updateNpTagTrigger();
+    refreshAll();
+    refreshNpTagListIfOpen();
+  }
+
+  function openNpTagPop() {
+    closeScCatPop();
+    var pop = document.getElementById("fltNpTagPop");
+    var wrap = document.getElementById("fltNpTagWrap");
+    if (!pop || !wrap) return;
+    pop.hidden = false;
+    wrap.classList.add("open");
+    document.getElementById("fltNpTagTrigger").setAttribute("aria-expanded", "true");
+    renderNpTagList();
+  }
+
+  function closeNpTagPop() {
+    var pop = document.getElementById("fltNpTagPop");
+    var wrap = document.getElementById("fltNpTagWrap");
+    if (!pop || !wrap) return;
+    pop.hidden = true;
+    wrap.classList.remove("open");
+    var trig = document.getElementById("fltNpTagTrigger");
+    if (trig) trig.setAttribute("aria-expanded", "false");
+  }
+
+  function wireNpTagFilter() {
+    var wrap = document.getElementById("fltNpTagWrap");
+    var trig = document.getElementById("fltNpTagTrigger");
+    var clear = document.getElementById("fltNpTagClear");
+    if (!wrap || !trig) return;
+    updateNpTagTrigger();
+    trig.addEventListener("click", function (e) {
+      e.stopPropagation();
+      var pop = document.getElementById("fltNpTagPop");
+      if (pop.hidden) openNpTagPop();
+      else closeNpTagPop();
+    });
+    if (clear) {
+      clear.addEventListener("click", function (e) {
+        e.stopPropagation();
+        filterNpTagKeys.length = 0;
+        updateNpTagTrigger();
+        closePlanRowScCatPop();
+        closeNpTagPop();
+        refreshAll();
+        toast("已清空新品标签筛选");
+      });
+    }
+    document.addEventListener("mousedown", function (e) {
+      if (wrap.contains(e.target)) return;
+      var ph = document.getElementById("planScCatPopHost");
+      if (ph && ph.contains(e.target)) return;
+      if (e.target.closest && e.target.closest("#logicUnifiedModal")) return;
+      closeNpTagPop();
+    });
+  }
+
+  function wireScCatFilter() {
+    var wrap = document.getElementById("fltScCatWrap");
+    var trig = document.getElementById("fltScCatTrigger");
+    var clear = document.getElementById("fltScCatClear");
+    if (!wrap || !trig) return;
+    updateScCatTrigger();
+    trig.addEventListener("click", function (e) {
+      e.stopPropagation();
+      var pop = document.getElementById("fltScCatPop");
+      if (pop.hidden) openScCatPop();
+      else closeScCatPop();
+    });
+    if (clear) {
+      clear.addEventListener("click", function (e) {
+        e.stopPropagation();
+        filterLeafKeys.length = 0;
+        updateScCatTrigger();
+        closePlanRowScCatPop();
+        closeScCatPop();
+        refreshAll();
+        toast("已清空场景品类筛选");
+      });
+    }
+    document.addEventListener("mousedown", function (e) {
+      if (wrap.contains(e.target)) return;
+      var ph = document.getElementById("planScCatPopHost");
+      if (ph && ph.contains(e.target)) return;
+      if (e.target.closest && e.target.closest("#logicUnifiedModal")) return;
+      closeScCatPop();
+    });
+  }
+
+  function resolvedCategoryDisplay(like) {
+    var cat = String((like && like.category) || "").trim();
+    var sc = String((like && like.scenario) || "").trim();
+    var node = treeNodeByScenario(sc);
+    if (node && node.categories.indexOf(cat) >= 0) return cat;
+    if (node && like && like.category_code) {
+      for (var nm in node.categoryCodes) {
+        if (String(node.categoryCodes[nm]) === String(like.category_code)) return nm;
+      }
+    }
+    if (node && /^\d+$/.test(cat)) {
+      for (var nm2 in node.categoryCodes) {
+        if (String(node.categoryCodes[nm2]) === cat) return nm2;
+      }
+    }
+    for (var i = 0; i < SCENARIO_CATEGORY_TREE.length; i++) {
+      var n = SCENARIO_CATEGORY_TREE[i];
+      if (!n.categoryCodes) continue;
+      for (var k in n.categoryCodes) {
+        if (String(n.categoryCodes[k]) === cat) return k;
+      }
+    }
+    return cat;
+  }
+
+  function formatPlanScenarioCategoryOnly(like) {
+    if (!like) return "—";
+    var g = inferPlanGranularityFromRecord(like);
+    if (g === PLAN_G_NEW) {
+      var nc = String(like.category || "").trim();
+      return nc ? NEW_PRODUCT_SCENE + " / " + nc : NEW_PRODUCT_SCENE + " / （请填写标识）";
+    }
+    if (g === PLAN_G_NP_TAG_ONLY) {
+      var tg0 = planNpTagValue(like);
+      return tg0 ? "（仅新品标签）·" + tg0 : "请选择场景品类或新品标签";
+    }
+    if (g === PLAN_G_SCENARIO) {
+      var ss = String(like.scenario || "").trim();
+      return ss ? ss + " · 全场景" : "不限场景品类";
+    }
+    var sc = String(like.scenario || "").trim();
+    var cat = resolvedCategoryDisplay(like);
+    if (!sc && !String(cat || "").trim()) return "请选择场景品类";
+    return sc + " / " + cat;
+  }
+
+  function formatNpTagColumn(like) {
+    var v = planNpTagValue(like);
+    return v || "—";
+  }
+
+  function planMatchesScCatFilter(p) {
+    if (!filterLeafKeys.length) return true;
+    var g = inferPlanGranularityFromRecord(p);
+    if (g === PLAN_G_NEW) return true;
+    if (g === PLAN_G_NP_TAG_ONLY) return false;
+    if (g === PLAN_G_SCENARIO) {
+      var sn = String(p.scenario || "");
+      return filterLeafKeys.some(function (fk) {
+        var parts = fk.split("\t");
+        return parts[0] === sn;
+      });
+    }
+    var pk = String(p.scenario || "") + "\t" + String(p.category || "");
+    return filterLeafKeys.indexOf(pk) >= 0;
+  }
+
+  function actUniversalScene(a) {
+    return !String(a.scenario || "").trim() && !String(a.category != null ? a.category : "").trim();
+  }
+
+  function actMatchesScCatFilter(a) {
+    if (!filterLeafKeys.length) return true;
+    if (actUniversalScene(a)) return true;
+    return planMatchesScCatFilter(a);
+  }
+
+  function npTagMatchesSelectedForAct(a) {
+    if (!filterNpTagKeys.length) return true;
+    var v = planNpTagValue(a);
+    if (!v) return false;
+    return filterNpTagKeys.indexOf(v) >= 0;
+  }
+
+  function forecastDemoRow(i, dimKey, year) {
     var reg = FORECAST_DEMO_REGIONS[i % FORECAST_DEMO_REGIONS.length];
     var samp = PRODUCT_DEMO_SAMPLES[i % PRODUCT_DEMO_SAMPLES.length];
-    var base = String(productLine).replace(/\s/g, "").split("").reduce(function (s, c) { return s + c.charCodeAt(0); }, 0) % 5000;
+    var base = String(dimKey).replace(/\s/g, "").split("").reduce(function (s, c) {
+      return s + c.charCodeAt(0);
+    }, 0) % 5000;
     return {
       year: year,
-      productLine: productLine,
+      sourceDim: dimKey,
       shop: reg,
       msku: samp.msku,
       bpRevenue: 80000 + (i % 5) * 17000 + base % 9000
     };
   }
 
-  function mockSkuRows(year, productLine) {
-    if (productLine === "ALL") {
-      var merged = [];
-      var idx = 0;
-      PRODUCT_LINES.slice(0, 3).forEach(function (pl) {
-        for (var j = 0; j < 3; j++) {
-          merged.push(forecastDemoRow(idx++, pl.code, year));
-        }
-      });
-      return merged.slice(0, 10);
-    }
+  function mockSkuRows(year, dimKey) {
     var rows = [];
     for (var i = 0; i < 5; i++) {
-      rows.push(forecastDemoRow(i, productLine, year));
+      rows.push(forecastDemoRow(i, dimKey, year));
     }
     return rows;
   }
 
-  function mockSkuRowsMulti(year, productLines) {
-    if (!productLines || productLines.length === 0) return mockSkuRows(year, "5115");
-    if (linesIsAllOnly(productLines)) return mockSkuRows(year, "ALL");
-    var map = {};
-    productLines.forEach(function (code) {
-      if (code === "ALL") return;
-      mockSkuRows(year, code).forEach(function (r) {
-        var k = r.shop + "\t" + r.msku + "\t" + r.productLine;
-        if (!map[k]) {
-          map[k] = {
-            year: year,
-            productLine: r.productLine,
-            shop: r.shop,
-            msku: r.msku,
-            bpRevenue: 0
-          };
-        }
-        map[k].bpRevenue += r.bpRevenue;
-      });
+  function mockSkuRowsForUniversal(year) {
+    var merged = [];
+    var idx = 0;
+    var take = SCENARIO_CATEGORY_TREE.filter(function (n) {
+      return n.scenario !== "未分类";
+    }).slice(0, 3);
+    take.forEach(function (node) {
+      if (!node.categories || !node.categories.length) return;
+      var c0 = node.categories[0];
+      for (var j = 0; j < 3; j++) {
+        merged.push(forecastDemoRow(idx++, leafKey(node.scenario, c0), year));
+      }
     });
-    return Object.keys(map).map(function (k) {
-      return map[k];
-    });
+    return merged.slice(0, 10);
   }
 
-  /** 同一套 BP 权重下拆分预算与实际，并分别做尾差对齐 */
-  function splitBudgetAndActual(budgetTotal, actualTotal, year, productLines) {
-    var skus = mockSkuRowsMulti(year, productLines);
-    var totalBp = skus.reduce(function (s, r) { return s + r.bpRevenue; }, 0);
+  function mockSkuRowsForAct(act, year) {
+    if (actUniversalScene(act)) return mockSkuRowsForUniversal(year);
+    var dim =
+      leafKey(act.scenario, resolvedCategoryDisplay(act)) +
+      "\t" +
+      planNpTagValue(act);
+    return mockSkuRows(year, dim || "demo");
+  }
+
+  function splitBudgetAndActual(budgetTotal, actualTotal, year, act) {
+    var skus = mockSkuRowsForAct(act, year);
+    var totalBp = skus.reduce(function (s, r) {
+      return s + r.bpRevenue;
+    }, 0);
+    var label =
+      formatPlanScenarioCategoryOnly(act) +
+      (planNpTagValue(act) ? " · " + planNpTagValue(act) : "");
     var rows = skus.map(function (r) {
       var w = totalBp > 0 ? r.bpRevenue / totalBp : 0;
       return {
         shop: r.shop,
         msku: r.msku,
-        sourceLine: r.productLine,
+        sourceLine: label,
         weight: w,
         budget: Math.round(budgetTotal * w),
         actual: Math.round(actualTotal * w)
       };
     });
     if (!rows.length) return [];
-    var sumB = rows.reduce(function (s, r) { return s + r.budget; }, 0);
+    var sumB = rows.reduce(function (s, r) {
+      return s + r.budget;
+    }, 0);
     rows[rows.length - 1].budget += budgetTotal - sumB;
-    var sumA = rows.reduce(function (s, r) { return s + r.actual; }, 0);
+    var sumA = rows.reduce(function (s, r) {
+      return s + r.actual;
+    }, 0);
     rows[rows.length - 1].actual += actualTotal - sumA;
     return rows;
   }
 
-  function actMatchesAnyLine(a, codes) {
-    var L = a.productLines || [];
-    if (L.indexOf("ALL") >= 0) return true;
-    return codes.some(function (c) {
-      return L.indexOf(c) >= 0;
-    });
-  }
-
-  /** 年度 + 品线多选 / 仅全品线（与 KPI 一致，不含月份钻取） */
+  /** 年度 + 场景品类 / 新品标签（与 KPI 一致，不含月份钻取） */
   function filteredActsByYearPl() {
-    return loadAll().filter(function (a) {
-      if (String(a.year) !== String(currentYear)) return false;
-      if (onlyAllScope) return linesIsAllOnly(a.productLines);
-      if (!filterLineCodes.length) return true;
-      return actMatchesAnyLine(a, filterLineCodes);
-    }).sort(function (a, b) {
-      return String(a.dateStart).localeCompare(String(b.dateStart)) || String(a.dateEnd).localeCompare(String(b.dateEnd));
-    });
+    return loadAll()
+      .filter(function (a) {
+        if (String(a.year) !== String(currentYear)) return false;
+        var hasSc = filterLeafKeys.length > 0;
+        var hasNp = filterNpTagKeys.length > 0;
+        if (!hasSc && !hasNp) return true;
+        if (!hasSc && hasNp) return npTagMatchesSelectedForAct(a);
+        if (hasSc && !hasNp) return actMatchesScCatFilter(a);
+        return actMatchesScCatFilter(a) && npTagMatchesSelectedForAct(a);
+      })
+      .sort(function (a, b) {
+        return (
+          String(a.dateStart).localeCompare(String(b.dateStart)) ||
+          String(a.dateEnd).localeCompare(String(b.dateEnd))
+        );
+      });
   }
 
   /** 列表：在 filteredActsByYearPl 上再按选中月份过滤 */
@@ -1219,7 +2081,6 @@
       });
       el.innerHTML = h;
     }
-    fill("fltScenario", ["全屋智能", "商用照明", "户外便携"]);
     fill("fltRegion", ["北美", "欧洲", "亚太", "拉美"]);
     fill("fltCountry", ["美国", "德国", "英国", "日本"]);
     fill("fltChannel", ["亚马逊", "独立站", "TikTok", "线下"]);
@@ -1229,226 +2090,107 @@
     fill("fltSales", ["Sales-A", "Sales-B", "Sales-C"]);
   }
 
-  function renderPlTags(prefix, selected, maxTags) {
-    var tagsEl = document.getElementById(prefix + "PlTags");
-    var moreEl = document.getElementById(prefix + "PlMore");
-    var moreN = document.getElementById(prefix + "PlMoreN");
-    if (!tagsEl) return;
-    maxTags = maxTags || 1;
-    tagsEl.innerHTML = "";
-    var show = selected.slice(0, maxTags);
-    var rest = selected.length - show.length;
-    show.forEach(function (code) {
-      var sp = document.createElement("span");
-      sp.className = "pl-tag";
-      var xb = document.createElement("button");
-      xb.type = "button";
-      xb.className = "pl-tag-x";
-      xb.setAttribute("data-code", code);
-      xb.setAttribute("data-prefix", prefix);
-      xb.textContent = "×";
-      sp.appendChild(document.createTextNode(code + " "));
-      sp.appendChild(xb);
-      tagsEl.appendChild(sp);
+  function fillModalNpOptions() {
+    var sel = document.getElementById("fNewProductTag");
+    if (!sel) return;
+    var cur = sel.value;
+    var h = '<option value="">请选择新品标签</option>';
+    NP_TAG_YEAR_OPTIONS.forEach(function (yy) {
+      var lab = planNpTagLabelForYear(yy);
+      h += "<option value=\"" + lab.replace(/"/g, "&quot;") + "\">" + escapeHtml(lab) + "</option>";
     });
-    if (rest > 0) {
-      moreEl.hidden = false;
-      moreN.textContent = String(rest);
-    } else {
-      moreEl.hidden = true;
+    sel.innerHTML = h;
+    if (cur) sel.value = cur;
+  }
+
+  function fillModalScenarioOptions() {
+    var sel = document.getElementById("fScenario");
+    if (!sel) return;
+    var cur = sel.value;
+    var h = '<option value="">请选择场景</option>';
+    SCENARIO_CATEGORY_TREE.forEach(function (n) {
+      h +=
+        '<option value="' +
+        escapeHtml(n.scenario) +
+        '">' +
+        escapeHtml(n.scenario) +
+        "</option>";
+    });
+    sel.innerHTML = h;
+    if (cur && SCENARIO_CATEGORY_TREE.some(function (x) { return x.scenario === cur; })) sel.value = cur;
+  }
+
+  function fillModalCategoryOptions(scenario, selectedCat) {
+    var sel = document.getElementById("fCategory");
+    if (!sel) return;
+    var node = treeNodeByScenario(scenario);
+    var h = '<option value="">（本场景全品类）</option>';
+    if (node && node.categories) {
+      node.categories.forEach(function (c) {
+        h +=
+          '<option value="' +
+          escapeHtml(c) +
+          '">' +
+          escapeHtml(c) +
+          "</option>";
+      });
+    }
+    sel.innerHTML = h;
+    if (selectedCat && node && node.categories.indexOf(selectedCat) >= 0) sel.value = selectedCat;
+    else sel.value = "";
+  }
+
+  function wireModalScenarioChangeOnce() {
+    var sc = document.getElementById("fScenario");
+    if (!sc || sc._wired) return;
+    sc._wired = true;
+    sc.addEventListener("change", function () {
+      fillModalCategoryOptions(sc.value, "");
+    });
+  }
+
+  function syncFormFromAct(act) {
+    fillModalScenarioOptions();
+    fillModalNpOptions();
+    wireModalScenarioChangeOnce();
+    var sc = act && String(act.scenario || "").trim();
+    var cat = act && String(act.category != null ? act.category : "").trim();
+    var tag = act ? planNpTagValue(act) : "";
+    if (!act) {
+      var base =
+        SCENARIO_CATEGORY_TREE.find(function (n) {
+          return n.scenario !== "未分类";
+        }) || SCENARIO_CATEGORY_TREE[0];
+      sc = base ? base.scenario : "";
+      cat = base && base.categories && base.categories.length ? base.categories[0] : "";
+      tag = planNpTagLabelForYear(new Date().getFullYear());
+    }
+    var fSc = document.getElementById("fScenario");
+    var fCat = document.getElementById("fCategory");
+    var fNp = document.getElementById("fNewProductTag");
+    if (fSc) {
+      fSc.value = sc || "";
+      fillModalCategoryOptions(fSc.value || sc, cat);
+    }
+    if (fNp) {
+      fNp.value = tag || "";
     }
   }
 
-  function fltPlRenderDropdown() {
-    var dd = document.getElementById("fltPlDropdown");
-    var q = (document.getElementById("fltPlMultiInput").value || "").trim().toLowerCase();
-    var h = "";
-    PRODUCT_LINES.forEach(function (o) {
-      if (q && String(o.code).toLowerCase().indexOf(q) < 0) return;
-      var sel = filterLineCodes.indexOf(o.code) >= 0;
-      h +=
-        '<button type="button" class="pl-dd-item' +
-        (sel ? " sel" : "") +
-        '" data-code="' +
-        o.code +
-        '"><span>' +
-        o.code +
-        "</span>" +
-        (sel ? '<span class="pl-check">✓</span>' : "<span></span>") +
-        "</button>";
-    });
-    dd.innerHTML = h || '<div class="pl-dd-empty">无匹配项</div>';
-    dd.querySelectorAll(".pl-dd-item").forEach(function (btn) {
-      btn.addEventListener("click", function (ev) {
-        ev.stopPropagation();
-        var c = btn.getAttribute("data-code");
-        var ix = filterLineCodes.indexOf(c);
-        if (ix >= 0) filterLineCodes.splice(ix, 1);
-        else filterLineCodes.push(c);
-        fltPlSyncUi();
-        fltPlRenderDropdown();
-      });
-    });
-  }
-
-  function fltPlSyncUi() {
-    document.getElementById("fltPlRoot").classList.toggle("open", fltPlDropdownOpen);
-    renderPlTags("flt", filterLineCodes, 1);
-  }
-
-  function formPlRenderDropdown() {
-    var dd = document.getElementById("formPlDropdown");
-    var q = (document.getElementById("formPlMultiInput").value || "").trim().toLowerCase();
-    var allSel = linesIsAllOnly(formLineCodes);
-    var h =
-      '<button type="button" class="pl-dd-item' +
-      (allSel ? " sel" : "") +
-      '" data-code="__ALL__"><span>全品线（ALL）</span>' +
-      (allSel ? '<span class="pl-check">✓</span>' : "<span></span>") +
-      "</button>";
-    PRODUCT_LINES.forEach(function (o) {
-      if (q && String(o.code).toLowerCase().indexOf(q) < 0) return;
-      var sel = !allSel && formLineCodes.indexOf(o.code) >= 0;
-      h +=
-        '<button type="button" class="pl-dd-item' +
-        (sel ? " sel" : "") +
-        '" data-code="' +
-        o.code +
-        '"><span>' +
-        o.code +
-        "</span>" +
-        (sel ? '<span class="pl-check">✓</span>' : "<span></span>") +
-        "</button>";
-    });
-    dd.innerHTML = h;
-    dd.querySelectorAll(".pl-dd-item").forEach(function (btn) {
-      btn.addEventListener("click", function (ev) {
-        ev.stopPropagation();
-        var c = btn.getAttribute("data-code");
-        if (c === "__ALL__") {
-          formLineCodes = ["ALL"];
-        } else {
-          formLineCodes = formLineCodes.filter(function (x) {
-            return x !== "ALL";
-          });
-          var ix = formLineCodes.indexOf(c);
-          if (ix >= 0) formLineCodes.splice(ix, 1);
-          else formLineCodes.push(c);
-        }
-        formPlSyncUi();
-        formPlRenderDropdown();
-      });
-    });
-  }
-
-  function formPlSyncUi() {
-    document.getElementById("formPlRoot").classList.toggle("open", formPlDropdownOpen);
-    renderPlTags("form", linesIsAllOnly(formLineCodes) ? ["ALL"] : formLineCodes, 1);
-  }
-
-  function wirePlMultiControls() {
-    document.getElementById("fltPlTags").addEventListener("click", function (e) {
-      var x = e.target.closest(".pl-tag-x");
-      if (!x) return;
-      e.stopPropagation();
-      var c = x.getAttribute("data-code");
-      filterLineCodes = filterLineCodes.filter(function (z) {
-        return z !== c;
-      });
-      fltPlSyncUi();
-      if (fltPlDropdownOpen) fltPlRenderDropdown();
-    });
-    document.getElementById("fltPlCaret").addEventListener("click", function (e) {
-      e.stopPropagation();
-      fltPlDropdownOpen = !fltPlDropdownOpen;
-      document.getElementById("fltPlDropdown").hidden = !fltPlDropdownOpen;
-      fltPlSyncUi();
-      if (fltPlDropdownOpen) fltPlRenderDropdown();
-    });
-    document.getElementById("fltPlMultiInput").addEventListener("click", function (e) {
-      e.stopPropagation();
-      fltPlDropdownOpen = true;
-      document.getElementById("fltPlDropdown").hidden = false;
-      fltPlSyncUi();
-      fltPlRenderDropdown();
-    });
-    document.getElementById("fltPlMultiInput").addEventListener("input", function () {
-      if (fltPlDropdownOpen) fltPlRenderDropdown();
-    });
-    document.getElementById("fltOnlyAll").addEventListener("change", function () {
-      if (this.checked) filterLineCodes = [];
-      fltPlSyncUi();
-    });
-
-    document.getElementById("formPlTags").addEventListener("click", function (e) {
-      var x = e.target.closest(".pl-tag-x");
-      if (!x) return;
-      e.stopPropagation();
-      var c = x.getAttribute("data-code");
-      if (c === "ALL") formLineCodes = [];
-      else
-        formLineCodes = formLineCodes.filter(function (z) {
-          return z !== c;
-        });
-      formPlSyncUi();
-      if (formPlDropdownOpen) formPlRenderDropdown();
-    });
-    document.getElementById("formPlCaret").addEventListener("click", function (e) {
-      e.stopPropagation();
-      formPlDropdownOpen = !formPlDropdownOpen;
-      document.getElementById("formPlDropdown").hidden = !formPlDropdownOpen;
-      formPlSyncUi();
-      if (formPlDropdownOpen) formPlRenderDropdown();
-    });
-    document.getElementById("formPlMultiInput").addEventListener("click", function (e) {
-      e.stopPropagation();
-      formPlDropdownOpen = true;
-      document.getElementById("formPlDropdown").hidden = false;
-      formPlSyncUi();
-      formPlRenderDropdown();
-    });
-    document.getElementById("formPlMultiInput").addEventListener("input", function () {
-      if (formPlDropdownOpen) formPlRenderDropdown();
-    });
-
-    document.addEventListener(
-      "mousedown",
-      function (e) {
-        if (!e.target.closest("#fltPlRoot") && !e.target.closest("#fltPlDropdown")) {
-          if (fltPlDropdownOpen) {
-            fltPlDropdownOpen = false;
-            var d = document.getElementById("fltPlDropdown");
-            if (d) d.hidden = true;
-            fltPlSyncUi();
-          }
-        }
-        if (!e.target.closest("#formPlRoot") && !e.target.closest("#formPlDropdown")) {
-          if (formPlDropdownOpen) {
-            formPlDropdownOpen = false;
-            var d2 = document.getElementById("formPlDropdown");
-            if (d2) d2.hidden = true;
-            formPlSyncUi();
-          }
-        }
-      },
-      true
-    );
-    document.getElementById("fltPlRoot").addEventListener("click", function (e) {
-      e.stopPropagation();
-    });
-    document.getElementById("fltPlDropdown").addEventListener("click", function (e) {
-      e.stopPropagation();
-    });
-    document.getElementById("formPlRoot").addEventListener("click", function (e) {
-      e.stopPropagation();
-    });
-    document.getElementById("formPlDropdown").addEventListener("click", function (e) {
-      e.stopPropagation();
-    });
+  function readActDimsFromForm() {
+    var fSc = document.getElementById("fScenario");
+    var fCat = document.getElementById("fCategory");
+    var fNp = document.getElementById("fNewProductTag");
+    return {
+      scenario: fSc ? String(fSc.value || "").trim() : "",
+      category: fCat ? String(fCat.value || "").trim() : "",
+      newProductTag: fNp ? String(fNp.value || "").trim() : ""
+    };
   }
 
   function defaultActs() {
     var y = new Date().getFullYear();
+    var npCur = planNpTagLabelForYear(y);
     return [
       {
         id: uid(),
@@ -1456,7 +2198,9 @@
         dateStart: y + "-02-01",
         dateEnd: y + "-02-20",
         name: "情人节专题投放",
-        productLines: ["5115"],
+        scenario: "居家",
+        category: "吊灯",
+        newProductTag: npCur,
         budgetUsd: 48000,
         actualUsd: 45200,
         note: ""
@@ -1466,11 +2210,13 @@
         year: y,
         dateStart: y + "-03-05",
         dateEnd: y + "-05-18",
-        name: "春季多品线联合",
-        productLines: ["5115", "8610", "8118"],
+        name: "春季场景联合",
+        scenario: "居家",
+        category: "吸顶灯",
+        newProductTag: "",
         budgetUsd: 120000,
         actualUsd: 88000,
-        note: "跨品线品类"
+        note: "同场景多品类轮播"
       },
       {
         id: uid(),
@@ -1478,10 +2224,12 @@
         dateStart: y + "-06-01",
         dateEnd: y + "-06-25",
         name: "618 大促",
-        productLines: ["ALL"],
+        scenario: "",
+        category: "",
+        newProductTag: "",
         budgetUsd: 200000,
         actualUsd: 195000,
-        note: ""
+        note: "不限场景品类（与历史全品线活动口径类似）"
       },
       {
         id: uid(),
@@ -1489,7 +2237,9 @@
         dateStart: y + "-11-01",
         dateEnd: y + "-12-05",
         name: "黑五网一周期",
-        productLines: ["8118", "8H11"],
+        scenario: "观影",
+        category: "TV灯带",
+        newProductTag: planNpTagLabelForYear(y - 1),
         budgetUsd: 150000,
         actualUsd: 62000,
         note: "跨两个月"
@@ -1569,13 +2319,6 @@
     }
   }
 
-  function lineLabel(lines) {
-    if (!lines || !lines.length) return "—";
-    if (linesIsAllOnly(lines)) return "全品线";
-    if (lines.indexOf("ALL") >= 0) return "全品线";
-    return lines.join("、");
-  }
-
   function renderTable() {
     var tbody = document.getElementById("tbodyActs");
     var acts = tableActs();
@@ -1587,7 +2330,7 @@
     tbody.innerHTML = "";
     if (acts.length === 0) {
       tbody.innerHTML =
-        '<tr><td colspan="7" class="empty">无活动。可<strong>单击</strong>里程碑月份筛选该月，<strong>双击</strong>同月在当月登记；或点「新增活动」。</td></tr>';
+        '<tr><td colspan="8" class="empty">无活动。可<strong>单击</strong>里程碑月份筛选该月，<strong>双击</strong>同月在当月登记；或点「新增活动」。</td></tr>';
       selectedId = null;
       renderSplit();
       return;
@@ -1600,7 +2343,8 @@
         "<td>" + escapeHtml(a.dateStart) + "</td>" +
         "<td>" + escapeHtml(a.dateEnd) + "</td>" +
         "<td>" + escapeHtml(a.name || "—") + "</td>" +
-        "<td>" + escapeHtml(lineLabel(a.productLines)) + "</td>" +
+        "<td>" + escapeHtml(formatPlanScenarioCategoryOnly(a)) + "</td>" +
+        "<td>" + escapeHtml(formatNpTagColumn(a)) + "</td>" +
         '<td class="num">' + formatUsd(a.budgetUsd) + "</td>" +
         '<td class="num">' + formatUsd(a.actualUsd) + "</td>" +
         '<td class="actions">' +
@@ -1649,7 +2393,7 @@
     renderSplit();
   }
 
-  /** 将多条活动的分摊行按 店铺+MSKU+品线 合并预算/实际 */
+  /** 将多条活动的分摊行按 店铺+MSKU+维度标签 合并预算/实际 */
   function mergeSplitRowsByKey(rowArrays) {
     var map = {};
     rowArrays.forEach(function (rows) {
@@ -1699,12 +2443,7 @@
         renderSplit();
         return;
       }
-      var rows = splitBudgetAndActual(
-        Number(a.budgetUsd) || 0,
-        Number(a.actualUsd) || 0,
-        a.year,
-        a.productLines || ["5115"]
-      );
+      var rows = splitBudgetAndActual(Number(a.budgetUsd) || 0, Number(a.actualUsd) || 0, a.year, a);
       ctx.textContent =
         "「" +
         (a.name || "未命名") +
@@ -1712,8 +2451,10 @@
         a.dateStart +
         " ~ " +
         a.dateEnd +
-        " · 品线 " +
-        lineLabel(a.productLines) +
+        " · " +
+        formatPlanScenarioCategoryOnly(a) +
+        " · 新品 " +
+        formatNpTagColumn(a) +
         " · 预算 " +
         formatUsd(a.budgetUsd) +
         " · 实际 " +
@@ -1729,12 +2470,7 @@
       return;
     }
     var perAct = acts.map(function (a) {
-      return splitBudgetAndActual(
-        Number(a.budgetUsd) || 0,
-        Number(a.actualUsd) || 0,
-        a.year,
-        a.productLines || ["5115"]
-      );
+      return splitBudgetAndActual(Number(a.budgetUsd) || 0, Number(a.actualUsd) || 0, a.year, a);
     });
     var merged = mergeSplitRowsByKey(perAct);
     var totalB = merged.reduce(function (s, r) {
@@ -1766,92 +2502,137 @@
     renderSplitRows(tbody, merged);
   }
 
-  /** 品线维度：规划、规划×时间进度、活动实际按品线拆分汇总 */
+  function actActualSummaryKey(a) {
+    return planIdentityKey({
+      year: a.year,
+      scenario: a.scenario,
+      category: a.category,
+      newProductTag: a.newProductTag
+    });
+  }
+
+  function firstActRefForSummaryKey(acts, k) {
+    var hit = acts.filter(function (a) {
+      return !actUniversalScene(a) && actActualSummaryKey(a) === k;
+    });
+    return hit.length ? hit[0] : {};
+  }
+
+  /** 规划维度：v3 为场景品类+新品标签；否则 v2 品线兼容一行 */
   function renderLineSummary() {
     var tbody = document.getElementById("tbodyLineSummary");
     if (!tbody) return;
     tbody.innerHTML = "";
     var tp = timeProgressForYear(currentYear);
-    var planMap = loadPlanMapForYear(currentYear);
     var acts = filteredActsByYearPl();
-    var actualByLine = {};
+    var actualByKey = {};
     var allScopeActual = 0;
     acts.forEach(function (a) {
-      var L = a.productLines || [];
-      if (linesIsAllOnly(L) || L.indexOf("ALL") >= 0) {
+      if (actUniversalScene(a)) {
         allScopeActual += Number(a.actualUsd) || 0;
         return;
       }
-      var parts = splitAmountAcrossLines(a.actualUsd, L);
-      Object.keys(parts).forEach(function (code) {
-        actualByLine[code] = (actualByLine[code] || 0) + parts[code];
-      });
+      var k = actActualSummaryKey(a);
+      actualByKey[k] = (actualByKey[k] || 0) + (Number(a.actualUsd) || 0);
     });
-    var ordered = PRODUCT_LINES.map(function (o) {
-      return o.code;
-    });
-    var seen = {};
-    ordered.forEach(function (c) {
-      seen[c] = true;
-    });
-    Object.keys(planMap).forEach(function (k) {
-      if (!seen[k]) {
-        seen[k] = true;
-        ordered.push(k);
+    try {
+      var raw3 = localStorage.getItem(PLAN_STORAGE_KEY_V3);
+      if (raw3) {
+        var arr3 = JSON.parse(raw3);
+        if (Array.isArray(arr3) && arr3.length) {
+          var planByKey = {};
+          arr3.forEach(function (p) {
+            if (String(p.year) !== String(currentYear)) return;
+            var k = planIdentityKey(p);
+            if (!planByKey[k]) {
+              planByKey[k] = { plan: 0, ref: p };
+            }
+            planByKey[k].plan += Number(p.planAmount) || 0;
+            planByKey[k].ref = p;
+          });
+          var ordered = Object.keys(planByKey);
+          Object.keys(actualByKey).forEach(function (k) {
+            if (ordered.indexOf(k) < 0) ordered.push(k);
+          });
+          if (allScopeActual > 0) {
+            var trU = document.createElement("tr");
+            trU.innerHTML =
+              "<td>" +
+              escapeHtml("不限场景品类（活动汇总）") +
+              "</td>" +
+              "<td>—</td>" +
+              '<td class="num">—</td>' +
+              '<td class="num">—</td>' +
+              '<td class="num">' +
+              formatUsd(allScopeActual) +
+              "</td>";
+            tbody.appendChild(trU);
+          }
+          ordered.forEach(function (k) {
+            var cell = planByKey[k] || { plan: 0, ref: firstActRefForSummaryKey(acts, k) };
+            var ref = cell.ref || {};
+            var plan = cell.plan || 0;
+            var exp = Math.round(plan * tp);
+            var actv = actualByKey[k] || 0;
+            var tr = document.createElement("tr");
+            tr.innerHTML =
+              "<td>" + escapeHtml(formatPlanScenarioCategoryOnly(ref)) + "</td>" +
+              "<td>" + escapeHtml(formatNpTagColumn(ref)) + "</td>" +
+              '<td class="num">' + formatUsd(plan) + "</td>" +
+              '<td class="num">' + formatUsd(exp) + "</td>" +
+              '<td class="num">' + formatUsd(actv) + "</td>";
+            tbody.appendChild(tr);
+          });
+          return;
+        }
       }
-    });
-    Object.keys(actualByLine).forEach(function (k) {
-      if (!seen[k]) {
-        seen[k] = true;
-        ordered.push(k);
+    } catch (e1) {}
+    var planMap = {};
+    try {
+      var raw2 = localStorage.getItem(PLAN_STORAGE_KEY_V2);
+      if (raw2) {
+        var arr2 = JSON.parse(raw2);
+        if (Array.isArray(arr2)) {
+          arr2.forEach(function (p) {
+            if (String(p.year) !== String(currentYear) || !p.productLine) return;
+            var kk = String(p.productLine);
+            planMap[kk] = (planMap[kk] || 0) + (Number(p.planAmount) || 0);
+          });
+        }
       }
-    });
+    } catch (e2) {}
+    var ordered2 = Object.keys(planMap);
     if (allScopeActual > 0) {
       var trA = document.createElement("tr");
       trA.innerHTML =
-        "<td>" + escapeHtml("汇总") + "</td>" +
+        "<td>" + escapeHtml("不限场景品类（活动汇总）") + "</td>" +
+        "<td>—</td>" +
         '<td class="num">—</td>' +
         '<td class="num">—</td>' +
         '<td class="num">' + formatUsd(allScopeActual) + "</td>";
       tbody.appendChild(trA);
     }
-    ordered.forEach(function (code) {
+    ordered2.forEach(function (code) {
       var plan = planMap[code] || 0;
       var exp = Math.round(plan * tp);
-      var act = actualByLine[code] || 0;
-      var label = code.indexOf("\t") >= 0 ? code.split("\t").join(" / ") : code;
       var tr = document.createElement("tr");
       tr.innerHTML =
-        "<td>" + escapeHtml(label) + "</td>" +
+        "<td>" + escapeHtml("历史品线 " + code) + "</td>" +
+        "<td>—</td>" +
         '<td class="num">' + formatUsd(plan) + "</td>" +
         '<td class="num">' + formatUsd(exp) + "</td>" +
-        '<td class="num">' + formatUsd(act) + "</td>";
+        '<td class="num">' + formatUsd(0) + "</td>";
       tbody.appendChild(tr);
     });
   }
 
   function refreshAll() {
-    onlyAllScope = document.getElementById("fltOnlyAll").checked;
     document.getElementById("btnClearMonth").style.display =
       selectedMonth == null ? "none" : "inline-flex";
     renderKpis();
     renderMilestones();
     renderTable();
     renderLineSummary();
-  }
-
-  function syncFormLinesFromAct(act) {
-    var lines = (act && act.productLines) || ["5115"];
-    formLineCodes = lines.slice();
-    formPlDropdownOpen = false;
-    var d2 = document.getElementById("formPlDropdown");
-    if (d2) d2.hidden = true;
-    formPlSyncUi();
-  }
-
-  function readProductLinesFromForm() {
-    if (!formLineCodes.length) return [];
-    return formLineCodes.slice();
   }
 
   function openModal(act, presetMonth) {
@@ -1881,7 +2662,7 @@
       document.getElementById("fDateEnd").value =
         y + "-" + String(m + 1).padStart(2, "0") + "-" + String(last).padStart(2, "0");
     }
-    syncFormLinesFromAct(act);
+    syncFormFromAct(act);
     document.getElementById("modalMask").classList.add("show");
     renderMilestones();
   }
@@ -1896,7 +2677,7 @@
     var name = document.getElementById("fName").value.trim();
     var ds = document.getElementById("fDateStart").value;
     var de = document.getElementById("fDateEnd").value;
-    var lines = readProductLinesFromForm();
+    var dims = readActDimsFromForm();
     var budget = parseFloat(document.getElementById("fBudget").value) || 0;
     var actual = parseFloat(document.getElementById("fActual").value) || 0;
     var note = document.getElementById("fNote").value.trim();
@@ -1912,8 +2693,10 @@
       toast("结束日期不能早于开始日期");
       return;
     }
-    if (!lines || !lines.length) {
-      toast("请在品线多选中选择「全品线」或至少一个 4 位编码");
+    var hasSc = String(dims.scenario || "").trim();
+    var hasTag = String(dims.newProductTag || "").trim();
+    if (!hasSc && !hasTag) {
+      toast("请至少选择场景（可选本场景全品类）或选择新品标签；亦可两者同时填写");
       return;
     }
     if (String(parseInt(ds.slice(0, 4), 10)) !== String(currentYear) ||
@@ -1928,7 +2711,9 @@
       dateStart: ds,
       dateEnd: de,
       name: name,
-      productLines: lines,
+      scenario: dims.scenario,
+      category: dims.category,
+      newProductTag: dims.newProductTag,
       budgetUsd: budget,
       actualUsd: actual,
       note: note
@@ -1947,10 +2732,19 @@
   }
 
   document.getElementById("btnQuery").addEventListener("click", function () {
+    closePlanRowScCatPop();
+    closeScCatPop();
+    closeNpTagPop();
+    var hasSc = filterLeafKeys.length > 0;
+    var hasNp = filterNpTagKeys.length > 0;
+    if (!hasSc && !hasNp) {
+      toast("场景品类与新品标签至少选其一，再搜索");
+      return;
+    }
     currentYear = parseInt(document.getElementById("fltYear").value, 10) || new Date().getFullYear();
     selectedMonth = null;
     refreshAll();
-    toast("已查询");
+    toast("已查询（场景品类 + 新品标签均有选时取交集）");
   });
 
   document.getElementById("btnClearMonth").addEventListener("click", function () {
@@ -1981,10 +2775,14 @@
     e.stopPropagation();
   });
 
+  wireUnifiedExplain();
   initFilterOptions();
   fillYearSelect();
-  wirePlMultiControls();
-  fltPlSyncUi();
+  applyScenePayload(parseEmbeddedSceneJson());
+  wireScCatFilter();
+  wireNpTagFilter();
+  updateScCatTrigger();
+  updateNpTagTrigger();
   ensureSeed();
   currentYear = parseInt(document.getElementById("fltYear").value, 10);
   refreshAll();
