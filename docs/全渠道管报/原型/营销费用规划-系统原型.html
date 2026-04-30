@@ -345,14 +345,39 @@
       min-width: 0;
       cursor: pointer;
     }
-    .sc-cat-clear {
-      margin-left: 6px;
-      font-size: 12px;
-      color: var(--brand);
-      cursor: pointer;
-      white-space: nowrap;
+    /* 筛选区：触发器与右侧清空（×）同一行 */
+    .flt-filter-trigger-row {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      width: 100%;
+      max-width: 280px;
     }
-    .sc-cat-clear:hover { text-decoration: underline; }
+    .flt-filter-trigger-row .sc-cat-wrap {
+      flex: 1;
+      min-width: 0;
+      max-width: none;
+    }
+    .filter-inline-clear {
+      flex-shrink: 0;
+      width: 22px;
+      height: 22px;
+      padding: 0;
+      border: none;
+      border-radius: 4px;
+      background: transparent;
+      color: #00000073;
+      font-size: 15px;
+      line-height: 1;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .filter-inline-clear:hover {
+      color: var(--brand);
+      background: rgba(0, 0, 0, 0.04);
+    }
     /* 表格内场景品类：与筛选区同结构的级联浮层（每行单选一条） */
     .plan-sc-cat-wrap.sc-cat-wrap {
       min-width: 200px;
@@ -766,14 +791,16 @@
                   <button type="button" class="logic-pin" data-logic-key="1" aria-label="开发测试说明 1">1</button>
                   <button type="button" class="field-hint-icon" data-user-hint="filterScCat" aria-label="场景品类筛选说明">i</button>
                 </div>
-                <div class="sc-cat-wrap" id="fltScCatWrap">
-                  <button type="button" class="sc-cat-trigger" id="fltScCatTrigger" aria-expanded="false" aria-haspopup="true">场景品类</button>
-                  <div class="sc-cat-pop" id="fltScCatPop" hidden role="dialog" aria-label="场景品类">
-                    <div class="sc-cat-col" id="fltScCatScenes"></div>
-                    <div class="sc-cat-col" id="fltScCatCats"></div>
+                <div class="flt-filter-trigger-row" id="fltScCatFilterRow">
+                  <div class="sc-cat-wrap" id="fltScCatWrap">
+                    <button type="button" class="sc-cat-trigger" id="fltScCatTrigger" aria-expanded="false" aria-haspopup="true">场景品类</button>
+                    <div class="sc-cat-pop" id="fltScCatPop" hidden role="dialog" aria-label="场景品类">
+                      <div class="sc-cat-col" id="fltScCatScenes"></div>
+                      <div class="sc-cat-col" id="fltScCatCats"></div>
+                    </div>
                   </div>
+                  <button type="button" class="filter-inline-clear" id="fltScCatClear" title="清空" aria-label="清空场景品类筛选">×</button>
                 </div>
-                <span class="sc-cat-clear" id="fltScCatClear" role="button" tabindex="0">清空</span>
               </div>
               <div class="f f-with-pin">
                 <div class="lbl-dev-row">
@@ -781,13 +808,15 @@
                   <button type="button" class="logic-pin" data-logic-key="2" aria-label="开发测试说明 2">2</button>
                   <button type="button" class="field-hint-icon" data-user-hint="filterNpTag" aria-label="新品标签筛选说明">i</button>
                 </div>
-                <div class="sc-cat-wrap np-tag-wrap" id="fltNpTagWrap">
-                  <button type="button" class="sc-cat-trigger" id="fltNpTagTrigger" aria-expanded="false" aria-haspopup="true">新品标签</button>
-                  <div class="sc-cat-pop np-tag-pop" id="fltNpTagPop" hidden role="dialog" aria-label="新品标签">
-                    <div class="sc-cat-col np-tag-col" id="fltNpTagList"></div>
+                <div class="flt-filter-trigger-row" id="fltNpTagFilterRow">
+                  <div class="sc-cat-wrap np-tag-wrap" id="fltNpTagWrap">
+                    <button type="button" class="sc-cat-trigger" id="fltNpTagTrigger" aria-expanded="false" aria-haspopup="true">新品标签</button>
+                    <div class="sc-cat-pop np-tag-pop" id="fltNpTagPop" hidden role="dialog" aria-label="新品标签">
+                      <div class="sc-cat-col np-tag-col" id="fltNpTagList"></div>
+                    </div>
                   </div>
+                  <button type="button" class="filter-inline-clear" id="fltNpTagClear" title="清空" aria-label="清空新品标签筛选">×</button>
                 </div>
-                <span class="sc-cat-clear" id="fltNpTagClear" role="button" tabindex="0">清空</span>
               </div>
               <div class="f"><label for="fltRegion">区域</label><select id="fltRegion"><option value="">全部</option></select></div>
               <div class="f"><label for="fltCountry">国家</label><select id="fltCountry"><option value="">全部</option></select></div>
@@ -819,7 +848,7 @@
               </div>
             </div>
             <div class="filter-actions">
-              <span class="hint" style="margin:0;flex:1;min-width:200px;">筛选：月份范围默认当年 1–12 月；选场景品类、新品标签后点「搜索」。点「<strong>i</strong>」看用户说明；点<strong>红编号</strong>看开发细则。</span>
+              <span class="hint" style="margin:0;flex:1;min-width:200px;">筛选：月份范围默认当年 1–12 月；场景品类、新品标签未选时搜索表示不按该维过滤（看全部）；点「<strong>i</strong>」看说明；点<strong>红编号</strong>看开发细则。</span>
             </div>
           </div>
         </section>
@@ -1075,17 +1104,17 @@
     add(
       "1",
       "【1】筛选·场景品类",
-      "多选「场景×品类」叶子键，用于过滤下方「场景品类规划」表。\n与【2】组合使用。\n点击【3】搜索时：【1】与【2】不可同时为空（仅影响列表展示，不写入 localStorage；与规划行「保存」校验相互独立）。"
+      "多选「场景×品类」叶子键，用于过滤下方「场景品类规划」表。\n与【2】组合使用。\n【1】未选任何项时：该维不过滤（等同全量）。\n右侧「×」清空已选叶子。"
     );
     add(
       "2",
       "【2】筛选·新品标签",
-      "多选「YYYY年新品」（OR）。\n与【1】组合：两维都选时对规划行取交集（AND）；仅【2】有值时筛出新品标签命中的行。"
+      "多选「YYYY年新品」（OR）。\n与【1】组合：两维都选时对规划行取交集（AND）；仅【2】有值时筛出新品标签命中的行；仅【1】有值时按场景品类过滤；两维都未选则两维均不过滤。\n右侧「×」清空已选标签。"
     );
     add(
       "3",
       "【3】搜索",
-      "执行筛选区校验后刷新规划表展示。\n不改变本地存储。\n月份范围默认当年 1–12 月：与规划行「年度」列对齐过滤（规划年须落在筛选月份所跨日历年之一）；拆分表仅展开与规划年交集的月份。"
+      "刷新规划表展示（仅影响列表，不写入 localStorage）。\n不要求【1】【2】必选：均未选时列表展示为「月份范围 + 其它筛选项」下的全部规划行。\n月份范围默认当年 1–12 月：与规划行「年度」列对齐过滤；拆分表仅展开与规划年交集的月份。"
     );
     add(
       "4",
@@ -1141,12 +1170,12 @@
     add(
       "filterScCat",
       "场景品类筛选",
-      "在这里多选要看的「场景×品类」范围。\n选好后需点击「搜索」刷新下方列表。\n需与「新品标签筛选」至少选其一再搜索。"
+      "在这里多选要看的「场景×品类」范围；不选则该维不过滤。\n选好后点击「搜索」刷新下方列表。\n右侧「×」可一键清空已选。"
     );
     add(
       "filterNpTag",
       "新品标签筛选",
-      "多选要筛选的新品年份标签。\n与「场景品类筛选」至少选其一，再点「搜索」。"
+      "多选要筛选的新品年份标签；不选则该维不过滤。\n与场景品类组合时：两维都选为交集；只选其一则只按该维过滤。\n右侧「×」可一键清空已选。"
     );
     add(
       "filterMonthRange",
@@ -2853,6 +2882,7 @@
   }
 
   function wireNpTagFilter() {
+    var row = document.getElementById("fltNpTagFilterRow");
     var wrap = document.getElementById("fltNpTagWrap");
     var trig = document.getElementById("fltNpTagTrigger");
     var clear = document.getElementById("fltNpTagClear");
@@ -2876,7 +2906,7 @@
       });
     }
     document.addEventListener("mousedown", function (e) {
-      if (wrap.contains(e.target)) return;
+      if ((row && row.contains(e.target)) || (!row && wrap.contains(e.target))) return;
       var ph = document.getElementById("planScCatPopHost");
       if (ph && ph.contains(e.target)) return;
       if (e.target.closest && e.target.closest("#logicUnifiedModal")) return;
@@ -2886,6 +2916,7 @@
   }
 
   function wireScCatFilter() {
+    var row = document.getElementById("fltScCatFilterRow");
     var wrap = document.getElementById("fltScCatWrap");
     var trig = document.getElementById("fltScCatTrigger");
     var clear = document.getElementById("fltScCatClear");
@@ -2909,7 +2940,7 @@
       });
     }
     document.addEventListener("mousedown", function (e) {
-      if (wrap.contains(e.target)) return;
+      if ((row && row.contains(e.target)) || (!row && wrap.contains(e.target))) return;
       var ph = document.getElementById("planScCatPopHost");
       if (ph && ph.contains(e.target)) return;
       if (e.target.closest && e.target.closest("#logicUnifiedModal")) return;
@@ -3490,15 +3521,11 @@
     closePlanSkuPop();
     closeScCatPop();
     closeNpTagPop();
-    var hasSc = filterLeafKeys.length > 0;
-    var hasNp = filterNpTagKeys.length > 0;
-    if (!hasSc && !hasNp) {
-      toast("场景品类与新品标签至少选其一，再搜索");
-      return;
-    }
     syncMonthRangeFilterFromPicker();
     renderPlans();
-    toast("已查询（月份范围与规划年对齐过滤；场景品类 + 新品标签同时有选时取交集；拆分按月度 BP 占比）");
+    toast(
+      "已查询（月份范围与规划年对齐；场景品类/新品标签未选则该维不过滤；两维都选时取交集；拆分按月度 BP 占比）"
+    );
   });
 
   document.getElementById("btnAdd").addEventListener("click", function () {
