@@ -156,6 +156,9 @@
     .field-item.active { border-color: var(--blue); box-shadow: 0 0 0 1px rgba(22,119,255,.12); }
     .field-item .k { font-weight: 700; }
     .field-item .d { margin-top: 4px; color: var(--sub); font-size: 12px; line-height: 1.35; white-space: normal; }
+    /* 业务指标池：已配置映射（当前方案底部表且状态为已映射）为绿，否则为红 */
+    .field-item.biz-mapped .k { color: var(--green); }
+    .field-item.biz-unmapped .k { color: var(--red); }
 
     .expr-wrap { padding: 10px; display: flex; flex-direction: column; gap: 10px; }
     .op-row { display: flex; gap: 8px; align-items: center; }
@@ -380,12 +383,12 @@
 
       <div class="mapping-builder">
         <div class="card">
-          <div class="card-head">财务系统字段池 <span class="sub" id="finCount"></span></div>
-          <div class="list" id="finPool"></div>
+          <div class="card-head">业务指标字段池（明细表业务列） <span class="sub" id="bizCount"></span></div>
+          <div class="list" id="bizPool"></div>
         </div>
 
         <div class="card">
-          <div class="card-head">映射表达式构建区 <span class="sub">组合财务系统侧字段，对应右侧某一业务指标</span></div>
+          <div class="card-head">映射表达式构建区 <span class="sub">组合财务系统侧字段，对应左侧某一业务指标</span></div>
           <div class="expr-wrap">
             <div class="op-row">
               <span class="sub">当前操作符</span>
@@ -394,7 +397,7 @@
               <button class="btn ghost" id="clearExprBtn" type="button">清空表达式</button>
             </div>
             <div class="drop-zone" id="exprZone"></div>
-            <div class="hint">规则：先在右侧选中一个<strong>业务指标</strong>（与明细表列对齐），再在中间用左侧<strong>财务字段</strong>拼出「财务系统里应汇总哪些科目」；保存后，看板「财务维度」行在该业务列下展示财务系统按此式汇总的结果。第一项默认使用“+”。</div>
+            <div class="hint">规则：先在左侧选中一个<strong>业务指标</strong>（与明细表列对齐，已映射为绿字、未映射为红字），再在中间用右侧<strong>财务字段</strong>拼出「财务系统里应汇总哪些科目」；保存后，看板「财务维度」行在该业务列下展示财务系统按此式汇总的结果。第一项默认使用“+”。</div>
             <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
               <span class="pill" id="selectedBizPill">未选择业务字段</span>
               <button class="btn primary" id="saveMappingBtn" type="button">保存到当前业务字段</button>
@@ -403,8 +406,8 @@
         </div>
 
         <div class="card">
-          <div class="card-head">业务指标字段池（明细表业务列） <span class="sub" id="bizCount"></span></div>
-          <div class="list" id="bizPool"></div>
+          <div class="card-head">财务系统字段池 <span class="sub" id="finCount"></span></div>
+          <div class="list" id="finPool"></div>
         </div>
       </div>
 
@@ -500,7 +503,7 @@
       "map-rule": `<strong>一、前提：业务与财务两套取数</strong><br>
 管报明细表中，<strong>主行「业务维度」</strong>与<strong>展开行「财务维度」</strong>来自<strong>两套完全独立的取数与加工链路</strong>（不同系统/不同接口/不同时点与关账逻辑）。本页配置的是<strong>对照关系</strong>：在「财务维度」这一行里，每个<strong>业务列表头</strong>下的金额，应从<strong>财务系统</strong>的哪些字段、按何种加减合并取出，<strong>不是</strong>把业务主行的数复制或推导成「另一种业务口径」。<br><br>
 <strong>二、本页在做什么</strong><br>
-维护「当前映射方案」下：<strong>某一业务指标（与明细表列一致）</strong> ↔ <strong>财务系统侧若干费用/收入字段</strong> 的对应关系。左侧为财务字段池；中间用「+ / −」拼出财务侧汇总式；右侧为业务指标池。底部表为已保存配置（一行通常对应一个业务指标及其财务侧组合式）。发布后，看板在<strong>财务维度行</strong>按该式从<strong>财务系统</strong>取数填入对应列。<br><br>
+维护「当前映射方案」下：<strong>某一业务指标（与明细表列一致）</strong> ↔ <strong>财务系统侧若干费用/收入字段</strong> 的对应关系。左侧为业务指标池；中间用「+ / −」拼出财务侧汇总式；右侧为财务字段池。底部表为已保存配置（一行通常对应一个业务指标及其财务侧组合式）。发布后，看板在<strong>财务维度行</strong>按该式从<strong>财务系统</strong>取数填入对应列。<br><br>
 <strong>三、「映射」含义与示例</strong><br>
 • <strong>一对一</strong>：业务列「销售额」若只映射财务「销售额」，则财务维度行在该列展示<strong>财务系统</strong>的销售额汇总。<br>
 • <strong>一对多合并</strong>：业务指标「A」若映射财务「B + C」（或含减项），则该列财务维度格为财务系统中 B、C 等按配置运算后的汇总。<br>
@@ -510,7 +513,7 @@
 • <strong>未映射 / 不完整</strong>：无记录或状态为「部分映射」「缺失」——财务维度该列将空或不可用（实现可定义告警）；用于排查待补映射。<br><br>
 <strong>五、操作建议</strong><br>
 1. 先在「财务系统字段维护 / 业务指标字段维护」中维护两侧名称与说明（与各自系统字典对齐）。<br>
-2. 在右侧选中<strong>业务指标</strong>，在中间用左侧财务字段构建表达式，保存到当前业务指标。<br>
+2. 在左侧选中<strong>业务指标</strong>，在中间用右侧财务字段构建表达式，保存到当前业务指标。<br>
 3. 切换「映射方案」可区分不同看板口径；「保存并发布」后影响对应看板明细表的财务维度行。`
     };
 
@@ -558,6 +561,13 @@
       return mappingByScheme[schemeSelect.value];
     }
 
+    /** 当前方案底部映射表中：该业务指标是否已有「已映射」记录且表达式非空 */
+    function isBizFieldMapped(bizName) {
+      const row = currentMappings().find((m) => m.bizField === bizName);
+      if (!row || row.status !== "ok") return false;
+      return String(row.expression || "").trim().length > 0;
+    }
+
     function renderSchemeOptions(selectedKey = schemeSelect.value) {
       const keys = Object.keys(mappingByScheme);
       schemeSelect.innerHTML = keys.map((key) => `<option value=\"${key}\">${schemeNames[key] || key}</option>`).join("");
@@ -587,12 +597,19 @@
         </div>
       `).join("");
 
-      bizPool.innerHTML = state.businessFields.map((b) => `
-        <div class="field-item ${state.selectedBizField === b.name ? "active" : ""}" data-biz-name="${b.name}">
+      bizPool.innerHTML = state.businessFields.map((b) => {
+        const mapped = isBizFieldMapped(b.name);
+        const cls = [
+          "field-item",
+          state.selectedBizField === b.name ? "active" : "",
+          mapped ? "biz-mapped" : "biz-unmapped"
+        ].filter(Boolean).join(" ");
+        return `
+        <div class="${cls}" data-biz-name="${b.name}">
           <div class="k">${b.name}</div>
           <div class="d">${b.desc || "--"}</div>
-        </div>
-      `).join("");
+        </div>`;
+      }).join("");
 
       finPool.querySelectorAll("[data-fin-name]").forEach((node) => {
         node.addEventListener("dragstart", (e) => {
@@ -620,7 +637,7 @@
             <button class="del" type="button" data-del-idx="${idx}">×</button>
           </span>
         `).join("")
-        : '<span class="sub">请拖拽财务系统字段到这里，或点击左侧字段添加。</span>';
+        : '<span class="sub">请拖拽财务系统字段到这里，或点击右侧财务字段添加。</span>';
 
       exprZone.querySelectorAll("[data-del-idx]").forEach((btn) => {
         btn.addEventListener("click", () => {
@@ -705,6 +722,7 @@
           const idx = rowsRef.findIndex((x) => x.id === id);
           if (idx >= 0) rowsRef.splice(idx, 1);
           renderTable();
+          renderPools();
         });
       });
     }
@@ -717,7 +735,7 @@
 
     function saveMapping() {
       if (!state.selectedBizField) {
-        alert("请先选择一个业务指标（右侧业务列）。");
+        alert("请先选择一个业务指标（左侧业务列）。");
         return;
       }
       if (!state.expressionTokens.length) {
@@ -743,6 +761,7 @@
       selectedBizPill.textContent = `已选择：${state.selectedBizField}`;
       renderExpression();
       renderTable();
+      renderPools();
     }
 
     function openFieldModal(type) {
