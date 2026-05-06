@@ -311,6 +311,42 @@
     .tpl-table th { background: #f8fafc; }
     .req-list { margin: 10px 0 0; padding-left: 18px; }
     .req-list li { margin: 6px 0; }
+    .pick-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 10px;
+      max-height: 160px;
+      overflow-y: auto;
+      padding: 4px 0;
+    }
+    .pick-chip {
+      padding: 6px 12px;
+      border-radius: 6px;
+      border: 1px solid var(--border-input);
+      background: #fff;
+      font-size: 13px;
+      cursor: pointer;
+      color: #334155;
+    }
+    .pick-chip:hover { border-color: var(--brand-focus); color: var(--brand-focus); background: #f0f7ff; }
+    .native-multi-wrap { max-width: 420px; }
+    .native-multi-wrap label { display: block; font-size: 12px; color: var(--label); margin-bottom: 4px; }
+    .native-multi-wrap input[type="search"] {
+      width: 100%;
+      margin-bottom: 6px;
+      padding: 6px 10px;
+      border: 1px solid var(--border-input);
+      border-radius: 6px;
+    }
+    .native-multi-wrap select[multiple] {
+      width: 100%;
+      min-height: 160px;
+      padding: 6px;
+      border: 1px solid var(--border-input);
+      border-radius: 6px;
+      font-size: 13px;
+    }
     .spec-note {
       font-size: 12px;
       color: var(--muted);
@@ -433,8 +469,9 @@
       <div class="dialog-bd">
         <div class="dialog-scroll">
           <p class="spec-note">
-            渠道、店铺、场景、品类数据源：<code>文件夹/规范/基础数据/渠道店铺基础数据_v1.json</code>、
-            <code>场景品类基础数据_v1.json</code>。SKU 为「模式 + 输入」组合控件；MSKU 单行录入。若本地 <code>file://</code> 无法加载 JSON，将使用内置降级数据。
+            数据：<code>文件夹/规范/基础数据/渠道店铺基础数据_v1.json</code>、<code>场景品类基础数据_v1.json</code>。
+            按渠道仅多选渠道；按店铺为渠道-店铺联动。按场景仅多选场景；按品类支持场景+渠道+店铺收窄后多选品类（无 SKU）。
+            按 SKU / 按 MSKU 为可搜索的多选下拉。若 <code>file://</code> 无法加载 JSON 则使用降级数据。
           </p>
 
           <div class="panel">
@@ -474,11 +511,22 @@
             <div class="panel-bd" style="max-height:none;">
               <div class="seg" id="shopModeSeg">
                 <button type="button" data-mode="all" class="active">全渠道</button>
-                <button type="button" data-mode="channel">按渠道（多选渠道名）</button>
-                <button type="button" data-mode="store">按店铺（多选店铺名）</button>
+                <button type="button" data-mode="channel">按渠道（多选）</button>
+                <button type="button" data-mode="store">按店铺（多选）</button>
               </div>
-              <div id="shopScopeStrip" class="filter-strip" style="margin-top:12px;display:none;">
-                <div class="strip-title">从基础数据选择后加入分摊清单（渠道-店铺联动）</div>
+              <div id="shopPaneChannel" class="filter-strip" style="margin-top:12px;display:none;">
+                <div class="strip-title">渠道（多选）：搜索后点击下方渠道名加入清单：与基础数据完全一致</div>
+                <div class="filter-row" style="border-bottom:none;padding-bottom:0;">
+                  <div class="filter-item" style="flex:1;min-width:220px;">
+                    <span class="filter-label">搜索</span>
+                    <input type="search" id="channelListSearch" placeholder="输入关键字过滤渠道" style="min-width:200px;">
+                  </div>
+                </div>
+                <div id="channelPickList" class="pick-chips" aria-label="渠道候选"></div>
+                <div class="hint">已选渠道见下方标签，可点 × 移除。</div>
+              </div>
+              <div id="shopPaneStore" class="filter-strip" style="margin-top:12px;display:none;">
+                <div class="strip-title">渠道—店铺联动（与《产品信息筛选区》2.5 一致）</div>
                 <div class="filter-row" style="border-bottom:none;padding-bottom:0;">
                   <div class="filter-item">
                     <span class="filter-label">渠道</span>
@@ -494,10 +542,6 @@
                   </div>
                 </div>
               </div>
-              <div id="shopChannelPickRow" class="add-line" style="display:none;">
-                <select id="mChannelTagPick" aria-label="要加入的渠道"></select>
-                <button type="button" class="btn secondary" id="addShopChannel">加入渠道名</button>
-              </div>
               <div class="hint">当前：<span id="shopSummary">全渠道</span></div>
               <div class="tag-wrap" id="shopTags"></div>
             </div>
@@ -511,48 +555,67 @@
                 <button type="button" data-mode="scene">按场景（多选）</button>
                 <button type="button" data-mode="category">按品类（多选）</button>
                 <button type="button" data-mode="sku">按 SKU</button>
+                <button type="button" data-mode="msku">按 MSKU</button>
               </div>
-              <div id="mskuScopeStrip" class="filter-strip" style="margin-top:12px;display:none;">
-                <div class="strip-title">场景-品类联动（基础数据）</div>
+
+              <div id="mskuPaneScene" class="filter-strip" style="margin-top:12px;display:none;">
+                <div class="strip-title">仅场景（多选）：从基础数据选择场景后加入清单</div>
                 <div class="filter-row" style="border-bottom:none;padding-bottom:0;">
                   <div class="filter-item">
                     <span class="filter-label">场景</span>
-                    <select id="mScene" aria-label="场景"></select>
+                    <select id="mSceneOnly" aria-label="场景"></select>
                   </div>
                   <div class="filter-item">
-                    <span class="filter-label">品类</span>
-                    <select id="mCategory" aria-label="品类"></select>
-                  </div>
-                  <div class="filter-item">
-                    <button type="button" class="btn secondary" id="mAddScene">加入场景名</button>
-                    <button type="button" class="btn secondary" id="mAddCategory">加入品类</button>
-                  </div>
-                </div>
-                <div class="filter-row" style="padding-top:4px;">
-                  <div class="filter-item" style="align-items:flex-start;">
-                    <span class="filter-label" style="padding-top:6px;">SKU</span>
-                    <div>
-                      <div class="sku-combo" id="mSkuCombo">
-                        <select id="mSkuMode" aria-label="SKU检索模式">
-                          <option>模糊</option>
-                          <option>精确</option>
-                          <option>8位搜索</option>
-                        </select>
-                        <input type="text" id="mSkuInput" placeholder="请输入SKU" autocomplete="off">
-                      </div>
-                      <button type="button" class="btn secondary" style="margin-top:8px;" id="mAddSku">将 SKU 关键词加入清单</button>
-                    </div>
-                  </div>
-                  <div class="filter-item" style="align-items:flex-start;">
-                    <span class="filter-label" style="padding-top:6px;">MSKU</span>
-                    <div>
-                      <input type="text" id="mMskuInput" placeholder="请输入MSKU（sku+渠道+国家；多值分号分隔）" style="min-width:240px;">
-                      <button type="button" class="btn secondary" style="margin-top:8px;" id="mAddMsku">解析并加入</button>
-                    </div>
+                    <button type="button" class="btn secondary" id="mAddSceneOnly">加入当前场景</button>
                   </div>
                 </div>
               </div>
-              <div class="hint">与第一类取交集；按 SKU 模式时以清单中关键词与管报 SKU 解析规则匹配（原型）。</div>
+
+              <div id="mskuPaneCategory" class="filter-strip" style="margin-top:12px;display:none;">
+                <div class="strip-title">收窄条件 + 品类多选（不含 SKU）：场景决定候选品类；渠道、店铺与「按店铺」一致联动，用于与导入说明口径对齐（正式环境可按店铺进一步过滤品类）</div>
+                <div class="filter-row" style="border-bottom:none;padding-bottom:0;">
+                  <div class="filter-item">
+                    <span class="filter-label">场景</span>
+                    <select id="mCatScene" aria-label="场景收窄"></select>
+                  </div>
+                  <div class="filter-item">
+                    <span class="filter-label">渠道</span>
+                    <select id="mCatChannel" aria-label="渠道收窄"></select>
+                  </div>
+                  <div class="filter-item">
+                    <span class="filter-label">店铺</span>
+                    <select id="mCatStore" aria-label="店铺收窄"></select>
+                  </div>
+                </div>
+                <div class="native-multi-wrap" style="margin-top:10px;">
+                  <label for="mCategoryMulti">品类（多选，可搜索过滤选项）</label>
+                  <input type="search" id="mCategorySearch" placeholder="搜索品类编码或名称" autocomplete="off">
+                  <select id="mCategoryMulti" multiple aria-label="品类多选"></select>
+                  <button type="button" class="btn secondary" style="margin-top:8px;" id="mAddCategorySel">将列表中已选项加入清单</button>
+                </div>
+              </div>
+
+              <div id="mskuPaneSku" class="filter-strip" style="margin-top:12px;display:none;">
+                <div class="strip-title">SKU（多选 + 搜索）：原型用候选 SKU 列表，正式环境对接主数据</div>
+                <div class="native-multi-wrap">
+                  <label for="mSkuMulti">SKU</label>
+                  <input type="search" id="mSkuSearch" placeholder="搜索 SKU" autocomplete="off">
+                  <select id="mSkuMulti" multiple aria-label="SKU多选"></select>
+                  <button type="button" class="btn secondary" style="margin-top:8px;" id="mAddSkuSel">将已选 SKU 加入清单</button>
+                </div>
+              </div>
+
+              <div id="mskuPaneMsku" class="filter-strip" style="margin-top:12px;display:none;">
+                <div class="strip-title">MSKU（多选 + 搜索）：候选由渠道×店铺组合生成示例，正式环境对接订单/主数据</div>
+                <div class="native-multi-wrap">
+                  <label for="mMskuMulti">MSKU</label>
+                  <input type="search" id="mMskuSearch" placeholder="搜索 MSKU" autocomplete="off">
+                  <select id="mMskuMulti" multiple aria-label="MSKU多选"></select>
+                  <button type="button" class="btn secondary" style="margin-top:8px;" id="mAddMskuSel">将已选 MSKU 加入清单</button>
+                </div>
+              </div>
+
+              <div class="hint">与第一类取交集；各模式下列表项须与基础数据 / 主数据一致。</div>
               <div class="tag-wrap" id="mskuTags"></div>
             </div>
           </div>
@@ -616,7 +679,7 @@
       </div>
       <div class="dialog-bd">
         <div class="import-body">
-          <p>请先下载标准导入模版，按列填写后上传系统。模版字段与「新增导入费用」弹窗中的口径一致（含渠道、店铺、场景、品类、SKU 模式、MSKU、零售商等）。</p>
+          <p>请先下载导入模版，按列填写后上传。模版为精简列，与弹窗中「店铺范围说明 / MSKU 范围说明」同一套枚举口径。</p>
           <div class="import-actions">
             <button type="button" class="btn" id="btnDownloadTpl">下载导入模版（CSV）</button>
             <button type="button" class="btn-link" id="btnOpenTplPreview">查看模版预览与填写要求</button>
@@ -646,29 +709,21 @@
                 </tr>
               </thead>
               <tbody>
-                <tr><td>费用项</td><td>是</td><td>与管报费用项枚举一致，如 广告费。</td></tr>
-                <tr><td>归属月</td><td>是</td><td>格式 YYYY-MM，费用计入该月。</td></tr>
-                <tr><td>补充金额</td><td>是</td><td>数字，与币种/含税规则见财务说明。</td></tr>
-                <tr><td>店铺范围类型</td><td>是</td><td>全渠道 | 按渠道 | 按店铺。</td></tr>
-                <tr><td>渠道名称列表</td><td>条件</td><td>范围类型=按渠道 时必填；多个用英文分号，须与基础数据渠道名一致。</td></tr>
-                <tr><td>店铺名称列表</td><td>条件</td><td>范围类型=按店铺 时必填；与渠道店铺基础数据一致。</td></tr>
-                <tr><td>MSKU范围类型</td><td>是</td><td>全场景 | 按场景 | 按品类 | 按SKU。</td></tr>
-                <tr><td>场景名称列表</td><td>条件</td><td>与场景品类基础数据 scene_name 一致。</td></tr>
-                <tr><td>品类编码列表</td><td>条件</td><td>category_code，多个分号分隔。</td></tr>
-                <tr><td>SKU检索模式</td><td>条件</td><td>模糊 | 精确 | 8位搜索（与全局 SKU 控件一致）。</td></tr>
-                <tr><td>SKU关键词</td><td>条件</td><td>与检索模式配合使用。</td></tr>
-                <tr><td>MSKU列表</td><td>否</td><td>可选精确行；格式 sku+渠道+国家，多值分号分隔。</td></tr>
-                <tr><td>零售商列表</td><td>否</td><td>多值分号；不填则不分零售商收窄。</td></tr>
-                <tr><td>备注</td><td>否</td><td>导入说明、对接人。</td></tr>
+                <tr><td>费用项</td><td>是</td><td>与管报费用项一致。</td></tr>
+                <tr><td>归属月</td><td>是</td><td>YYYY-MM。</td></tr>
+                <tr><td>补充金额</td><td>是</td><td>数字。</td></tr>
+                <tr><td>店铺范围说明</td><td>是</td><td>一段文本：类型（全渠道/按渠道/按店铺）+ 分号分隔的取值（渠道名或店铺名，与基础数据一致）。</td></tr>
+                <tr><td>MSKU范围说明</td><td>是</td><td>一段文本：类型（全场景/按场景/按品类/按SKU/按MSKU）+ 分号分隔取值（场景名、品类编码、SKU、MSKU 等与界面一致）。</td></tr>
+                <tr><td>零售商</td><td>否</td><td>分号分隔；空表示不按零售商收窄。</td></tr>
+                <tr><td>备注</td><td>否</td><td>可选。</td></tr>
               </tbody>
             </table>
           </div>
           <p style="font-weight:700;margin:14px 0 6px;font-size:13px;">填写要求</p>
           <ol class="req-list">
-            <li>渠道、店铺、场景、品类须与《产品信息筛选区》引用的基础数据 JSON 一致，禁止随意简写。</li>
-            <li>同一导入批次内「店铺范围类型」与「MSKU范围类型」组合需可解析为交集；系统按归属<strong>上月营收占比</strong>分摊，并按归属<strong>月自然日</strong>拆至天。</li>
-            <li>金额列不允许公式，文本型数字需去千分位。</li>
-            <li>导入后写入「补充费用池」，在管报明细中归集到对应费用项；失败行返回错误文件。</li>
+            <li>店铺范围说明、MSKU 范围说明中的枚举值须与界面及基础数据 JSON 一致。</li>
+            <li>系统解析两列文本后取交集，按上月营收占比分摊并按归属月自然日拆至天。</li>
+            <li>金额勿用公式；失败行单独错误文件返回。</li>
           </ol>
         </div>
       </div>
@@ -814,32 +869,149 @@
       });
     }
 
+    function escAttr(s) {
+      return String(s).replace(/&/g, "&amp;").replace(/"/g, "&quot;");
+    }
+
+    function refreshChannelPickList() {
+      const el = document.getElementById("channelPickList");
+      if (!el) return;
+      const q = (document.getElementById("channelListSearch")?.value || "").trim().toLowerCase();
+      el.innerHTML = state.channels
+        .filter((c) => !q || String(c.channel_name).toLowerCase().includes(q))
+        .map((c) => `<button type="button" class="pick-chip" data-ch="${escAttr(c.channel_name)}">${String(c.channel_name).replace(/</g, "&lt;")}</button>`)
+        .join("");
+    }
+
     function renderShopUi() {
-      const strip = document.getElementById("shopScopeStrip");
-      const chRow = document.getElementById("shopChannelPickRow");
+      const paneCh = document.getElementById("shopPaneChannel");
+      const paneSt = document.getElementById("shopPaneStore");
+      if (!paneCh || !paneSt) return;
       if (state.shopMode === "all") {
-        strip.style.display = "none";
-        chRow.style.display = "none";
+        paneCh.style.display = "none";
+        paneSt.style.display = "none";
         document.getElementById("shopSummary").textContent = "全渠道（所有渠道的全部店铺）";
         return;
       }
-      strip.style.display = "block";
+      paneCh.style.display = state.shopMode === "channel" ? "block" : "none";
+      paneSt.style.display = state.shopMode === "store" ? "block" : "none";
       if (state.shopMode === "channel") {
-        chRow.style.display = "flex";
-        document.getElementById("shopSummary").textContent = "渠道：" + (state.shopTags.length ? state.shopTags.join("、") : "（请加入渠道名）");
+        refreshChannelPickList();
+        document.getElementById("shopSummary").textContent = "渠道（多选）：" + (state.shopTags.length ? state.shopTags.join("、") : "（请点击上方渠道名加入）");
       } else {
-        chRow.style.display = "none";
-        document.getElementById("shopSummary").textContent = "店铺：" + (state.shopTags.length ? state.shopTags.join("、") : "（请加入店铺）");
+        document.getElementById("shopSummary").textContent = "店铺（多选）：" + (state.shopTags.length ? state.shopTags.join("、") : "（请从联动下拉加入店铺）");
       }
     }
 
-    function renderMskuUi() {
-      const strip = document.getElementById("mskuScopeStrip");
-      if (state.mskuMode === "all") {
-        strip.style.display = "none";
-        return;
+    function fillScenePick(sel) {
+      sel.innerHTML = "";
+      const ph = document.createElement("option");
+      ph.value = "";
+      ph.textContent = "请选择";
+      sel.appendChild(ph);
+      state.scenes.forEach((sc) => {
+        const o = document.createElement("option");
+        o.value = sc.scene_name;
+        o.textContent = sc.scene_name;
+        sel.appendChild(o);
+      });
+    }
+
+    function rebuildCategoryMultiOptions() {
+      const sel = document.getElementById("mCategoryMulti");
+      if (!sel) return;
+      const scene = document.getElementById("mCatScene")?.value || "";
+      sel.innerHTML = "";
+      const rows = [];
+      if (scene) {
+        const sc = state.scenes.find((s) => s.scene_name === scene);
+        (sc && sc.categories ? sc.categories : []).forEach((c) => {
+          rows.push({ label: `${scene} / ${c.category_code} ${c.category_name}`, value: `${scene}|${c.category_code}` });
+        });
+      } else {
+        state.scenes.forEach((sc) => {
+          (sc.categories || []).forEach((c) => {
+            rows.push({ label: `${sc.scene_name} / ${c.category_code} ${c.category_name}`, value: `${sc.scene_name}|${c.category_code}` });
+          });
+        });
       }
-      strip.style.display = "block";
+      rows.forEach((r) => {
+        const o = document.createElement("option");
+        o.value = r.value;
+        o.textContent = r.label;
+        sel.appendChild(o);
+      });
+    }
+
+    function buildSkuPool() {
+      const set = new Set(["H6011001", "H6011002", "H6159001", "H6198001", "H6201001"]);
+      state.scenes.forEach((sc) => {
+        (sc.categories || []).forEach((c) => {
+          set.add(`SKU-${c.category_code}`);
+        });
+      });
+      return [...set].sort();
+    }
+
+    function buildMskuPool() {
+      const arr = [];
+      state.channels.forEach((ch) => {
+        (ch.stores || []).slice(0, 4).forEach(() => {
+          arr.push(`H6011001+${ch.channel_name}+US`);
+          arr.push(`H6159001+${ch.channel_name}+US`);
+        });
+      });
+      if (!arr.length) {
+        arr.push("H6011001+Govee+US", "H6159001+独立站+US");
+      }
+      return [...new Set(arr)].slice(0, 120);
+    }
+
+    function rebuildSkuMulti() {
+      const sel = document.getElementById("mSkuMulti");
+      if (!sel) return;
+      sel.innerHTML = "";
+      buildSkuPool().forEach((sku) => {
+        const o = document.createElement("option");
+        o.value = sku;
+        o.textContent = sku;
+        sel.appendChild(o);
+      });
+    }
+
+    function rebuildMskuMulti() {
+      const sel = document.getElementById("mMskuMulti");
+      if (!sel) return;
+      sel.innerHTML = "";
+      buildMskuPool().forEach((m) => {
+        const o = document.createElement("option");
+        o.value = m;
+        o.textContent = m;
+        sel.appendChild(o);
+      });
+    }
+
+    function wireNativeMultiSearch(searchId, selectId) {
+      const searchEl = document.getElementById(searchId);
+      const sel = document.getElementById(selectId);
+      if (!searchEl || !sel) return;
+      searchEl.addEventListener("input", () => {
+        const q = searchEl.value.trim().toLowerCase();
+        [...sel.options].forEach((o) => {
+          o.hidden = Boolean(q) && !String(o.textContent).toLowerCase().includes(q) && !String(o.value).toLowerCase().includes(q);
+        });
+      });
+    }
+
+    function renderMskuUi() {
+      ["mskuPaneScene", "mskuPaneCategory", "mskuPaneSku", "mskuPaneMsku"].forEach((id) => {
+        const n = document.getElementById(id);
+        if (n) n.style.display = "none";
+      });
+      if (state.mskuMode === "all") return;
+      const map = { scene: "mskuPaneScene", category: "mskuPaneCategory", sku: "mskuPaneSku", msku: "mskuPaneMsku" };
+      const el = document.getElementById(map[state.mskuMode]);
+      if (el) el.style.display = "block";
     }
 
     function renderTags(containerId, tags, onRemove) {
@@ -931,12 +1103,17 @@
 
     function downloadImportTemplate() {
       const bom = "\ufeff";
-      const headers = [
-        "费用项", "归属月YYYY-MM", "补充金额", "店铺范围类型", "渠道名称列表", "店铺名称列表",
-        "MSKU范围类型", "场景名称列表", "品类编码列表", "SKU检索模式", "SKU关键词", "MSKU列表", "零售商列表", "备注"
+      const headers = ["费用项", "归属月YYYY-MM", "补充金额", "店铺范围说明", "MSKU范围说明", "零售商", "备注"];
+      const sample = [
+        "广告费",
+        "2026-04",
+        "10000",
+        "按渠道;Govee;独立站",
+        "按场景;户外;居家",
+        "",
+        "示例：店铺/MSKU 范围说明为类型与取值分号拼接"
       ];
-      const sample = ["广告费", "2026-04", "10000", "按渠道", "Govee;独立站", "", "按场景", "户外;居家", "", "模糊", "H601", "", "", "示例行"];
-      const csv = bom + headers.join(",") + "\n" + sample.join(",") + "\n";
+      const csv = bom + headers.join(",") + "\n" + sample.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(",") + "\n";
       const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
       const a = document.createElement("a");
       a.href = URL.createObjectURL(blob);
@@ -983,18 +1160,7 @@
       setSeg(document.getElementById("shopModeSeg"), "shopMode", btn.dataset.mode);
       state.shopTags = [];
       wireShopTags();
-      const mch = document.getElementById("mChannel");
-      const mct = document.getElementById("mChannelTagPick");
-      if (state.shopMode === "channel") {
-        mct.innerHTML = "";
-        state.channels.forEach((c) => {
-          const o = document.createElement("option");
-          o.value = c.channel_name;
-          o.textContent = c.channel_name;
-          mct.appendChild(o);
-        });
-      }
-      fillStoreSelect(document.getElementById("mStore"), mch.value);
+      fillStoreSelect(document.getElementById("mStore"), document.getElementById("mChannel").value);
       renderShopUi();
       updateRuleText();
     });
@@ -1006,14 +1172,26 @@
       state.mskuTags = [];
       wireMskuTags();
       renderMskuUi();
+      if (state.mskuMode === "category") {
+        rebuildCategoryMultiOptions();
+        const cs = document.getElementById("mCategorySearch");
+        if (cs) cs.value = "";
+        const mul = document.getElementById("mCategoryMulti");
+        if (mul) [...mul.options].forEach((o) => { o.hidden = false; });
+      }
       updateRuleText();
     });
 
-    document.getElementById("mChannel").addEventListener("change", () => {
-      fillStoreSelect(document.getElementById("mStore"), document.getElementById("mChannel").value);
-    });
-    document.getElementById("mScene").addEventListener("change", () => {
-      fillCategorySelect(document.getElementById("mCategory"), document.getElementById("mScene").value);
+    document.getElementById("channelListSearch")?.addEventListener("input", () => refreshChannelPickList());
+    document.getElementById("channelPickList")?.addEventListener("click", (e) => {
+      const btn = e.target.closest(".pick-chip");
+      if (!btn) return;
+      const name = btn.getAttribute("data-ch");
+      if (!name || state.shopTags.includes(name)) return;
+      state.shopTags.push(name);
+      wireShopTags();
+      renderShopUi();
+      updateRuleText();
     });
 
     document.getElementById("mAddStore").addEventListener("click", () => {
@@ -1038,53 +1216,66 @@
       wireShopTags();
       updateRuleText();
     });
-    document.getElementById("addShopChannel").addEventListener("click", () => {
-      const v = document.getElementById("mChannelTagPick").value;
-      if (!v || state.shopTags.includes(v)) return;
-      state.shopTags.push(v);
-      wireShopTags();
-      renderShopUi();
+    document.getElementById("mAddSceneOnly").addEventListener("click", () => {
+      const v = document.getElementById("mSceneOnly").value;
+      if (!v) {
+        alert("请选择场景。");
+        return;
+      }
+      const token = "场景:" + v;
+      if (state.mskuTags.includes(token)) return;
+      state.mskuTags.push(token);
+      wireMskuTags();
       updateRuleText();
     });
 
-    document.getElementById("mAddScene").addEventListener("click", () => {
-      const v = document.getElementById("mScene").value;
-      if (!v || state.mskuTags.includes("场景:" + v)) return;
-      state.mskuTags.push("场景:" + v);
-      wireMskuTags();
-      updateRuleText();
+    document.getElementById("mCatScene").addEventListener("change", () => {
+      rebuildCategoryMultiOptions();
+      document.getElementById("mCategorySearch").value = "";
+      [...document.getElementById("mCategoryMulti").options].forEach((o) => { o.hidden = false; });
     });
-    document.getElementById("mAddCategory").addEventListener("click", () => {
-      const code = document.getElementById("mCategory").value;
-      if (!code) return;
-      const label = document.getElementById("mCategory").selectedOptions[0]?.textContent || code;
-      const token = "品类:" + label;
-      if (state.mskuTags.includes(token)) return;
-      state.mskuTags.push(token);
-      wireMskuTags();
-      updateRuleText();
-    });
-    document.getElementById("mAddSku").addEventListener("click", () => {
-      const mode = document.getElementById("mSkuMode").value;
-      const kw = document.getElementById("mSkuInput").value.trim();
-      if (!kw) {
-        alert("请输入 SKU 关键词。");
+
+    document.getElementById("mAddCategorySel").addEventListener("click", () => {
+      const sel = document.getElementById("mCategoryMulti");
+      const picked = [...sel.selectedOptions];
+      if (!picked.length) {
+        alert("请在列表中按住 Ctrl/Cmd 多选品类后，再点击加入清单。");
         return;
       }
-      const token = `SKU[${mode}]:${kw}`;
-      if (state.mskuTags.includes(token)) return;
-      state.mskuTags.push(token);
+      picked.forEach((opt) => {
+        const token = "品类:" + opt.textContent;
+        if (!state.mskuTags.includes(token)) state.mskuTags.push(token);
+      });
       wireMskuTags();
       updateRuleText();
     });
-    document.getElementById("mAddMsku").addEventListener("click", () => {
-      const raw = document.getElementById("mMskuInput").value.trim();
-      if (!raw) return;
-      raw.split(/[;；]/).map((s) => s.trim()).filter(Boolean).forEach((p) => {
-        const token = "MSKU:" + p;
+
+    document.getElementById("mAddSkuSel").addEventListener("click", () => {
+      const sel = document.getElementById("mSkuMulti");
+      const picked = [...sel.selectedOptions];
+      if (!picked.length) {
+        alert("请多选 SKU 后加入清单。");
+        return;
+      }
+      picked.forEach((opt) => {
+        const token = "SKU:" + opt.value;
         if (!state.mskuTags.includes(token)) state.mskuTags.push(token);
       });
-      document.getElementById("mMskuInput").value = "";
+      wireMskuTags();
+      updateRuleText();
+    });
+
+    document.getElementById("mAddMskuSel").addEventListener("click", () => {
+      const sel = document.getElementById("mMskuMulti");
+      const picked = [...sel.selectedOptions];
+      if (!picked.length) {
+        alert("请多选 MSKU 后加入清单。");
+        return;
+      }
+      picked.forEach((opt) => {
+        const token = "MSKU:" + opt.value;
+        if (!state.mskuTags.includes(token)) state.mskuTags.push(token);
+      });
       wireMskuTags();
       updateRuleText();
     });
@@ -1108,8 +1299,20 @@
         alert("第一类：请至少加入一个店铺。");
         return;
       }
-      if (state.mskuMode !== "all" && !state.mskuTags.length) {
-        alert("第二类：请至少加入场景/品类/SKU/MSKU 中一项。");
+      if (state.mskuMode === "scene" && !state.mskuTags.some((t) => t.startsWith("场景:"))) {
+        alert("第二类：按场景时请至少加入一个场景。");
+        return;
+      }
+      if (state.mskuMode === "category" && !state.mskuTags.some((t) => t.startsWith("品类:"))) {
+        alert("第二类：按品类时请从列表多选并加入至少一个品类。");
+        return;
+      }
+      if (state.mskuMode === "sku" && !state.mskuTags.some((t) => t.startsWith("SKU:"))) {
+        alert("第二类：按 SKU 时请多选并加入至少一个 SKU。");
+        return;
+      }
+      if (state.mskuMode === "msku" && !state.mskuTags.some((t) => t.startsWith("MSKU:"))) {
+        alert("第二类：按 MSKU 时请多选并加入至少一个 MSKU。");
         return;
       }
       const rows = mockPreviewRows();
@@ -1175,18 +1378,19 @@
       fillStoreSelect(document.getElementById("mStore"), "");
       wireChannelStore(document.getElementById("mChannel"), document.getElementById("mStore"));
 
-      fillSceneSelect(document.getElementById("mScene"), true);
-      fillCategorySelect(document.getElementById("mCategory"), "");
-      wireSceneCategory(document.getElementById("mScene"), document.getElementById("mCategory"));
+      fillScenePick(document.getElementById("mSceneOnly"));
 
-      const mct = document.getElementById("mChannelTagPick");
-      mct.innerHTML = "";
-      state.channels.forEach((c) => {
-        const o = document.createElement("option");
-        o.value = c.channel_name;
-        o.textContent = c.channel_name;
-        mct.appendChild(o);
-      });
+      fillChannelSelect(document.getElementById("mCatChannel"), true);
+      fillStoreSelect(document.getElementById("mCatStore"), "");
+      wireChannelStore(document.getElementById("mCatChannel"), document.getElementById("mCatStore"));
+      fillSceneSelect(document.getElementById("mCatScene"), true);
+      rebuildCategoryMultiOptions();
+
+      rebuildSkuMulti();
+      rebuildMskuMulti();
+      wireNativeMultiSearch("mCategorySearch", "mCategoryMulti");
+      wireNativeMultiSearch("mSkuSearch", "mSkuMulti");
+      wireNativeMultiSearch("mMskuSearch", "mMskuMulti");
 
       renderHistory();
       renderShopUi();
