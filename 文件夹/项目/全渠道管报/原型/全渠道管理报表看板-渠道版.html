@@ -1536,8 +1536,8 @@
 2. 主行为<strong>业务维度</strong>；展开依次为「财务维度」「对照差异」。<br>
 3. 「财务维度」各列按<strong>映射从财务系统</strong>取数，与主行业务值无必然相等。<br>
 4. 带「（计算值=…）」类列的<strong>解释性口径</strong>放在表头「i」浮层中，列名展示为短标题。<br>
-5. 各列下方<strong>占营收占比</strong>：分母统一为<strong>营收</strong>（收入净额），<strong>营收</strong>列副文案为 <strong>(100%)</strong>；销售额等可大于 100%。<br>
-6. 费用项关系图右上角注明「占比是以营收为100%口径」；图中<strong>营收</strong>旁为 <strong>(100%)</strong>。`,
+5. 各列下方占比：分母统一为<strong>营收</strong>（收入净额），副文案为括号内数值，如 <strong>(89.12%)</strong>；<strong>营收</strong>列为 <strong>(100%)</strong>；销售额等可大于 100%。<br>
+6. 费用项关系图右上角为「占比是以营收为100%口径」；图中各金额旁占比为 <strong>(xx.xx%)</strong>（营收主块为 <strong>(100%)</strong>）。`,
       "export-template": `导出模版：https://alidocs.dingtalk.com/i/nodes/a9E05BDRVQ6gzQaAh2Y9g407J63zgkYA`
     };
 
@@ -1767,7 +1767,7 @@
           { title: "营收", value: revenue, unit: currencyCode, y: "+1.82%", m: "-10.46%", note: "收入净额口径", money: true },
           { title: "销量", value: qty, unit: "", y: "+2.13%", m: "-6.31%", note: "订单销量（扣减退货）" },
           { title: "毛利", value: gross, unit: currencyCode, y: "+1.36%", m: "-8.12%", note: "业务口径毛利", money: true },
-          { title: "退款率", value: "2.68%", unit: "", y: "+0.13%", m: "-0.21%", note: "销售退款 / 营收（明细表占比亦以营收为分母）" },
+          { title: "退款率", value: "2.68%", unit: "", y: "+0.13%", m: "-0.21%", note: "销售退款 / 营收；明细占比副文案为 (x.xx%) 形式" },
           { title: "税费率", value: "2.24%", unit: "", y: "+0.05%", m: "-0.11%", note: "销售税/VAT / 营收" }
         ],
         finance: [
@@ -2004,7 +2004,7 @@
         <g class="flow-node" data-node-key="${title}" style="cursor:pointer;">
           <rect x="${x}" y="${y}" width="${boxWidth}" height="66" rx="10" fill="${fill}" stroke="${active ? activeStroke : stroke}" stroke-width="${active ? 2.4 : 1.5}"></rect>
           ${titleSvg}
-          <text x="${centerX}" y="${amountY}" text-anchor="middle" font-size="${amountFontSize}" font-weight="700" fill="#334155">${amount} (占营收 ${ratio}${ratio === "--" ? "" : "%"})</text>
+          <text x="${centerX}" y="${amountY}" text-anchor="middle" font-size="${amountFontSize}" font-weight="700" fill="#334155">${amount} (${ratio === "--" ? "--" : `${ratio}%`})</text>
         </g>
       `;
     }
@@ -2026,7 +2026,7 @@
 
         <polygon points="220,34 1340,34 1268,118 292,118" fill="#eef8ff" stroke="#38bdf8" stroke-width="3"></polygon>
         <text x="780" y="77" text-anchor="middle" font-size="34" font-weight="700" fill="#0f172a">销售额</text>
-        <text x="780" y="107" text-anchor="middle" font-size="26" font-weight="700" fill="#334155">${sales}${revBase ? ` (占营收 ${salesPct}%)` : " (占营收 --)"}</text>
+        <text x="780" y="107" text-anchor="middle" font-size="26" font-weight="700" fill="#334155">${sales}${revBase ? ` (${salesPct}%)` : " (--)"}</text>
 
         ${flowItemBox(300, 138, "优惠合计", "优惠合计（计算值=折扣+直接扣减折扣）", values, "orange", selected === "优惠合计")}
         ${flowItemBox(700, 138, "销售退款", "销售退款", values, "orange", selected === "销售退款")}
@@ -2044,7 +2044,7 @@
 
         <polygon points="450,410 1110,410 1040,506 520,506" fill="#f5f3ff" stroke="#8b5cf6" stroke-width="3"></polygon>
         <text x="780" y="458" text-anchor="middle" font-size="32" font-weight="700" fill="#0f172a">毛利</text>
-        <text x="780" y="489" text-anchor="middle" font-size="24" font-weight="700" fill="#334155">${gross}${revBase ? ` (占营收 ${grossRatio}%)` : " (占营收 --)"}</text>
+        <text x="780" y="489" text-anchor="middle" font-size="24" font-weight="700" fill="#334155">${gross}${revBase ? ` (${grossRatio}%)` : " (--)"}</text>
       `;
 
       flowSvg.innerHTML = svg;
@@ -2068,7 +2068,7 @@
         const ratio = (revBase && values[fee] !== null && values[fee] !== undefined)
           ? `${((Number(values[fee]) / revBase) * 100).toFixed(2)}%`
           : "--";
-        return `<div class="flow-detail-item"><div class="k">${fee}</div><div class="flow-detail-amount-row"><span class="v-main">${amount}</span><span class="ratio">占营收 ${ratio}</span></div></div>`;
+        return `<div class="flow-detail-item"><div class="k">${fee}</div><div class="flow-detail-amount-row"><span class="v-main">${amount}</span><span class="ratio">${ratio === "--" ? "(--)" : `(${ratio})`}</span></div></div>`;
       }).join("");
       flowDetail.innerHTML = `
         <div class="flow-detail-title">${selected.key} 包含的子费用项</div>
@@ -2145,13 +2145,13 @@
         const value = row.values[fee];
         const ratio = row.ratios[fee];
         const cellCls = getCellState(fee, view, value);
-        let ratioText = "占营收 --";
+        let ratioText = "(--)";
         if (view === "delta") {
-          ratioText = value === null ? "财务缺失" : `占营收 ${ratio && Number.isFinite(ratio) ? ratio.toFixed(2) : "0.00"}%`;
+          ratioText = value === null ? "财务缺失" : `(${ratio && Number.isFinite(ratio) ? ratio.toFixed(2) : "0.00"}%)`;
         } else if (fee === "营收" && ratio !== null && Number.isFinite(ratio)) {
           ratioText = "(100%)";
         } else if (ratio !== null && Number.isFinite(ratio)) {
-          ratioText = `占营收 ${ratio.toFixed(2)}%`;
+          ratioText = `(${ratio.toFixed(2)}%)`;
         }
         return `
           <td class="${cellCls}">
