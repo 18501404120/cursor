@@ -1033,6 +1033,7 @@
 
   <script>
     const feeColumns = [
+      "订单销售额",
       "净销售额",
       "运费收入",
       "包装收入",
@@ -1074,6 +1075,7 @@
     ];
 
     const feeStates = {
+      "订单销售额": "ok",
       "净销售额": "ok",
       "运费收入": "partial",
       "包装收入": "partial",
@@ -1137,7 +1139,9 @@
     }
 
     function feeColumnExtraHint(fee) {
-      void fee;
+      if (fee === "订单销售额") {
+        return "订单成交金额口径，列于净销售额之前；与平台订单/主数据字段对齐以系统配置为准。";
+      }
       return "";
     }
 
@@ -1147,6 +1151,7 @@
 
     function buildBusinessValues(source) {
       const values = {};
+      values["订单销售额"] = round2(source.orderSales);
       values["净销售额"] = round2(source.netSales);
       values["运费收入"] = round2(source.freightIncome);
       values["包装收入"] = round2(source.packageIncome);
@@ -1228,8 +1233,10 @@
         const factor = 0.68 + ((idx % 9) * 0.07);
         const bump = ((idx % 5) * 47);
 
+        const netSales = 7600 * factor + 3500 + bump;
         const values = buildBusinessValues({
-          netSales: 7600 * factor + 3500 + bump,
+          orderSales: netSales * 1.042 + (idx % 6) * 18,
+          netSales,
           freightIncome: 420 * factor + (idx % 4) * 60,
           packageIncome: 210 * factor + (idx % 3) * 40,
           discount: 260 * factor + (idx % 4) * 20,
@@ -1415,6 +1422,7 @@
       "销量",
       "营收",
       "毛利",
+      "订单销售额",
       "净销售额",
       "运费收入",
       "包装收入",
@@ -1538,7 +1546,8 @@
 2. 主行为<strong>业务维度</strong>；展开依次为「财务维度」「对照差异」。<br>
 3. 「财务维度」各列按<strong>映射从财务系统</strong>取数，与主行业务值无必然相等。<br>
 4. 带「（计算值=…）」类列的<strong>解释性口径</strong>放在表头「i」浮层中，列名展示为短标题。<br>
-5. 各列下方<strong>占营收占比</strong>：分母统一为<strong>营收</strong>（收入净额），营收为 100%；销售额等可大于 100%，属正常情况。`,
+5. 各列下方<strong>占营收占比</strong>：分母统一为<strong>营收</strong>（收入净额），<strong>营收</strong>列副文案展示为 <strong>(100%)</strong>；销售额等可大于 100%，属正常情况。<br>
+6. 费用项关系图右上角注明「占比是以营收为100%口径」；图中<strong>营收</strong>主金额旁展示 <strong>(100%)</strong>（与「占营收 100.00%」等价表述）。`,
       "export-template": `导出模版：https://alidocs.dingtalk.com/i/nodes/a9E05BDRVQ6gzQaAh2Y9g407J63zgkYA`
     };
 
@@ -2024,11 +2033,11 @@
       const revBase = revenueRatioBase(values);
       const saleVal = Number(values["销售额（计算值=净销售额+包装收入+运费收入）"] || 0);
       const salesPct = revBase ? ((saleVal / revBase) * 100).toFixed(2) : "--";
-      const revenueRatio = revBase ? ((values["收入净额（计算值=销售净额-销售税/VAT）"] || 0) / revBase * 100).toFixed(2) : "--";
       const grossRatio = revBase ? ((values["毛利"] || 0) / revBase * 100).toFixed(2) : "--";
 
       const svg = `
         <rect x="14" y="14" width="1532" height="592" rx="12" fill="#fff" stroke="#eef2f8"></rect>
+        <text x="1538" y="32" text-anchor="end" font-size="12" fill="#64748b">占比是以营收为100%口径</text>
 
         <polygon points="220,34 1340,34 1268,118 292,118" fill="#eef8ff" stroke="#38bdf8" stroke-width="3"></polygon>
         <text x="780" y="77" text-anchor="middle" font-size="34" font-weight="700" fill="#0f172a">销售额</text>
@@ -2040,7 +2049,7 @@
 
         <polygon points="320,222 1240,222 1174,306 386,306" fill="#f0f9ff" stroke="#3b82f6" stroke-width="3"></polygon>
         <text x="780" y="264" text-anchor="middle" font-size="32" font-weight="700" fill="#0f172a">营收</text>
-        <text x="780" y="294" text-anchor="middle" font-size="24" font-weight="700" fill="#334155">${revenue}${revBase ? ` (占营收 ${revenueRatio}%)` : " (占营收 --)"}</text>
+        <text x="780" y="294" text-anchor="middle" font-size="24" font-weight="700" fill="#334155">${revenue}${revBase ? " (100%)" : " (--)"}</text>
 
         ${flowItemBox(255, 324, "货值成本净额", "货值成本净额（计算值=发货成本+退货成本+平台赔偿）", values, "purple", selected === "货值成本净额")}
         ${flowItemBox(435, 324, "广告宣传小计", "广告宣传小计（计算值=广告费+品牌营销费+推广费+样品费）", values, "purple", selected === "广告宣传小计")}
@@ -2102,7 +2111,7 @@
       const groupCount = {
         result: visibleFees.filter((fee) => ["销量", "营收", "毛利"].includes(fee)).length,
         revenue: visibleFees.filter((fee) => [
-          "净销售额", "运费收入", "包装收入", "销售额（计算值=净销售额+包装收入+运费收入）",
+          "订单销售额", "净销售额", "运费收入", "包装收入", "销售额（计算值=净销售额+包装收入+运费收入）",
           "折扣", "直接扣减折扣", "优惠合计（计算值=折扣+直接扣减折扣）",
           "销售收款（计算值=销售额-优惠合计）", "销售退款", "销售净额（计算值=销售收款-销售退款）",
           "销售税/VAT", "收入净额（计算值=销售净额-销售税/VAT）"
@@ -2155,6 +2164,8 @@
         let ratioText = "占营收 --";
         if (view === "delta") {
           ratioText = value === null ? "财务缺失" : `占营收 ${ratio && Number.isFinite(ratio) ? ratio.toFixed(2) : "0.00"}%`;
+        } else if (fee === "营收" && ratio !== null && Number.isFinite(ratio)) {
+          ratioText = "(100%)";
         } else if (ratio !== null && Number.isFinite(ratio)) {
           ratioText = `占营收 ${ratio.toFixed(2)}%`;
         }
