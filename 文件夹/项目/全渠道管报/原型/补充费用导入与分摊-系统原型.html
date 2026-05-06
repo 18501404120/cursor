@@ -370,6 +370,12 @@
     .checkbox-multi .chk-row:hover { background: #f1f5f9; }
     .checkbox-multi .chk-row.chk-master { font-weight: 600; color: #0f2f63; }
     .checkbox-multi .chk-row input { flex-shrink: 0; }
+    .st-pending { color: #b45309; font-weight: 600; }
+    .st-active { color: #047857; font-weight: 600; }
+    .st-invalid { color: #64748b; font-weight: 600; }
+    .hist-actions { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; justify-content: flex-start; }
+    .hist-actions .btn-link { padding: 0 2px; }
+
     .spec-note {
       font-size: 12px;
       color: var(--muted);
@@ -382,15 +388,18 @@
   </style>
 </head>
 <body>
-  <div class="topbar">
+    <div class="topbar">
     <div><strong>全渠道管报</strong> · 补充费用导入与分摊（原型）</div>
-    <a href="./index.html">← 返回原型目录</a>
+    <div style="display:flex;gap:14px;align-items:center;flex-wrap:wrap;">
+      <a href="./补充费用导入与分摊-页面说明.md" target="_blank" rel="noopener">页面说明（逻辑）</a>
+      <a href="./index.html">← 返回原型目录</a>
+    </div>
   </div>
 
   <div class="page" id="mainPage">
     <h1>补充费用导入与分摊</h1>
     <p class="sub">
-      主界面为<strong>历史导入记录</strong>；「新增导入费用」在弹窗中配置分摊（店铺 ∩ MSKU，可选零售商）。历史筛选含<strong>零售商</strong>（可搜索复选 +「全部」）；列表展示<strong>零售商范围摘要</strong>与 <strong>MSKU 范围摘要</strong>。弹窗内控件与基础数据 JSON 对齐。
+      主界面为<strong>历史导入记录</strong>：状态为<strong>已生效</strong>的批次才纳入管报计算；新建/导入默认为<strong>待生效</strong>，可<strong>生效/失效</strong>及批量操作，<strong>失效</strong>后可删除。详见「页面说明」。
     </p>
 
     <div class="filter-strip">
@@ -411,6 +420,15 @@
             <option>广告费</option>
             <option>品牌营销费</option>
             <option>推广费</option>
+          </select>
+        </div>
+        <div class="filter-item">
+          <span class="filter-label">状态</span>
+          <select id="qStatus" aria-label="状态">
+            <option value="">全部</option>
+            <option value="待生效">待生效</option>
+            <option value="已生效">已生效</option>
+            <option value="失效">失效</option>
           </select>
         </div>
         <div class="filter-item">
@@ -460,15 +478,20 @@
     <div class="toolbar">
       <button type="button" class="btn" id="btnOpenCreate">新增导入费用</button>
       <button type="button" class="btn secondary" id="btnOpenImport">导入</button>
+      <span style="width:1px;height:24px;background:#dbe4f0;margin:0 4px;"></span>
+      <button type="button" class="btn secondary" id="btnBatchActivate">批量生效</button>
+      <button type="button" class="btn secondary" id="btnBatchDeactivate">批量失效</button>
+      <button type="button" class="btn secondary" id="btnBatchDelete">批量删除</button>
     </div>
 
     <div class="panel" style="margin-bottom:0;">
       <div class="panel-hd">历史导入费用</div>
       <div class="panel-bd" style="max-height:none;padding:0;">
         <div class="table-wrap" style="max-height:480px;border:none;border-radius:0;">
-          <table>
+          <table id="historyTable">
             <thead>
               <tr>
+                <th style="width:44px;text-align:center;"><input type="checkbox" id="histSelectAll" title="全选当前列表" aria-label="全选"></th>
                 <th>导入批次号</th>
                 <th>费用项</th>
                 <th>归属月</th>
@@ -730,9 +753,11 @@
       <div class="dialog-bd">
         <div class="import-body">
           <p>请先下载导入模版，按列填写后上传。模版为精简列，与弹窗中「店铺范围说明 / MSKU 范围说明」同一套枚举口径。</p>
-          <div class="import-actions">
+          <p style="font-size:13px;color:#475569;margin:10px 0 0;">正式环境解析成功后，每条导入会生成<strong>待生效</strong>批次；需经「生效」后才纳入管报计算（与「新增导入费用」一致）。</p>
+          <div class="import-actions" style="margin-top:12px;">
             <button type="button" class="btn" id="btnDownloadTpl">下载导入模版（CSV）</button>
             <button type="button" class="btn-link" id="btnOpenTplPreview">查看模版预览与填写要求</button>
+            <button type="button" class="btn secondary" id="btnSimulateImport">模拟：生成一条待生效批次</button>
           </div>
         </div>
       </div>
@@ -802,7 +827,10 @@
       shopTags: [],
       mskuMode: "all",
       mskuTags: [],
-      retailerTags: []
+      retailerTags: [],
+      /** @type {{ id: string, fee: string, month: string, amt: number, shop: string, retailerSummary: string, mskuScopeSummary: string, status: string, op: string, at: string }[]} */
+      historyRows: [],
+      historyNextSeq: 100
     };
 
     function prevMonthYm(belongYm) {
@@ -1271,7 +1299,7 @@
         shopScopeDetail: "类型：按店铺；取值：Govee_US、Govee_DE（与基础数据 store 一致）。",
         mskuScopeDetail: "类型：按 SKU 模糊；关键词 H601*；与管报 SKU 解析规则一致后得到 MSKU 集合。",
         retailers: "Best Buy；Target（示意：导入两行零售商后取交）",
-        st: "待复核",
+        st: "待生效",
         op: "wangwu",
         at: "2026-03-15 09:12",
         rawRows: [
@@ -1279,6 +1307,23 @@
           { store: "Govee_US", msku: "H6011002+Govee+US", retailer: "Target", rev: 72000 },
           { store: "Govee_DE", msku: "H6011001+Govee+DE", retailer: "Best Buy", rev: 61000 },
           { store: "Govee_DE", msku: "H6011002+Govee+DE", retailer: "Target", rev: 48000 }
+        ]
+      },
+      "IMP-202602-099": {
+        fee: "样品费",
+        month: "2026-02",
+        amt: 500,
+        shopSummary: "全渠道",
+        retailerSummary: "（未选）",
+        mskuSummary: "全场景",
+        shopScopeDetail: "类型：全渠道。",
+        mskuScopeDetail: "类型：全场景。",
+        retailers: "（未选）",
+        st: "失效",
+        op: "zhao",
+        at: "2026-02-01 09:00",
+        rawRows: [
+          { store: "Govee_US", msku: "H6011001+Govee+US", retailer: "—", rev: 100000 }
         ]
       }
     };
@@ -1289,6 +1334,8 @@
         alert("原型：该批次暂无明细数据。");
         return;
       }
+      const rowLive = state.historyRows.find((r) => r.id === batchId);
+      if (rowLive) d.st = rowLive.status;
       const wm = prevMonthYm(d.month);
       const days = daysInMonth(d.month);
       const tot = d.rawRows.reduce((s, r) => s + r.rev, 0);
@@ -1303,7 +1350,8 @@
           <strong>导入批次号：</strong>${escHtml(batchId)}<br>
           <strong>费用项：</strong>${escHtml(d.fee)}　<strong>归属月：</strong>${escHtml(d.month)}　<strong>补充金额：</strong>${d.amt.toLocaleString("zh-CN", { minimumFractionDigits: 2 })} 元<br>
           <strong>权重月：</strong>${escHtml(wm)}（归属月上月的管报营收口径）　<strong>归属月天数：</strong>${days} 天（按自然日拆日均）<br>
-          <strong>状态：</strong>${escHtml(d.st)}　<strong>操作人：</strong>${escHtml(d.op)}　<strong>创建时间：</strong>${escHtml(d.at)}<br>
+          <strong>状态：</strong>${escHtml(rowLive ? rowLive.status : d.st)}　<strong>操作人：</strong>${escHtml(d.op)}　<strong>创建时间：</strong>${escHtml(d.at)}<br>
+          <strong>纳入管报计算：</strong>${(rowLive && rowLive.status === "已生效") || (!rowLive && d.st === "已生效") ? "是（仅已生效批次参与）" : "否"}<br>
           <strong>店铺范围（列表摘要）：</strong>${escHtml(d.shopSummary)}<br>
           <strong>店铺范围（解析说明）：</strong><span style="white-space:pre-wrap;">${escHtml(d.shopScopeDetail)}</span><br>
           <strong>零售商范围（列表摘要）：</strong>${escHtml(d.retailerSummary || "—")}<br>
@@ -1326,47 +1374,79 @@
       openOverlay("overlayHistoryDetail");
     }
 
+    function statusClass(st) {
+      if (st === "待生效") return "st-pending";
+      if (st === "已生效") return "st-active";
+      if (st === "失效") return "st-invalid";
+      return "";
+    }
+
+    function syncHistoryDetailStatus(batchId) {
+      const row = state.historyRows.find((x) => x.id === batchId);
+      const d = HISTORY_DETAIL_BY_ID[batchId];
+      if (row && d) d.st = row.status;
+    }
+
+    function getFilteredHistoryRows() {
+      const stF = document.getElementById("qStatus")?.value ?? "";
+      const feeF = document.getElementById("qFeeType")?.value ?? "";
+      return state.historyRows.filter((r) => {
+        if (stF && r.status !== stF) return false;
+        if (feeF && r.fee !== feeF) return false;
+        return true;
+      });
+    }
+
+    function getSelectedHistoryIds() {
+      return [...document.querySelectorAll("#historyBody input.hist-row-cb:checked")].map((cb) => cb.dataset.id);
+    }
+
+    function renderRowActions(r) {
+      const id = String(r.id).replace(/"/g, "");
+      const parts = [`<button type="button" class="btn-link" data-action="detail" data-id="${id}">明细</button>`];
+      if (r.status === "待生效") {
+        parts.push(`<button type="button" class="btn-link" data-action="activate" data-id="${id}">生效</button>`);
+        parts.push(`<button type="button" class="btn-link" data-action="deactivate" data-id="${id}">失效</button>`);
+      } else if (r.status === "已生效") {
+        parts.push(`<button type="button" class="btn-link" data-action="deactivate" data-id="${id}">失效</button>`);
+      } else if (r.status === "失效") {
+        parts.push(`<button type="button" class="btn-link" data-action="delete" data-id="${id}">删除</button>`);
+      }
+      return `<div class="hist-actions">${parts.join("")}</div>`;
+    }
+
+    function nextBatchId() {
+      const d = new Date();
+      const ymd = `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, "0")}${String(d.getDate()).padStart(2, "0")}`;
+      return `IMP-${ymd}-${String(state.historyNextSeq++).padStart(3, "0")}`;
+    }
+
+    function formatNow() {
+      const d = new Date();
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+    }
+
+    function setHistoryStatusByIds(ids, newStatus) {
+      ids.forEach((id) => {
+        const row = state.historyRows.find((x) => x.id === id);
+        if (row) row.status = newStatus;
+        syncHistoryDetailStatus(id);
+      });
+    }
+
+    function deleteHistoryByIds(ids) {
+      const set = new Set(ids);
+      state.historyRows = state.historyRows.filter((r) => !set.has(r.id));
+      ids.forEach((id) => { delete HISTORY_DETAIL_BY_ID[id]; });
+    }
+
     function renderHistory() {
-      const mock = [
-        {
-          id: "IMP-202604-001",
-          fee: "广告费",
-          month: "2026-04",
-          amt: 10000,
-          shop: "渠道:Govee",
-          retailerSummary: "（未选）",
-          mskuScopeSummary: "按场景后交集 3 个 MSKU（如 H6011001+Govee+US、H6159001+Govee+US、H6011002+Govee+DE）",
-          st: "已生效",
-          op: "zhangsan",
-          at: "2026-04-02 10:20"
-        },
-        {
-          id: "IMP-202603-018",
-          fee: "推广费",
-          month: "2026-03",
-          amt: 3200,
-          shop: "全渠道",
-          retailerSummary: "（未选）",
-          mskuScopeSummary: "全场景下交集 2 个 MSKU（H6011001+Govee+US、H6198001+独立站+US）",
-          st: "已生效",
-          op: "lisi",
-          at: "2026-03-28 16:05"
-        },
-        {
-          id: "IMP-202603-017",
-          fee: "广告费",
-          month: "2026-03",
-          amt: 8000,
-          shop: "店铺:Govee_US;Govee_DE",
-          retailerSummary: "Best Buy；Target",
-          mskuScopeSummary: "按 SKU 模糊 H601* → 命中 4 个 MSKU（含 Govee_US / Govee_DE）",
-          st: "待复核",
-          op: "wangwu",
-          at: "2026-03-15 09:12"
-        }
-      ];
-      document.getElementById("historyBody").innerHTML = mock.map((r) => `
+      const list = getFilteredHistoryRows();
+      const selAll = document.getElementById("histSelectAll");
+      if (selAll) selAll.checked = false;
+      document.getElementById("historyBody").innerHTML = list.map((r) => `
         <tr>
+          <td style="text-align:center;"><input type="checkbox" class="hist-row-cb" data-id="${String(r.id).replace(/"/g, "")}" aria-label="选择该行"></td>
           <td>${escHtml(r.id)}</td>
           <td>${escHtml(r.fee)}</td>
           <td>${escHtml(r.month)}</td>
@@ -1374,10 +1454,10 @@
           <td>${escHtml(r.shop)}</td>
           <td>${escHtml(r.retailerSummary)}</td>
           <td>${escHtml(r.mskuScopeSummary)}</td>
-          <td>${escHtml(r.st)}</td>
+          <td><span class="${statusClass(r.status)}">${escHtml(r.status)}</span></td>
           <td>${escHtml(r.op)}</td>
           <td>${escHtml(r.at)}</td>
-          <td><button type="button" class="btn-link" data-detail-id="${r.id}">明细</button></td>
+          <td>${renderRowActions(r)}</td>
         </tr>
       `).join("");
     }
@@ -1419,6 +1499,42 @@
     document.getElementById("btnOpenImport").addEventListener("click", () => openOverlay("overlayImport"));
     document.getElementById("closeImport").addEventListener("click", () => closeOverlay("overlayImport"));
     document.getElementById("btnDownloadTpl").addEventListener("click", downloadImportTemplate);
+    document.getElementById("btnSimulateImport").addEventListener("click", () => {
+      const id = nextBatchId();
+      const at = formatNow();
+      state.historyRows.unshift({
+        id,
+        fee: "品牌营销费",
+        month: "2026-05",
+        amt: 1500,
+        shop: "渠道:Govee（CSV 模拟）",
+        retailerSummary: "（未选）",
+        mskuScopeSummary: "按场景;户外（CSV 模拟）",
+        status: "待生效",
+        op: "（导入任务）",
+        at
+      });
+      HISTORY_DETAIL_BY_ID[id] = {
+        fee: "品牌营销费",
+        month: "2026-05",
+        amt: 1500,
+        shopSummary: "渠道:Govee（CSV 模拟）",
+        retailerSummary: "（未选）",
+        mskuSummary: "按场景;户外（CSV 模拟）",
+        shopScopeDetail: "模拟导入解析结果。",
+        mskuScopeDetail: "模拟导入解析结果。",
+        retailers: "（未选）",
+        st: "待生效",
+        op: "（导入任务）",
+        at,
+        rawRows: [
+          { store: "Govee_US", msku: "H6011001+Govee+US", retailer: "—", rev: 200000 }
+        ]
+      };
+      closeOverlay("overlayImport");
+      renderHistory();
+      alert(`原型：模拟导入已生成待生效批次 ${id}。`);
+    });
     document.getElementById("btnOpenTplPreview").addEventListener("click", () => {
       closeOverlay("overlayImport");
       openOverlay("overlayTpl");
@@ -1436,10 +1552,101 @@
     });
 
     document.getElementById("historyBody").addEventListener("click", (e) => {
-      const btn = e.target.closest("button[data-detail-id]");
+      const btn = e.target.closest("button[data-action][data-id]");
       if (!btn) return;
-      openHistoryDetail(btn.getAttribute("data-detail-id"));
+      const action = btn.getAttribute("data-action");
+      const id = btn.getAttribute("data-id");
+      const row = state.historyRows.find((x) => x.id === id);
+      if (!row) return;
+      if (action === "detail") {
+        openHistoryDetail(id);
+        return;
+      }
+      if (action === "activate") {
+        if (row.status !== "待生效") return;
+        row.status = "已生效";
+        syncHistoryDetailStatus(id);
+        renderHistory();
+        return;
+      }
+      if (action === "deactivate") {
+        if (row.status !== "待生效" && row.status !== "已生效") return;
+        row.status = "失效";
+        syncHistoryDetailStatus(id);
+        renderHistory();
+        return;
+      }
+      if (action === "delete") {
+        if (row.status !== "失效") return;
+        if (!confirm(`确定删除批次 ${id}？（原型：仅从列表移除）`)) return;
+        deleteHistoryByIds([id]);
+        renderHistory();
+      }
     });
+
+    document.getElementById("histSelectAll").addEventListener("change", (e) => {
+      document.querySelectorAll("#historyBody .hist-row-cb").forEach((cb) => {
+        cb.checked = e.target.checked;
+      });
+    });
+
+    document.getElementById("btnBatchActivate").addEventListener("click", () => {
+      const ids = getSelectedHistoryIds();
+      if (!ids.length) {
+        alert("请先勾选至少一条历史记录。");
+        return;
+      }
+      const bad = ids.filter((id) => {
+        const r = state.historyRows.find((x) => x.id === id);
+        return !r || r.status !== "待生效";
+      });
+      if (bad.length) {
+        alert("批量生效仅允许「待生效」状态；请取消勾选其他状态的行。");
+        return;
+      }
+      setHistoryStatusByIds(ids, "已生效");
+      renderHistory();
+    });
+
+    document.getElementById("btnBatchDeactivate").addEventListener("click", () => {
+      const ids = getSelectedHistoryIds();
+      if (!ids.length) {
+        alert("请先勾选至少一条历史记录。");
+        return;
+      }
+      const bad = ids.filter((id) => {
+        const r = state.historyRows.find((x) => x.id === id);
+        return !r || (r.status !== "待生效" && r.status !== "已生效");
+      });
+      if (bad.length) {
+        alert("批量失效仅允许「待生效」或「已生效」；已失效的批次请取消勾选。");
+        return;
+      }
+      setHistoryStatusByIds(ids, "失效");
+      renderHistory();
+    });
+
+    document.getElementById("btnBatchDelete").addEventListener("click", () => {
+      const ids = getSelectedHistoryIds();
+      if (!ids.length) {
+        alert("请先勾选至少一条历史记录。");
+        return;
+      }
+      const bad = ids.filter((id) => {
+        const r = state.historyRows.find((x) => x.id === id);
+        return !r || r.status !== "失效";
+      });
+      if (bad.length) {
+        alert("批量删除仅允许「失效」状态；请取消勾选待生效/已生效行。");
+        return;
+      }
+      if (!confirm(`确定批量删除 ${ids.length} 条失效批次？（原型：从列表移除）`)) return;
+      deleteHistoryByIds(ids);
+      renderHistory();
+    });
+
+    document.getElementById("qStatus").addEventListener("change", () => renderHistory());
+    document.getElementById("qFeeType").addEventListener("change", () => renderHistory());
     document.getElementById("closeHistoryDetail").addEventListener("click", () => closeOverlay("overlayHistoryDetail"));
     document.getElementById("overlayHistoryDetail").addEventListener("click", (e) => {
       if (e.target.id === "overlayHistoryDetail") closeOverlay("overlayHistoryDetail");
@@ -1701,8 +1908,55 @@
     });
 
     document.getElementById("btnConfirmImport").addEventListener("click", () => {
-      alert("原型：写入补充费用池并刷新历史列表。");
+      const belong = document.getElementById("belongMonth").value;
+      const amt = Number(document.getElementById("totalAmount").value) || 0;
+      const fee = document.getElementById("feeType").value;
+      if (!belong || !fee || !amt) {
+        alert("请填写归属月、费用项与补充金额，并先完成预览。");
+        return;
+      }
+      const id = nextBatchId();
+      const shopText = (document.getElementById("shopSummary")?.textContent || "全渠道").trim();
+      const shopCol = shopText.length > 80 ? `${shopText.slice(0, 80)}…` : shopText;
+      const retailerSummary = state.retailerTags.length ? state.retailerTags.join("；") : "（未选）";
+      let mskuScopeSummary = "全场景";
+      if (state.mskuMode !== "all") {
+        mskuScopeSummary = state.mskuTags.length
+          ? state.mskuTags.slice(0, 8).join("；") + (state.mskuTags.length > 8 ? "…" : "")
+          : `按「${state.mskuMode}」配置（清单为空，请检查）`;
+      }
+      const rawRows = mockPreviewRows();
+      const at = formatNow();
+      state.historyRows.unshift({
+        id,
+        fee,
+        month: belong,
+        amt,
+        shop: shopCol,
+        retailerSummary,
+        mskuScopeSummary,
+        status: "待生效",
+        op: "（原型用户）",
+        at
+      });
+      HISTORY_DETAIL_BY_ID[id] = {
+        fee,
+        month: belong,
+        amt,
+        shopSummary: shopCol,
+        retailerSummary,
+        mskuSummary: mskuScopeSummary,
+        shopScopeDetail: "由弹窗第一类店铺范围生成（原型摘要见上）。",
+        mskuScopeDetail: "由弹窗第二类 MSKU 范围生成（原型摘要见上）。",
+        retailers: state.retailerTags.length ? state.retailerTags.join("；") : "（导入未选零售商）",
+        st: "待生效",
+        op: "（原型用户）",
+        at,
+        rawRows
+      };
       closeOverlay("overlayCreate");
+      renderHistory();
+      alert(`原型：已写入一条「待生效」批次 ${id}。请再点「生效」后才会纳入管报计算。`);
     });
     document.getElementById("btnExport").addEventListener("click", () => {
       alert("原型：导出预览明细。");
@@ -1717,7 +1971,8 @@
 
     document.getElementById("btnQuery").addEventListener("click", () => {
       const rt = checkedItemValues("qRetailerMultiBox", "qr-item");
-      alert(`原型：按筛选条件刷新历史列表。零售商勾选：${rt.length ? rt.join("、") : "（未勾选，表示不限零售商）"}`);
+      renderHistory();
+      alert(`原型：已按「状态 / 费用项」刷新列表（其他筛选项仍为示意）。零售商勾选：${rt.length ? rt.join("、") : "（未勾选，表示不限零售商）"}`);
     });
 
     (async function init() {
@@ -1752,6 +2007,58 @@
       wireCheckboxMultiSearch("mMskuSearch", "mskuMultiBox");
       wireCheckboxMultiSearch("retailerSearch", "retailerMultiBox");
       wireCheckboxMultiSearch("qRetailerSearch", "qRetailerMultiBox");
+
+      state.historyRows = [
+        {
+          id: "IMP-202604-001",
+          fee: "广告费",
+          month: "2026-04",
+          amt: 10000,
+          shop: "渠道:Govee",
+          retailerSummary: "（未选）",
+          mskuScopeSummary: "按场景后交集 3 个 MSKU（如 H6011001+Govee+US、H6159001+Govee+US、H6011002+Govee+DE）",
+          status: "已生效",
+          op: "zhangsan",
+          at: "2026-04-02 10:20"
+        },
+        {
+          id: "IMP-202603-018",
+          fee: "推广费",
+          month: "2026-03",
+          amt: 3200,
+          shop: "全渠道",
+          retailerSummary: "（未选）",
+          mskuScopeSummary: "全场景下交集 2 个 MSKU（H6011001+Govee+US、H6198001+独立站+US）",
+          status: "已生效",
+          op: "lisi",
+          at: "2026-03-28 16:05"
+        },
+        {
+          id: "IMP-202603-017",
+          fee: "广告费",
+          month: "2026-03",
+          amt: 8000,
+          shop: "店铺:Govee_US;Govee_DE",
+          retailerSummary: "Best Buy；Target",
+          mskuScopeSummary: "按 SKU 模糊 H601* → 命中 4 个 MSKU（含 Govee_US / Govee_DE）",
+          status: "待生效",
+          op: "wangwu",
+          at: "2026-03-15 09:12"
+        },
+        {
+          id: "IMP-202602-099",
+          fee: "样品费",
+          month: "2026-02",
+          amt: 500,
+          shop: "全渠道",
+          retailerSummary: "（未选）",
+          mskuScopeSummary: "全场景",
+          status: "失效",
+          op: "zhao",
+          at: "2026-02-01 09:00"
+        }
+      ];
+      state.historyNextSeq = 100;
 
       renderHistory();
       renderShopUi();
