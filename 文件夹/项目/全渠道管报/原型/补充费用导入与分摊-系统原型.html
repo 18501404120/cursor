@@ -390,7 +390,7 @@
   <div class="page" id="mainPage">
     <h1>补充费用导入与分摊</h1>
     <p class="sub">
-      主界面为<strong>历史导入记录</strong>；「新增导入费用」在弹窗中配置分摊（店铺 ∩ MSKU，可选零售商）。弹窗内渠道/店铺、场景/品类、SKU/MSKU 以可搜索多选下拉为主，与基础数据 JSON（渠道店铺、场景品类）对齐。
+      主界面为<strong>历史导入记录</strong>；「新增导入费用」在弹窗中配置分摊（店铺 ∩ MSKU，可选零售商）。历史筛选含<strong>零售商</strong>（可搜索复选 +「全部」）；列表展示<strong>零售商范围摘要</strong>与 <strong>MSKU 范围摘要</strong>。弹窗内控件与基础数据 JSON 对齐。
     </p>
 
     <div class="filter-strip">
@@ -448,6 +448,13 @@
           <button type="button" class="btn secondary" id="btnQuery">查询</button>
         </div>
       </div>
+      <div class="filter-row" style="border-bottom:none;padding-top:2px;">
+        <div class="filter-item" style="flex:1;min-width:280px;flex-direction:column;align-items:stretch;gap:6px;">
+          <span class="filter-label">零售商</span>
+          <input type="search" id="qRetailerSearch" placeholder="搜索零售商" autocomplete="off" style="max-width:420px;">
+          <div id="qRetailerMultiBox" class="checkbox-multi" style="max-height:140px;max-width:520px;" role="group" aria-label="零售商筛选"></div>
+        </div>
+      </div>
     </div>
 
     <div class="toolbar">
@@ -467,7 +474,8 @@
                 <th>归属月</th>
                 <th class="num">补充金额</th>
                 <th>店铺范围摘要</th>
-                <th>场景/SKU 摘要</th>
+                <th>零售商范围摘要</th>
+                <th>MSKU范围摘要</th>
                 <th>状态</th>
                 <th>操作人</th>
                 <th>创建时间</th>
@@ -1081,6 +1089,16 @@
       });
     }
 
+    function rebuildQueryRetailerChecks() {
+      const box = document.getElementById("qRetailerMultiBox");
+      if (!box) return;
+      box.innerHTML = "";
+      appendCheckboxMasterRow(box, "qr-item", "全部");
+      RETAILER_NAMES.forEach((name) => {
+        appendCheckboxItemRow(box, "qr-item", name, name);
+      });
+    }
+
     function renderShopUi() {
       const paneCh = document.getElementById("shopPaneChannel");
       const paneSt = document.getElementById("shopPaneStore");
@@ -1211,6 +1229,7 @@
         month: "2026-04",
         amt: 10000,
         shopSummary: "渠道:Govee",
+        retailerSummary: "（未选）",
         mskuSummary: "场景:户外;居家",
         shopScopeDetail: "类型：按渠道；取值：Govee（与渠道店铺基础数据 channel_name 一致）。\n店铺交集：Govee_US、Govee_DE、独立站-US（示意，正式为解析结果集）。",
         mskuScopeDetail: "类型：按场景；取值：户外、居家。\nMSKU 交集：权重月内归属上述场景且落在店铺交集内的 MSKU。",
@@ -1229,6 +1248,7 @@
         month: "2026-03",
         amt: 3200,
         shopSummary: "全渠道",
+        retailerSummary: "（未选）",
         mskuSummary: "全场景",
         shopScopeDetail: "类型：全渠道；即所有渠道下全部店铺参与交集。",
         mskuScopeDetail: "类型：全场景；即所有场景下 MSKU 参与交集。",
@@ -1246,6 +1266,7 @@
         month: "2026-03",
         amt: 8000,
         shopSummary: "店铺:Govee_US;Govee_DE",
+        retailerSummary: "Best Buy；Target",
         mskuSummary: "SKU:H601*",
         shopScopeDetail: "类型：按店铺；取值：Govee_US、Govee_DE（与基础数据 store 一致）。",
         mskuScopeDetail: "类型：按 SKU 模糊；关键词 H601*；与管报 SKU 解析规则一致后得到 MSKU 集合。",
@@ -1285,8 +1306,9 @@
           <strong>状态：</strong>${escHtml(d.st)}　<strong>操作人：</strong>${escHtml(d.op)}　<strong>创建时间：</strong>${escHtml(d.at)}<br>
           <strong>店铺范围（列表摘要）：</strong>${escHtml(d.shopSummary)}<br>
           <strong>店铺范围（解析说明）：</strong><span style="white-space:pre-wrap;">${escHtml(d.shopScopeDetail)}</span><br>
-          <strong>MSKU/SKU 范围（列表摘要）：</strong>${escHtml(d.mskuSummary)}<br>
-          <strong>MSKU/SKU 范围（解析说明）：</strong><span style="white-space:pre-wrap;">${escHtml(d.mskuScopeDetail)}</span><br>
+          <strong>零售商范围（列表摘要）：</strong>${escHtml(d.retailerSummary || "—")}<br>
+          <strong>MSKU 范围（列表摘要）：</strong>${escHtml(d.mskuSummary)}<br>
+          <strong>MSKU 范围（解析说明）：</strong><span style="white-space:pre-wrap;">${escHtml(d.mskuScopeDetail)}</span><br>
           <strong>零售商：</strong>${escHtml(d.retailers)}
         </div>
       `;
@@ -1306,9 +1328,42 @@
 
     function renderHistory() {
       const mock = [
-        { id: "IMP-202604-001", fee: "广告费", month: "2026-04", amt: 10000, shop: "渠道:Govee", msku: "场景:户外;居家", st: "已生效", op: "zhangsan", at: "2026-04-02 10:20" },
-        { id: "IMP-202603-018", fee: "推广费", month: "2026-03", amt: 3200, shop: "全渠道", msku: "全场景", st: "已生效", op: "lisi", at: "2026-03-28 16:05" },
-        { id: "IMP-202603-017", fee: "广告费", month: "2026-03", amt: 8000, shop: "店铺:Govee_US;Govee_DE", msku: "SKU:H601*", st: "待复核", op: "wangwu", at: "2026-03-15 09:12" }
+        {
+          id: "IMP-202604-001",
+          fee: "广告费",
+          month: "2026-04",
+          amt: 10000,
+          shop: "渠道:Govee",
+          retailerSummary: "（未选）",
+          mskuScopeSummary: "按场景后交集 3 个 MSKU（如 H6011001+Govee+US、H6159001+Govee+US、H6011002+Govee+DE）",
+          st: "已生效",
+          op: "zhangsan",
+          at: "2026-04-02 10:20"
+        },
+        {
+          id: "IMP-202603-018",
+          fee: "推广费",
+          month: "2026-03",
+          amt: 3200,
+          shop: "全渠道",
+          retailerSummary: "（未选）",
+          mskuScopeSummary: "全场景下交集 2 个 MSKU（H6011001+Govee+US、H6198001+独立站+US）",
+          st: "已生效",
+          op: "lisi",
+          at: "2026-03-28 16:05"
+        },
+        {
+          id: "IMP-202603-017",
+          fee: "广告费",
+          month: "2026-03",
+          amt: 8000,
+          shop: "店铺:Govee_US;Govee_DE",
+          retailerSummary: "Best Buy；Target",
+          mskuScopeSummary: "按 SKU 模糊 H601* → 命中 4 个 MSKU（含 Govee_US / Govee_DE）",
+          st: "待复核",
+          op: "wangwu",
+          at: "2026-03-15 09:12"
+        }
       ];
       document.getElementById("historyBody").innerHTML = mock.map((r) => `
         <tr>
@@ -1317,7 +1372,8 @@
           <td>${escHtml(r.month)}</td>
           <td class="num">${r.amt.toLocaleString("zh-CN")}</td>
           <td>${escHtml(r.shop)}</td>
-          <td>${escHtml(r.msku)}</td>
+          <td>${escHtml(r.retailerSummary)}</td>
+          <td>${escHtml(r.mskuScopeSummary)}</td>
           <td>${escHtml(r.st)}</td>
           <td>${escHtml(r.op)}</td>
           <td>${escHtml(r.at)}</td>
@@ -1660,7 +1716,8 @@
     });
 
     document.getElementById("btnQuery").addEventListener("click", () => {
-      alert("原型：按筛选条件刷新历史列表。");
+      const rt = checkedItemValues("qRetailerMultiBox", "qr-item");
+      alert(`原型：按筛选条件刷新历史列表。零售商勾选：${rt.length ? rt.join("、") : "（未勾选，表示不限零售商）"}`);
     });
 
     (async function init() {
@@ -1686,6 +1743,7 @@
       rebuildSkuChecks();
       rebuildMskuChecks();
       rebuildRetailerChecks();
+      rebuildQueryRetailerChecks();
       wireCheckboxMultiSearch("chSearch", "chMultiBox");
       wireCheckboxMultiSearch("mStoreSearch", "storeMultiBox");
       wireCheckboxMultiSearch("mSceneSearch", "sceneMultiBox");
@@ -1693,6 +1751,7 @@
       wireCheckboxMultiSearch("mSkuSearch", "skuMultiBox");
       wireCheckboxMultiSearch("mMskuSearch", "mskuMultiBox");
       wireCheckboxMultiSearch("retailerSearch", "retailerMultiBox");
+      wireCheckboxMultiSearch("qRetailerSearch", "qRetailerMultiBox");
 
       renderHistory();
       renderShopUi();
