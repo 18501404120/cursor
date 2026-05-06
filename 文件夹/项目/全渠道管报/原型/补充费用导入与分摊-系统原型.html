@@ -491,7 +491,7 @@
         <div class="dialog-scroll">
           <p class="spec-note">
             数据：<code>文件夹/规范/基础数据/渠道店铺基础数据_v1.json</code>、<code>场景品类基础数据_v1.json</code>。
-            渠道、店铺、场景、品类、SKU、MSKU 均为<strong>可搜索的复选列表</strong>（无需按住 Cmd 多选）；每列首行「全部」可一键勾选当前列表可见项。
+            渠道、店铺、场景、品类、零售商均为<strong>可搜索的复选列表</strong>（无需按住 Cmd 多选）；首行「全部」可一键勾选当前列表可见项（按 SKU / 按 MSKU 因数据量大<strong>不提供</strong>「全部」）。
             按品类时场景为<strong>单选</strong>（含「全部」），品类为多选。若 <code>file://</code> 无法加载 JSON 则使用降级数据。
           </p>
 
@@ -605,7 +605,7 @@
               </div>
 
               <div id="mskuPaneSku" class="filter-strip" style="margin-top:12px;display:none;">
-                <div class="strip-title">SKU（可搜索 + 多选勾选；首行「全部」勾选列表中全部 SKU）</div>
+                <div class="strip-title">SKU（可搜索 + 多选勾选；不提供「全部」以免一次勾选过多）</div>
                 <div class="native-multi-wrap">
                   <label for="mSkuSearch">SKU</label>
                   <input type="search" id="mSkuSearch" placeholder="搜索 SKU" autocomplete="off">
@@ -616,7 +616,7 @@
               </div>
 
               <div id="mskuPaneMsku" class="filter-strip" style="margin-top:12px;display:none;">
-                <div class="strip-title">MSKU（可搜索 + 多选勾选；首行「全部」勾选列表中全部 MSKU）</div>
+                <div class="strip-title">MSKU（可搜索 + 多选勾选；不提供「全部」以免一次勾选过多）</div>
                 <div class="native-multi-wrap">
                   <label for="mMskuSearch">MSKU</label>
                   <input type="search" id="mMskuSearch" placeholder="搜索 MSKU" autocomplete="off">
@@ -634,16 +634,13 @@
           <div class="panel">
             <div class="panel-hd">第三类：零售商 <span class="badge opt">非必填</span></div>
             <div class="panel-bd" style="max-height:none;">
-              <div class="add-line">
-                <select id="retailerPick">
-                  <option value="">选择零售商</option>
-                  <option>Best Buy</option>
-                  <option>Target</option>
-                  <option>MediaMarkt</option>
-                  <option>Yodobashi</option>
-                </select>
-                <button type="button" class="btn secondary" id="addRetailer">添加</button>
+              <div class="native-multi-wrap" style="max-width:100%;">
+                <label for="retailerSearch">零售商（可搜索 + 多选勾选；首行「全部」）</label>
+                <input type="search" id="retailerSearch" placeholder="搜索零售商" autocomplete="off">
+                <div id="retailerMultiBox" class="checkbox-multi" role="group" aria-label="零售商多选"></div>
+                <button type="button" class="btn secondary" style="margin-top:8px;" id="addRetailer">将已选零售商加入清单</button>
               </div>
+              <div class="hint" style="margin-top:8px;">勾选后点加入；已选见下方标签。不选则分摊规则中不按零售商收窄。</div>
               <div class="tag-wrap" id="retailerTags"></div>
             </div>
           </div>
@@ -753,6 +750,8 @@
       { scene_name: "居家", categories: [{ category_code: "1006", category_name: "落地灯" }] },
       { scene_name: "户外", categories: [{ category_code: "3005", category_name: "庭院灯" }] }
     ];
+
+    const RETAILER_NAMES = ["Best Buy", "Target", "MediaMarkt", "Yodobashi"];
 
     const state = {
       channels: [],
@@ -1024,7 +1023,6 @@
       const box = document.getElementById("skuMultiBox");
       if (!box) return;
       box.innerHTML = "";
-      appendCheckboxMasterRow(box, "sku-item", "全部");
       buildSkuPool().forEach((sku) => {
         appendCheckboxItemRow(box, "sku-item", sku, sku);
       });
@@ -1034,9 +1032,18 @@
       const box = document.getElementById("mskuMultiBox");
       if (!box) return;
       box.innerHTML = "";
-      appendCheckboxMasterRow(box, "ms-item", "全部");
       buildMskuPool().forEach((m) => {
         appendCheckboxItemRow(box, "ms-item", m, m);
+      });
+    }
+
+    function rebuildRetailerChecks() {
+      const box = document.getElementById("retailerMultiBox");
+      if (!box) return;
+      box.innerHTML = "";
+      appendCheckboxMasterRow(box, "rt-item", "全部");
+      RETAILER_NAMES.forEach((name) => {
+        appendCheckboxItemRow(box, "rt-item", name, name);
       });
     }
 
@@ -1398,7 +1405,7 @@
     document.getElementById("mAddSkuSel").addEventListener("click", () => {
       const vals = checkedItemValues("skuMultiBox", "sku-item");
       if (!vals.length) {
-        alert("请勾选至少一个 SKU（可用首行「全部」），再点击加入清单。");
+        alert("请勾选至少一个 SKU，再点击加入清单。");
         return;
       }
       vals.forEach((v) => {
@@ -1412,7 +1419,7 @@
     document.getElementById("mAddMskuSel").addEventListener("click", () => {
       const vals = checkedItemValues("mskuMultiBox", "ms-item");
       if (!vals.length) {
-        alert("请勾选至少一个 MSKU（可用首行「全部」），再点击加入清单。");
+        alert("请勾选至少一个 MSKU，再点击加入清单。");
         return;
       }
       vals.forEach((v) => {
@@ -1423,9 +1430,14 @@
       updateRuleText();
     });
     document.getElementById("addRetailer").addEventListener("click", () => {
-      const v = document.getElementById("retailerPick").value;
-      if (!v || state.retailerTags.includes(v)) return;
-      state.retailerTags.push(v);
+      const vals = checkedItemValues("retailerMultiBox", "rt-item");
+      if (!vals.length) {
+        alert("请勾选至少一个零售商（可用首行「全部」一键勾选），再点击「将已选零售商加入清单」。");
+        return;
+      }
+      vals.forEach((v) => {
+        if (!state.retailerTags.includes(v)) state.retailerTags.push(v);
+      });
       wireRetailerTags();
       updateRuleText();
     });
@@ -1525,12 +1537,14 @@
       rebuildCatCategoryChecks();
       rebuildSkuChecks();
       rebuildMskuChecks();
+      rebuildRetailerChecks();
       wireCheckboxMultiSearch("chSearch", "chMultiBox");
       wireCheckboxMultiSearch("mStoreSearch", "storeMultiBox");
       wireCheckboxMultiSearch("mSceneSearch", "sceneMultiBox");
       wireCheckboxMultiSearch("mCatCategorySearch", "catCategoryMultiBox");
       wireCheckboxMultiSearch("mSkuSearch", "skuMultiBox");
       wireCheckboxMultiSearch("mMskuSearch", "mskuMultiBox");
+      wireCheckboxMultiSearch("retailerSearch", "retailerMultiBox");
 
       renderHistory();
       renderShopUi();
