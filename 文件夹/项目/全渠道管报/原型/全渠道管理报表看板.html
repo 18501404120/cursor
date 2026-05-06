@@ -687,8 +687,117 @@
       z-index: 5;
     }
 
+    th.left-5,
+    td.left-5 {
+      position: sticky;
+      left: 730px;
+      background: inherit;
+      z-index: 5;
+      min-width: 120px;
+      max-width: 160px;
+    }
+
     .sticky-base {
       background: #fff;
+    }
+
+    .retailer-dim-label {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
+      user-select: none;
+      color: var(--text);
+    }
+
+    .retailer-dim-label input {
+      margin: 0;
+      cursor: pointer;
+    }
+
+    .retailer-filter-wrap {
+      align-items: flex-start;
+    }
+
+    .retailer-ms {
+      position: relative;
+      min-width: 200px;
+    }
+
+    .retailer-ms-trigger {
+      height: 28px;
+      padding: 0 10px;
+      border: 1px solid var(--line);
+      border-radius: 4px;
+      background: #fff;
+      font-size: 12px;
+      cursor: pointer;
+      text-align: left;
+      width: 100%;
+      color: var(--text);
+    }
+
+    .retailer-ms-trigger:focus {
+      outline: none;
+      border-color: var(--blue);
+      box-shadow: 0 0 0 2px rgba(22, 119, 255, 0.12);
+    }
+
+    .retailer-ms-panel {
+      display: none;
+      position: absolute;
+      z-index: 30;
+      top: calc(100% + 4px);
+      left: 0;
+      min-width: 240px;
+      max-height: 260px;
+      overflow: auto;
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      padding: 8px;
+    }
+
+    .retailer-ms-panel.open {
+      display: block;
+    }
+
+    .retailer-ms-search {
+      width: 100%;
+      height: 26px;
+      margin-bottom: 8px;
+      padding: 0 8px;
+      border: 1px solid var(--line);
+      border-radius: 4px;
+      font-size: 12px;
+    }
+
+    .retailer-ms-actions {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 6px;
+      font-size: 11px;
+    }
+
+    .retailer-ms-actions button {
+      border: none;
+      background: none;
+      color: var(--blue);
+      cursor: pointer;
+      padding: 0;
+    }
+
+    .retailer-check-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 2px;
+      font-size: 12px;
+    }
+
+    .retailer-check-row.hidden-by-search {
+      display: none;
     }
 
     .metric-main {
@@ -942,6 +1051,23 @@
               <div class="f"><label>国家<span class="req-dot" data-req-key="filter-region-country-link">!</span></label><select id="countryFilter"><option>全部</option></select></div>
               <div class="f"><label>渠道<span class="req-dot" data-req-key="filter-channel-store-link">!</span></label><select id="channelFilter"><option>全部</option></select></div>
               <div class="f"><label>店铺<span class="req-dot" data-req-key="filter-channel-store-link">!</span></label><select id="storeFilter"><option>全部</option></select></div>
+              <div class="f retailer-dim-wrap">
+                <label class="retailer-dim-label"><input type="checkbox" id="retailerDim" />零售商维度<span class="req-dot" data-req-key="retailer-dimension">!</span></label>
+              </div>
+              <div class="f retailer-filter-wrap" id="retailerFilterWrap" style="display:none;">
+                <label>零售商<span class="req-dot" data-req-key="retailer-filter">!</span></label>
+                <div class="retailer-ms" id="retailerMsRoot">
+                  <button type="button" class="retailer-ms-trigger" id="retailerMsTrigger">全部零售商（未筛选）</button>
+                  <div class="retailer-ms-panel" id="retailerMsPanel">
+                    <input type="text" class="retailer-ms-search" id="retailerSearch" placeholder="搜索零售商" autocomplete="off" />
+                    <div class="retailer-ms-actions">
+                      <button type="button" id="retailerSelectAll">全选</button>
+                      <button type="button" id="retailerClearAll">清空</button>
+                    </div>
+                    <div id="retailerCheckList"></div>
+                  </div>
+                </div>
+              </div>
               <div class="f"><label>部门</label><select><option>全部</option><option>销售</option><option>品牌</option></select></div>
               <div class="f"><label>场景</label><select><option>全部</option><option>居家</option><option>氛围</option></select></div>
               <div class="f"><label>品类</label><select><option>全部</option><option>落地灯</option><option>灯带</option></select></div>
@@ -1203,7 +1329,96 @@
       return values;
     }
 
-    function createDetailRows(count = 50) {
+    const RETAIL_ACCOUNT_CHANNELS = new Set(["商超", "分销"]);
+    const ALL_RETAILER_OPTIONS = ["沃尔玛商超", "Target商超", "家乐福分销", "区域分销A", "未知"];
+
+    const SOURCE_NUM_KEYS = [
+      "orderSales",
+      "netSales",
+      "freightIncome",
+      "packageIncome",
+      "discount",
+      "directDiscount",
+      "refund",
+      "tax",
+      "shipCost",
+      "returnCost",
+      "platformCompensation",
+      "adCost",
+      "brandCost",
+      "promoCost",
+      "sampleCost",
+      "firstLeg",
+      "lastLeg",
+      "returnFreight",
+      "storageCost",
+      "dutyCost",
+      "fbaFee",
+      "platformFee",
+      "paymentFee",
+      "shopFee",
+      "commissionFee",
+      "miscCost",
+      "reserveGross",
+      "qty"
+    ];
+
+    function zeroSource() {
+      const z = {};
+      SOURCE_NUM_KEYS.forEach((k) => {
+        z[k] = 0;
+      });
+      return z;
+    }
+
+    function addSource(a, b) {
+      const out = { ...a };
+      SOURCE_NUM_KEYS.forEach((k) => {
+        out[k] = Number(out[k] || 0) + Number(b[k] || 0);
+      });
+      out.qty = Math.round(out.qty);
+      return out;
+    }
+
+    function scaleSource(src, factor) {
+      const out = {};
+      SOURCE_NUM_KEYS.forEach((k) => {
+        out[k] = (Number(src[k]) || 0) * factor;
+      });
+      out.qty = Math.round(out.qty);
+      return out;
+    }
+
+    function mergeRowsByStoreMsku(rows) {
+      const groups = new Map();
+      rows.forEach((row) => {
+        const key = `${row.store}|${row.msku}`;
+        if (!groups.has(key)) {
+          groups.set(key, { template: row, sources: [] });
+        }
+        groups.get(key).sources.push(row._source);
+      });
+      return Array.from(groups.values()).map((g) => {
+        const mergedSource = g.sources.reduce((acc, s) => addSource(acc, s), zeroSource());
+        const values = buildBusinessValues(mergedSource);
+        const t = g.template;
+        return {
+          region: t.region,
+          scene: t.scene,
+          team: t.team,
+          tl: t.tl,
+          sku: t.sku,
+          msku: t.msku,
+          channel: t.channel,
+          store: t.store,
+          retailer: "",
+          values,
+          _source: mergedSource
+        };
+      });
+    }
+
+    function createGranularSeedRows(count = 50) {
       const regions = [
         { region: "北美区", country: "US", store: "Govee US" },
         { region: "北美区", country: "CA", store: "Govee CA" },
@@ -1211,7 +1426,17 @@
         { region: "欧洲区", country: "FR", store: "Govee FR" },
         { region: "亚太区", country: "JP", store: "Govee JP" }
       ];
-      const channels = ["亚马逊", "独立站", "TikTok", "沃尔玛", "Temu"];
+      const channels = ["亚马逊", "独立站", "TikTok", "沃尔玛", "Temu", "商超", "分销"];
+      const retailSplits = [
+        { retailer: "沃尔玛商超", w: 0.5 },
+        { retailer: "Target商超", w: 0.35 },
+        { retailer: "未知", w: 0.15 }
+      ];
+      const distSplits = [
+        { retailer: "家乐福分销", w: 0.42 },
+        { retailer: "区域分销A", w: 0.4 },
+        { retailer: "未知", w: 0.18 }
+      ];
       const scenes = [
         { scene: "居家", category: "落地灯", line: "6011" },
         { scene: "居家", category: "灯带", line: "6159" },
@@ -1221,8 +1446,9 @@
       ];
       const salesOwners = ["kaiwu", "vicky", "allen", "raina", "jack"];
       const tls = ["bingna", "harry", "luna", "mia", "evan"];
+      const rows = [];
 
-      return Array.from({ length: count }, (_, idx) => {
+      for (let idx = 0; idx < count; idx += 1) {
         const i = idx + 1;
         const regionInfo = regions[idx % regions.length];
         const channel = channels[idx % channels.length];
@@ -1234,7 +1460,7 @@
         const bump = ((idx % 5) * 47);
 
         const netSales = 7600 * factor + 3500 + bump;
-        const values = buildBusinessValues({
+        const fullSource = {
           orderSales: netSales * 1.042 + (idx % 6) * 18,
           netSales,
           freightIncome: 420 * factor + (idx % 4) * 60,
@@ -1263,39 +1489,43 @@
           miscCost: 28 * factor + (idx % 3) * 5,
           reserveGross: 105 * factor + (idx % 3) * 9,
           qty: 650 * factor + (idx % 7) * 28
-        });
+        };
 
-        return {
+        const baseMeta = {
           region: `${regionInfo.region}/${regionInfo.country}/${regionInfo.store}`,
           scene: `${sceneInfo.scene}/${sceneInfo.category}/${sceneInfo.line}`,
           team: `sales: ${owner}`,
           tl: `TL: ${tl}`,
           sku: `sku:${skuCode}`,
           msku: `${skuCode}+${channel}+${regionInfo.country}`,
-          values
+          channel,
+          store: regionInfo.store
         };
-      });
+
+        if (RETAIL_ACCOUNT_CHANNELS.has(channel)) {
+          const splits = channel === "商超" ? retailSplits : distSplits;
+          splits.forEach((sp) => {
+            const src = scaleSource(fullSource, sp.w);
+            rows.push({
+              ...baseMeta,
+              retailer: sp.retailer,
+              values: buildBusinessValues(src),
+              _source: src
+            });
+          });
+        } else {
+          rows.push({
+            ...baseMeta,
+            retailer: "",
+            values: buildBusinessValues(fullSource),
+            _source: { ...fullSource }
+          });
+        }
+      }
+      return rows;
     }
 
-    const detailRows = createDetailRows(50);
-    const totalValues = {};
-    feeColumns.forEach((fee) => {
-      const sum = detailRows.reduce((acc, row) => acc + (Number(row.values[fee]) || 0), 0);
-      totalValues[fee] = fee === "销量" ? Math.round(sum) : round2(sum);
-    });
-
-    const baseRows = [
-      {
-        region: "总计",
-        scene: "全场景/全部品类/全部品线",
-        team: "sales: 全部",
-        tl: "TL: 全部",
-        sku: "sku: 全部SKU",
-        msku: "",
-        values: totalValues
-      },
-      ...detailRows
-    ];
+    const granularSeedRows = createGranularSeedRows(50);
 
     const financeMultipliers = {
       ok: 0.985,
@@ -1352,8 +1582,6 @@
         : null;
       return { ...row, values };
     }
-
-    const financeRows = baseRows.map(deriveFinanceRow);
 
     function mean(values) {
       if (!values.length) return 0;
@@ -1465,8 +1693,57 @@
       grain: "day",
       showRatio: true,
       activeSeries: new Set(),
-      expandedRows: new Set()
+      expandedRows: new Set(),
+      retailerDimension: false,
+      selectedRetailers: new Set()
     };
+
+    function applyRetailerNameFilter(rows) {
+      if (!state.retailerDimension || state.selectedRetailers.size === 0) return rows;
+      return rows.filter((r) => {
+        const name = r.retailer || "";
+        if (!name) return true;
+        return state.selectedRetailers.has(name);
+      });
+    }
+
+    function getDetailRowsForDisplay() {
+      const filtered = applyRetailerNameFilter(granularSeedRows);
+      if (state.retailerDimension) return filtered;
+      return mergeRowsByStoreMsku(filtered);
+    }
+
+    function syncRetailerDimensionFromUi() {
+      const el = document.getElementById("retailerDim");
+      state.retailerDimension = !!(el && el.checked);
+    }
+
+    let baseRows = [];
+    let financeRows = [];
+
+    function rebuildBaseAndFinance() {
+      syncRetailerDimensionFromUi();
+      const detail = getDetailRowsForDisplay();
+      const totalValues = {};
+      feeColumns.forEach((fee) => {
+        const sum = detail.reduce((acc, row) => acc + (Number(row.values[fee]) || 0), 0);
+        totalValues[fee] = fee === "销量" ? Math.round(sum) : round2(sum);
+      });
+      baseRows = [
+        {
+          region: "总计",
+          scene: "全场景/全部品类/全部品线",
+          team: "sales: 全部",
+          tl: "TL: 全部",
+          sku: "sku: 全部SKU",
+          msku: "",
+          retailer: "",
+          values: totalValues
+        },
+        ...detail
+      ];
+      financeRows = baseRows.map(deriveFinanceRow);
+    }
 
     const cardsHost = document.getElementById("cardsHost");
     const legendHost = document.getElementById("legendHost");
@@ -1518,15 +1795,27 @@
 3. 需保留原有指标并新增流量、转化率、毛利率；不可替换原指标。`,
       "trend-legend-rule": `趋势图图例逻辑：<br>
 1. 图例支持点击开关指标。<br>
-2. 成交价、促销力度仅在筛选结果为单个 MSKU 时显示。<br>
+2. 成交价、促销力度仅在<strong>全局筛选结果为单个 MSKU</strong>（精确 SKU 条件命中唯一 MSKU）时显示。<br>
 3. 成交价 = 总营收 / 销量。<br>
 4. 促销力度 = 1 - 成交价 / RRP价。<br>
-5. 转化率、毛利率、促销力度走右侧纵轴，其余指标走左侧纵轴。`,
+5. 转化率、毛利率、促销力度走右侧纵轴，其余指标走左侧纵轴。<br>
+6. 勾选「零售商维度」后，明细可有多行同一 MSKU（不同零售商）；趋势图中成交价/促销力度仍以<strong>全局唯一 MSKU</strong>为展示前提，语义为<strong>该 MSKU 下当前序列的成交价</strong>（若需按零售商拆线，由数据模块定义；原型仍为单序列演示）。`,
       "table-detail-overview": `明细表结构（业务 / 财务 双轨）：<br>
 1. <strong>主行「业务维度」</strong>：各列金额来自<strong>业务系统</strong>及其汇总规则，与财务关账无必然同时性。<br>
 2. 展开<strong>「财务维度」</strong>行：同一列表头下，单元格为<strong>财务系统</strong>在该指标上的结果；取数路径与主行<strong>完全独立</strong>，具体由「业务指标 ↔ 财务系统字段」映射配置（含一对一、多科目合并等）。<strong>不是</strong>把业务主行数值复制为财务口径。<br>
 3. <strong>「对照差异」</strong>行：在业务值与财务值均存在时，差额 = 业务维度值 − 财务维度值，用于经营对照。<br>
-4. 映射在「财务费用字段与业务字段映射维护」中配置，发布后对明细表财务维度行生效。`,
+4. 映射在「财务费用字段与业务字段映射维护」中配置，发布后对明细表财务维度行生效。<br>
+5. <strong>零售商维度</strong>：全页共用「零售商维度」勾选。勾选后明细按<strong>店铺+MSKU+零售商</strong>拆行并展示「零售商」列；商超/分销有零售商名称，其余渠道该列为空。未勾选时在<strong>店铺+MSKU</strong>粒度合并，缺失零售商并入<strong>未知</strong>后参与汇总；合并时金额类先汇总底层口径再在合并粒度<strong>按规则重算</strong>计算列（与简单加总计算列区分）。零售商筛选与渠道/店铺<strong>不联动</strong>；有筛选时零售商列为空的行（非商超分销）始终保留。`,
+      "retailer-dimension": `零售商维度（全页共用）：<br>
+1. 默认<strong>不勾选</strong>：列表与筛选区<strong>不展示</strong>零售商；明细粒度为<strong>店铺+MSKU</strong>，商超/分销下多零售商数据<strong>合并</strong>，缺失零售商已并入<strong>未知</strong>后再汇总。<br>
+2. <strong>勾选</strong>：列表增加「零售商」列，筛选区出现「零售商」多选（可搜索）；粒度为<strong>店铺+MSKU+零售商</strong>。<br>
+3. 非商超/分销渠道：零售商字段<strong>为空</strong>（导出同规则）。<br>
+4. 合并粒度下各指标在「店铺+MSKU」上按<strong>底表规则重算</strong>（原型对业务行先合并底层 source 再重跑 buildBusinessValues 链演示）。`,
+      "retailer-filter": `零售商筛选：<br>
+1. 仅在勾选「零售商维度」时显示。<br>
+2. 与渠道、店铺<strong>无联动</strong>，选项为零售商主数据全集（可搜索、多选）。<br>
+3. <strong>未选任何零售商</strong>表示不做零售商子集限制（仍仅展示已勾选维度下的拆行结果）。<br>
+4. 有选择时：过滤零售商名称命中项；零售商为空的行（其他渠道）<strong>始终展示</strong>。`,
       "table-finance-dimension": `<strong>财务维度行：两套取数 + 映射填数</strong><br>
 1. <strong>独立链路</strong>：业务主行与财务维度行分别走业务系统、财务系统，数据源与加工逻辑不同。<br>
 2. <strong>按映射填格</strong>：每个业务列表头对应一项业务指标。若映射为「业务销售额 ↔ 财务销售额」，则该列财务维度格为<strong>财务系统</strong>销售额汇总；若映射为「业务 A ↔ 财务 B + C（及允许的减项）」，则该格为财务系统中 B、C 等按配置运算后的汇总。<br>
@@ -1548,7 +1837,12 @@
 4. 带「（计算值=…）」类列的<strong>解释性口径</strong>放在表头「i」浮层中，列名展示为短标题。<br>
 5. 各列下方占比：分母统一为<strong>营收</strong>（收入净额），副文案为括号内数值，如 <strong>(89.12%)</strong>；<strong>营收</strong>列为 <strong>(100%)</strong>；销售额等可大于 100%，属正常情况。<br>
 6. 费用项关系图右上角为「占比是以营收为100%口径」；图中各金额旁占比同为 <strong>(xx.xx%)</strong> 形式（营收主块为 <strong>(100%)</strong>）。`,
-      "export-template": `导出模版：https://alidocs.dingtalk.com/i/nodes/a9E05BDRVQ6gzQaAh2Y9g407J63zgkYA`
+      "export-template": `导出模版：https://alidocs.dingtalk.com/i/nodes/a9E05BDRVQ6gzQaAh2Y9g407J63zgkYA<br><br>
+<strong>导出与「零售商」列（模版字段保持一致）</strong><br>
+1. 导出文件<strong>始终包含「零售商」列</strong>，与线上模版列一致。<br>
+2. <strong>未勾选「零售商维度」</strong>：行为「店铺+MSKU」合并导出，「零售商」列<strong>留空</strong>（合并后不再区分零售商）。<br>
+3. <strong>勾选「零售商维度」</strong>：按零售商拆行导出，「零售商」列填写对应名称；非商超/分销行为空。<br>
+4. 导出范围与当前筛选、时间粒度等一致，由导出类型（按日合计/明细等）决定。`
     };
 
     function parseCalcInfo(fee) {
@@ -2104,6 +2398,7 @@
     }
 
     function renderTable() {
+      const retailerCol = state.retailerDimension;
       const businessRows = buildRowsForView("business");
       const financeRowsView = buildRowsForView("finance");
       const deltaRows = buildRowsForView("delta");
@@ -2127,7 +2422,13 @@
         ].includes(fee)).length
       };
 
-      tableDesc.textContent = "主行为业务系统取数；点击「+」展开「财务维度」（财务系统、按映射）与「对照差异」。";
+      tableDesc.textContent = retailerCol
+        ? "主行为业务系统取数；勾选「零售商维度」时按店铺+MSKU+零售商拆行，商超/分销有零售商，其余渠道零售商列为空；点击「+」展开财务与对照差异。"
+        : "主行为业务系统取数；未勾选「零售商维度」时按店铺+MSKU 合并（含商超/分销多零售商汇总，计算列在合并粒度按底表规则重算）；点击「+」展开「财务维度」与「对照差异」。";
+
+      const retailerTh = retailerCol
+        ? `<th class="left-5 sticky-base" style="min-width:120px;" rowspan="2">零售商</th>`
+        : "";
 
       let thead = `
         <thead>
@@ -2136,6 +2437,7 @@
             <th class="left-2 sticky-base" style="min-width:180px;" rowspan="2">场景/品类/品线</th>
             <th class="left-3 sticky-base" style="min-width:170px;" rowspan="2">销售/TL</th>
             <th class="left-4 sticky-base" style="min-width:210px;" rowspan="2">SKU信息</th>
+            ${retailerTh}
             <th colspan="${groupCount.result}">结果指标<span class="req-dot" data-req-key="table-header-rule">!</span></th>
             <th colspan="${groupCount.revenue}">收入链路<span class="req-dot" data-req-key="table-header-rule">!</span></th>
             <th colspan="${groupCount.cost}">成本费用链路<span class="req-dot" data-req-key="table-header-rule">!</span></th>
@@ -2195,6 +2497,10 @@
             ${row.msku ? `<div class="row-meta-sub">${row.msku}</div>` : ""}
           </div>
         `;
+        const retailerCell = retailerCol
+          ? `<td class="left-5 sticky-base">${row.retailer ? row.retailer : "—"}</td>`
+          : "";
+        const expandPad = retailerCol ? `<td class="left-5 sticky-base"></td>` : "";
 
         return `
           <tr class="${isSummary ? "summary-row" : ""}">
@@ -2206,6 +2512,7 @@
             <td class="left-2 sticky-base">${row.scene}</td>
             <td class="left-3 sticky-base">${teamBlock}</td>
             <td class="left-4 sticky-base">${skuBlock}</td>
+            ${retailerCell}
             ${renderFeeCells(row, "business")}
           </tr>
           ${opened ? `
@@ -2214,6 +2521,7 @@
             <td class="left-2 sticky-base"></td>
             <td class="left-3 sticky-base"></td>
             <td class="left-4 sticky-base"></td>
+            ${expandPad}
             ${renderFeeCells(financeRow, "finance")}
           </tr>
           <tr class="expand-row">
@@ -2221,6 +2529,7 @@
             <td class="left-2 sticky-base"></td>
             <td class="left-3 sticky-base"></td>
             <td class="left-4 sticky-base"></td>
+            ${expandPad}
             ${renderFeeCells(deltaRow, "delta")}
           </tr>
           ` : ""}
@@ -2239,6 +2548,7 @@
     }
 
     function renderAll() {
+      rebuildBaseAndFinance();
       renderCards();
       renderLegend();
       renderChart();
@@ -2269,7 +2579,106 @@
       const option = event.target.closest("[data-export-type]");
       if (!option) return;
       exportMenu.classList.remove("open");
+      const dimOn = document.getElementById("retailerDim")?.checked === true;
+      const retailerHint = dimOn
+        ? "导出按零售商拆行；模版始终含「零售商」列并填入名称（非商超/分销行为空）。"
+        : "导出为店铺+MSKU 合并；模版仍含「零售商」列但该列为空；数据已按合并粒度重算。";
+      alert(`${option.textContent}\n\n${retailerHint}\n（原型提示，实际文件由导出任务生成。）`);
     });
+
+    function renderRetailerCheckList() {
+      const host = document.getElementById("retailerCheckList");
+      if (!host) return;
+      host.innerHTML = ALL_RETAILER_OPTIONS.map((name) => `
+        <label class="retailer-check-row" data-name="${name}">
+          <input type="checkbox" value="${name}" ${state.selectedRetailers.has(name) ? "checked" : ""} />
+          <span>${name}</span>
+        </label>
+      `).join("");
+      filterRetailerListBySearch();
+    }
+
+    function filterRetailerListBySearch() {
+      const q = (document.getElementById("retailerSearch")?.value || "").trim().toLowerCase();
+      document.querySelectorAll("#retailerCheckList .retailer-check-row").forEach((row) => {
+        const name = (row.dataset.name || "").toLowerCase();
+        row.classList.toggle("hidden-by-search", Boolean(q && !name.includes(q)));
+      });
+    }
+
+    function updateRetailerTriggerText() {
+      const btn = document.getElementById("retailerMsTrigger");
+      if (!btn) return;
+      if (!state.selectedRetailers.size) {
+        btn.textContent = "全部零售商（未筛选）";
+        return;
+      }
+      btn.textContent = `已选 ${state.selectedRetailers.size} 项`;
+    }
+
+    function setupRetailerControls() {
+      const wrap = document.getElementById("retailerFilterWrap");
+      const dim = document.getElementById("retailerDim");
+      const trigger = document.getElementById("retailerMsTrigger");
+      const panel = document.getElementById("retailerMsPanel");
+      const search = document.getElementById("retailerSearch");
+      const host = document.getElementById("retailerCheckList");
+
+      document.getElementById("retailerSelectAll")?.addEventListener("click", (e) => {
+        e.preventDefault();
+        ALL_RETAILER_OPTIONS.forEach((n) => state.selectedRetailers.add(n));
+        renderRetailerCheckList();
+        updateRetailerTriggerText();
+        renderAll();
+      });
+      document.getElementById("retailerClearAll")?.addEventListener("click", (e) => {
+        e.preventDefault();
+        state.selectedRetailers.clear();
+        renderRetailerCheckList();
+        updateRetailerTriggerText();
+        renderAll();
+      });
+
+      host?.addEventListener("change", (event) => {
+        const box = event.target.closest("input[type=\"checkbox\"][value]");
+        if (!box || !host.contains(box)) return;
+        if (box.checked) state.selectedRetailers.add(box.value);
+        else state.selectedRetailers.delete(box.value);
+        updateRetailerTriggerText();
+        renderAll();
+      });
+
+      dim?.addEventListener("change", () => {
+        state.retailerDimension = dim.checked;
+        if (wrap) wrap.style.display = dim.checked ? "flex" : "none";
+        if (!dim.checked) {
+          panel?.classList.remove("open");
+          state.selectedRetailers.clear();
+          renderRetailerCheckList();
+          updateRetailerTriggerText();
+        }
+        renderAll();
+      });
+
+      trigger?.addEventListener("click", (e) => {
+        e.stopPropagation();
+        panel?.classList.toggle("open");
+      });
+
+      search?.addEventListener("input", () => {
+        filterRetailerListBySearch();
+      });
+
+      document.addEventListener("click", (e) => {
+        if (!panel?.classList.contains("open")) return;
+        if (e.target.closest("#retailerMsRoot")) return;
+        panel.classList.remove("open");
+      });
+
+      if (wrap) wrap.style.display = "none";
+      renderRetailerCheckList();
+      updateRetailerTriggerText();
+    }
 
     Array.from(document.querySelectorAll("#grainTabs .tab")).forEach((node) => {
       node.addEventListener("click", () => setGrain(node.dataset.grain));
@@ -2329,6 +2738,7 @@
 
     setupRegionCountryLinkage();
     setupChannelStoreLinkage();
+    setupRetailerControls();
     setDefaultDateRangeToLastMonth();
     updateCurrencyFilterByCountry();
     renderAll();
