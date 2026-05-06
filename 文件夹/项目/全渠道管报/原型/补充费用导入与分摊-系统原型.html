@@ -347,6 +347,28 @@
       border-radius: 6px;
       font-size: 13px;
     }
+    /* 可搜索复选列表（替代原生多选，避免需按住 Cmd 多选） */
+    .checkbox-multi {
+      border: 1px solid var(--border-input);
+      border-radius: 6px;
+      padding: 6px 8px;
+      max-height: 220px;
+      overflow-y: auto;
+      background: #fff;
+      font-size: 13px;
+    }
+    .checkbox-multi .chk-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 5px 4px;
+      margin: 0;
+      cursor: pointer;
+      border-radius: 4px;
+    }
+    .checkbox-multi .chk-row:hover { background: #f1f5f9; }
+    .checkbox-multi .chk-row.chk-master { font-weight: 600; color: #0f2f63; }
+    .checkbox-multi .chk-row input { flex-shrink: 0; }
     .spec-note {
       font-size: 12px;
       color: var(--muted);
@@ -469,9 +491,8 @@
         <div class="dialog-scroll">
           <p class="spec-note">
             数据：<code>文件夹/规范/基础数据/渠道店铺基础数据_v1.json</code>、<code>场景品类基础数据_v1.json</code>。
-            按渠道：可搜索多选下拉后加入清单。按店铺：先选渠道，店铺为多选下拉（可搜索）；仅「加入当前店铺」——店铺未选时加入该渠道全部店铺，有选则只加入所选。
-            按场景：可搜索多选场景后加入清单。按品类：场景与品类均为可搜索多选；点「加入当前品类」时未选品类则加入所选场景下全部品类。
-            按 SKU / 按 MSKU：可搜索多选，加入后下方标签展示已选编码。若 <code>file://</code> 无法加载 JSON 则使用降级数据。
+            渠道、店铺、场景、品类、SKU、MSKU 均为<strong>可搜索的复选列表</strong>（无需按住 Cmd 多选）；每列首行「全部」可一键勾选当前列表可见项。
+            按品类时场景为<strong>单选</strong>（含「全部」），品类为多选。若 <code>file://</code> 无法加载 JSON 则使用降级数据。
           </p>
 
           <div class="panel">
@@ -515,14 +536,14 @@
                 <button type="button" data-mode="store">按店铺（多选）</button>
               </div>
               <div id="shopPaneChannel" class="filter-strip" style="margin-top:12px;display:none;">
-                <div class="strip-title">渠道（可搜索多选下拉，与基础数据渠道名一致）</div>
+                <div class="strip-title">渠道（可搜索 + 多选勾选，与基础数据渠道名一致；首行「全部」表示勾选所有渠道）</div>
                 <div class="native-multi-wrap" style="max-width:100%;">
-                  <label for="chMulti">渠道</label>
+                  <label for="chSearch">渠道</label>
                   <input type="search" id="chSearch" placeholder="搜索渠道名" autocomplete="off">
-                  <select id="chMulti" multiple aria-label="渠道多选"></select>
+                  <div id="chMultiBox" class="checkbox-multi" role="group" aria-label="渠道多选"></div>
                   <button type="button" class="btn secondary" style="margin-top:8px;" id="mAddChannelSel">将已选渠道加入清单</button>
                 </div>
-                <div class="hint">在列表中按住 Ctrl/Cmd（Mac）多选渠道，再点击加入；已选见下方标签。</div>
+                <div class="hint">勾选多项后点加入；首行「全部」可一键勾选/取消当前列表中所有渠道。</div>
               </div>
               <div id="shopPaneStore" class="filter-strip" style="margin-top:12px;display:none;">
                 <div class="strip-title">渠道单选 + 店铺多选（可搜索）；仅「加入当前店铺」</div>
@@ -533,10 +554,10 @@
                   </div>
                 </div>
                 <div class="native-multi-wrap" style="margin-top:10px;max-width:100%;">
-                  <label for="mStoreMulti">店铺（多选，可搜索）</label>
+                  <label for="mStoreSearch">店铺（可搜索 + 多选勾选）</label>
                   <input type="search" id="mStoreSearch" placeholder="搜索店铺名" autocomplete="off">
-                  <select id="mStoreMulti" multiple aria-label="店铺多选"></select>
-                  <div class="hint" style="margin-top:6px;">先选渠道：店铺未勾选时表示「该渠道全部店铺」；已勾选则只加入勾选店铺。</div>
+                  <div id="storeMultiBox" class="checkbox-multi" role="group" aria-label="店铺多选"></div>
+                  <div class="hint" style="margin-top:6px;">首行「全部」勾选当前列表全部店铺。先选渠道：具体渠道下若未勾选任何店铺再点加入，仍为该渠道全部店铺。</div>
                   <button type="button" class="btn secondary" style="margin-top:8px;" id="mAddStore">加入当前店铺</button>
                 </div>
               </div>
@@ -557,48 +578,49 @@
               </div>
 
               <div id="mskuPaneScene" class="filter-strip" style="margin-top:12px;display:none;">
-                <div class="strip-title">场景（可搜索多选下拉）</div>
+                <div class="strip-title">场景（可搜索 + 多选勾选；首行「全部」勾选所有场景）</div>
                 <div class="native-multi-wrap" style="max-width:100%;">
-                  <label for="mSceneMulti">场景</label>
+                  <label for="mSceneSearch">场景</label>
                   <input type="search" id="mSceneSearch" placeholder="搜索场景名" autocomplete="off">
-                  <select id="mSceneMulti" multiple aria-label="场景多选"></select>
+                  <div id="sceneMultiBox" class="checkbox-multi" role="group" aria-label="场景多选"></div>
                   <button type="button" class="btn secondary" style="margin-top:8px;" id="mAddSceneSel">将已选场景加入清单</button>
                 </div>
                 <div class="hint">加入后下方标签展示已选场景名。</div>
               </div>
 
               <div id="mskuPaneCategory" class="filter-strip" style="margin-top:12px;display:none;">
-                <div class="strip-title">场景与品类（均为可搜索多选）；点「加入当前品类」：未选品类时加入所选场景下全部品类，有选品类时仅加入所选</div>
-                <div class="native-multi-wrap" style="margin-top:4px;">
-                  <label for="mCatSceneMulti">场景</label>
-                  <input type="search" id="mCatSceneSearch" placeholder="搜索场景" autocomplete="off">
-                  <select id="mCatSceneMulti" multiple aria-label="场景多选收窄"></select>
+                <div class="strip-title">场景单选（含「全部」）+ 品类多选勾选；点「加入当前品类」：未勾选具体品类时加入当前场景下全部品类，有勾选则只加入勾选品类</div>
+                <div class="filter-row" style="border-bottom:none;padding-bottom:0;margin-top:4px;">
+                  <div class="filter-item" style="flex-wrap:wrap;">
+                    <span class="filter-label">场景</span>
+                    <select id="mCatSceneSel" aria-label="场景单选" style="min-width:200px;"></select>
+                  </div>
                 </div>
                 <div class="native-multi-wrap" style="margin-top:12px;">
-                  <label for="mCatCategoryMulti">品类</label>
+                  <label for="mCatCategorySearch">品类</label>
                   <input type="search" id="mCatCategorySearch" placeholder="搜索品类编码或名称" autocomplete="off">
-                  <select id="mCatCategoryMulti" multiple aria-label="品类多选"></select>
+                  <div id="catCategoryMultiBox" class="checkbox-multi" role="group" aria-label="品类多选"></div>
                   <button type="button" class="btn secondary" style="margin-top:8px;" id="mAddCurrentCategory">加入当前品类</button>
                 </div>
               </div>
 
               <div id="mskuPaneSku" class="filter-strip" style="margin-top:12px;display:none;">
-                <div class="strip-title">SKU（多选 + 搜索）：原型用候选 SKU 列表，正式环境对接主数据</div>
+                <div class="strip-title">SKU（可搜索 + 多选勾选；首行「全部」勾选列表中全部 SKU）</div>
                 <div class="native-multi-wrap">
-                  <label for="mSkuMulti">SKU</label>
+                  <label for="mSkuSearch">SKU</label>
                   <input type="search" id="mSkuSearch" placeholder="搜索 SKU" autocomplete="off">
-                  <select id="mSkuMulti" multiple aria-label="SKU多选"></select>
+                  <div id="skuMultiBox" class="checkbox-multi" role="group" aria-label="SKU多选"></div>
                   <button type="button" class="btn secondary" style="margin-top:8px;" id="mAddSkuSel">将已选 SKU 加入清单</button>
                 </div>
                 <div class="hint">加入后下方标签逐条展示已选 SKU。</div>
               </div>
 
               <div id="mskuPaneMsku" class="filter-strip" style="margin-top:12px;display:none;">
-                <div class="strip-title">MSKU（多选 + 搜索）：候选由渠道×店铺组合生成示例，正式环境对接订单/主数据</div>
+                <div class="strip-title">MSKU（可搜索 + 多选勾选；首行「全部」勾选列表中全部 MSKU）</div>
                 <div class="native-multi-wrap">
-                  <label for="mMskuMulti">MSKU</label>
+                  <label for="mMskuSearch">MSKU</label>
                   <input type="search" id="mMskuSearch" placeholder="搜索 MSKU" autocomplete="off">
-                  <select id="mMskuMulti" multiple aria-label="MSKU多选"></select>
+                  <div id="mskuMultiBox" class="checkbox-multi" role="group" aria-label="MSKU多选"></div>
                   <button type="button" class="btn secondary" style="margin-top:8px;" id="mAddMskuSel">将已选 MSKU 加入清单</button>
                 </div>
                 <div class="hint">加入后下方标签逐条展示已选 MSKU。</div>
@@ -858,49 +880,118 @@
       });
     }
 
-    function rebuildChannelMulti() {
-      const sel = document.getElementById("chMulti");
-      if (!sel) return;
-      sel.innerHTML = "";
-      state.channels.forEach((c) => {
-        const o = document.createElement("option");
-        o.value = c.channel_name;
-        o.textContent = c.channel_name;
-        sel.appendChild(o);
+    function appendCheckboxMasterRow(box, itemClass, labelText) {
+      const lab = document.createElement("label");
+      lab.className = "chk-row chk-master";
+      lab.dataset.q = "全部 quanbu";
+      const inp = document.createElement("input");
+      inp.type = "checkbox";
+      inp.className = "chk-master-input";
+      inp.addEventListener("change", () => {
+        const on = inp.checked;
+        box.querySelectorAll(`input[type="checkbox"].${itemClass}`).forEach((cb) => {
+          const row = cb.closest(".chk-row");
+          if (row && row.style.display !== "none") cb.checked = on;
+        });
+      });
+      lab.appendChild(inp);
+      const sp = document.createElement("span");
+      sp.textContent = labelText;
+      lab.appendChild(sp);
+      box.appendChild(lab);
+    }
+
+    function appendCheckboxItemRow(box, itemClass, value, displayText) {
+      const lab = document.createElement("label");
+      lab.className = `chk-row ${itemClass}-row`;
+      lab.dataset.q = `${String(displayText).toLowerCase()} ${String(value).toLowerCase()}`;
+      const inp = document.createElement("input");
+      inp.type = "checkbox";
+      inp.className = itemClass;
+      inp.value = value;
+      inp.dataset.label = displayText;
+      lab.appendChild(inp);
+      const sp = document.createElement("span");
+      sp.textContent = displayText;
+      lab.appendChild(sp);
+      box.appendChild(lab);
+    }
+
+    function checkedItemValues(boxId, itemClass) {
+      const box = document.getElementById(boxId);
+      if (!box) return [];
+      return [...box.querySelectorAll(`input.${itemClass}`)].filter((cb) => {
+        if (!cb.checked) return false;
+        const row = cb.closest(".chk-row");
+        return row && row.style.display !== "none";
+      }).map((cb) => cb.value);
+    }
+
+    function wireCheckboxMultiSearch(searchId, boxId) {
+      const inp = document.getElementById(searchId);
+      const box = document.getElementById(boxId);
+      if (!inp || !box) return;
+      inp.addEventListener("input", () => {
+        const q = inp.value.trim().toLowerCase();
+        box.querySelectorAll(".chk-row").forEach((lbl) => {
+          const isMaster = lbl.classList.contains("chk-master");
+          const qstr = (lbl.dataset.q || "").toLowerCase();
+          lbl.style.display = !q || isMaster || qstr.includes(q) ? "" : "none";
+        });
       });
     }
 
-    function rebuildStoreMulti() {
-      const sel = document.getElementById("mStoreMulti");
-      if (!sel) return;
+    function rebuildChannelChecks() {
+      const box = document.getElementById("chMultiBox");
+      if (!box) return;
+      box.innerHTML = "";
+      appendCheckboxMasterRow(box, "ch-item", "全部");
+      state.channels.forEach((c) => {
+        appendCheckboxItemRow(box, "ch-item", c.channel_name, c.channel_name);
+      });
+    }
+
+    function rebuildStoreChecks() {
+      const box = document.getElementById("storeMultiBox");
+      if (!box) return;
       const ch = document.getElementById("mChannel")?.value || "";
-      sel.innerHTML = "";
+      box.innerHTML = "";
+      appendCheckboxMasterRow(box, "st-item", "全部");
       if (!ch) {
         const seen = new Set();
         state.channels.forEach((c) => {
           (c.stores || []).forEach((s) => {
             if (seen.has(s)) return;
             seen.add(s);
-            const o = document.createElement("option");
-            o.value = s;
-            o.textContent = s;
-            sel.appendChild(o);
+            appendCheckboxItemRow(box, "st-item", s, s);
           });
         });
         return;
       }
       const row = state.channels.find((c) => c.channel_name === ch);
       (row && row.stores ? row.stores : []).forEach((s) => {
-        const o = document.createElement("option");
-        o.value = s;
-        o.textContent = s;
-        sel.appendChild(o);
+        appendCheckboxItemRow(box, "st-item", s, s);
       });
     }
 
-    function fillMultiSceneOptions(sel) {
+    function rebuildSceneChecks() {
+      const box = document.getElementById("sceneMultiBox");
+      if (!box) return;
+      box.innerHTML = "";
+      appendCheckboxMasterRow(box, "sc-item", "全部");
+      state.scenes.forEach((sc) => {
+        appendCheckboxItemRow(box, "sc-item", sc.scene_name, sc.scene_name);
+      });
+    }
+
+    function rebuildCatSceneSelect() {
+      const sel = document.getElementById("mCatSceneSel");
       if (!sel) return;
       sel.innerHTML = "";
+      const o0 = document.createElement("option");
+      o0.value = "";
+      o0.textContent = "全部";
+      sel.appendChild(o0);
       state.scenes.forEach((sc) => {
         const o = document.createElement("option");
         o.value = sc.scene_name;
@@ -909,33 +1000,43 @@
       });
     }
 
-    function rebuildSceneMulti() {
-      fillMultiSceneOptions(document.getElementById("mSceneMulti"));
-    }
-
-    function rebuildCatSceneMulti() {
-      fillMultiSceneOptions(document.getElementById("mCatSceneMulti"));
-    }
-
-    function rebuildCatCategoryMultiFromScenes() {
-      const sceneSel = document.getElementById("mCatSceneMulti");
-      const catSel = document.getElementById("mCatCategoryMulti");
-      if (!sceneSel || !catSel) return;
-      const pickedScenes = [...sceneSel.selectedOptions].map((o) => o.value).filter(Boolean);
-      catSel.innerHTML = "";
+    function rebuildCatCategoryChecks() {
+      const box = document.getElementById("catCategoryMultiBox");
+      const sceneVal = document.getElementById("mCatSceneSel")?.value ?? "";
+      if (!box) return;
+      box.innerHTML = "";
+      appendCheckboxMasterRow(box, "cat-item", "全部");
+      const sceneNames = sceneVal ? [sceneVal] : state.scenes.map((s) => s.scene_name);
       const seen = new Set();
-      const sceneNames = pickedScenes.length ? pickedScenes : state.scenes.map((s) => s.scene_name);
       sceneNames.forEach((sn) => {
         const sc = state.scenes.find((s) => s.scene_name === sn);
         (sc && sc.categories ? sc.categories : []).forEach((c) => {
           const key = `${sn}|${c.category_code}`;
           if (seen.has(key)) return;
           seen.add(key);
-          const o = document.createElement("option");
-          o.value = key;
-          o.textContent = `${sn} / ${c.category_code} ${c.category_name}`;
-          catSel.appendChild(o);
+          const disp = `${sn} / ${c.category_code} ${c.category_name}`;
+          appendCheckboxItemRow(box, "cat-item", key, disp);
         });
+      });
+    }
+
+    function rebuildSkuChecks() {
+      const box = document.getElementById("skuMultiBox");
+      if (!box) return;
+      box.innerHTML = "";
+      appendCheckboxMasterRow(box, "sku-item", "全部");
+      buildSkuPool().forEach((sku) => {
+        appendCheckboxItemRow(box, "sku-item", sku, sku);
+      });
+    }
+
+    function rebuildMskuChecks() {
+      const box = document.getElementById("mskuMultiBox");
+      if (!box) return;
+      box.innerHTML = "";
+      appendCheckboxMasterRow(box, "ms-item", "全部");
+      buildMskuPool().forEach((m) => {
+        appendCheckboxItemRow(box, "ms-item", m, m);
       });
     }
 
@@ -952,9 +1053,9 @@
       paneCh.style.display = state.shopMode === "channel" ? "block" : "none";
       paneSt.style.display = state.shopMode === "store" ? "block" : "none";
       if (state.shopMode === "channel") {
-        document.getElementById("shopSummary").textContent = "渠道（多选下拉）：" + (state.shopTags.length ? state.shopTags.join("、") : "（多选渠道后点「将已选渠道加入清单」）");
+        document.getElementById("shopSummary").textContent = "渠道（复选列表）：" + (state.shopTags.length ? state.shopTags.join("、") : "（勾选渠道后点「将已选渠道加入清单」）");
       } else {
-        document.getElementById("shopSummary").textContent = "店铺（清单）：" + (state.shopTags.length ? state.shopTags.join("、") : "（选渠道与店铺后点「加入当前店铺」）");
+        document.getElementById("shopSummary").textContent = "店铺（清单）：" + (state.shopTags.length ? state.shopTags.join("、") : "（勾选店铺或依赖「未勾选=全店」规则后点「加入当前店铺」）");
       }
     }
 
@@ -980,42 +1081,6 @@
         arr.push("H6011001+Govee+US", "H6159001+独立站+US");
       }
       return [...new Set(arr)].slice(0, 120);
-    }
-
-    function rebuildSkuMulti() {
-      const sel = document.getElementById("mSkuMulti");
-      if (!sel) return;
-      sel.innerHTML = "";
-      buildSkuPool().forEach((sku) => {
-        const o = document.createElement("option");
-        o.value = sku;
-        o.textContent = sku;
-        sel.appendChild(o);
-      });
-    }
-
-    function rebuildMskuMulti() {
-      const sel = document.getElementById("mMskuMulti");
-      if (!sel) return;
-      sel.innerHTML = "";
-      buildMskuPool().forEach((m) => {
-        const o = document.createElement("option");
-        o.value = m;
-        o.textContent = m;
-        sel.appendChild(o);
-      });
-    }
-
-    function wireNativeMultiSearch(searchId, selectId) {
-      const searchEl = document.getElementById(searchId);
-      const sel = document.getElementById(selectId);
-      if (!searchEl || !sel) return;
-      searchEl.addEventListener("input", () => {
-        const q = searchEl.value.trim().toLowerCase();
-        [...sel.options].forEach((o) => {
-          o.hidden = Boolean(q) && !String(o.textContent).toLowerCase().includes(q) && !String(o.value).toLowerCase().includes(q);
-        });
-      });
     }
 
     function renderMskuUi() {
@@ -1175,8 +1240,8 @@
       setSeg(document.getElementById("shopModeSeg"), "shopMode", btn.dataset.mode);
       state.shopTags = [];
       wireShopTags();
-      rebuildStoreMulti();
-      if (state.shopMode === "channel") rebuildChannelMulti();
+      rebuildStoreChecks();
+      if (state.shopMode === "channel") rebuildChannelChecks();
       renderShopUi();
       updateRuleText();
     });
@@ -1189,36 +1254,30 @@
       wireMskuTags();
       renderMskuUi();
       if (state.mskuMode === "category") {
-        rebuildCatSceneMulti();
-        rebuildCatCategoryMultiFromScenes();
-        ["mCatSceneSearch", "mCatCategorySearch"].forEach((id) => {
-          const el = document.getElementById(id);
-          if (el) el.value = "";
-        });
-        ["mCatSceneMulti", "mCatCategoryMulti"].forEach((id) => {
-          const mul = document.getElementById(id);
-          if (mul) [...mul.options].forEach((o) => { o.hidden = false; });
-        });
+        rebuildCatSceneSelect();
+        rebuildCatCategoryChecks();
+        const cs = document.getElementById("mCatCategorySearch");
+        if (cs) cs.value = "";
+        const catBox = document.getElementById("catCategoryMultiBox");
+        if (catBox) catBox.querySelectorAll(".chk-row").forEach((lbl) => { lbl.style.display = ""; });
       }
       if (state.mskuMode === "scene") {
         const ss = document.getElementById("mSceneSearch");
         if (ss) ss.value = "";
-        const sm = document.getElementById("mSceneMulti");
-        if (sm) [...sm.options].forEach((o) => { o.hidden = false; });
+        const sb = document.getElementById("sceneMultiBox");
+        if (sb) sb.querySelectorAll(".chk-row").forEach((lbl) => { lbl.style.display = ""; });
       }
       updateRuleText();
     });
 
     document.getElementById("mAddChannelSel").addEventListener("click", () => {
       if (state.shopMode !== "channel") return;
-      const sel = document.getElementById("chMulti");
-      const picked = [...sel.selectedOptions];
-      if (!picked.length) {
-        alert("请在渠道列表中多选至少一个渠道，再点击「将已选渠道加入清单」。");
+      const vals = checkedItemValues("chMultiBox", "ch-item");
+      if (!vals.length) {
+        alert("请勾选至少一个渠道（可用首行「全部」一键勾选），再点击「将已选渠道加入清单」。");
         return;
       }
-      picked.forEach((opt) => {
-        const name = opt.value;
+      vals.forEach((name) => {
         if (!state.shopTags.includes(name)) state.shopTags.push(name);
       });
       wireShopTags();
@@ -1227,21 +1286,20 @@
     });
 
     document.getElementById("mChannel").addEventListener("change", () => {
-      rebuildStoreMulti();
+      rebuildStoreChecks();
       const ss = document.getElementById("mStoreSearch");
       if (ss) ss.value = "";
-      const ms = document.getElementById("mStoreMulti");
-      if (ms) [...ms.options].forEach((o) => { o.hidden = false; });
+      const box = document.getElementById("storeMultiBox");
+      if (box) box.querySelectorAll(".chk-row").forEach((lbl) => { lbl.style.display = ""; });
     });
 
     document.getElementById("mAddStore").addEventListener("click", () => {
       if (state.shopMode !== "store") return;
       const ch = document.getElementById("mChannel").value;
-      const storeSel = document.getElementById("mStoreMulti");
-      const picked = [...storeSel.selectedOptions].map((o) => o.value);
+      const picked = checkedItemValues("storeMultiBox", "st-item");
       if (!ch) {
         if (!picked.length) {
-          alert("渠道为「全部」时，请在店铺列表中多选至少一个店铺再加入。");
+          alert("渠道为「全部」时，请勾选至少一个店铺（可用首行「全部」一键勾选）再加入。");
           return;
         }
         picked.forEach((s) => {
@@ -1273,68 +1331,78 @@
     });
 
     document.getElementById("mAddSceneSel").addEventListener("click", () => {
-      const sel = document.getElementById("mSceneMulti");
-      const picked = [...sel.selectedOptions];
-      if (!picked.length) {
-        alert("请在场景列表中多选至少一个场景，再点击「将已选场景加入清单」。");
+      const vals = checkedItemValues("sceneMultiBox", "sc-item");
+      if (!vals.length) {
+        alert("请勾选至少一个场景（可用首行「全部」），再点击「将已选场景加入清单」。");
         return;
       }
-      picked.forEach((opt) => {
-        const token = "场景:" + opt.value;
+      vals.forEach((sn) => {
+        const token = "场景:" + sn;
         if (!state.mskuTags.includes(token)) state.mskuTags.push(token);
       });
       wireMskuTags();
       updateRuleText();
     });
 
-    document.getElementById("mCatSceneMulti").addEventListener("change", () => {
-      rebuildCatCategoryMultiFromScenes();
+    document.getElementById("mCatSceneSel").addEventListener("change", () => {
+      rebuildCatCategoryChecks();
       const cs = document.getElementById("mCatCategorySearch");
       if (cs) cs.value = "";
-      const mul = document.getElementById("mCatCategoryMulti");
-      if (mul) [...mul.options].forEach((o) => { o.hidden = false; });
+      const catBox = document.getElementById("catCategoryMultiBox");
+      if (catBox) catBox.querySelectorAll(".chk-row").forEach((lbl) => { lbl.style.display = ""; });
     });
 
     document.getElementById("mAddCurrentCategory").addEventListener("click", () => {
-      const sceneSel = document.getElementById("mCatSceneMulti");
-      const catSel = document.getElementById("mCatCategoryMulti");
-      const catPicked = [...catSel.selectedOptions];
-      const scenePicked = [...sceneSel.selectedOptions].map((o) => o.value).filter(Boolean);
+      const sceneVal = document.getElementById("mCatSceneSel").value;
+      const catVals = checkedItemValues("catCategoryMultiBox", "cat-item");
+      const catBox = document.getElementById("catCategoryMultiBox");
 
-      if (catPicked.length) {
-        catPicked.forEach((opt) => {
-          const token = "品类:" + opt.textContent.trim();
+      if (catVals.length) {
+        catVals.forEach((key) => {
+          const inp = [...catBox.querySelectorAll("input.cat-item")].find((cb) => cb.value === key);
+          const label = (inp && inp.dataset.label) ? inp.dataset.label : key;
+          const token = "品类:" + label;
           if (!state.mskuTags.includes(token)) state.mskuTags.push(token);
         });
         wireMskuTags();
         updateRuleText();
         return;
       }
-      if (scenePicked.length) {
-        scenePicked.forEach((sn) => {
-          const sc = state.scenes.find((s) => s.scene_name === sn);
-          (sc && sc.categories ? sc.categories : []).forEach((c) => {
-            const label = `${sn} / ${c.category_code} ${c.category_name}`;
-            const token = "品类:" + label;
-            if (!state.mskuTags.includes(token)) state.mskuTags.push(token);
-          });
+      if (sceneVal) {
+        const sc = state.scenes.find((s) => s.scene_name === sceneVal);
+        (sc && sc.categories ? sc.categories : []).forEach((c) => {
+          const label = `${sceneVal} / ${c.category_code} ${c.category_name}`;
+          const token = "品类:" + label;
+          if (!state.mskuTags.includes(token)) state.mskuTags.push(token);
         });
         wireMskuTags();
         updateRuleText();
         return;
       }
-      alert("请先在「场景」中至少选择一个场景；可选「品类」后点「加入当前品类」。若只选场景未选品类，将加入这些场景下的全部品类。");
+      state.scenes.forEach((sc) => {
+        const sn = sc.scene_name;
+        (sc.categories || []).forEach((c) => {
+          const label = `${sn} / ${c.category_code} ${c.category_name}`;
+          const token = "品类:" + label;
+          if (!state.mskuTags.includes(token)) state.mskuTags.push(token);
+        });
+      });
+      if (!state.mskuTags.some((t) => t.startsWith("品类:"))) {
+        alert("品类列表为空，请检查场景品类基础数据。");
+        return;
+      }
+      wireMskuTags();
+      updateRuleText();
     });
 
     document.getElementById("mAddSkuSel").addEventListener("click", () => {
-      const sel = document.getElementById("mSkuMulti");
-      const picked = [...sel.selectedOptions];
-      if (!picked.length) {
-        alert("请多选 SKU 后加入清单。");
+      const vals = checkedItemValues("skuMultiBox", "sku-item");
+      if (!vals.length) {
+        alert("请勾选至少一个 SKU（可用首行「全部」），再点击加入清单。");
         return;
       }
-      picked.forEach((opt) => {
-        const token = `SKU：${opt.value}`;
+      vals.forEach((v) => {
+        const token = `SKU：${v}`;
         if (!state.mskuTags.includes(token)) state.mskuTags.push(token);
       });
       wireMskuTags();
@@ -1342,14 +1410,13 @@
     });
 
     document.getElementById("mAddMskuSel").addEventListener("click", () => {
-      const sel = document.getElementById("mMskuMulti");
-      const picked = [...sel.selectedOptions];
-      if (!picked.length) {
-        alert("请多选 MSKU 后加入清单。");
+      const vals = checkedItemValues("mskuMultiBox", "ms-item");
+      if (!vals.length) {
+        alert("请勾选至少一个 MSKU（可用首行「全部」），再点击加入清单。");
         return;
       }
-      picked.forEach((opt) => {
-        const token = `MSKU：${opt.value}`;
+      vals.forEach((v) => {
+        const token = `MSKU：${v}`;
         if (!state.mskuTags.includes(token)) state.mskuTags.push(token);
       });
       wireMskuTags();
@@ -1451,21 +1518,19 @@
       wireSceneCategory(document.getElementById("qScene"), document.getElementById("qCategory"));
 
       fillChannelSelect(document.getElementById("mChannel"), true);
-      rebuildStoreMulti();
-      rebuildChannelMulti();
-      rebuildSceneMulti();
-      rebuildCatSceneMulti();
-      rebuildCatCategoryMultiFromScenes();
-
-      rebuildSkuMulti();
-      rebuildMskuMulti();
-      wireNativeMultiSearch("chSearch", "chMulti");
-      wireNativeMultiSearch("mStoreSearch", "mStoreMulti");
-      wireNativeMultiSearch("mSceneSearch", "mSceneMulti");
-      wireNativeMultiSearch("mCatSceneSearch", "mCatSceneMulti");
-      wireNativeMultiSearch("mCatCategorySearch", "mCatCategoryMulti");
-      wireNativeMultiSearch("mSkuSearch", "mSkuMulti");
-      wireNativeMultiSearch("mMskuSearch", "mMskuMulti");
+      rebuildStoreChecks();
+      rebuildChannelChecks();
+      rebuildSceneChecks();
+      rebuildCatSceneSelect();
+      rebuildCatCategoryChecks();
+      rebuildSkuChecks();
+      rebuildMskuChecks();
+      wireCheckboxMultiSearch("chSearch", "chMultiBox");
+      wireCheckboxMultiSearch("mStoreSearch", "storeMultiBox");
+      wireCheckboxMultiSearch("mSceneSearch", "sceneMultiBox");
+      wireCheckboxMultiSearch("mCatCategorySearch", "catCategoryMultiBox");
+      wireCheckboxMultiSearch("mSkuSearch", "skuMultiBox");
+      wireCheckboxMultiSearch("mMskuSearch", "mskuMultiBox");
 
       renderHistory();
       renderShopUi();
