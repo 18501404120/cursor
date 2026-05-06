@@ -2578,6 +2578,8 @@
       alert(`${option.textContent}\n\n${retailerHint}\n（原型提示，实际文件由导出任务生成。）`);
     });
 
+    let retailerCheckListBuilt = false;
+
     function renderRetailerCheckList() {
       const host = document.getElementById("retailerCheckList");
       if (!host) return;
@@ -2588,6 +2590,12 @@
         </label>
       `).join("");
       filterRetailerListBySearch();
+      retailerCheckListBuilt = true;
+    }
+
+    function ensureRetailerCheckListBuilt() {
+      if (retailerCheckListBuilt) return;
+      renderRetailerCheckList();
     }
 
     function filterRetailerListBySearch() {
@@ -2618,6 +2626,7 @@
 
       document.getElementById("retailerSelectAll")?.addEventListener("click", (e) => {
         e.preventDefault();
+        ensureRetailerCheckListBuilt();
         ALL_RETAILER_OPTIONS.forEach((n) => state.selectedRetailers.add(n));
         renderRetailerCheckList();
         updateRetailerTriggerText();
@@ -2646,7 +2655,10 @@
         if (!dim.checked) {
           panel?.classList.remove("open");
           state.selectedRetailers.clear();
-          renderRetailerCheckList();
+          if (host) {
+            host.innerHTML = "";
+            retailerCheckListBuilt = false;
+          }
           updateRetailerTriggerText();
         }
         renderAll();
@@ -2654,7 +2666,9 @@
 
       trigger?.addEventListener("click", (e) => {
         e.stopPropagation();
+        const opening = !panel?.classList.contains("open");
         panel?.classList.toggle("open");
+        if (opening) ensureRetailerCheckListBuilt();
       });
 
       search?.addEventListener("input", () => {
@@ -2668,7 +2682,10 @@
       });
 
       if (wrap) wrap.style.display = "none";
-      renderRetailerCheckList();
+      if (host) {
+        host.innerHTML = "";
+        retailerCheckListBuilt = false;
+      }
       updateRetailerTriggerText();
     }
 
