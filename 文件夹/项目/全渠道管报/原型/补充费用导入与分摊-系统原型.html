@@ -269,6 +269,7 @@
     }
     .overlay.show { display: flex; }
     .overlay.z-top { z-index: 110; }
+    #overlayHistoryDetail { z-index: 120; }
     .dialog {
       background: #fff;
       border-radius: 14px;
@@ -475,6 +476,39 @@
             </thead>
             <tbody id="historyBody"></tbody>
           </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 历史记录：分摊明细 -->
+  <div class="overlay z-top" id="overlayHistoryDetail" aria-hidden="true">
+    <div class="dialog wide" role="dialog" aria-labelledby="dlgHistTitle">
+      <div class="dialog-hd">
+        <h2 id="dlgHistTitle">分摊明细</h2>
+        <button type="button" class="dialog-close" id="closeHistoryDetail" aria-label="关闭">×</button>
+      </div>
+      <div class="dialog-bd">
+        <div class="dialog-scroll">
+          <div id="historyDetailMeta" class="logic-box" style="margin-bottom:14px;"></div>
+          <div style="font-weight:800;font-size:13px;color:#0f2f63;margin-bottom:8px;">按 MSKU 分摊明细（权重月营收 → 归属月分摊 → 日均）</div>
+          <div class="table-wrap" style="max-height:min(52vh,480px);">
+            <table>
+              <thead>
+                <tr>
+                  <th>店铺</th>
+                  <th>MSKU</th>
+                  <th>零售商</th>
+                  <th class="num">权重月营收</th>
+                  <th class="num">权重占比</th>
+                  <th class="num">归属月分摊额</th>
+                  <th class="num">日均额</th>
+                </tr>
+              </thead>
+              <tbody id="historyDetailBody"></tbody>
+            </table>
+          </div>
+          <p class="hint" style="margin-top:12px;">原型数据为模拟；正式环境从分摊结果表加载全量行，支持导出与分页。</p>
         </div>
       </div>
     </div>
@@ -1166,6 +1200,110 @@
       return rows;
     }
 
+    function escHtml(s) {
+      return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/"/g, "&quot;");
+    }
+
+    /** 历史行「明细」弹窗：完整口径 + 按 MSKU 分摊表（原型模拟） */
+    const HISTORY_DETAIL_BY_ID = {
+      "IMP-202604-001": {
+        fee: "广告费",
+        month: "2026-04",
+        amt: 10000,
+        shopSummary: "渠道:Govee",
+        mskuSummary: "场景:户外;居家",
+        shopScopeDetail: "类型：按渠道；取值：Govee（与渠道店铺基础数据 channel_name 一致）。\n店铺交集：Govee_US、Govee_DE、独立站-US（示意，正式为解析结果集）。",
+        mskuScopeDetail: "类型：按场景；取值：户外、居家。\nMSKU 交集：权重月内归属上述场景且落在店铺交集内的 MSKU。",
+        retailers: "（导入未选零售商，不按零售商收窄）",
+        st: "已生效",
+        op: "zhangsan",
+        at: "2026-04-02 10:20",
+        rawRows: [
+          { store: "Govee_US", msku: "H6011001+Govee+US", retailer: "—", rev: 182000 },
+          { store: "Govee_US", msku: "H6159001+Govee+US", retailer: "—", rev: 121400 },
+          { store: "Govee_DE", msku: "H6011002+Govee+DE", retailer: "—", rev: 98400 }
+        ]
+      },
+      "IMP-202603-018": {
+        fee: "推广费",
+        month: "2026-03",
+        amt: 3200,
+        shopSummary: "全渠道",
+        mskuSummary: "全场景",
+        shopScopeDetail: "类型：全渠道；即所有渠道下全部店铺参与交集。",
+        mskuScopeDetail: "类型：全场景；即所有场景下 MSKU 参与交集。",
+        retailers: "（未选）",
+        st: "已生效",
+        op: "lisi",
+        at: "2026-03-28 16:05",
+        rawRows: [
+          { store: "Govee_US", msku: "H6011001+Govee+US", retailer: "—", rev: 210000 },
+          { store: "独立站-US", msku: "H6198001+独立站+US", retailer: "—", rev: 126000 }
+        ]
+      },
+      "IMP-202603-017": {
+        fee: "广告费",
+        month: "2026-03",
+        amt: 8000,
+        shopSummary: "店铺:Govee_US;Govee_DE",
+        mskuSummary: "SKU:H601*",
+        shopScopeDetail: "类型：按店铺；取值：Govee_US、Govee_DE（与基础数据 store 一致）。",
+        mskuScopeDetail: "类型：按 SKU 模糊；关键词 H601*；与管报 SKU 解析规则一致后得到 MSKU 集合。",
+        retailers: "Best Buy；Target（示意：导入两行零售商后取交）",
+        st: "待复核",
+        op: "wangwu",
+        at: "2026-03-15 09:12",
+        rawRows: [
+          { store: "Govee_US", msku: "H6011001+Govee+US", retailer: "Best Buy", rev: 95000 },
+          { store: "Govee_US", msku: "H6011002+Govee+US", retailer: "Target", rev: 72000 },
+          { store: "Govee_DE", msku: "H6011001+Govee+DE", retailer: "Best Buy", rev: 61000 },
+          { store: "Govee_DE", msku: "H6011002+Govee+DE", retailer: "Target", rev: 48000 }
+        ]
+      }
+    };
+
+    function openHistoryDetail(batchId) {
+      const d = HISTORY_DETAIL_BY_ID[batchId];
+      if (!d) {
+        alert("原型：该批次暂无明细数据。");
+        return;
+      }
+      const wm = prevMonthYm(d.month);
+      const days = daysInMonth(d.month);
+      const tot = d.rawRows.reduce((s, r) => s + r.rev, 0);
+      const rows = d.rawRows.map((r) => {
+        const w = tot ? r.rev / tot : 0;
+        const alloc = d.amt * w;
+        return { ...r, w, alloc, daily: alloc / days };
+      });
+      document.getElementById("dlgHistTitle").textContent = `分摊明细 · ${batchId}`;
+      document.getElementById("historyDetailMeta").innerHTML = `
+        <div style="line-height:1.75;font-size:13px;color:#78350f;">
+          <strong>导入批次号：</strong>${escHtml(batchId)}<br>
+          <strong>费用项：</strong>${escHtml(d.fee)}　<strong>归属月：</strong>${escHtml(d.month)}　<strong>补充金额：</strong>${d.amt.toLocaleString("zh-CN", { minimumFractionDigits: 2 })} 元<br>
+          <strong>权重月：</strong>${escHtml(wm)}（归属月上月的管报营收口径）　<strong>归属月天数：</strong>${days} 天（按自然日拆日均）<br>
+          <strong>状态：</strong>${escHtml(d.st)}　<strong>操作人：</strong>${escHtml(d.op)}　<strong>创建时间：</strong>${escHtml(d.at)}<br>
+          <strong>店铺范围（列表摘要）：</strong>${escHtml(d.shopSummary)}<br>
+          <strong>店铺范围（解析说明）：</strong><span style="white-space:pre-wrap;">${escHtml(d.shopScopeDetail)}</span><br>
+          <strong>MSKU/SKU 范围（列表摘要）：</strong>${escHtml(d.mskuSummary)}<br>
+          <strong>MSKU/SKU 范围（解析说明）：</strong><span style="white-space:pre-wrap;">${escHtml(d.mskuScopeDetail)}</span><br>
+          <strong>零售商：</strong>${escHtml(d.retailers)}
+        </div>
+      `;
+      document.getElementById("historyDetailBody").innerHTML = rows.map((r) => `
+        <tr>
+          <td>${escHtml(r.store)}</td>
+          <td>${escHtml(r.msku)}</td>
+          <td>${escHtml(r.retailer)}</td>
+          <td class="num">${r.rev.toLocaleString("zh-CN")}</td>
+          <td class="num">${(r.w * 100).toFixed(2)}%</td>
+          <td class="num">${r.alloc.toFixed(2)}</td>
+          <td class="num">${r.daily.toFixed(4)}</td>
+        </tr>
+      `).join("");
+      openOverlay("overlayHistoryDetail");
+    }
+
     function renderHistory() {
       const mock = [
         { id: "IMP-202604-001", fee: "广告费", month: "2026-04", amt: 10000, shop: "渠道:Govee", msku: "场景:户外;居家", st: "已生效", op: "zhangsan", at: "2026-04-02 10:20" },
@@ -1174,16 +1312,16 @@
       ];
       document.getElementById("historyBody").innerHTML = mock.map((r) => `
         <tr>
-          <td>${r.id}</td>
-          <td>${r.fee}</td>
-          <td>${r.month}</td>
+          <td>${escHtml(r.id)}</td>
+          <td>${escHtml(r.fee)}</td>
+          <td>${escHtml(r.month)}</td>
           <td class="num">${r.amt.toLocaleString("zh-CN")}</td>
-          <td>${r.shop}</td>
-          <td>${r.msku}</td>
-          <td>${r.st}</td>
-          <td>${r.op}</td>
-          <td>${r.at}</td>
-          <td><button type="button" class="btn-link">明细</button></td>
+          <td>${escHtml(r.shop)}</td>
+          <td>${escHtml(r.msku)}</td>
+          <td>${escHtml(r.st)}</td>
+          <td>${escHtml(r.op)}</td>
+          <td>${escHtml(r.at)}</td>
+          <td><button type="button" class="btn-link" data-detail-id="${r.id}">明细</button></td>
         </tr>
       `).join("");
     }
@@ -1239,6 +1377,16 @@
     });
     document.getElementById("overlayTpl").addEventListener("click", (e) => {
       if (e.target.id === "overlayTpl") closeOverlay("overlayTpl");
+    });
+
+    document.getElementById("historyBody").addEventListener("click", (e) => {
+      const btn = e.target.closest("button[data-detail-id]");
+      if (!btn) return;
+      openHistoryDetail(btn.getAttribute("data-detail-id"));
+    });
+    document.getElementById("closeHistoryDetail").addEventListener("click", () => closeOverlay("overlayHistoryDetail"));
+    document.getElementById("overlayHistoryDetail").addEventListener("click", (e) => {
+      if (e.target.id === "overlayHistoryDetail") closeOverlay("overlayHistoryDetail");
     });
 
     document.getElementById("shopModeSeg").addEventListener("click", (e) => {
