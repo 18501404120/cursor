@@ -1059,7 +1059,7 @@
       "退货运费",
       "仓储费",
       "关税",
-      "物流成本小计（计算值=头程运费费+尾程运费/FBA物流+退货运费+仓储费+关税）",
+      "物流成本小计（计算值=头程运费+尾程运费/FBA物流+退货运费+仓储费+关税）",
       "FBA佣金",
       "平台服务费",
       "收单费用/Payment Discount",
@@ -1068,8 +1068,6 @@
       "交易及平台费用小计（计算值=FBA佣金+平台服务费+收单费用/Payment Discount+店铺费用+Commission Fee）",
       "运杂费",
       "预留毛利",
-      "（下线）边际贡献额（并入毛利口径，不再单独展示）",
-      "其他费用（过渡项，后续下线）",
       "销量",
       "营收",
       "毛利"
@@ -1102,7 +1100,7 @@
       "退货运费": "partial",
       "仓储费": "partial",
       "关税": "partial",
-      "物流成本小计（计算值=头程运费费+尾程运费/FBA物流+退货运费+仓储费+关税）": "calc",
+      "物流成本小计（计算值=头程运费+尾程运费/FBA物流+退货运费+仓储费+关税）": "calc",
       "FBA佣金": "ok",
       "平台服务费": "missing",
       "收单费用/Payment Discount": "missing",
@@ -1111,12 +1109,37 @@
       "交易及平台费用小计（计算值=FBA佣金+平台服务费+收单费用/Payment Discount+店铺费用+Commission Fee）": "calc",
       "运杂费": "missing",
       "预留毛利": "partial",
-      "（下线）边际贡献额（并入毛利口径，不再单独展示）": "offline",
-      "其他费用（过渡项，后续下线）": "partial",
       "销量": "ok",
       "营收": "calc",
       "毛利": "calc"
     };
+
+    /** 明细表占比分母：营收（= 收入净额）；为 0 时占比置空 */
+    function revenueRatioBase(values) {
+      const r = values["营收"];
+      if (r !== null && r !== undefined && Math.abs(Number(r)) > 1e-9) return Number(r);
+      const alt = values["收入净额（计算值=销售净额-销售税/VAT）"];
+      if (alt !== null && alt !== undefined && Math.abs(Number(alt)) > 1e-9) return Number(alt);
+      return 0;
+    }
+
+    function feeStatsCounts() {
+      const keys = feeColumns.filter((f) => f !== "销量");
+      const by = (st) => keys.filter((f) => feeStates[f] === st).length;
+      return {
+        total: keys.length,
+        ok: by("ok"),
+        partial: by("partial"),
+        missing: by("missing"),
+        offline: by("offline"),
+        calc: by("calc")
+      };
+    }
+
+    function feeColumnExtraHint(fee) {
+      void fee;
+      return "";
+    }
 
     function round2(value) {
       return Number(value.toFixed(2));
@@ -1150,7 +1173,7 @@
       values["退货运费"] = round2(source.returnFreight);
       values["仓储费"] = round2(source.storageCost);
       values["关税"] = round2(source.dutyCost);
-      values["物流成本小计（计算值=头程运费费+尾程运费/FBA物流+退货运费+仓储费+关税）"] =
+      values["物流成本小计（计算值=头程运费+尾程运费/FBA物流+退货运费+仓储费+关税）"] =
         round2(values["头程运费"] + values["尾程运费/FBA物流"] + values["退货运费"] + values["仓储费"] + values["关税"]);
       values["FBA佣金"] = round2(source.fbaFee);
       values["平台服务费"] = round2(source.platformFee);
@@ -1161,15 +1184,13 @@
         round2(values["FBA佣金"] + values["平台服务费"] + values["收单费用/Payment Discount"] + values["店铺费用"] + values["Commission Fee"]);
       values["运杂费"] = round2(source.miscCost);
       values["预留毛利"] = round2(source.reserveGross);
-      values["（下线）边际贡献额（并入毛利口径，不再单独展示）"] = 0;
-      values["其他费用（过渡项，后续下线）"] = 0;
       values["销量"] = Math.round(source.qty);
       values["营收"] = values["收入净额（计算值=销售净额-销售税/VAT）"];
       values["毛利"] = round2(
         values["营收"]
         - values["货值成本净额（计算值=发货成本+退货成本+平台赔偿）"]
         - values["广告宣传小计（计算值=广告费+品牌营销费+推广费+样品费）"]
-        - values["物流成本小计（计算值=头程运费费+尾程运费/FBA物流+退货运费+仓储费+关税）"]
+        - values["物流成本小计（计算值=头程运费+尾程运费/FBA物流+退货运费+仓储费+关税）"]
         - values["交易及平台费用小计（计算值=FBA佣金+平台服务费+收单费用/Payment Discount+店铺费用+Commission Fee）"]
         - values["运杂费"]
         - values["预留毛利"]
@@ -1307,7 +1328,7 @@
         : null;
       values["货值成本净额（计算值=发货成本+退货成本+平台赔偿）"] = (values["发货成本"] || 0) + (values["退货成本"] || 0) + (values["平台赔偿"] || 0) || null;
       values["广告宣传小计（计算值=广告费+品牌营销费+推广费+样品费）"] = (values["广告费"] || 0) + (values["品牌营销费"] || 0) + (values["推广费"] || 0) + (values["样品费"] || 0) || null;
-      values["物流成本小计（计算值=头程运费费+尾程运费/FBA物流+退货运费+仓储费+关税）"] = (values["头程运费"] || 0) + (values["尾程运费/FBA物流"] || 0) + (values["退货运费"] || 0) + (values["仓储费"] || 0) + (values["关税"] || 0) || null;
+      values["物流成本小计（计算值=头程运费+尾程运费/FBA物流+退货运费+仓储费+关税）"] = (values["头程运费"] || 0) + (values["尾程运费/FBA物流"] || 0) + (values["退货运费"] || 0) + (values["仓储费"] || 0) + (values["关税"] || 0) || null;
       values["交易及平台费用小计（计算值=FBA佣金+平台服务费+收单费用/Payment Discount+店铺费用+Commission Fee）"] =
         (values["FBA佣金"] || 0) + (values["平台服务费"] || 0) + (values["收单费用/Payment Discount"] || 0) + (values["店铺费用"] || 0) + (values["Commission Fee"] || 0) || null;
       values["营收"] = values["收入净额（计算值=销售净额-销售税/VAT）"];
@@ -1316,7 +1337,7 @@
             values["营收"]
             - (values["货值成本净额（计算值=发货成本+退货成本+平台赔偿）"] || 0)
             - (values["广告宣传小计（计算值=广告费+品牌营销费+推广费+样品费）"] || 0)
-            - (values["物流成本小计（计算值=头程运费费+尾程运费/FBA物流+退货运费+仓储费+关税）"] || 0)
+            - (values["物流成本小计（计算值=头程运费+尾程运费/FBA物流+退货运费+仓储费+关税）"] || 0)
             - (values["交易及平台费用小计（计算值=FBA佣金+平台服务费+收单费用/Payment Discount+店铺费用+Commission Fee）"] || 0)
             - (values["运杂费"] || 0)
             - (values["预留毛利"] || 0)
@@ -1420,7 +1441,7 @@
       "退货运费",
       "仓储费",
       "关税",
-      "物流成本小计（计算值=头程运费费+尾程运费/FBA物流+退货运费+仓储费+关税）",
+      "物流成本小计（计算值=头程运费+尾程运费/FBA物流+退货运费+仓储费+关税）",
       "FBA佣金",
       "平台服务费",
       "收单费用/Payment Discount",
@@ -1516,7 +1537,8 @@
 1. 列分组及命名需与管报 Excel 方案一致。<br>
 2. 主行为<strong>业务维度</strong>；展开依次为「财务维度」「对照差异」。<br>
 3. 「财务维度」各列按<strong>映射从财务系统</strong>取数，与主行业务值无必然相等。<br>
-4. 带「（计算值=…）」类列有单独口径，可点击字段说明查看。`,
+4. 带「（计算值=…）」类列的<strong>解释性口径</strong>放在表头「i」浮层中，列名展示为短标题。<br>
+5. 各列下方<strong>占营收占比</strong>：分母统一为<strong>营收</strong>（收入净额），营收为 100%；销售额等可大于 100%，属正常情况。`,
       "export-template": `导出模版：https://alidocs.dingtalk.com/i/nodes/a9E05BDRVQ6gzQaAh2Y9g407J63zgkYA`
     };
 
@@ -1692,25 +1714,17 @@
       return String(value);
     }
 
+    /** 业务 / 财务 / 对照差异行：各费用项占比 = 该项 ÷ 营收（营收为 100%）；销售额等可大于 100% */
     function calcRatioMap(values) {
-      const saleBase = values["销售额（计算值=净销售额+包装收入+运费收入）"] || 0;
-      const revenueBase = values["收入净额（计算值=销售净额-销售税/VAT）"] || 0;
+      const base = revenueRatioBase(values);
       const ratios = {};
       feeColumns.forEach((fee) => {
         const v = values[fee];
-        if (v === null || v === undefined || fee === "销量") {
+        if (fee === "销量" || v === null || v === undefined) {
           ratios[fee] = null;
           return;
         }
-        if (fee === "毛利") {
-          ratios[fee] = saleBase ? (v / saleBase) * 100 : null;
-        } else if (fee.includes("成本") || fee.includes("费用") || fee.includes("税") || fee.includes("折扣") || fee === "运杂费" || fee === "平台赔偿" || fee === "预留毛利") {
-          ratios[fee] = saleBase ? (v / saleBase) * 100 : null;
-        } else if (fee === "营收" || fee.includes("收入净额") || fee.includes("销售额") || fee.includes("销售净额") || fee.includes("销售收款")) {
-          ratios[fee] = saleBase ? (v / saleBase) * 100 : null;
-        } else {
-          ratios[fee] = revenueBase ? (v / revenueBase) * 100 : null;
-        }
+        ratios[fee] = base ? (Number(v) / base) * 100 : null;
       });
       return ratios;
     }
@@ -1747,6 +1761,8 @@
       const gross = convertAmount(values["毛利"] || 0);
       const qty = values["销量"] || 0;
       const currencyCode = currentCurrencyCode();
+      const sc = feeStatsCounts();
+      const confirmPct = sc.total ? Math.round((sc.ok / sc.total) * 100) : 0;
       const cardMap = {
         business: [
           { title: "销售额", value: sale, unit: currencyCode, y: "+2.13%", m: "-12.31%", note: "净销售额 + 亚马逊运费收入 + 亚马逊包装收入", money: true },
@@ -1754,17 +1770,17 @@
           { title: "销量", value: qty, unit: "", y: "+2.13%", m: "-6.31%", note: "订单销量（扣减退货）" },
           { title: "毛利", value: gross, unit: currencyCode, y: "+1.36%", m: "-8.12%", note: "业务口径毛利", money: true },
           { title: "毛利率", value: "39.82%", unit: "", y: "+0.86%", m: "-0.32%", note: "" },
-          { title: "退款率", value: "2.68%", unit: "", y: "+0.13%", m: "-0.21%", note: "销售退款 / 销售额" },
-          { title: "税费率", value: "2.24%", unit: "", y: "+0.05%", m: "-0.11%", note: "销售税/VAT / 销售额" }
+          { title: "退款率", value: "2.68%", unit: "", y: "+0.13%", m: "-0.21%", note: "销售退款 / 营收（明细表占比亦以营收为分母）" },
+          { title: "税费率", value: "2.24%", unit: "", y: "+0.05%", m: "-0.11%", note: "销售税/VAT / 营收" }
         ],
         finance: [
           { title: "财务销售额", value: sale, unit: currencyCode, y: "+1.95%", m: "-11.22%", note: "按财务维度已接入字段汇总", money: true },
           { title: "财务营收", value: revenue, unit: currencyCode, y: "+1.52%", m: "-9.63%", note: "月末确认口径", money: true },
           { title: "财务毛利", value: gross, unit: currencyCode, y: "+1.10%", m: "-7.41%", note: "财务确认值", money: true },
-          { title: "已接入费用项", value: "18", unit: "项", y: "", m: "", note: "财务维度已可直接读取" },
-          { title: "部分缺失", value: "10", unit: "项", y: "", m: "", note: "需补齐映射或滚动预提" },
-          { title: "缺失项", value: "5", unit: "项", y: "", m: "", note: "平台服务费 / 收单费用 / 店铺费用等" },
-          { title: "确认率", value: "82%", unit: "", y: "+2.00%", m: "+1.00%", note: "已确认费用项 / 费用项总数" }
+          { title: "已接入费用项", value: String(sc.ok), unit: "项", y: "", m: "", note: "状态为「已映射」的费用项数（原型按 feeStates 统计）" },
+          { title: "部分缺失", value: String(sc.partial), unit: "项", y: "", m: "", note: "需补齐映射或滚动预提" },
+          { title: "缺失项", value: String(sc.missing), unit: "项", y: "", m: "", note: "平台服务费 / 收单费用 / 店铺费用等" },
+          { title: "确认率", value: `${confirmPct}%`, unit: "", y: "+2.00%", m: "+1.00%", note: `已接入 / 可统计费用项（${sc.total} 项，不含销量）` }
         ],
         delta: [
           { title: "销售额差异", value: sale, unit: currencyCode, y: "", m: "", note: "业务 - 财务", money: true },
@@ -1944,7 +1960,7 @@
       },
       {
         key: "物流成本小计",
-        fee: "物流成本小计（计算值=头程运费费+尾程运费/FBA物流+退货运费+仓储费+关税）",
+        fee: "物流成本小计（计算值=头程运费+尾程运费/FBA物流+退货运费+仓储费+关税）",
         children: ["头程运费", "尾程运费/FBA物流", "退货运费", "仓储费", "关税"],
         lane: "mid",
         style: "purple"
@@ -1980,8 +1996,8 @@
     function flowItemBox(x, y, title, fee, values, style = "purple", active = false) {
       const val = values[fee];
       const amount = shortMoney(val, fee);
-      const saleBase = values["销售额（计算值=净销售额+包装收入+运费收入）"] || 0;
-      const ratio = (saleBase && val !== null && val !== undefined) ? `${((Number(val) / saleBase) * 100).toFixed(2)}%` : "--";
+      const revBase = revenueRatioBase(values);
+      const ratio = (revBase && val !== null && val !== undefined) ? `${((Number(val) / revBase) * 100).toFixed(2)}` : "--";
       const titleLines = getFlowTitleLines(title);
       const stroke = style === "orange" ? "#f59e0b" : "#8b5cf6";
       const fill = style === "orange" ? "#fff7ed" : "#faf5ff";
@@ -1994,7 +2010,7 @@
         <g class="flow-node" data-node-key="${title}" style="cursor:pointer;">
           <rect x="${x}" y="${y}" width="150" height="66" rx="10" fill="${fill}" stroke="${active ? activeStroke : stroke}" stroke-width="${active ? 2.4 : 1.5}"></rect>
           ${titleSvg}
-          <text x="${x + 75}" y="${amountY}" text-anchor="middle" font-size="14" font-weight="700" fill="#334155">${amount} (${ratio})</text>
+          <text x="${x + 75}" y="${amountY}" text-anchor="middle" font-size="14" font-weight="700" fill="#334155">${amount} (占营收 ${ratio}${ratio === "--" ? "" : "%"})</text>
         </g>
       `;
     }
@@ -2005,16 +2021,18 @@
       const sales = shortMoney(values["销售额（计算值=净销售额+包装收入+运费收入）"]);
       const revenue = shortMoney(values["收入净额（计算值=销售净额-销售税/VAT）"]);
       const gross = shortMoney(values["毛利"]);
-      const saleBase = values["销售额（计算值=净销售额+包装收入+运费收入）"] || 0;
-      const revenueRatio = saleBase ? `${((values["收入净额（计算值=销售净额-销售税/VAT）"] || 0) / saleBase * 100).toFixed(2)}%` : "--";
-      const grossRatio = saleBase ? `${((values["毛利"] || 0) / saleBase * 100).toFixed(2)}%` : "--";
+      const revBase = revenueRatioBase(values);
+      const saleVal = Number(values["销售额（计算值=净销售额+包装收入+运费收入）"] || 0);
+      const salesPct = revBase ? ((saleVal / revBase) * 100).toFixed(2) : "--";
+      const revenueRatio = revBase ? ((values["收入净额（计算值=销售净额-销售税/VAT）"] || 0) / revBase * 100).toFixed(2) : "--";
+      const grossRatio = revBase ? ((values["毛利"] || 0) / revBase * 100).toFixed(2) : "--";
 
       const svg = `
         <rect x="14" y="14" width="1532" height="592" rx="12" fill="#fff" stroke="#eef2f8"></rect>
 
         <polygon points="220,34 1340,34 1268,118 292,118" fill="#eef8ff" stroke="#38bdf8" stroke-width="3"></polygon>
         <text x="780" y="77" text-anchor="middle" font-size="34" font-weight="700" fill="#0f172a">销售额</text>
-        <text x="780" y="107" text-anchor="middle" font-size="26" font-weight="700" fill="#334155">${sales} (100.00%)</text>
+        <text x="780" y="107" text-anchor="middle" font-size="26" font-weight="700" fill="#334155">${sales}${revBase ? ` (占营收 ${salesPct}%)` : " (占营收 --)"}</text>
 
         ${flowItemBox(300, 138, "优惠合计", "优惠合计（计算值=折扣+直接扣减折扣）", values, "orange", selected === "优惠合计")}
         ${flowItemBox(700, 138, "销售退款", "销售退款", values, "orange", selected === "销售退款")}
@@ -2022,18 +2040,18 @@
 
         <polygon points="320,222 1240,222 1174,306 386,306" fill="#f0f9ff" stroke="#3b82f6" stroke-width="3"></polygon>
         <text x="780" y="264" text-anchor="middle" font-size="32" font-weight="700" fill="#0f172a">营收</text>
-        <text x="780" y="294" text-anchor="middle" font-size="24" font-weight="700" fill="#334155">${revenue} (${revenueRatio})</text>
+        <text x="780" y="294" text-anchor="middle" font-size="24" font-weight="700" fill="#334155">${revenue}${revBase ? ` (占营收 ${revenueRatio}%)` : " (占营收 --)"}</text>
 
         ${flowItemBox(255, 324, "货值成本净额", "货值成本净额（计算值=发货成本+退货成本+平台赔偿）", values, "purple", selected === "货值成本净额")}
         ${flowItemBox(435, 324, "广告宣传小计", "广告宣传小计（计算值=广告费+品牌营销费+推广费+样品费）", values, "purple", selected === "广告宣传小计")}
-        ${flowItemBox(615, 324, "物流成本小计", "物流成本小计（计算值=头程运费费+尾程运费/FBA物流+退货运费+仓储费+关税）", values, "purple", selected === "物流成本小计")}
+        ${flowItemBox(615, 324, "物流成本小计", "物流成本小计（计算值=头程运费+尾程运费/FBA物流+退货运费+仓储费+关税）", values, "purple", selected === "物流成本小计")}
         ${flowItemBox(795, 324, "交易及平台费用小计", "交易及平台费用小计（计算值=FBA佣金+平台服务费+收单费用/Payment Discount+店铺费用+Commission Fee）", values, "purple", selected === "交易及平台费用小计")}
         ${flowItemBox(975, 324, "运杂费", "运杂费", values, "purple", selected === "运杂费")}
         ${flowItemBox(1155, 324, "预留毛利", "预留毛利", values, "purple", selected === "预留毛利")}
 
         <polygon points="450,410 1110,410 1040,506 520,506" fill="#f5f3ff" stroke="#8b5cf6" stroke-width="3"></polygon>
         <text x="780" y="458" text-anchor="middle" font-size="32" font-weight="700" fill="#0f172a">毛利</text>
-        <text x="780" y="489" text-anchor="middle" font-size="24" font-weight="700" fill="#334155">${gross} (${grossRatio})</text>
+        <text x="780" y="489" text-anchor="middle" font-size="24" font-weight="700" fill="#334155">${gross}${revBase ? ` (占营收 ${grossRatio}%)` : " (占营收 --)"}</text>
       `;
 
       flowSvg.innerHTML = svg;
@@ -2051,13 +2069,13 @@
       const selectedKey = state.selectedFlowNode || "优惠合计";
       const selected = flowNodeConfig.find((item) => item.key === selectedKey) || flowNodeConfig[0];
       const values = getTotalValues();
-      const saleBase = values["销售额（计算值=净销售额+包装收入+运费收入）"] || 0;
+      const revBase = revenueRatioBase(values);
       const list = selected.children.map((fee) => {
         const amount = shortMoney(values[fee], fee);
-        const ratio = (saleBase && values[fee] !== null && values[fee] !== undefined)
-          ? `${((Number(values[fee]) / saleBase) * 100).toFixed(2)}%`
+        const ratio = (revBase && values[fee] !== null && values[fee] !== undefined)
+          ? `${((Number(values[fee]) / revBase) * 100).toFixed(2)}%`
           : "--";
-        return `<div class="flow-detail-item"><div class="k">${fee}</div><div class="flow-detail-amount-row"><span class="v-main">${amount}</span><span class="ratio">占比 ${ratio}</span></div></div>`;
+        return `<div class="flow-detail-item"><div class="k">${fee}</div><div class="flow-detail-amount-row"><span class="v-main">${amount}</span><span class="ratio">占营收 ${ratio}</span></div></div>`;
       }).join("");
       flowDetail.innerHTML = `
         <div class="flow-detail-title">${selected.key} 包含的子费用项</div>
@@ -2093,7 +2111,7 @@
           "发货成本", "退货成本", "平台赔偿", "货值成本净额（计算值=发货成本+退货成本+平台赔偿）",
           "广告费", "品牌营销费", "推广费", "样品费", "广告宣传小计（计算值=广告费+品牌营销费+推广费+样品费）",
           "头程运费", "尾程运费/FBA物流", "退货运费", "仓储费", "关税",
-          "物流成本小计（计算值=头程运费费+尾程运费/FBA物流+退货运费+仓储费+关税）",
+          "物流成本小计（计算值=头程运费+尾程运费/FBA物流+退货运费+仓储费+关税）",
           "FBA佣金", "平台服务费", "收单费用/Payment Discount", "店铺费用", "Commission Fee",
           "交易及平台费用小计（计算值=FBA佣金+平台服务费+收单费用/Payment Discount+店铺费用+Commission Fee）",
           "运杂费", "预留毛利"
@@ -2116,9 +2134,13 @@
           <tr class="cols">
             ${visibleFees.map((fee) => {
               const parsed = parseCalcInfo(fee);
-              const info = parsed.calc ? `
+              const extra = feeColumnExtraHint(fee);
+              const hintParts = [];
+              if (parsed.calc) hintParts.push(parsed.calc);
+              if (extra) hintParts.push(extra);
+              const info = hintParts.length ? `
                 <span class="calc-icon" data-calc-trigger="1">i</span>
-                <div class="calc-pop">${parsed.calc}</div>
+                <div class="calc-pop">${hintParts.join("<br><br>")}</div>
               ` : "";
               return `<th style="position:sticky;"><span class="th-title">${parsed.title}${info}</span></th>`;
             }).join("")}
@@ -2130,11 +2152,11 @@
         const value = row.values[fee];
         const ratio = row.ratios[fee];
         const cellCls = getCellState(fee, view, value);
-        let ratioText = "占比 --";
+        let ratioText = "占营收 --";
         if (view === "delta") {
-          ratioText = value === null ? "财务缺失" : `${ratio && Number.isFinite(ratio) ? ratio.toFixed(2) : "0.00"}%`;
+          ratioText = value === null ? "财务缺失" : `占营收 ${ratio && Number.isFinite(ratio) ? ratio.toFixed(2) : "0.00"}%`;
         } else if (ratio !== null && Number.isFinite(ratio)) {
-          ratioText = `占比 ${ratio.toFixed(2)}%`;
+          ratioText = `占营收 ${ratio.toFixed(2)}%`;
         }
         return `
           <td class="${cellCls}">
