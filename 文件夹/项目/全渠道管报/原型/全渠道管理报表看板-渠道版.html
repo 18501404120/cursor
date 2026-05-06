@@ -936,7 +936,7 @@
       left: 50%;
       top: 30px;
       transform: translateX(-50%);
-      width: min(380px, 94vw);
+      width: 280px;
       border: 1px solid #bfd7ff;
       border-radius: 8px;
       background: #ffffff;
@@ -1849,63 +1849,6 @@
       return { title: matched[1], calc: matched[2] };
     }
 
-    /** 与《财务费用字段与业务字段映射维护》业务指标池 defaultBusinessFields 文案一致（同步维护） */
-    const BIZ_FIELD_HELP_BY_TITLE = {
-      "订单销售额": "订单含税、含退款、含折扣等口径的销售额（按渠道定义）",
-      "净销售额": "RRP价×销售数量（含退货数量）",
-      "运费收入": "仅亚马逊等有运费收入的渠道；其他为 0",
-      "包装收入": "仅亚马逊等有包装收入的渠道；其他为 0",
-      "销售额": "计算值＝净销售额+包装收入+运费收入。净销售额+包装收入+运费收入（全渠道；非亚马逊渠道后两项为 0）",
-      "折扣": "订单中非 RRP 价差类折扣（不含直接扣减折扣）",
-      "直接扣减折扣": "(RRP价−成交价)×数量",
-      "优惠合计": "计算值＝折扣+直接扣减折扣。折扣+直接扣减折扣",
-      "销售收款": "计算值＝销售额−优惠合计。销售额−优惠合计",
-      "销售退款": "各渠道退款金额",
-      "销售净额": "计算值＝销售收款−销售退款。销售收款−销售退款",
-      "销售税/VAT": "销售税及 VAT",
-      "收入净额": "计算值＝销售净额−销售税/VAT。销售净额−销售税/VAT",
-      "发货成本": "授权采购成本×销售数量（含退货部分）",
-      "退货成本": "授权采购成本×退货数量",
-      "平台赔偿": "平台赔偿流水或预提回写",
-      "货值成本净额": "计算值＝发货成本+退货成本+平台赔偿。发货成本+退货成本+平台赔偿",
-      "广告费": "广告实时花费等",
-      "品牌营销费": "营销费用规划拆月等业务口径",
-      "推广费": "推广/宣传费",
-      "样品费": "样品费",
-      "广告宣传小计": "计算值＝广告费+品牌营销费+推广费+样品费。广告费+品牌营销费+推广费+样品费",
-      "头程运费": "头程/国际运费",
-      "尾程运费/FBA物流": "尾程、FBA 配送或海外仓尾程",
-      "退货运费": "退货运费",
-      "仓储费": "长期+月度仓储、海外仓等",
-      "关税": "授权关税×订单销量（扣减退货）",
-      "物流成本小计": "计算值＝头程运费+尾程运费/FBA物流+退货运费+仓储费+关税。头程+尾程/FBA+退货运费+仓储+关税",
-      "FBA佣金": "平台佣金（按类目比例等）",
-      "平台服务费": "平台服务费",
-      "收单费用/Payment Discount": "净销售额×提现费率等（业务亦称首单成本）",
-      "店铺费用": "店铺费用",
-      "Commission Fee": "佣金费用",
-      "交易及平台费用小计": "计算值＝FBA佣金+平台服务费+收单费用/Payment Discount+店铺费用+Commission Fee。FBA佣金+平台服务费+收单费用+店铺费用+Commission Fee",
-      "运杂费": "运杂费",
-      "预留毛利": "应扣预留毛利",
-      "销量": "订单销量（扣减退货）",
-      "营收": "收入净额",
-      "毛利": "收入净额−货值成本净额−广告宣传小计−物流成本小计−交易及平台费用小计−运杂费−预留毛利等（以 Excel 取值为准）"
-    };
-
-    function feeColumnBizHint(fee) {
-      const { title } = parseCalcInfo(fee);
-      if (title === "出货授权成本") {
-        return "授权采购成本×销售数量（含退货部分）（列名出货授权成本；与映射维护页业务指标「发货成本」同口径）";
-      }
-      if (title === "货值成本净额" && fee.includes("出货授权成本")) {
-        return "计算值＝出货授权成本+退货成本+平台赔偿。出货授权成本+退货成本+平台赔偿（与映射维护页「货值成本净额」一致，本页按渠道版 Excel 命名）";
-      }
-      if (title === "物流成本小计" && !fee.includes("关税")) {
-        return "计算值＝头程运费+尾程运费/FBA物流+退货运费+仓储费。头程+尾程/FBA+退货运费+仓储（渠道版本列暂不纳入关税，与映射维护「渠道方案」一致）";
-      }
-      return BIZ_FIELD_HELP_BY_TITLE[title] || "";
-    }
-
     const REGION_COUNTRY_DATA = [
       { region: "北美区", countries: ["US", "CA", "MX"] },
       { region: "欧洲区", countries: ["GB", "DE", "FR", "IT", "ES", "SE", "NO", "FI", "DK", "PL", "CZ", "HU"] },
@@ -2495,11 +2438,9 @@
             ${visibleFees.map((fee) => {
               const parsed = parseCalcInfo(fee);
               const extra = feeColumnExtraHint(fee);
-              const biz = feeColumnBizHint(fee);
               const hintParts = [];
-              if (biz) hintParts.push(`<strong>业务维度</strong><br>${biz}`);
               if (parsed.calc) hintParts.push(parsed.calc);
-              if (extra) hintParts.push(`<strong>补充</strong><br>${extra}`);
+              if (extra) hintParts.push(extra);
               const info = hintParts.length ? `
                 <span class="calc-icon" data-calc-trigger="1">i</span>
                 <div class="calc-pop">${hintParts.join("<br><br>")}</div>
