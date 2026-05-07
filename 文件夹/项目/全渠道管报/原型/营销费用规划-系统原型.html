@@ -842,7 +842,7 @@
                   <li>在<strong>筛选区</strong>选好月份范围（默认当年 1–12 月）、渠道、店铺等后点击<strong>搜索</strong>，查看符合条件的规划行。</li>
                   <li>点击<strong>新增一行</strong>，在表格中依次选择<strong>规划月份范围</strong>、场景品类、SKU、新品标签、区域、国家、渠道、店铺，并填写<strong>营销费用规划（USD）</strong>总金额。</li>
                   <li>需要了解某列含义时，只看<strong>表头</strong>旁的蓝色「i」说明；行内不再重复提示。</li>
-                  <li>选中一行后看下方「拆分结果」；可点<strong>重算展示</strong>按当前填写刷新。确认无误后<strong>保存全部</strong>或单行<strong>保存</strong>。</li>
+                  <li>下方「拆分结果」会随<strong>当前筛选 + 上表可见规划行</strong>自动汇总；改筛选或规划后点<strong>搜索</strong>或保存即可刷新。确认无误后<strong>保存全部</strong>或单行<strong>保存</strong>。</li>
                   <li>表头旁<strong>蓝「i」</strong>是这一列在说什么；数字<strong>红点</strong>里是更细的规则说明，需要时再点开。</li>
                 </ol>
               </div>
@@ -1004,13 +1004,9 @@
               <button type="button" class="logic-pin" data-logic-key="12" aria-label="编号说明 12">12</button>
               <button type="button" class="field-hint-icon" data-user-hint="splitPanel" aria-label="拆分结果说明">i</button>
             </span>
-            <span class="panel-head-tools">
-              <button type="button" class="btn btn-default" id="btnRefreshSplit">重算展示</button>
-              <button type="button" class="logic-pin" data-logic-key="13" aria-label="编号说明 13">13</button>
-            </span>
           </div>
           <div class="panel-body">
-            <p class="split-meta" id="splitContext">在上表点击一行，下方展示该行拆分后的月份与店铺、MSKU 明细。金额如何分摊、哪些商品参与，见本页顶部「页面说明」。</p>
+            <p class="split-meta" id="splitContext">以下为<strong>当前筛选范围内全部规划行</strong>分摊后的汇总结果（同月、同店、同 MSKU 会合并为一行金额）。规则见顶部「页面说明」。</p>
             <div class="table-wrap">
               <table id="tblSplit">
                 <thead>
@@ -1111,7 +1107,6 @@
   var planSkuMsf = null;
   var planRowPanelScenario = "";
   var planRowOutsideCloseWired = false;
-  var focusPlanId = null;
 
   /** 新品标签可选年份（与筛选浮层一致，高→低） */
   var NP_TAG_YEAR_OPTIONS = [2029, 2028, 2027, 2026, 2025, 2024, 2023];
@@ -1247,15 +1242,14 @@
     );
     add(
       "12",
-      "拆分结果表",
-      "只看当前在上表选中的那一行。\n参与拆分的月份：顶部筛选月份 与 该行规划月份 的重叠部分。\n参与拆分的商品：须同时满足该行填写的场景品类、SKU、新品、渠道、店铺、区域、国家（与示例主数据一致）。\n金额：先把行总金额按「各月符合条件的商品 BP 合计」在月与月之间分配；再在每个月内按各商品当月 BP 占比分到店铺和 MSKU。多行规划可以各自拆分，同一商品可以出现在不同规划行的结果里。"
+      "拆分结果表（汇总）",
+      "对「当前筛选后、上面规划表里出现的每一行」分别按规则拆分，再把结果<strong>按月份、店铺、MSKU 合并</strong>成一张总表（同一月同一店同一 MSKU 的金额会加总）。\n每一行规划自己：参与月份 = 顶部筛选月份 与 该行规划月份 的重叠；参与商品 = 须同时满足该行填写的场景品类、SKU、新品、渠道、店铺、区域、国家。\n金额规则与单行一致：先在月与月之间按 BP 分，再在月内按商品 BP 分到店铺和 MSKU。"
     );
     add(
       "12b",
       "列：BP 营收权重",
-      "这一列表示：在下方整张拆分结果里，这一格（某月 × 某商品）的示例 BP 占全表 BP 合计的大致比例，用来理解「为什么拆这么多」。本页为演示数据，非真实接口。"
+      "在下方<strong>汇总后的整张表</strong>里，这一格（某月 × 某店 × 某 MSKU）的示例 BP，占本表 BP 合计的比例，用来理解金额占比。本页为演示数据。"
     );
-    add("13", "重算展示", "按当前表格里这一行的最新填写，重新算一遍下方拆分表；不访问后端。");
     return o;
   })();
 
@@ -1327,8 +1321,8 @@
     );
     add(
       "splitPanel",
-      "拆分结果",
-      "先在上表点选一行。\n只展示：顶部筛选月份 与 该行规划月份 重叠的那些月。\n金额先在月与月之间按示例 BP 分配，再在月内按商品 BP 分到店铺和 MSKU（本页为示例数据）。"
+      "拆分结果（汇总）",
+      "展示<strong>当前筛选范围内、上面表格里所有规划行</strong>拆分后再合并的结果；同月、同店、同 MSKU 会合成一行。\n筛选不选某一项，通常表示不按该项缩小范围（与上表一致）。\n金额为示例 BP 规则下的演示结果。"
     );
     return o;
   })();
@@ -2527,7 +2521,7 @@
     enrichPlanFromTree(p);
     syncPlanRowDomFromPlan(tr, p);
     saveAll(list);
-    if (focusPlanId === id) renderSplitForPlan(id);
+    renderSplitAggregated();
     renderPlanRowScCatSceneColumn();
     renderPlanRowScCatCatColumn();
   }
@@ -2577,7 +2571,7 @@
       enrichPlanFromTree(p);
       syncPlanRowDomFromPlan(tr, p);
       saveAll(list);
-      if (focusPlanId === id) renderSplitForPlan(id);
+      renderSplitAggregated();
       renderPlanRowScCatSceneColumn();
       renderPlanRowScCatCatColumn();
       return;
@@ -2947,7 +2941,7 @@
           applyLeavesAndSkusToPlan(p, readLeavesFromTr(tr), picked);
           saveAll(list);
           syncPlanRowSkuDom(tr, p);
-          if (focusPlanId === planSkuRowEditId) renderSplitForPlan(planSkuRowEditId);
+          renderSplitAggregated();
         }
         closePlanSkuPop();
         toast("已更新 SKU 多选");
@@ -2968,7 +2962,7 @@
           delete p.planSkus;
           saveAll(list);
           syncPlanRowSkuDom(tr, p);
-          if (focusPlanId === planSkuRowEditId) renderSplitForPlan(planSkuRowEditId);
+          renderSplitAggregated();
         }
         closePlanSkuPop();
         toast("已清空该行 SKU");
@@ -3436,6 +3430,51 @@
     return rows;
   }
 
+  /** 对多行规划分别 splitPlan 后按 月+店+MSKU 合并，并按合并后全表 BP 重算权重列 */
+  function aggregateSplitFromPlans(plans) {
+    var map = {};
+    for (var pi = 0; pi < plans.length; pi++) {
+      var sub = splitPlan(plans[pi]);
+      for (var si = 0; si < sub.length; si++) {
+        var r = sub[si];
+        var key =
+          String(r.monthYm || "") +
+          "\t" +
+          String(r.shop || "") +
+          "\t" +
+          String(r.msku || "");
+        if (!map[key]) {
+          map[key] = {
+            monthYm: r.monthYm,
+            shop: r.shop,
+            msku: r.msku,
+            splitAmount: 0,
+            bpRev: 0
+          };
+        }
+        map[key].splitAmount += Number(r.splitAmount) || 0;
+        map[key].bpRev += Number(r.bpRev) || 0;
+      }
+    }
+    var arr = Object.keys(map).map(function (k) {
+      return map[k];
+    });
+    arr.sort(function (a, b) {
+      var c = String(a.monthYm || "").localeCompare(String(b.monthYm || ""));
+      if (c !== 0) return c;
+      c = String(a.shop || "").localeCompare(String(b.shop || ""));
+      if (c !== 0) return c;
+      return String(a.msku || "").localeCompare(String(b.msku || ""));
+    });
+    var sumBp = arr.reduce(function (s, x) {
+      return s + x.bpRev;
+    }, 0);
+    arr.forEach(function (x) {
+      x.weight = sumBp > 0 ? x.bpRev / sumBp : 0;
+    });
+    return arr;
+  }
+
   function fixRounding(rows, targetTotal) {
     var sum = rows.reduce(function (s, r) { return s + r.splitAmount; }, 0);
     var diff = targetTotal - sum;
@@ -3645,7 +3684,7 @@
           applyPlanMonthsToRecord(row, s, e);
           saveAll(list);
         }
-        if (focusPlanId === p.id) renderSplitForPlan(p.id);
+        renderSplitAggregated();
       }
     });
   }
@@ -3663,7 +3702,6 @@
     tbody.innerHTML = "";
     if (list.length === 0) {
       tbody.innerHTML = '<tr><td colspan="10" class="empty">无数据，可点击「新增一行」开始维护</td></tr>';
-      focusPlanId = null;
       clearSplitTable();
       return;
     }
@@ -3696,12 +3734,7 @@
       mountPlanRowMonthPicker(tr, p);
     });
     bindPlanRowEvents();
-    var fl = filteredList();
-    if (fl.length) {
-      var ok = focusPlanId && fl.some(function (p) { return p.id === focusPlanId; });
-      if (!ok) focusPlanId = fl[0].id;
-      renderSplitForPlan(focusPlanId);
-    }
+    renderSplitAggregated();
   }
 
   function escapeHtml(s) {
@@ -3859,16 +3892,6 @@
           openPlanRowSku(tr, id);
         });
       }
-      tr.addEventListener("click", function (e) {
-        if (
-          e.target.closest(
-            "button, input, select, textarea, label, .plan-sc-cat-wrap, .plan-sku-wrap, .mrp-wrap, .mrp-panel"
-          )
-        )
-          return;
-        focusPlanId = id;
-        renderSplitForPlan(id);
-      });
       var npRow = tr.querySelector(".js-np-tag-row");
       if (npRow) {
         npRow.addEventListener("change", function () {
@@ -3883,7 +3906,7 @@
           enrichPlanFromTree(pr);
           saveAll(list2);
           syncPlanRowDomFromPlan(tr, pr);
-          if (focusPlanId === id) renderSplitForPlan(id);
+          renderSplitAggregated();
         });
       }
       var regSel = tr.querySelector(".js-plan-region");
@@ -3897,17 +3920,14 @@
       tr.querySelector(".js-save").addEventListener("click", function () {
         if (persistRow(tr, id)) {
           toast("已保存该行");
-          renderSplitIfFocused();
         }
       });
       tr.querySelector(".js-del").addEventListener("click", function () {
         if (!confirm("确定删除该行？")) return;
         var list = loadAll().filter(function (p) { return p.id !== id; });
         saveAll(list);
-        if (focusPlanId === id) focusPlanId = null;
         toast("已删除");
         renderPlans();
-        renderSplitIfFocused();
       });
     });
   }
@@ -3938,7 +3958,6 @@
   }
 
   function persistRow(tr, id) {
-    focusPlanId = id;
     var list = loadAll();
     var p = list.find(function (x) { return x.id === id; });
     if (!p) return false;
@@ -3987,48 +4006,36 @@
     return true;
   }
 
-  function renderSplitIfFocused() {
-    if (focusPlanId) renderSplitForPlan(focusPlanId);
-    else clearSplitTable();
+  var DEFAULT_SPLIT_CONTEXT_HTML =
+    '以下为<strong>当前筛选范围内全部规划行</strong>分摊后的汇总结果（同月、同店、同 MSKU 会合并为一行金额）。规则见顶部「页面说明」。';
+
+  function setSplitContextDefault() {
+    var ctx = document.getElementById("splitContext");
+    if (ctx) ctx.innerHTML = DEFAULT_SPLIT_CONTEXT_HTML;
   }
 
   function clearSplitTable() {
     document.getElementById("tbodySplit").innerHTML = "";
-    document.getElementById("splitContext").textContent =
-      "在上表点击一行，下方展示该行拆分明细。规则说明见本页顶部「页面说明」。";
+    setSplitContextDefault();
     document.getElementById("splitSum").textContent = "";
   }
 
-  function renderSplitForPlan(id) {
-    var list = loadAll();
-    var p = list.find(function (x) { return x.id === id; });
+  function renderSplitAggregated() {
     var tbody = document.getElementById("tbodySplit");
-    var ctx = document.getElementById("splitContext");
     var sumEl = document.getElementById("splitSum");
-    if (!p) {
+    if (!tbody || !sumEl) return;
+    var fl = filteredList();
+    tbody.innerHTML = "";
+    setSplitContextDefault();
+    sumEl.textContent = "";
+    if (!fl.length) {
       clearSplitTable();
       return;
     }
-    var eligPre = collectEligibleMskus(p);
-    var monthsPre = monthsForPlanSplit(p);
-    var prCtx = getPlanMonthRangePair(p);
-    var rows = splitPlan(p);
-    tbody.innerHTML = "";
+    var rows = aggregateSplitFromPlans(fl);
     if (!rows.length) {
-      var emptyMsg =
-        "未匹配到 MSKU（请检查场景品类、SKU、新品标签及区域/国家/渠道/店铺是否与示例主数据一致）";
-      if (eligPre.length && !monthsPre.length) {
-        emptyMsg =
-          "筛选「月份范围」与该行「规划月份范围」无交集（行：" +
-          prCtx.start +
-          " - " +
-          prCtx.end +
-          "）；请调整筛选或行的月份范围。";
-      }
       tbody.innerHTML =
-        '<tr><td colspan="5" class="empty">' + emptyMsg + "</td></tr>";
-      ctx.textContent = "当前规划：" + formatPlanLineLabel(p) + "。详情与规则见顶部「页面说明」。";
-      sumEl.textContent = "";
+        '<tr><td colspan="5" class="empty">当前筛选与可见规划范围内无拆分结果（请检查各行的场景品类、SKU、新品标签、月份交集及区域/国家/渠道/店铺是否与示例主数据一致）</td></tr>';
       return;
     }
     rows.forEach(function (r) {
@@ -4041,14 +4048,11 @@
         '<td class="num">' + formatUsd(r.splitAmount) + "</td>";
       tbody.appendChild(tr);
     });
-    var s = rows.reduce(function (a, r) { return a + r.splitAmount; }, 0);
-    ctx.textContent =
-      "当前规划：" +
-      formatPlanLineLabel(p) +
-      "。下方共 " +
-      rows.length +
-      " 行明细；分摊月份与金额规则见顶部「页面说明」。";
-    sumEl.textContent = "拆分合计：" + formatUsd(s) + "（应与该行规划额一致）。";
+    var splitSum = rows.reduce(function (a, r) {
+      return a + r.splitAmount;
+    }, 0);
+    sumEl.textContent =
+      "拆分合计：" + formatUsd(splitSum) + "（汇总 " + rows.length + " 行明细，由可见规划行逐行分摊后合并）。";
   }
 
   function toast(msg) {
@@ -4155,12 +4159,6 @@
     saveAll(list);
     renderPlans();
     toast("已全部写入本地");
-    renderSplitIfFocused();
-  });
-
-  document.getElementById("btnRefreshSplit").addEventListener("click", function () {
-    if (focusPlanId) renderSplitForPlan(focusPlanId);
-    else toast("请先在上表点击一行以选中规划");
   });
 
   function startApp() {
@@ -4207,7 +4205,6 @@
         .then(function (d) {
           applyScenePayload(d);
           renderPlans();
-          renderSplitIfFocused();
           updateScCatTrigger();
           updateNpTagTrigger();
           refreshScCatColumnsIfOpen();
