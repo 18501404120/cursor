@@ -98,6 +98,46 @@
       position: relative;
       z-index: 20;
     }
+    /* 折叠：规划 vs 活动明细（默认收起，减少与 KPI 重复） */
+    details.panel-details-fold {
+      list-style: none;
+      margin-bottom: 16px;
+      border: 1px solid var(--card-border);
+      border-radius: var(--card-radius);
+      background: var(--card-bg);
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+      overflow: visible;
+    }
+    details.panel-details-fold > summary {
+      list-style: none;
+      cursor: pointer;
+      user-select: none;
+      padding: 12px 16px;
+      border-bottom: 1px solid transparent;
+      font-weight: 600;
+      font-size: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      flex-wrap: wrap;
+      background: linear-gradient(180deg, #fafafa 0%, #fff 100%);
+    }
+    details.panel-details-fold > summary::-webkit-details-marker {
+      display: none;
+    }
+    details.panel-details-fold[open] > summary {
+      border-bottom-color: var(--line);
+    }
+    .panel-details-chevron::before {
+      content: "▶";
+      font-size: 10px;
+      color: var(--text-sec);
+      margin-left: 8px;
+    }
+    details.panel-details-fold[open] .panel-details-chevron::before {
+      content: "▼";
+    }
     .panel-head {
       padding: 12px 16px;
       border-bottom: 1px solid var(--line);
@@ -819,6 +859,9 @@
         <p class="logic-breadcrumb-hint">
           正式用户请点击「<strong>i</strong>」查看简要说明；开发/测试请点击<strong>红色编号</strong>查看本页逻辑细则（不铺在主界面上）。规范：<code>ckw/规范/原型-红点逻辑标注与用户提示-全局UI规范.md</code>；与规划页对齐的数据键：<code>marketing_expense_plan_v3</code> / <code>marketing_expense_plan_usd_v2</code>。
         </p>
+        <p class="logic-breadcrumb-hint" style="margin-top:-4px;background:#e6f4ff;border-color:#91caff;color:#0958d9;">
+          <strong>本页定位（与会议对齐）</strong>：登记<strong>营销活动</strong>的预算/实际，对照<strong>年初规划</strong>（读规划页本地缓存）看时间进度与花费节奏；非财报口径，实际可后补。默认<strong>品牌整体</strong>，通过顶部场景品类/新品等筛选下钻；里程碑未点月份为全年视图，点选月份为当月活动钻取。
+        </p>
 
         <section class="panel panel--filter">
           <div class="filter-panel">
@@ -895,7 +938,7 @@
             <button type="button" class="btn btn-default" id="btnAddOpen">新增活动</button>
           </div>
           <div class="panel-body">
-            <p class="hint" style="margin-top:0;">点选月份可筛下方活动；规则说明见标题旁「<strong>i</strong>」或红「<strong>5</strong>」。新增活动时在弹窗中填写日期、场景品类与新品标签（与《营销费用规划》维度一致）。</p>
+            <p class="hint" style="margin-top:0;">点选月份可筛下方活动；规则说明见标题旁「<strong>i</strong>」或红「<strong>5</strong>」。未点选月份时为<strong>品牌整体</strong>（仍受顶部场景品类/新品筛选）；点选某月为该月钻取。新增活动时填写日期、场景品类/新品/SKU、可选区域/国家/渠道（与规划维度对齐）。</p>
             <div class="milestone-wrap">
               <div class="milestone-rail" id="milestoneRail" aria-label="全年12月里程碑"></div>
             </div>
@@ -924,6 +967,7 @@
                     <th>活动名称</th>
                     <th>场景品类</th>
                     <th>新品标签</th>
+                    <th>应用范围</th>
                     <th class="num">预算（USD）</th>
                     <th class="num">实际（USD）</th>
                     <th class="actions">操作</th>
@@ -956,40 +1000,46 @@
             </div>
             <div class="kpi-row" id="kpiRow">
               <div class="kpi-card brand">
-                <div class="lab">预算合计（USD）</div>
-                <div class="val" id="kpiBudget">$0</div>
-                <div class="sub">年度 + 筛选维度下活动预算（全年）</div>
+                <div class="lab">规划年度预算（USD）</div>
+                <div class="val" id="kpiPlanBudget">$0</div>
+                <div class="sub">来自「营销费用规划」缓存，当年 + 与列表一致的场景/新品筛选</div>
+              </div>
+              <div class="kpi-card">
+                <div class="lab">活动预算合计（USD）</div>
+                <div class="val" id="kpiActivityBudget">$0</div>
+                <div class="sub">当前筛选下已登记活动预算之和</div>
               </div>
               <div class="kpi-card ok">
-                <div class="lab">实际费用合计（USD）</div>
+                <div class="lab">活动实际合计（USD）</div>
                 <div class="val" id="kpiActual">$0</div>
-                <div class="sub">已登记实际发生</div>
+                <div class="sub">可后补；非支付/结账口径</div>
               </div>
               <div class="kpi-card">
                 <div class="lab">按进度预估应花（USD）</div>
                 <div class="val" id="kpiExpected">$0</div>
-                <div class="sub">预算 × 时间进度</div>
+                <div class="sub">规划年度预算 × 自然年时间进度</div>
               </div>
               <div class="kpi-card warn" id="kpiVarCard">
                 <div class="lab">实际 − 预估（USD）</div>
                 <div class="val" id="kpiVariance">$0</div>
-                <div class="sub">正为超支、负为节余（原型示意）</div>
+                <div class="sub">活动实际合计 − 上项（看消耗相对规划进度）</div>
               </div>
             </div>
           </div>
         </section>
 
-        <section class="panel">
-          <div class="panel-head">
-            <span class="panel-head-tools">
-              <span>规划维度汇总</span>
+        <details class="panel panel-details-fold">
+          <summary class="panel-details-summary">
+            <span>各维度规划 vs 活动（明细，可选展开）</span>
+            <span class="panel-details-chevron" aria-hidden="true"></span>
+          </summary>
+          <div class="panel-body">
+            <div class="panel-head-tools" style="margin-bottom:10px;">
               <button type="button" class="logic-pin" data-logic-key="b8" aria-label="开发测试说明 规划汇总">8</button>
               <button type="button" class="field-hint-icon" data-user-hint="planSummaryPanel" aria-label="规划维度汇总说明">i</button>
-            </span>
-          </div>
-          <div class="panel-body">
+            </div>
             <p class="hint" style="margin-top:0;margin-bottom:10px;font-size:12px;">
-              与「营销费用规划」原型一致：优先读 <code>marketing_expense_plan_v3</code>（场景、品类、新品标签等组合）；无则回退 <code>marketing_expense_plan_usd_v2</code>（历史品线键，仅作兼容展示）。详细口径见本块标题旁「<strong>i</strong>」或红「<strong>8</strong>」。
+              与 KPI 中「规划年度预算」同源：优先 <code>marketing_expense_plan_v3</code>；无则回退 v2 品线。与上方 KPI 卡片部分信息重叠，故默认折叠，需要按维度核对时再展开。
             </p>
             <div class="table-wrap">
               <table>
@@ -1006,7 +1056,7 @@
               </table>
             </div>
           </div>
-        </section>
+        </details>
 
         <section class="panel">
           <div class="panel-head">
@@ -1023,6 +1073,7 @@
                 <thead>
                   <tr>
                     <th>店铺</th>
+                    <th>渠道（示意）</th>
                     <th>MSKU</th>
                     <th>场景维度（权重示意）</th>
                     <th>权重</th>
@@ -1073,7 +1124,23 @@
         <div class="form-row">
           <label for="fNewProductTag">新品标签</label>
           <select id="fNewProductTag"></select>
-          <p class="hint" style="margin-top:8px;margin-bottom:0;">可与场景品类组合；保存时「场景品类」与「新品标签」不可同时为空。</p>
+          <p class="hint" style="margin-top:8px;margin-bottom:0;">与场景品类、SKU 组合：三者<strong>不可同时为空</strong>；可与场景取交集（如「居家 + 26年新品」）。仅填 SKU 时场景品类可不选。</p>
+        </div>
+        <div class="form-row">
+          <label for="fActSkus">SKU（可选）</label>
+          <textarea id="fActSkus" placeholder="多个 SKU 可用逗号、顿号、分号或换行分隔；与规划页「按 SKU 收窄」一致"></textarea>
+        </div>
+        <div class="form-row">
+          <label for="fActRegion">区域（可选）</label>
+          <select id="fActRegion"><option value="">不限</option></select>
+        </div>
+        <div class="form-row">
+          <label for="fActCountry">国家（可选）</label>
+          <select id="fActCountry"><option value="">不限</option></select>
+        </div>
+        <div class="form-row">
+          <label for="fActChannel">渠道（可选）</label>
+          <select id="fActChannel"></select>
         </div>
         <div class="form-row">
           <label for="fBudget">预算费用（USD）</label>
@@ -1081,7 +1148,8 @@
         </div>
         <div class="form-row">
           <label for="fActual">实际费用（USD）</label>
-          <input type="number" id="fActual" min="0" step="1" placeholder="0" />
+          <input type="number" id="fActual" min="0" step="1" placeholder="可后补，默认 0" />
+          <p class="hint" style="margin-top:6px;margin-bottom:0;">活动执行后登记；实际可事后补录（与会议：合同/交付节奏与支付不必一致）。</p>
         </div>
         <div class="form-row">
           <label for="fNote">备注</label>
@@ -1193,6 +1261,89 @@
   function planNpTagValue(p) {
     if (!p) return "";
     return String(p.newProductTag || "").trim();
+  }
+
+  /** 活动/规划行上可选 SKU 列表（与规划页 planSkus 一致） */
+  function getActivitySkus(a) {
+    if (!a) return [];
+    if (!Array.isArray(a.planSkus)) return [];
+    return a.planSkus.map(function (x) { return String(x || "").trim(); }).filter(Boolean);
+  }
+
+  function parseSkuListFromInput(raw) {
+    return String(raw || "")
+      .split(/[\s,，、;；|]+/)
+      .map(function (s) {
+        return s.trim();
+      })
+      .filter(Boolean);
+  }
+
+  /** 从示例店铺串「区/国/平台」取渠道示意 */
+  function channelHintFromDemoShop(shop) {
+    var parts = String(shop || "").split("/");
+    if (parts.length >= 3) return String(parts[2] || "").trim() || "—";
+    return parts.length ? String(parts[parts.length - 1] || "").trim() : "—";
+  }
+
+  /** 活动列表「应用范围」：地理/渠道或 SKU 摘要 */
+  function formatActivityScopeCell(a) {
+    if (!a) return "—";
+    var bits = [];
+    if (a.actRegionCode) bits.push(String(a.actRegionCode));
+    if (a.actCountryCode) bits.push(String(a.actCountryCode));
+    if (a.actChannelKey) bits.push(String(a.actChannelKey));
+    if (bits.length) return escapeHtml(bits.join(" / "));
+    var sk = getActivitySkus(a);
+    if (sk.length) return escapeHtml("SKU " + sk.length + " 个");
+    return "—";
+  }
+
+  function loadPlansV3Array() {
+    try {
+      var raw = localStorage.getItem(PLAN_STORAGE_KEY_V3);
+      if (!raw) return [];
+      var arr = JSON.parse(raw);
+      return Array.isArray(arr) ? arr : [];
+    } catch (e) {
+      return [];
+    }
+  }
+
+  function planYearFromRow(p) {
+    if (!p) return "";
+    if (p.year != null && String(p.year).trim()) return String(p.year).trim();
+    var ps = String(p.planMonthStart || "").trim();
+    return ps.length >= 4 ? ps.slice(0, 4) : "";
+  }
+
+  /** 与活动列表一致：当年 + 场景品类 / 新品筛选 */
+  function sumPlanBudgetForKpi(year) {
+    var y = String(year);
+    var arr = loadPlansV3Array();
+    var sum = 0;
+    if (arr.length) {
+      arr.forEach(function (p) {
+        if (planYearFromRow(p) !== y) return;
+        if (!planMatchesScCatFilter(p)) return;
+        if (!npTagMatchesSelectedForAct(p)) return;
+        sum += Number(p.planAmount) || 0;
+      });
+      return sum;
+    }
+    try {
+      var raw2 = localStorage.getItem(PLAN_STORAGE_KEY_V2);
+      if (!raw2) return 0;
+      var arr2 = JSON.parse(raw2);
+      if (!Array.isArray(arr2)) return 0;
+      arr2.forEach(function (p) {
+        if (String(p.year) !== y || !p.productLine) return;
+        sum += Number(p.planAmount) || 0;
+      });
+      return sum;
+    } catch (e2) {
+      return 0;
+    }
   }
 
   function normalizeLeavesArray(leaves) {
@@ -1460,17 +1611,17 @@
     add(
       "b7",
       "【7】进度与费用概览",
-      "时间进度＝自然年内已过天数比例；「按进度预估应花」≈ 当前筛选下活动预算合计 × 时间进度（示意）。\n「实际 − 预估」为 KPI 示意，非财务结账口径。"
+      "规划年度预算：读 marketing_expense_plan_v3（或空则 v2 品线），当年且与顶部「场景品类 + 新品标签」筛选一致的 planAmount 合计。\n活动预算合计：当前筛选下活动 budgetUsd 之和。\n时间进度＝自然年内已过天数比例。\n按进度预估应花＝规划年度预算 × 时间进度（会议：对照规划节奏）。\n实际 − 预估＝活动实际合计 − 上项（看活动登记相对规划进度的偏差，非财报口径）。"
     );
     add(
       "b8",
-      "【8】规划维度汇总",
-      "读取顺序：\n① localStorage marketing_expense_plan_v3：按规划行 planAmount 聚合到「场景品类 + 新品标签」两列展示（与规划粒度一致）。\n② 若无 v3 可读数据，则回退 marketing_expense_plan_usd_v2（历史品线键，新品列显示「—」）。\n本表「实际花费」来自活动层按「场景+品类+新品标签」汇总键拆分，与 KPI 同口径，与规划行无自动核销关系（原型说明）。"
+      "【8】各维度规划 vs 活动（折叠区）",
+      "与 KPI「规划年度预算」同源聚合；按维度列出规划费用、规划×时间进度预估、以及活动实际在该维度键上的汇总。\n默认折叠以减少与 KPI 卡片的信息重复；展开后便于逐行核对。\n实际花费键与活动「场景+品类+新品」汇总一致；与规划行无自动核销（原型说明）。"
     );
     add(
       "b9",
       "【9】店铺 + MSKU 分摊",
-      "依赖上方列表选中活动；按活动 budgetUsd/actualUsd 与 DEMO MSKU 列表做示意拆分（权重为原型占位）。\n与规划页「按 BP 营收拆分 MSKU」为不同模块，本看板侧重活动执行视角。"
+      "依赖列表选中活动，或合并当前筛选下全部活动；按 DEMO 店铺串解析「渠道（示意）」列（区/国/平台第三段）。\n权重为原型占位 BP；与规划页正式 BP 拆分可不同源，本块侧重活动执行视角下的分配结构示意。"
     );
     return o;
   })();
@@ -1491,18 +1642,18 @@
       "多选新品年份标签；与场景品类组合时取交集（AND）。"
     );
     add("milestonePanel", "里程碑", "点某个月，下面列表只显示与该月有交集的活动；再点一次同月或点「取消月份筛选」恢复看全年。");
-    add("actListPanel", "活动列表", "点一行会选中该活动，最下面会显示分摊示例。点表格空白处可取消选中。");
+    add("actListPanel", "活动列表", "点一行会选中该活动，最下面会显示分摊示例；点表格外空白可取消选中。\n「应用范围」展示活动上登记的区域/国家/渠道，或 SKU 个数摘要。");
     add(
       "kpiPanel",
       "进度与费用",
-      "看预算、实际和按时间进度估算的对比。数字来自本页示例与本地缓存，不等同真实财务报表。"
+      "规划年度预算来自「营销费用规划」本地缓存；活动预算/实际来自本页活动登记。\n按进度预估＝规划×自然年时间进度；差值＝活动实际相对该预估。非财报、非支付口径。"
     );
     add(
       "planSummaryPanel",
-      "规划维度汇总",
-      "优先用「营销费用规划」v3（含区域/国家/渠道与月度 JSON 等新字段）；没有则兼容 v2 历史品线导入。这里的「实际」按活动上的场景品类与新品标签汇总，和规划表不是一张账。"
+      "规划 vs 活动明细",
+      "与 KPI 规划预算同源；展开后按维度对比规划金额、按进度的规划预估、与活动实际汇总。可与规划页交叉核对，不等同财务核销。"
     );
-    add("splitPanel", "分摊表", "选中一条活动后，这里用示例规则把预算和实际拆到店铺和 MSKU，方便和列表对照。");
+    add("splitPanel", "分摊表", "选中一条活动后，按示例权重拆到店铺/渠道示意/MSKU；未选中时合并当前列表全部活动。分配结构示意，非规划页 BP 引擎。");
     return o;
   })();
 
@@ -2303,6 +2454,7 @@
       var w = totalBp > 0 ? r.bpRevenue / totalBp : 0;
       return {
         shop: r.shop,
+        channelHint: channelHintFromDemoShop(r.shop),
         msku: r.msku,
         sourceLine: label,
         weight: w,
@@ -2566,6 +2718,48 @@
       }
     }
     if (fNp) fNp.value = tag || "";
+    mountModalActGeo(act);
+  }
+
+  function mountModalActGeo(act) {
+    var fr = document.getElementById("fActRegion");
+    var fc = document.getElementById("fActCountry");
+    var fch = document.getElementById("fActChannel");
+    var fsk = document.getElementById("fActSkus");
+    if (!fr || !fc || !fch) return;
+    var regSel = act && act.actRegionCode ? String(act.actRegionCode).trim() : "";
+    var ctySel = act && act.actCountryCode ? String(act.actCountryCode).trim() : "";
+    var chSel = act && act.actChannelKey != null ? String(act.actChannelKey).trim() : "";
+    fr.innerHTML = regionSelectHtml(regSel);
+    fr.value = regSel || "";
+    fc.innerHTML = countrySelectHtml(regSel || "", ctySel);
+    fc.value = "";
+    if (ctySel) {
+      for (var i = 0; i < fc.options.length; i++) {
+        if (fc.options[i].value === ctySel) {
+          fc.value = ctySel;
+          break;
+        }
+      }
+    }
+    fch.innerHTML = channelSelectHtml(chSel);
+    fch.value = chSel || "";
+    if (fsk) {
+      var arr = act ? getActivitySkus(act) : [];
+      fsk.value = arr.length ? arr.join(", ") : "";
+    }
+  }
+
+  function wireModalActGeoOnce() {
+    var fr = document.getElementById("fActRegion");
+    if (!fr || fr._actGeoWired) return;
+    fr._actGeoWired = true;
+    fr.addEventListener("change", function () {
+      var fc = document.getElementById("fActCountry");
+      if (!fc) return;
+      var reg = String(fr.value || "").trim();
+      fc.innerHTML = countrySelectHtml(reg, "");
+    });
   }
 
   function deriveScenarioCategoryFromLeaves(leaves) {
@@ -2649,6 +2843,10 @@
         scenario: "居家",
         category: "吊灯",
         newProductTag: npCur,
+        actRegionCode: "NA",
+        actCountryCode: "US",
+        actChannelKey: "亚马逊",
+        planSkus: ["H6076113"],
         budgetUsd: 48000,
         actualUsd: 45200,
         note: ""
@@ -2705,19 +2903,23 @@
 
   function renderKpis() {
     var acts = filteredActsByYearPl();
-    var budget = acts.reduce(function (s, a) { return s + (Number(a.budgetUsd) || 0); }, 0);
+    var actBudget = acts.reduce(function (s, a) { return s + (Number(a.budgetUsd) || 0); }, 0);
     var actual = acts.reduce(function (s, a) { return s + (Number(a.actualUsd) || 0); }, 0);
     var tp = timeProgressForYear(currentYear);
-    var expected = Math.round(budget * tp);
+    var planBudget = sumPlanBudgetForKpi(currentYear);
+    var expected = Math.round(planBudget * tp);
     var variance = actual - expected;
-    document.getElementById("kpiBudget").textContent = formatUsd(budget);
+    var elPlan = document.getElementById("kpiPlanBudget");
+    var elActB = document.getElementById("kpiActivityBudget");
+    if (elPlan) elPlan.textContent = formatUsd(planBudget);
+    if (elActB) elActB.textContent = formatUsd(actBudget);
     document.getElementById("kpiActual").textContent = formatUsd(actual);
     document.getElementById("kpiExpected").textContent = formatUsd(expected);
     document.getElementById("kpiVariance").textContent =
       (variance > 0 ? "+" : "") + formatUsd(variance);
     document.getElementById("lblTimeProgress").textContent = (tp * 100).toFixed(1) + "%（" + currentYear + " 年）";
     document.getElementById("barTime").style.width = (tp * 100) + "%";
-    var expW = budget > 0 ? (expected / budget) * 100 : 0;
+    var expW = planBudget > 0 ? (expected / planBudget) * 100 : 0;
     document.getElementById("barExpected").style.width = Math.min(100, expW) + "%";
     var card = document.getElementById("kpiVarCard");
     card.classList.remove("warn", "ok");
@@ -2779,7 +2981,7 @@
     tbody.innerHTML = "";
     if (acts.length === 0) {
       tbody.innerHTML =
-        '<tr><td colspan="8" class="empty">无活动。可<strong>单击</strong>里程碑月份筛选该月，<strong>双击</strong>同月在当月登记；或点「新增活动」。</td></tr>';
+        '<tr><td colspan="9" class="empty">无活动。可<strong>单击</strong>里程碑月份筛选该月，<strong>双击</strong>同月在当月登记；或点「新增活动」。</td></tr>';
       selectedId = null;
       renderSplit();
       return;
@@ -2794,6 +2996,7 @@
         "<td>" + escapeHtml(a.name || "—") + "</td>" +
         "<td>" + escapeHtml(formatSceneCategoryColumnForBoard(a)) + "</td>" +
         "<td>" + escapeHtml(formatNpTagColumn(a)) + "</td>" +
+        "<td>" + formatActivityScopeCell(a) + "</td>" +
         '<td class="num">' + formatUsd(a.budgetUsd) + "</td>" +
         '<td class="num">' + formatUsd(a.actualUsd) + "</td>" +
         '<td class="actions">' +
@@ -2852,6 +3055,7 @@
           map[k] = {
             shop: r.shop,
             msku: r.msku,
+            channelHint: r.channelHint != null ? r.channelHint : channelHintFromDemoShop(r.shop),
             sourceLine: r.sourceLine,
             budget: 0,
             actual: 0
@@ -2871,6 +3075,7 @@
       var tr = document.createElement("tr");
       tr.innerHTML =
         "<td>" + escapeHtml(r.shop) + "</td>" +
+        "<td>" + escapeHtml(r.channelHint != null ? r.channelHint : channelHintFromDemoShop(r.shop)) + "</td>" +
         "<td>" + escapeHtml(r.msku) + "</td>" +
         "<td>" + escapeHtml(r.sourceLine || "—") + "</td>" +
         '<td class="num">' + (r.weight * 100).toFixed(2) + "%</td>" +
@@ -3127,6 +3332,7 @@
     var ds = document.getElementById("fDateStart").value;
     var de = document.getElementById("fDateEnd").value;
     var dims = readActDimsFromForm();
+    var skus = parseSkuListFromInput(document.getElementById("fActSkus") ? document.getElementById("fActSkus").value : "");
     var budget = parseFloat(document.getElementById("fBudget").value) || 0;
     var actual = parseFloat(document.getElementById("fActual").value) || 0;
     var note = document.getElementById("fNote").value.trim();
@@ -3144,14 +3350,18 @@
     }
     var hasSc = !!(dims.sceneCategoryLeaves && dims.sceneCategoryLeaves.length);
     var hasTag = String(dims.newProductTag || "").trim();
-    if (!hasSc && !hasTag) {
-      toast("请至少选择场景品类（含全场景 / 全品类）或选择新品标签；亦可两者同时填写");
+    var hasSku = skus.length > 0;
+    if (!hasSc && !hasTag && !hasSku) {
+      toast("场景品类、新品标签、SKU 不可同时为空（与规划会议：至少填一项）");
       return;
     }
-    var vc = validateModalSceneCategoryCombination(dims);
-    if (!vc.ok) {
-      toast(vc.msg);
-      return;
+    var scen = getSelectedMulti(document.getElementById("fScenario"));
+    if (scen.length > 0 && scen.indexOf(ACT_ALL_SCENES) < 0) {
+      var vc = validateModalSceneCategoryCombination(dims);
+      if (!vc.ok) {
+        toast(vc.msg);
+        return;
+      }
     }
     if (String(parseInt(ds.slice(0, 4), 10)) !== String(currentYear) ||
         String(parseInt(de.slice(0, 4), 10)) !== String(currentYear)) {
@@ -3175,6 +3385,17 @@
     if (dims.sceneCategoryLeaves && dims.sceneCategoryLeaves.length) {
       rec.sceneCategoryLeaves = dims.sceneCategoryLeaves;
     }
+    if (skus.length) rec.planSkus = skus;
+    else delete rec.planSkus;
+    var ar = document.getElementById("fActRegion") && String(document.getElementById("fActRegion").value || "").trim();
+    var ac = document.getElementById("fActCountry") && String(document.getElementById("fActCountry").value || "").trim();
+    var ach = document.getElementById("fActChannel") && String(document.getElementById("fActChannel").value || "").trim();
+    if (ar) rec.actRegionCode = ar;
+    else delete rec.actRegionCode;
+    if (ac) rec.actCountryCode = ac;
+    else delete rec.actCountryCode;
+    if (ach) rec.actChannelKey = ach;
+    else delete rec.actChannelKey;
     if (id) {
       var ix = list.findIndex(function (x) { return x.id === id; });
       if (ix >= 0) list[ix] = rec;
@@ -3236,6 +3457,7 @@
   var regEmbDash = parseEmbeddedRegionJson();
   if (regEmbDash) applyRegionPayload(regEmbDash);
   initFilterOptions();
+  wireModalActGeoOnce();
   fillYearSelect();
   applyScenePayload(parseEmbeddedSceneJson());
   wireScCatFilter();
