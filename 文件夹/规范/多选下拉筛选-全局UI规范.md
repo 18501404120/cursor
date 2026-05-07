@@ -40,7 +40,8 @@
 ## 4. 技术约定（原型 / 前端）
 
 - **原型 HTML**：优先引用 `../../../规范/assets/multi-select-filter.js`（相对路径以具体页面所在目录为准）。  
-- **API**：`MultiSelectFilter.mount(container, { placeholder, showSelectAll, getOptions, zIndex, onChange, ... })`；`getOptions` 支持同步数组或 `Promise`。  
+- **API**：`MultiSelectFilter.mount(container, { placeholder, showSelectAll, getOptions, zIndex, onChange, useBodyPortal, ... })`；`getOptions` 支持同步数组或 `Promise`。  
+- **防遮挡**：默认 **`useBodyPortal: true`**（展开面板挂 `body` + `fixed`），避免被表格 `overflow` 或后续板块裁切/遮挡；详见 **`文件夹/规范/下拉与浮层-防遮挡-全局UI规范.md`**。  
 - **刷新选项**：数据源随其它筛选变化时，调用实例 `refreshOptions()`，并在需要时 `clear()` 已选。
 
 ---
@@ -57,3 +58,4 @@
 | 版本 | 日期 | 说明 |
 |------|------|------|
 | v1.0 | 2026-05-06 | 首版：懒加载、搜索、多选、默认「全部」及 SKU/MSKU 例外。 |
+| v1.1 | 2026-05-07 | 补充 `useBodyPortal` 与《下拉与浮层-防遮挡》引用。 |

@@ -10,8 +10,10 @@
  *   maxPanelHeight: 260,
  *   getOptions: () => [{ value, label }] | Promise<...>,
  *   initialValues: [],
- *   onChange: (values: string[]) => {}
+ *   onChange: (values: string[]) => {},
+ *   useBodyPortal: true
  * })
+ * useBodyPortal：默认 true，展开时面板挂 document.body + fixed，避免被 overflow 裁切或后续板块盖住。
  * 返回：{ getValues, setValues, clear, destroy, refreshOptions, open, close }
  */
 (function (global) {
@@ -61,6 +63,7 @@
     var maxPanelHeight = options.maxPanelHeight != null ? options.maxPanelHeight : 260;
     var getOptions = options.getOptions || function () { return []; };
     var onChange = typeof options.onChange === "function" ? options.onChange : function () {};
+    var useBodyPortal = options.useBodyPortal !== false;
 
     var loaded = false;
     var loading = false;
@@ -68,6 +71,7 @@
     var selected = new Set((options.initialValues || []).map(String));
     var searchQ = "";
     var open = false;
+    var floatInterval = null;
 
     root.classList.add("msf-root");
     root.innerHTML = "";
@@ -278,24 +282,90 @@
       }
     }
 
-    function setOpen(v) {
-      open = v;
-      trigger.classList.toggle("msf-open", v);
-      trigger.setAttribute("aria-expanded", v ? "true" : "false");
-      panel.classList.toggle("msf-show", v);
-      if (v) {
-        loadOptionsIfNeeded(function () {
-          searchInp.value = "";
-          searchQ = "";
-          applySearchFilter();
-          setTimeout(function () { searchInp.focus(); }, 0);
-        });
+    function stopFloatSync() {
+      if (floatInterval) {
+        clearInterval(floatInterval);
+        floatInterval = null;
       }
+      window.removeEventListener("resize", positionFloatedPanel);
+      window.removeEventListener("scroll", positionFloatedPanel, true);
+    }
+
+    function restorePanelToRoot() {
+      if (panel.parentNode === document.body) {
+        root.appendChild(panel);
+      }
+      panel.style.position = "";
+      panel.style.left = "";
+      panel.style.top = "";
+      panel.style.minWidth = "";
+      panel.style.width = "";
+      panel.style.maxWidth = "";
+      panel.style.zIndex = "";
+    }
+
+    function positionFloatedPanel() {
+      if (!open || !useBodyPortal || panel.parentNode !== document.body) return;
+      var r = trigger.getBoundingClientRect();
+      var maxW = Math.min(420, window.innerWidth - 16);
+      var wid = Math.max(Math.min(maxW, Math.max(r.width, 200)), r.width);
+      panel.style.position = "fixed";
+      panel.style.minWidth = wid + "px";
+      panel.style.width = "max-content";
+      panel.style.maxWidth = maxW + "px";
+      panel.style.zIndex = String(zIndex);
+      var pw = panel.getBoundingClientRect().width || wid;
+      var left = Math.max(8, Math.min(r.left, window.innerWidth - pw - 8));
+      panel.style.left = left + "px";
+      var top = r.bottom + 4;
+      var ph = panel.offsetHeight || 200;
+      if (top + ph > window.innerHeight - 8) top = Math.max(8, r.top - ph - 4);
+      panel.style.top = top + "px";
+    }
+
+    function startFloatWatch() {
+      if (!useBodyPortal) return;
+      positionFloatedPanel();
+      requestAnimationFrame(function () {
+        requestAnimationFrame(positionFloatedPanel);
+      });
+      window.addEventListener("resize", positionFloatedPanel);
+      window.addEventListener("scroll", positionFloatedPanel, true);
+      floatInterval = setInterval(positionFloatedPanel, 200);
+    }
+
+    function setOpen(v) {
+      if (!v) {
+        stopFloatSync();
+        open = false;
+        trigger.classList.remove("msf-open");
+        trigger.setAttribute("aria-expanded", "false");
+        panel.classList.remove("msf-show");
+        restorePanelToRoot();
+        return;
+      }
+      open = true;
+      trigger.classList.add("msf-open");
+      trigger.setAttribute("aria-expanded", "true");
+      panel.classList.add("msf-show");
+      if (useBodyPortal) {
+        document.body.appendChild(panel);
+      }
+      loadOptionsIfNeeded(function () {
+        searchInp.value = "";
+        searchQ = "";
+        applySearchFilter();
+        setTimeout(function () {
+          searchInp.focus();
+        }, 0);
+        startFloatWatch();
+      });
     }
 
     function onDocClick(e) {
       if (!open) return;
       if (root.contains(e.target)) return;
+      if (useBodyPortal && panel.contains(e.target)) return;
       setOpen(false);
     }
 
@@ -338,6 +408,7 @@
         if (open) {
           loadOptionsIfNeeded(function () {
             applySearchFilter();
+            if (useBodyPortal) positionFloatedPanel();
           });
         }
       },
@@ -348,7 +419,10 @@
         setOpen(false);
       },
       destroy: function () {
+        stopFloatSync();
+        open = false;
         document.removeEventListener("click", onDocClick);
+        restorePanelToRoot();
         root.innerHTML = "";
         root.classList.remove("msf-root");
       }

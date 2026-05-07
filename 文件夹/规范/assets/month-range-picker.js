@@ -1,7 +1,8 @@
 /**
  * 月份范围选择（原型用）— 对齐全局规范《月份范围选择框-全局UI规范》
  * 展示：左侧日历图标 + YYYY-MM - YYYY-MM + 清空；点击展开双年月份面板（3×4 月格）。
- * 用法：MonthRangePicker.mount(container, { start, end, onChange, placeholder, zIndex })
+ * 用法：MonthRangePicker.mount(container, { start, end, onChange, placeholder, zIndex, useBodyPortal })
+ * useBodyPortal：默认 true，展开时将面板挂到 document.body + fixed 定位，避免被表格/卡片的 overflow 裁切或后续板块遮挡。
  * start/end：YYYY-MM 或 YYYYMM（六位数）
  * 返回：{ get(), set(start,end), destroy(), close() }
  */
@@ -80,8 +81,10 @@
     injectStyle();
     options = options || {};
     var zIndex = options.zIndex != null ? options.zIndex : 300;
+    var useBodyPortal = options.useBodyPortal !== false;
     var placeholder = options.placeholder || '请选择月份范围';
     var onChange = typeof options.onChange === 'function' ? options.onChange : function () {};
+    var floatInterval = null;
 
     var rangeStart = parseYm(options.start);
     var rangeEnd = parseYm(options.end);
@@ -166,10 +169,47 @@
       renderPanes();
     }
 
+    function stopFloatSync() {
+      if (floatInterval) {
+        clearInterval(floatInterval);
+        floatInterval = null;
+      }
+      window.removeEventListener('resize', positionFloatedPanel);
+      window.removeEventListener('scroll', positionFloatedPanel, true);
+    }
+
+    function restorePanelToContainer() {
+      if (panel.parentNode === document.body) {
+        container.appendChild(panel);
+      }
+      panel.style.position = '';
+      panel.style.left = '';
+      panel.style.top = '';
+      panel.style.marginTop = '';
+      panel.style.zIndex = '';
+    }
+
+    function positionFloatedPanel() {
+      if (!open || !useBodyPortal || panel.parentNode !== document.body) return;
+      var r = trigger.getBoundingClientRect();
+      var ph = panel.offsetHeight || 300;
+      var pw = panel.offsetWidth || 420;
+      var top = r.bottom + 4;
+      if (top + ph > window.innerHeight - 8) top = Math.max(8, r.top - ph - 4);
+      var left = Math.max(8, Math.min(r.left, window.innerWidth - pw - 8));
+      panel.style.position = 'fixed';
+      panel.style.left = left + 'px';
+      panel.style.top = top + 'px';
+      panel.style.marginTop = '0';
+      panel.style.zIndex = String(zIndex);
+    }
+
     function close() {
+      stopFloatSync();
       open = false;
       panel.classList.remove('mrp-show');
       trigger.classList.remove('mrp-open', 'mrp-focus');
+      restorePanelToContainer();
     }
 
     function openPanel() {
@@ -181,6 +221,16 @@
       panel.classList.add('mrp-show');
       trigger.classList.add('mrp-open', 'mrp-focus');
       renderPanes();
+      if (useBodyPortal) {
+        document.body.appendChild(panel);
+        positionFloatedPanel();
+        requestAnimationFrame(function () {
+          requestAnimationFrame(positionFloatedPanel);
+        });
+        window.addEventListener('resize', positionFloatedPanel);
+        window.addEventListener('scroll', positionFloatedPanel, true);
+        floatInterval = setInterval(positionFloatedPanel, 200);
+      }
     }
 
     function cellClasses(y, mo) {
@@ -255,7 +305,7 @@
 
     function handleMonthClick(e) {
       var cell = e.target.closest('.mrp-mcell');
-      if (!cell || !container.contains(cell)) return;
+      if (!cell || !panel.contains(cell)) return;
       var y = +cell.getAttribute('data-y');
       var mo = +cell.getAttribute('data-m');
       var picked = { y: y, m: mo };
@@ -324,8 +374,11 @@
       e.stopPropagation();
     });
 
-    function onDocClick() {
-      if (open) close();
+    function onDocClick(e) {
+      if (!open) return;
+      if (container.contains(e.target)) return;
+      if (useBodyPortal && panel.contains(e.target)) return;
+      close();
     }
     document.addEventListener('click', onDocClick);
 
@@ -337,7 +390,10 @@
       set: set,
       close: close,
       destroy: function () {
+        stopFloatSync();
         document.removeEventListener('click', onDocClick);
+        open = false;
+        restorePanelToContainer();
         container.innerHTML = '';
         container._mrpDestroy = null;
         delete container._mrpDestroy;
