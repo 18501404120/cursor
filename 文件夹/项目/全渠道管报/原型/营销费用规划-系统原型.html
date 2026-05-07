@@ -828,15 +828,11 @@
             <details class="page-doc-details">
               <summary>开发：页面逻辑与分摊规则</summary>
               <div class="page-doc-content">
-                <p><strong>数据与筛选</strong>：顶部筛选（场景品类、新品标签、区域、国家、渠道、店铺、model、SKU、TL、Sales、月份范围）决定「规划列表」的展示范围；未选场景品类/新品标签时该维不参与过滤（等价于全部）。</p>
-                <p><strong>命中 MSKU 池（交集）</strong>：对每条规划行，在基础 MSKU 主数据上按以下维度逐维取交集——<strong>场景品类</strong>（行所选场景×品类）、<strong>SKU</strong>（行多选 MSKU）、<strong>新品标签</strong>、<strong>渠道</strong>、<strong>店铺</strong>、<strong>区域</strong>、<strong>国家</strong>。仅同时满足上述条件的 MSKU 进入该行拆分池；若交集为空则该行不产生拆分明细。</p>
-                <p><strong>分摊月份</strong>：设页面筛选月份范围为 <code>F</code>，行上「规划月份范围」为 <code>R</code>，实际参与分摊的月份集合为 <code>M = F ∩ R</code>（两端闭区间、按自然月枚举）。已去掉「月度金额(JSON)」列；不再手工维护逐月金额。</p>
-                <p><strong>金额分摊（两步）</strong>：行上「营销费用规划（USD）」为该行<strong>总金额</strong>。</p>
-                <ul>
-                  <li><strong>第一步（月到月）</strong>：在集合 <code>M</code> 内，按各月 BP 营收（来自示例营收数据）占这些月在 BP 上总营收的比例，将行总金额拆到各月。</li>
-                  <li><strong>第二步（月内到 MSKU）</strong>：在每个月内，按该月 BP 营收在<strong>该行命中 MSKU 池</strong>内的占比，将当月金额拆到各 MSKU（并带上店铺等主数据字段用于下游）。</li>
-                </ul>
-                <p><strong>持久化</strong>：保存时将行维度与拆分结果写入本地存储（原型示意）；正式系统应对齐相同交集与分摊公式。</p>
+                <p><strong>筛选与列表</strong>：顶部筛选项决定列表里出现哪些规划行。场景品类、新品标签若不选，表示不按这一项缩小范围。月份范围与每行「规划月份范围」要有重叠，该行才会出现在当前列表里。</p>
+                <p><strong>哪些商品参与拆分</strong>：每一行里填的场景品类、SKU、新品标签、渠道、店铺、区域、国家，会一起在示例商品主数据里收窄范围——只有<strong>同时满足</strong>这些条件的商品（MSKU）才参与该行拆分；若收窄后没有商品，则没有拆分明细。</p>
+                <p><strong>拆在哪些月份</strong>：只处理「当前筛选的月份范围」与「该行规划的月份范围」<strong>重叠的那些自然月</strong>。</p>
+                <p><strong>金额怎么分</strong>：行上的「营销费用规划（USD）」是本行要分的<strong>总金额</strong>。先在上述各月之间，按示例里各月业务营收（BP）占比把总额分到月；再在每个月里，按各商品当月 BP 占比把该月金额分到具体店铺与 MSKU。本页为原型，数据为示例，正式系统应对齐同一套业务规则。</p>
+                <p><strong>原型说明</strong>：点击「保存」后，本行内容会记在浏览器本机（便于刷新后仍能看到），不等同于正式接口落库。</p>
               </div>
             </details>
             <details class="page-doc-details" open>
@@ -846,8 +842,8 @@
                   <li>在<strong>筛选区</strong>选好月份范围（默认当年 1–12 月）、渠道、店铺等后点击<strong>搜索</strong>，查看符合条件的规划行。</li>
                   <li>点击<strong>新增一行</strong>，在表格中依次选择<strong>规划月份范围</strong>、场景品类、SKU、新品标签、区域、国家、渠道、店铺，并填写<strong>营销费用规划（USD）</strong>总金额。</li>
                   <li>需要了解某列含义时，只看<strong>表头</strong>旁的蓝色「i」说明；行内不再重复提示。</li>
-                  <li>点击<strong>拆分预览</strong>查看系统如何按「筛选月 ∩ 行月」及 BP 营收占比把金额拆到月与 MSKU；确认无误后<strong>保存全部</strong>或单行保存。</li>
-                  <li>红点编号为开发自测说明，一般用户可忽略。</li>
+                  <li>选中一行后看下方「拆分结果」；可点<strong>重算展示</strong>按当前填写刷新。确认无误后<strong>保存全部</strong>或单行<strong>保存</strong>。</li>
+                  <li>表头旁<strong>蓝「i」</strong>是这一列在说什么；数字<strong>红点</strong>里是更细的规则说明，需要时再点开。</li>
                 </ol>
               </div>
             </details>
@@ -860,7 +856,7 @@
               <div class="f f-with-pin filter-field-inline">
                 <div class="filter-field-label-row">
                   <label for="fltScCatTrigger">场景品类</label>
-                  <button type="button" class="logic-pin" data-logic-key="1" aria-label="开发测试说明 1">1</button>
+                  <button type="button" class="logic-pin" data-logic-key="1" aria-label="编号说明 1">1</button>
                 </div>
                 <div class="flt-filter-trigger-row" id="fltScCatFilterRow">
                   <div class="sc-cat-wrap" id="fltScCatWrap">
@@ -876,7 +872,7 @@
               <div class="f f-with-pin filter-field-inline">
                 <div class="filter-field-label-row">
                   <label for="fltNpTagTrigger">新品标签</label>
-                  <button type="button" class="logic-pin" data-logic-key="2" aria-label="开发测试说明 2">2</button>
+                  <button type="button" class="logic-pin" data-logic-key="2" aria-label="编号说明 2">2</button>
                 </div>
                 <div class="flt-filter-trigger-row" id="fltNpTagFilterRow">
                   <div class="sc-cat-wrap np-tag-wrap" id="fltNpTagWrap">
@@ -912,11 +908,8 @@
               </div>
               <div class="f f-filter-search">
                 <button type="button" class="btn-search" id="btnQuery">搜索</button>
-                <button type="button" class="logic-pin" data-logic-key="3" aria-label="开发测试说明 3">3</button>
+                <button type="button" class="logic-pin" data-logic-key="3" aria-label="编号说明 3">3</button>
               </div>
-            </div>
-            <div class="filter-actions">
-              <span class="hint" style="margin:0;flex:1;min-width:200px;">筛选后列表与拆分均受「月份范围」约束；场景品类、新品标签未选表示不按该维过滤。表头「i」为列说明；红点为开发细则。</span>
             </div>
           </div>
         </section>
@@ -927,11 +920,11 @@
             <div class="table-toolbar">
               <div class="toolbar-with-dev">
                 <button type="button" class="btn btn-default" id="btnAdd">新增一行</button>
-                <button type="button" class="logic-pin" data-logic-key="8" aria-label="开发测试说明 8">8</button>
+                <button type="button" class="logic-pin" data-logic-key="8" aria-label="编号说明 8">8</button>
               </div>
               <div class="toolbar-with-dev">
                 <button type="button" class="btn btn-primary" id="btnSaveAll">保存全部</button>
-                <button type="button" class="logic-pin" data-logic-key="7" aria-label="开发测试说明 7">7</button>
+                <button type="button" class="logic-pin" data-logic-key="7" aria-label="编号说明 7">7</button>
               </div>
             </div>
             <div class="table-wrap">
@@ -948,7 +941,7 @@
                       <span class="th-inner">
                         场景品类
                         <span class="plan-cell-head-tools">
-                          <button type="button" class="logic-pin" data-logic-key="4" aria-label="开发测试说明 4">4</button>
+                          <button type="button" class="logic-pin" data-logic-key="4" aria-label="编号说明 4">4</button>
                           <button type="button" class="field-hint-icon" data-user-hint="planScCatCol" aria-label="场景品类列说明">i</button>
                         </span>
                       </span>
@@ -965,7 +958,7 @@
                       <span class="th-inner">
                         新品标签
                         <span class="plan-cell-head-tools">
-                          <button type="button" class="logic-pin" data-logic-key="5" aria-label="开发测试说明 5">5</button>
+                          <button type="button" class="logic-pin" data-logic-key="5" aria-label="编号说明 5">5</button>
                           <button type="button" class="field-hint-icon" data-user-hint="planNpCol" aria-label="新品标签列说明">i</button>
                         </span>
                       </span>
@@ -1001,7 +994,6 @@
                 <tbody id="tbodyPlan"></tbody>
               </table>
             </div>
-            <p class="hint" id="planCount"></p>
           </div>
         </section>
 
@@ -1009,16 +1001,16 @@
           <div class="panel-head">
             <span class="panel-head-tools">
               <span>拆分结果（店铺 + MSKU）</span>
-              <button type="button" class="logic-pin" data-logic-key="12" aria-label="开发测试说明 12">12</button>
+              <button type="button" class="logic-pin" data-logic-key="12" aria-label="编号说明 12">12</button>
               <button type="button" class="field-hint-icon" data-user-hint="splitPanel" aria-label="拆分结果说明">i</button>
             </span>
             <span class="panel-head-tools">
               <button type="button" class="btn btn-default" id="btnRefreshSplit">重算展示</button>
-              <button type="button" class="logic-pin" data-logic-key="13" aria-label="开发测试说明 13">13</button>
+              <button type="button" class="logic-pin" data-logic-key="13" aria-label="编号说明 13">13</button>
             </span>
           </div>
           <div class="panel-body">
-            <p class="split-meta" id="splitContext">在上表选中一行后，下方按「筛选月份范围 ∩ 行规划月份范围」各自然月，将规划金额拆至店铺 + MSKU；命中 MSKU 为场景品类、SKU、新品、渠道、店铺、区域、国家的交集。月之间与月内均按 BP 营收占比拆分（同一 MSKU 可跨月多行）。</p>
+            <p class="split-meta" id="splitContext">在上表点击一行，下方展示该行拆分后的月份与店铺、MSKU 明细。金额如何分摊、哪些商品参与，见本页顶部「页面说明」。</p>
             <div class="table-wrap">
               <table id="tblSplit">
                 <thead>
@@ -1029,7 +1021,7 @@
                     <th class="num">
                       <span class="th-inner">
                         BP营收权重
-                        <button type="button" class="logic-pin" data-logic-key="12b" aria-label="开发测试说明 BP列">12</button>
+                        <button type="button" class="logic-pin" data-logic-key="12b" aria-label="编号说明 BP列">12</button>
                       </span>
                     </th>
                     <th class="num">拆分营销费用（USD）</th>
@@ -1067,7 +1059,7 @@
   <div id="planSkuPopHost" class="plan-sc-cat-pop-host" hidden>
     <div class="sc-cat-pop" id="planSkuPopBox" role="dialog" aria-label="选择 SKU" style="min-width:320px;max-width:420px">
       <div class="logic-pop-toolbar" style="padding:8px 10px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-        <span style="font-size:12px;color:var(--text-sec)">与《多选下拉筛选》一致：点击展开后再勾选；面板内可搜索；无「全部」。</span>
+        <span style="font-size:12px;color:var(--text-sec)">先点开下拉，再在列表里勾选；可输入关键字缩小列表；本列表不提供「全选」。</span>
         <button type="button" class="field-hint-icon" data-user-hint="planSkuCol" aria-label="SKU 列说明">i</button>
       </div>
       <div style="padding:8px 10px">
@@ -1202,7 +1194,7 @@
   /** 示例主数据：MSKU × 场景 × 品类 × 新品标签 × BP 营收（原型用） */
   var MOCK_MSKU_UNIVERSE = [];
 
-  /** 开发/测试：点击红点打开，全文不在页面上铺开 */
+  /** 红点编号：补充规则说明（业务可读，避免字段名与实现术语） */
   var LOGIC_DEV = (function () {
     var o = {};
     function add(k, title, body) {
@@ -1210,60 +1202,64 @@
     }
     add(
       "1",
-      "【1】筛选·场景品类",
-      "多选「场景×品类」叶子键，用于过滤下方「场景品类规划」表。\n与【2】组合使用。\n【1】未选任何项时：该维不过滤（等同全量）。\n右侧「×」清空已选叶子。"
+      "筛选：场景品类",
+      "在顶部勾选若干「场景 + 品类」组合，用来缩小下面规划表的展示范围。\n不勾选任何一项：表示不按场景品类这一项过滤，相当于看全部。\n右侧「×」一键清空已选。"
     );
     add(
       "2",
-      "【2】筛选·新品标签",
-      "多选「YYYY年新品」（OR）。\n与【1】组合：两维都选时对规划行取交集（AND）；仅【2】有值时筛出新品标签命中的行；仅【1】有值时按场景品类过滤；两维都未选则两维均不过滤。\n右侧「×」清空已选标签。"
+      "筛选：新品标签",
+      "在顶部勾选若干「某年新品」标签；可多选，命中其中任意一个即可（或的关系）。\n与「场景品类」同时勾选时：两行都要满足才会留下（且的关系）。\n只勾其一，则只按这一项过滤。\n两项都不勾：两项都不参与过滤。\n右侧「×」清空已选标签。"
     );
     add(
       "3",
-      "【3】搜索",
-      "刷新规划表展示（仅影响列表，不写入 localStorage）。\n不要求【1】【2】必选：均未选时列表展示为「月份范围 + 其它筛选项」下的全部规划行。\n区域/国家/渠道/店铺筛选与规划行对应字段对齐。\n月份范围：列表仅展示「筛选月份范围」与「行规划月份范围」存在交集的规划行；拆分表月份为两范围的交集。"
+      "搜索",
+      "只刷新当前列表展示，不自动替你点「保存」。\n场景品类、新品标签可以不选；其它筛选项照常生效。\n区域、国家、渠道、店铺：与每一行里填的内容对应得上，才符合筛选。\n月份：只显示「顶部选的月份」与「该行自己规划的月份」有重叠的规划行；拆分也只算重叠的那些月。"
     );
     add(
       "4",
-      "【4】规划表·场景品类（行内浮层·多选）",
-      "品类必须挂在场景下：不允许无场景的单独品类。\n左侧选场景；右侧可多选：「本场景全品类」、多个具体品类叶子，或勾选「全场景（全市场）」表示不按场景×品类收窄（与具体叶子可组合时以实际勾选为准）。\n写入 `sceneCategoryLeaves`（叶子键数组）；展示上仍同步主场景/主品类便于阅读。\n同列旁为【4b】SKU 多选：可与叶子组合，先按场景×品类收窄再按 MSKU 白名单；也可仅 SKU / 仅标签（见【7】）。\n保存时见【7】：【4】、【4b】与【5】三者不可同时为空（新品规划行见【6】）。"
+      "规划表：场景品类（行内浮层）",
+      "规则要点：\n1）品类必须挂在某个场景下面，不能单独只选品类、不选场景。\n2）左侧点场景；右侧可以选「这一场景下全部品类」，或勾选多个具体品类；也可以选「不按场景品类限制」（全场景全市场口径），用来表达「不按场景×品类缩小商品范围」。\n3）本页在后台会记下你勾选的组合，用来和商品主数据对照；列表上仍显示主场景、主品类，方便阅读。\n4）同一行里还有「SKU」多选：可以和场景品类一起用——先按场景品类缩小，再只保留你勾选的 MSKU；也可以只填 SKU 或只填新品标签（保存规则见编号 7）。"
     );
     add(
       "5",
-      "【5】规划表·新品标签（行内下拉·单选）",
-      "单选「YYYY年新品」或清空。\n与【4】场景品类、【4b】SKU 三者至少其一有内容：保存【7】时三者不可同时为空（新品规划行规则见【6】）。\n拆分时若填写了新品标签：命中 MSKU 需与 MSKU 上的新品标签一致后再参与 BP 占比分摊（交集）；若还选了 SKU 白名单，先取白名单再与叶子/标签求交。"
+      "规划表：新品标签（行内下拉）",
+      "每行可选一个「某年新品」标签，也可以不选。\n保存时：「场景品类」「SKU」「新品标签」不能三者全空（新品那一类特殊行见编号 6）。\n拆分时：若填了新品标签，只有带同一新品标签的商品才参与该行分摊；若同时还选了 SKU，则先按 SKU 缩小，再与新品标签一起核对。"
     );
     add(
       "6",
-      "【6】新品规划行",
-      "场景固定为「新品」；品类列承载「新品标识」（导入/存量/行内输入）。\n保存【7】时：新品标识必填。\n可与【5】新品标签列组合使用。"
+      "新品规划行",
+      "这一行的场景固定为「新品」，「品类」那一格用来写新品名称或编码等标识。\n保存时：标识必填。\n可以和新品标签列一起用。"
     );
     add(
       "7",
-      "【7】保存 / 保存全部 / 保存单行",
-      "对当前行：\n(a) 非新品规划行：【4】场景品类与【4b】SKU 至少填其一（可组合）；【5】新品标签可选，填写时与前几维取交集。\n(b) 新品规划行：新品标识必填。\n(c) 可选填写【区域/国家/渠道/店铺】：与场景×品类/SKU/新品一并取交集后过滤示例 MSKU 池。\n(d) 「规划月份范围」必填语义由月份控件保证；分摊月份 = 筛选月份范围 ∩ 行月份范围。\n(e) 校验「规划月份范围 + 规划对象 + 地理/店铺」唯一键。\n通过后写入 localStorage（marketing_expense_plan_v3）。"
+      "保存 / 保存全部 / 保存单行",
+      "普通行：「场景品类」与「SKU」至少要填一类（也可以两类都填，用来收得更窄）。\n新品行：新品标识必填。\n区域、国家、渠道、店铺：可不填；填了就会和场景品类、SKU、新品标签一起在商品范围里继续收窄。\n规划月份范围：必须选完整起止月；真正参与拆分的月份 = 顶部筛选月份 与 该行月份 的重叠部分。\n同一套「月份范围 + 规划对象 + 地理与店铺」不能重复出现两行。\n本原型里点保存后，数据记在浏览器本机，便于演示刷新后仍在；上线后应对接真实保存接口。"
     );
-    add("8", "【8】新增一行", "插入默认「场景 + 首个品类」并写入单元素 `sceneCategoryLeaves`。\n不替代保存校验。");
+    add(
+      "8",
+      "新增一行",
+      "插入一行默认数据：带一个常见场景和首个品类，金额为零。\n仍需你补全信息并点保存，才会通过校验。"
+    );
     add(
       "9-11",
-      "【9～11】行内浮层·场景与品类（多选）",
-      "总原则：品类仅从属于当前左列所选场景；可多选多个叶子。\n\n【9】清空：清空本行场景品类叶子。若【4b】SKU 与【5】新品标签也均为空，则保存【7】会失败。\n\n【10】本场景全品类 / 全场景（全市场）：用于不按品类或不按场景收窄的规划口径；拆分时在示例主数据池内按规则取 MSKU 集合，再与 SKU 白名单、新品标签求交。\n\n【11】具体品类：可多选多个「场景×品类」叶子；拆分为各叶下 MSKU 的并集，再与 SKU 白名单、新品标签求交后按 BP 占比分摊。"
+      "行内浮层：场景与品类（多选）",
+      "品类始终跟左侧当前场景走；同一场景下可以多选多个品类组合。\n「清空」：去掉本行所有场景品类勾选；若此时 SKU 与新品标签也全空，保存会失败。\n「本场景全品类 / 全场景全市场」：表示在对应维度上不做收窄，用来表达更宽口径；拆分时再在示例商品池里按规则取可参与商品，并继续和 SKU、新品标签核对。\n「具体品类」：可多选；拆分时会把这些品类下的商品并在一起，再和 SKU、新品标签核对后按 BP 规则分摊。"
     );
     add(
       "12",
-      "【12】拆分结果",
-      "分摊月份 = 筛选「月份范围」∩ 行「规划月份范围」。命中 MSKU 需同时满足场景×品类/SKU/新品标签及行上可选区域/国家/渠道/店铺（与示例主数据字段匹配）。\n月之间：按各月 eligible MSKU 的月度 BP 合计占「这些月」总 BP 的比例分配行总金额。\n月内：按各 MSKU 该月 BP 占当月 eligible 合计的比例拆分。\n尾差落在该月最后一行、最后一月最后一行；多条规划行可各自命中同一 MSKU。"
+      "拆分结果表",
+      "只看当前在上表选中的那一行。\n参与拆分的月份：顶部筛选月份 与 该行规划月份 的重叠部分。\n参与拆分的商品：须同时满足该行填写的场景品类、SKU、新品、渠道、店铺、区域、国家（与示例主数据一致）。\n金额：先把行总金额按「各月符合条件的商品 BP 合计」在月与月之间分配；再在每个月内按各商品当月 BP 占比分到店铺和 MSKU。多行规划可以各自拆分，同一商品可以出现在不同规划行的结果里。"
     );
     add(
       "12b",
-      "【12】BP 营收权重列",
-      "展示该行（某月×某 MSKU）月度 BP 占本表全部展开行月度 BP 合计的比例（非真实接口）。"
+      "列：BP 营收权重",
+      "这一列表示：在下方整张拆分结果里，这一格（某月 × 某商品）的示例 BP 占全表 BP 合计的大致比例，用来理解「为什么拆这么多」。本页为演示数据，非真实接口。"
     );
-    add("13", "【13】重算展示", "按当前选中规划行数据重新计算拆分表；仅前端逻辑，不调接口。");
+    add("13", "重算展示", "按当前表格里这一行的最新填写，重新算一遍下方拆分表；不访问后端。");
     return o;
   })();
 
-  /** 正式用户：点击「i」打开；文案短、无实现细节 */
+  /** 蓝「i」：列与筛选项的简短业务说明 */
   var USER_HINT = (function () {
     var o = {};
     function add(k, title, body) {
@@ -1272,63 +1268,67 @@
     add(
       "filterScCat",
       "场景品类筛选",
-      "在这里多选要看的「场景×品类」范围；不选则该维不过滤。\n选好后点击「搜索」刷新下方列表。\n右侧「×」可一键清空已选。"
+      "勾选要看的场景和品类范围；不选表示不按这一项过滤。\n点「搜索」后刷新下方列表。\n「×」清空已选。"
     );
     add(
       "filterNpTag",
       "新品标签筛选",
-      "多选要筛选的新品年份标签；不选则该维不过滤。\n与场景品类组合时：两维都选为交集；只选其一则只按该维过滤。\n右侧「×」可一键清空已选。"
+      "勾选要筛的新品年份；不选表示不按这一项过滤。\n与场景品类同时勾选时，两行都要满足；只选其一则只按该项过滤。\n「×」清空。"
     );
     add(
       "filterMonthRange",
       "月份范围筛选",
-      "默认当年 1–12 月，展示为 YYYY-MM - YYYY-MM（见《月份范围选择框》规范）。\n列表：仅保留与筛选月份有交集的规划行（看行「规划月份范围」）。\n拆分：实际拆分为「筛选月 ∩ 行月」内的各自然月，按 BP 营收占比分摊。"
+      "默认当年 1–12 月，展示形如「2026-01 - 2026-12」（与全站月份范围控件样式一致）。\n列表里只保留：该行自己规划的月份 与 这里选的月份 有重叠的规划行。\n拆分也只算重叠的那些自然月，再按示例 BP 占比分摊。"
     );
     add(
       "planMonthRangeCol",
       "规划月份范围",
-      "本行费用计划生效的自然月闭区间；与顶部筛选「月份范围」取交集后参与拆分与列表过滤。\n同一规划对象在不同月份范围视为不同行（唯一键包含起止月）。"
+      "这一行费用打算从哪个月做到哪个月。\n与顶部月份范围取重叠部分后，才参与列表展示和拆分。\n起止月不同，在系统里视为不同规划行。"
     );
     add(
       "planScCatCol",
       "场景品类（规划）",
-      "先选场景，再在右侧多选「本场景全品类」、多个具体品类，或「全场景（全市场）」；品类不能脱离场景单独存在。\n与「SKU」至少二选一其一（可组合收窄）；「新品标签」可选，填写后与前几维取交集。"
+      "点单元格打开浮层：先选场景，再选本场景下的品类或「本场景全品类」，也可选更宽的「全场景全品类」口径。\n与「SKU」至少填一类（可一起填，用来收得更窄）；「新品标签」可不填，填了会再收一层。"
     );
-    add("planNpCol", "新品标签（规划）", "单选：可选择该行对应的新品年份标签，也可留空。\n与「场景品类」「SKU」组合时取交集；场景品类与 SKU 至少其一非空时即可保存。");
+    add(
+      "planNpCol",
+      "新品标签（规划）",
+      "可选一个新品年份标签，也可不选。\n与场景品类、SKU 一起用时：只有带同一标签的商品才参与该行拆分。\n保存时须与场景品类、SKU 搭配满足「不能三者全空」（新品行另有规则）。"
+    );
     add(
       "planSkuCol",
       "SKU（规划）",
-      "多选示例 MSKU（MSKU）。可与「场景品类」组合：先限定场景×品类，再勾选具体 MSKU；也可仅按 SKU 或仅按新品标签规划。\n与场景品类至少填其一；新品标签可选叠加。"
+      "点开后可多选 MSKU。\n可与场景品类组合：先按场景品类缩小商品，再只保留勾选的 MSKU；也可以只填 SKU 或只配合新品标签使用。\n与场景品类至少填一类。"
     );
     add(
       "planGeoCol",
       "区域 / 国家（规划）",
-      "与《区域国家基础数据_v1》一致：区域、国家代码用于与示例 MSKU 上的 region_code、country_code 取交集。\n「不限」表示不按该维收窄。仅选国家未选区域时，保存会尝试按国家反推区域代码。"
+      "与全站区域国家主数据一致，用区域、国家缩小商品范围。\n选「不限」表示不按这一项缩小。\n若只选了国家、没选区域，保存时会尽量按国家反推出区域，避免填法矛盾。"
     );
     add(
       "planChannelCol",
       "渠道（规划）",
-      "默认「全渠道」：不按渠道收窄。选择具体渠道时，仅命中示例主数据中 channel 字段一致的 MSKU（如亚马逊联合投放）。"
+      "默认「全渠道」：不按售卖渠道缩小。\n选了具体渠道时：只保留在该渠道售卖的商品参与拆分。"
     );
     add(
       "planStoreCol",
       "店铺（规划）",
-      "默认「不限店铺」：不按店铺收窄。选择具体店铺编码时，仅命中示例主数据中 shop 字段一致的 MSKU，并与场景品类、SKU、新品、区域、国家、渠道一并取交集。"
+      "默认「不限店铺」：不按店铺缩小。\n选了具体店铺时：只保留在该店铺下的商品参与拆分，并与场景品类、SKU、新品、区域、国家、渠道一起核对。"
     );
     add(
       "planScCatPop",
       "如何选择场景与品类",
-      "左侧点场景；右侧可「清空」、勾选「本场景全品类」，或勾选某个具体品类。\n若本行还选了新品标签，系统会只把费用摊到同时满足场景/品类/新品条件的商品上。"
+      "左侧点场景；右侧可清空、选「本场景全品类」，或勾具体品类。\n若本行还选了新品标签，只会把费用摊到同时满足场景、品类、新品条件的商品上。"
     );
     add(
       "planNewProductPop",
       "新品规划",
-      "用于按「新品标识」做单独规划。\n请填写标识后点「应用到本行」。保存时标识必填。"
+      "用于单独给某个新品做规划。\n在浮层里填好标识后点「应用到本行」。保存时标识必填。"
     );
     add(
       "splitPanel",
       "拆分结果",
-      "先在上表点选一行规划。分摊月份为「筛选月份范围」与该行「规划月份范围」的交集。\n金额先按各月 eligible MSKU 的月度 BP 合计占比拆到月，再在该月内按 MSKU BP 占比拆到店铺+MSKU（示例数据）。"
+      "先在上表点选一行。\n只展示：顶部筛选月份 与 该行规划月份 重叠的那些月。\n金额先在月与月之间按示例 BP 分配，再在月内按商品 BP 分到店铺和 MSKU（本页为示例数据）。"
     );
     return o;
   })();
@@ -2684,7 +2684,7 @@
       var stripN = document.createElement("div");
       stripN.className = "logic-pop-toolbar";
       stripN.innerHTML =
-        '<button type="button" class="logic-pin" data-logic-key="6" aria-label="开发测试说明 6">6</button>' +
+        '<button type="button" class="logic-pin" data-logic-key="6" aria-label="编号说明 6">6</button>' +
         '<button type="button" class="field-hint-icon" data-user-hint="planNewProductPop" aria-label="新品规划说明">i</button>' +
         "<span style=\"font-size:12px;color:var(--text-sec)\">请输入新品标识并点「应用到本行」。</span>";
       el.appendChild(stripN);
@@ -2766,7 +2766,7 @@
     var strip = document.createElement("div");
     strip.className = "logic-pop-toolbar";
     strip.innerHTML =
-      '<button type="button" class="logic-pin logic-pin--wide" data-logic-key="9-11" aria-label="开发测试说明 9～11">9-11</button>' +
+      '<button type="button" class="logic-pin logic-pin--wide" data-logic-key="9-11" aria-label="编号说明 9～11">9-11</button>' +
       '<button type="button" class="field-hint-icon" data-user-hint="planScCatPop" aria-label="场景与品类选择说明">i</button>';
     el.appendChild(strip);
     var node = treeNodeByScenario(planRowPanelScenario);
@@ -3663,7 +3663,6 @@
     tbody.innerHTML = "";
     if (list.length === 0) {
       tbody.innerHTML = '<tr><td colspan="10" class="empty">无数据，可点击「新增一行」开始维护</td></tr>';
-      document.getElementById("planCount").textContent = "共 0 条";
       focusPlanId = null;
       clearSplitTable();
       return;
@@ -3696,7 +3695,6 @@
       tbody.appendChild(tr);
       mountPlanRowMonthPicker(tr, p);
     });
-    document.getElementById("planCount").textContent = "共 " + list.length + " 条（筛选后）";
     bindPlanRowEvents();
     var fl = filteredList();
     if (fl.length) {
@@ -3743,7 +3741,7 @@
     var item = map[key];
     if (!item) return;
     titleEl.textContent = item.title || "";
-    tagEl.textContent = mode === "user" ? "用户说明" : "开发/测试";
+    tagEl.textContent = mode === "user" ? "列说明" : "编号说明";
     tagEl.className = "logic-modal-tag " + (mode === "user" ? "user" : "dev");
     bodyEl.innerHTML = parseExplainBody(item.body || "");
     modal.removeAttribute("hidden");
@@ -3997,7 +3995,7 @@
   function clearSplitTable() {
     document.getElementById("tbodySplit").innerHTML = "";
     document.getElementById("splitContext").textContent =
-      "在上表选中一行后，此处按「筛选月份范围 ∩ 行规划月份范围」内的各自然月 × MSKU 展示拆分结果。";
+      "在上表点击一行，下方展示该行拆分明细。规则说明见本页顶部「页面说明」。";
     document.getElementById("splitSum").textContent = "";
   }
 
@@ -4014,7 +4012,6 @@
     var eligPre = collectEligibleMskus(p);
     var monthsPre = monthsForPlanSplit(p);
     var prCtx = getPlanMonthRangePair(p);
-    var monthSplitNote = "月总额按 eligible MSKU 的月度 BP 合计占比分配，月内按 MSKU 月度 BP 占比拆分。";
     var rows = splitPlan(p);
     tbody.innerHTML = "";
     if (!rows.length) {
@@ -4030,18 +4027,7 @@
       }
       tbody.innerHTML =
         '<tr><td colspan="5" class="empty">' + emptyMsg + "</td></tr>";
-      ctx.textContent =
-        "规划对象：" +
-        formatPlanLineLabel(p) +
-        " · 行月份 " +
-        prCtx.start +
-        " - " +
-        prCtx.end +
-        " · 规划额 " +
-        formatUsd(p.planAmount) +
-        "；与筛选交集月份：" +
-        (monthsPre.length ? monthsPre[0] + " 至 " + monthsPre[monthsPre.length - 1] : "无") +
-        "。";
+      ctx.textContent = "当前规划：" + formatPlanLineLabel(p) + "。详情与规则见顶部「页面说明」。";
       sumEl.textContent = "";
       return;
     }
@@ -4057,22 +4043,12 @@
     });
     var s = rows.reduce(function (a, r) { return a + r.splitAmount; }, 0);
     ctx.textContent =
-      "规划对象：" +
+      "当前规划：" +
       formatPlanLineLabel(p) +
-      " · 行月份 " +
-      prCtx.start +
-      " - " +
-      prCtx.end +
-      " · 规划额 " +
-      formatUsd(p.planAmount) +
-      "；实际拆分月份（筛选 ∩ 行）：" +
-      (monthsPre.length ? monthsPre[0] + " 至 " + monthsPre[monthsPre.length - 1] + "（" + monthsPre.length + " 个月）" : "无") +
-      "。" +
-      monthSplitNote +
-      "（共 " +
+      "。下方共 " +
       rows.length +
-      " 行，同一 MSKU 可跨月多行）。";
-    sumEl.textContent = "拆分合计：" + formatUsd(s) + "（与规划额对齐）。";
+      " 行明细；分摊月份与金额规则见顶部「页面说明」。";
+    sumEl.textContent = "拆分合计：" + formatUsd(s) + "（应与该行规划额一致）。";
   }
 
   function toast(msg) {
@@ -4201,10 +4177,10 @@
     initMonthRangeFilter();
     renderPlans();
     if (!SCENARIO_CATEGORY_TREE.length) {
-      toast("未加载到场景品类主数据，请检查网络或将 sceneCategorySchemaEmbed 留在页面内。");
+      toast("未加载到场景品类主数据，请检查网络或确认页面内嵌的场景品类数据仍在。");
     }
     if (!REGION_COUNTRY_DATA.regions || !REGION_COUNTRY_DATA.regions.length) {
-      toast("未加载到区域国家主数据，请检查网络或将 regionCountrySchemaEmbed 留在页面内。");
+      toast("未加载到区域国家主数据，请检查网络或确认页面内嵌的区域国家数据仍在。");
     }
   }
 
