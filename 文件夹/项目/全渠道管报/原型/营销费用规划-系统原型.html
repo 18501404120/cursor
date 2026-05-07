@@ -552,13 +552,6 @@
     #tblPlan td:nth-child(3) {
       text-align: center;
     }
-    #tblSplit .split-tree-icon {
-      display: inline-block;
-      width: 20px;
-      color: var(--brand);
-      font-weight: 700;
-      user-select: none;
-    }
     #tblSplit tr.split-row-total td {
       font-weight: 600;
       background: #f7fafc;
@@ -1029,12 +1022,23 @@
                     <th>区域 / 国家 / 店铺</th>
                     <th>场景 / 品类 / 品线</th>
                     <th>销售 / TL</th>
-                    <th>SKU 信息</th>
+                    <th>
+                      <span class="th-inner">
+                        SKU 信息
+                        <button type="button" class="field-hint-icon" data-user-hint="splitSkuCol" aria-label="SKU 信息列说明">i</button>
+                      </span>
+                    </th>
+                    <th>
+                      <span class="th-inner">
+                        新品标签
+                        <button type="button" class="field-hint-icon" data-user-hint="splitNpTagCol" aria-label="新品标签列说明">i</button>
+                      </span>
+                    </th>
                     <th>月份</th>
                     <th class="num">
                       <span class="th-inner">
-                        BP营收权重
-                        <button type="button" class="logic-pin" data-logic-key="12b" aria-label="编号说明 BP列">12</button>
+                        分摊金额占比
+                        <button type="button" class="logic-pin" data-logic-key="12b" aria-label="编号说明 分摊占比">12b</button>
                       </span>
                     </th>
                     <th class="num">拆分营销费用（USD）</th>
@@ -1247,12 +1251,12 @@
     add(
       "12",
       "拆分结果表（汇总）",
-      "首行为「总计」：拆分金额列为当前筛选下、上表全部可见规划行合并后的合计；其余列为「全部」示意。\n自第二行起：对每一规划行分别拆分后，按「月份 + 店铺 + MSKU」合并明细；并从示例 MSKU 主数据带出区域/国家/店铺、场景/品类/品线、渠道；销售/TL 为原型占位。\n金额规则不变：月与月之间按 BP，月内按商品 BP 分到店铺与 MSKU。"
+      "首行为「总计」：拆分金额列为当前筛选下、上表全部可见规划行合并后的合计；「分摊金额占比」列为 100%；其余列为「全部」或空示意。\n自第二行起：对每一规划行分别拆分后，按「月份 + 店铺 + MSKU」合并明细；并从示例主数据带出区域/国家/店铺、场景/品类/品线、渠道、新品标签；销售/TL 为原型占位。\n金额规则：月与月之间按 BP，月内按商品 BP 分到店铺与 MSKU；占比列口径见 12b。"
     );
     add(
       "12b",
-      "列：BP 营收权重",
-      "在下方汇总后的整张表里，这一格（某月 × 某店 × 某 MSKU）的示例 BP，占本表 BP 合计的比例，用来理解金额占比。本页为演示数据。"
+      "列：分摊金额占比",
+      "本列 = 该行「拆分营销费用」÷ 本表（不含首行总计）拆分金额合计。与右侧 USD 列同一套分母，便于核对；各行占比之和为 100%（四舍五入显示时末行可能略有补偿）。\n说明：分摊算法是「先按月到各月预算，再在月内按 BP 分到 SKU」，因此若用「全表 BP 合计」做分母会与金额列不成比例；本原型改为金额占比展示。"
     );
     return o;
   })();
@@ -1324,9 +1328,19 @@
       "用于单独给某个新品做规划。\n在浮层里填好标识后点「应用到本行」。保存时标识必填。"
     );
     add(
+      "splitSkuCol",
+      "拆分表 · SKU 信息",
+      "第一行为 sku 编码示意；第二行为「SKU + 渠道 + 国家」组合示意，便于与主数据对照。"
+    );
+    add(
+      "splitNpTagCol",
+      "拆分表 · 新品标签",
+      "取示例主数据（MSKU 池）中该 SKU 的 newProductTag；无主数据或未打标则为空。"
+    );
+    add(
       "splitPanel",
       "拆分结果（多维度）",
-      "首行总计为金额合计；下列为合并后的分摊明细，列含区域/国家/店铺、场景/品类/品线、销售/TL、SKU 与月份等。销售/TL 为演示占位。\n筛选与上表一致；金额为示例 BP 规则下的演示结果。"
+      "首行总计为金额合计，分摊金额占比列为 100%；下列为合并后的分摊明细。\n列含区域/国家/店铺、场景/品类/品线、销售/TL、SKU、新品标签、月份、分摊金额占比、拆分金额（USD）。销售/TL 为演示占位。\n筛选与上表一致；金额为示例 BP 规则下的演示结果。"
     );
     return o;
   })();
@@ -1781,8 +1795,15 @@
     var ch = String(r.channel != null ? r.channel : mrow.channel || "").trim() || "—";
     var cc = String(r.country_code != null ? r.country_code : mrow.country_code || "").trim() || "—";
     var sku = String(r.msku || "").trim() || "—";
-    var line2 = sku + "+" + ch + "+" + cc;
+    var line2 = sku + " / " + ch + " / " + cc;
     return '<span class="split-cell-lines">sku:' + escapeHtml(sku) + "\n" + escapeHtml(line2) + "</span>";
+  }
+
+  /** 拆分结果表：从示例主数据取该 MSKU 的新品标签 */
+  function splitRowNpTagCellHtml(r) {
+    var mrow = findMockMskuRow(r.msku);
+    var t = mrow && mrow.newProductTag != null ? String(mrow.newProductTag).trim() : "";
+    return t ? escapeHtml(t) : "";
   }
 
   function regionSelectHtml(selectedCode) {
@@ -3582,11 +3603,12 @@
       if (c !== 0) return c;
       return String(a.msku || "").localeCompare(String(b.msku || ""));
     });
-    var sumBp = arr.reduce(function (s, x) {
-      return s + x.bpRev;
+    /** 列表展示用占比：与「拆分金额」同一分母，避免与「全表 BP 合计」口径混用导致与 USD 列观感不一致 */
+    var sumAmt = arr.reduce(function (s, x) {
+      return s + (Number(x.splitAmount) || 0);
     }, 0);
     arr.forEach(function (x) {
-      x.weight = sumBp > 0 ? x.bpRev / sumBp : 0;
+      x.weight = sumAmt > 0 ? (Number(x.splitAmount) || 0) / sumAmt : 0;
     });
     return arr;
   }
@@ -4306,7 +4328,7 @@
     var rows = aggregateSplitFromPlans(fl);
     if (!rows.length) {
       tbody.innerHTML =
-        '<tr><td colspan="7" class="empty">当前筛选与可见规划范围内无拆分结果（请检查各行的场景品类、SKU、新品标签、规划月份及区域/国家/渠道/店铺是否与示例主数据一致）</td></tr>';
+        '<tr><td colspan="8" class="empty">当前筛选与可见规划范围内无拆分结果（请检查各行的场景品类、SKU、新品标签、规划月份及区域/国家/渠道/店铺是否与示例主数据一致）</td></tr>';
       return;
     }
     var splitSum = rows.reduce(function (a, r) {
@@ -4315,14 +4337,17 @@
     var tr0 = document.createElement("tr");
     tr0.className = "split-row-total";
     tr0.innerHTML =
-      '<td class="split-path-cell"><span class="split-tree-icon" aria-hidden="true">+</span>总计</td>' +
+      '<td class="split-path-cell">总计</td>' +
       '<td class="split-path-cell"><span class="split-cell-lines">' +
       escapeHtml("全场景/全部品类/全部品线") +
       "</span></td>" +
       '<td><span class="split-cell-lines">sales: 全部\nTL: 全部</span></td>' +
       '<td><span class="split-cell-lines">sku: 全部SKU</span></td>' +
+      "<td></td>" +
       "<td>—</td>" +
-      '<td class="num">—</td>' +
+      '<td class="num">' +
+      formatPct01(splitSum > 0 ? 1 : 0) +
+      "</td>" +
       '<td class="num">' +
       formatUsd(splitSum) +
       "</td>";
@@ -4330,12 +4355,13 @@
     rows.forEach(function (r) {
       var tr = document.createElement("tr");
       tr.innerHTML =
-        '<td class="split-path-cell"><span class="split-tree-icon" aria-hidden="true">+</span>' +
+        '<td class="split-path-cell">' +
         regionStorePathHtml(r) +
         "</td>" +
         '<td class="split-path-cell">' + sceneCategoryLineHtml(r) + "</td>" +
         "<td>" + salesTlCellHtml(r) + "</td>" +
         "<td>" + skuInfoCellHtml(r) + "</td>" +
+        "<td>" + splitRowNpTagCellHtml(r) + "</td>" +
         "<td>" + escapeHtml(r.monthYm || "") + "</td>" +
         '<td class="num">' + formatPct01(r.weight) + "</td>" +
         '<td class="num">' + formatUsd(r.splitAmount) + "</td>";
