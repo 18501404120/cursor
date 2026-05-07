@@ -844,9 +844,9 @@
             <details class="page-doc-details">
               <summary>开发：页面逻辑与分摊规则</summary>
               <div class="page-doc-content">
-                <p><strong>筛选与列表</strong>：顶部筛选项决定列表里出现哪些规划行。场景品类、新品标签若不选，表示不按这一项缩小范围。月份范围与每行「规划月份范围」要有重叠，该行才会出现在当前列表里。</p>
+                <p><strong>筛选与列表</strong>：顶部筛选项只决定<strong>列表里展示哪些规划行</strong>（查看范围）。场景品类、新品标签若不选，表示不按该项缩小列表。顶部<strong>月份范围</strong>与每行「规划月份范围」有重叠时，该行才会出现在当前列表里；<strong>不参与</strong>该行拆分月份的计算。</p>
                 <p><strong>哪些商品参与拆分</strong>：每一行里填的场景品类、SKU、新品标签、渠道、店铺、区域、国家，会一起在示例商品主数据里收窄范围——只有<strong>同时满足</strong>这些条件的商品（MSKU）才参与该行拆分；若收窄后没有商品，则没有拆分明细。</p>
-                <p><strong>拆在哪些月份</strong>：只处理「当前筛选的月份范围」与「该行规划的月份范围」<strong>重叠的那些自然月</strong>。</p>
+                <p><strong>拆在哪些月份</strong>：只看<strong>该行「规划月份范围」</strong>内的自然月，与顶部筛选的月份范围<strong>无关</strong>。</p>
                 <p><strong>金额怎么分</strong>：行上的「营销费用规划（USD）」是本行要分的<strong>总金额</strong>。先在上述各月之间，按示例里各月业务营收（BP）占比把总额分到月；再在每个月里，按各商品当月 BP 占比把该月金额分到具体店铺与 MSKU。本页为原型，数据为示例，正式系统应对齐同一套业务规则。</p>
                 <p><strong>原型说明</strong>：点击「保存」后，本行内容会记在浏览器本机（便于刷新后仍能看到），不等同于正式接口落库。</p>
               </div>
@@ -900,10 +900,10 @@
                   <button type="button" class="filter-inline-clear" id="fltNpTagClear" title="清空" aria-label="清空新品标签筛选">×</button>
                 </div>
               </div>
-              <div class="f"><label for="fltRegion">区域</label><select id="fltRegion"><option value="">全部</option></select></div>
-              <div class="f"><label for="fltCountry">国家</label><select id="fltCountry"><option value="">全部</option></select></div>
-              <div class="f"><label for="fltChannel">渠道</label><select id="fltChannel"><option value="">全部</option></select></div>
-              <div class="f"><label for="fltStore">店铺</label><select id="fltStore"><option value="">全部</option></select></div>
+              <div class="f"><label for="fltRegionMsf">区域</label><div id="fltRegionMsf" style="min-width:180px;width:100%"></div></div>
+              <div class="f"><label for="fltCountryMsf">国家</label><div id="fltCountryMsf" style="min-width:180px;width:100%"></div></div>
+              <div class="f"><label for="fltChannelMsf">渠道</label><div id="fltChannelMsf" style="min-width:180px;width:100%"></div></div>
+              <div class="f"><label for="fltStoreMsf">店铺</label><div id="fltStoreMsf" style="min-width:180px;width:100%"></div></div>
               <div class="f f-model"><label for="fltModel">model</label><select id="fltModel"><option value="">请选择</option></select></div>
               <div class="f"><label>SKU</label>
                 <div class="sku-input-group" id="skuInputGroup">
@@ -964,7 +964,7 @@
                     </th>
                     <th>
                       <span class="th-inner">
-                        SKU（MSKU）
+                        SKU
                         <span class="plan-cell-head-tools">
                           <button type="button" class="field-hint-icon" data-user-hint="planSkuCol" aria-label="SKU 列说明">i</button>
                         </span>
@@ -1068,21 +1068,6 @@
       <div class="sc-cat-col" id="planScCatRowCats"></div>
     </div>
   </div>
-  <div id="planSkuPopHost" class="plan-sc-cat-pop-host" hidden>
-    <div class="sc-cat-pop" id="planSkuPopBox" role="dialog" aria-label="选择 SKU" style="min-width:320px;max-width:420px">
-      <div class="logic-pop-toolbar" style="padding:8px 10px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-        <span style="font-size:12px;color:var(--text-sec)">先点开下拉，再在列表里勾选；可输入关键字缩小列表；本列表不提供「全选」。</span>
-        <button type="button" class="field-hint-icon" data-user-hint="planSkuCol" aria-label="SKU 列说明">i</button>
-      </div>
-      <div style="padding:8px 10px">
-        <div id="planSkuMsfMount" style="width:100%;min-width:280px"></div>
-        <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
-          <button type="button" class="btn btn-primary" id="planSkuApplyBtn">应用到本行</button>
-          <button type="button" class="btn btn-default" id="planSkuClearRowBtn">清空本行 SKU</button>
-        </div>
-      </div>
-    </div>
-  </div>
   <script src="../../../规范/assets/month-range-picker.js"></script>
   <script src="../../../规范/assets/multi-select-filter.js"></script>
   <script type="application/json" id="sceneCategorySchemaEmbed">{"version":"1.0","source":"用户提供系统截图","note":"后续场景/品类数据以本文件为准；仅包含截图中出现的编码与名称。","scenes":[{"scene_code":"0","scene_name":"未分类","categories":[{"category_code":"0001","category_name":"未分类"}]},{"scene_code":"1","scene_name":"居家","categories":[{"category_code":"1001","category_name":"吊灯"},{"category_code":"1002","category_name":"吸顶灯"},{"category_code":"1003","category_name":"风扇灯"},{"category_code":"1004","category_name":"球泡"},{"category_code":"1005","category_name":"筒灯"},{"category_code":"1006","category_name":"落地灯"},{"category_code":"1007","category_name":"床头灯"},{"category_code":"1008","category_name":"星空灯"},{"category_code":"1009","category_name":"其他"},{"category_code":"1010","category_name":"灯带"},{"category_code":"1011","category_name":"新形态灯带"},{"category_code":"1012","category_name":"传感器&盒子"},{"category_code":"1013","category_name":"室内壁灯"}]},{"scene_code":"2","scene_name":"观影","categories":[{"category_code":"2001","category_name":"灯柱"},{"category_code":"2002","category_name":"摄像头取色系列"},{"category_code":"2003","category_name":"TV灯带"},{"category_code":"2004","category_name":"HDMI盒子系列"}]},{"scene_code":"3","scene_name":"户外","categories":[{"category_code":"3001","category_name":"球泡灯串"},{"category_code":"3002","category_name":"户外灯带"},{"category_code":"3003","category_name":"射灯"},{"category_code":"3004","category_name":"泛光灯"},{"category_code":"3005","category_name":"庭院灯"},{"category_code":"3006","category_name":"路径灯"},{"category_code":"3007","category_name":"路灯"},{"category_code":"3008","category_name":"壁灯"},{"category_code":"3009","category_name":"户外投影灯"},{"category_code":"3010","category_name":"植物灯"},{"category_code":"3011","category_name":"屋檐灯"},{"category_code":"3012","category_name":"礼盒"},{"category_code":"3013","category_name":"车灯"},{"category_code":"3014","category_name":"传感器&盒子"}]},{"scene_code":"5","scene_name":"传感器及控制","categories":[{"category_code":"5001","category_name":"空气质量检测仪"},{"category_code":"5002","category_name":"智能按键"},{"category_code":"5003","category_name":"门窗传感器"},{"category_code":"5004","category_name":"红外人体传感器"},{"category_code":"5005","category_name":"人体存在传感器"},{"category_code":"5006","category_name":"压力传感器"},{"category_code":"5007","category_name":"温湿度计"},{"category_code":"5008","category_name":"漏水报警器"},{"category_code":"5009","category_name":"智能插座"},{"category_code":"5010","category_name":"烤肉温度计"},{"category_code":"5011","category_name":"网关"},{"category_code":"5012","category_name":"二氧化碳检测仪"},{"category_code":"5013","category_name":"浇水控制器"}]},{"scene_code":"6","scene_name":"季节","categories":[{"category_code":"6001","category_name":"窗帘灯"},{"category_code":"6002","category_name":"贴片灯串"},{"category_code":"6003","category_name":"插件灯串"},{"category_code":"6004","category_name":"树衣灯"},{"category_code":"6005","category_name":"瀑布灯"},{"category_code":"6006","category_name":"冰帘灯"},{"category_code":"6007","category_name":"圣诞树灯"},{"category_code":"6008","category_name":"草莓灯"},{"category_code":"6009","category_name":"造型灯"},{"category_code":"6010","category_name":"灌木丛灯"},{"category_code":"6011","category_name":"礼盒"},{"category_code":"6012","category_name":"流星雨灯"}]},{"scene_code":"7","scene_name":"环境电器","categories":[{"category_code":"7001","category_name":"塔扇"},{"category_code":"7002","category_name":"台扇"},{"category_code":"7003","category_name":"空净"},{"category_code":"7004","category_name":"暖风机"},{"category_code":"7005","category_name":"加湿器"},{"category_code":"7006","category_name":"除湿机"},{"category_code":"7007","category_name":"香薰机"},{"category_code":"7008","category_name":"环电配件"}]},{"scene_code":"8","scene_name":"厨房电器","categories":[{"category_code":"8001","category_name":"冰食料理机"},{"category_code":"8002","category_name":"制冰机"},{"category_code":"8003","category_name":"冰淇淋机"},{"category_code":"8004","category_name":"厨余垃圾处理机"},{"category_code":"8005","category_name":"电水壶"},{"category_code":"8006","category_name":"电饭煲"},{"category_code":"8007","category_name":"厨电配件"}]},{"scene_code":"9","scene_name":"游戏","categories":[{"category_code":"9001","category_name":"方块灯"},{"category_code":"9002","category_name":"条状灯"},{"category_code":"9003","category_name":"像素灯"},{"category_code":"9005","category_name":"室内激光灯"},{"category_code":"9006","category_name":"HDMI盒子系列"},{"category_code":"9007","category_name":"游戏灯带"},{"category_code":"9008","category_name":"灯柱"},{"category_code":"9009","category_name":"新潮灯具"}]}]}</script>
@@ -1107,8 +1092,14 @@
     { value: "线下", label: "线下" },
     { value: "商超", label: "商超" }
   ];
-  /** 筛选月份范围 YYYY-MM，与规划行「年度」列配合：列表按规划年是否落在范围内过滤；拆分取与规划年交集的月份 */
+  /** 筛选月份范围 YYYY-MM：仅用于列表查看范围（与行规划月份有重叠才显示）；拆分月份只看行内规划月份 */
   var currentFilter = { monthStart: "", monthEnd: "" };
+  /** 筛选区：区域/国家/渠道/店铺 多选实例（《多选下拉筛选-全局UI规范》） */
+  var _fltGeoMsf = { region: null, country: null, channel: null, store: null };
+  /** 规划行：区域/国家/渠道/店铺 多选，按行 id 存 */
+  var _planRowGeoMsf = {};
+  /** 规划行：SKU 多选（行内挂载） */
+  var _planRowSkuMsf = {};
   /** 每行规划「月份范围」控件实例（renderPlans 前统一 destroy） */
   var _planRowMrPickers = {};
   /** 筛选：场景×品类叶子多选，存「场景名\\t品类名」；空数组表示不过滤 */
@@ -1118,9 +1109,6 @@
   var panelActiveScenario = "";
   /** 表格行内场景品类浮层（每行单选一条） */
   var planRowEditId = null;
-  var planSkuRowEditId = null;
-  /** 行内 SKU 浮层：多选下拉（无「全部」） */
-  var planSkuMsf = null;
   var planRowPanelScenario = "";
   var planRowOutsideCloseWired = false;
 
@@ -1224,12 +1212,12 @@
     add(
       "3",
       "搜索",
-      "只刷新当前列表展示，不自动替你点「保存」。\n场景品类、新品标签可以不选；其它筛选项照常生效。\n区域、国家、渠道、店铺：与每一行里填的内容对应得上，才符合筛选。\n月份：只显示「顶部选的月份」与「该行自己规划的月份」有重叠的规划行；拆分也只算重叠的那些月。"
+      "只刷新当前列表展示，不自动替你点「保存」。\n场景品类、新品标签可以不选；其它筛选项照常生效。\n区域、国家、渠道、店铺：与每一行里填的内容对应得上，才符合筛选。\n月份：只用于缩小列表——仅显示「顶部选的月份」与「该行自己规划的月份」有重叠的规划行；该行费用的拆分月份只看本行「规划月份范围」内的自然月，与顶部月份筛选无关。"
     );
     add(
       "4",
       "规划表：场景品类（行内浮层）",
-      "规则要点：\n1）品类必须挂在某个场景下面，不能单独只选品类、不选场景。\n2）左侧点场景；右侧可以选「这一场景下全部品类」，或勾选多个具体品类；也可以选「不按场景品类限制」（全场景全市场口径），用来表达「不按场景×品类缩小商品范围」。\n3）本页在后台会记下你勾选的组合，用来和商品主数据对照；列表上仍显示主场景、主品类，方便阅读。\n4）同一行里还有「SKU」多选：可以和场景品类一起用——先按场景品类缩小，再只保留你勾选的 MSKU；也可以只填 SKU 或只填新品标签（保存规则见编号 7）。"
+      "规则要点：\n1）品类必须挂在某个场景下面，不能单独只选品类、不选场景。\n2）左侧点场景；右侧可以选「这一场景下全部品类」，或勾选多个具体品类；也可以选「不按场景品类限制」（全场景全市场口径），用来表达「不按场景×品类缩小商品范围」。\n3）本页在后台会记下你勾选的组合，用来和商品主数据对照；列表上仍显示主场景、主品类，方便阅读。\n4）同一行里还有「SKU」多选下拉：可以和场景品类一起用——先按场景品类缩小，再只保留勾选的 SKU；也可以只填 SKU 或只填新品标签（保存规则见编号 7）。"
     );
     add(
       "5",
@@ -1244,7 +1232,7 @@
     add(
       "7",
       "保存 / 保存全部 / 保存单行",
-      "普通行：「场景品类」与「SKU」至少要填一类（也可以两类都填，用来收得更窄）。\n新品行：新品标识必填。\n区域、国家、渠道、店铺：可不填；填了就会和场景品类、SKU、新品标签一起在商品范围里继续收窄。\n规划月份范围：必须选完整起止月；真正参与拆分的月份 = 顶部筛选月份 与 该行月份 的重叠部分。\n同一套「月份范围 + 规划对象 + 地理与店铺」不能重复出现两行。\n本原型里点保存后，数据记在浏览器本机，便于演示刷新后仍在；上线后应对接真实保存接口。"
+      "保存校验：「场景品类」「SKU」「新品标签」三者不可同时为空；新品规划行另需填写新品标识（品类列）。\n区域、国家、渠道、店铺：可不填；填了（多选）会在商品范围里继续收窄（多选为「或」、全空表示不限）。\n规划月份范围：必须选完整起止月；参与拆分的自然月仅来自该行自身月份范围，与顶部月份筛选无关（顶部月份只影响列表是否展示该行）。\n同一套「月份范围 + 规划对象 + 地理与店铺」不能重复出现两行。\n本原型里点保存后，数据记在浏览器本机，便于演示刷新后仍在；上线后应对接真实保存接口。"
     );
     add(
       "8",
@@ -1288,17 +1276,17 @@
     add(
       "filterMonthRange",
       "月份范围筛选",
-      "默认当年 1–12 月，展示形如「2026-01 - 2026-12」（与全站月份范围控件样式一致）。\n列表里只保留：该行自己规划的月份 与 这里选的月份 有重叠的规划行。\n拆分也只算重叠的那些自然月，再按示例 BP 占比分摊。"
+      "默认当年 1–12 月，展示形如「2026-01 - 2026-12」（与全站月份范围控件样式一致）。\n列表里只保留：该行自己规划的月份 与 这里选的月份 有重叠的规划行（查看范围）。\n拆分用的自然月只看本行「规划月份范围」，与这里选的月份无关。"
     );
     add(
       "planMonthRangeCol",
       "规划月份范围",
-      "这一行费用打算从哪个月做到哪个月。\n与顶部月份范围取重叠部分后，才参与列表展示和拆分。\n起止月不同，在系统里视为不同规划行。"
+      "这一行费用打算从哪个月做到哪个月。\n与顶部月份范围有重叠时，该行会出现在当前列表里；但拆分只按本行起止月内的自然月计算。\n起止月不同，在系统里视为不同规划行。"
     );
     add(
       "planScCatCol",
       "场景品类（规划）",
-      "点单元格打开浮层：先选场景，再选本场景下的品类或「本场景全品类」，也可选更宽的「全场景全品类」口径。\n与「SKU」至少填一类（可一起填，用来收得更窄）；「新品标签」可不填，填了会再收一层。"
+      "点单元格打开浮层：先选场景，再选本场景下的品类或「本场景全品类」，也可选更宽的「全场景全品类」口径。\n保存时须与「SKU」「新品标签」搭配满足「三者不可同时为空」；可多选组合收窄范围。"
     );
     add(
       "planNpCol",
@@ -1308,22 +1296,22 @@
     add(
       "planSkuCol",
       "SKU（规划）",
-      "点开后可多选 MSKU。\n可与场景品类组合：先按场景品类缩小商品，再只保留勾选的 MSKU；也可以只填 SKU 或只配合新品标签使用。\n与场景品类至少填一类。"
+      "行内多选下拉：可搜索、勾选若干 SKU；不提供「全部」快捷项。\n可与场景品类、新品标签组合收窄商品范围；保存时须与场景品类、新品标签三者不可同时为空。"
     );
     add(
       "planGeoCol",
       "区域 / 国家（规划）",
-      "与全站区域国家主数据一致，用区域、国家缩小商品范围。\n选「不限」表示不按这一项缩小。\n若只选了国家、没选区域，保存时会尽量按国家反推出区域，避免填法矛盾。"
+      "与全站区域国家主数据一致，行内多选下拉；不选表示不按该项缩小。\n区域变更会刷新国家候选项；若只选了国家、未选区域，保存时会尽量按国家反推区域写入（演示逻辑）。"
     );
     add(
       "planChannelCol",
       "渠道（规划）",
-      "默认「全渠道」：不按售卖渠道缩小。\n选了具体渠道时：只保留在该渠道售卖的商品参与拆分。"
+      "行内多选下拉；不选表示不按售卖渠道缩小。\n勾选具体渠道时：只保留在该渠道售卖的商品参与拆分。"
     );
     add(
       "planStoreCol",
       "店铺（规划）",
-      "默认「不限店铺」：不按店铺缩小。\n选了具体店铺时：只保留在该店铺下的商品参与拆分，并与场景品类、SKU、新品、区域、国家、渠道一起核对。"
+      "行内多选下拉；不选表示不按店铺缩小。\n勾选店铺时：只保留对应店铺下的商品参与拆分，并与场景品类、SKU、新品、区域、国家、渠道一起核对。"
     );
     add(
       "planScCatPop",
@@ -1459,11 +1447,26 @@
       if (Array.isArray(p.planSkus) && p.planSkus.length) {
         out.planSkus = p.planSkus.map(function (x) { return String(x || "").trim(); }).filter(Boolean);
       }
-      if (String(p.planRegionCode || "").trim()) out.planRegionCode = String(p.planRegionCode).trim();
-      if (String(p.planCountryCode || "").trim()) out.planCountryCode = String(p.planCountryCode).trim();
-      if (String(p.planChannelKey != null ? p.planChannelKey : "").trim())
-        out.planChannelKey = String(p.planChannelKey).trim();
-      if (String(p.planStoreCode || "").trim()) out.planStoreCode = String(p.planStoreCode).trim();
+      if (Array.isArray(p.planRegionCodes) && p.planRegionCodes.length) {
+        out.planRegionCodes = p.planRegionCodes.map(function (x) { return String(x || "").trim(); }).filter(Boolean);
+      } else if (String(p.planRegionCode || "").trim()) {
+        out.planRegionCodes = [String(p.planRegionCode).trim()];
+      }
+      if (Array.isArray(p.planCountryCodes) && p.planCountryCodes.length) {
+        out.planCountryCodes = p.planCountryCodes.map(function (x) { return String(x || "").trim(); }).filter(Boolean);
+      } else if (String(p.planCountryCode || "").trim()) {
+        out.planCountryCodes = [String(p.planCountryCode).trim()];
+      }
+      if (Array.isArray(p.planChannelKeys) && p.planChannelKeys.length) {
+        out.planChannelKeys = p.planChannelKeys.map(function (x) { return String(x != null ? x : "").trim(); }).filter(Boolean);
+      } else if (String(p.planChannelKey != null ? p.planChannelKey : "").trim()) {
+        out.planChannelKeys = [String(p.planChannelKey).trim()];
+      }
+      if (Array.isArray(p.planStoreCodes) && p.planStoreCodes.length) {
+        out.planStoreCodes = p.planStoreCodes.map(function (x) { return String(x || "").trim(); }).filter(Boolean);
+      } else if (String(p.planStoreCode || "").trim()) {
+        out.planStoreCodes = [String(p.planStoreCode).trim()];
+      }
       if (String(p.planMonthStart || "").trim() && String(p.planMonthEnd || "").trim()) {
         out.planMonthStart = String(p.planMonthStart).trim();
         out.planMonthEnd = String(p.planMonthEnd).trim();
@@ -1603,11 +1606,7 @@
       });
       sel.innerHTML = h;
     }
-    fillFilterRegionSelect();
-    fillFilterCountrySelect();
-    fillFilterChannelSelect();
-    wireFilterGeoOnce();
-    fill("fltStore", ["AMZ-US-01", "AMZ-EU-02", "AMZ-GB-01", "独立站-01", "TK-US-01", "线下-DE-01", "商超-MX-01"]);
+    mountFilterGeoMsfs();
     fill("fltModel", ["MDL-A01", "MDL-B02", "MDL-C88"], '<option value="">请选择</option>');
     fill("fltTl", ["TL-01", "TL-02", "TL-03"]);
     fill("fltSales", ["Sales-A", "Sales-B", "Sales-C"]);
@@ -1853,12 +1852,81 @@
     return h;
   }
 
+  function planRegionCodesResolved(p) {
+    if (!p) return [];
+    if (Array.isArray(p.planRegionCodes) && p.planRegionCodes.length) {
+      return p.planRegionCodes.map(function (x) { return String(x || "").trim(); }).filter(Boolean);
+    }
+    var s = String(p.planRegionCode || "").trim();
+    return s ? [s] : [];
+  }
+
+  function planCountryCodesResolved(p) {
+    if (!p) return [];
+    if (Array.isArray(p.planCountryCodes) && p.planCountryCodes.length) {
+      return p.planCountryCodes.map(function (x) { return String(x || "").trim(); }).filter(Boolean);
+    }
+    var s = String(p.planCountryCode || "").trim();
+    return s ? [s] : [];
+  }
+
+  function planChannelKeysResolved(p) {
+    if (!p) return [];
+    if (Array.isArray(p.planChannelKeys) && p.planChannelKeys.length) {
+      return p.planChannelKeys.map(function (x) { return String(x != null ? x : "").trim(); }).filter(Boolean);
+    }
+    var s = String(p.planChannelKey != null ? p.planChannelKey : "").trim();
+    return s ? [s] : [];
+  }
+
+  function planStoreCodesResolved(p) {
+    if (!p) return [];
+    if (Array.isArray(p.planStoreCodes) && p.planStoreCodes.length) {
+      return p.planStoreCodes.map(function (x) { return String(x || "").trim(); }).filter(Boolean);
+    }
+    var s = String(p.planStoreCode || "").trim();
+    return s ? [s] : [];
+  }
+
+  /** 将历史单值字段迁入多选数组，便于统一读写 */
+  function ensurePlanGeoArrays(p) {
+    if (!p || typeof p !== "object") return;
+    if (!Array.isArray(p.planRegionCodes) && String(p.planRegionCode || "").trim()) {
+      p.planRegionCodes = [String(p.planRegionCode).trim()];
+    }
+    if (!Array.isArray(p.planCountryCodes) && String(p.planCountryCode || "").trim()) {
+      p.planCountryCodes = [String(p.planCountryCode).trim()];
+    }
+    if (!Array.isArray(p.planChannelKeys) && String(p.planChannelKey != null ? p.planChannelKey : "").trim()) {
+      p.planChannelKeys = [String(p.planChannelKey).trim()];
+    }
+    if (!Array.isArray(p.planStoreCodes) && String(p.planStoreCode || "").trim()) {
+      p.planStoreCodes = [String(p.planStoreCode).trim()];
+    }
+    delete p.planRegionCode;
+    delete p.planCountryCode;
+    delete p.planChannelKey;
+    delete p.planStoreCode;
+  }
+
   function planGeoIdentitySuffix(p) {
-    var r = String(p.planRegionCode || "").trim();
-    var c = String(p.planCountryCode || "").trim();
-    var ch = String(p.planChannelKey != null ? p.planChannelKey : "").trim();
-    var st = String(p.planStoreCode || "").trim();
-    return "\tG\t" + r + "\t" + c + "\t" + ch + "\t" + st;
+    var rr = planRegionCodesResolved(p)
+      .slice()
+      .sort()
+      .join("|");
+    var cc = planCountryCodesResolved(p)
+      .slice()
+      .sort()
+      .join("|");
+    var ch = planChannelKeysResolved(p)
+      .slice()
+      .sort()
+      .join("|");
+    var st = planStoreCodesResolved(p)
+      .slice()
+      .sort()
+      .join("|");
+    return "\tG\t" + rr + "\t" + cc + "\t" + ch + "\t" + st;
   }
 
   function fillFilterRegionSelect() {
@@ -1903,15 +1971,107 @@
     if (!ok) sel.value = "";
   }
 
-  function wireFilterGeoOnce() {
-    if (wireFilterGeoOnce._ok) return;
-    wireFilterGeoOnce._ok = true;
-    var reg = document.getElementById("fltRegion");
-    if (reg) {
-      reg.addEventListener("change", function () {
-        fillFilterCountrySelect();
+  var FILTER_STORE_CODES = ["AMZ-US-01", "AMZ-EU-02", "AMZ-GB-01", "独立站-01", "TK-US-01", "线下-DE-01", "商超-MX-01"];
+
+  function countriesOptionsForFltRegions(regionCodes) {
+    var rc = (regionCodes || []).map(String).filter(Boolean);
+    if (!rc.length) {
+      return allCountriesDistinct().map(function (c) {
+        return { value: c.country_code, label: c.country_name + "（" + c.country_code + "）" };
       });
     }
+    var seen = {};
+    var out = [];
+    rc.forEach(function (code) {
+      (countriesForRegionCode(code) || []).forEach(function (c) {
+        if (!c.country_code || seen[c.country_code]) return;
+        seen[c.country_code] = true;
+        out.push({ value: c.country_code, label: c.country_name + "（" + c.country_code + "）" });
+      });
+    });
+    return out;
+  }
+
+  function destroyFilterGeoMsfInst() {
+    ["region", "country", "channel", "store"].forEach(function (k) {
+      if (_fltGeoMsf[k] && typeof _fltGeoMsf[k].destroy === "function") {
+        _fltGeoMsf[k].destroy();
+      }
+      _fltGeoMsf[k] = null;
+    });
+  }
+
+  function mountFilterGeoMsfs() {
+    if (typeof MultiSelectFilter === "undefined") return;
+    destroyFilterGeoMsfInst();
+    var hReg = document.getElementById("fltRegionMsf");
+    var hCty = document.getElementById("fltCountryMsf");
+    var hCh = document.getElementById("fltChannelMsf");
+    var hSt = document.getElementById("fltStoreMsf");
+    if (!hReg || !hCty || !hCh || !hSt) return;
+    function remountFltCountry(prevVals) {
+      if (_fltGeoMsf.country) {
+        _fltGeoMsf.country.destroy();
+        _fltGeoMsf.country = null;
+      }
+      var rc = fltRegionCodesSelected();
+      var opts = countriesOptionsForFltRegions(rc);
+      var keep = (prevVals || []).filter(function (pv) {
+        return opts.some(function (o) {
+          return o.value === pv;
+        });
+      });
+      _fltGeoMsf.country = MultiSelectFilter.mount(hCty, {
+        placeholder: "请选择国家",
+        showSelectAll: true,
+        zIndex: 425,
+        maxPanelHeight: 240,
+        getOptions: function () {
+          return opts;
+        },
+        initialValues: keep
+      });
+    }
+    _fltGeoMsf.region = MultiSelectFilter.mount(hReg, {
+      placeholder: "请选择区域",
+      showSelectAll: true,
+      zIndex: 420,
+      maxPanelHeight: 220,
+      getOptions: function () {
+        return (REGION_COUNTRY_DATA.regions || []).map(function (r) {
+          return { value: r.region_code, label: r.region_name };
+        });
+      },
+      onChange: function () {
+        var pv = _fltGeoMsf.country ? _fltGeoMsf.country.getValues().slice() : [];
+        remountFltCountry(pv);
+      }
+    });
+    remountFltCountry([]);
+    _fltGeoMsf.channel = MultiSelectFilter.mount(hCh, {
+      placeholder: "请选择渠道",
+      showSelectAll: true,
+      zIndex: 420,
+      maxPanelHeight: 220,
+      getOptions: function () {
+        return CHANNEL_SELECT_OPTIONS.filter(function (o) {
+          return String(o.value || "").trim();
+        }).map(function (o) {
+          return { value: o.value, label: o.label };
+        });
+      }
+    });
+    _fltGeoMsf.store = MultiSelectFilter.mount(hSt, {
+      placeholder: "请选择店铺",
+      showSelectAll: true,
+      zIndex: 420,
+      maxPanelHeight: 220,
+      getOptions: function () {
+        return FILTER_STORE_CODES.map(function (s) {
+          return { value: s, label: s };
+        });
+      }
+    });
   }
 
   /** 原型用：MSKU 主数据池，含 BP 营收（按年度哈希，稳定可复现） */
@@ -2045,23 +2205,13 @@
     row.planMonthStart = pr.start;
     row.planMonthEnd = pr.end;
     row.year = parseInt(String(pr.start).slice(0, 4), 10) || row.year || new Date().getFullYear();
+    ensurePlanGeoArrays(row);
   }
 
-  /** 筛选月份范围 F 与规划行月份范围 R 的交集（闭区间自然月） */
+  /** 拆分用月份：仅该行「规划月份范围」内的自然月（与顶部筛选月份无关） */
   function monthsForPlanSplit(plan) {
     var pr = getPlanMonthRangePair(plan);
-    var rowMonths = enumerateYmMonths(pr.start, pr.end);
-    if (!currentFilter.monthStart || !currentFilter.monthEnd) {
-      return rowMonths;
-    }
-    var F = enumerateYmMonths(currentFilter.monthStart, currentFilter.monthEnd);
-    var fset = {};
-    F.forEach(function (x) {
-      fset[x] = true;
-    });
-    return rowMonths.filter(function (ym) {
-      return fset[ym];
-    });
+    return enumerateYmMonths(pr.start, pr.end);
   }
 
   function mockSkuRowsNewProduct(plan) {
@@ -2071,9 +2221,12 @@
     }, 0) % 5000;
     var shops = ["AMZ-US-01", "AMZ-EU-02", "独立站-01"];
     var out = [];
-    var pr = String(plan.planRegionCode || "").trim();
-    var pc = String(plan.planCountryCode || "").trim();
-    var pch = String(plan.planChannelKey != null ? plan.planChannelKey : "").trim();
+    var prList = planRegionCodesResolved(plan);
+    var pcList = planCountryCodesResolved(plan);
+    var pchList = planChannelKeysResolved(plan);
+    var pr = prList[0] || "NA";
+    var pc = pcList[0] || "US";
+    var pch = pchList[0] || "亚马逊";
     for (var i = 0; i < 5; i++) {
       out.push({
         scenario: plan.scenario,
@@ -2081,9 +2234,9 @@
         shop: shops[i % shops.length],
         msku: "MSKU-NP-" + String(i + base % 1000),
         newProductTag: planNpTagValue(plan),
-        region_code: pr || "NA",
-        country_code: pc || "US",
-        channel: pch || "亚马逊",
+        region_code: pr,
+        country_code: pc,
+        channel: pch,
         _bp: {}
       });
     }
@@ -2115,19 +2268,19 @@
   }
 
   function mskuMatchesPlanGeo(plan, m) {
-    var pr = String(plan.planRegionCode || "").trim();
-    var pc = String(plan.planCountryCode || "").trim();
-    var pch = String(plan.planChannelKey != null ? plan.planChannelKey : "").trim();
-    if (pr && String(m.region_code || "") !== pr) return false;
-    if (pc && String(m.country_code || "") !== pc) return false;
-    if (pch && String(m.channel || "") !== pch) return false;
+    var regs = planRegionCodesResolved(plan);
+    if (regs.length && regs.indexOf(String(m.region_code || "")) < 0) return false;
+    var cts = planCountryCodesResolved(plan);
+    if (cts.length && cts.indexOf(String(m.country_code || "")) < 0) return false;
+    var chs = planChannelKeysResolved(plan);
+    if (chs.length && chs.indexOf(String(m.channel || "")) < 0) return false;
     return true;
   }
 
   function mskuMatchesPlanStore(plan, m) {
-    var ps = String(plan.planStoreCode || "").trim();
-    if (!ps) return true;
-    return String(m.shop || "") === ps;
+    var sts = planStoreCodesResolved(plan);
+    if (!sts.length) return true;
+    return sts.indexOf(String(m.shop || "")) >= 0;
   }
 
   function collectEligibleMskus(plan) {
@@ -2407,24 +2560,7 @@
     return document.querySelector('#tbodyPlan tr[data-id="' + planRowEditId + '"]');
   }
 
-  function closePlanSkuPop() {
-    if (planSkuMsf) {
-      planSkuMsf.destroy();
-      planSkuMsf = null;
-    }
-    var host = document.getElementById("planSkuPopHost");
-    if (host) host.hidden = true;
-    document.querySelectorAll(".plan-sku-wrap.open").forEach(function (w) {
-      w.classList.remove("open");
-    });
-    document.querySelectorAll(".js-plan-sku-trigger").forEach(function (b) {
-      b.setAttribute("aria-expanded", "false");
-    });
-    planSkuRowEditId = null;
-  }
-
   function closePlanRowScCatPop() {
-    closePlanSkuPop();
     var host = document.getElementById("planScCatPopHost");
     if (host) host.hidden = true;
     document.querySelectorAll(".plan-sc-cat-wrap.open").forEach(function (w) {
@@ -2467,6 +2603,10 @@
   }
 
   function readSkusFromTrSafe(tr) {
+    var id = tr && tr.dataset && tr.dataset.id;
+    if (id && _planRowSkuMsf[id] && typeof _planRowSkuMsf[id].getValues === "function") {
+      return normalizeSkuArray(_planRowSkuMsf[id].getValues());
+    }
     var inp = tr && tr.querySelector(".js-plan-skus-json");
     if (!inp || !inp.value) return [];
     try {
@@ -2481,13 +2621,6 @@
     var inp = tr.querySelector(".js-plan-skus-json");
     if (!inp) return;
     inp.value = JSON.stringify(normalizeSkuArray(skus));
-  }
-
-  function formatPlanSkuBtnLabel(sk) {
-    sk = sk || [];
-    if (!sk.length) return "请选择 SKU（可多选）";
-    if (sk.length === 1) return sk[0];
-    return "已选 " + sk.length + " 个 MSKU";
   }
 
   function readPlanRowEditsFromTr(tr) {
@@ -2542,9 +2675,14 @@
 
   function syncPlanRowSkuDom(tr, p) {
     if (!tr || !p) return;
-    writeSkusToTr(tr, getPlanSkus(p));
-    var btn = tr.querySelector(".js-plan-sku-trigger");
-    if (btn) btn.textContent = formatPlanSkuBtnLabel(getPlanSkus(p));
+    var sk = getPlanSkus(p);
+    writeSkusToTr(tr, sk);
+    var id = p.id;
+    var inst = id ? _planRowSkuMsf[id] : null;
+    if (inst && typeof inst.setValues === "function") {
+      inst.setValues(sk);
+      if (typeof inst.refreshOptions === "function") inst.refreshOptions();
+    }
   }
 
   function syncPlanRowDomFromPlan(tr, p) {
@@ -2904,7 +3042,6 @@
   }
 
   function openPlanRowScCat(tr, id) {
-    closePlanSkuPop();
     closeScCatPop();
     closeNpTagPop();
     planRowEditId = id;
@@ -2937,22 +3074,7 @@
     }
   }
 
-  function positionPlanSkuPop(anchor) {
-    var host = document.getElementById("planSkuPopHost");
-    if (!host || !anchor) return;
-    var r = anchor.getBoundingClientRect();
-    var gap = 4;
-    var popH = 360;
-    var top = r.bottom + gap;
-    if (top + popH > window.innerHeight - 8) top = Math.max(8, r.top - gap - popH);
-    var left = Math.max(8, Math.min(r.left, window.innerWidth - 440));
-    host.style.left = left + "px";
-    host.style.top = top + "px";
-  }
-
-  function fillPlanSkuMulti(tr) {
-    var mount = document.getElementById("planSkuMsfMount");
-    if (!mount || typeof MultiSelectFilter === "undefined") return;
+  function buildPlanSkuOptionsForTr(tr) {
     var o = readPlanRowEditsFromTr(tr);
     var pool = MOCK_MSKU_UNIVERSE.slice();
     var L = o.leaves;
@@ -2968,109 +3090,12 @@
     pool.forEach(function (m) {
       if (uniq[m.msku]) return;
       uniq[m.msku] = 1;
-      opts.push({ msku: m.msku, lab: m.msku + " · " + m.scenario + " / " + m.category });
+      opts.push({ value: m.msku, label: m.msku + " · " + m.scenario + " / " + m.category });
     });
     opts.sort(function (a, b) {
-      return String(a.msku).localeCompare(String(b.msku));
+      return String(a.value).localeCompare(String(b.value));
     });
-    var lim = opts.slice(0, 200);
-    var cur = readSkusFromTrSafe(tr);
-    if (planSkuMsf) {
-      planSkuMsf.destroy();
-      planSkuMsf = null;
-    }
-    planSkuMsf = MultiSelectFilter.mount(mount, {
-      placeholder: "点击展开选择 MSKU（可多选）",
-      showSelectAll: false,
-      zIndex: 9500,
-      maxPanelHeight: 220,
-      getOptions: function () {
-        return lim.map(function (x) {
-          return { value: x.msku, label: x.lab };
-        });
-      },
-      initialValues: cur
-    });
-  }
-
-  function openPlanRowSku(tr, id) {
-    closePlanRowScCatPop();
-    closeScCatPop();
-    closeNpTagPop();
-    planSkuRowEditId = id;
-    var host = document.getElementById("planSkuPopHost");
-    var btn = tr.querySelector(".js-plan-sku-trigger");
-    var wrap = tr.querySelector(".plan-sku-wrap");
-    if (!host || !btn || !wrap) return;
-    fillPlanSkuMulti(tr);
-    host.hidden = false;
-    wrap.classList.add("open");
-    btn.setAttribute("aria-expanded", "true");
-    positionPlanSkuPop(btn);
-  }
-
-  function wirePlanSkuPopOnce() {
-    if (wirePlanSkuPopOnce._ok) return;
-    wirePlanSkuPopOnce._ok = true;
-    var applyBtn = document.getElementById("planSkuApplyBtn");
-    if (applyBtn) {
-      applyBtn.addEventListener("click", function () {
-        if (!planSkuRowEditId) return;
-        var tr = document.querySelector('#tbodyPlan tr[data-id="' + planSkuRowEditId + '"]');
-        if (!tr) return;
-        var picked = planSkuMsf ? planSkuMsf.getValues() : [];
-        writeSkusToTr(tr, picked);
-        var list = loadAll();
-        var p = list.find(function (x) {
-          return x.id === planSkuRowEditId;
-        });
-        if (p) {
-          applyLeavesAndSkusToPlan(p, readLeavesFromTr(tr), picked);
-          saveAll(list);
-          syncPlanRowSkuDom(tr, p);
-          renderSplitAggregated();
-        }
-        closePlanSkuPop();
-        toast("已更新 SKU 多选");
-      });
-    }
-    var clrBtn = document.getElementById("planSkuClearRowBtn");
-    if (clrBtn) {
-      clrBtn.addEventListener("click", function () {
-        if (!planSkuRowEditId) return;
-        var tr = document.querySelector('#tbodyPlan tr[data-id="' + planSkuRowEditId + '"]');
-        if (!tr) return;
-        writeSkusToTr(tr, []);
-        var list = loadAll();
-        var p = list.find(function (x) {
-          return x.id === planSkuRowEditId;
-        });
-        if (p) {
-          delete p.planSkus;
-          saveAll(list);
-          syncPlanRowSkuDom(tr, p);
-          renderSplitAggregated();
-        }
-        closePlanSkuPop();
-        toast("已清空该行 SKU");
-      });
-    }
-    document.addEventListener("mousedown", function (e) {
-      var t = e.target;
-      var host = document.getElementById("planSkuPopHost");
-      if (!planSkuRowEditId || !host || host.hidden) return;
-      if (host.contains(t)) return;
-      if (t.closest && t.closest(".plan-sku-wrap")) return;
-      if (t.closest && t.closest("#logicUnifiedModal")) return;
-      closePlanSkuPop();
-    });
-    window.addEventListener("resize", function () {
-      if (!planSkuRowEditId) return;
-      var tr = document.querySelector('#tbodyPlan tr[data-id="' + planSkuRowEditId + '"]');
-      if (!tr) return;
-      var btn = tr.querySelector(".js-plan-sku-trigger");
-      if (btn) positionPlanSkuPop(btn);
-    });
+    return opts.slice(0, 200);
   }
 
   function wirePlanRowScCatOutsideClose() {
@@ -3081,7 +3106,6 @@
       var t = e.target;
       if (!planRowEditId || !host || host.hidden) return;
       if (host.contains(t)) return;
-      if (t.closest && t.closest("#planSkuPopHost")) return;
       if (t.closest && t.closest("#logicUnifiedModal")) return;
       if (t.closest && t.closest(".plan-sc-cat-wrap")) return;
       if (t.closest && t.closest(".plan-cell-with-pin")) return;
@@ -3134,17 +3158,14 @@
   function planSkuCellHtml(p) {
     var sk = getPlanSkus(p);
     var skJson = escapeHtml(JSON.stringify(sk));
-    var btnLabel = formatPlanSkuBtnLabel(sk);
     return (
-      '<div class="plan-sku-wrap sc-cat-wrap" style="flex:1;min-width:0" data-plan-id="' +
+      '<div class="plan-sku-cell-msf" style="flex:1;min-width:0;max-width:240px" data-plan-id="' +
       escapeHtml(p.id) +
       '">' +
       '<input type="hidden" class="js-plan-skus-json" value="' +
       skJson +
       '" />' +
-      '<button type="button" class="sc-cat-trigger js-plan-sku-trigger" aria-expanded="false" aria-haspopup="dialog">' +
-      escapeHtml(btnLabel) +
-      "</button></div>"
+      '<div class="js-plan-sku-msf msf-plan-row" style="width:100%;min-width:120px"></div></div>'
     );
   }
 
@@ -3668,37 +3689,236 @@
     return filterNpTagKeys.indexOf(v) >= 0;
   }
 
+  function fltRegionCodesSelected() {
+    return _fltGeoMsf.region && _fltGeoMsf.region.getValues
+      ? _fltGeoMsf.region.getValues().map(String).filter(Boolean)
+      : [];
+  }
+
+  function fltCountryCodesSelected() {
+    return _fltGeoMsf.country && _fltGeoMsf.country.getValues
+      ? _fltGeoMsf.country.getValues().map(String).filter(Boolean)
+      : [];
+  }
+
+  function fltChannelKeysSelected() {
+    return _fltGeoMsf.channel && _fltGeoMsf.channel.getValues
+      ? _fltGeoMsf.channel.getValues().map(String).filter(Boolean)
+      : [];
+  }
+
+  function fltStoreCodesSelected() {
+    return _fltGeoMsf.store && _fltGeoMsf.store.getValues
+      ? _fltGeoMsf.store.getValues().map(String).filter(Boolean)
+      : [];
+  }
+
   function planMatchesGeoFilter(p) {
-    var regEl = document.getElementById("fltRegion");
-    var ctyEl = document.getElementById("fltCountry");
-    var chEl = document.getElementById("fltChannel");
-    if (!regEl || !ctyEl || !chEl) return true;
-    var fReg = String(regEl.value || "").trim();
-    var fCty = String(ctyEl.value || "").trim();
-    var fCh = String(chEl.value || "").trim();
-    var pReg = String(p.planRegionCode || "").trim();
-    var pCty = String(p.planCountryCode || "").trim();
-    var pCh = String(p.planChannelKey != null ? p.planChannelKey : "").trim();
-    if (fReg) {
-      if (pReg && pReg !== fReg) return false;
-    }
-    if (fCty) {
-      if (pCty && pCty !== fCty) return false;
-    }
-    if (fCh) {
-      if (pCh && pCh !== fCh) return false;
-    }
+    var fReg = fltRegionCodesSelected();
+    var fCty = fltCountryCodesSelected();
+    var fCh = fltChannelKeysSelected();
+    var pReg = planRegionCodesResolved(p);
+    var pCty = planCountryCodesResolved(p);
+    var pCh = planChannelKeysResolved(p);
+    if (fReg.length && !pReg.some(function (pr) { return fReg.indexOf(pr) >= 0; })) return false;
+    if (fCty.length && !pCty.some(function (pc) { return fCty.indexOf(pc) >= 0; })) return false;
+    if (fCh.length && !pCh.some(function (pch) { return fCh.indexOf(pch) >= 0; })) return false;
     return true;
   }
 
   function planMatchesStoreFilter(p) {
-    var el = document.getElementById("fltStore");
-    if (!el) return true;
-    var fs = String(el.value || "").trim();
-    if (!fs) return true;
-    var ps = String(p.planStoreCode || "").trim();
-    if (!ps) return false;
-    return ps === fs;
+    var fs = fltStoreCodesSelected();
+    if (!fs.length) return true;
+    var ps = planStoreCodesResolved(p);
+    if (!ps.length) return true;
+    return ps.some(function (x) {
+      return fs.indexOf(x) >= 0;
+    });
+  }
+
+  function remountPlanRowCountryFor(tr, prevVals) {
+    if (typeof MultiSelectFilter === "undefined") return;
+    var id = tr && tr.dataset && tr.dataset.id;
+    var box = id ? _planRowGeoMsf[id] : null;
+    var hCty = tr && tr.querySelector(".js-plan-country-msf");
+    if (!box || !box.region || !hCty) return;
+    if (box.country) {
+      box.country.destroy();
+      box.country = null;
+    }
+    var rc = box.region.getValues();
+    var opts = countriesOptionsForFltRegions(rc);
+    var keep = (prevVals || []).filter(function (pv) {
+      return opts.some(function (o) {
+        return o.value === pv;
+      });
+    });
+    box.country = MultiSelectFilter.mount(hCty, {
+      placeholder: "请选择国家",
+      showSelectAll: true,
+      zIndex: 560,
+      maxPanelHeight: 200,
+      getOptions: function () {
+        return opts;
+      },
+      initialValues: keep,
+      onChange: function () {
+        rowPersistGeoAndSplit(tr, tr.dataset.id);
+      }
+    });
+  }
+
+  function applyPlanGeoFromTr(tr, p) {
+    var id = tr && tr.dataset && tr.dataset.id;
+    var box = id ? _planRowGeoMsf[id] : null;
+    if (!box || !box.region || !box.country || !box.channel || !box.store) {
+      delete p.planMonthAmounts;
+      return "skip";
+    }
+    var ra = (box.region.getValues() || []).map(String).filter(Boolean);
+    var ca = (box.country.getValues() || []).map(String).filter(Boolean);
+    var cha = (box.channel.getValues() || []).map(String).filter(Boolean);
+    var sta = (box.store.getValues() || []).map(String).filter(Boolean);
+    if (ca.length && !ra.length) {
+      var infer = inferRegionCodeFromCountry(ca[0]);
+      if (infer) {
+        if (box.region) box.region.setValues([infer]);
+        remountPlanRowCountryFor(tr, ca.slice());
+        ra = (box.region.getValues() || []).map(String).filter(Boolean);
+        ca = (box.country.getValues() || []).map(String).filter(Boolean);
+      }
+    }
+    if (ra.length) p.planRegionCodes = ra.slice();
+    else delete p.planRegionCodes;
+    if (ca.length) p.planCountryCodes = ca.slice();
+    else delete p.planCountryCodes;
+    if (cha.length) p.planChannelKeys = cha.slice();
+    else delete p.planChannelKeys;
+    if (sta.length) p.planStoreCodes = sta.slice();
+    else delete p.planStoreCodes;
+    delete p.planRegionCode;
+    delete p.planCountryCode;
+    delete p.planChannelKey;
+    delete p.planStoreCode;
+    delete p.planMonthAmounts;
+    return "ok";
+  }
+
+  function rowPersistGeoAndSplit(tr, id) {
+    id = id || (tr && tr.dataset && tr.dataset.id);
+    var list = loadAll();
+    var row = list.find(function (x) {
+      return x.id === id;
+    });
+    if (!row) return;
+    applyPlanGeoFromTr(tr, row);
+    saveAll(list);
+    renderSplitAggregated();
+  }
+
+  function mountPlanRowGeoMsfs(tr, p) {
+    if (typeof MultiSelectFilter === "undefined") {
+      tr.querySelectorAll(".msf-plan-row").forEach(function (el) {
+        el.textContent = "未加载 multi-select-filter.js";
+      });
+      return;
+    }
+    var id = p.id;
+    var hReg = tr.querySelector(".js-plan-region-msf");
+    var hCty = tr.querySelector(".js-plan-country-msf");
+    var hCh = tr.querySelector(".js-plan-channel-msf");
+    var hSt = tr.querySelector(".js-plan-store-msf");
+    if (!hReg || !hCty || !hCh || !hSt) return;
+    var box = { region: null, country: null, channel: null, store: null };
+    _planRowGeoMsf[id] = box;
+    box.region = MultiSelectFilter.mount(hReg, {
+      placeholder: "请选择区域",
+      showSelectAll: true,
+      zIndex: 558,
+      maxPanelHeight: 200,
+      getOptions: function () {
+        return (REGION_COUNTRY_DATA.regions || []).map(function (r) {
+          return { value: r.region_code, label: r.region_name };
+        });
+      },
+      initialValues: planRegionCodesResolved(p),
+      onChange: function () {
+        var pv = box.country ? box.country.getValues().slice() : [];
+        remountPlanRowCountryFor(tr, pv);
+        rowPersistGeoAndSplit(tr, id);
+      }
+    });
+    remountPlanRowCountryFor(tr, planCountryCodesResolved(p));
+    box.channel = MultiSelectFilter.mount(hCh, {
+      placeholder: "请选择渠道",
+      showSelectAll: true,
+      zIndex: 558,
+      maxPanelHeight: 200,
+      getOptions: function () {
+        return CHANNEL_SELECT_OPTIONS.filter(function (o) {
+          return String(o.value || "").trim();
+        }).map(function (o) {
+          return { value: o.value, label: o.label };
+        });
+      },
+      initialValues: planChannelKeysResolved(p),
+      onChange: function () {
+        rowPersistGeoAndSplit(tr, id);
+      }
+    });
+    box.store = MultiSelectFilter.mount(hSt, {
+      placeholder: "请选择店铺",
+      showSelectAll: true,
+      zIndex: 558,
+      maxPanelHeight: 200,
+      getOptions: function () {
+        return FILTER_STORE_CODES.map(function (s) {
+          return { value: s, label: s };
+        });
+      },
+      initialValues: planStoreCodesResolved(p),
+      onChange: function () {
+        rowPersistGeoAndSplit(tr, id);
+      }
+    });
+  }
+
+  function mountPlanRowSkuMsf(tr, p) {
+    if (typeof MultiSelectFilter === "undefined") {
+      var h = tr.querySelector(".js-plan-sku-msf");
+      if (h) h.textContent = "未加载 multi-select-filter.js";
+      return;
+    }
+    var id = p.id;
+    var host = tr.querySelector(".js-plan-sku-msf");
+    if (!host) return;
+    if (_planRowSkuMsf[id]) {
+      _planRowSkuMsf[id].destroy();
+      delete _planRowSkuMsf[id];
+    }
+    var cur = getPlanSkus(p);
+    _planRowSkuMsf[id] = MultiSelectFilter.mount(host, {
+      placeholder: "请选择 SKU（可多选）",
+      showSelectAll: false,
+      zIndex: 562,
+      maxPanelHeight: 220,
+      getOptions: function () {
+        return buildPlanSkuOptionsForTr(tr);
+      },
+      initialValues: cur,
+      onChange: function (vals) {
+        var picked = Array.isArray(vals) ? vals : (_planRowSkuMsf[id] ? _planRowSkuMsf[id].getValues() : []);
+        writeSkusToTr(tr, picked);
+        var list = loadAll();
+        var row = list.find(function (x) {
+          return x.id === id;
+        });
+        if (!row) return;
+        applyLeavesAndSkusToPlan(row, readLeavesFromTr(tr), picked);
+        saveAll(list);
+        renderSplitAggregated();
+      }
+    });
   }
 
   function filteredList() {
@@ -3717,6 +3937,29 @@
         return planMatchesScCatFilter(p);
       }
       return planMatchesScCatFilter(p) && npTagMatchesSelected(p);
+    });
+  }
+
+  function destroyPlanRowGeoMsfsAll() {
+    Object.keys(_planRowGeoMsf).forEach(function (id) {
+      var b = _planRowGeoMsf[id];
+      if (!b) {
+        delete _planRowGeoMsf[id];
+        return;
+      }
+      if (b.region && typeof b.region.destroy === "function") b.region.destroy();
+      if (b.country && typeof b.country.destroy === "function") b.country.destroy();
+      if (b.channel && typeof b.channel.destroy === "function") b.channel.destroy();
+      if (b.store && typeof b.store.destroy === "function") b.store.destroy();
+      delete _planRowGeoMsf[id];
+    });
+  }
+
+  function destroyPlanRowSkuMsfsAll() {
+    Object.keys(_planRowSkuMsf).forEach(function (id) {
+      var inst = _planRowSkuMsf[id];
+      if (inst && typeof inst.destroy === "function") inst.destroy();
+      delete _planRowSkuMsf[id];
     });
   }
 
@@ -3790,9 +4033,8 @@
     if (planRowEditId && !list.some(function (p) { return p.id === planRowEditId; })) {
       closePlanRowScCatPop();
     }
-    if (planSkuRowEditId && !list.some(function (p) { return p.id === planSkuRowEditId; })) {
-      closePlanSkuPop();
-    }
+    destroyPlanRowGeoMsfsAll();
+    destroyPlanRowSkuMsfsAll();
     destroyPlanRowMonthPickers();
     tbody.innerHTML = "";
     if (list.length === 0) {
@@ -3808,18 +4050,10 @@
         "<td>" + scenarioCategoryCellHtml(p) + "</td>" +
         "<td>" + planSkuCellHtml(p) + "</td>" +
         "<td>" + planNpTagCellHtml(p) + "</td>" +
-        '<td><select class="inp-inline js-plan-region">' +
-        regionSelectHtml(p.planRegionCode) +
-        "</select></td>" +
-        '<td><select class="inp-inline js-plan-country">' +
-        countrySelectHtml(p.planRegionCode, p.planCountryCode) +
-        "</select></td>" +
-        '<td><select class="inp-inline js-plan-channel">' +
-        channelSelectHtml(p.planChannelKey) +
-        "</select></td>" +
-        '<td><select class="inp-inline js-plan-store">' +
-        planStoreSelectHtml(p.planStoreCode) +
-        "</select></td>" +
+        '<td><div class="js-plan-region-msf msf-plan-row" style="min-width:120px;width:100%"></div></td>' +
+        '<td><div class="js-plan-country-msf msf-plan-row" style="min-width:130px;width:100%"></div></td>' +
+        '<td><div class="js-plan-channel-msf msf-plan-row" style="min-width:120px;width:100%"></div></td>' +
+        '<td><div class="js-plan-store-msf msf-plan-row" style="min-width:120px;width:100%"></div></td>' +
         '<td><input type="number" class="inp-inline js-amt num" min="0" step="1" value="' + escapeHtml(String(p.planAmount)) + '" /></td>' +
         '<td class="actions">' +
         '<button type="button" class="link js-save">保存</button>' +
@@ -3827,6 +4061,8 @@
         "</td>";
       tbody.appendChild(tr);
       mountPlanRowMonthPicker(tr, p);
+      mountPlanRowGeoMsfs(tr, p);
+      mountPlanRowSkuMsf(tr, p);
     });
     bindPlanRowEvents();
     renderSplitAggregated();
@@ -3946,9 +4182,7 @@
     }
     if (!L.length && !sk.length && !tag) {
       if (!silent) {
-        toast(
-          "场景品类与 SKU 至少填其一（二者可组合收窄）；新品标签可选，若填写则与场景品类/SKU 取交集后再分摊。三者不可同时为空。"
-        );
+        toast("场景品类、SKU、新品标签三者不可同时为空。");
       }
       return false;
     }
@@ -3975,18 +4209,6 @@
           openPlanRowScCat(tr, id);
         });
       }
-      var skuTrig = tr.querySelector(".js-plan-sku-trigger");
-      if (skuTrig) {
-        skuTrig.addEventListener("click", function (e) {
-          e.stopPropagation();
-          var host = document.getElementById("planSkuPopHost");
-          if (planSkuRowEditId === id && host && !host.hidden) {
-            closePlanSkuPop();
-            return;
-          }
-          openPlanRowSku(tr, id);
-        });
-      }
       var npRow = tr.querySelector(".js-np-tag-row");
       if (npRow) {
         npRow.addEventListener("change", function () {
@@ -4004,14 +4226,6 @@
           renderSplitAggregated();
         });
       }
-      var regSel = tr.querySelector(".js-plan-region");
-      var ctySel = tr.querySelector(".js-plan-country");
-      if (regSel && ctySel) {
-        regSel.addEventListener("change", function () {
-          var rcNow = String(regSel.value || "").trim();
-          ctySel.innerHTML = countrySelectHtml(rcNow, "");
-        });
-      }
       tr.querySelector(".js-save").addEventListener("click", function () {
         if (persistRow(tr, id)) {
           toast("已保存该行");
@@ -4025,31 +4239,6 @@
         renderPlans();
       });
     });
-  }
-
-  function applyPlanGeoFromTr(tr, p) {
-    var reg = tr.querySelector(".js-plan-region");
-    var cty = tr.querySelector(".js-plan-country");
-    var ch = tr.querySelector(".js-plan-channel");
-    var st = tr.querySelector(".js-plan-store");
-    var rc = reg && reg.value != null ? String(reg.value).trim() : "";
-    var ctc = cty && cty.value != null ? String(cty.value).trim() : "";
-    var chv = ch && ch.value != null ? String(ch.value).trim() : "";
-    var stv = st && st.value != null ? String(st.value).trim() : "";
-    if (rc) p.planRegionCode = rc;
-    else delete p.planRegionCode;
-    if (ctc) p.planCountryCode = ctc;
-    else delete p.planCountryCode;
-    if (chv) p.planChannelKey = chv;
-    else delete p.planChannelKey;
-    if (stv) p.planStoreCode = stv;
-    else delete p.planStoreCode;
-    if (ctc && !rc) {
-      var infer = inferRegionCodeFromCountry(ctc);
-      if (infer) p.planRegionCode = infer;
-    }
-    delete p.planMonthAmounts;
-    return "ok";
   }
 
   function persistRow(tr, id) {
@@ -4096,7 +4285,6 @@
     enrichPlanFromTree(p);
     saveAll(list);
     closePlanRowScCatPop();
-    closePlanSkuPop();
     renderPlans();
     return true;
   }
@@ -4118,7 +4306,7 @@
     var rows = aggregateSplitFromPlans(fl);
     if (!rows.length) {
       tbody.innerHTML =
-        '<tr><td colspan="7" class="empty">当前筛选与可见规划范围内无拆分结果（请检查各行的场景品类、SKU、新品标签、月份交集及区域/国家/渠道/店铺是否与示例主数据一致）</td></tr>';
+        '<tr><td colspan="7" class="empty">当前筛选与可见规划范围内无拆分结果（请检查各行的场景品类、SKU、新品标签、规划月份及区域/国家/渠道/店铺是否与示例主数据一致）</td></tr>';
       return;
     }
     var splitSum = rows.reduce(function (a, r) {
@@ -4165,13 +4353,12 @@
 
   document.getElementById("btnQuery").addEventListener("click", function () {
     closePlanRowScCatPop();
-    closePlanSkuPop();
     closeScCatPop();
     closeNpTagPop();
     syncMonthRangeFilterFromPicker();
     renderPlans();
     toast(
-      "已查询：月份范围与行规划月份取交集过滤列表；场景品类/新品未选则该维不过滤；区域/国家/渠道/店铺与规划行字段对齐；拆分按 BP 占比。"
+      "已查询：月份范围仅用于列表（与行规划月份有重叠才显示该行）；场景品类/新品未选则该维不过滤；区域/国家/渠道/店铺与规划行多选对齐；拆分月份只看行内规划并按 BP 占比。"
     );
   });
 
@@ -4206,7 +4393,6 @@
 
   document.getElementById("btnSaveAll").addEventListener("click", function () {
     closePlanRowScCatPop();
-    closePlanSkuPop();
     var list = loadAll();
     var mrErr = false;
     document.querySelectorAll("#tbodyPlan tr").forEach(function (tr) {
@@ -4237,7 +4423,7 @@
         toast(
           "第 " +
             (vi + 1) +
-            " 行未通过保存校验（场景品类与 SKU 至少其一、新品规划缺少标识等）"
+            " 行未通过保存校验（场景品类、SKU、新品标签不可同时为空；新品规划缺少标识等）"
         );
         renderPlans();
         return;
@@ -4269,7 +4455,6 @@
     initFilterOptions();
     wireScCatFilter();
     wireNpTagFilter();
-    wirePlanSkuPopOnce();
     wirePlanRowScCatOutsideClose();
     ensureSeed();
     initMonthRangeFilter();
@@ -4330,9 +4515,7 @@
         })
         .then(function (d) {
           applyRegionPayload(d);
-          fillFilterRegionSelect();
-          fillFilterCountrySelect();
-          fillFilterChannelSelect();
+          mountFilterGeoMsfs();
           renderPlans();
         })
         .catch(function () {
