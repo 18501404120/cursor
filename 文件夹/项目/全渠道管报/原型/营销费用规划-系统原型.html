@@ -353,6 +353,49 @@
       width: 100%;
       max-width: 280px;
     }
+    /* 筛选：标题在控件左侧（图一） */
+    .f.filter-field-inline {
+      flex-direction: row;
+      align-items: center;
+      flex-wrap: nowrap;
+      gap: 10px;
+    }
+    .filter-field-label-row,
+    .filter-field-inline > .filter-field-label-text {
+      flex-shrink: 0;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      color: var(--text-sec);
+      font-size: 12px;
+      white-space: nowrap;
+    }
+    .plan-row-mr-host {
+      min-width: 200px;
+      max-width: 240px;
+    }
+    .page-doc-panel .page-doc-details {
+      margin-bottom: 12px;
+    }
+    .page-doc-panel summary {
+      cursor: pointer;
+      font-weight: 600;
+      color: var(--text);
+      user-select: none;
+    }
+    .page-doc-content {
+      margin-top: 8px;
+      font-size: 12px;
+      color: var(--text);
+      line-height: 1.65;
+    }
+    .page-doc-content ul {
+      margin: 6px 0 0 1.2em;
+      padding: 0;
+    }
+    .page-doc-content li {
+      margin: 4px 0;
+    }
     .flt-filter-trigger-row .sc-cat-wrap {
       flex: 1;
       min-width: 0;
@@ -778,18 +821,46 @@
       </header>
       <div class="content">
         <div class="breadcrumb">全渠道 / <span>营销费用规划</span></div>
-        <p class="logic-breadcrumb-hint">
-          正式用户请点击字段或表头旁的「<strong>i</strong>」查看<strong>简要</strong>说明；开发/测试请点击<strong>红色编号</strong>查看<strong>完整</strong>实现细则（不展示在页面上）。规范文档：<code>ckw/规范/原型-红点逻辑标注与用户提示-全局UI规范.md</code>。
-        </p>
+
+        <section class="panel page-doc-panel">
+          <div class="panel-head">页面说明</div>
+          <div class="panel-body page-doc-body">
+            <details class="page-doc-details">
+              <summary>开发：页面逻辑与分摊规则</summary>
+              <div class="page-doc-content">
+                <p><strong>数据与筛选</strong>：顶部筛选（场景品类、新品标签、区域、国家、渠道、店铺、model、SKU、TL、Sales、月份范围）决定「规划列表」的展示范围；未选场景品类/新品标签时该维不参与过滤（等价于全部）。</p>
+                <p><strong>命中 MSKU 池（交集）</strong>：对每条规划行，在基础 MSKU 主数据上按以下维度逐维取交集——<strong>场景品类</strong>（行所选场景×品类）、<strong>SKU</strong>（行多选 MSKU）、<strong>新品标签</strong>、<strong>渠道</strong>、<strong>店铺</strong>、<strong>区域</strong>、<strong>国家</strong>。仅同时满足上述条件的 MSKU 进入该行拆分池；若交集为空则该行不产生拆分明细。</p>
+                <p><strong>分摊月份</strong>：设页面筛选月份范围为 <code>F</code>，行上「规划月份范围」为 <code>R</code>，实际参与分摊的月份集合为 <code>M = F ∩ R</code>（两端闭区间、按自然月枚举）。已去掉「月度金额(JSON)」列；不再手工维护逐月金额。</p>
+                <p><strong>金额分摊（两步）</strong>：行上「营销费用规划（USD）」为该行<strong>总金额</strong>。</p>
+                <ul>
+                  <li><strong>第一步（月到月）</strong>：在集合 <code>M</code> 内，按各月 BP 营收（来自示例营收数据）占这些月在 BP 上总营收的比例，将行总金额拆到各月。</li>
+                  <li><strong>第二步（月内到 MSKU）</strong>：在每个月内，按该月 BP 营收在<strong>该行命中 MSKU 池</strong>内的占比，将当月金额拆到各 MSKU（并带上店铺等主数据字段用于下游）。</li>
+                </ul>
+                <p><strong>持久化</strong>：保存时将行维度与拆分结果写入本地存储（原型示意）；正式系统应对齐相同交集与分摊公式。</p>
+              </div>
+            </details>
+            <details class="page-doc-details" open>
+              <summary>用户：如何操作本页</summary>
+              <div class="page-doc-content">
+                <ol>
+                  <li>在<strong>筛选区</strong>选好月份范围（默认当年 1–12 月）、渠道、店铺等后点击<strong>搜索</strong>，查看符合条件的规划行。</li>
+                  <li>点击<strong>新增一行</strong>，在表格中依次选择<strong>规划月份范围</strong>、场景品类、SKU、新品标签、区域、国家、渠道、店铺，并填写<strong>营销费用规划（USD）</strong>总金额。</li>
+                  <li>需要了解某列含义时，只看<strong>表头</strong>旁的蓝色「i」说明；行内不再重复提示。</li>
+                  <li>点击<strong>拆分预览</strong>查看系统如何按「筛选月 ∩ 行月」及 BP 营收占比把金额拆到月与 MSKU；确认无误后<strong>保存全部</strong>或单行保存。</li>
+                  <li>红点编号为开发自测说明，一般用户可忽略。</li>
+                </ol>
+              </div>
+            </details>
+          </div>
+        </section>
 
         <section class="panel panel--filter">
           <div class="filter-panel">
             <div class="filter-grid">
-              <div class="f f-with-pin">
-                <div class="lbl-dev-row">
+              <div class="f f-with-pin filter-field-inline">
+                <div class="filter-field-label-row">
                   <label for="fltScCatTrigger">场景品类</label>
                   <button type="button" class="logic-pin" data-logic-key="1" aria-label="开发测试说明 1">1</button>
-                  <button type="button" class="field-hint-icon" data-user-hint="filterScCat" aria-label="场景品类筛选说明">i</button>
                 </div>
                 <div class="flt-filter-trigger-row" id="fltScCatFilterRow">
                   <div class="sc-cat-wrap" id="fltScCatWrap">
@@ -802,11 +873,10 @@
                   <button type="button" class="filter-inline-clear" id="fltScCatClear" title="清空" aria-label="清空场景品类筛选">×</button>
                 </div>
               </div>
-              <div class="f f-with-pin">
-                <div class="lbl-dev-row">
+              <div class="f f-with-pin filter-field-inline">
+                <div class="filter-field-label-row">
                   <label for="fltNpTagTrigger">新品标签</label>
                   <button type="button" class="logic-pin" data-logic-key="2" aria-label="开发测试说明 2">2</button>
-                  <button type="button" class="field-hint-icon" data-user-hint="filterNpTag" aria-label="新品标签筛选说明">i</button>
                 </div>
                 <div class="flt-filter-trigger-row" id="fltNpTagFilterRow">
                   <div class="sc-cat-wrap np-tag-wrap" id="fltNpTagWrap">
@@ -835,12 +905,10 @@
               </div>
               <div class="f"><label for="fltTl">TL</label><select id="fltTl"><option value="">全部</option></select></div>
               <div class="f"><label for="fltSales">Sales</label><select id="fltSales"><option value="">全部</option></select></div>
-              <div class="f f-month-range" style="min-width:220px">
-                <div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap">
-                  <label for="fltMonthRangeHost">月份范围</label>
-                  <button type="button" class="field-hint-icon" data-user-hint="filterMonthRange" aria-label="月份范围筛选说明">i</button>
-                </div>
-                <div id="fltMonthRangeHost" style="margin-top:4px"></div>
+              <div class="f f-month-range filter-field-inline" style="min-width:260px">
+                <label class="filter-field-label-text" for="fltMonthRangeHost">月份范围</label>
+                <div id="fltMonthRangeHost" style="flex:1;min-width:200px"></div>
+                <button type="button" class="field-hint-icon" data-user-hint="filterMonthRange" aria-label="月份范围筛选说明">i</button>
               </div>
               <div class="f f-filter-search">
                 <button type="button" class="btn-search" id="btnQuery">搜索</button>
@@ -848,7 +916,7 @@
               </div>
             </div>
             <div class="filter-actions">
-              <span class="hint" style="margin:0;flex:1;min-width:200px;">筛选：月份范围默认当年 1–12 月；场景品类、新品标签未选时搜索表示不按该维过滤（看全部）；区域/国家/渠道选项与《区域国家基础数据_v1》及渠道枚举对齐；规划行上区域/国家/渠道与场景品类、SKU、新品标签取交集后参与拆分。点「<strong>i</strong>」看说明；点<strong>红编号</strong>看开发细则。</span>
+              <span class="hint" style="margin:0;flex:1;min-width:200px;">筛选后列表与拆分均受「月份范围」约束；场景品类、新品标签未选表示不按该维过滤。表头「i」为列说明；红点为开发细则。</span>
             </div>
           </div>
         </section>
@@ -862,12 +930,6 @@
                 <button type="button" class="logic-pin" data-logic-key="8" aria-label="开发测试说明 8">8</button>
               </div>
               <div class="toolbar-with-dev">
-                <button type="button" class="btn btn-default" id="btnImportPick">导入 CSV</button>
-                <button type="button" class="logic-pin" data-logic-key="14" aria-label="开发测试说明 14">14</button>
-              </div>
-              <input type="file" id="fileImport" accept=".csv,text/csv" />
-              <button type="button" class="btn btn-default" id="btnExport">导出当前列表</button>
-              <div class="toolbar-with-dev">
                 <button type="button" class="btn btn-primary" id="btnSaveAll">保存全部</button>
                 <button type="button" class="logic-pin" data-logic-key="7" aria-label="开发测试说明 7">7</button>
               </div>
@@ -876,7 +938,12 @@
               <table id="tblPlan">
                 <thead>
                   <tr>
-                    <th>年度</th>
+                    <th>
+                      <span class="th-inner">
+                        规划月份范围
+                        <button type="button" class="field-hint-icon" data-user-hint="planMonthRangeCol" aria-label="规划月份范围列说明">i</button>
+                      </span>
+                    </th>
                     <th>
                       <span class="th-inner">
                         场景品类
@@ -921,13 +988,13 @@
                         <button type="button" class="field-hint-icon" data-user-hint="planChannelCol" aria-label="渠道列说明">i</button>
                       </span>
                     </th>
-                    <th>营销费用规划（USD）</th>
                     <th>
                       <span class="th-inner">
-                        月度金额(JSON)
-                        <button type="button" class="field-hint-icon" data-user-hint="planMonthJsonCol" aria-label="月度金额说明">i</button>
+                        店铺
+                        <button type="button" class="field-hint-icon" data-user-hint="planStoreCol" aria-label="店铺列说明">i</button>
                       </span>
                     </th>
+                    <th>营销费用规划（USD）</th>
                     <th class="actions">操作</th>
                   </tr>
                 </thead>
@@ -951,7 +1018,7 @@
             </span>
           </div>
           <div class="panel-body">
-            <p class="split-meta" id="splitContext">在上表选中一行后，下方按「筛选月份范围 ∩ 规划年」各自然月，将规划金额拆至店铺 + MSKU；命中 MSKU 需满足行上的区域/国家/渠道（若填写）与场景×品类/SKU/新品组合。若填写「月度金额(JSON)」则先按 JSON 分配月总额再月内按 BP 拆分，否则按 BP 在月之间与月内拆分（同一 MSKU 可跨月多行）。</p>
+            <p class="split-meta" id="splitContext">在上表选中一行后，下方按「筛选月份范围 ∩ 行规划月份范围」各自然月，将规划金额拆至店铺 + MSKU；命中 MSKU 为场景品类、SKU、新品、渠道、店铺、区域、国家的交集。月之间与月内均按 BP 营收占比拆分（同一 MSKU 可跨月多行）。</p>
             <div class="table-wrap">
               <table id="tblSplit">
                 <thead>
@@ -1019,7 +1086,7 @@
 
   <script>
 (function () {
-  /** v3：场景+品类；v2：历史品线（导入仅兼容迁移，新规划不使用品线） */
+  /** v3：场景+品类 + 规划月份范围；v2：历史品线（首次打开时迁移入 v3） */
   var STORAGE_KEY_V3 = "marketing_expense_plan_v3";
   var STORAGE_KEY_V2 = "marketing_expense_plan_usd_v2";
 
@@ -1038,6 +1105,8 @@
   ];
   /** 筛选月份范围 YYYY-MM，与规划行「年度」列配合：列表按规划年是否落在范围内过滤；拆分取与规划年交集的月份 */
   var currentFilter = { monthStart: "", monthEnd: "" };
+  /** 每行规划「月份范围」控件实例（renderPlans 前统一 destroy） */
+  var _planRowMrPickers = {};
   /** 筛选：场景×品类叶子多选，存「场景名\\t品类名」；空数组表示不过滤 */
   var filterLeafKeys = [];
   /** 筛选：新品标签多选，存「YYYY年新品」；与场景品类分列；空数组表示该维不过滤 */
@@ -1152,7 +1221,7 @@
     add(
       "3",
       "【3】搜索",
-      "刷新规划表展示（仅影响列表，不写入 localStorage）。\n不要求【1】【2】必选：均未选时列表展示为「月份范围 + 其它筛选项」下的全部规划行。\n区域/国家/渠道筛选与规划行上的 planRegionCode、planCountryCode、planChannelKey 对齐（与《区域国家基础数据_v1》同源）。\n月份范围默认当年 1–12 月：与规划行「年度」列对齐过滤；拆分表仅展开与规划年交集的月份。"
+      "刷新规划表展示（仅影响列表，不写入 localStorage）。\n不要求【1】【2】必选：均未选时列表展示为「月份范围 + 其它筛选项」下的全部规划行。\n区域/国家/渠道/店铺筛选与规划行对应字段对齐。\n月份范围：列表仅展示「筛选月份范围」与「行规划月份范围」存在交集的规划行；拆分表月份为两范围的交集。"
     );
     add(
       "4",
@@ -1172,7 +1241,7 @@
     add(
       "7",
       "【7】保存 / 保存全部 / 保存单行",
-      "对当前行：\n(a) 非新品规划行：【4】场景品类与【4b】SKU 至少填其一（可组合）；【5】新品标签可选，填写时与前几维取交集。\n(b) 新品规划行：新品标识必填。\n(c) 可选填写【区域/国家/渠道】（与《区域国家基础数据_v1》及渠道枚举一致）：与场景×品类/SKU/新品一并取交集后过滤示例 MSKU 池。\n(d) 可选「月度金额(JSON)」：合法对象且含正数月份键时，覆盖「按 BP 拆到自然月」的月总额分配（总额缩放至与规划额一致）。\n(e) 校验「年度 + 规划对象 + 地理 + 月度覆盖」唯一键。\n通过后写入 localStorage（marketing_expense_plan_v3）。"
+      "对当前行：\n(a) 非新品规划行：【4】场景品类与【4b】SKU 至少填其一（可组合）；【5】新品标签可选，填写时与前几维取交集。\n(b) 新品规划行：新品标识必填。\n(c) 可选填写【区域/国家/渠道/店铺】：与场景×品类/SKU/新品一并取交集后过滤示例 MSKU 池。\n(d) 「规划月份范围」必填语义由月份控件保证；分摊月份 = 筛选月份范围 ∩ 行月份范围。\n(e) 校验「规划月份范围 + 规划对象 + 地理/店铺」唯一键。\n通过后写入 localStorage（marketing_expense_plan_v3）。"
     );
     add("8", "【8】新增一行", "插入默认「场景 + 首个品类」并写入单元素 `sceneCategoryLeaves`。\n不替代保存校验。");
     add(
@@ -1183,7 +1252,7 @@
     add(
       "12",
       "【12】拆分结果",
-      "先取筛选「月份范围」与规划行「年度」的月份交集；命中 MSKU 需同时满足场景×品类/SKU/新品标签及行上可选区域/国家/渠道（与示例主数据上的 region_code、country_code、channel 匹配）。\n若未填「月度金额(JSON)」：在各自然月按 eligible 的 BP 合计占比将规划额拆到各月，再在该月内按各 MSKU「月度 BP」占比拆分。\n若填写了「月度金额(JSON)」且含正数：先按 JSON 得到各月总额（缩放至与规划额一致），再在月内按 MSKU 月度 BP 占比拆分。\n月内与跨月尾差落在该月最后一行、最后一月最后一行；多条规划行可各自命中同一 MSKU。"
+      "分摊月份 = 筛选「月份范围」∩ 行「规划月份范围」。命中 MSKU 需同时满足场景×品类/SKU/新品标签及行上可选区域/国家/渠道/店铺（与示例主数据字段匹配）。\n月之间：按各月 eligible MSKU 的月度 BP 合计占「这些月」总 BP 的比例分配行总金额。\n月内：按各 MSKU 该月 BP 占当月 eligible 合计的比例拆分。\n尾差落在该月最后一行、最后一月最后一行；多条规划行可各自命中同一 MSKU。"
     );
     add(
       "12b",
@@ -1191,11 +1260,6 @@
       "展示该行（某月×某 MSKU）月度 BP 占本表全部展开行月度 BP 合计的比例（非真实接口）。"
     );
     add("13", "【13】重算展示", "按当前选中规划行数据重新计算拆分表；仅前端逻辑，不调接口。");
-    add(
-      "14",
-      "【14】导入 / 导出 CSV",
-      "导出含：区域代码、国家代码、渠道、月度金额(JSON)（可选列）；以及 `场景品类叶子`、`SKU列表`、新品标签、营销费用规划(美元) 等。\n导入：支持可选列「区域代码」「国家代码」「渠道」「月度金额JSON」；仍支持旧模板「品线」列（仅迁移，新数据请用场景/品类）。\n写入前静默跳过不满足【7】(a)(b) 的行。\n若行数据出现「有品类、无场景」：会尝试将品类挂到主数据中「第一个包含该品类名的场景」；无法匹配则清空品类，避免游离品类。"
-    );
     return o;
   })();
 
@@ -1218,7 +1282,12 @@
     add(
       "filterMonthRange",
       "月份范围筛选",
-      "默认当年 1–12 月（YYYY-MM - YYYY-MM）。\n与规划表「年度」列对齐：仅展示规划年落在筛选月份所跨「日历年」之一的行。\n拆分结果表按该范围与规划年的交集月份展开，并按月度 BP 示例数据分摊。"
+      "默认当年 1–12 月，展示为 YYYY-MM - YYYY-MM（见《月份范围选择框》规范）。\n列表：仅保留与筛选月份有交集的规划行（看行「规划月份范围」）。\n拆分：实际拆分为「筛选月 ∩ 行月」内的各自然月，按 BP 营收占比分摊。"
+    );
+    add(
+      "planMonthRangeCol",
+      "规划月份范围",
+      "本行费用计划生效的自然月闭区间；与顶部筛选「月份范围」取交集后参与拆分与列表过滤。\n同一规划对象在不同月份范围视为不同行（唯一键包含起止月）。"
     );
     add(
       "planScCatCol",
@@ -1242,9 +1311,9 @@
       "默认「全渠道」：不按渠道收窄。选择具体渠道时，仅命中示例主数据中 channel 字段一致的 MSKU（如亚马逊联合投放）。"
     );
     add(
-      "planMonthJsonCol",
-      "月度金额（JSON，可选）",
-      "填写 JSON 对象：键为规划年内「YYYY-MM」，值为该月拟分摊的美元金额（正数）。\n仅对「筛选月份范围 ∩ 规划年」内出现的月份键生效；系统按各月金额比例缩放，使各月合计等于本行「营销费用规划」总额，再在月内按 MSKU 月度 BP 占比拆分。\n留空则整段规划额按 BP 在各自然月之间分配。"
+      "planStoreCol",
+      "店铺（规划）",
+      "默认「不限店铺」：不按店铺收窄。选择具体店铺编码时，仅命中示例主数据中 shop 字段一致的 MSKU，并与场景品类、SKU、新品、区域、国家、渠道一并取交集。"
     );
     add(
       "planScCatPop",
@@ -1259,7 +1328,7 @@
     add(
       "splitPanel",
       "拆分结果",
-      "先在上表点选一行规划，这里会按筛选「月份范围」与规划年交集的各自然月，把金额拆到店铺 + MSKU（每月一行或多行）。\n若该行填写了「月度金额(JSON)」：先按 JSON 得到各月总额（与规划额对齐），再在月内按 MSKU 月度 BP 占比拆分；否则先按 BP 在月之间分配再月内拆分（示例数据）。"
+      "先在上表点选一行规划。分摊月份为「筛选月份范围」与该行「规划月份范围」的交集。\n金额先按各月 eligible MSKU 的月度 BP 合计占比拆到月，再在该月内按 MSKU BP 占比拆到店铺+MSKU（示例数据）。"
     );
     return o;
   })();
@@ -1300,11 +1369,12 @@
   }
 
   function planIdentityKey(p) {
-    var y = String(p.year || "");
+    var pr = getPlanMonthRangePair(p);
+    var y = pr.start + "\t" + pr.end;
     var tag = planNpTagValue(p);
     var sk = getPlanSkus(p);
     var skuPart = sk.length ? "\tSKLIST\t" + sk.slice().sort().join("|") : "";
-    var tail = planGeoIdentitySuffix(p) + planMonthIdentitySuffix(p);
+    var tail = planGeoIdentitySuffix(p);
     if (String(p.scenario || "").trim() === NEW_PRODUCT_SCENE) {
       var catN = String(p.category != null ? p.category : "").trim();
       return y + "\tN\t" + catN + skuPart + tail;
@@ -1318,6 +1388,8 @@
       var cat = String(parts[1] != null ? parts[1] : "").trim();
       var faux = {
         year: p.year,
+        planMonthStart: p.planMonthStart,
+        planMonthEnd: p.planMonthEnd,
         scenario: sc,
         category: cat,
         newProductTag: p.newProductTag,
@@ -1381,15 +1453,24 @@
       if (String(p.planCountryCode || "").trim()) out.planCountryCode = String(p.planCountryCode).trim();
       if (String(p.planChannelKey != null ? p.planChannelKey : "").trim())
         out.planChannelKey = String(p.planChannelKey).trim();
-      if (p.planMonthAmounts && typeof p.planMonthAmounts === "object" && Object.keys(p.planMonthAmounts).length) {
-        out.planMonthAmounts = JSON.parse(JSON.stringify(p.planMonthAmounts));
+      if (String(p.planStoreCode || "").trim()) out.planStoreCode = String(p.planStoreCode).trim();
+      if (String(p.planMonthStart || "").trim() && String(p.planMonthEnd || "").trim()) {
+        out.planMonthStart = String(p.planMonthStart).trim();
+        out.planMonthEnd = String(p.planMonthEnd).trim();
+      } else if (p.year) {
+        var yy = Number(p.year) || new Date().getFullYear();
+        out.planMonthStart = yy + "-01";
+        out.planMonthEnd = yy + "-12";
       }
       return out;
     }
     var line = String((p && p.productLine) || "").trim();
+    var yy2 = Number(p.year) || new Date().getFullYear();
     return {
       id: p.id,
       year: p.year,
+      planMonthStart: yy2 + "-01",
+      planMonthEnd: yy2 + "-12",
       scenario: "未映射（历史品线）",
       category: line || "—",
       planAmount: Number(p.planAmount) || 0,
@@ -1404,6 +1485,7 @@
         var arr3 = JSON.parse(r3);
         if (Array.isArray(arr3)) {
           arr3.forEach(function (row) {
+            normalizePlanRowAfterLoad(row);
             assignStoredGranularity(row);
             enrichPlanFromTree(row);
           });
@@ -1416,6 +1498,7 @@
         if (Array.isArray(arr2) && arr2.length) {
           var mig = arr2.map(migratePlanRecord);
           mig.forEach(function (row) {
+            normalizePlanRowAfterLoad(row);
             assignStoredGranularity(row);
             enrichPlanFromTree(row);
           });
@@ -1449,6 +1532,8 @@
       rows.push({
         id: uid(),
         year: 2026,
+        planMonthStart: "2026-01",
+        planMonthEnd: "2026-12",
         scenario: sens.scenario,
         category: "",
         sceneCategoryLeaves: [leafKey(sens.scenario, "")],
@@ -1460,6 +1545,8 @@
     rows.push({
       id: uid(),
       year: 2026,
+      planMonthStart: "2026-01",
+      planMonthEnd: "2026-06",
       scenario: home.scenario,
       category: starCat,
       sceneCategoryLeaves: [leafKey(home.scenario, starCat)],
@@ -1470,6 +1557,8 @@
       rows.push({
         id: uid(),
         year: 2026,
+        planMonthStart: "2026-03",
+        planMonthEnd: "2026-09",
         scenario: season.scenario,
         category: season.categories[5],
         sceneCategoryLeaves: [leafKey(season.scenario, season.categories[5])],
@@ -1480,6 +1569,8 @@
     rows.push({
       id: uid(),
       year: 2026,
+      planMonthStart: "2026-01",
+      planMonthEnd: "2026-12",
       scenario: NEW_PRODUCT_SCENE,
       category: "示例新品-A",
       planGranularity: PLAN_G_NEW,
@@ -1506,7 +1597,7 @@
     fillFilterCountrySelect();
     fillFilterChannelSelect();
     wireFilterGeoOnce();
-    fill("fltStore", ["AMZ-US-01", "AMZ-EU-02", "独立站-01"]);
+    fill("fltStore", ["AMZ-US-01", "AMZ-EU-02", "AMZ-GB-01", "独立站-01", "TK-US-01", "线下-DE-01", "商超-MX-01"]);
     fill("fltModel", ["MDL-A01", "MDL-B02", "MDL-C88"], '<option value="">请选择</option>');
     fill("fltTl", ["TL-01", "TL-02", "TL-03"]);
     fill("fltSales", ["Sales-A", "Sales-B", "Sales-C"]);
@@ -1664,22 +1755,29 @@
     return h;
   }
 
+  function planStoreSelectHtml(selectedCode) {
+    var shops = ["AMZ-US-01", "AMZ-EU-02", "AMZ-GB-01", "独立站-01", "TK-US-01", "线下-DE-01", "商超-MX-01"];
+    var sel = String(selectedCode || "").trim();
+    var h = '<option value="">不限店铺</option>';
+    shops.forEach(function (s) {
+      h +=
+        '<option value="' +
+        escapeHtml(s) +
+        '"' +
+        (s === sel ? " selected" : "") +
+        ">" +
+        escapeHtml(s) +
+        "</option>";
+    });
+    return h;
+  }
+
   function planGeoIdentitySuffix(p) {
     var r = String(p.planRegionCode || "").trim();
     var c = String(p.planCountryCode || "").trim();
     var ch = String(p.planChannelKey != null ? p.planChannelKey : "").trim();
-    return "\tG\t" + r + "\t" + c + "\t" + ch;
-  }
-
-  function planMonthIdentitySuffix(p) {
-    if (!p.planMonthAmounts || typeof p.planMonthAmounts !== "object") return "";
-    var keys = Object.keys(p.planMonthAmounts).sort();
-    if (!keys.length) return "";
-    var o = {};
-    keys.forEach(function (k) {
-      o[k] = p.planMonthAmounts[k];
-    });
-    return "\tMJ\t" + JSON.stringify(o);
+    var st = String(p.planStoreCode || "").trim();
+    return "\tG\t" + r + "\t" + c + "\t" + ch + "\t" + st;
   }
 
   function fillFilterRegionSelect() {
@@ -1839,16 +1937,49 @@
     return v;
   }
 
-  /** 与筛选月份范围、规划行年度求交集后的拆分用月份列表 */
-  function monthsForPlanSplit(plan) {
-    var py = String(Number(plan.year) || new Date().getFullYear());
-    var msStart = currentFilter.monthStart;
-    var msEnd = currentFilter.monthEnd;
-    if (!msStart || !msEnd) {
-      return enumerateYmMonths(py + "-01", py + "-12");
+  /** 规划行月份范围（缺省按 year 全年）；起止纠正 */
+  function getPlanMonthRangePair(p) {
+    var y0 = new Date().getFullYear();
+    var yy = Number(p && p.year) || y0;
+    var ys = String((p && p.planMonthStart) || "").trim();
+    var ye = String((p && p.planMonthEnd) || "").trim();
+    if (!ys || !ye) {
+      ys = yy + "-01";
+      ye = yy + "-12";
     }
-    return enumerateYmMonths(msStart, msEnd).filter(function (ym) {
-      return ym.slice(0, 4) === py;
+    var oa = ymOrd(ys);
+    var ob = ymOrd(ye);
+    if (oa != null && ob != null && ob < oa) {
+      var t = ys;
+      ys = ye;
+      ye = t;
+    }
+    return { start: ys, end: ye };
+  }
+
+  function normalizePlanRowAfterLoad(row) {
+    if (!row || typeof row !== "object") return;
+    delete row.planMonthAmounts;
+    var pr = getPlanMonthRangePair(row);
+    row.planMonthStart = pr.start;
+    row.planMonthEnd = pr.end;
+    row.year = parseInt(String(pr.start).slice(0, 4), 10) || row.year || new Date().getFullYear();
+  }
+
+  /** 筛选月份范围 F 与规划行月份范围 R 的交集（闭区间自然月） */
+  function monthsForPlanSplit(plan) {
+    var pr = getPlanMonthRangePair(plan);
+    var rowMonths = enumerateYmMonths(pr.start, pr.end);
+    if (!currentFilter.monthStart || !currentFilter.monthEnd) {
+      return rowMonths;
+    }
+    var F = enumerateYmMonths(currentFilter.monthStart, currentFilter.monthEnd);
+    var fset = {};
+    F.forEach(function (x) {
+      fset[x] = true;
+    });
+    return rowMonths.filter(function (ym) {
+      return fset[ym];
     });
   }
 
@@ -1912,6 +2043,12 @@
     return true;
   }
 
+  function mskuMatchesPlanStore(plan, m) {
+    var ps = String(plan.planStoreCode || "").trim();
+    if (!ps) return true;
+    return String(m.shop || "") === ps;
+  }
+
   function collectEligibleMskus(plan) {
     var g = inferPlanGranularityFromRecord(plan);
     var tag = planNpTagValue(plan);
@@ -1922,7 +2059,7 @@
 
     function geoWrap(pool) {
       return pool.filter(function (m) {
-        return mskuMatchesPlanGeo(plan, m);
+        return mskuMatchesPlanGeo(plan, m) && mskuMatchesPlanStore(plan, m);
       });
     }
 
@@ -2360,7 +2497,7 @@
       return x.id === id;
     });
     if (!p) return;
-    var year = parseInt(tr.querySelector(".js-year").value, 10) || p.year;
+    var mr = readPlanMonthRangeFromTr(tr);
     var skus = readSkusFromTrSafe(tr);
     var tagFromRow = readNpTagFromPlanTr(tr);
     var resolvedTag =
@@ -2370,18 +2507,18 @@
     var amt = parseFloat(tr.querySelector(".js-amt").value) || p.planAmount;
     var Ln = normalizeLeavesArray(leaves);
     var fake = JSON.parse(JSON.stringify(p));
-    fake.year = year;
     fake.planAmount = amt;
+    if (mr.start && mr.end) applyPlanMonthsToRecord(fake, mr.start, mr.end);
     applyLeavesAndSkusToPlan(fake, Ln, skus);
     if (resolvedTag) fake.newProductTag = resolvedTag;
     else delete fake.newProductTag;
     fake.planGranularity = inferPlanGranularityFromRecord(fake);
     if (!validatePlanUnique(list, fake, id)) {
-      toast("同一年度下已存在相同规划对象，与已有行重复");
+      toast("同一规划月份范围与对象组合已存在，与已有行重复");
       renderPlans();
       return;
     }
-    p.year = year;
+    if (mr.start && mr.end) applyPlanMonthsToRecord(p, mr.start, mr.end);
     p.planAmount = amt;
     applyLeavesAndSkusToPlan(p, Ln, skus);
     if (resolvedTag) p.newProductTag = resolvedTag;
@@ -2404,31 +2541,34 @@
         return x.id === id;
       });
       if (!p) return;
-      var year = parseInt(tr.querySelector(".js-year").value, 10) || p.year;
+      var mr = readPlanMonthRangeFromTr(tr);
       var npSel = tr.querySelector(".js-np-tag-row");
       var tagFromRow = npSel && npSel.value != null ? String(npSel.value).trim() : "";
       var resolvedTag =
         arguments.length >= 5 ? String(optNewProductTag != null ? optNewProductTag : "").trim() : tagFromRow;
       var draft = {
         id: id,
-        year: year,
+        year: p.year,
+        planMonthStart: p.planMonthStart,
+        planMonthEnd: p.planMonthEnd,
         scenario: NEW_PRODUCT_SCENE,
         category: cat,
         planAmount: p.planAmount,
         planGranularity: PLAN_G_NEW
       };
+      if (mr.start && mr.end) applyPlanMonthsToRecord(draft, mr.start, mr.end);
       if (resolvedTag) draft.newProductTag = resolvedTag;
       var skTr = readSkusFromTrSafe(tr);
       if (skTr.length) draft.planSkus = skTr.slice();
       if (!validatePlanUnique(list, draft, id)) {
-        toast("同一年度下已存在相同规划对象，与已有行重复");
+        toast("同一规划月份范围与对象组合已存在，与已有行重复");
         renderPlans();
         return;
       }
       delete p.sceneCategoryLeaves;
       if (skTr.length) p.planSkus = skTr.slice();
       else delete p.planSkus;
-      p.year = year;
+      if (mr.start && mr.end) applyPlanMonthsToRecord(p, mr.start, mr.end);
       p.scenario = NEW_PRODUCT_SCENE;
       p.category = cat;
       assignStoredGranularity(p);
@@ -2892,7 +3032,6 @@
       label = "请选择场景品类";
     }
     return (
-      '<div class="plan-cell-with-pin" style="display:flex;align-items:center;gap:4px;min-width:0">' +
       '<div class="plan-sc-cat-wrap sc-cat-wrap" style="flex:1;min-width:0" data-plan-id="' +
       escapeHtml(p.id) +
       '">' +
@@ -2907,9 +3046,7 @@
       '" />' +
       '<button type="button" class="sc-cat-trigger plan-sc-cat-trigger js-plan-sc-cat-trigger" aria-expanded="false" aria-haspopup="dialog">' +
       escapeHtml(label) +
-      "</button></div>" +
-      '<button type="button" class="field-hint-icon" data-user-hint="planScCatCol" aria-label="场景品类列说明">i</button>' +
-      "</div>"
+      "</button></div>"
     );
   }
 
@@ -2918,7 +3055,6 @@
     var skJson = escapeHtml(JSON.stringify(sk));
     var btnLabel = formatPlanSkuBtnLabel(sk);
     return (
-      '<div class="plan-cell-with-pin" style="display:flex;align-items:center;gap:4px;min-width:0">' +
       '<div class="plan-sku-wrap sc-cat-wrap" style="flex:1;min-width:0" data-plan-id="' +
       escapeHtml(p.id) +
       '">' +
@@ -2927,9 +3063,7 @@
       '" />' +
       '<button type="button" class="sc-cat-trigger js-plan-sku-trigger" aria-expanded="false" aria-haspopup="dialog">' +
       escapeHtml(btnLabel) +
-      "</button></div>" +
-      '<button type="button" class="field-hint-icon" data-user-hint="planSkuCol" aria-label="SKU 列说明">i</button>' +
-      "</div>"
+      "</button></div>"
     );
   }
 
@@ -2961,7 +3095,6 @@
     }).join("");
     var blankSel = !cur && !extraOpt ? " selected" : "";
     return (
-      '<div class="plan-cell-with-pin" style="display:flex;align-items:center;gap:4px">' +
       '<div class="plan-np-tag-cell" style="flex:1;min-width:0">' +
       '<select class="inp-inline js-np-tag-row" aria-label="新品标签">' +
       '<option value=""' +
@@ -2969,9 +3102,7 @@
       ">请选择新品标签</option>" +
       extraOpt +
       opts +
-      "</select></div>" +
-      '<button type="button" class="field-hint-icon" data-user-hint="planNpCol" aria-label="新品标签列说明">i</button>' +
-      "</div>"
+      "</select></div>"
     );
   }
 
@@ -3227,41 +3358,6 @@
     return list;
   }
 
-  /** 若规划行填写 planMonthAmounts（YYYY-MM → 金额），则按该分布拆月（总额按比例缩放至与规划额一致）；否则按 BP 拆月 */
-  function buildMonthBudgetMap(plan, months, total) {
-    var raw = plan.planMonthAmounts;
-    if (!raw || typeof raw !== "object") return null;
-    var amounts = {};
-    var sum = 0;
-    for (var i = 0; i < months.length; i++) {
-      var ym = months[i];
-      var v = Number(raw[ym]);
-      if (!isNaN(v) && v > 0) {
-        amounts[ym] = v;
-        sum += v;
-      }
-    }
-    if (sum <= 0) return null;
-    var out = {};
-    var scale = total / sum;
-    var assigned = 0;
-    for (var j = 0; j < months.length; j++) {
-      var ym2 = months[j];
-      var base = amounts[ym2];
-      if (!(base > 0)) {
-        out[ym2] = 0;
-        continue;
-      }
-      var flo = Math.floor(base * scale);
-      out[ym2] = flo;
-      assigned += flo;
-    }
-    if (months.length) {
-      out[months[months.length - 1]] = (out[months[months.length - 1]] || 0) + (total - assigned);
-    }
-    return out;
-  }
-
   function splitPlan(plan) {
     var eligible = collectEligibleMskus(plan);
     var total = Number(plan.planAmount) || 0;
@@ -3269,39 +3365,37 @@
     var months = monthsForPlanSplit(plan);
     if (!months.length) return [];
 
-    var monthBudget = buildMonthBudgetMap(plan, months, total);
-    if (!monthBudget) {
-      var monthSumBp = months.map(function (ym) {
-        var s = 0;
-        for (var i = 0; i < eligible.length; i++) {
-          s += bpMonthlyRevenueForMockRow(eligible[i], ym);
-        }
-        return { ym: ym, sumBp: s };
-      });
-      var sumMonthW = monthSumBp.reduce(function (a, x) {
-        return a + x.sumBp;
-      }, 0);
-      var nM = months.length;
-      monthBudget = {};
-      if (sumMonthW <= 0) {
-        var eq = Math.floor(total / nM);
-        for (var mi = 0; mi < months.length; mi++) {
-          monthBudget[months[mi]] = eq;
-        }
-        monthBudget[months[nM - 1]] += total - eq * nM;
-      } else {
-        var assigned = 0;
-        for (var j = 0; j < monthSumBp.length; j++) {
-          var frac = total * (monthSumBp[j].sumBp / sumMonthW);
-          var fl = Math.floor(frac);
-          monthBudget[monthSumBp[j].ym] = fl;
-          assigned += fl;
-        }
-        monthBudget[monthSumBp[monthSumBp.length - 1].ym] += total - assigned;
+    var monthSumBp = months.map(function (ym) {
+      var s = 0;
+      for (var i = 0; i < eligible.length; i++) {
+        s += bpMonthlyRevenueForMockRow(eligible[i], ym);
       }
+      return { ym: ym, sumBp: s };
+    });
+    var sumMonthW = monthSumBp.reduce(function (a, x) {
+      return a + x.sumBp;
+    }, 0);
+    var nM = months.length;
+    var monthBudget = {};
+    if (sumMonthW <= 0) {
+      var eq = Math.floor(total / nM);
+      for (var mi = 0; mi < months.length; mi++) {
+        monthBudget[months[mi]] = eq;
+      }
+      monthBudget[months[nM - 1]] += total - eq * nM;
+    } else {
+      var assignedM = 0;
+      for (var j = 0; j < monthSumBp.length; j++) {
+        var frac = total * (monthSumBp[j].sumBp / sumMonthW);
+        var fl = Math.floor(frac);
+        monthBudget[monthSumBp[j].ym] = fl;
+        assignedM += fl;
+      }
+      monthBudget[monthSumBp[monthSumBp.length - 1].ym] += total - assignedM;
     }
 
     var rows = [];
+    var yDisp = parseInt(String(months[0] || "").slice(0, 4), 10) || plan.year || new Date().getFullYear();
     for (var k = 0; k < months.length; k++) {
       var ym = months[k];
       var budget = monthBudget[ym] || 0;
@@ -3316,7 +3410,7 @@
         var w = sumR > 0 ? x.r / sumR : 1 / n;
         return {
           monthYm: ym,
-          year: plan.year,
+          year: yDisp,
           scenario: plan.scenario,
           category: plan.category != null ? plan.category : "",
           planGranularity: inferPlanGranularityFromRecord(plan),
@@ -3392,14 +3486,20 @@
     return new Date().getFullYear();
   }
 
-  function planMatchesYearFromMonthFilter(p) {
+  function planMatchesMonthOverlapFilter(p) {
     if (!currentFilter.monthStart || !currentFilter.monthEnd) return true;
-    var py = String(Number(p.year));
-    var ys = {};
-    enumerateYmMonths(currentFilter.monthStart, currentFilter.monthEnd).forEach(function (ym) {
-      ys[ym.slice(0, 4)] = true;
+    var pr = getPlanMonthRangePair(p);
+    var R = enumerateYmMonths(pr.start, pr.end);
+    var F = enumerateYmMonths(currentFilter.monthStart, currentFilter.monthEnd);
+    if (!R.length || !F.length) return false;
+    var fset = {};
+    F.forEach(function (x) {
+      fset[x] = true;
     });
-    return !!ys[py];
+    for (var i = 0; i < R.length; i++) {
+      if (fset[R[i]]) return true;
+    }
+    return false;
   }
 
   function planMatchesScCatFilter(p) {
@@ -3457,13 +3557,24 @@
     return true;
   }
 
+  function planMatchesStoreFilter(p) {
+    var el = document.getElementById("fltStore");
+    if (!el) return true;
+    var fs = String(el.value || "").trim();
+    if (!fs) return true;
+    var ps = String(p.planStoreCode || "").trim();
+    if (!ps) return false;
+    return ps === fs;
+  }
+
   function filteredList() {
     var list = loadAll();
     var hasSc = filterLeafKeys.length > 0;
     var hasNp = filterNpTagKeys.length > 0;
     return list.filter(function (p) {
-      if (!planMatchesYearFromMonthFilter(p)) return false;
+      if (!planMatchesMonthOverlapFilter(p)) return false;
       if (!planMatchesGeoFilter(p)) return false;
+      if (!planMatchesStoreFilter(p)) return false;
       if (!hasSc && !hasNp) return true;
       if (!hasSc && hasNp) {
         return npTagMatchesSelected(p);
@@ -3472,6 +3583,70 @@
         return planMatchesScCatFilter(p);
       }
       return planMatchesScCatFilter(p) && npTagMatchesSelected(p);
+    });
+  }
+
+  function destroyPlanRowMonthPickers() {
+    Object.keys(_planRowMrPickers).forEach(function (id) {
+      var inst = _planRowMrPickers[id];
+      if (inst && typeof inst.destroy === "function") inst.destroy();
+      delete _planRowMrPickers[id];
+    });
+  }
+
+  function readPlanMonthRangeFromTr(tr) {
+    var id = tr && tr.dataset && tr.dataset.id;
+    if (!id) return { start: "", end: "" };
+    var inst = _planRowMrPickers[id];
+    if (inst && typeof inst.get === "function") {
+      var g = inst.get();
+      return { start: String(g.start || "").trim(), end: String(g.end || "").trim() };
+    }
+    var found = loadAll().find(function (x) {
+      return x.id === id;
+    });
+    return getPlanMonthRangePair(found || {});
+  }
+
+  function applyPlanMonthsToRecord(p, start, end) {
+    if (!start || !end) return false;
+    if (ymOrd(start) == null || ymOrd(end) == null) return false;
+    var a = ymOrd(start);
+    var b = ymOrd(end);
+    if (b < a) {
+      var t = start;
+      start = end;
+      end = t;
+    }
+    p.planMonthStart = start;
+    p.planMonthEnd = end;
+    p.year = parseInt(String(start).slice(0, 4), 10) || p.year || new Date().getFullYear();
+    return true;
+  }
+
+  function mountPlanRowMonthPicker(tr, p) {
+    var host = tr.querySelector(".js-plan-mr-host");
+    if (!host || typeof MonthRangePicker === "undefined") {
+      if (host) host.textContent = "未加载 month-range-picker.js";
+      return;
+    }
+    var pr = getPlanMonthRangePair(p);
+    _planRowMrPickers[p.id] = MonthRangePicker.mount(host, {
+      start: pr.start,
+      end: pr.end,
+      placeholder: "请选择月份范围",
+      zIndex: 600,
+      onChange: function (s, e) {
+        var list = loadAll();
+        var row = list.find(function (x) {
+          return x.id === p.id;
+        });
+        if (row && s && e) {
+          applyPlanMonthsToRecord(row, s, e);
+          saveAll(list);
+        }
+        if (focusPlanId === p.id) renderSplitForPlan(p.id);
+      }
     });
   }
 
@@ -3484,9 +3659,10 @@
     if (planSkuRowEditId && !list.some(function (p) { return p.id === planSkuRowEditId; })) {
       closePlanSkuPop();
     }
+    destroyPlanRowMonthPickers();
     tbody.innerHTML = "";
     if (list.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="10" class="empty">无数据，可点击「新增一行」或「导入 CSV」</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="10" class="empty">无数据，可点击「新增一行」开始维护</td></tr>';
       document.getElementById("planCount").textContent = "共 0 条";
       focusPlanId = null;
       clearSplitTable();
@@ -3496,7 +3672,7 @@
       var tr = document.createElement("tr");
       tr.dataset.id = p.id;
       tr.innerHTML =
-        '<td><select class="inp-inline js-year">' + yearOptionsHtml(p.year) + "</select></td>" +
+        '<td><div class="plan-row-mr-host js-plan-mr-host"></div></td>' +
         "<td>" + scenarioCategoryCellHtml(p) + "</td>" +
         "<td>" + planSkuCellHtml(p) + "</td>" +
         "<td>" + planNpTagCellHtml(p) + "</td>" +
@@ -3509,20 +3685,16 @@
         '<td><select class="inp-inline js-plan-channel">' +
         channelSelectHtml(p.planChannelKey) +
         "</select></td>" +
+        '<td><select class="inp-inline js-plan-store">' +
+        planStoreSelectHtml(p.planStoreCode) +
+        "</select></td>" +
         '<td><input type="number" class="inp-inline js-amt num" min="0" step="1" value="' + escapeHtml(String(p.planAmount)) + '" /></td>' +
-        '<td><textarea class="inp-inline js-plan-month-json" rows="1" style="min-width:140px;max-width:220px;font-size:11px;resize:horizontal;" placeholder="{&quot;2026-01&quot;:0}" spellcheck="false"></textarea></td>' +
         '<td class="actions">' +
         '<button type="button" class="link js-save">保存</button>' +
         '<button type="button" class="link danger js-del">删除</button>' +
         "</td>";
       tbody.appendChild(tr);
-      tr.querySelector(".js-year").value = String(p.year);
-      var taj = tr.querySelector(".js-plan-month-json");
-      if (taj && p.planMonthAmounts && typeof p.planMonthAmounts === "object") {
-        try {
-          taj.value = JSON.stringify(p.planMonthAmounts);
-        } catch (eMj) {}
-      }
+      mountPlanRowMonthPicker(tr, p);
     });
     document.getElementById("planCount").textContent = "共 " + list.length + " 条（筛选后）";
     bindPlanRowEvents();
@@ -3532,16 +3704,6 @@
       if (!ok) focusPlanId = fl[0].id;
       renderSplitForPlan(focusPlanId);
     }
-  }
-
-  function yearOptionsHtml(selected) {
-    var y = new Date().getFullYear();
-    var html = "";
-    for (var i = -1; i < 5; i++) {
-      var yy = y - i;
-      html += '<option value="' + yy + '"' + (String(yy) === String(selected) ? " selected" : "") + ">" + yy + "</option>";
-    }
-    return html;
   }
 
   function escapeHtml(s) {
@@ -3700,7 +3862,12 @@
         });
       }
       tr.addEventListener("click", function (e) {
-        if (e.target.closest("button, input, select, textarea, label, .plan-sc-cat-wrap, .plan-sku-wrap, .plan-cell-with-pin")) return;
+        if (
+          e.target.closest(
+            "button, input, select, textarea, label, .plan-sc-cat-wrap, .plan-sku-wrap, .mrp-wrap, .mrp-panel"
+          )
+        )
+          return;
         focusPlanId = id;
         renderSplitForPlan(id);
       });
@@ -3747,41 +3914,28 @@
     });
   }
 
-  function parsePlanMonthJsonFromTextarea(tr) {
-    var ta = tr.querySelector(".js-plan-month-json");
-    if (!ta) return null;
-    var t = String(ta.value || "").trim();
-    if (!t) return null;
-    try {
-      var o = JSON.parse(t);
-      if (o && typeof o === "object" && !Array.isArray(o)) return o;
-    } catch (eJson) {
-      return false;
-    }
-    return null;
-  }
-
   function applyPlanGeoFromTr(tr, p) {
-    var mj = parsePlanMonthJsonFromTextarea(tr);
-    if (mj === false) return "bad_json";
     var reg = tr.querySelector(".js-plan-region");
     var cty = tr.querySelector(".js-plan-country");
     var ch = tr.querySelector(".js-plan-channel");
+    var st = tr.querySelector(".js-plan-store");
     var rc = reg && reg.value != null ? String(reg.value).trim() : "";
     var ctc = cty && cty.value != null ? String(cty.value).trim() : "";
     var chv = ch && ch.value != null ? String(ch.value).trim() : "";
+    var stv = st && st.value != null ? String(st.value).trim() : "";
     if (rc) p.planRegionCode = rc;
     else delete p.planRegionCode;
     if (ctc) p.planCountryCode = ctc;
     else delete p.planCountryCode;
     if (chv) p.planChannelKey = chv;
     else delete p.planChannelKey;
+    if (stv) p.planStoreCode = stv;
+    else delete p.planStoreCode;
     if (ctc && !rc) {
       var infer = inferRegionCodeFromCountry(ctc);
       if (infer) p.planRegionCode = infer;
     }
-    if (mj && Object.keys(mj).length) p.planMonthAmounts = mj;
-    else delete p.planMonthAmounts;
+    delete p.planMonthAmounts;
     return "ok";
   }
 
@@ -3790,34 +3944,37 @@
     var list = loadAll();
     var p = list.find(function (x) { return x.id === id; });
     if (!p) return false;
+    var mr = readPlanMonthRangeFromTr(tr);
+    if (!mr.start || !mr.end) {
+      toast("请完整选择规划月份范围");
+      return false;
+    }
     var amt = parseFloat(tr.querySelector(".js-amt").value) || 0;
     var leaves = readLeavesFromTr(tr);
     var skus = readSkusFromTrSafe(tr);
     var npSel = tr.querySelector(".js-np-tag-row");
     var tagFromDom = npSel && npSel.value != null ? String(npSel.value).trim() : "";
     var fake = JSON.parse(JSON.stringify(p));
-    fake.year = parseInt(tr.querySelector(".js-year").value, 10);
     fake.planAmount = amt;
+    if (!applyPlanMonthsToRecord(fake, mr.start, mr.end)) {
+      toast("规划月份范围无效");
+      return false;
+    }
     applyLeavesAndSkusToPlan(fake, leaves, skus);
     if (tagFromDom) fake.newProductTag = tagFromDom;
     else delete fake.newProductTag;
-    var geoSt = applyPlanGeoFromTr(tr, fake);
-    if (geoSt === "bad_json") {
-      toast("「月度金额(JSON)」不是合法 JSON 对象，请修正后再保存");
-      renderPlans();
-      return false;
-    }
+    applyPlanGeoFromTr(tr, fake);
     fake.planGranularity = inferPlanGranularityFromRecord(fake);
     if (!validatePlanRowScope(fake)) {
       renderPlans();
       return false;
     }
     if (!validatePlanUnique(list, fake, id)) {
-      toast("与已有规划重复（同年度、同粒度键）");
+      toast("与已有规划重复（同月份范围、同规划对象组合）");
       renderPlans();
       return false;
     }
-    p.year = fake.year;
+    applyPlanMonthsToRecord(p, mr.start, mr.end);
     p.planAmount = amt;
     applyLeavesAndSkusToPlan(p, leaves, skus);
     if (tagFromDom) p.newProductTag = tagFromDom;
@@ -3840,7 +3997,7 @@
   function clearSplitTable() {
     document.getElementById("tbodySplit").innerHTML = "";
     document.getElementById("splitContext").textContent =
-      "在上表选中一行后，此处按月份 × MSKU 展示拆分结果（与筛选月份范围、规划年对齐）。";
+      "在上表选中一行后，此处按「筛选月份范围 ∩ 行规划月份范围」内的各自然月 × MSKU 展示拆分结果。";
     document.getElementById("splitSum").textContent = "";
   }
 
@@ -3856,31 +4013,34 @@
     }
     var eligPre = collectEligibleMskus(p);
     var monthsPre = monthsForPlanSplit(p);
-    var monthSplitNote = buildMonthBudgetMap(p, monthsPre, Number(p.planAmount) || 0)
-      ? "月总额按「月度金额(JSON)」缩放分配，月内仍按 MSKU 月度 BP 占比拆分。"
-      : "月总额按 eligible MSKU 的月度 BP 合计占比分配，月内按 MSKU 月度 BP 占比拆分。";
+    var prCtx = getPlanMonthRangePair(p);
+    var monthSplitNote = "月总额按 eligible MSKU 的月度 BP 合计占比分配，月内按 MSKU 月度 BP 占比拆分。";
     var rows = splitPlan(p);
     tbody.innerHTML = "";
     if (!rows.length) {
       var emptyMsg =
-        "未匹配到 MSKU（请检查场景品类、SKU、新品标签及区域/国家/渠道是否与示例主数据一致）";
+        "未匹配到 MSKU（请检查场景品类、SKU、新品标签及区域/国家/渠道/店铺是否与示例主数据一致）";
       if (eligPre.length && !monthsPre.length) {
         emptyMsg =
-          "当前规划年度与筛选「月份范围」无交集（例如规划年为 2026，而筛选仅在 2025 月）；请调整月份范围或规划行年度。";
+          "筛选「月份范围」与该行「规划月份范围」无交集（行：" +
+          prCtx.start +
+          " - " +
+          prCtx.end +
+          "）；请调整筛选或行的月份范围。";
       }
       tbody.innerHTML =
         '<tr><td colspan="5" class="empty">' + emptyMsg + "</td></tr>";
       ctx.textContent =
         "规划对象：" +
         formatPlanLineLabel(p) +
-        " · " +
-        p.year +
-        " 年 · 规划额 " +
+        " · 行月份 " +
+        prCtx.start +
+        " - " +
+        prCtx.end +
+        " · 规划额 " +
         formatUsd(p.planAmount) +
-        "；拆分月份：" +
-        (currentFilter.monthStart && currentFilter.monthEnd
-          ? currentFilter.monthStart + " 至 " + currentFilter.monthEnd
-          : "与规划年对齐的 1–12 月") +
+        "；与筛选交集月份：" +
+        (monthsPre.length ? monthsPre[0] + " 至 " + monthsPre[monthsPre.length - 1] : "无") +
         "。";
       sumEl.textContent = "";
       return;
@@ -3899,14 +4059,14 @@
     ctx.textContent =
       "规划对象：" +
       formatPlanLineLabel(p) +
-      " · " +
-      p.year +
-      " 年 · 规划额 " +
+      " · 行月份 " +
+      prCtx.start +
+      " - " +
+      prCtx.end +
+      " · 规划额 " +
       formatUsd(p.planAmount) +
-      "；拆分月份：" +
-      (currentFilter.monthStart && currentFilter.monthEnd
-        ? currentFilter.monthStart + " 至 " + currentFilter.monthEnd
-        : "与规划年对齐的 1–12 月") +
+      "；实际拆分月份（筛选 ∩ 行）：" +
+      (monthsPre.length ? monthsPre[0] + " 至 " + monthsPre[monthsPre.length - 1] + "（" + monthsPre.length + " 个月）" : "无") +
       "。" +
       monthSplitNote +
       "（共 " +
@@ -3931,7 +4091,7 @@
     syncMonthRangeFilterFromPicker();
     renderPlans();
     toast(
-      "已查询（月份范围与规划年对齐；场景品类/新品标签未选则该维不过滤；两维都选时取交集；区域/国家/渠道筛选与规划行字段对齐；拆分支持月度 JSON 或 BP）"
+      "已查询：月份范围与行规划月份取交集过滤列表；场景品类/新品未选则该维不过滤；区域/国家/渠道/店铺与规划行字段对齐；拆分按 BP 占比。"
     );
   });
 
@@ -3950,6 +4110,8 @@
     var row = {
       id: uid(),
       year: y,
+      planMonthStart: y + "-01",
+      planMonthEnd: y + "-12",
       scenario: base.scenario,
       category: base.categories[0],
       planAmount: 0,
@@ -3966,13 +4128,14 @@
     closePlanRowScCatPop();
     closePlanSkuPop();
     var list = loadAll();
-    var monthJsonErr = false;
+    var mrErr = false;
     document.querySelectorAll("#tbodyPlan tr").forEach(function (tr) {
       var id = tr.dataset.id;
       if (!id) return;
       var p = list.find(function (x) { return x.id === id; });
       if (!p) return;
-      p.year = parseInt(tr.querySelector(".js-year").value, 10);
+      var mr = readPlanMonthRangeFromTr(tr);
+      if (!mr.start || !mr.end || !applyPlanMonthsToRecord(p, mr.start, mr.end)) mrErr = true;
       p.planAmount = parseFloat(tr.querySelector(".js-amt").value) || 0;
       var leaves = readLeavesFromTr(tr);
       var skus = readSkusFromTrSafe(tr);
@@ -3981,12 +4144,11 @@
       var tv = npSel && npSel.value != null ? String(npSel.value).trim() : "";
       if (tv) p.newProductTag = tv;
       else delete p.newProductTag;
-      var gst = applyPlanGeoFromTr(tr, p);
-      if (gst === "bad_json") monthJsonErr = true;
+      applyPlanGeoFromTr(tr, p);
       assignStoredGranularity(p);
     });
-    if (monthJsonErr) {
-      toast("「月度金额(JSON)」存在非法 JSON，请修正后再保存全部");
+    if (mrErr) {
+      toast("存在未完成或无效的规划月份范围，请修正后再保存全部");
       renderPlans();
       return;
     }
@@ -4005,7 +4167,7 @@
     for (var i = 0; i < list.length; i++) {
       var k = planIdentityKey(list[i]);
       if (seen[k]) {
-        toast("存在重复的年度+规划对象组合，请修正后再保存全部");
+        toast("存在重复的规划月份范围+规划对象组合，请修正后再保存全部");
         renderPlans();
         return;
       }
@@ -4018,257 +4180,6 @@
     renderPlans();
     toast("已全部写入本地");
     renderSplitIfFocused();
-  });
-
-  document.getElementById("btnImportPick").addEventListener("click", function () {
-    document.getElementById("fileImport").click();
-  });
-
-  function csvEscapeField(s) {
-    s = String(s == null ? "" : s);
-    if (/[",\n\r]/.test(s)) return '"' + s.replace(/"/g, '""') + '"';
-    return s;
-  }
-
-  function splitCsvLine(line, sep) {
-    var out = [];
-    var cur = "";
-    var inQ = false;
-    for (var i = 0; i < line.length; i++) {
-      var c = line[i];
-      if (inQ) {
-        if (c === '"') {
-          if (line[i + 1] === '"') {
-            cur += '"';
-            i++;
-          } else {
-            inQ = false;
-          }
-        } else {
-          cur += c;
-        }
-      } else {
-        if (c === '"') inQ = true;
-        else if (c === sep) {
-          out.push(cur);
-          cur = "";
-        } else {
-          cur += c;
-        }
-      }
-    }
-    out.push(cur);
-    return out;
-  }
-
-  function stripCsvCell(v) {
-    return String(v != null ? v : "")
-      .replace(/^\s+|\s+$/g, "")
-      .replace(/^"|"$/g, "")
-      .trim();
-  }
-
-  document.getElementById("btnExport").addEventListener("click", function () {
-    var list = filteredList();
-    var header =
-      "\uFEFF年度,规划粒度,场景,品类,场景品类叶子,SKU列表,新品标签,区域代码,国家代码,渠道,月度金额JSON,营销费用规划(美元)\n";
-    var rows = list
-      .map(function (p) {
-        var tvx = planNpTagValue(p);
-        var leavesJson = JSON.stringify(getPlanSceneCategoryLeaves(p));
-        var skuStr = getPlanSkus(p).join(";");
-        var mj = "";
-        if (p.planMonthAmounts && typeof p.planMonthAmounts === "object") {
-          try {
-            mj = JSON.stringify(p.planMonthAmounts);
-          } catch (eEx) {
-            mj = "";
-          }
-        }
-        return [
-          p.year,
-          getPlanGranularity(p),
-          csvEscapeField(p.scenario),
-          csvEscapeField(p.category != null ? p.category : ""),
-          csvEscapeField(leavesJson),
-          csvEscapeField(skuStr),
-          csvEscapeField(tvx || ""),
-          csvEscapeField(String(p.planRegionCode || "")),
-          csvEscapeField(String(p.planCountryCode || "")),
-          csvEscapeField(String(p.planChannelKey != null ? p.planChannelKey : "")),
-          csvEscapeField(mj),
-          p.planAmount
-        ].join(",");
-      })
-      .join("\n");
-    var blob = new Blob([header + rows], { type: "text/csv;charset=utf-8" });
-    var a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = "营销费用规划_导出.csv";
-    a.click();
-    URL.revokeObjectURL(a.href);
-    toast("已导出当前筛选列表");
-  });
-
-  document.getElementById("fileImport").addEventListener("change", function (e) {
-    var f = e.target.files && e.target.files[0];
-    e.target.value = "";
-    if (!f) return;
-    var reader = new FileReader();
-    reader.onload = function () {
-      try {
-        var text = String(reader.result || "");
-        var lines = text.split(/\r?\n/).filter(function (l) { return l.trim().length; });
-        if (lines.length < 2) {
-          toast("CSV 至少需要表头+一行数据");
-          return;
-        }
-        var sep = lines[0].indexOf("\t") >= 0 ? "\t" : ",";
-        var header = splitCsvLine(lines[0], sep).map(function (h) {
-          return h.trim().replace(/^\uFEFF/, "");
-        });
-        var iy = header.indexOf("年度");
-        var isc = header.indexOf("场景");
-        var icat = header.indexOf("品类");
-        var ig = header.indexOf("规划粒度");
-        var intag = header.indexOf("新品标签");
-        var ileaves = header.indexOf("场景品类叶子");
-        if (ileaves < 0) ileaves = header.indexOf("sceneCategoryLeaves");
-        var iskus = header.indexOf("SKU列表");
-        if (iskus < 0) iskus = header.indexOf("MSKU列表");
-        if (iskus < 0) iskus = header.indexOf("planSkus");
-        var il = header.indexOf("品线");
-        var ireg = header.indexOf("区域代码");
-        if (ireg < 0) ireg = header.indexOf("planRegionCode");
-        var icou = header.indexOf("国家代码");
-        if (icou < 0) icou = header.indexOf("planCountryCode");
-        var icha = header.indexOf("渠道");
-        var imjson = header.indexOf("月度金额JSON");
-        if (imjson < 0) imjson = header.indexOf("planMonthAmounts");
-        var ia = header.indexOf("营销费用规划(美元)");
-        if (ia < 0) ia = header.indexOf("营销费用规划(元)");
-        if (iy < 0 || ia < 0) {
-          toast("表头需含：年度、营销费用规划列");
-          return;
-        }
-        var modeNew = isc >= 0 && icat >= 0;
-        var modeOld = il >= 0;
-        if (!modeNew && !modeOld) {
-          toast("表头需含：年度,场景,品类,营销费用规划(美元)；或旧模板 年度,品线,营销费用规划(美元)（品线列仅兼容迁移，新规划请用场景/品类）");
-          return;
-        }
-        var list = loadAll();
-        for (var i = 1; i < lines.length; i++) {
-          var cols = splitCsvLine(lines[i], sep);
-          var year = parseInt(stripCsvCell(cols[iy]), 10);
-          var amt = parseFloat(String(cols[ia] != null ? cols[ia] : "").replace(/,/g, "")) || 0;
-          if (!year) continue;
-          if (modeNew) {
-            var maxIx = Math.max(iy, isc, icat, ia);
-            if (ig >= 0) maxIx = Math.max(maxIx, ig);
-            if (intag >= 0) maxIx = Math.max(maxIx, intag);
-            if (ileaves >= 0) maxIx = Math.max(maxIx, ileaves);
-            if (iskus >= 0) maxIx = Math.max(maxIx, iskus);
-            if (ireg >= 0) maxIx = Math.max(maxIx, ireg);
-            if (icou >= 0) maxIx = Math.max(maxIx, icou);
-            if (icha >= 0) maxIx = Math.max(maxIx, icha);
-            if (imjson >= 0) maxIx = Math.max(maxIx, imjson);
-            if (cols.length <= maxIx) continue;
-            var sc = stripCsvCell(cols[isc]);
-            var cat = stripCsvCell(cols[icat]);
-            var row = { id: uid(), year: year, scenario: sc, category: cat, planAmount: amt };
-            if (ireg >= 0 && cols[ireg] != null) {
-              var rv = stripCsvCell(cols[ireg]);
-              if (rv) row.planRegionCode = rv;
-            }
-            if (icou >= 0 && cols[icou] != null) {
-              var cv = stripCsvCell(cols[icou]);
-              if (cv) row.planCountryCode = cv;
-            }
-            if (icha >= 0 && cols[icha] != null) {
-              var hv = stripCsvCell(cols[icha]);
-              if (hv) row.planChannelKey = hv;
-            }
-            if (imjson >= 0 && cols[imjson] != null) {
-              var mv = stripCsvCell(cols[imjson]);
-              if (mv) {
-                try {
-                  var mo = JSON.parse(mv);
-                  if (mo && typeof mo === "object" && !Array.isArray(mo)) row.planMonthAmounts = mo;
-                } catch (eM) {}
-              }
-            }
-            if (row.planCountryCode && !row.planRegionCode) {
-              var infR = inferRegionCodeFromCountry(row.planCountryCode);
-              if (infR) row.planRegionCode = infR;
-            }
-            if (intag >= 0 && cols[intag] != null) {
-              var tImp = stripCsvCell(cols[intag]);
-              if (tImp) row.newProductTag = tImp;
-            }
-            var leavesParsed = null;
-            if (ileaves >= 0 && cols[ileaves] != null) {
-              var rawL = stripCsvCell(cols[ileaves]);
-              if (rawL) {
-                try {
-                  leavesParsed = JSON.parse(rawL);
-                } catch (eJson) {
-                  leavesParsed = null;
-                }
-                if (!Array.isArray(leavesParsed)) leavesParsed = null;
-              }
-            }
-            var skusParsed = [];
-            if (iskus >= 0 && cols[iskus] != null) {
-              var rawS = stripCsvCell(cols[iskus]);
-              if (rawS) {
-                skusParsed = rawS
-                  .split(/[;|]/)
-                  .map(function (x) {
-                    return String(x || "").trim();
-                  })
-                  .filter(Boolean);
-              }
-            }
-            if (Array.isArray(leavesParsed) && leavesParsed.length) {
-              applyLeavesAndSkusToPlan(row, leavesParsed, skusParsed);
-            } else if (skusParsed.length) {
-              row.planSkus = normalizeSkuArray(skusParsed);
-            }
-            normalizeCategoryUnderScene(row);
-            assignStoredGranularity(row);
-            if (inferPlanGranularityFromRecord(row) === PLAN_G_NEW) {
-              row.scenario = NEW_PRODUCT_SCENE;
-            }
-            if (inferPlanGranularityFromRecord(row) === PLAN_G_NEW && !String(row.category || "").trim()) continue;
-            if (!validatePlanRowScope(row, true)) continue;
-            if (!validatePlanUnique(list, row, row.id)) continue;
-            enrichPlanFromTree(row);
-            list.push(row);
-          } else {
-            if (cols.length <= Math.max(iy, il, ia)) continue;
-            var line = String(cols[il] || "")
-              .replace(/^"|"$/g, "")
-              .trim();
-            if (!line) continue;
-            list.push(
-              migratePlanRecord({
-                id: uid(),
-                year: year,
-                productLine: line,
-                planAmount: amt
-              })
-            );
-          }
-        }
-        saveAll(list);
-        renderPlans();
-        toast("导入完成");
-      } catch (err) {
-        toast("解析失败：" + (err.message || err));
-      }
-    };
-    reader.readAsText(f, "UTF-8");
   });
 
   document.getElementById("btnRefreshSplit").addEventListener("click", function () {
