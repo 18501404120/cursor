@@ -1216,7 +1216,7 @@
     add(
       "3",
       "搜索",
-      "只刷新当前列表展示，不自动替你点「保存」。\n场景品类、新品标签可以不选；其它筛选项照常生效。\n区域、国家、渠道、店铺：与每一行里填的内容对应得上，才符合筛选。\n月份：只用于缩小列表——仅显示「顶部选的月份」与「该行自己规划的月份」有重叠的规划行；该行费用的拆分月份只看本行「规划月份范围」内的自然月，与顶部月份筛选无关。"
+      "只刷新当前列表展示，不自动替你点「保存」。\n场景品类、新品标签可以不选；其它筛选项照常生效。\n区域、国家、渠道、店铺：与每一行里填的内容对应得上，才符合筛选。\n月份：用于两处——① 规划表：仅显示「顶部选的月份」与「该行自己规划的月份」有重叠的规划行；② 拆分结果表：只显示「月份」列落在顶部月份范围内的明细行。参与分摊的金额仍按每行完整规划月份与 BP 规则计算，不因顶部月份把预算只在筛出月份里重分摊（见编号 12）。"
     );
     add(
       "4",
@@ -1251,7 +1251,7 @@
     add(
       "12",
       "拆分结果表（汇总）",
-      "首行为「总计」：拆分金额列为当前筛选下、上表全部可见规划行合并后的合计；「分摊金额占比」列为 100%；其余列为「全部」或空示意。\n自第二行起：对每一规划行分别拆分后，按「月份 + 店铺 + MSKU」合并明细；并从示例主数据带出区域/国家/店铺、场景/品类/品线、渠道、新品标签；销售/TL 为原型占位。\n金额规则：月与月之间按 BP，月内按商品 BP 分到店铺与 MSKU；占比列口径见 12b。"
+      "参与分摊的规划行集合：与顶部「场景品类、新品标签、区域、国家、渠道、店铺」等筛选一致，但不含顶部「月份范围」——即不因只筛 1 月就只拿 1 月重叠的规划行去重算分摊。\n首行为「总计」：拆分金额列为当前表格内（经顶部月份筛后的）明细行金额合计；「分摊金额占比」列为 100%；其余列为「全部」或空示意。\n自第二行起：对每一参与分摊的规划行分别拆分后，按「月份 + 店铺 + MSKU」合并明细；并从示例主数据带出区域/国家/店铺、场景/品类/品线、渠道、新品标签；销售/TL 为原型占位。\n顶部月份仅裁切「月份」列展示哪些自然月，不改变各规划行在全规划期内的月分摊逻辑。金额规则：月与月之间按 BP，月内按商品 BP 分到店铺与 MSKU；占比列口径见 12b。"
     );
     add(
       "12b",
@@ -1280,7 +1280,7 @@
     add(
       "filterMonthRange",
       "月份范围筛选",
-      "默认当年 1–12 月，展示形如「2026-01 - 2026-12」（与全站月份范围控件样式一致）。\n列表里只保留：该行自己规划的月份 与 这里选的月份 有重叠的规划行（查看范围）。\n拆分用的自然月只看本行「规划月份范围」，与这里选的月份无关。"
+      "默认当年 1–12 月，展示形如「2026-01 - 2026-12」（与全站月份范围控件样式一致）。\n规划表：只保留该行自己规划的月份与这里选的月份有重叠的规划行。\n拆分结果表：只显示「月份」列落在此范围内的明细行；各行的拆分金额仍是该行在完整规划月份内按月 BP 分摊后，对应自然月的金额，而不是把整行预算只在筛出月份里重分摊。"
     );
     add(
       "planMonthRangeCol",
@@ -1340,7 +1340,7 @@
     add(
       "splitPanel",
       "拆分结果（多维度）",
-      "首行总计为金额合计，分摊金额占比列为 100%；下列为合并后的分摊明细。\n列含区域/国家/店铺、场景/品类/品线、销售/TL、SKU、新品标签、月份、分摊金额占比、拆分金额（USD）。销售/TL 为演示占位。\n筛选与上表一致；金额为示例 BP 规则下的演示结果。"
+      "首行总计为当前表内可见明细行的金额合计，分摊金额占比列为 100%；下列为合并后的分摊明细。\n列含区域/国家/店铺、场景/品类/品线、销售/TL、SKU、新品标签、月份、分摊金额占比、拆分金额（USD）。销售/TL 为演示占位。\n参与分摊的规划行与顶部「场景品类、新品、地理、店铺」等一致，但不含顶部「月份」对规划行的缩窄；顶部月份只决定本表展示哪些自然月。金额为示例 BP 规则下的演示结果。"
     );
     return o;
   })();
@@ -3962,6 +3962,40 @@
     });
   }
 
+  /**
+   * 参与「拆分金额」汇总的规划行：与 filteredList 相同，但不含顶部「月份范围」筛选。
+   * 顶部月份只用于规划表展示与下方拆分结果表的**行展示**；分摊仍按每行完整规划月份与金额计算。
+   */
+  function filteredListForSplitAggregation() {
+    var list = loadAll();
+    var hasSc = filterLeafKeys.length > 0;
+    var hasNp = filterNpTagKeys.length > 0;
+    return list.filter(function (p) {
+      if (!planMatchesGeoFilter(p)) return false;
+      if (!planMatchesStoreFilter(p)) return false;
+      if (!hasSc && !hasNp) return true;
+      if (!hasSc && hasNp) {
+        return npTagMatchesSelected(p);
+      }
+      if (hasSc && !hasNp) {
+        return planMatchesScCatFilter(p);
+      }
+      return planMatchesScCatFilter(p) && npTagMatchesSelected(p);
+    });
+  }
+
+  /** 拆分结果表：是否落在顶部月份筛选内（未选月份则不过滤） */
+  function splitRowMatchesTopMonthFilter(r) {
+    if (!currentFilter.monthStart || !currentFilter.monthEnd) return true;
+    var ym = String(r && r.monthYm ? r.monthYm : "").trim();
+    if (!ym) return false;
+    var F = enumerateYmMonths(currentFilter.monthStart, currentFilter.monthEnd);
+    for (var i = 0; i < F.length; i++) {
+      if (F[i] === ym) return true;
+    }
+    return false;
+  }
+
   function destroyPlanRowGeoMsfsAll() {
     Object.keys(_planRowGeoMsf).forEach(function (id) {
       var b = _planRowGeoMsf[id];
@@ -4319,21 +4353,29 @@
   function renderSplitAggregated() {
     var tbody = document.getElementById("tbodySplit");
     if (!tbody) return;
-    var fl = filteredList();
+    var plansForSplit = filteredListForSplitAggregation();
     tbody.innerHTML = "";
-    if (!fl.length) {
+    if (!plansForSplit.length) {
       clearSplitTable();
       return;
     }
-    var rows = aggregateSplitFromPlans(fl);
+    var allRows = aggregateSplitFromPlans(plansForSplit);
+    var rows = allRows.filter(splitRowMatchesTopMonthFilter);
     if (!rows.length) {
-      tbody.innerHTML =
-        '<tr><td colspan="8" class="empty">当前筛选与可见规划范围内无拆分结果（请检查各行的场景品类、SKU、新品标签、规划月份及区域/国家/渠道/店铺是否与示例主数据一致）</td></tr>';
+      var emptyMsg =
+        allRows.length > 0
+          ? "当前顶部「月份范围」下无拆分明细行（分摊已按全部规划月份计算；请扩大月份范围或查看其它月份）。"
+          : "当前筛选下无拆分结果（请检查各行的场景品类、SKU、新品标签、规划月份及区域/国家/渠道/店铺是否与示例主数据一致）。";
+      tbody.innerHTML = '<tr><td colspan="8" class="empty">' + escapeHtml(emptyMsg) + "</td></tr>";
       return;
     }
     var splitSum = rows.reduce(function (a, r) {
       return a + r.splitAmount;
     }, 0);
+    var sumVis = splitSum;
+    rows.forEach(function (x) {
+      x.weight = sumVis > 0 ? (Number(x.splitAmount) || 0) / sumVis : 0;
+    });
     var tr0 = document.createElement("tr");
     tr0.className = "split-row-total";
     tr0.innerHTML =
@@ -4384,7 +4426,7 @@
     syncMonthRangeFilterFromPicker();
     renderPlans();
     toast(
-      "已查询：月份范围仅用于列表（与行规划月份有重叠才显示该行）；场景品类/新品未选则该维不过滤；区域/国家/渠道/店铺与规划行多选对齐；拆分月份只看行内规划并按 BP 占比。"
+      "已查询：规划表按月份重叠显示行；拆分表按月份只裁切展示行，分摊仍按各行完整规划期；场景品类/新品未选则该维不过滤；区域/国家/渠道/店铺与规划行多选对齐。"
     );
   });
 
