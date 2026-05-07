@@ -552,9 +552,25 @@
     #tblPlan td:nth-child(3) {
       text-align: center;
     }
-    #tblSplit th:nth-child(2),
-    #tblSplit td:nth-child(2) {
-      text-align: center;
+    #tblSplit .split-tree-icon {
+      display: inline-block;
+      width: 20px;
+      color: var(--brand);
+      font-weight: 700;
+      user-select: none;
+    }
+    #tblSplit tr.split-row-total td {
+      font-weight: 600;
+      background: #f7fafc;
+      vertical-align: top;
+    }
+    #tblSplit .split-cell-lines {
+      white-space: pre-line;
+      line-height: 1.45;
+      font-size: 12px;
+    }
+    #tblSplit td.split-path-cell {
+      vertical-align: top;
     }
     .plan-np-tag-cell .inp-inline.js-np-tag-row {
       min-width: 120px;
@@ -1000,20 +1016,21 @@
         <section class="panel">
           <div class="panel-head">
             <span class="panel-head-tools">
-              <span>拆分结果（店铺 + MSKU）</span>
+              <span>拆分结果（多维度）</span>
               <button type="button" class="logic-pin" data-logic-key="12" aria-label="编号说明 12">12</button>
               <button type="button" class="field-hint-icon" data-user-hint="splitPanel" aria-label="拆分结果说明">i</button>
             </span>
           </div>
           <div class="panel-body">
-            <p class="split-meta" id="splitContext">以下为<strong>当前筛选范围内全部规划行</strong>分摊后的汇总结果（同月、同店、同 MSKU 会合并为一行金额）。规则见顶部「页面说明」。</p>
             <div class="table-wrap">
               <table id="tblSplit">
                 <thead>
                   <tr>
+                    <th>区域 / 国家 / 店铺</th>
+                    <th>场景 / 品类 / 品线</th>
+                    <th>销售 / TL</th>
+                    <th>SKU 信息</th>
                     <th>月份</th>
-                    <th>店铺</th>
-                    <th>MSKU</th>
                     <th class="num">
                       <span class="th-inner">
                         BP营收权重
@@ -1026,7 +1043,6 @@
                 <tbody id="tbodySplit"></tbody>
               </table>
             </div>
-            <p class="hint" id="splitSum"></p>
           </div>
         </section>
       </div>
@@ -1243,7 +1259,7 @@
     add(
       "12",
       "拆分结果表（汇总）",
-      "对「当前筛选后、上面规划表里出现的每一行」分别按规则拆分，再把结果按月份、店铺、MSKU 合并成一张总表（同一月同一店同一 MSKU 的金额会加总）。\n每一行规划自己：参与月份 = 顶部筛选月份 与 该行规划月份 的重叠；参与商品 = 须同时满足该行填写的场景品类、SKU、新品、渠道、店铺、区域、国家。\n金额规则与单行一致：先在月与月之间按 BP 分，再在月内按商品 BP 分到店铺和 MSKU。"
+      "首行为「总计」：拆分金额列为当前筛选下、上表全部可见规划行合并后的合计；其余列为「全部」示意。\n自第二行起：对每一规划行分别拆分后，按「月份 + 店铺 + MSKU」合并明细；并从示例 MSKU 主数据带出区域/国家/店铺、场景/品类/品线、渠道；销售/TL 为原型占位。\n金额规则不变：月与月之间按 BP，月内按商品 BP 分到店铺与 MSKU。"
     );
     add(
       "12b",
@@ -1321,8 +1337,8 @@
     );
     add(
       "splitPanel",
-      "拆分结果（汇总）",
-      "展示当前筛选范围内、上面表格里所有规划行拆分后再合并的结果；同月、同店、同 MSKU 会合成一行。\n筛选不选某一项，通常表示不按该项缩小范围（与上表一致）。\n金额为示例 BP 规则下的演示结果。"
+      "拆分结果（多维度）",
+      "首行总计为金额合计；下列为合并后的分摊明细，列含区域/国家/店铺、场景/品类/品线、销售/TL、SKU 与月份等。销售/TL 为演示占位。\n筛选与上表一致；金额为示例 BP 规则下的演示结果。"
     );
     return o;
   })();
@@ -1697,6 +1713,87 @@
       });
     });
     return out;
+  }
+
+  function countryNameByCode(code) {
+    var c = String(code || "").trim();
+    if (!c) return "—";
+    var list = allCountriesDistinct();
+    var f = list.find(function (x) {
+      return x.country_code === c;
+    });
+    return f && f.country_name ? String(f.country_name) : c;
+  }
+
+  function regionDisplayName(code) {
+    var r = getRegionByCode(code);
+    return r && r.region_name ? String(r.region_name) : (String(code || "").trim() || "—");
+  }
+
+  function findMockMskuRow(msku) {
+    var k = String(msku || "").trim();
+    if (!k) return null;
+    for (var i = 0; i < MOCK_MSKU_UNIVERSE.length; i++) {
+      if (MOCK_MSKU_UNIVERSE[i].msku === k) return MOCK_MSKU_UNIVERSE[i];
+    }
+    return null;
+  }
+
+  /** 原型：销售 / TL 展示名（稳定哈希） */
+  function mockSalesTlForSeed(seed) {
+    var sales = ["kaiwu", "linyu", "ada", "eric", "tina"];
+    var tls = ["bingna", "carl", "diane", "jiawei", "hao"];
+    var s = String(seed || "");
+    var h = 0;
+    for (var i = 0; i < s.length; i++) {
+      h = ((h << 5) - h + s.charCodeAt(i)) | 0;
+    }
+    return { sales: sales[Math.abs(h) % sales.length], tl: tls[Math.abs(h >> 4) % tls.length] };
+  }
+
+  function productLineCodeForScenarioCategory(scenario, category) {
+    var node = treeNodeByScenario(String(scenario || "").trim());
+    if (!node || !node.categoryCodes) return "—";
+    var cat = String(category != null ? category : "").trim();
+    var cc = node.categoryCodes[cat];
+    return cc != null && String(cc).trim() ? String(cc).trim() : "—";
+  }
+
+  function regionStorePathHtml(r) {
+    var mrow = findMockMskuRow(r.msku) || {};
+    var reg = regionDisplayName(r.region_code != null ? r.region_code : mrow.region_code);
+    var ccode = String(r.country_code != null ? r.country_code : mrow.country_code || "").trim();
+    var cseg = ccode ? ccode : "—";
+    var shop = String(r.shop || "").trim() || "—";
+    return escapeHtml(reg) + "/" + escapeHtml(cseg) + "/" + escapeHtml(shop);
+  }
+
+  function sceneCategoryLineHtml(r) {
+    var sc = String(r.mScenario != null ? r.mScenario : "").trim() || "—";
+    var cat = String(r.mCategory != null ? r.mCategory : "").trim() || "—";
+    var line = productLineCodeForScenarioCategory(sc, cat);
+    return escapeHtml(sc) + "/" + escapeHtml(cat) + "/" + escapeHtml(line);
+  }
+
+  function salesTlCellHtml(r) {
+    var seed = String(r.msku || "") + "\t" + String(r.shop || "");
+    var o = mockSalesTlForSeed(seed);
+    return (
+      '<span class="split-cell-lines">sales: ' +
+      escapeHtml(o.sales) +
+      "\nTL: " +
+      escapeHtml(o.tl) +
+      "</span>"
+    );
+  }
+
+  function skuInfoCellHtml(r) {
+    var mrow = findMockMskuRow(r.msku) || {};
+    var ch = String(r.channel != null ? r.channel : mrow.channel || "").trim() || "—";
+    var cc = String(r.country_code != null ? r.country_code : mrow.country_code || "").trim() || "—";
+    var sku = String(r.msku || "").trim() || "—";
+    var line2 = sku + "+" + ch + "+" + cc;
+    return '<span class="split-cell-lines">sku:' + escapeHtml(sku) + "\n" + escapeHtml(line2) + "</span>";
   }
 
   function regionSelectHtml(selectedCode) {
@@ -3411,6 +3508,9 @@
           newProductTag: plan.newProductTag,
           shop: x.m.shop,
           msku: x.m.msku,
+          region_code: x.m.region_code,
+          country_code: x.m.country_code,
+          channel: x.m.channel,
           weight: w,
           bpRev: x.r,
           splitAmount: Math.floor(budget * w),
@@ -3448,6 +3548,11 @@
             monthYm: r.monthYm,
             shop: r.shop,
             msku: r.msku,
+            region_code: r.region_code,
+            country_code: r.country_code,
+            channel: r.channel,
+            mScenario: r.mScenario,
+            mCategory: r.mCategory,
             splitAmount: 0,
             bpRev: 0
           };
@@ -4006,28 +4111,16 @@
     return true;
   }
 
-  var DEFAULT_SPLIT_CONTEXT_HTML =
-    '以下为<strong>当前筛选范围内全部规划行</strong>分摊后的汇总结果（同月、同店、同 MSKU 会合并为一行金额）。规则见顶部「页面说明」。';
-
-  function setSplitContextDefault() {
-    var ctx = document.getElementById("splitContext");
-    if (ctx) ctx.innerHTML = DEFAULT_SPLIT_CONTEXT_HTML;
-  }
-
   function clearSplitTable() {
-    document.getElementById("tbodySplit").innerHTML = "";
-    setSplitContextDefault();
-    document.getElementById("splitSum").textContent = "";
+    var tb = document.getElementById("tbodySplit");
+    if (tb) tb.innerHTML = "";
   }
 
   function renderSplitAggregated() {
     var tbody = document.getElementById("tbodySplit");
-    var sumEl = document.getElementById("splitSum");
-    if (!tbody || !sumEl) return;
+    if (!tbody) return;
     var fl = filteredList();
     tbody.innerHTML = "";
-    setSplitContextDefault();
-    sumEl.textContent = "";
     if (!fl.length) {
       clearSplitTable();
       return;
@@ -4035,24 +4128,41 @@
     var rows = aggregateSplitFromPlans(fl);
     if (!rows.length) {
       tbody.innerHTML =
-        '<tr><td colspan="5" class="empty">当前筛选与可见规划范围内无拆分结果（请检查各行的场景品类、SKU、新品标签、月份交集及区域/国家/渠道/店铺是否与示例主数据一致）</td></tr>';
+        '<tr><td colspan="7" class="empty">当前筛选与可见规划范围内无拆分结果（请检查各行的场景品类、SKU、新品标签、月份交集及区域/国家/渠道/店铺是否与示例主数据一致）</td></tr>';
       return;
     }
+    var splitSum = rows.reduce(function (a, r) {
+      return a + r.splitAmount;
+    }, 0);
+    var tr0 = document.createElement("tr");
+    tr0.className = "split-row-total";
+    tr0.innerHTML =
+      '<td class="split-path-cell"><span class="split-tree-icon" aria-hidden="true">+</span>总计</td>' +
+      '<td class="split-path-cell"><span class="split-cell-lines">' +
+      escapeHtml("全场景/全部品类/全部品线") +
+      "</span></td>" +
+      '<td><span class="split-cell-lines">sales: 全部\nTL: 全部</span></td>' +
+      '<td><span class="split-cell-lines">sku: 全部SKU</span></td>' +
+      "<td>—</td>" +
+      '<td class="num">—</td>' +
+      '<td class="num">' +
+      formatUsd(splitSum) +
+      "</td>";
+    tbody.appendChild(tr0);
     rows.forEach(function (r) {
       var tr = document.createElement("tr");
       tr.innerHTML =
+        '<td class="split-path-cell"><span class="split-tree-icon" aria-hidden="true">+</span>' +
+        regionStorePathHtml(r) +
+        "</td>" +
+        '<td class="split-path-cell">' + sceneCategoryLineHtml(r) + "</td>" +
+        "<td>" + salesTlCellHtml(r) + "</td>" +
+        "<td>" + skuInfoCellHtml(r) + "</td>" +
         "<td>" + escapeHtml(r.monthYm || "") + "</td>" +
-        "<td>" + escapeHtml(r.shop) + "</td>" +
-        "<td>" + escapeHtml(r.msku) + "</td>" +
         '<td class="num">' + formatPct01(r.weight) + "</td>" +
         '<td class="num">' + formatUsd(r.splitAmount) + "</td>";
       tbody.appendChild(tr);
     });
-    var splitSum = rows.reduce(function (a, r) {
-      return a + r.splitAmount;
-    }, 0);
-    sumEl.textContent =
-      "拆分合计：" + formatUsd(splitSum) + "（汇总 " + rows.length + " 行明细，由可见规划行逐行分摊后合并）。";
   }
 
   function toast(msg) {
