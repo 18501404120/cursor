@@ -1098,56 +1098,29 @@
           </div>
         </section>
 
-        <details class="panel panel-details-fold">
-          <summary class="panel-details-summary">
-            <span>各维度规划 vs 活动（明细，可选展开）</span>
-            <span class="panel-details-chevron" aria-hidden="true"></span>
-          </summary>
-          <div class="panel-body">
-            <div class="panel-head-tools" style="margin-bottom:10px;">
-              <button type="button" class="logic-pin" data-logic-key="b8" aria-label="开发测试说明 规划汇总">8</button>
-              <button type="button" class="field-hint-icon" data-user-hint="planSummaryPanel" aria-label="规划维度汇总说明">i</button>
-            </div>
-            <p class="hint" style="margin-top:0;margin-bottom:10px;font-size:12px;">
-              与 KPI 中「规划年度预算」同源：优先 <code>marketing_expense_plan_v3</code>；无则回退 v2 品线。与上方 KPI 卡片部分信息重叠，故默认折叠，需要按维度核对时再展开。
-            </p>
-            <div class="table-wrap">
-              <table>
-                <thead>
-                  <tr>
-                    <th>场景品类</th>
-                    <th>新品标签</th>
-                    <th class="num">规划费用（USD）</th>
-                    <th class="num">按时间进度预估费用（USD）</th>
-                    <th class="num">实际花费（USD）</th>
-                  </tr>
-                </thead>
-                <tbody id="tbodyLineSummary"></tbody>
-              </table>
-            </div>
-          </div>
-        </details>
-
         <section class="panel">
           <div class="panel-head">
             <span class="panel-head-tools">
-              <span>店铺 + MSKU 分摊</span>
-              <button type="button" class="logic-pin" data-logic-key="b9" aria-label="开发测试说明 分摊表">9</button>
-              <button type="button" class="field-hint-icon" data-user-hint="splitPanel" aria-label="分摊表说明">i</button>
+              <span>场景品类规划明细（与规划页列表同构）</span>
+              <button type="button" class="logic-pin" data-logic-key="b9" aria-label="开发测试说明 规划明细表">9</button>
+              <button type="button" class="field-hint-icon" data-user-hint="splitPanel" aria-label="规划明细表说明">i</button>
             </span>
           </div>
           <div class="panel-body">
-            <p class="split-meta" id="splitCtx">请先在上方列表中选择一条活动。</p>
+            <p class="split-meta" id="splitCtx">与上方列表联动：未选中时展示当前列表全部规划行；点选上方一行则仅展示该行。列与《营销费用规划》场景品类规划表一致，本页仅多「分摊实际」列（与上方「实际」同一数据源）。</p>
             <div class="table-wrap">
-              <table>
+              <table id="tblUsagePlanMirror">
                 <thead>
                   <tr>
+                    <th>规划月份范围</th>
+                    <th>场景品类</th>
+                    <th>SKU</th>
+                    <th>新品标签</th>
+                    <th>区域</th>
+                    <th>国家</th>
+                    <th>渠道</th>
                     <th>店铺</th>
-                    <th>渠道（示意）</th>
-                    <th>MSKU</th>
-                    <th>场景维度（权重示意）</th>
-                    <th>权重</th>
-                    <th class="num">分摊预算（USD）</th>
+                    <th class="num">营销费用规划（USD）</th>
                     <th class="num">分摊实际（USD）</th>
                   </tr>
                 </thead>
@@ -1296,37 +1269,6 @@
   var ACT_ALL_SCENES = "__ALL_SCENES__";
   var ACT_ALL_CATS_OPT = "__ALL_CATS_PER_SEL__";
 
-  /** 与《销量预测管理-原型说明》buildDemoTableRows 中 regions / PRODUCT_DEMO_SAMPLES 一致 */
-  var FORECAST_DEMO_REGIONS = [
-    "北美区/US/Amazon-US",
-    "欧洲区/DE/Amazon-DE",
-    "亚太区/JP/Amazon-JP",
-    "英国区/UK/Amazon-UK"
-  ];
-  var PRODUCT_DEMO_SAMPLES = [
-    { sku: "H6076113", msku: "H6076113-ZY-US" },
-    { sku: "H607C311", msku: "H607C311-ZY-EU" },
-    { sku: "H607C311", msku: "H607C311-APP-EU" },
-    { sku: "H60B0311", msku: "H60B0311-APP-EU" },
-    { sku: "H60B0311", msku: "H60B0311-ZY-EU" },
-    { sku: "H60B0111", msku: "H60B0111-APP-US" },
-    { sku: "H60B0111", msku: "H60B0111-APP-CA" },
-    { sku: "H60B0111", msku: "H60B0111-ZY-CA" },
-    { sku: "H60B0111", msku: "H60B0111-ZY-US" },
-    { sku: "H61951A1", msku: "H61951A1-V" },
-    { sku: "H61411A1-H61951A1", msku: "H61411A1-H61951A1" },
-    { sku: "B6062101", msku: "B6062101-OF-US" },
-    { sku: "B6062101", msku: "B6062101-OF-US-DSV" },
-    { sku: "H6049AD1", msku: "H6049AD1-OF-US" },
-    { sku: "H60521D1", msku: "H60521D1-OF-US" },
-    { sku: "H60521D1", msku: "H60521D1-OF-US-DSV" },
-    { sku: "H6052AD1", msku: "H6052AD1-OF-US" },
-    { sku: "H60541D1", msku: "H60541D1-OF-US-DSV" },
-    { sku: "H6055101", msku: "H6055101-OF-US-DSV" },
-    { sku: "H6072181", msku: "H6072181-OF-US" },
-    { sku: "H6072181", msku: "H6072181-OF-US-DSV" }
-  ];
-
   var currentYear = new Date().getFullYear();
 
   var selectedId = null;
@@ -1357,13 +1299,6 @@
         return s.trim();
       })
       .filter(Boolean);
-  }
-
-  /** 从示例店铺串「区/国/平台」取渠道示意 */
-  function channelHintFromDemoShop(shop) {
-    var parts = String(shop || "").split("/");
-    if (parts.length >= 3) return String(parts[2] || "").trim() || "—";
-    return parts.length ? String(parts[parts.length - 1] || "").trim() : "—";
   }
 
   /** 活动列表「应用范围」：地理/渠道或 SKU 摘要 */
@@ -1495,15 +1430,6 @@
       ye = t;
     }
     return { start: ys, end: ye };
-  }
-
-  function ymdLastOfYm(ym) {
-    var m = String(ym || "").trim().match(/^(\d{4})-(\d{2})$/);
-    if (!m) return String(ym || "") + "-28";
-    var y = parseInt(m[1], 10);
-    var mo = parseInt(m[2], 10);
-    var d = new Date(y, mo, 0).getDate();
-    return m[1] + "-" + m[2] + "-" + String(d).padStart(2, "0");
   }
 
   function ensurePlanGeoArrays(p) {
@@ -1891,24 +1817,48 @@
     return bits.join(" · ").slice(0, 120);
   }
 
-  function planAsActForSplit(p) {
+  /** 与全局月份范围展示一致：YYYY-MM - YYYY-MM */
+  function planMonthRangeDisplayForMirror(p) {
     var pr = getPlanMonthRangePair(p);
-    var y = parseInt(String(pr.start).slice(0, 4), 10) || currentYear;
-    var act = {
-      year: y,
-      dateStart: pr.start + "-01",
-      dateEnd: ymdLastOfYm(pr.end),
-      name: planRowLabel(p),
-      scenario: p.scenario,
-      category: p.category,
-      newProductTag: p.newProductTag,
-      budgetUsd: Number(p.planAmount) || 0,
-      actualUsd: getActualForPlan(p.id)
-    };
-    var L = getPlanSceneCategoryLeaves(p);
-    if (L.length) act.sceneCategoryLeaves = L.slice();
-    if (getPlanSkus(p).length) act.planSkus = getPlanSkus(p).slice();
-    return act;
+    return pr.start + " - " + pr.end;
+  }
+
+  function planCodesJoinedDisplay(arr) {
+    if (!arr || !arr.length) return "—";
+    return arr.join("、");
+  }
+
+  function planSkusCellText(p) {
+    var sk = getPlanSkus(p);
+    if (!sk.length) return "—";
+    return sk.join("、");
+  }
+
+  function renderUsagePlanMirrorRows(tbody, plans) {
+    tbody.innerHTML = "";
+    if (!plans.length) {
+      tbody.innerHTML = '<tr><td colspan="10" class="empty">暂无规划行</td></tr>';
+      return;
+    }
+    plans.forEach(function (p) {
+      normalizePlanRowForBoard(p);
+      ensurePlanGeoArrays(p);
+      var tr = document.createElement("tr");
+      tr.dataset.id = p.id;
+      var actUsd = getActualForPlan(p.id);
+      tr.innerHTML =
+        "<td>" + escapeHtml(planMonthRangeDisplayForMirror(p)) + "</td>" +
+        "<td>" + escapeHtml(formatSceneCategoryColumnForBoard(p)) + "</td>" +
+        "<td>" + escapeHtml(planSkusCellText(p)) + "</td>" +
+        "<td>" + escapeHtml(formatNpTagColumn(p)) + "</td>" +
+        "<td>" + escapeHtml(planCodesJoinedDisplay(planRegionCodesResolved(p))) + "</td>" +
+        "<td>" + escapeHtml(planCodesJoinedDisplay(planCountryCodesResolved(p))) + "</td>" +
+        "<td>" + escapeHtml(planCodesJoinedDisplay(planChannelKeysResolved(p))) + "</td>" +
+        "<td>" + escapeHtml(planCodesJoinedDisplay(planStoreCodesResolved(p))) + "</td>" +
+        '<td class="num">' + formatUsd(p.planAmount) + "</td>" +
+        '<td class="num">' + formatUsd(actUsd) + "</td>";
+      tbody.appendChild(tr);
+    });
   }
 
   function planYearFromRow(p) {
@@ -2200,7 +2150,7 @@
     add(
       "b3",
       "【3】搜索",
-      "校验：场景品类与新品标签不可同时为空。\n通过后以「年度」重置月份范围为该年 1–12 月（与规划页月份范围控件一致），并刷新里程碑、规划行列表、KPI、折叠明细与分摊区；重置按月份钻取。\n区域/国家/渠道/店铺为多选下拉，与规划页同一组件与数据口径。"
+      "校验：场景品类与新品标签不可同时为空。\n通过后以「年度」重置月份范围为该年 1–12 月（与规划页月份范围控件一致），并刷新里程碑、规划行列表、KPI 与下方规划明细表；重置按月份钻取。\n区域/国家/渠道/店铺为多选下拉，与规划页同一组件与数据口径。"
     );
     add(
       "b5",
@@ -2210,7 +2160,7 @@
     add(
       "b6",
       "【6】规划行列表",
-      "行点击：选中规划行并驱动「店铺+MSKU 分摊」示意；点击表格外沿（非行）取消选中。\n预算只读来自规划；实际花费写入 marketing_expense_usage_plan_actuals_v1（按规划行 id）。"
+      "行点击：选中规划行并驱动下方「场景品类规划明细」表仅显示该行；点击表格外沿（非行）取消选中。\n预算只读来自规划；实际花费写入 marketing_expense_usage_plan_actuals_v1（按规划行 id）。"
     );
     add(
       "b7",
@@ -2218,14 +2168,9 @@
       "规划年度预算：与列表同源筛选下 v3 规划 planAmount 合计（无 v3 时回退 v2 品线）。\n列表可见规划预算：当前表格行（含月份钻取）规划金额合计。\n规划行实际合计：同顶部筛选下各规划行已填实际之和（不按月份钻取缩小）。\n时间进度＝自然年内已过天数比例；按进度预估＝规划年度预算×时间进度；差值＝规划行实际合计−预估。"
     );
     add(
-      "b8",
-      "【8】各维度规划 vs 实际（折叠区）",
-      "按 planIdentityKey 聚合当前筛选下规划金额、按进度的预估、以及各键上已填实际之和；可与规划页交叉核对，非财务核销。"
-    );
-    add(
       "b9",
-      "【9】店铺 + MSKU 分摊",
-      "选中一条规划行，或合并当前列表全部行；将规划预算与已填实际按示例 BP 权重拆到店铺/MSKU 示意。与规划页正式拆分引擎可不同源。"
+      "【9】场景品类规划明细",
+      "列与《营销费用规划》「场景品类规划」表一致，仅多「分摊实际（USD）」；行与上方列表同源（未选中为当前列表全部，选中为单行）。分摊实际与列表「实际」列同一存储（marketing_expense_usage_plan_actuals_v1）。"
     );
     return o;
   })();
@@ -2246,18 +2191,13 @@
       "多选新品年份标签；与场景品类组合时取交集（AND）。"
     );
     add("milestonePanel", "里程碑", "点某个月，下面列表只显示规划月份范围与该自然月相交的规划行；再点同月或「取消月份筛选」恢复全年。");
-    add("actListPanel", "规划行列表", "点一行选中该规划行，底部显示分摊示意；表格外空白取消选中。\n「应用范围」来自规划行上的区域/国家/渠道/店铺多选或 SKU 摘要。");
+    add("actListPanel", "规划行列表", "点一行选中该规划行，底部明细表仅显示该行；表格外空白取消选中。\n「应用范围」来自规划行上的区域/国家/渠道/店铺多选或 SKU 摘要。");
     add(
       "kpiPanel",
       "进度与费用",
       "规划年度预算与列表同源筛选；列表可见规划预算为当前表行合计；规划行实际合计为本页在各规划行上填写的实际之和（不按月份钻取缩小）。\n按进度预估＝规划年度预算×自然年时间进度。非财报、非支付口径。"
     );
-    add(
-      "planSummaryPanel",
-      "规划 vs 实际明细",
-      "按维度聚合规划金额、按进度的预估、以及已填实际；可与规划页交叉核对。"
-    );
-    add("splitPanel", "分摊表", "选中一条规划行，或合并当前列表；按示例权重拆到店铺/渠道示意/MSKU。");
+    add("splitPanel", "规划明细表", "与规划页「场景品类规划」同列，仅多「分摊实际」；数据与上方列表一致，在此核对或随列表筛选变化。");
     return o;
   })();
 
@@ -2957,113 +2897,6 @@
     return filterNpTagKeys.indexOf(v) >= 0;
   }
 
-  function forecastDemoRow(i, dimKey, year) {
-    var reg = FORECAST_DEMO_REGIONS[i % FORECAST_DEMO_REGIONS.length];
-    var samp = PRODUCT_DEMO_SAMPLES[i % PRODUCT_DEMO_SAMPLES.length];
-    var base = String(dimKey).replace(/\s/g, "").split("").reduce(function (s, c) {
-      return s + c.charCodeAt(0);
-    }, 0) % 5000;
-    return {
-      year: year,
-      sourceDim: dimKey,
-      shop: reg,
-      msku: samp.msku,
-      bpRevenue: 80000 + (i % 5) * 17000 + base % 9000
-    };
-  }
-
-  function mockSkuRows(year, dimKey) {
-    var rows = [];
-    for (var i = 0; i < 5; i++) {
-      rows.push(forecastDemoRow(i, dimKey, year));
-    }
-    return rows;
-  }
-
-  function mockSkuRowsForUniversal(year) {
-    var merged = [];
-    var idx = 0;
-    var take = SCENARIO_CATEGORY_TREE.filter(function (n) {
-      return n.scenario !== "未分类";
-    }).slice(0, 3);
-    take.forEach(function (node) {
-      if (!node.categories || !node.categories.length) return;
-      var c0 = node.categories[0];
-      for (var j = 0; j < 3; j++) {
-        merged.push(forecastDemoRow(idx++, leafKey(node.scenario, c0), year));
-      }
-    });
-    return merged.slice(0, 10);
-  }
-
-  function mockSkuRowsForAct(act, year) {
-    if (actUniversalScene(act)) return mockSkuRowsForUniversal(year);
-    var L = getActivityLeaves(act);
-    if (L.indexOf(ACT_ALL_SCENES) >= 0) return mockSkuRowsForUniversal(year);
-    if (L.length > 1) {
-      var merged = [];
-      var idx = 0;
-      L.forEach(function (one) {
-        var p = one.split("\t");
-        var scn = String(p[0] || "").trim();
-        var catn = String(p[1] != null ? p[1] : "").trim();
-        var dk = leafKey(scn, catn || resolvedCategoryDisplay({ scenario: scn, category: catn }));
-        var rows = mockSkuRows(year, dk + "\t" + planNpTagValue(act));
-        rows.forEach(function (r) {
-          merged.push(r);
-        });
-      });
-      return merged.slice(0, 12);
-    }
-    if (L.length === 1) {
-      var p2 = L[0].split("\t");
-      var sc2 = String(p2[0] || "").trim();
-      var cat2 = String(p2[1] != null ? p2[1] : "").trim();
-      var dim =
-        leafKey(sc2, cat2 ? cat2 : resolvedCategoryDisplay({ scenario: sc2, category: cat2 })) +
-        "\t" +
-        planNpTagValue(act);
-      return mockSkuRows(year, dim || "demo");
-    }
-    var dim =
-      leafKey(act.scenario, resolvedCategoryDisplay(act)) +
-      "\t" +
-      planNpTagValue(act);
-    return mockSkuRows(year, dim || "demo");
-  }
-
-  function splitBudgetAndActual(budgetTotal, actualTotal, year, act) {
-    var skus = mockSkuRowsForAct(act, year);
-    var totalBp = skus.reduce(function (s, r) {
-      return s + r.bpRevenue;
-    }, 0);
-    var label =
-      formatSceneCategoryColumnForBoard(act) +
-      (planNpTagValue(act) ? " · " + planNpTagValue(act) : "");
-    var rows = skus.map(function (r) {
-      var w = totalBp > 0 ? r.bpRevenue / totalBp : 0;
-      return {
-        shop: r.shop,
-        channelHint: channelHintFromDemoShop(r.shop),
-        msku: r.msku,
-        sourceLine: label,
-        weight: w,
-        budget: Math.round(budgetTotal * w),
-        actual: Math.round(actualTotal * w)
-      };
-    });
-    if (!rows.length) return [];
-    var sumB = rows.reduce(function (s, r) {
-      return s + r.budget;
-    }, 0);
-    rows[rows.length - 1].budget += budgetTotal - sumB;
-    var sumA = rows.reduce(function (s, r) {
-      return s + r.actual;
-    }, 0);
-    rows[rows.length - 1].actual += actualTotal - sumA;
-    return rows;
-  }
-
   function toast(msg) {
     var el = document.getElementById("toast");
     el.textContent = msg;
@@ -3594,51 +3427,13 @@
     renderSplit();
   }
 
-  /** 将多条活动的分摊行按 店铺+MSKU+维度标签 合并预算/实际 */
-  function mergeSplitRowsByKey(rowArrays) {
-    var map = {};
-    rowArrays.forEach(function (rows) {
-      rows.forEach(function (r) {
-        var k = r.shop + "\t" + r.msku + "\t" + String(r.sourceLine || "");
-        if (!map[k]) {
-          map[k] = {
-            shop: r.shop,
-            msku: r.msku,
-            channelHint: r.channelHint != null ? r.channelHint : channelHintFromDemoShop(r.shop),
-            sourceLine: r.sourceLine,
-            budget: 0,
-            actual: 0
-          };
-        }
-        map[k].budget += r.budget;
-        map[k].actual += r.actual;
-      });
-    });
-    return Object.keys(map).map(function (k) {
-      return map[k];
-    });
-  }
-
-  function renderSplitRows(tbody, rows) {
-    rows.forEach(function (r) {
-      var tr = document.createElement("tr");
-      tr.innerHTML =
-        "<td>" + escapeHtml(r.shop) + "</td>" +
-        "<td>" + escapeHtml(r.channelHint != null ? r.channelHint : channelHintFromDemoShop(r.shop)) + "</td>" +
-        "<td>" + escapeHtml(r.msku) + "</td>" +
-        "<td>" + escapeHtml(r.sourceLine || "—") + "</td>" +
-        '<td class="num">' + (r.weight * 100).toFixed(2) + "%</td>" +
-        '<td class="num">' + formatUsd(r.budget) + "</td>" +
-        '<td class="num">' + formatUsd(r.actual) + "</td>";
-      tbody.appendChild(tr);
-    });
-  }
-
+  /** 与规划页「场景品类规划」表同列，仅多「分摊实际」；数据与上方列表 / localStorage 一致 */
   function renderSplit() {
     var ctx = document.getElementById("splitCtx");
     var tbody = document.getElementById("tbodySplit");
+    if (!tbody || !ctx) return;
     tbody.innerHTML = "";
-
+    var rows;
     if (selectedId) {
       var p = loadPlansV3Array().find(function (x) { return x.id === selectedId; });
       if (!p) {
@@ -3647,162 +3442,22 @@
         return;
       }
       normalizePlanRowForBoard(p);
-      var a = planAsActForSplit(p);
-      var rows = splitBudgetAndActual(Number(a.budgetUsd) || 0, Number(a.actualUsd) || 0, a.year, a);
-      var pr = getPlanMonthRangePair(p);
+      rows = [p];
       ctx.textContent =
-        "规划行「" +
-        planRowLabel(p) +
-        "」· " +
-        pr.start +
-        " ～ " +
-        pr.end +
-        " · 场景品类 " +
-        formatSceneCategoryColumnForBoard(p) +
-        " · 新品 " +
-        formatNpTagColumn(p) +
-        " · 规划预算 " +
-        formatUsd(p.planAmount) +
-        " · 已填实际 " +
-        formatUsd(getActualForPlan(p.id));
-      renderSplitRows(tbody, rows);
-      return;
-    }
-
-    /** 未选中：与列表一致，合并当前列表中全部规划行的分摊（示意） */
-    var plans = tablePlans();
-    if (plans.length === 0) {
-      ctx.textContent = "当前列表无规划行，无分摊数据。";
-      return;
-    }
-    var perAct = plans.map(function (p) {
-      normalizePlanRowForBoard(p);
-      var a = planAsActForSplit(p);
-      return splitBudgetAndActual(Number(a.budgetUsd) || 0, Number(a.actualUsd) || 0, a.year, a);
-    });
-    var merged = mergeSplitRowsByKey(perAct);
-    var totalB = merged.reduce(function (s, r) {
-      return s + r.budget;
-    }, 0);
-    var totalA = merged.reduce(function (s, r) {
-      return s + r.actual;
-    }, 0);
-    merged.forEach(function (r) {
-      r.weight = totalB > 0 ? r.budget / totalB : totalA > 0 ? r.actual / totalA : 0;
-    });
-    merged.sort(function (x, y) {
-      return String(x.shop).localeCompare(String(y.shop)) || String(x.msku).localeCompare(String(y.msku));
-    });
-    var sumBudgetPlans = plans.reduce(function (s, p) {
-      return s + (Number(p.planAmount) || 0);
-    }, 0);
-    var sumActualPlans = plans.reduce(function (s, p) {
-      return s + getActualForPlan(p.id);
-    }, 0);
-    ctx.textContent =
-      "当前列表 " +
-      plans.length +
-      " 条规划 · 合并分摊示意（规划预算合计 " +
-      formatUsd(sumBudgetPlans) +
-      " · 已填实际合计 " +
-      formatUsd(sumActualPlans) +
-      "）";
-    renderSplitRows(tbody, merged);
-  }
-
-  function actActualSummaryKey(a) {
-    return planIdentityKey({
-      year: a.year,
-      scenario: a.scenario,
-      category: a.category,
-      newProductTag: a.newProductTag
-    });
-  }
-
-  function firstActRefForSummaryKey(acts, k) {
-    var hit = acts.filter(function (a) {
-      return !actUniversalScene(a) && actActualSummaryKey(a) === k;
-    });
-    return hit.length ? hit[0] : {};
-  }
-
-  /** 规划维度：与当前筛选下 v3 规划行一致；实际列读「规划行实际」映射 */
-  function renderLineSummary() {
-    var tbody = document.getElementById("tbodyLineSummary");
-    if (!tbody) return;
-    tbody.innerHTML = "";
-    var tp = timeProgressForYear(currentYear);
-    var plansF = filteredPlansForKpi();
-    var actualByKey = {};
-    plansF.forEach(function (p) {
-      var k = planIdentityKey(p);
-      actualByKey[k] = (actualByKey[k] || 0) + getActualForPlan(p.id);
-    });
-    try {
-      var raw3 = localStorage.getItem(PLAN_STORAGE_KEY_V3);
-      if (raw3) {
-        var arr3 = JSON.parse(raw3);
-        if (Array.isArray(arr3) && arr3.length) {
-          var planByKey = {};
-          plansF.forEach(function (p) {
-            normalizePlanRowForBoard(p);
-            var k = planIdentityKey(p);
-            if (!planByKey[k]) {
-              planByKey[k] = { plan: 0, ref: p };
-            }
-            planByKey[k].plan += Number(p.planAmount) || 0;
-            planByKey[k].ref = p;
-          });
-          var ordered = Object.keys(planByKey);
-          Object.keys(actualByKey).forEach(function (k) {
-            if (ordered.indexOf(k) < 0) ordered.push(k);
-          });
-          ordered.forEach(function (k) {
-            var cell = planByKey[k] || { plan: 0, ref: {} };
-            var ref = cell.ref || {};
-            var plan = cell.plan || 0;
-            var exp = Math.round(plan * tp);
-            var actv = actualByKey[k] || 0;
-            var tr = document.createElement("tr");
-            tr.innerHTML =
-              "<td>" + escapeHtml(formatSceneCategoryColumnForBoard(ref)) + "</td>" +
-              "<td>" + escapeHtml(formatNpTagColumn(ref)) + "</td>" +
-              '<td class="num">' + formatUsd(plan) + "</td>" +
-              '<td class="num">' + formatUsd(exp) + "</td>" +
-              '<td class="num">' + formatUsd(actv) + "</td>";
-            tbody.appendChild(tr);
-          });
-          return;
-        }
+        "已选中 1 条规划行；下方表格列与《营销费用规划》场景品类规划一致，并多「分摊实际」（与上方「实际」同一数据源）。";
+    } else {
+      rows = tablePlans().slice();
+      if (!rows.length) {
+        ctx.textContent = "当前列表无规划行；请先在规划页保存数据或调整筛选。";
+        tbody.innerHTML = '<tr><td colspan="10" class="empty">暂无规划行</td></tr>';
+        return;
       }
-    } catch (e1) {}
-    var planMap = {};
-    try {
-      var raw2 = localStorage.getItem(PLAN_STORAGE_KEY_V2);
-      if (raw2) {
-        var arr2 = JSON.parse(raw2);
-        if (Array.isArray(arr2)) {
-          arr2.forEach(function (p) {
-            if (String(p.year) !== String(currentYear) || !p.productLine) return;
-            var kk = String(p.productLine);
-            planMap[kk] = (planMap[kk] || 0) + (Number(p.planAmount) || 0);
-          });
-        }
-      }
-    } catch (e2) {}
-    var ordered2 = Object.keys(planMap);
-    ordered2.forEach(function (code) {
-      var plan = planMap[code] || 0;
-      var exp = Math.round(plan * tp);
-      var tr = document.createElement("tr");
-      tr.innerHTML =
-        "<td>" + escapeHtml("历史品线 " + code) + "</td>" +
-        "<td>—</td>" +
-        '<td class="num">' + formatUsd(plan) + "</td>" +
-        '<td class="num">' + formatUsd(exp) + "</td>" +
-        '<td class="num">' + formatUsd(0) + "</td>";
-      tbody.appendChild(tr);
-    });
+      ctx.textContent =
+        "共 " +
+        rows.length +
+        " 条，与当前上方列表一致；列与规划页规划表同构 + 分摊实际。点选上方一行可仅查看单行。";
+    }
+    renderUsagePlanMirrorRows(tbody, rows);
   }
 
   function refreshAll() {
@@ -3811,7 +3466,7 @@
     renderKpis();
     renderMilestones();
     renderTable();
-    renderLineSummary();
+    renderSplit();
   }
 
   function openModal(act, presetMonth) {
