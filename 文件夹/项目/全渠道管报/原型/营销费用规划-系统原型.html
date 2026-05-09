@@ -551,28 +551,28 @@
       white-space: nowrap;
     }
     tbody tr:hover td { background: #fafafa; }
-    #tblPlan th:nth-child(2),
-    #tblPlan td:nth-child(2),
     #tblPlan th:nth-child(3),
-    #tblPlan td:nth-child(3) {
+    #tblPlan td:nth-child(3),
+    #tblPlan th:nth-child(4),
+    #tblPlan td:nth-child(4) {
       text-align: center;
     }
     /* 规划表：固定大屏列宽，小屏横向滚动，不压缩 */
     #tblPlan {
       table-layout: fixed;
-      width: 1940px;
-      min-width: 1940px;
+      width: 2140px;
+      min-width: 2140px;
     }
     #tblPlan th:nth-child(1),
     #tblPlan td:nth-child(1) { width: 220px; }
     #tblPlan th:nth-child(2),
-    #tblPlan td:nth-child(2) { width: 280px; }
+    #tblPlan td:nth-child(2) { width: 220px; }
     #tblPlan th:nth-child(3),
-    #tblPlan td:nth-child(3) { width: 190px; }
+    #tblPlan td:nth-child(3) { width: 280px; }
     #tblPlan th:nth-child(4),
-    #tblPlan td:nth-child(4) { width: 140px; }
+    #tblPlan td:nth-child(4) { width: 190px; }
     #tblPlan th:nth-child(5),
-    #tblPlan td:nth-child(5) { width: 150px; }
+    #tblPlan td:nth-child(5) { width: 140px; }
     #tblPlan th:nth-child(6),
     #tblPlan td:nth-child(6) { width: 150px; }
     #tblPlan th:nth-child(7),
@@ -580,9 +580,11 @@
     #tblPlan th:nth-child(8),
     #tblPlan td:nth-child(8) { width: 150px; }
     #tblPlan th:nth-child(9),
-    #tblPlan td:nth-child(9) { width: 180px; }
+    #tblPlan td:nth-child(9) { width: 150px; }
     #tblPlan th:nth-child(10),
-    #tblPlan td:nth-child(10) { width: 130px; }
+    #tblPlan td:nth-child(10) { width: 180px; }
+    #tblPlan th:nth-child(11),
+    #tblPlan td:nth-child(11) { width: 130px; }
 
     /* 右侧固定操作列 */
     #tblPlan th.actions,
@@ -994,6 +996,9 @@
                         规划月份范围
                         <button type="button" class="field-hint-icon" data-user-hint="planMonthRangeCol" aria-label="规划月份范围列说明">i</button>
                       </span>
+                    </th>
+                    <th>
+                      <span class="th-inner">项目名称</span>
                     </th>
                     <th>
                       <span class="th-inner">
@@ -4229,13 +4234,14 @@
         loadAll().length === 0
           ? "无数据，可点击「新增一行」开始维护"
           : "当前筛选下无规划行（可点击「搜索」或调整筛选）；下方拆分结果仍按全部已保存规划行分摊后，再按顶部筛选裁切展示。";
-      tbody.innerHTML = '<tr><td colspan="10" class="empty">' + escapeHtml(emptyPlanMsg) + "</td></tr>";
+      tbody.innerHTML = '<tr><td colspan="11" class="empty">' + escapeHtml(emptyPlanMsg) + "</td></tr>";
     } else {
       list.forEach(function (p) {
         var tr = document.createElement("tr");
         tr.dataset.id = p.id;
         tr.innerHTML =
           '<td><div class="plan-row-mr-host js-plan-mr-host"></div></td>' +
+          '<td><input type="text" class="inp-inline js-project-name" maxlength="120" placeholder="请输入项目名称" value="' + escapeHtml(String(p.projectName || "")) + '" /></td>' +
           "<td>" + scenarioCategoryCellHtml(p) + "</td>" +
           "<td>" + planSkuCellHtml(p) + "</td>" +
           "<td>" + planNpTagCellHtml(p) + "</td>" +
@@ -4441,12 +4447,14 @@
       return false;
     }
     var amt = parseFloat(tr.querySelector(".js-amt").value) || 0;
+    var projectName = String((tr.querySelector(".js-project-name") && tr.querySelector(".js-project-name").value) || "").trim();
     var leaves = readLeavesFromTr(tr);
     var skus = readSkusFromTrSafe(tr);
     var npSel = tr.querySelector(".js-np-tag-row");
     var tagFromDom = npSel && npSel.value != null ? String(npSel.value).trim() : "";
     var fake = JSON.parse(JSON.stringify(p));
     fake.planAmount = amt;
+    fake.projectName = projectName;
     if (!applyPlanMonthsToRecord(fake, mr.start, mr.end)) {
       toast("规划月份范围无效");
       return false;
@@ -4467,6 +4475,7 @@
     }
     applyPlanMonthsToRecord(p, mr.start, mr.end);
     p.planAmount = amt;
+    p.projectName = projectName;
     applyLeavesAndSkusToPlan(p, leaves, skus);
     if (tagFromDom) p.newProductTag = tagFromDom;
     else delete p.newProductTag;
@@ -4581,6 +4590,7 @@
       year: y,
       planMonthStart: y + "-01",
       planMonthEnd: y + "-12",
+      projectName: "",
       scenario: base.scenario,
       category: base.categories[0],
       planAmount: 0,
@@ -4605,6 +4615,7 @@
       var mr = readPlanMonthRangeFromTr(tr);
       if (!mr.start || !mr.end || !applyPlanMonthsToRecord(p, mr.start, mr.end)) mrErr = true;
       p.planAmount = parseFloat(tr.querySelector(".js-amt").value) || 0;
+      p.projectName = String((tr.querySelector(".js-project-name") && tr.querySelector(".js-project-name").value) || "").trim();
       var leaves = readLeavesFromTr(tr);
       var skus = readSkusFromTrSafe(tr);
       applyLeavesAndSkusToPlan(p, leaves, skus);

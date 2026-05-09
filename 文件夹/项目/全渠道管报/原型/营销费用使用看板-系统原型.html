@@ -599,6 +599,10 @@
     .num { text-align: right; font-variant-numeric: tabular-nums; }
     .split-cell-lines { white-space: pre-line; }
     .split-path-cell { min-width: 140px; }
+    .subitem-readonly-wrap table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    .subitem-readonly-wrap th, .subitem-readonly-wrap td { padding: 6px 8px; border: 1px solid var(--line); }
+    .subitem-readonly-wrap th { background: #f7f9fc; font-weight: 600; }
+    .subitem-readonly-wrap td.num { text-align: right; }
     #tblUsagePlanMirror tr.split-row-total td { font-weight: 600; background: #fafafa; }
     #tblUsagePlanMirror th:nth-child(9),
     #tblUsagePlanMirror td:nth-child(9) {
@@ -980,7 +984,7 @@
               <div class="page-doc-content">
                 <ol>
                   <li>先在顶部选择场景品类/新品标签及月份范围等筛选条件，点击搜索。</li>
-                  <li>在「规划行列表」查看目标规划行并登记「实际（USD）」。</li>
+                  <li>在「规划行列表」点击「登记子项」，按规划月份新增多行子项并填写项目类型、子项规划费用、子项实际费用。</li>
                   <li>在底部表核对按月拆分结果与「分摊实际费用（USD）」。</li>
                   <li>需要查看字段解释时，点击对应区域蓝色 <strong>i</strong>。</li>
                 </ol>
@@ -1086,6 +1090,7 @@
                 <thead>
                   <tr>
                     <th>规划月份范围</th>
+                    <th>项目名称</th>
                     <th>场景品类</th>
                     <th>SKU</th>
                     <th>新品标签</th>
@@ -1094,7 +1099,8 @@
                     <th>渠道</th>
                     <th>店铺</th>
                     <th class="num">规划预算（USD）</th>
-                    <th class="num">实际（USD）</th>
+                    <th>子项登记（按月）</th>
+                    <th style="width:96px;">展开</th>
                   </tr>
                 </thead>
                 <tbody id="tbodyActs"></tbody>
@@ -1259,6 +1265,41 @@
     </div>
   </div>
 
+  <div class="modal-mask" id="subItemMask" role="dialog" aria-modal="true" aria-labelledby="subItemTitle">
+    <div class="modal" id="subItemBox" style="max-width:860px;">
+      <div class="modal-hd">
+        <h2 class="modal-title" id="subItemTitle">实际费用子项登记（按规划月份）</h2>
+        <div class="modal-hd-actions">
+          <button type="button" class="modal-close" id="subItemClose" aria-label="关闭">×</button>
+        </div>
+      </div>
+      <div class="modal-bd">
+        <div class="hint" id="subItemPlanInfo" style="margin-bottom:10px;"></div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>规划月份</th>
+                <th>项目类型</th>
+                <th class="num">子项规划费用（USD）</th>
+                <th class="num">子项实际费用（USD）</th>
+                <th style="width:90px;">操作</th>
+              </tr>
+            </thead>
+            <tbody id="subItemBody"></tbody>
+          </table>
+        </div>
+        <div style="margin-top:10px;display:flex;gap:8px;">
+          <button type="button" class="btn btn-default" id="subItemAdd">新增一行</button>
+        </div>
+      </div>
+      <div class="modal-ft">
+        <button type="button" class="btn btn-default" id="subItemCancel">取消</button>
+        <button type="button" class="btn btn-primary" id="subItemSave">保存</button>
+      </div>
+    </div>
+  </div>
+
   <div id="logicUnifiedModal" class="logic-modal" hidden aria-modal="true" role="dialog" aria-labelledby="logicUnifiedTitle">
     <div id="logicUnifiedBackdrop" class="logic-modal-backdrop"></div>
     <div class="logic-modal-card">
@@ -1306,8 +1347,11 @@
   var currentFilter = { monthStart: "", monthEnd: "" };
   var _fltGeoMsf = { region: null, country: null, channel: null, store: null };
   var FILTER_STORE_CODES = ["AMZ-US-01", "AMZ-EU-02", "AMZ-GB-01", "独立站-01", "TK-US-01", "线下-DE-01", "商超-MX-01"];
-  /** 规划行 id → 实际花费（USD），与规划 JSON 分离 */
-  var USAGE_ACTUAL_KEY = "marketing_expense_usage_plan_actuals_v1";
+  /** 规划行 id → 子项列表（按规划月份登记） */
+  var USAGE_SUBITEM_KEY = "marketing_expense_usage_plan_subitems_v1";
+  var PROJECT_TYPE_OPTIONS = ["PR", "KOL", "SNS", "Paid", "Creative", "BD", "其他"];
+  var subItemEditingPlanId = "";
+  var subItemEditingRows = [];
   /** 与规划页同一套示例主数据（MSKU 池） */
   var MOCK_MSKU_UNIVERSE = [];
 
@@ -1327,6 +1371,7 @@
   var currentYear = new Date().getFullYear();
 
   var selectedId = null;
+  var expandedPlanRows = {};
   var selectedMonth = null;
 
   function planNpTagLabelForYear(yr) {
@@ -1399,9 +1444,9 @@
     }
   }
 
-  function loadUsageActuals() {
+  function loadUsageSubItems() {
     try {
-      var r = localStorage.getItem(USAGE_ACTUAL_KEY);
+      var r = localStorage.getItem(USAGE_SUBITEM_KEY);
       if (!r) return { byPlanId: {} };
       var o = JSON.parse(r);
       return o && o.byPlanId ? o : { byPlanId: {} };
@@ -1410,25 +1455,47 @@
     }
   }
 
-  function saveUsageActuals(o) {
+  function saveUsageSubItems(o) {
     try {
-      localStorage.setItem(USAGE_ACTUAL_KEY, JSON.stringify(o || { byPlanId: {} }));
+      localStorage.setItem(USAGE_SUBITEM_KEY, JSON.stringify(o || { byPlanId: {} }));
     } catch (e) {}
   }
 
-  function getActualForPlan(planId) {
-    var m = loadUsageActuals().byPlanId || {};
-    var v = m[String(planId)];
-    return v == null || v === "" ? 0 : Number(v) || 0;
+  function getSubItemsForPlan(planId) {
+    var m = loadUsageSubItems().byPlanId || {};
+    var arr = m[String(planId)];
+    return Array.isArray(arr) ? arr : [];
   }
 
-  function setActualForPlan(planId, val) {
-    var o = loadUsageActuals();
+  function saveSubItemsForPlan(planId, rows) {
+    var o = loadUsageSubItems();
     o.byPlanId = o.byPlanId || {};
-    var n = Number(val);
-    if (!planId || val === "" || isNaN(n) || n === 0) delete o.byPlanId[String(planId)];
-    else o.byPlanId[String(planId)] = n;
-    saveUsageActuals(o);
+    if (!planId) return;
+    var clean = (Array.isArray(rows) ? rows : []).map(function (r) {
+      return {
+        month: String(r.month || "").trim(),
+        projectType: String(r.projectType || "").trim(),
+        planFee: Number(r.planFee) || 0,
+        actualFee: Number(r.actualFee) || 0
+      };
+    }).filter(function (r) {
+      return !!r.month && (r.planFee !== 0 || r.actualFee !== 0 || !!r.projectType);
+    });
+    if (!clean.length) delete o.byPlanId[String(planId)];
+    else o.byPlanId[String(planId)] = clean;
+    saveUsageSubItems(o);
+  }
+
+  function getActualForPlan(planId) {
+    return getSubItemsForPlan(planId).reduce(function (s, r) {
+      return s + (Number(r.actualFee) || 0);
+    }, 0);
+  }
+
+  function getSubPlanFeeForPlan(planId) {
+    return getSubItemsForPlan(planId).reduce(function (s, r) {
+      return s + (Number(r.planFee) || 0);
+    }, 0);
   }
 
   function pad2(n) {
@@ -2801,7 +2868,7 @@
     add(
       "b9",
       "【9】场景品类规划明细",
-      "列与《营销费用规划》最下方拆分列表一致，仅多「分摊实际（USD）」；行与上方列表同源（未选中为当前列表全部，选中为单行）。分摊实际与列表「实际」列使用同一份实际费用记录。"
+      "列与《营销费用规划》最下方拆分列表一致，仅多「分摊实际（USD）」；行与上方列表同源（未选中为当前列表全部，选中为单行）。分摊实际来自「登记子项」中各规划行的子项实际费用。"
     );
     return o;
   })();
@@ -3992,10 +4059,20 @@
     tbody.innerHTML = "";
     if (plans.length === 0) {
       tbody.innerHTML =
-        '<tr><td colspan="10" class="empty">暂无规划行。请先在《营销费用规划》中保存场景品类规划，或调整筛选条件。</td></tr>';
+        '<tr><td colspan="12" class="empty">暂无规划行。请先在《营销费用规划》中保存场景品类规划，或调整筛选条件。</td></tr>';
       selectedId = null;
       renderSplit();
       return;
+    }
+    function subitemsReadonlyHtml(pid) {
+      var rows = getSubItemsForPlan(pid);
+      if (!rows.length) return '<div class="hint">暂无已登记子项</div>';
+      var h = '<div class="subitem-readonly-wrap"><table><thead><tr><th>规划月份</th><th>项目类型</th><th class="num">子项规划费用（USD）</th><th class="num">子项实际费用（USD）</th></tr></thead><tbody>';
+      rows.forEach(function (r) {
+        h += '<tr><td>' + escapeHtml(String(r.month || "")) + '</td><td>' + escapeHtml(String(r.projectType || "")) + '</td><td class="num">' + formatUsd(Number(r.planFee) || 0) + '</td><td class="num">' + formatUsd(Number(r.actualFee) || 0) + "</td></tr>";
+      });
+      h += "</tbody></table></div>";
+      return h;
     }
     plans.forEach(function (p) {
       var pr = getPlanMonthRangePair(p);
@@ -4003,6 +4080,8 @@
       tr.dataset.id = p.id;
       if (selectedId === p.id) tr.classList.add("sel");
       var actVal = getActualForPlan(p.id);
+      var subPlanVal = getSubPlanFeeForPlan(p.id);
+      var subCount = getSubItemsForPlan(p.id).length;
       var scTxt = formatSceneCategoryColumnForBoard(p);
       if (scTxt === "-" || scTxt === "—" || scTxt === "请选择场景品类") scTxt = "";
       var npTxt = formatNpTagColumn(p);
@@ -4014,6 +4093,7 @@
       var stTxt = planStoreCodesResolved(p).join("、");
       tr.innerHTML =
         "<td>" + escapeHtml(pr.start + "～" + pr.end) + "</td>" +
+        "<td>" + escapeHtml(String(p.projectName || "")) + "</td>" +
         "<td>" + escapeHtml(scTxt) + "</td>" +
         "<td>" + escapeHtml(skuTxt) + "</td>" +
         "<td>" + escapeHtml(npTxt) + "</td>" +
@@ -4022,38 +4102,36 @@
         "<td>" + escapeHtml(chTxt) + "</td>" +
         "<td>" + escapeHtml(stTxt) + "</td>" +
         '<td class="num">' + formatUsd(p.planAmount) + "</td>" +
-        '<td class="num"><input type="number" class="input-actual-num js-plan-actual" min="0" step="1" data-plan-id="' +
-        escapeHtml(p.id) +
-        '" value="' +
-        String(actVal || 0) +
-        '" placeholder="0" aria-label="实际 USD" /></td>';
+        '<td><div style="display:flex;align-items:center;justify-content:space-between;gap:8px;white-space:nowrap;"><span class="hint">已登记 ' + String(subCount) + ' 行 / 规划 ' + formatUsd(subPlanVal) + ' / 实际 ' + formatUsd(actVal) + '</span><button type="button" class="btn btn-default js-subitem-edit" data-plan-id="' + escapeHtml(p.id) + '">登记子项</button></div></td>' +
+        '<td><button type="button" class="btn btn-default js-subitem-toggle" data-plan-id="' + escapeHtml(p.id) + '">' + (expandedPlanRows[p.id] ? "收起" : "展开") + "</button></td>";
       tbody.appendChild(tr);
+      if (expandedPlanRows[p.id]) {
+        var trSub = document.createElement("tr");
+        trSub.className = "subitem-readonly-row";
+        trSub.innerHTML = '<td colspan="12">' + subitemsReadonlyHtml(p.id) + "</td>";
+        tbody.appendChild(trSub);
+      }
     });
-    tbody.querySelectorAll(".js-plan-actual").forEach(function (inp) {
-      inp.addEventListener("click", function (e) {
+    tbody.querySelectorAll(".js-subitem-edit").forEach(function (btn) {
+      btn.addEventListener("click", function (e) {
         e.stopPropagation();
+        var pid = btn.getAttribute("data-plan-id");
+        openSubItemModal(pid);
       });
-      inp.addEventListener("keydown", function (e) {
+    });
+    tbody.querySelectorAll(".js-subitem-toggle").forEach(function (btn) {
+      btn.addEventListener("click", function (e) {
         e.stopPropagation();
-      });
-      inp.addEventListener("change", function () {
-        var pid = inp.getAttribute("data-plan-id");
-        setActualForPlan(pid, inp.value);
-        renderKpis();
-        renderSplit();
-      });
-      inp.addEventListener("blur", function () {
-        var pid = inp.getAttribute("data-plan-id");
-        setActualForPlan(pid, inp.value);
-        renderKpis();
-        renderSplit();
+        var pid = btn.getAttribute("data-plan-id");
+        expandedPlanRows[pid] = !expandedPlanRows[pid];
+        renderTable();
       });
     });
     tbody.querySelectorAll("tr").forEach(function (tr) {
       var id = tr.dataset.id;
       if (!id) return;
       tr.addEventListener("click", function (e) {
-        if (e.target.closest(".js-plan-actual")) return;
+        if (e.target.closest(".js-subitem-edit")) return;
         if (selectedId === id) {
           selectedId = null;
         } else {
@@ -4068,6 +4146,81 @@
       selectedId = null;
     }
     renderSplit();
+  }
+
+  function planMonthsForRow(p) {
+    var pr = getPlanMonthRangePair(p || {});
+    return enumerateYmMonths(pr.start, pr.end);
+  }
+
+  function monthSelectHtml(current, months) {
+    var opts = months.map(function (m) {
+      return '<option value="' + escapeHtml(m) + '"' + (m === current ? " selected" : "") + ">" + escapeHtml(m) + "</option>";
+    }).join("");
+    return '<select class="js-sub-month">' + opts + "</select>";
+  }
+
+  function typeSelectHtml(current) {
+    return '<select class="js-sub-type">' + PROJECT_TYPE_OPTIONS.map(function (t) {
+      return '<option value="' + escapeHtml(t) + '"' + (t === current ? " selected" : "") + ">" + escapeHtml(t) + "</option>";
+    }).join("") + "</select>";
+  }
+
+  function renderSubItemRows() {
+    var tb = document.getElementById("subItemBody");
+    if (!tb) return;
+    var plans = tablePlans();
+    var p = plans.find(function (x) { return x.id === subItemEditingPlanId; }) || filteredPlansForKpi().find(function (x) { return x.id === subItemEditingPlanId; });
+    var months = planMonthsForRow(p);
+    if (!subItemEditingRows.length) {
+      subItemEditingRows.push({
+        month: months[0] || "",
+        projectType: PROJECT_TYPE_OPTIONS[0],
+        planFee: 0,
+        actualFee: 0
+      });
+    }
+    tb.innerHTML = "";
+    subItemEditingRows.forEach(function (r, idx) {
+      if (!r.month) r.month = months[0] || "";
+      var tr = document.createElement("tr");
+      tr.innerHTML =
+        "<td>" + monthSelectHtml(String(r.month || months[0] || ""), months) + "</td>" +
+        "<td>" + typeSelectHtml(String(r.projectType || PROJECT_TYPE_OPTIONS[0])) + "</td>" +
+        '<td class="num"><input type="number" class="input-actual-num js-sub-plan" min="0" step="1" value="' + String(Number(r.planFee) || 0) + '" /></td>' +
+        '<td class="num"><input type="number" class="input-actual-num js-sub-actual" min="0" step="1" value="' + String(Number(r.actualFee) || 0) + '" /></td>' +
+        '<td><button type="button" class="link danger js-sub-del">删除</button></td>';
+      tb.appendChild(tr);
+      tr.querySelector(".js-sub-month").addEventListener("change", function () { r.month = this.value; });
+      tr.querySelector(".js-sub-type").addEventListener("change", function () { r.projectType = this.value; });
+      tr.querySelector(".js-sub-plan").addEventListener("input", function () { r.planFee = Number(this.value) || 0; });
+      tr.querySelector(".js-sub-actual").addEventListener("input", function () { r.actualFee = Number(this.value) || 0; });
+      tr.querySelector(".js-sub-del").addEventListener("click", function () {
+        subItemEditingRows.splice(idx, 1);
+        renderSubItemRows();
+      });
+    });
+  }
+
+  function openSubItemModal(planId) {
+    var plans = tablePlans();
+    var p = plans.find(function (x) { return x.id === planId; }) || filteredPlansForKpi().find(function (x) { return x.id === planId; });
+    if (!p) return;
+    subItemEditingPlanId = planId;
+    subItemEditingRows = JSON.parse(JSON.stringify(getSubItemsForPlan(planId)));
+    var info = document.getElementById("subItemPlanInfo");
+    if (info) {
+      var pr = getPlanMonthRangePair(p);
+      info.textContent = "项目：" + (p.projectName || "未命名") + " | 规划月份范围：" + pr.start + "～" + pr.end;
+    }
+    renderSubItemRows();
+    document.getElementById("subItemMask").classList.add("show");
+  }
+
+  function closeSubItemModal() {
+    document.getElementById("subItemMask").classList.remove("show");
+    subItemEditingPlanId = "";
+    subItemEditingRows = [];
   }
 
   /** 与规划页最下方拆分列表同列，仅多「分摊实际」；数据与上方列表 / localStorage 一致 */
@@ -4264,6 +4417,31 @@
     if (e.target.id === "modalMask") closeModal();
   });
   document.getElementById("modalBox").addEventListener("click", function (e) {
+    e.stopPropagation();
+  });
+  document.getElementById("subItemClose").addEventListener("click", closeSubItemModal);
+  document.getElementById("subItemCancel").addEventListener("click", closeSubItemModal);
+  document.getElementById("subItemAdd").addEventListener("click", function () {
+    subItemEditingRows.push({
+      month: "",
+      projectType: PROJECT_TYPE_OPTIONS[0],
+      planFee: 0,
+      actualFee: 0
+    });
+    renderSubItemRows();
+  });
+  document.getElementById("subItemSave").addEventListener("click", function () {
+    saveSubItemsForPlan(subItemEditingPlanId, subItemEditingRows);
+    closeSubItemModal();
+    renderKpis();
+    renderTable();
+    renderSplit();
+    toast("子项登记已保存");
+  });
+  document.getElementById("subItemMask").addEventListener("click", function (e) {
+    if (e.target.id === "subItemMask") closeSubItemModal();
+  });
+  document.getElementById("subItemBox").addEventListener("click", function (e) {
     e.stopPropagation();
   });
 
