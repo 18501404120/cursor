@@ -437,12 +437,12 @@
     },
     /* —— 批量弹窗 —— */
     {
-      skip: true,
-      containerSelector: "#modalBatch .modal-note",
-      title: "弹窗说明：更新范围",
+      anchorSelector: "#modalBatch .mh-title",
+      title: "批量设置规则：更新范围与数据加载",
       html:
-        "<p><strong>【基础】</strong>重申批量写入作用域规则文案区。</p>" +
-        "<p><strong>【逻辑】</strong><strong>有勾选 → 只更新勾选行；无勾选 → 更新当前筛选命中全量</strong>；后端必须二次校验权限与行数上限。</p>",
+        "<p><strong>【更新范围】</strong>需先在主表勾选至少一行配置数据，确认后仅对勾选行执行批量绑定；导入/导出不依赖勾选行。</p>" +
+        "<p><strong>【加载逻辑】</strong>批量弹窗候选列表仅加载<strong>已生效（effective）</strong>的超参数因子；草稿数据不会进入候选集，避免误绑未发布规则。</p>" +
+        "<p><strong>【筛选逻辑】</strong>编号、事件说明、时间范围在“已生效候选集”内再次过滤，时间采用区间交集判断。</p>",
     },
     {
       skip: true,

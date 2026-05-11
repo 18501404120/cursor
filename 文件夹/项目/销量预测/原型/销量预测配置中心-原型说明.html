@@ -402,9 +402,6 @@
         </div>
       </div>
       <div class="mb">
-        <p class="modal-note">
-          <strong>更新范围（本原型）：</strong>须先在主表<strong>勾选至少一行</strong>配置数据，方可打开本弹窗并完成写入；仅对<strong>勾选行</strong>批量绑定所选超参数因子。<strong>正式环境</strong>可在权限允许时另支持「按当前筛选全量更新」。「导入」「导出」不受是否勾选影响，见各按钮红点。
-        </p>
         <div class="filter-grid" style="margin-bottom:10px">
           <div class="f"><label>超参数编号</label><input type="text" id="batchFid" style="width:72px" placeholder="00001" /></div>
           <div class="f"><label>事件说明</label><input type="text" id="batchFev" style="width:160px" /></div>
@@ -651,9 +648,9 @@
       ];
 
       var factorLib = [
-        { code: '00001', event: '平台配送费减半', factor: 1.5, start: '2025-10-01', end: '2025-11-01' },
-        { code: '00002', event: '关税增加', factor: 0.5, start: '2025-09-15', end: '2026-06-30' },
-        { code: '00003', event: '旺季物流补贴', factor: 1.2, start: '2026-01-01', end: '2026-03-31' }
+        { code: '00001', event: '平台配送费减半', factor: 1.5, start: '2025-10-01', end: '2025-11-01', status: 'draft' },
+        { code: '00002', event: '关税增加', factor: 0.5, start: '2025-09-15', end: '2026-06-30', status: 'effective' },
+        { code: '00003', event: '旺季物流补贴', factor: 1.2, start: '2026-01-01', end: '2026-03-31', status: 'draft' }
       ];
 
       function countCfgRowChecked() {
@@ -762,7 +759,7 @@
             if (d && pad5(parseInt(d, 10)) !== f.code) return;
           }
           if (ev && f.event.indexOf(ev) === -1) return;
-          var status = f.code === '00002' ? '生效' : '草稿';
+          var status = f.status === 'effective' ? '生效' : '草稿';
           if (st === 'draft' && status !== '草稿') return;
           if (st === 'effective' && status !== '生效') return;
           var rs = parseYmd(f.start);
@@ -823,14 +820,28 @@
       document.getElementById('subSearch').addEventListener('click', renderSubTable);
 
       function renderBatchTable() {
+        var idQ = document.getElementById('batchFid').value.trim();
+        var evQ = document.getElementById('batchFev').value.trim();
+        var win = apiBatchDate ? apiBatchDate.get() : defaultRange();
+        var w0 = parseYmd(win.start || fmtDate(defaultRange().from));
+        var w1 = parseYmd(win.end || fmtDate(defaultRange().to));
         var tb = document.getElementById('batchTbody');
         var h = '';
         factorLib.forEach(function (f) {
+          if (f.status !== 'effective') return;
+          if (idQ) {
+            var d = idQ.replace(/\D/g, '');
+            if (d && pad5(parseInt(d, 10)) !== f.code) return;
+          }
+          if (evQ && f.event.indexOf(evQ) === -1) return;
+          var rs = parseYmd(f.start);
+          var re = parseYmd(f.end);
+          if (w0 && w1 && rs && re && !rangesOverlap(rs.getTime(), re.getTime(), w0.getTime(), w1.getTime())) return;
           h += '<tr><td class="center"><input type="checkbox" class="batch-pick" data-code="' + f.code + '" /></td>';
           h += '<td>' + f.code + '</td><td>' + f.event + '</td><td class="num">' + f.factor + '</td>';
           h += '<td>' + f.start + ' 至 ' + f.end + '</td></tr>';
         });
-        tb.innerHTML = h;
+        tb.innerHTML = h || '<tr><td colspan="5" style="text-align:center;padding:16px;color:var(--text-sec)">无生效因子数据</td></tr>';
         document.getElementById('batchChkAll').checked = false;
       }
 
