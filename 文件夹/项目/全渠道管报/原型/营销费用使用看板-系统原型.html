@@ -256,6 +256,10 @@
       min-width: 120px;
       max-width: 160px;
     }
+    .f-project-name input[type="text"] {
+      min-width: 160px;
+      max-width: 220px;
+    }
     .flt-line select {
       min-width: 72px;
       max-width: 88px;
@@ -1045,6 +1049,8 @@
               </div>
               <div class="f"><label for="fltTl">TL</label><select id="fltTl"><option value="">全部</option></select></div>
               <div class="f"><label for="fltSales">Sales</label><select id="fltSales"><option value="">全部</option></select></div>
+              <div class="f"><label for="fltProjectType">项目类型</label><select id="fltProjectType"><option value="">全部</option></select></div>
+              <div class="f f-project-name"><label for="fltProjectName">项目名称</label><input type="text" id="fltProjectName" placeholder="请输入项目名称" autocomplete="off" /></div>
               <div class="f f-month-range filter-field-inline" style="min-width:260px">
                 <label class="filter-field-label-text" for="fltMonthRangeHost">月份范围</label>
                 <div id="fltMonthRangeHost" style="flex:1;min-width:200px"></div>
@@ -1120,7 +1126,7 @@
           <div class="panel-body">
             <div class="progress-block">
               <div class="lab">
-                <span>时间进度（自然年）</span>
+                <span>时间进度</span>
                 <span id="lblTimeProgress">—</span>
               </div>
               <div class="progress-track">
@@ -1130,24 +1136,24 @@
             </div>
             <div class="kpi-row" id="kpiRow">
               <div class="kpi-card brand">
-                <div class="lab">规划年度预算（USD）</div>
+                <div class="lab">所选月份范围规划预算（USD）</div>
                 <div class="val" id="kpiPlanBudget">$0</div>
-                <div class="sub">来自「营销费用规划」缓存：当年 + 与列表一致的月份范围、地理/店铺、场景品类、新品筛选</div>
+                <div class="sub">来自「营销费用规划」缓存：按拆分逻辑汇总所选月份范围内规划费用</div>
               </div>
               <div class="kpi-card">
                 <div class="lab">列表可见规划预算（USD）</div>
                 <div class="val" id="kpiActivityBudget">$0</div>
-                <div class="sub">当前列表（含月份钻取）规划金额合计</div>
+                <div class="sub">当前列表（含月份钻取）按拆分分摊后金额合计</div>
               </div>
               <div class="kpi-card ok">
                 <div class="lab">规划行实际合计（USD）</div>
                 <div class="val" id="kpiActual">$0</div>
-                <div class="sub">本页填写的实际之和（同顶部筛选，不按月份钻取缩小）</div>
+                <div class="sub">当前列表（含月份钻取）按拆分分摊后实际合计</div>
               </div>
               <div class="kpi-card">
                 <div class="lab">按进度预估应花（USD）</div>
                 <div class="val" id="kpiExpected">$0</div>
-                <div class="sub">规划年度预算 × 自然年时间进度</div>
+                <div class="sub">所选月份范围规划预算 × 当前时间进度</div>
               </div>
               <div class="kpi-card warn" id="kpiVarCard">
                 <div class="lab">实际 − 预估（USD）</div>
@@ -1766,20 +1772,17 @@
       placeholder: "请选择月份范围",
       zIndex: 400,
       onChange: function (s, e) {
-        var yr = parseInt((document.getElementById("fltYear") && document.getElementById("fltYear").value) || y, 10) || y;
         var ss = String(s || "");
         var ee = String(e || "");
-        if (ss && parseInt(ss.slice(0, 4), 10) !== yr) ss = yr + "-01";
-        if (ee && parseInt(ee.slice(0, 4), 10) !== yr) ee = yr + "-12";
-        if (!ss || !ee) {
-          ss = yr + "-01";
-          ee = yr + "-12";
-        }
+        var yr = parseInt((document.getElementById("fltYear") && document.getElementById("fltYear").value) || y, 10) || y;
+        if (ss && parseInt(ss.slice(0, 4), 10) !== yr) ss = "";
+        if (ee && parseInt(ee.slice(0, 4), 10) !== yr) ee = "";
         currentFilter.monthStart = ss;
         currentFilter.monthEnd = ee;
-        if (window._fltMonthRangePicker && typeof window._fltMonthRangePicker.set === "function") {
+        if (ss && ee && window._fltMonthRangePicker && typeof window._fltMonthRangePicker.set === "function") {
           window._fltMonthRangePicker.set(ss, ee);
         }
+        selectedMonth = null;
         refreshAll();
       }
     });
@@ -1791,12 +1794,8 @@
       var y = parseInt((document.getElementById("fltYear") && document.getElementById("fltYear").value) || currentYear, 10) || currentYear;
       var s = String(g.start || "");
       var e = String(g.end || "");
-      if (s && parseInt(s.slice(0, 4), 10) !== y) s = y + "-01";
-      if (e && parseInt(e.slice(0, 4), 10) !== y) e = y + "-12";
-      if (!s || !e) {
-        s = y + "-01";
-        e = y + "-12";
-      }
+      if (s && parseInt(s.slice(0, 4), 10) !== y) s = "";
+      if (e && parseInt(e.slice(0, 4), 10) !== y) e = "";
       currentFilter.monthStart = s;
       currentFilter.monthEnd = e;
     }
@@ -1867,6 +1866,65 @@
     return false;
   }
 
+  function projectTypeFilterValue() {
+    var el = document.getElementById("fltProjectType");
+    return el && el.value ? String(el.value).trim() : "";
+  }
+
+  function projectNameFilterValue() {
+    var el = document.getElementById("fltProjectName");
+    return el && el.value ? String(el.value).trim().toLowerCase() : "";
+  }
+
+  function monthRangeSetMap() {
+    if (!currentFilter.monthStart || !currentFilter.monthEnd) return null;
+    var F = enumerateYmMonths(currentFilter.monthStart, currentFilter.monthEnd);
+    var m = {};
+    F.forEach(function (x) { m[x] = true; });
+    return m;
+  }
+
+  function subItemsForPlanInCurrentFilter(planId) {
+    var rows = getSubItemsForPlan(planId);
+    var wantType = projectTypeFilterValue();
+    var monthMap = monthRangeSetMap();
+    return rows.filter(function (r) {
+      var m = String((r && r.month) || "").trim();
+      if (monthMap && !monthMap[m]) return false;
+      if (wantType && String((r && r.projectType) || "").trim() !== wantType) return false;
+      return true;
+    });
+  }
+
+  function subItemsForPlanByTypeFilterOnly(planId) {
+    var rows = getSubItemsForPlan(planId);
+    var wantType = projectTypeFilterValue();
+    return rows.filter(function (r) {
+      if (wantType && String((r && r.projectType) || "").trim() !== wantType) return false;
+      return true;
+    });
+  }
+
+  function totalActualForPlanForKpi(planId) {
+    return subItemsForPlanByTypeFilterOnly(planId).reduce(function (s, r) {
+      return s + (Number((r && r.actualFee) || 0) || 0);
+    }, 0);
+  }
+
+  function planMatchesProjectFilters(p) {
+    var wantType = projectTypeFilterValue();
+    if (wantType) {
+      var rows = subItemsForPlanInCurrentFilter(p && p.id);
+      if (!rows.length) return false;
+    }
+    var wantName = projectNameFilterValue();
+    if (wantName) {
+      var pn = String((p && p.projectName) || "").trim().toLowerCase();
+      if (pn.indexOf(wantName) < 0) return false;
+    }
+    return true;
+  }
+
   function normalizePlanRowForBoard(p) {
     if (!p || typeof p !== "object") return;
     ensurePlanGeoArrays(p);
@@ -1915,6 +1973,7 @@
       if (!planMatchesStoreFilter(p)) return;
       if (!planMatchesScCatFilterBoard(p)) return;
       if (!npTagMatchesSelectedForAct(p)) return;
+      if (!planMatchesProjectFilters(p)) return;
       out.push(p);
     });
     out.sort(function (a, b) {
@@ -2490,6 +2549,15 @@
     return false;
   }
 
+  function splitRowMatchesVisibleMonthScope(r) {
+    var ym = String(r && r.monthYm ? r.monthYm : "").trim();
+    if (!ym) return false;
+    if (!splitRowMatchesTopMonthFilter(r)) return false;
+    if (selectedMonth == null) return true;
+    var wantYm = currentYear + "-" + pad2(selectedMonth + 1);
+    return ym === wantYm;
+  }
+
   function splitRowMatchesListDisplayFilters(r) {
     if (!splitRowMatchesTopMonthFilter(r)) return false;
     if (!splitRowMatchesGeoAndStoreDisplayFilters(r)) return false;
@@ -2590,6 +2658,17 @@
     } catch (e2) {
       return 0;
     }
+  }
+
+  function sumPlanBudgetForSelectedRange() {
+    var plans = filteredPlansForKpi();
+    if (!plans.length) return 0;
+    var rows = aggregateSplitFromPlans(plans).filter(function (r) {
+      return splitRowMatchesTopMonthFilter(r);
+    });
+    return rows.reduce(function (s, r) {
+      return s + (Number(r.splitAmount) || 0);
+    }, 0);
   }
 
   function normalizeLeavesArray(leaves) {
@@ -2848,7 +2927,7 @@
     add(
       "b3",
       "【3】搜索",
-      "校验：场景品类与新品标签不可同时为空。\n通过后会按所选年度重置月份范围为该年 1–12 月，并刷新里程碑、规划行列表、进度概览与下方规划明细表；同时取消按月份钻取。\n区域/国家/渠道/店铺为多选筛选，与规划页口径一致。"
+      "校验：场景品类与新品标签不可同时为空。\n通过后按当前筛选条件刷新里程碑、规划行列表、进度概览与下方规划明细表；同时取消按月份钻取。\n月份范围支持清空后重选，可选任意起止月（如 2–4 月）；区域/国家/渠道/店铺为多选筛选，与规划页口径一致。"
     );
     add(
       "b5",
@@ -2858,12 +2937,12 @@
     add(
       "b6",
       "【6】规划行列表",
-      "行点击：选中规划行并驱动下方「场景品类规划明细」表仅显示该行；点击表格外沿（非行）取消选中。\n预算只读来自规划；实际花费保存到本页实际费用记录（按规划行）。"
+      "行点击：选中规划行并驱动下方「场景品类规划明细」表仅显示该行；点击表格外沿（非行）取消选中。\n规划预算（USD）显示当前筛选条件下的子项规划费用合计；实际花费保存到本页子项登记记录。"
     );
     add(
       "b7",
       "【7】进度与费用概览",
-      "规划年度预算：与列表同源筛选下的规划金额合计。\n列表可见规划预算：当前表格行（含月份钻取）规划金额合计。\n规划行实际合计：同顶部筛选下各规划行已填实际之和（不按月份钻取缩小）。\n时间进度＝自然年内已过天数比例；按进度预估＝规划年度预算×时间进度；差值＝规划行实际合计−预估。"
+      "所选月份范围规划预算：与列表同源筛选下，按拆分逻辑汇总到所选月份范围内的规划费用。\n列表可见规划预算：当前表格行（含月份钻取）按拆分逻辑汇总后的规划费用。\n规划行实际合计：当前表格行（含月份钻取）按拆分逻辑汇总后的实际费用。\n时间进度＝所选月份范围起始月1日到结束月最后1日的进度比例；按进度预估＝所选月份范围规划预算×时间进度；差值＝规划行实际合计−预估。"
     );
     add(
       "b9",
@@ -2893,7 +2972,7 @@
     add(
       "kpiPanel",
       "进度与费用",
-      "规划年度预算与列表同源筛选；列表可见规划预算为当前表行合计；规划行实际合计为本页在各规划行上填写的实际之和（不按月份钻取缩小）。\n按进度预估＝规划年度预算×自然年时间进度。非财报、非支付口径。"
+      "所选月份范围规划预算与列表同源筛选，并按拆分逻辑汇总到所选月份；列表可见规划预算与规划行实际合计均按当前表格范围（含月份钻取）做拆分汇总。\n按进度预估＝所选月份范围规划预算×所选月份范围时间进度。非财报、非支付口径。"
     );
     add("splitPanel", "规划明细表", "与规划页最下方拆分列表同列，仅多「分摊实际」；数据与上方列表一致，在此核对或随列表筛选变化。");
     return o;
@@ -3095,6 +3174,44 @@
     var start = new Date(y, 0, 1);
     var passed = Math.floor((now - start) / 86400000) + 1;
     return Math.min(1, Math.max(0, passed / daysInYear(y)));
+  }
+
+  function dateStrYmd(d) {
+    if (!(d instanceof Date) || isNaN(d.getTime())) return "";
+    return d.getFullYear() + "-" + pad2(d.getMonth() + 1) + "-" + pad2(d.getDate());
+  }
+
+  function selectedMonthRangeDates() {
+    var y = parseInt((document.getElementById("fltYear") && document.getElementById("fltYear").value) || currentYear, 10) || currentYear;
+    var s = String(currentFilter.monthStart || "").trim();
+    var e = String(currentFilter.monthEnd || "").trim();
+    if (!s || ymOrd(s) == null) s = y + "-01";
+    if (!e || ymOrd(e) == null) e = y + "-12";
+    if (ymOrd(e) < ymOrd(s)) {
+      var t = s;
+      s = e;
+      e = t;
+    }
+    var ys = parseInt(s.slice(0, 4), 10) || y;
+    var ms = parseInt(s.slice(5, 7), 10) || 1;
+    var ye = parseInt(e.slice(0, 4), 10) || y;
+    var me = parseInt(e.slice(5, 7), 10) || 12;
+    var start = new Date(ys, ms - 1, 1, 0, 0, 0, 0);
+    var endDay = new Date(ye, me, 0).getDate();
+    var end = new Date(ye, me - 1, endDay, 23, 59, 59, 999);
+    return { start: start, end: end };
+  }
+
+  function timeProgressForSelectedMonthRange() {
+    var range = selectedMonthRangeDates();
+    var start = range.start;
+    var end = range.end;
+    var total = end - start;
+    var now = new Date();
+    if (total <= 0) return 0;
+    if (now <= start) return 0;
+    if (now >= end) return 1;
+    return (now - start) / total;
   }
 
   function parseYMD(s) {
@@ -3631,6 +3748,7 @@
     fill("fltModel", ["MDL-A01", "MDL-B02", "MDL-C88"], '<option value="">请选择</option>');
     fill("fltTl", ["TL-01", "TL-02", "TL-03"]);
     fill("fltSales", ["Sales-A", "Sales-B", "Sales-C"]);
+    fill("fltProjectType", PROJECT_TYPE_OPTIONS, '<option value="">全部</option>');
   }
 
   function fillModalNpOptions() {
@@ -3984,16 +4102,20 @@
   }
 
   function renderKpis() {
-    var allPlans = filteredPlansForKpi();
     var visiblePlans = tablePlans();
-    var actBudgetVisible = visiblePlans.reduce(function (s, p) {
-      return s + (Number(p.planAmount) || 0);
+    var visiblePlanRows = aggregateSplitFromPlans(visiblePlans).filter(splitRowMatchesVisibleMonthScope);
+    var actBudgetVisible = visiblePlanRows.reduce(function (s, r) {
+      return s + (Number(r.splitAmount) || 0);
     }, 0);
-    var actual = allPlans.reduce(function (s, p) {
-      return s + getActualForPlan(p.id);
+    var visibleActualRows = aggregateSplitFromPlans(visiblePlans, function (p) {
+      return totalActualForPlanForKpi(p.id);
+    }).filter(splitRowMatchesVisibleMonthScope);
+    var actual = visibleActualRows.reduce(function (s, r) {
+      return s + (Number(r.splitAmount) || 0);
     }, 0);
-    var tp = timeProgressForYear(currentYear);
-    var planBudget = sumPlanBudgetForKpi(currentYear);
+    var tp = timeProgressForSelectedMonthRange();
+    var tr = selectedMonthRangeDates();
+    var planBudget = sumPlanBudgetForSelectedRange();
     var expected = Math.round(planBudget * tp);
     var variance = actual - expected;
     var elPlan = document.getElementById("kpiPlanBudget");
@@ -4004,7 +4126,8 @@
     document.getElementById("kpiExpected").textContent = formatUsd(expected);
     document.getElementById("kpiVariance").textContent =
       (variance > 0 ? "+" : "") + formatUsd(variance);
-    document.getElementById("lblTimeProgress").textContent = (tp * 100).toFixed(1) + "%（" + currentYear + " 年）";
+    document.getElementById("lblTimeProgress").textContent =
+      (tp * 100).toFixed(1) + "%（" + dateStrYmd(tr.start) + " 至 " + dateStrYmd(tr.end) + "）";
     document.getElementById("barTime").style.width = (tp * 100) + "%";
     var expW = planBudget > 0 ? (expected / planBudget) * 100 : 0;
     document.getElementById("barExpected").style.width = Math.min(100, expW) + "%";
@@ -4065,7 +4188,7 @@
       return;
     }
     function subitemsReadonlyHtml(pid) {
-      var rows = getSubItemsForPlan(pid);
+      var rows = subItemsForPlanInCurrentFilter(pid);
       if (!rows.length) return '<div class="hint">暂无已登记子项</div>';
       var h = '<div class="subitem-readonly-wrap"><table><thead><tr><th>规划月份</th><th>项目类型</th><th class="num">子项规划费用（USD）</th><th class="num">子项实际费用（USD）</th></tr></thead><tbody>';
       rows.forEach(function (r) {
@@ -4079,9 +4202,10 @@
       var tr = document.createElement("tr");
       tr.dataset.id = p.id;
       if (selectedId === p.id) tr.classList.add("sel");
-      var actVal = getActualForPlan(p.id);
-      var subPlanVal = getSubPlanFeeForPlan(p.id);
-      var subCount = getSubItemsForPlan(p.id).length;
+      var subRowsVisible = subItemsForPlanInCurrentFilter(p.id);
+      var actVal = subRowsVisible.reduce(function (s, r) { return s + (Number(r.actualFee) || 0); }, 0);
+      var subPlanVal = subRowsVisible.reduce(function (s, r) { return s + (Number(r.planFee) || 0); }, 0);
+      var subCount = subRowsVisible.length;
       var scTxt = formatSceneCategoryColumnForBoard(p);
       if (scTxt === "-" || scTxt === "—" || scTxt === "请选择场景品类") scTxt = "";
       var npTxt = formatNpTagColumn(p);
@@ -4101,7 +4225,7 @@
         "<td>" + escapeHtml(ctyTxt) + "</td>" +
         "<td>" + escapeHtml(chTxt) + "</td>" +
         "<td>" + escapeHtml(stTxt) + "</td>" +
-        '<td class="num">' + formatUsd(p.planAmount) + "</td>" +
+        '<td class="num">' + formatUsd(Number(p.planAmount) || 0) + "</td>" +
         '<td><div style="display:flex;align-items:center;justify-content:space-between;gap:8px;white-space:nowrap;"><span class="hint">已登记 ' + String(subCount) + ' 行 / 规划 ' + formatUsd(subPlanVal) + ' / 实际 ' + formatUsd(actVal) + '</span><button type="button" class="btn btn-default js-subitem-edit" data-plan-id="' + escapeHtml(p.id) + '">登记子项</button></div></td>' +
         '<td><button type="button" class="btn btn-default js-subitem-toggle" data-plan-id="' + escapeHtml(p.id) + '">' + (expandedPlanRows[p.id] ? "收起" : "展开") + "</button></td>";
       tbody.appendChild(tr);
@@ -4457,6 +4581,21 @@
   if (fltYearEl) {
     fltYearEl.addEventListener("change", function () {
       initMonthRangeFilter();
+      refreshAll();
+    });
+  }
+  var fltProjectTypeEl = document.getElementById("fltProjectType");
+  if (fltProjectTypeEl) {
+    fltProjectTypeEl.addEventListener("change", function () {
+      selectedMonth = null;
+      refreshAll();
+    });
+  }
+  var fltProjectNameEl = document.getElementById("fltProjectName");
+  if (fltProjectNameEl) {
+    fltProjectNameEl.addEventListener("keydown", function (e) {
+      if (e.key !== "Enter") return;
+      selectedMonth = null;
       refreshAll();
     });
   }

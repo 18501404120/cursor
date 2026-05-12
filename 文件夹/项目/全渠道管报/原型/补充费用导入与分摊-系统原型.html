@@ -235,8 +235,70 @@
       max-width: 100%;
     }
 
-    .table-wrap { overflow: auto; max-height: 420px; border: 1px solid var(--line); border-radius: 8px; }
+    .table-wrap {
+      overflow: auto;
+      max-height: 420px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      scrollbar-gutter: stable both-edges;
+      -webkit-overflow-scrolling: touch;
+    }
     table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    .table-wrap.table-wrap--x > table {
+      width: max-content;
+      min-width: 100%;
+    }
+    #historyTable {
+      min-width: 1320px;
+    }
+    #historyTable th,
+    #historyTable td {
+      vertical-align: top;
+    }
+    #historyTable th:nth-child(1),
+    #historyTable td:nth-child(1) {
+      width: 44px;
+      min-width: 44px;
+      max-width: 44px;
+      text-align: center;
+    }
+    #historyTable th:nth-child(2),
+    #historyTable td:nth-child(2) {
+      min-width: 96px;
+    }
+    #historyTable th:nth-child(3),
+    #historyTable td:nth-child(3),
+    #historyTable th:nth-child(4),
+    #historyTable td:nth-child(4),
+    #historyTable th:nth-child(5),
+    #historyTable td:nth-child(5),
+    #historyTable th:nth-child(9),
+    #historyTable td:nth-child(9),
+    #historyTable th:nth-child(10),
+    #historyTable td:nth-child(10),
+    #historyTable th:nth-child(11),
+    #historyTable td:nth-child(11),
+    #historyTable th:nth-child(12),
+    #historyTable td:nth-child(12) {
+      white-space: nowrap;
+    }
+    #historyTable th:nth-child(6),
+    #historyTable td:nth-child(6),
+    #historyTable th:nth-child(7),
+    #historyTable td:nth-child(7),
+    #historyTable th:nth-child(8),
+    #historyTable td:nth-child(8) {
+      min-width: 154px;
+    }
+    #historyTable th:nth-child(12),
+    #historyTable td:nth-child(12) {
+      min-width: 92px;
+      position: sticky;
+      right: 0;
+      z-index: 4;
+      background: #fff;
+      box-shadow: -1px 0 0 #e2e8f0;
+    }
     thead th {
       position: sticky;
       top: 0;
@@ -247,6 +309,11 @@
       border-bottom: 1px solid var(--line);
       font-weight: 700;
       box-shadow: 0 1px 0 #e2e8f0;
+    }
+    #historyTable thead th:nth-child(12) {
+      z-index: 6;
+      background: #f1f5f9;
+      box-shadow: -1px 0 0 #dbe4f0, 0 1px 0 #e2e8f0;
     }
     tbody td { padding: 8px; border-bottom: 1px solid #f1f5f9; }
     tbody tr:hover { background: #fafbff; }
@@ -485,6 +552,33 @@
       margin: 8px 0 0;
       padding-left: 1.35em;
     }
+    .proto-anno-note {
+      margin: 0 0 12px;
+      padding: 10px 12px;
+      border: 1px solid #fecaca;
+      background: #fff1f2;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      color: #9f1239;
+    }
+    .proto-anno-tag {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 62px;
+      height: 22px;
+      padding: 0 8px;
+      border-radius: 999px;
+      background: #e11d48;
+      color: #fff;
+      font-weight: 700;
+      font-size: 12px;
+      line-height: 1;
+      flex-shrink: 0;
+    }
   </style>
 </head>
 <body>
@@ -576,6 +670,33 @@
     <div id="pageLogicPanel" class="page-logic-panel" hidden>
       <div class="page-logic-inner">
         <p class="doc-lead">以下说明面向<strong>开发 / 测试</strong>：与当前原型交互一致；正式环境需补充权限、审计、并发与接口契约。</p>
+        <div class="proto-anno-note" aria-label="原型标注1">
+          <span class="proto-anno-tag">原型标注1</span>
+          <span>本页标注口径：以“历史导入费用”为主，按“导入/新增 → 状态流转 → 是否纳入管报计算”进行验收。</span>
+        </div>
+
+        <h3 class="doc-h">原型标注1｜页面说明（业务视角）</h3>
+        <ul class="doc-ul">
+          <li>这是“补充费用”管理页，核心目标是把新增/导入的费用批次管理清楚，并明确哪些批次会进入管报。</li>
+          <li>批次默认是“待生效”，只有变成“已生效”后才参与管报；“失效”批次不参与，且仅失效批次可删除。</li>
+          <li>列表和明细要保持口径一致：列表显示什么状态，明细里的“是否纳入管报计算”就应显示同样结论。</li>
+          <li>新增/导入只是“写入数据”，不是“直接生效”；业务确认动作在生效/失效操作里完成。</li>
+        </ul>
+
+        <h3 class="doc-h">原型标注1｜智能标注（当前页）</h3>
+        <table class="doc-tbl">
+          <thead><tr><th>标注位</th><th>页面区域</th><th>触发动作</th><th>系统行为</th><th>异常/拦截提示</th><th>验收点</th></tr></thead>
+          <tbody>
+            <tr><td>①</td><td>历史记录筛选区</td><td>改筛选条件、点查询</td><td>刷新当前列表；状态/费用项即时生效，其余条件按查询按钮生效</td><td>无数据时显示空列表，不报错</td><td>筛选结果仅影响当前可见行</td></tr>
+            <tr><td>②</td><td>历史导入费用列表</td><td>查看行信息、勾选行</td><td>展示批次号、范围摘要、状态与可用操作；支持按筛选结果全选</td><td>全选只作用当前筛选结果，不跨页/不跨筛选</td><td>表头全选与行勾选状态一致</td></tr>
+            <tr><td>③</td><td>行内操作</td><td>点生效/失效/删除/明细</td><td>按状态机执行迁移；明细展示分摊结果与纳入口径</td><td>非法状态不执行操作</td><td>待生效→已生效；待生效/已生效→失效；仅失效可删除</td></tr>
+            <tr><td>④</td><td>批量操作区</td><td>勾选多行后点批量生效/失效/删除</td><td>整批校验通过才执行；执行后整批刷新</td><td>混入不允许状态时整批拦截，不做部分成功</td><td>规则与单行操作完全一致</td></tr>
+            <tr><td>⑤</td><td>新增导入费用弹窗</td><td>填写费用与范围，点预览/确认写入</td><td>先预览分摊，再写入一条新批次；新批次状态为待生效</td><td>缺必填范围（店铺/MSKU）时禁止确认</td><td>写入后列表可见新批次且状态=待生效</td></tr>
+            <tr><td>⑥</td><td>分摊规则摘要与预览</td><td>点预览分摊</td><td>按交集口径生成分摊明细：店铺范围×MSKU范围×可选零售商</td><td>交集为空时提示无法分摊</td><td>预览总额与补充金额一致，结构可追溯</td></tr>
+            <tr><td>⑦</td><td>导入入口与模板说明</td><td>下载模板、模拟导入</td><td>导入生成新批次，默认待生效</td><td>模板字段不合规时应拦截（正式环境）</td><td>导入与手工新增的状态规则一致</td></tr>
+            <tr><td>⑧</td><td>分摊明细弹窗</td><td>点“明细”</td><td>展示该批次按MSKU分摊、权重占比、归属月分摊、日均额</td><td>批次不存在或被删除时不可查看</td><td>“纳入管报计算”仅在已生效时为是</td></tr>
+          </tbody>
+        </table>
 
         <h3 class="doc-h">一、前提</h3>
         <ul class="doc-ul">
@@ -717,7 +838,7 @@
     <div class="panel" style="margin-bottom:0;">
       <div class="panel-hd">历史导入费用</div>
       <div class="panel-bd" style="max-height:none;padding:0;">
-        <div class="table-wrap" style="max-height:480px;border:none;border-radius:0;">
+        <div class="table-wrap table-wrap--x" style="max-height:480px;border:none;border-radius:0;">
           <table id="historyTable">
             <thead>
               <tr>
@@ -2222,5 +2343,320 @@
       updateRuleText();
     })();
   </script>
+
+
+
+
+
+
+
+
+
+
+
+<!-- prototype-annotation:start -->
+<link rel="stylesheet" href="prototype-annotation/prototype-annotation.css">
+<script id="prototype-annotation-config" type="application/json">
+{
+  "pageId": "reporting-supplement-fee-import-allocation",
+  "version": "2026-05-11T18:50:00+08:00",
+  "pageTitle": "补充费用导入与分摊",
+  "annotations": [
+    {
+      "id": "filter-belong-month",
+      "selector": "#qMonthFrom",
+      "title": "归属月区间",
+      "body": "用于限定批次归属月份范围。列表中的归属月取自新增或导入时填写的归属月，而不是创建时间。示例：4 月导入、5 月生效的批次，归属月仍显示 4 月。"
+    },
+    {
+      "id": "filter-fee-type",
+      "selector": "#qFeeType",
+      "title": "费用项筛选",
+      "body": "按费用类型过滤历史批次。用于快速定位物流、仓租、平台服务等不同费用。"
+    },
+    {
+      "id": "filter-status",
+      "selector": "#qStatus",
+      "title": "状态筛选",
+      "body": "用于区分待生效、已生效、失效批次。状态直接决定是否纳入管报计算：只有已生效才进入补充费用池，待生效和失效都只保留记录不参与汇总。"
+    },
+    {
+      "id": "query-button",
+      "selector": "#btnQuery",
+      "title": "查询",
+      "body": "按当前筛选条件刷新历史列表。状态、费用项、渠道等条件共同作用于当前可见批次，无结果时显示空列表，不影响原有数据。"
+    },
+    {
+      "id": "create-button",
+      "selector": "#btnOpenCreate",
+      "title": "新增导入费用",
+      "body": "进入新增弹窗录入补充费用并预览分摊。确认写入后只生成待生效批次，不会立刻进入管报，需后续人工生效。"
+    },
+    {
+      "id": "import-button",
+      "selector": "#btnOpenImport",
+      "title": "批量导入",
+      "body": "通过模板批量写入费用批次。导入后默认待生效，需人工生效后才进入管报。"
+    },
+    {
+      "id": "batch-actions",
+      "selector": "#btnBatchActivate",
+      "title": "批量状态操作",
+      "body": "批量生效、失效、删除都受状态校验约束。系统按勾选批次逐条校验，只要混入不允许状态就整批拦截，不做部分成功。"
+    },
+    {
+      "id": "history-list",
+      "selector": "#historyTable",
+      "title": "历史导入费用列表",
+      "body": "展示批次、范围、状态与操作入口。范围摘要来自写入时保存的店铺、零售商、MSKU条件，当前筛选结果中的勾选用于批量处理。"
+    },
+    {
+      "id": "status-column",
+      "selector": "#historyTable thead th:nth-child(9)",
+      "title": "状态列",
+      "body": "反映批次当前业务状态，并决定是否纳入管报。验收时要同时核对列表状态和明细中的“纳入管报计算”是否一致。"
+    },
+    {
+      "id": "row-action-column",
+      "selector": "#historyTable thead th:nth-child(12)",
+      "title": "操作列",
+      "body": "行内支持明细、生效、失效、删除。可执行动作随当前状态变化。"
+    },
+    {
+      "id": "preview-button",
+      "selector": "#btnPreview",
+      "title": "预览分摊",
+      "body": "按当前范围和规则先生成分摊预览。系统先取店铺范围、MSKU范围、可选零售商范围的交集，再按月营收权重分摊金额，预览成功后才能确认写入。"
+    },
+    {
+      "id": "confirm-import",
+      "selector": "#btnConfirmImport",
+      "title": "确认写入",
+      "body": "将本次新增配置写入为一个新批次。写入后状态固定为待生效。"
+    },
+    {
+      "id": "detail-dialog",
+      "selector": "#overlayHistoryDetail",
+      "title": "分摊明细",
+      "body": "用于查看单个批次按店铺与MSKU的分摊明细，并核对是否纳入管报计算。金额、权重、归属月分摊额和日均额都应能从这里追溯。"
+    },
+    {
+      "id": "create-dialog",
+      "selector": "#dlgCreateTitle",
+      "title": "新增导入费用弹窗",
+      "body": "该弹窗用于录入补充费用并配置分摊范围。录入完成后先预览分摊结果，再确认写入待生效批次。"
+    },
+    {
+      "id": "create-fee-type",
+      "selector": "#feeType",
+      "title": "费用项",
+      "body": "定义本次补充费用的业务类别，影响后续管报分类汇总。字段值来自页面预置的费用项枚举，不允许自由输入。"
+    },
+    {
+      "id": "create-belong-month",
+      "selector": "#belongMonth",
+      "title": "归属月",
+      "body": "决定费用进入哪个月份的管报口径，并作为分摊统计归属时间。示例：归属月选 2026-04，则该费用汇总到 4 月，并按 4 月自然日拆分日均额。"
+    },
+    {
+      "id": "create-total-amount",
+      "selector": "#totalAmount",
+      "title": "补充金额",
+      "body": "本次待分摊总额。数值来源于手工录入或导入文件，预览分摊结果合计需与该金额一致，否则不能作为正确结果验收。"
+    },
+    {
+      "id": "create-shop-range",
+      "selector": "#shopModeSeg",
+      "title": "店铺范围",
+      "body": "用于确定费用适用店铺集合，直接影响分摊明细的覆盖面。可按全渠道、按渠道、按店铺逐步收窄，取值来源是当前渠道和店铺主数据。"
+    },
+    {
+      "id": "create-msku-range",
+      "selector": "#mskuModeSeg",
+      "title": "MSKU范围",
+      "body": "用于确定费用适用的MSKU集合，与店铺范围交集后生成分摊对象。示例：若店铺范围命中 3 家店、MSKU范围命中 4 个 MSKU，则系统会对交集内可售组合继续计算分摊。"
+    },
+    {
+      "id": "create-retailer-range",
+      "selector": "#msfCreateRetailer",
+      "title": "零售商收窄",
+      "body": "可选维度，用于进一步收窄分摊范围。不选表示不按零售商限制；选定后仅对命中零售商的记录继续参与分摊。"
+    },
+    {
+      "id": "create-preview",
+      "selector": "#btnPreview",
+      "title": "预览分摊",
+      "body": "先验证规则与结果，成功后才允许确认写入。预览逻辑是先取范围交集，再按上月营收权重分摊补充金额。"
+    },
+    {
+      "id": "create-confirm",
+      "selector": "#btnConfirmImport",
+      "title": "确认写入",
+      "body": "将本次配置写入历史批次，写入后状态为待生效。写入的是批次记录和分摊结果快照，不代表已进入正式汇总。"
+    },
+    {
+      "id": "create-rule-summary",
+      "selector": "#ruleText",
+      "title": "分摊规则摘要",
+      "body": "实时展示当前范围与分摊口径，便于确认计算逻辑是否正确。示例：店铺 3 家、MSKU 4 个、零售商未收窄，则系统先找交集，再按每个对象的月营收占比分摊总金额。"
+    },
+    {
+      "id": "import-dialog",
+      "selector": "#dlgImportTitle",
+      "title": "批量导入弹窗",
+      "body": "用于通过模板批量写入补充费用批次。导入成功后生成待生效批次，后续仍需人工生效。"
+    },
+    {
+      "id": "download-template",
+      "selector": "#btnDownloadTpl",
+      "title": "下载导入模板",
+      "body": "下载标准模板用于批量导入。模板中的枚举口径需与页面弹窗中的范围口径保持一致。"
+    },
+    {
+      "id": "simulate-import",
+      "selector": "#btnSimulateImport",
+      "title": "模拟导入",
+      "body": "原型中用于模拟生成一条待生效批次，便于验证导入后的状态和列表刷新逻辑。"
+    },
+    {
+      "id": "history-detail-meta",
+      "selector": "#historyDetailMeta",
+      "title": "批次明细口径",
+      "body": "这里展示批次号、归属月、状态、操作人等关键元信息，用于核对列表记录与明细明细是否一致。"
+    }
+  ],
+  "fieldTips": [
+    {
+      "id": "tip-belong-month",
+      "selector": "#qMonthFrom",
+      "title": "归属月",
+      "body": "费用归属到哪个会计月份。取值来源于新增或导入时填写的归属月，分摊结果按该月份汇总，并按该月自然日拆分日均额。"
+    },
+    {
+      "id": "tip-status",
+      "selector": "#qStatus",
+      "title": "批次状态",
+      "body": "待生效和失效不进入管报计算；已生效进入补充费用池参与分摊与汇总。状态值来自批次当前业务动作，不是系统自动按时间变更。"
+    },
+    {
+      "id": "tip-total-amount",
+      "selector": "#totalAmount",
+      "title": "补充金额",
+      "body": "本次待分摊总金额。来源于手工录入或导入值，预览后所有分摊行金额合计应与该金额保持一致，例如录入 10000，所有预览行合计也必须是 10000。"
+    },
+    {
+      "id": "tip-shop-scope",
+      "selector": "#historyTable thead th:nth-child(6)",
+      "title": "店铺范围摘要",
+      "body": "展示该批次适用的店铺集合。值来源于新增或导入时保存的店铺范围，范围越窄，可参与分摊的对象越少。"
+    },
+    {
+      "id": "tip-msku-scope",
+      "selector": "#historyTable thead th:nth-child(8)",
+      "title": "MSKU范围摘要",
+      "body": "展示该批次适用的MSKU集合。值来源于新增或导入时保存的MSKU条件，系统按该范围与店铺范围交集生成明细。"
+    },
+    {
+      "id": "tip-retailer-scope",
+      "selector": "#historyTable thead th:nth-child(7)",
+      "title": "零售商范围摘要",
+      "body": "可选收窄维度。不选时表示不按零售商限制，按店铺与MSKU范围分摊；选定后只保留命中零售商的数据继续计算。"
+    },
+    {
+      "id": "tip-create-month",
+      "selector": "#belongMonth",
+      "title": "归属月口径",
+      "body": "归属月是费用统计口径月份，日均额按该月自然日进行拆分。示例：4 月有 30 天，若某对象 4 月分摊额为 300，则日均额为 10。"
+    },
+    {
+      "id": "tip-create-shop-mode",
+      "selector": "#shopModeSeg",
+      "title": "店铺范围模式",
+      "body": "支持全渠道、按渠道、按店铺。取值来源于渠道和店铺主数据，模式越具体，后续命中的分摊对象越少。"
+    },
+    {
+      "id": "tip-create-msku-mode",
+      "selector": "#mskuModeSeg",
+      "title": "MSKU范围模式",
+      "body": "支持全场景、按场景、按品类、按SKU、按MSKU。取值来源于商品主数据与MSKU映射，越精细的模式，分摊对象越聚焦。"
+    },
+    {
+      "id": "tip-preview-balance",
+      "selector": "#summaryCards",
+      "title": "预览校验",
+      "body": "预览时需重点核对分摊总额与补充金额是否一致，再执行确认写入。若录入金额是 10000，预览所有分摊行合计也应为 10000。"
+    },
+    {
+      "id": "tip-rule-summary",
+      "selector": "#ruleText",
+      "title": "分摊逻辑",
+      "body": "系统先取店铺范围、MSKU范围、可选零售商范围的交集，再按交集内对象的上月营收占比进行分摊。例如 A 占比 60%、B 占比 40%，总额 10000，则分别分摊 6000 和 4000。"
+    },
+    {
+      "id": "tip-history-detail",
+      "selector": "#historyDetailMeta",
+      "title": "明细取值来源",
+      "body": "明细中的状态、归属月、店铺与MSKU范围都来自批次写入时保存的快照，便于后续复核和追溯。"
+    }
+  ],
+  "pageGuide": {
+    "dev": {
+      "页面整体定位": "该页面用于管理补充费用批次的录入、导入、状态流转和分摊核对，归属全渠道管报费用管理模块。核心价值是确保只有业务确认后的批次进入管报计算，保证费用口径可控、可追溯、可复核。",
+      "页面核心业务逻辑": "数据来源于手工新增和模板导入形成的费用批次。新增或导入仅写入待生效批次；生效后批次纳入补充费用池并参与MSKU分摊；失效后批次退出计算口径。分摊逻辑是先取店铺、MSKU、可选零售商的交集，再按上月营收占比分摊费用。示例：两个对象营收占比 6:4，总额 10000，则分摊 6000 和 4000。",
+      "关键规则说明": "筛选区用于限制当前展示与批量处理范围；状态是最核心规则字段。按钮权限遵循状态机：待生效可生效/失效，已生效可失效，失效可删除。新增弹窗必须先预览分摊再确认写入，缺少关键范围时禁止确认。导入弹窗生成的批次与手工新增保持同一状态规则。",
+      "关联上下游": "上游是费用录入与导入来源、渠道主数据、店铺主数据、商品与MSKU映射、营收权重数据；下游是全渠道管报费用汇总与分摊展示。该页输出的生效批次直接影响后续管报费用口径，弹窗和明细页都属于同一业务闭环。"
+    },
+    "user": {
+      "标准操作流程": "第一步，先选归属月、费用项、状态并点击查询。第二步，查看历史列表状态与范围摘要，必要时勾选多条做批量操作。第三步，需要新增时点击新增导入费用，填写费用项、归属月、补充金额和适用范围；需要批量录入时进入导入弹窗下载模板并导入。第四步，点击预览分摊，确认结果无误后点击确认写入。第五步，在历史列表把新批次生效后，再进入管报计算。第六步，必要时打开明细弹窗核对分摊结果和纳入口径。",
+      "关键按钮与场景": "查询用于刷新当前筛选结果。新增导入费用用于单次新增录入。导入用于模板批量写入。预览分摊用于先看规则是否正确。确认写入用于生成待生效批次。批量生效、失效、删除用于集中处理状态。明细用于核对单批次的范围、权重和分摊金额。",
+      "使用注意事项": "新增或导入后的批次默认待生效，不会自动进入管报。批量操作前先确认勾选行状态是否一致，避免整批拦截。删除只允许失效批次。预览分摊总额应与补充金额一致，不一致时先调整范围再写入。导入弹窗和新增弹窗虽然入口不同，但生成的批次状态和后续处理逻辑完全一致。"
+    }
+  },
+  "statusFlow": {
+    "nodes": [
+      {
+        "id": "draft",
+        "label": "待生效",
+        "description": "新增或导入后的默认状态，不参与管报计算。"
+      },
+      {
+        "id": "active",
+        "label": "已生效",
+        "description": "业务确认后的有效状态，参与管报计算与分摊。"
+      },
+      {
+        "id": "inactive",
+        "label": "失效",
+        "description": "从计算口径剔除的状态，可执行删除。"
+      }
+    ],
+    "transitions": [
+      {
+        "from": "待生效",
+        "to": "已生效",
+        "trigger": "点击生效或批量生效且状态校验通过",
+        "allowed": "可查看明细、可失效",
+        "forbidden": "不可直接删除"
+      },
+      {
+        "from": "待生效",
+        "to": "失效",
+        "trigger": "点击失效或批量失效且状态校验通过",
+        "allowed": "可删除、可查看明细",
+        "forbidden": "不可参与管报计算"
+      },
+      {
+        "from": "已生效",
+        "to": "失效",
+        "trigger": "点击失效或批量失效且状态校验通过",
+        "allowed": "可删除、可查看明细",
+        "forbidden": "不可继续参与管报计算"
+      }
+    ]
+  }
+}
+</script>
+<script src="prototype-annotation/prototype-annotation-runtime.js"></script>
+<!-- prototype-annotation:end -->
 </body>
 </html>
