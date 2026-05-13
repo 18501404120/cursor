@@ -136,8 +136,12 @@
       border-color: var(--blue);
       box-shadow: 0 0 0 2px rgba(22, 119, 255, 0.12);
     }
-    .field .hint { font-size: 11px; color: var(--text-sub); margin-top: 2px; line-height: 1.4; max-width: 360px; }
-    .field-actions { display: flex; gap: 8px; align-items: flex-end; }
+    .compare-row-inner {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+    }
     .btn {
       height: 28px;
       padding: 0 14px;
@@ -151,21 +155,12 @@
     }
     .btn.secondary { background: #fff; color: var(--blue); }
     .btn:hover { opacity: 0.92; }
-    .chk-row {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      font-size: 12px;
-      color: #595959;
-      user-select: none;
-    }
-    .chk-row input { margin: 0; }
-    #dateMainMount, #dateCompareMount { min-width: 260px; }
-    .metric-period-note {
-      font-size: 11px;
-      color: var(--text-sub);
-      line-height: 1.65;
-      margin-bottom: 10px;
+    .date-mount .drp-trigger {
+      min-width: 168px !important;
+      max-width: 188px !important;
+      font-size: 11px !important;
+      padding-left: 26px !important;
+      padding-right: 22px !important;
     }
     .table-scroll-wrap {
       overflow: auto;
@@ -186,20 +181,39 @@
       text-align: right;
       white-space: nowrap;
     }
+    .data-table col.col-first { width: 300px; min-width: 280px; max-width: 400px; }
     .data-table th.metric-grp {
       white-space: normal;
-      max-width: 72px;
       line-height: 1.25;
       font-size: 10px;
       font-weight: 600;
-      vertical-align: bottom;
-      padding-bottom: 6px;
+      text-align: center;
+      vertical-align: middle;
+      padding: 8px 4px;
     }
     .data-table th.sub-h {
       font-size: 10px;
       font-weight: 600;
       color: #595959;
+      text-align: center;
+      width: 68px;
+      min-width: 68px;
+      max-width: 68px;
+      box-sizing: border-box;
+      padding: 6px 2px;
     }
+    .data-table td.tri-cur,
+    .data-table td.tri-yoy,
+    .data-table td.tri-cmp {
+      width: 68px;
+      min-width: 68px;
+      max-width: 68px;
+      box-sizing: border-box;
+      text-align: center;
+      padding: 6px 2px;
+      font-variant-numeric: tabular-nums;
+    }
+    .data-table td.tri-cur { font-size: 10px; }
     .data-table th:first-child,
     .data-table td:first-child {
       text-align: left;
@@ -305,6 +319,7 @@
     }
     .guide-list { margin: 8px 0 0; padding-left: 18px; font-size: 12px; line-height: 1.8; color: #475569; }
     .load-err { font-size: 12px; color: #b91c1c; padding: 8px 0; }
+    .table-empty { margin: 0; padding: 12px; font-size: 12px; color: var(--text-sub); }
     .ref-link { color: var(--blue); text-decoration: none; }
     .ref-link:hover { text-decoration: underline; }
   </style>
@@ -363,23 +378,12 @@
               </div>
               <div class="field">
                 <label>时间范围（当期）</label>
-                <div id="dateMainMount"></div>
-                <span class="hint">主统计区间，对应各指标「当期」列。</span>
+                <div id="dateMainMount" class="date-mount"></div>
               </div>
               <div class="field">
                 <label>对比日期范围</label>
-                <div id="dateCompareMount"></div>
-                <span class="hint">用于计算「对比」列比例的分母区间；默认与主期等长的环比区间。</span>
-              </div>
-              <div class="field">
-                <label class="chk-row">
-                  <input type="checkbox" id="syncCompareMom" checked />
-                  查询时将对比期重置为环比区间
-                </label>
-              </div>
-              <div class="field field-actions">
-                <label style="visibility:hidden">操作</label>
-                <div style="display:flex;gap:8px;flex-wrap:wrap">
+                <div class="compare-row-inner">
+                  <div id="dateCompareMount" class="date-mount"></div>
                   <button type="button" class="btn" id="applyBtn">查询</button>
                   <button type="button" class="btn secondary" id="resetBtn">重置</button>
                 </div>
@@ -392,11 +396,9 @@
           <div class="panel-head">
             <div>
               <div class="panel-title">经营分析 · 按渠道与店铺</div>
-              <div class="panel-sub">总渠道汇总与各渠道、店铺成对行；列宽较宽请横向滚动。示例渠道与店铺来自基础数据。</div>
             </div>
           </div>
           <div class="panel-body">
-            <p class="metric-period-note" id="periodNoteCh"></p>
             <div class="table-scroll-wrap" id="channelBlocks"></div>
           </div>
         </section>
@@ -405,11 +407,9 @@
           <div class="panel-head">
             <div>
               <div class="panel-title">经营分析 · 按区域与国家</div>
-              <div class="panel-sub">全区域汇总与各区域、国家成对行；列定义与渠道板块相同。</div>
             </div>
           </div>
           <div class="panel-body">
-            <p class="metric-period-note" id="periodNoteRg"></p>
             <div class="table-scroll-wrap" id="regionBlocks"></div>
           </div>
         </section>
@@ -511,10 +511,6 @@
         return { start: prevStart, end: prevEnd };
       }
 
-      function yoyNote(mainS, mainE) {
-        return addDays(mainS, -365) + " 至 " + addDays(mainE, -365) + "（自然日平移示意）";
-      }
-
       function hashStr(s) {
         var h = 0;
         for (var i = 0; i < s.length; i++) {
@@ -571,13 +567,13 @@
           var yoy = name === "毛利" || name.indexOf("率") >= 0 ? ptOnly(h + 11) : pctOnly(h + 11);
           var cmp = name === "毛利" || name.indexOf("率") >= 0 ? ptOnly(h + 911) : pctOnly(h + 911);
           parts.push(
-            "<td>" +
+            "<td class=\"tri-cur\">" +
               cur +
-              "</td><td class=\"" +
+              "</td><td class=\"tri-yoy " +
               pctClass(yoy) +
               "\">" +
               yoy +
-              "</td><td class=\"" +
+              "</td><td class=\"tri-cmp " +
               pctClass(cmp) +
               "\">" +
               cmp +
@@ -607,6 +603,18 @@
         r1 += "</tr>";
         r2 += "</tr>";
         return "<thead>" + r1 + r2 + "</thead>";
+      }
+
+      function buildColgroupHtml() {
+        var w = 68;
+        var html = ["<colgroup><col class=\"col-first\" />"];
+        for (var i = 0; i < BIZ_FEE_METRICS.length; i++) {
+          html.push("<col style=\"width:" + w + "px\" />");
+          html.push("<col style=\"width:" + w + "px\" />");
+          html.push("<col style=\"width:" + w + "px\" />");
+        }
+        html.push("</colgroup>");
+        return html.join("");
       }
 
       function treeCellHtml(level, showToggle, toggleKey, expanded, hasKids, labelHtml) {
@@ -669,7 +677,7 @@
       }
 
       function renderChannelTableHtml() {
-        if (!channelData || !channelData.channels) return "<p class=\"metric-period-note\">无渠道数据</p>";
+        if (!channelData || !channelData.channels) return "<p class=\"table-empty\">无渠道数据</p>";
         var target = ($("targetSku").value || "").trim() || "（未填写）";
         var cmp = ($("compareSku").value || "").trim();
         var out = [];
@@ -712,6 +720,7 @@
         });
         return (
           "<table class=\"data-table\">" +
+          buildColgroupHtml() +
           buildTheadHtml() +
           "<tbody>" +
           out.join("") +
@@ -720,7 +729,7 @@
       }
 
       function renderRegionTableHtml() {
-        if (!regionData || !regionData.regions) return "<p class=\"metric-period-note\">无区域数据</p>";
+        if (!regionData || !regionData.regions) return "<p class=\"table-empty\">无区域数据</p>";
         var target = ($("targetSku").value || "").trim() || "（未填写）";
         var cmp = ($("compareSku").value || "").trim();
         var out = [];
@@ -763,6 +772,7 @@
         });
         return (
           "<table class=\"data-table\">" +
+          buildColgroupHtml() +
           buildTheadHtml() +
           "<tbody>" +
           out.join("") +
@@ -802,21 +812,6 @@
       }
 
       function refreshPeriodNotes() {
-        var y = yoyNote(mainStart, mainEnd);
-        var txt =
-          "主时间范围（当期）：" +
-          mainStart +
-          " 至 " +
-          mainEnd +
-          "。对比日期范围：" +
-          cmpStart +
-          " 至 " +
-          cmpEnd +
-          "。同比参照期（说明）：" +
-          y +
-          "。「同比」「对比」列均为比例，无绝对额。";
-        $("periodNoteCh").textContent = txt;
-        $("periodNoteRg").textContent = txt;
         var tgt = ($("targetSku").value || "").trim() || "（未填写）";
         var cs = ($("compareSku").value || "").trim();
         $("metaBar").textContent =
@@ -833,17 +828,7 @@
           cmpEnd;
       }
 
-      function syncMomIfNeeded() {
-        if ($("syncCompareMom").checked) {
-          var m = momRange(mainStart, mainEnd);
-          cmpStart = m.start;
-          cmpEnd = m.end;
-          if (pickerCmp) pickerCmp.set(cmpStart, cmpEnd);
-        }
-      }
-
       function apply() {
-        syncMomIfNeeded();
         refreshPeriodNotes();
         renderChannelBlocks();
         renderRegionBlocks();
@@ -852,7 +837,6 @@
       function resetAll() {
         $("targetSku").value = "H6072-US01";
         $("compareSku").value = "H6078-EU01";
-        $("syncCompareMom").checked = true;
         mainStart = "2026-02-01";
         mainEnd = "2026-04-30";
         var m = momRange(mainStart, mainEnd);
