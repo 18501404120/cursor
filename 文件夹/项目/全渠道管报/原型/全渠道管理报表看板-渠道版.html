@@ -475,34 +475,6 @@
       background: #f8fbff;
     }
 
-    .flow-detail-item .k {
-      font-size: 13px;
-      color: #334155;
-      font-weight: 700;
-      line-height: 1.4;
-    }
-
-    .flow-detail-item .flow-detail-amount-row {
-      display: flex;
-      align-items: baseline;
-      justify-content: space-between;
-      gap: 12px;
-      margin-top: 6px;
-    }
-    .flow-detail-item .flow-detail-amount-row .v-main {
-      font-size: 18px;
-      color: #0f172a;
-      font-weight: 700;
-      min-width: 0;
-    }
-    .flow-detail-item .flow-detail-amount-row .ratio {
-      font-size: 12px;
-      color: #64748b;
-      font-weight: 600;
-      flex-shrink: 0;
-      text-align: right;
-    }
-
     .flow-detail-current {
       border: 1px dashed #94a3b8;
       border-radius: 10px;
@@ -511,37 +483,40 @@
       background: linear-gradient(180deg, #f8fafc 0%, #fff 100%);
     }
 
-    .flow-detail-current-head {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      flex-wrap: wrap;
-      gap: 8px;
-      margin-bottom: 8px;
-    }
-
-    .flow-detail-current-label {
-      font-size: 12px;
-      font-weight: 800;
-      color: #0f172a;
-      letter-spacing: 0.02em;
-    }
-
-    .flow-detail-current-hint {
-      font-size: 11px;
-      color: #64748b;
-    }
-
-    .flow-detail-current-title {
-      font-size: 15px;
-      font-weight: 800;
-      color: #1e293b;
-      margin-bottom: 8px;
-      line-height: 1.35;
-    }
-
     .flow-metric-block {
-      margin-top: 2px;
+      margin-top: 0;
+    }
+
+    .flow-metric-row-head {
+      display: flex;
+      align-items: baseline;
+      justify-content: flex-start;
+      flex-wrap: wrap;
+      gap: 8px 14px;
+      margin-bottom: 8px;
+      font-size: 13px;
+      font-weight: 700;
+      line-height: 1.35;
+      color: #1e293b;
+    }
+
+    .flow-metric-row-head .flow-metric-name {
+      flex: 1 1 auto;
+      min-width: 0;
+      color: #1e293b;
+    }
+
+    .flow-metric-row-head .flow-metric-head-val,
+    .flow-metric-row-head .flow-metric-head-ratio {
+      flex: 0 0 auto;
+      font-size: 13px;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+      color: #1e293b;
+    }
+
+    .flow-metric-row-head .flow-metric-head-ratio {
+      color: #64748b;
     }
 
     .flow-metric-grid {
@@ -552,30 +527,8 @@
       align-items: baseline;
     }
 
-    .flow-metric-cell-blank {
-      min-height: 1px;
-    }
-
-    .flow-metric-val-lg {
-      text-align: right;
-      font-size: 17px;
-      font-weight: 800;
-      color: #0f172a;
-      font-variant-numeric: tabular-nums;
-      line-height: 1.2;
-    }
-
-    .flow-metric-ratio-lg {
-      text-align: right;
-      font-size: 14px;
-      font-weight: 700;
-      color: #64748b;
-      font-variant-numeric: tabular-nums;
-      line-height: 1.2;
-    }
-
     .flow-metric-lbl {
-      font-size: 11px;
+      font-size: 13px;
       font-weight: 600;
       color: #64748b;
       text-align: left;
@@ -583,7 +536,7 @@
 
     .flow-metric-trend-val,
     .flow-metric-trend-ratio {
-      font-size: 11px;
+      font-size: 13px;
       font-weight: 600;
       color: #334155;
       text-align: right;
@@ -591,15 +544,8 @@
       line-height: 1.35;
     }
 
-    .flow-metric-foot {
-      margin-top: 8px;
-      font-size: 11px;
-      color: #94a3b8;
-      line-height: 1.45;
-    }
-
     .flow-detail-item .flow-metric-block {
-      margin-top: 6px;
+      margin-top: 0;
     }
 
     @media (max-width: 1360px) {
@@ -2409,8 +2355,16 @@
       };
     }
 
+    function flowMetricHtmlEscape(str) {
+      return String(str ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+    }
+
     function flowMetricBlockHtml(feeKey, seedLabel, options) {
-      const showFoot = options && options.showFoot;
+      const title = options && options.title != null ? options.title : "";
       const values = getTotalValues();
       const revBase = revenueRatioBase(values);
       const trends = metricDemoTrends(String(seedLabel || "") + "|" + String(feeKey || ""));
@@ -2433,15 +2387,22 @@
         ratioCell = revBase ? `(${(Number(values[feeKey]) / revBase * 100).toFixed(2)}%)` : "(—)";
       }
 
-      const foot = showFoot
-        ? `<div class="flow-metric-foot">同、环比为原型演示数：中列为数值同环比，右列为占营收比同环比。</div>`
-        : "";
+      const escTitle = flowMetricHtmlEscape(title);
+      const headRow = title
+        ? `<div class="flow-metric-row-head">
+            <span class="flow-metric-name">${escTitle}</span>
+            <span class="flow-metric-head-val">${valCell}</span>
+            <span class="flow-metric-head-ratio">${ratioCell}</span>
+          </div>`
+        : `<div class="flow-metric-row-head">
+            <span class="flow-metric-head-val" style="margin-left:auto;">${valCell}</span>
+            <span class="flow-metric-head-ratio">${ratioCell}</span>
+          </div>`;
+
       return `
         <div class="flow-metric-block">
+          ${headRow}
           <div class="flow-metric-grid">
-            <span class="flow-metric-cell-blank"></span>
-            <span class="flow-metric-val-lg">${valCell}</span>
-            <span class="flow-metric-ratio-lg">${ratioCell}</span>
             <span class="flow-metric-lbl">同比</span>
             <span class="flow-metric-trend-val">${trends.valueYoy}</span>
             <span class="flow-metric-trend-ratio">${ratioYoyCell}</span>
@@ -2449,7 +2410,6 @@
             <span class="flow-metric-trend-val">${trends.valueMom}</span>
             <span class="flow-metric-trend-ratio">${ratioMomCell}</span>
           </div>
-          ${foot}
         </div>`;
     }
 
@@ -2539,31 +2499,17 @@
       const selected = flowNodeConfig.find((item) => item.key === selectedKey) || flowNodeConfig[0];
       const parentFee = selected.fee;
       const hasSubBoxes = selected.children.length > 1;
-      const subTitle = hasSubBoxes
-        ? "当前值为大框首行（数值与占营收比）；以下为二级费用项（小框），结构相同。"
-        : "本项无多子项拆分，仅展示当前值（数值与占营收比及同环比）。";
       const currentRow = `
         <div class="flow-detail-current">
-          <div class="flow-detail-current-head">
-            <span class="flow-detail-current-label">当前值</span>
-            <span class="flow-detail-current-hint">右列为占营收比</span>
-          </div>
-          <div class="flow-detail-current-title">${selected.key}</div>
-          ${flowMetricBlockHtml(parentFee, selected.key, { showFoot: true })}
+          ${flowMetricBlockHtml(parentFee, selected.key, { title: selected.key })}
         </div>`;
       const list = hasSubBoxes
         ? selected.children.map((fee) => `
           <div class="flow-detail-item">
-            <div class="k">${fee}</div>
-            ${flowMetricBlockHtml(fee, fee, { showFoot: false })}
+            ${flowMetricBlockHtml(fee, fee, { title: fee })}
           </div>`).join("")
         : "";
-      flowDetail.innerHTML = `
-        <div class="flow-detail-title">${selected.key}</div>
-        <div class="flow-detail-sub">${subTitle}</div>
-        ${currentRow}
-        ${hasSubBoxes ? `<div class="flow-detail-list">${list}</div>` : ""}
-      `;
+      flowDetail.innerHTML = `${currentRow}${hasSubBoxes ? `<div class="flow-detail-list">${list}</div>` : ""}`;
     }
 
     function getCellState(fee, view, value) {
