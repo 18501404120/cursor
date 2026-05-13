@@ -433,6 +433,16 @@
       position: relative;
     }
 
+    .card.card--clickable {
+      cursor: pointer;
+      transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    .card.card--clickable:hover {
+      border-color: var(--blue);
+      box-shadow: 0 4px 14px rgba(37, 99, 235, 0.12);
+    }
+
     .card-title {
       font-size: 13px;
       font-weight: 700;
@@ -612,6 +622,178 @@
       font-weight: 600;
       flex-shrink: 0;
       text-align: right;
+    }
+
+    .flow-tile--clickable {
+      cursor: pointer;
+      transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    .flow-tile--clickable:hover {
+      border-color: #3b82f6;
+      box-shadow: 0 2px 10px rgba(59, 130, 246, 0.12);
+    }
+
+    .flow-detail-current {
+      border: 1px dashed #94a3b8;
+      border-radius: 10px;
+      padding: 12px 14px;
+      margin-bottom: 12px;
+      background: linear-gradient(180deg, #f8fafc 0%, #fff 100%);
+    }
+
+    .flow-detail-current-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+
+    .flow-detail-current-label {
+      font-size: 12px;
+      font-weight: 800;
+      color: #0f172a;
+      letter-spacing: 0.02em;
+    }
+
+    .flow-detail-current-hint {
+      font-size: 11px;
+      color: #64748b;
+    }
+
+    .flow-detail-current-amount-row {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .flow-detail-current-title {
+      font-size: 16px;
+      font-weight: 800;
+      color: #1e293b;
+    }
+
+    .flow-detail-current-amt {
+      font-size: 22px;
+      font-weight: 800;
+      color: #0f172a;
+    }
+
+    .flow-detail-current-ratio {
+      font-size: 13px;
+      font-weight: 700;
+      color: #64748b;
+    }
+
+    .metric-detail-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.35);
+      z-index: 10040;
+      display: none;
+    }
+
+    .metric-detail-backdrop.show {
+      display: block;
+    }
+
+    .metric-detail-sheet {
+      position: fixed;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      width: min(440px, calc(100vw - 32px));
+      max-height: min(82vh, 580px);
+      overflow: auto;
+      z-index: 10050;
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: 0 18px 48px rgba(15, 23, 42, 0.22);
+      border: 1px solid #e2e8f0;
+      display: none;
+    }
+
+    .metric-detail-sheet.show {
+      display: block;
+    }
+
+    .metric-detail-hd {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 14px 16px 10px;
+      border-bottom: 1px solid #f1f5f9;
+    }
+
+    .metric-detail-title {
+      font-size: 16px;
+      font-weight: 800;
+      color: #0f172a;
+      line-height: 1.35;
+      flex: 1;
+      min-width: 0;
+    }
+
+    .metric-detail-close {
+      flex-shrink: 0;
+      width: 36px;
+      height: 36px;
+      margin: -6px -4px -6px 0;
+      border: none;
+      border-radius: 8px;
+      background: transparent;
+      color: #64748b;
+      font-size: 22px;
+      line-height: 1;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .metric-detail-close:hover {
+      background: #f1f5f9;
+      color: #0f172a;
+    }
+
+    .metric-detail-body {
+      padding: 14px 16px 16px;
+    }
+
+    .metric-detail-grid {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 10px 16px;
+      font-size: 13px;
+    }
+
+    .metric-detail-grid dt {
+      margin: 0;
+      color: #64748b;
+      font-weight: 600;
+    }
+
+    .metric-detail-grid dd {
+      margin: 0;
+      text-align: right;
+      font-weight: 700;
+      color: #0f172a;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .metric-detail-note {
+      margin-top: 12px;
+      padding: 10px 12px;
+      background: #f8fafc;
+      border-radius: 8px;
+      font-size: 12px;
+      color: #475569;
+      line-height: 1.55;
     }
 
     @media (max-width: 1360px) {
@@ -1480,6 +1662,15 @@
     </main>
   </div>
   <div class="req-popover" id="reqPopover"></div>
+
+  <div class="metric-detail-backdrop" id="metricDetailBackdrop"></div>
+  <div class="metric-detail-sheet" id="metricDetailSheet" role="dialog" aria-modal="true" aria-labelledby="metricDetailTitle">
+    <div class="metric-detail-hd">
+      <div class="metric-detail-title" id="metricDetailTitle"></div>
+      <button type="button" class="metric-detail-close" id="metricDetailClose" aria-label="关闭">×</button>
+    </div>
+    <div class="metric-detail-body" id="metricDetailBody"></div>
+  </div>
 
   <script>
     const feeColumns = [
@@ -2514,44 +2705,50 @@
       const confirmPct = sc.total ? Math.round((sc.ok / sc.total) * 100) : 0;
       const cardMap = {
         business: [
-          { title: "销售额", value: sale, unit: currencyCode, y: "+2.13%", m: "-12.31%", note: "净销售额 + 亚马逊运费收入 + 亚马逊包装收入", money: true },
-          { title: "营收", value: revenue, unit: currencyCode, y: "+1.82%", m: "-10.46%", note: "收入净额口径", money: true },
-          { title: "销量", value: qty, unit: "", y: "+2.13%", m: "-6.31%", note: "订单销量（扣减退货）" },
-          { title: "毛利", value: gross, unit: currencyCode, y: "+1.36%", m: "-8.12%", note: "业务口径毛利", money: true },
-          { title: "毛利率", value: "39.82%", unit: "", y: "+0.86%", m: "-0.32%", note: "" },
-          { title: "退款率", value: "2.68%", unit: "", y: "+0.13%", m: "-0.21%", note: "销售退款 / 营收；明细占比副文案为 (x.xx%) 形式" },
-          { title: "税费率", value: "2.24%", unit: "", y: "+0.05%", m: "-0.11%", note: "销售税/VAT / 营收" }
+          { title: "销售额", value: sale, unit: currencyCode, y: "+2.13%", m: "-12.31%", note: "净销售额 + 亚马逊运费收入 + 亚马逊包装收入", money: true, metricKey: "销售额（计算值=净销售额+包装收入+运费收入）" },
+          { title: "营收", value: revenue, unit: currencyCode, y: "+1.82%", m: "-10.46%", note: "收入净额口径", money: true, metricKey: "营收" },
+          { title: "销量", value: qty, unit: "", y: "+2.13%", m: "-6.31%", note: "订单销量（扣减退货）", metricKey: "销量" },
+          { title: "毛利", value: gross, unit: currencyCode, y: "+1.36%", m: "-8.12%", note: "业务口径毛利", money: true, metricKey: "毛利" },
+          { title: "毛利率", value: "39.82%", unit: "", y: "+0.86%", m: "-0.32%", note: "", metricKey: "__SPECIAL_MARGIN_RATE__" },
+          { title: "退款率", value: "2.68%", unit: "", y: "+0.13%", m: "-0.21%", note: "销售退款 / 营收；明细占比副文案为 (x.xx%) 形式", metricKey: "__SPECIAL_REFUND_RATE__" },
+          { title: "税费率", value: "2.24%", unit: "", y: "+0.05%", m: "-0.11%", note: "销售税/VAT / 营收", metricKey: "__SPECIAL_TAX_RATE__" }
         ],
         finance: [
-          { title: "财务销售额", value: sale, unit: currencyCode, y: "+1.95%", m: "-11.22%", note: "按财务维度已接入字段汇总", money: true },
-          { title: "财务营收", value: revenue, unit: currencyCode, y: "+1.52%", m: "-9.63%", note: "月末确认口径", money: true },
-          { title: "财务毛利", value: gross, unit: currencyCode, y: "+1.10%", m: "-7.41%", note: "财务确认值", money: true },
-          { title: "已接入费用项", value: String(sc.ok), unit: "项", y: "", m: "", note: "状态为「已映射」的费用项数（原型按 feeStates 统计）" },
-          { title: "部分缺失", value: String(sc.partial), unit: "项", y: "", m: "", note: "需补齐映射或滚动预提" },
-          { title: "缺失项", value: String(sc.missing), unit: "项", y: "", m: "", note: "平台服务费 / 收单费用 / 店铺费用等" },
-          { title: "确认率", value: `${confirmPct}%`, unit: "", y: "+2.00%", m: "+1.00%", note: `已接入 / 可统计费用项（${sc.total} 项，不含销量）` }
+          { title: "财务销售额", value: sale, unit: currencyCode, y: "+1.95%", m: "-11.22%", note: "按财务维度已接入字段汇总", money: true, metricKey: "销售额（计算值=净销售额+包装收入+运费收入）" },
+          { title: "财务营收", value: revenue, unit: currencyCode, y: "+1.52%", m: "-9.63%", note: "月末确认口径", money: true, metricKey: "营收" },
+          { title: "财务毛利", value: gross, unit: currencyCode, y: "+1.10%", m: "-7.41%", note: "财务确认值", money: true, metricKey: "毛利" },
+          { title: "已接入费用项", value: String(sc.ok), unit: "项", y: "", m: "", note: "状态为「已映射」的费用项数（原型按 feeStates 统计）", metricKey: "" },
+          { title: "部分缺失", value: String(sc.partial), unit: "项", y: "", m: "", note: "需补齐映射或滚动预提", metricKey: "" },
+          { title: "缺失项", value: String(sc.missing), unit: "项", y: "", m: "", note: "平台服务费 / 收单费用 / 店铺费用等", metricKey: "" },
+          { title: "确认率", value: `${confirmPct}%`, unit: "", y: "+2.00%", m: "+1.00%", note: `已接入 / 可统计费用项（${sc.total} 项，不含销量）`, metricKey: "" }
         ],
         delta: [
-          { title: "销售额差异", value: sale, unit: currencyCode, y: "", m: "", note: "业务 - 财务", money: true },
-          { title: "营收差异", value: revenue, unit: currencyCode, y: "", m: "", note: "收入净额差异", money: true },
-          { title: "毛利差异", value: gross, unit: currencyCode, y: "", m: "", note: "毛利口径差异", money: true },
-          { title: "偏差率", value: "3.59%", unit: "", y: "", m: "", note: "毛利差异 / 业务毛利" },
-          { title: "高风险缺口", value: "3", unit: "项", y: "", m: "", note: "平台服务费 / 收单费用 / 运杂费" },
-          { title: "待回写项", value: "9", unit: "项", y: "", m: "", note: "部分费用仅月末结账回写" },
-          { title: "预提依赖项", value: "7", unit: "项", y: "", m: "", note: "按店铺+渠道+费用项滚动占比预提" }
+          { title: "销售额差异", value: sale, unit: currencyCode, y: "", m: "", note: "业务 - 财务", money: true, metricKey: "销售额（计算值=净销售额+包装收入+运费收入）" },
+          { title: "营收差异", value: revenue, unit: currencyCode, y: "", m: "", note: "收入净额差异", money: true, metricKey: "营收" },
+          { title: "毛利差异", value: gross, unit: currencyCode, y: "", m: "", note: "毛利口径差异", money: true, metricKey: "毛利" },
+          { title: "偏差率", value: "3.59%", unit: "", y: "", m: "", note: "毛利差异 / 业务毛利", metricKey: "" },
+          { title: "高风险缺口", value: "3", unit: "项", y: "", m: "", note: "平台服务费 / 收单费用 / 运杂费", metricKey: "" },
+          { title: "待回写项", value: "9", unit: "项", y: "", m: "", note: "部分费用仅月末结账回写", metricKey: "" },
+          { title: "预提依赖项", value: "7", unit: "项", y: "", m: "", note: "按店铺+渠道+费用项滚动占比预提", metricKey: "" }
         ]
       };
 
-      cardsHost.innerHTML = cardMap[state.view].map((card) => `
-        <div class="card">
+      cardsHost.innerHTML = cardMap[state.view].map((card) => {
+        const mk = card.metricKey ? encodeURIComponent(card.metricKey) : "";
+        const valHtml = (typeof card.value === "number" && card.money)
+          ? card.value.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+          : card.value;
+        const unitHtml = card.unit ? `<span style="font-size:12px;color:#64748b;margin-left:4px;">${card.unit}</span>` : "";
+        return `
+        <div class="card card--clickable" data-metric-label="${card.title.replace(/"/g, "&quot;")}" data-metric-key="${mk}">
           <div class="card-title">${card.title}</div>
-          <div class="card-value">${(typeof card.value === "number" && card.money) ? card.value.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : card.value}${card.unit ? `<span style="font-size:12px;color:#64748b;margin-left:4px;">${card.unit}</span>` : ""}</div>
+          <div class="card-value">${valHtml}${unitHtml}</div>
           <div class="card-sub">
             ${card.y ? `<span class="trend-up">同比 ${card.y}</span>` : `<span class="trend-neutral">状态口径</span>`}
             ${card.m ? `<span class="trend-down">环比 ${card.m}</span>` : `<span class="trend-neutral">按当前视图</span>`}
           </div>
-        </div>
-      `).join("");
+        </div>`;
+      }).join("");
     }
 
     function renderLegend() {
@@ -2672,6 +2869,9 @@
     }
 
     const flowNodeConfig = [
+      { key: "销售额", fee: "销售额（计算值=净销售额+包装收入+运费收入）", children: [], lane: "pillar", style: "pillar" },
+      { key: "营收", fee: "营收", children: [], lane: "pillar", style: "pillar" },
+      { key: "毛利", fee: "毛利", children: [], lane: "pillar", style: "pillar" },
       {
         key: "优惠合计",
         fee: "优惠合计（计算值=折扣+直接扣减折扣）",
@@ -2742,6 +2942,107 @@
       return rows[0] ? rows[0].values : {};
     }
 
+    function metricTrendDemoSeed(str) {
+      let h = 0;
+      for (let i = 0; i < str.length; i++) h = Math.imul(31, h) + str.charCodeAt(i) | 0;
+      return Math.abs(h);
+    }
+
+    function formatSignedPct(n) {
+      return (n >= 0 ? "+" : "") + n.toFixed(2) + "%";
+    }
+
+    function metricDemoTrends(seedStr) {
+      const h = metricTrendDemoSeed(seedStr);
+      const pick = (mod, shift) => ((((h >> shift) % mod) / Math.max(mod - 1, 1)) * 2 - 1) * 5.5;
+      return {
+        valueYoy: formatSignedPct(pick(97, 2)),
+        valueMom: formatSignedPct(pick(89, 5)),
+        ratioYoy: formatSignedPct(pick(61, 7) * 0.35),
+        ratioMom: formatSignedPct(pick(53, 9) * 0.38)
+      };
+    }
+
+    function closeMetricDetailSheet() {
+      document.getElementById("metricDetailBackdrop")?.classList.remove("show");
+      document.getElementById("metricDetailSheet")?.classList.remove("show");
+      const titleEl = document.getElementById("metricDetailTitle");
+      if (titleEl) titleEl.textContent = "";
+    }
+
+    function describeRatioToRevenue(values, feeKey) {
+      if (!feeKey || feeKey === "销量") return "不适用（非金额或无量纲占比）";
+      const rev = revenueRatioBase(values);
+      const v = values[feeKey];
+      if (!rev || v === null || v === undefined) return "—";
+      const pct = (Number(v) / rev) * 100;
+      return pct.toFixed(2) + "%";
+    }
+
+    function openMetricDetailSheet(label, feeKey) {
+      const backdrop = document.getElementById("metricDetailBackdrop");
+      const sheet = document.getElementById("metricDetailSheet");
+      const titleEl = document.getElementById("metricDetailTitle");
+      const bodyEl = document.getElementById("metricDetailBody");
+      if (!backdrop || !sheet || !titleEl || !bodyEl) return;
+
+      const values = getTotalValues();
+      const trends = metricDemoTrends((label || "") + "|" + (feeKey || ""));
+      let valueLine = "—";
+      let ratioLine = "—";
+      let ratioBlock = "";
+
+      if (feeKey === "__SPECIAL_MARGIN_RATE__") {
+        const rev = revenueRatioBase(values);
+        const g = values["毛利"];
+        valueLine = rev && g !== null && g !== undefined ? ((Number(g) / rev) * 100).toFixed(2) + "%" : "—";
+        ratioLine = "即毛利占营收比重，与关系图占比口径一致";
+        ratioBlock = `<dt>占比同比</dt><dd>${trends.ratioYoy}</dd><dt>占比环比</dt><dd>${trends.ratioMom}</dd>`;
+      } else if (feeKey === "__SPECIAL_REFUND_RATE__") {
+        const rev = revenueRatioBase(values);
+        const r = values["销售退款"];
+        valueLine = rev && r !== null && r !== undefined ? ((Number(r) / rev) * 100).toFixed(2) + "%" : "—";
+        ratioLine = "销售退款金额占营收比重";
+        ratioBlock = `<dt>占比同比</dt><dd>${trends.ratioYoy}</dd><dt>占比环比</dt><dd>${trends.ratioMom}</dd>`;
+      } else if (feeKey === "__SPECIAL_TAX_RATE__") {
+        const rev = revenueRatioBase(values);
+        const t = values["销售税/VAT"];
+        valueLine = rev && t !== null && t !== undefined ? ((Number(t) / rev) * 100).toFixed(2) + "%" : "—";
+        ratioLine = "销售税或增值税占营收比重";
+        ratioBlock = `<dt>占比同比</dt><dd>${trends.ratioYoy}</dd><dt>占比环比</dt><dd>${trends.ratioMom}</dd>`;
+      } else if (feeKey) {
+        valueLine = shortMoney(values[feeKey], feeKey);
+        ratioLine = describeRatioToRevenue(values, feeKey);
+        if (feeKey !== "销量") {
+          ratioBlock = `<dt>占比同比</dt><dd>${trends.ratioYoy}</dd><dt>占比环比</dt><dd>${trends.ratioMom}</dd>`;
+        } else {
+          ratioBlock = `<dt>占比同比</dt><dd>—</dd><dt>占比环比</dt><dd>—</dd>`;
+        }
+      } else {
+        valueLine = "—";
+        ratioLine = "该项为汇总或状态类指标，无单一底表费用字段；以下为演示同环比";
+        ratioBlock = `<dt>占比同比</dt><dd>${trends.ratioYoy}</dd><dt>占比环比</dt><dd>${trends.ratioMom}</dd>`;
+      }
+
+      titleEl.textContent = label || "指标说明";
+      bodyEl.innerHTML = `
+        <dl class="metric-detail-grid">
+          <dt>费用数值 / 指标值</dt><dd>${valueLine}</dd>
+          <dt>数值同比</dt><dd>${trends.valueYoy}</dd>
+          <dt>数值环比</dt><dd>${trends.valueMom}</dd>
+          <dt>占营收比</dt><dd>${ratioLine}</dd>
+          ${ratioBlock}
+        </dl>
+        <div class="metric-detail-note">说明：同比、环比及占比变动为原型演示数；上线后按账期与筛选条件取自统计服务。费用类指标占营收比与关系图「以营收为 100%」一致。</div>
+      `;
+      backdrop.classList.add("show");
+      sheet.classList.add("show");
+    }
+
+    function flowPillarHit(points, nodeKey) {
+      return `<g class="flow-node" data-node-key="${nodeKey}" style="cursor:pointer;"><polygon points="${points}" fill="rgba(255,255,255,0.001)" stroke="none" pointer-events="all"></polygon></g>`;
+    }
+
     function flowItemBox(x, y, title, fee, values, style = "purple", active = false) {
       const val = values[fee];
       const amount = shortMoney(val, fee);
@@ -2782,6 +3083,7 @@
         <polygon points="220,34 1340,34 1268,118 292,118" fill="#eef8ff" stroke="#38bdf8" stroke-width="3"></polygon>
         <text x="780" y="77" text-anchor="middle" font-size="34" font-weight="700" fill="#0f172a">销售额</text>
         <text x="780" y="107" text-anchor="middle" font-size="26" font-weight="700" fill="#334155">${sales}${revBase ? ` (${salesPct}%)` : " (--)"}</text>
+        ${flowPillarHit("220,34 1340,34 1268,118 292,118", "销售额")}
 
         ${flowItemBox(300, 138, "优惠合计", "优惠合计（计算值=折扣+直接扣减折扣）", values, "orange", selected === "优惠合计")}
         ${flowItemBox(700, 138, "销售退款", "销售退款", values, "orange", selected === "销售退款")}
@@ -2790,6 +3092,7 @@
         <polygon points="320,222 1240,222 1174,306 386,306" fill="#f0f9ff" stroke="#3b82f6" stroke-width="3"></polygon>
         <text x="780" y="264" text-anchor="middle" font-size="32" font-weight="700" fill="#0f172a">营收</text>
         <text x="780" y="294" text-anchor="middle" font-size="24" font-weight="700" fill="#334155">${revenue}${revBase ? " (100%)" : " (--)"}</text>
+        ${flowPillarHit("320,222 1240,222 1174,306 386,306", "营收")}
 
         ${flowItemBox(255, 324, "货值成本净额", "货值成本净额（计算值=发货成本+退货成本+平台赔偿）", values, "purple", selected === "货值成本净额")}
         ${flowItemBox(435, 324, "广告宣传小计", "广告宣传小计（计算值=广告费+品牌营销费+推广费+样品费）", values, "purple", selected === "广告宣传小计")}
@@ -2801,6 +3104,7 @@
         <polygon points="450,410 1110,410 1040,506 520,506" fill="#f5f3ff" stroke="#8b5cf6" stroke-width="3"></polygon>
         <text x="780" y="458" text-anchor="middle" font-size="32" font-weight="700" fill="#0f172a">毛利</text>
         <text x="780" y="489" text-anchor="middle" font-size="24" font-weight="700" fill="#334155">${gross}${revBase ? ` (${grossRatio}%)` : " (--)"}</text>
+        ${flowPillarHit("450,410 1110,410 1040,506 520,506", "毛利")}
       `;
 
       flowSvg.innerHTML = svg;
@@ -2811,6 +3115,8 @@
         state.selectedFlowNode = key;
         renderFlowDiagram();
         renderFlowDetail();
+        const cfg = flowNodeConfig.find((item) => item.key === key);
+        if (cfg && cfg.fee) openMetricDetailSheet(cfg.key, cfg.fee);
       };
     }
 
@@ -2819,16 +3125,50 @@
       const selected = flowNodeConfig.find((item) => item.key === selectedKey) || flowNodeConfig[0];
       const values = getTotalValues();
       const revBase = revenueRatioBase(values);
-      const list = selected.children.map((fee) => {
-        const amount = shortMoney(values[fee], fee);
-        const ratio = (revBase && values[fee] !== null && values[fee] !== undefined)
-          ? `${((Number(values[fee]) / revBase) * 100).toFixed(2)}%`
-          : "--";
-        return `<div class="flow-detail-item"><div class="k">${fee}</div><div class="flow-detail-amount-row"><span class="v-main">${amount}</span><span class="ratio">${ratio === "--" ? "(--)" : `(${ratio})`}</span></div></div>`;
-      }).join("");
+      const parentFee = selected.fee;
+      const parentVal = values[parentFee];
+      const parentAmt = shortMoney(parentVal, parentFee);
+      let parentRatioText = "(—)";
+      if (parentFee !== "销量" && revBase && parentVal !== null && parentVal !== undefined) {
+        parentRatioText = `(${(Number(parentVal) / revBase * 100).toFixed(2)}%)`;
+      } else if (selected.key === "营收" && revBase) {
+        parentRatioText = "(100%)";
+      }
+      const hasSubBoxes = selected.children.length > 1;
+      const subTitle = hasSubBoxes
+        ? "当前值为大框首行；以下为二级费用项（小框）。点击任一项可查看数值与占比的同比、环比。"
+        : "本项无多子项拆分，仅展示当前值；点击当前值可查看数值与占比的同比、环比。";
+      const feeEncParent = encodeURIComponent(parentFee);
+      const currentRow = `
+        <div class="flow-detail-current flow-tile--clickable" data-metric-label="${selected.key.replace(/"/g, "&quot;")}" data-fee-key="${feeEncParent}">
+          <div class="flow-detail-current-head">
+            <span class="flow-detail-current-label">当前值</span>
+            <span class="flow-detail-current-hint">点击查看明细口径</span>
+          </div>
+          <div class="flow-detail-current-amount-row">
+            <span class="flow-detail-current-title">${selected.key}</span>
+            <span class="flow-detail-current-amt">${parentAmt}</span>
+            <span class="flow-detail-current-ratio">${parentRatioText}</span>
+          </div>
+        </div>`;
+      const list = hasSubBoxes
+        ? selected.children.map((fee) => {
+          const amount = shortMoney(values[fee], fee);
+          const ratio = (revBase && values[fee] !== null && values[fee] !== undefined)
+            ? `${((Number(values[fee]) / revBase) * 100).toFixed(2)}%`
+            : "--";
+          const feeEnc = encodeURIComponent(fee);
+          return `<div class="flow-detail-item flow-tile--clickable" data-metric-label="${fee.replace(/"/g, "&quot;")}" data-fee-key="${feeEnc}">
+            <div class="k">${fee}</div>
+            <div class="flow-detail-amount-row"><span class="v-main">${amount}</span><span class="ratio">${ratio === "--" ? "(--)" : `(${ratio})`}</span></div>
+          </div>`;
+        }).join("")
+        : "";
       flowDetail.innerHTML = `
-        <div class="flow-detail-title">${selected.key} 包含的子费用项</div>
-        <div class="flow-detail-list">${list}</div>
+        <div class="flow-detail-title">${selected.key}</div>
+        <div class="flow-detail-sub">${subTitle}</div>
+        ${currentRow}
+        ${hasSubBoxes ? `<div class="flow-detail-list">${list}</div>` : ""}
       `;
     }
 
@@ -3003,6 +3343,25 @@
       renderFlowDetail();
       renderTable();
     }
+
+    document.getElementById("metricDetailBackdrop")?.addEventListener("click", closeMetricDetailSheet);
+    document.getElementById("metricDetailClose")?.addEventListener("click", closeMetricDetailSheet);
+    cardsHost?.addEventListener("click", (e) => {
+      const card = e.target.closest(".card.card--clickable");
+      if (!card) return;
+      const label = card.getAttribute("data-metric-label") || "";
+      const enc = card.getAttribute("data-metric-key") || "";
+      const key = enc ? decodeURIComponent(enc) : "";
+      openMetricDetailSheet(label, key || null);
+    });
+    flowDetail?.addEventListener("click", (e) => {
+      const t = e.target.closest(".flow-tile--clickable");
+      if (!t) return;
+      const label = t.getAttribute("data-metric-label") || "";
+      const enc = t.getAttribute("data-fee-key") || "";
+      const key = enc ? decodeURIComponent(enc) : "";
+      openMetricDetailSheet(label, key || null);
+    });
 
     document.getElementById("searchBtn").addEventListener("click", () => {
       renderAll();
