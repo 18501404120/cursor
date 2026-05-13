@@ -322,6 +322,23 @@
     .table-empty { margin: 0; padding: 12px; font-size: 12px; color: var(--text-sub); }
     .ref-link { color: var(--blue); text-decoration: none; }
     .ref-link:hover { text-decoration: underline; }
+    .th-help {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 14px;
+      height: 14px;
+      margin-left: 2px;
+      border-radius: 50%;
+      border: 1px solid #bfbfbf;
+      background: #fafafa;
+      color: #8c8c8c;
+      font-size: 10px;
+      font-weight: 600;
+      line-height: 1;
+      cursor: help;
+      vertical-align: middle;
+    }
   </style>
   <script src="../../../规范/assets/date-range-picker.js"></script>
 </head>
@@ -350,7 +367,7 @@
           <div class="panel-head">
             <div>
               <div class="panel-title">页面说明</div>
-              <div class="panel-sub">目标 SKU 与对比 SKU 成对紧邻展示；指标列与《财务费用字段与业务字段映射维护》业务指标池顺序一致；同比、对比两列仅展示比例。</div>
+              <div class="panel-sub">目标 SKU 与对比 SKU 成对紧邻展示；指标列先与《财务费用字段与业务字段映射维护》业务指标池顺序一致，尾部增补 ASP、流量与转化等维度；同比、对比两列仅展示比例。</div>
             </div>
             <button type="button" class="guide-toggle" id="toggleGuide">查看页面说明</button>
           </div>
@@ -358,7 +375,7 @@
             <div class="guide-panel" id="guidePanel" hidden>
               <div class="guide-alert">
                 <span class="guide-tag">口径</span>
-                <span>业务指标列顺序与仓库内 <a class="ref-link" href="./财务费用字段与业务字段映射维护.html">财务费用字段与业务字段映射维护</a> 页面脚本中 <code>defaultBusinessFields</code>（与《全渠道财务业务费用项-优化版 V2》A 列顺序一致）保持同步。「当期」为主时间范围内演示绝对值；「同比」「对比」仅展示百分比（同比相对去年同期、对比相对对比日期范围），不含绝对额。渠道、店铺、区域、国家来自规范基础数据 JSON。</span>
+                <span>业务指标列顺序与仓库内 <a class="ref-link" href="./财务费用字段与业务字段映射维护.html">财务费用字段与业务字段映射维护</a> 页面脚本中 <code>defaultBusinessFields</code>（与《全渠道财务业务费用项-优化版 V2》A 列顺序一致）保持同步；其后追加 ASP、Total Sessions、Browser Sessions、日均流量、订单、T-CR、B-CR 等流量与转化维度。「当期」为主时间范围内演示绝对值；「同比」「对比」仅展示百分比（同比相对去年同期、对比相对对比日期范围），不含绝对额。渠道、店铺、区域、国家来自规范基础数据 JSON。</span>
               </div>
               <ul class="guide-list">
                 <li>同一层级下先目标 SKU 行、再对比 SKU 行（若已填写），便于纵向对照。</li>
@@ -464,12 +481,34 @@
         "毛利"
       ];
 
+      /**
+       * 产品分析看板在业务指标池之后增补的维度（非财务明细表强制列，顺序以本页为准）。
+       */
+      var PRODUCT_ANALYSIS_EXTRA_METRICS = [
+        "ASP",
+        "Total Sessions",
+        "Browser Sessions",
+        "日均流量",
+        "订单",
+        "T-CR",
+        "B-CR"
+      ];
+
+      var ALL_TABLE_METRICS = BIZ_FEE_METRICS.concat(PRODUCT_ANALYSIS_EXTRA_METRICS);
+
       var BIZ_METRIC_DESC = {
         订单销售额: "订单含税、含退款、含折扣等口径的销售额（按渠道定义）",
         净销售额: "RRP价×销售数量（含退货数量）",
         销售额: "净销售额+包装收入+运费收入",
         销量: "订单销量（扣减退货）",
-        毛利: "收入净额减各成本费用项后的毛利（以 Excel 取值为准）"
+        毛利: "收入净额减各成本费用项后的毛利（以 Excel 取值为准）",
+        ASP: "Average Selling Price，客单价（含税/口径以数仓定义为准，演示为模拟值）",
+        "Total Sessions": "总会话/访问会话数（全站或渠道口径以埋点定义为准）",
+        "Browser Sessions": "浏览器会话数（与 App 会话互斥口径以埋点为准）",
+        日均流量: "主期内日均会话或日均 UV（口径以埋点/数仓定义为准）",
+        订单: "主期内有效订单量（与销量、GMV 同周期对齐）",
+        "T-CR": "Total Conversion Rate：订单数 ÷ Total Sessions（或业务约定口径）",
+        "B-CR": "Browser Conversion Rate：订单数 ÷ Browser Sessions（或业务约定口径）"
       };
 
       var channelData = null;
@@ -528,6 +567,19 @@
         return sign + "$" + fmtInt(Math.abs(Math.round(n)));
       }
 
+      function fmtMoney2(n) {
+        var sign = n < 0 ? "-" : "";
+        var cents = Math.round(Math.abs(n) * 100);
+        var whole = Math.floor(cents / 100);
+        var frac = cents % 100;
+        return sign + "$" + fmtInt(whole) + "." + (frac < 10 ? "0" : "") + frac;
+      }
+
+      function fmtPct2(seed) {
+        var v = 1 + (seed % 400) / 100;
+        return v.toFixed(2) + "%";
+      }
+
       function pctClass(s) {
         if (typeof s !== "string") return "";
         var v = parseFloat(String(s).replace("%", "").replace("pt", ""));
@@ -552,20 +604,45 @@
         if (metricName === "销量") {
           return fmtInt(200 + (h % 12000));
         }
+        if (metricName === "ASP") {
+          return fmtMoney2(95 + (h % 5000) / 100);
+        }
+        if (metricName === "Total Sessions") {
+          return fmtInt(5000 + (h % 50000));
+        }
+        if (metricName === "Browser Sessions") {
+          return fmtInt(1000 + (h % 12000));
+        }
+        if (metricName === "日均流量") {
+          return (50 + (h % 8000) / 100).toFixed(2);
+        }
+        if (metricName === "订单") {
+          return fmtInt(200 + (h % 2000));
+        }
+        if (metricName === "T-CR" || metricName === "B-CR") {
+          return fmtPct2(h);
+        }
         if (metricName.indexOf("税") >= 0 || metricName.indexOf("VAT") >= 0) {
           return fmtMoney(500 + (h % 80000) / 5);
         }
         return fmtMoney(3000 + (h % 900000) / 3);
       }
 
+      function isPtYoyCmp(metricName) {
+        if (metricName === "毛利") return true;
+        if (metricName.indexOf("率") >= 0) return true;
+        if (metricName === "T-CR" || metricName === "B-CR") return true;
+        return false;
+      }
+
       function cellsForRow(skuKey, rowKey) {
         var parts = [];
-        for (var mi = 0; mi < BIZ_FEE_METRICS.length; mi++) {
-          var name = BIZ_FEE_METRICS[mi];
+        for (var mi = 0; mi < ALL_TABLE_METRICS.length; mi++) {
+          var name = ALL_TABLE_METRICS[mi];
           var h = hashStr(skuKey + "|" + rowKey + "|" + mi);
           var cur = formatCurrent(name, h);
-          var yoy = name === "毛利" || name.indexOf("率") >= 0 ? ptOnly(h + 11) : pctOnly(h + 11);
-          var cmp = name === "毛利" || name.indexOf("率") >= 0 ? ptOnly(h + 911) : pctOnly(h + 911);
+          var yoy = isPtYoyCmp(name) ? ptOnly(h + 11) : pctOnly(h + 11);
+          var cmp = isPtYoyCmp(name) ? ptOnly(h + 911) : pctOnly(h + 911);
           parts.push(
             "<td class=\"tri-cur\">" +
               cur +
@@ -594,10 +671,20 @@
         var r1 =
           "<tr class=\"h1\"><th rowspan=\"2\" class=\"corner-th\">SKU · 层级</th>";
         var r2 = "<tr class=\"h2\">";
-        for (var i = 0; i < BIZ_FEE_METRICS.length; i++) {
-          var nm = BIZ_FEE_METRICS[i];
+        for (var i = 0; i < ALL_TABLE_METRICS.length; i++) {
+          var nm = ALL_TABLE_METRICS[i];
           var tit = BIZ_METRIC_DESC[nm] ? esc(BIZ_METRIC_DESC[nm]) : esc(nm);
-          r1 += "<th colspan=\"3\" class=\"metric-grp\" title=\"" + tit + "\">" + esc(nm) + "</th>";
+          var headInner = esc(nm);
+          if (nm === "T-CR" || nm === "B-CR") {
+            headInner =
+              esc(nm) +
+              "<span class=\"th-help\" title=\"" +
+              tit +
+              "\" aria-label=\"" +
+              tit +
+              "\">?</span>";
+          }
+          r1 += "<th colspan=\"3\" class=\"metric-grp\" title=\"" + tit + "\">" + headInner + "</th>";
           r2 += "<th class=\"sub-h\">当期</th><th class=\"sub-h\">同比</th><th class=\"sub-h\">对比</th>";
         }
         r1 += "</tr>";
@@ -608,7 +695,7 @@
       function buildColgroupHtml() {
         var w = 68;
         var html = ["<colgroup><col class=\"col-first\" />"];
-        for (var i = 0; i < BIZ_FEE_METRICS.length; i++) {
+        for (var i = 0; i < ALL_TABLE_METRICS.length; i++) {
           html.push("<col style=\"width:" + w + "px\" />");
           html.push("<col style=\"width:" + w + "px\" />");
           html.push("<col style=\"width:" + w + "px\" />");
