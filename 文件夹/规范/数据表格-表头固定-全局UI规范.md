@@ -36,13 +36,21 @@
 
 ---
 
-## 4. 左侧冻结列 + 纵向固定表头
+## 4. 冻结列 + 纵向固定表头
 
-若同时有 **横向冻结列**（`position: sticky; left: …`）：
+若同时有 **横向冻结列**（`position: sticky; left: …` / `right: …`）：
 
 - 普通表头：`z-index: 2～3`。  
 - 仅冻结列：`z-index` 略高于普通单元格。  
 - **左上角交叉格**：`left` + `top` 同时 sticky，`z-index` **最高**（如 `5～6`），背景不透明。
+- **右侧操作列**：列表存在“明细 / 编辑 / 生效 / 删除”等操作时，默认作为 **右侧冻结列**；横向滚动时始终可见，不随内容区滚出视口。
+- **右上角操作列表头**：`right: 0` + `top: 0` 同时 sticky，`z-index` 应高于普通表头与普通单元格，背景必须不透明，并补左侧分隔阴影/边线。
+
+推荐口径：
+
+- 小屏时 **不压缩列宽**，通过横向滚动查看；操作列固定右侧。
+- 操作列宽度固定，建议 `88～120px`。
+- 冻结列背景色需与所在区域一致，避免滚动时出现透底叠字。
 
 ---
 
@@ -74,6 +82,18 @@
   background: #fafafa;
   box-shadow: 0 1px 0 #f0f0f0;
 }
+.data-table th.col-action,
+.data-table td.col-action {
+  position: sticky;
+  right: 0;
+  background: #fff;
+  box-shadow: -1px 0 0 #f0f0f0;
+}
+.data-table thead th.col-action {
+  z-index: 6;
+  background: #fafafa;
+  box-shadow: -1px 0 0 #f0f0f0, 0 1px 0 #f0f0f0;
+}
 ```
 
 （具体色值与项目主题一致即可。）
@@ -88,4 +108,4 @@
 
 ---
 
-*文档版本：1.0｜与 Cursor Rule `table-sticky-header` 同步维护*
+*文档版本：1.1（新增：横向滚动场景下右侧操作列固定要求）｜与 Cursor Rule `table-sticky-header` 同步维护*
