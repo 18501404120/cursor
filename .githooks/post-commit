@@ -1,0 +1,46 @@
+#!/bin/sh
+# commit 成功后：仅当本次提交包含「文件夹/项目/」或「文件夹/需求/」下文件时，自动 push 到 origin（当前分支）
+#
+# 启用（在本仓库根目录执行一次）：
+#   git config core.hooksPath .githooks
+#   chmod +x .githooks/post-commit
+#
+# 临时跳过本次 push：
+#   SKIP_AUTO_PUSH=1 git commit -m "..."
+#
+# 关闭自动 hooks 目录（恢复 Git 默认）：
+#   git config --unset core.hooksPath
+
+if [ "${SKIP_AUTO_PUSH}" = "1" ]; then
+  echo "[post-commit] 已跳过 push（SKIP_AUTO_PUSH=1）"
+  exit 0
+fi
+
+# 无远端则静默退出
+if ! git remote get-url origin >/dev/null 2>&1; then
+  echo "[post-commit] 未配置 origin，跳过 push"
+  exit 0
+fi
+
+branch=$(git rev-parse --abbrev-ref HEAD)
+if [ "$branch" = "HEAD" ]; then
+  echo "[post-commit] 处于 detached HEAD，跳过 push"
+  exit 0
+fi
+
+# 仅当 HEAD 提交改动了以下前缀之一时才 push（含子路径）
+# 使用 diff-tree 列出本次提交涉及的路径，兼容改名
+if ! git diff-tree --no-commit-id --name-only -r HEAD |
+  grep -qE '^文件夹/项目(/|$)|^文件夹/需求(/|$)'; then
+  echo "[post-commit] 本次提交未涉及 文件夹/项目/ 或 文件夹/需求/，跳过自动 push"
+  exit 0
+fi
+
+echo "[post-commit] 本次提交含 文件夹/项目/ 或 文件夹/需求/，正在推送分支: $branch → origin ..."
+# 单次 push 强制 HTTP/1.1，减少部分网络下 HTTP/2 framing 报错
+git -c http.version=HTTP/1.1 push origin "$branch"
+status=$?
+if [ "$status" -ne 0 ]; then
+  echo "[post-commit] push 失败（提交已成功）。请检查网络/代理/凭据后手动: git push origin $branch"
+fi
+exit 0
