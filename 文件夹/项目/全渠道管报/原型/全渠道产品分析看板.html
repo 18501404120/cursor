@@ -1,0 +1,882 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>全渠道产品分析看板</title>
+  <style>
+    :root {
+      --page-bg: #f0f2f5;
+      --panel: #ffffff;
+      --line: #e8edf3;
+      --text: rgba(0, 0, 0, 0.88);
+      --text-sub: rgba(0, 0, 0, 0.45);
+      --blue: #1677ff;
+      --nav: #001529;
+      --green: #22c55e;
+      --red: #ef4444;
+      --shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+      margin: 0;
+      font-family: "PingFang SC", "Microsoft YaHei", -apple-system, BlinkMacSystemFont, sans-serif;
+      font-size: 13px;
+      color: var(--text);
+      background: var(--page-bg);
+    }
+    .layout { display: flex; min-height: 100vh; }
+    .sider {
+      width: 56px;
+      flex-shrink: 0;
+      background: var(--nav);
+      border-right: 1px solid #002140;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      padding: 12px 0;
+    }
+    .sider-logo {
+      width: 36px;
+      height: 36px;
+      border-radius: 10px;
+      background: linear-gradient(135deg, #69b1ff, #2f54eb);
+      margin-bottom: 8px;
+      position: relative;
+    }
+    .sider-logo::after {
+      content: "全";
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      font-size: 16px;
+      font-weight: 700;
+    }
+    .sider-item {
+      width: 40px;
+      min-height: 40px;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: rgba(255, 255, 255, 0.65);
+      font-size: 11px;
+      line-height: 1.15;
+      text-align: center;
+      padding: 3px;
+    }
+    .sider-item.active {
+      background: rgba(255, 255, 255, 0.14);
+      color: #fff;
+    }
+    .main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+    .header {
+      height: 48px;
+      background: var(--blue);
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 18px;
+      box-shadow: 0 1px 4px rgba(0, 21, 41, 0.12);
+    }
+    .header .title { font-size: 16px; font-weight: 700; letter-spacing: 0.02em; }
+    .header .meta { display: flex; align-items: center; gap: 12px; font-size: 12px; opacity: 0.95; }
+    .page { flex: 1; overflow: auto; padding: 16px; }
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      box-shadow: var(--shadow);
+      margin-bottom: 14px;
+      overflow: hidden;
+    }
+    .panel-head {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      padding: 12px 16px;
+      border-bottom: 1px solid #f0f0f0;
+      background: linear-gradient(180deg, #fafafa 0%, #fff 100%);
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .panel-title { font-size: 14px; font-weight: 700; }
+    .panel-sub { font-size: 12px; color: var(--text-sub); margin-top: 4px; }
+    .panel-body { padding: 12px 16px 14px; }
+    .filter-bar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: flex-end;
+      gap: 16px 24px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid #f0f0f0;
+    }
+    .field { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+    .field label {
+      font-size: 12px;
+      color: #595959;
+      white-space: nowrap;
+    }
+    .field select {
+      height: 28px;
+      min-width: 120px;
+      max-width: 220px;
+      border: 1px solid #d9d9d9;
+      border-radius: 4px;
+      padding: 0 8px;
+      font-size: 12px;
+      font-family: inherit;
+      color: var(--text);
+      background: #fff;
+    }
+    .field select:focus {
+      outline: none;
+      border-color: var(--blue);
+      box-shadow: 0 0 0 2px rgba(22, 119, 255, 0.12);
+    }
+    .sku-group {
+      display: flex;
+      align-items: stretch;
+      height: 28px;
+      border: 1px solid #d9d9d9;
+      border-radius: 4px;
+      overflow: hidden;
+      background: #fff;
+      min-width: 260px;
+      max-width: 360px;
+    }
+    .sku-group:focus-within {
+      border-color: var(--blue);
+      box-shadow: 0 0 0 2px rgba(22, 119, 255, 0.12);
+    }
+    .sku-group select {
+      border: none;
+      border-right: 1px solid #f0f0f0;
+      border-radius: 0;
+      min-width: 88px;
+      max-width: 100px;
+      height: 100%;
+    }
+    .sku-group input {
+      flex: 1;
+      min-width: 0;
+      border: none;
+      padding: 0 8px;
+      font-size: 12px;
+      font-family: inherit;
+    }
+    .sku-group input:focus { outline: none; }
+    .field-actions { display: flex; gap: 8px; align-items: flex-end; }
+    .btn {
+      height: 28px;
+      padding: 0 14px;
+      border-radius: 4px;
+      border: 1px solid var(--blue);
+      background: var(--blue);
+      color: #fff;
+      font-size: 12px;
+      cursor: pointer;
+      font-family: inherit;
+    }
+    .btn.secondary {
+      background: #fff;
+      color: var(--blue);
+    }
+    .btn:hover { opacity: 0.92; }
+    #dateRangeMount { min-width: 260px; }
+    .metric-block-title {
+      font-size: 13px;
+      font-weight: 700;
+      margin: 0 0 6px;
+    }
+    .metric-period-note {
+      font-size: 11px;
+      color: var(--text-sub);
+      line-height: 1.6;
+      margin-bottom: 8px;
+    }
+    .table-scroll-wrap {
+      overflow: auto;
+      max-height: min(52vh, 560px);
+      border: 1px solid #f0f0f0;
+      border-radius: 8px;
+    }
+    .data-table {
+      width: max-content;
+      min-width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+    .data-table th,
+    .data-table td {
+      border: 1px solid #f0f0f0;
+      padding: 8px 10px;
+      text-align: right;
+      white-space: nowrap;
+    }
+    .data-table th:first-child,
+    .data-table td:first-child {
+      text-align: left;
+      position: sticky;
+      left: 0;
+      z-index: 3;
+      background: #fafafa;
+      min-width: 72px;
+      font-weight: 600;
+    }
+    .data-table tbody td:first-child { background: #fff; }
+    .data-table thead th {
+      position: sticky;
+      top: 0;
+      z-index: 4;
+      background: #fafafa;
+      font-weight: 600;
+      text-align: center;
+      box-shadow: 0 1px 0 #f0f0f0;
+    }
+    .data-table thead th:first-child {
+      z-index: 5;
+      text-align: left;
+    }
+    .num-pos { color: var(--green); font-weight: 600; }
+    .num-neg { color: var(--red); font-weight: 600; }
+    .section-gap { margin-top: 20px; }
+    .detail-caption {
+      font-size: 12px;
+      color: var(--text-sub);
+      margin: 0 0 8px;
+    }
+    .guide-toggle {
+      height: 28px;
+      border: 1px solid #d9d9d9;
+      border-radius: 6px;
+      background: #fff;
+      color: var(--blue);
+      font-size: 12px;
+      padding: 0 12px;
+      cursor: pointer;
+      font-family: inherit;
+    }
+    .guide-panel[hidden] { display: none !important; }
+    .guide-alert {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      padding: 10px 12px;
+      border: 1px solid #dbeafe;
+      border-radius: 8px;
+      background: #f8fbff;
+      color: #1d4ed8;
+      font-size: 12px;
+      line-height: 1.75;
+      margin-bottom: 12px;
+    }
+    .guide-tag {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 72px;
+      height: 24px;
+      padding: 0 10px;
+      border-radius: 999px;
+      background: var(--blue);
+      color: #fff;
+      font-size: 12px;
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+    .guide-list { margin: 8px 0 0; padding-left: 18px; font-size: 12px; line-height: 1.8; color: #475569; }
+    .load-err {
+      font-size: 12px;
+      color: #b91c1c;
+      padding: 8px 0;
+    }
+  </style>
+  <script src="../../../规范/assets/date-range-picker.js"></script>
+</head>
+<body>
+  <div class="layout">
+    <aside class="sider">
+      <div class="sider-logo"></div>
+      <div class="sider-item">首页</div>
+      <div class="sider-item">流量</div>
+      <div class="sider-item">经营</div>
+      <div class="sider-item active">商品</div>
+      <div class="sider-item">费用</div>
+      <div class="sider-item">设置</div>
+    </aside>
+    <main class="main">
+      <header class="header">
+        <div class="title">全渠道产品分析看板</div>
+        <div class="meta">
+          <span id="metaBar">视角：SKU · 渠道与店铺、区域与国家可联动筛选</span>
+          <span id="metaCurrency">币种：USD</span>
+          <span>数据更新：演示数据</span>
+        </div>
+      </header>
+
+      <div class="page">
+        <section class="panel">
+          <div class="panel-head">
+            <div>
+              <div class="panel-title">页面说明</div>
+              <div class="panel-sub">以 SKU 为主键，在全渠道范围内对比经营结果与流量转化；支持下钻到渠道、店铺、区域、国家。</div>
+            </div>
+            <button type="button" class="guide-toggle" id="toggleGuide">查看页面说明</button>
+          </div>
+          <div class="panel-body">
+            <div class="guide-panel" id="guidePanel" hidden>
+              <div class="guide-alert">
+                <span class="guide-tag">口径</span>
+                <span>本页为原型示意。渠道与店铺、区域与国家的候选值来自仓库内统一基础数据 JSON；日期范围控件对齐全站《日期范围选择框》规范。正式环境由接口按权限与数据域返回指标。</span>
+              </div>
+              <p class="panel-sub" style="margin:0">建议后续可扩展的维度（按业务需要择要上线）：</p>
+              <ul class="guide-list">
+                <li><strong>货品与投放：</strong>MSKU、父 ASIN、广告活动、投放组合、价格带。</li>
+                <li><strong>组织与分类：</strong>场景品类、新品标签、品线责任人、运营小组。</li>
+                <li><strong>履约与库存：</strong>FBA/FBM、仓网、可售天数、断货标记。</li>
+                <li><strong>时间对比：</strong>除当期、环比、同比外，可增加「自定义对比期」「促销窗口对齐」。</li>
+              </ul>
+            </div>
+            <div id="dataLoadError" class="load-err" hidden></div>
+            <div class="filter-bar">
+              <div class="field">
+                <label for="modelSelect">model 查询</label>
+                <select id="modelSelect" aria-label="model 查询">
+                  <option value="">请选择</option>
+                  <option value="H6072">H6072</option>
+                  <option value="H6078">H6078</option>
+                  <option value="H70B1">H70B1</option>
+                </select>
+              </div>
+              <div class="field">
+                <label>SKU</label>
+                <div class="sku-group">
+                  <select id="skuMode" aria-label="SKU 匹配模式">
+                    <option value="fuzzy">模糊</option>
+                    <option value="exact">精确</option>
+                    <option value="eight">8位搜索</option>
+                  </select>
+                  <input id="skuInput" type="text" placeholder="请输入SKU" autocomplete="off" />
+                </div>
+              </div>
+              <div class="field">
+                <label for="channelSelect">渠道</label>
+                <select id="channelSelect" aria-label="渠道"></select>
+              </div>
+              <div class="field">
+                <label for="storeSelect">店铺</label>
+                <select id="storeSelect" aria-label="店铺"></select>
+              </div>
+              <div class="field">
+                <label for="regionSelect">区域</label>
+                <select id="regionSelect" aria-label="区域"></select>
+              </div>
+              <div class="field">
+                <label for="countrySelect">国家</label>
+                <select id="countrySelect" aria-label="国家"></select>
+              </div>
+              <div class="field">
+                <label for="currencySelect">币种</label>
+                <select id="currencySelect" aria-label="币种">
+                  <option value="USD" selected>USD</option>
+                  <option value="EUR">EUR</option>
+                  <option value="CNY">CNY</option>
+                </select>
+              </div>
+              <div class="field">
+                <label>日期范围</label>
+                <div id="dateRangeMount"></div>
+              </div>
+              <div class="field field-actions">
+                <label style="visibility:hidden">操作</label>
+                <div style="display:flex;gap:8px">
+                  <button type="button" class="btn" id="applyBtn">查询</button>
+                  <button type="button" class="btn secondary" id="resetBtn">重置</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-head">
+            <div>
+              <div class="panel-title">一、经营分析（当期 / 环比 / 同比）</div>
+              <div class="panel-sub">与单渠道经营看板指标对齐，在全渠道与所选维度聚合到当前 SKU（演示数值）。</div>
+            </div>
+          </div>
+          <div class="panel-body">
+            <h3 class="metric-block-title">经营分析</h3>
+            <p class="metric-period-note" id="bizPeriodNote"></p>
+            <div class="table-scroll-wrap">
+              <table class="data-table" id="bizTable">
+                <thead>
+                  <tr>
+                    <th></th>
+                    <th>订单</th>
+                    <th>B2B订单</th>
+                    <th>销量</th>
+                    <th>日均销量</th>
+                    <th>销售额</th>
+                    <th>ASP</th>
+                    <th>广告花费</th>
+                    <th>AC</th>
+                    <th>折扣费</th>
+                    <th>折扣占比</th>
+                    <th>仓储费</th>
+                    <th>退货率</th>
+                    <th>FBA退货率</th>
+                    <th>订单退货率</th>
+                    <th>毛利率</th>
+                    <th>毛利额</th>
+                  </tr>
+                </thead>
+                <tbody id="bizTbody"></tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-head">
+            <div>
+              <div class="panel-title">二、流量分析（当期 / 环比 / 同比）</div>
+              <div class="panel-sub">流量与转化指标与经营表同一套时间切片，便于对照「流量是否支撑销量」。</div>
+            </div>
+          </div>
+          <div class="panel-body">
+            <h3 class="metric-block-title">流量分析</h3>
+            <p class="metric-period-note" id="trafficPeriodNote"></p>
+            <div class="table-scroll-wrap">
+              <table class="data-table" id="trafficTable">
+                <thead>
+                  <tr>
+                    <th></th>
+                    <th>Total Sessions</th>
+                    <th>Browser Sessions</th>
+                    <th>日均流量</th>
+                    <th>App Sessions</th>
+                    <th>Total PV</th>
+                    <th>Browser PV</th>
+                    <th>APP PV</th>
+                    <th>订单</th>
+                    <th>T-CR</th>
+                    <th>B-CR</th>
+                    <th>Impression</th>
+                    <th>Clicks</th>
+                    <th>CTR</th>
+                    <th>AD订单</th>
+                    <th>CVR</th>
+                  </tr>
+                </thead>
+                <tbody id="trafficTbody"></tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-head">
+            <div>
+              <div class="panel-title">三、SKU 全渠道明细</div>
+              <div class="panel-sub">按渠道、店铺、区域、国家拆分当前筛选条件下的同一 SKU，支持横向滚动查看。</div>
+            </div>
+          </div>
+          <div class="panel-body">
+            <p class="detail-caption">以下为演示行；正式环境由服务端分页返回。</p>
+            <div class="table-scroll-wrap">
+              <table class="data-table" id="detailTable">
+                <thead>
+                  <tr>
+                    <th>SKU</th>
+                    <th>渠道</th>
+                    <th>店铺</th>
+                    <th>区域</th>
+                    <th>国家</th>
+                    <th>销量</th>
+                    <th>销售额</th>
+                    <th>广告花费</th>
+                    <th>毛利率</th>
+                    <th>Sessions</th>
+                    <th>CVR</th>
+                  </tr>
+                </thead>
+                <tbody id="detailTbody"></tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    (function () {
+      var BASE = "../../../规范/基础数据/";
+      var channelData = null;
+      var regionData = null;
+      var datePickerApi = null;
+      var startDate = "2026-02-01";
+      var endDate = "2026-04-30";
+
+      function $(id) { return document.getElementById(id); }
+
+      function showLoadError(msg) {
+        var el = $("dataLoadError");
+        el.hidden = false;
+        el.textContent = msg;
+      }
+
+      function daysBetween(a, b) {
+        var d1 = new Date(a.replace(/-/g, "/"));
+        var d2 = new Date(b.replace(/-/g, "/"));
+        return Math.max(1, Math.round((d2 - d1) / 86400000) + 1);
+      }
+
+      function addDays(ymd, delta) {
+        var p = ymd.split("-");
+        var d = new Date(+p[0], +p[1] - 1, +p[2] + delta);
+        function z(n) { return (n < 10 ? "0" : "") + n; }
+        return d.getFullYear() + "-" + z(d.getMonth() + 1) + "-" + z(d.getDate());
+      }
+
+      function fmtPeriodNote(start, end) {
+        var n = daysBetween(start, end);
+        var prevEnd = addDays(start, -1);
+        var prevStart = addDays(prevEnd, -(n - 1));
+        var yStart = addDays(start, -365);
+        var yEnd = addDays(end, -365);
+        return (
+          "数据期间：" +
+          start +
+          " 至 " +
+          end +
+          "；环比期间：" +
+          prevStart +
+          " 至 " +
+          prevEnd +
+          "；去年同期：" +
+          yStart +
+          " 至 " +
+          yEnd +
+          "。"
+        );
+      }
+
+      function uniqueSorted(arr) {
+        return Array.from(new Set(arr)).sort(function (a, b) {
+          return String(a).localeCompare(String(b), "zh-Hans-CN");
+        });
+      }
+
+      function fillChannelStore() {
+        var chSel = $("channelSelect");
+        var stSel = $("storeSelect");
+        var channels = channelData.channels || [];
+        chSel.innerHTML =
+          '<option value="all">全部</option>' +
+          channels
+            .map(function (c) {
+              return (
+                '<option value="' +
+                encodeURIComponent(c.channel_name) +
+                '">' +
+                c.channel_name +
+                "</option>"
+              );
+            })
+            .join("");
+
+        function rebuildStores() {
+          var raw = decodeURIComponent(chSel.value || "all");
+          var list = [];
+          if (raw === "all") {
+            channels.forEach(function (c) {
+              (c.stores || []).forEach(function (s) {
+                list.push(s);
+              });
+            });
+          } else {
+            var found = channels.find(function (c) {
+              return c.channel_name === raw;
+            });
+            if (found) list = found.stores.slice();
+          }
+          list = uniqueSorted(list);
+          stSel.innerHTML = '<option value="all">全部</option>';
+          list.forEach(function (s) {
+            var o = document.createElement("option");
+            o.value = encodeURIComponent(s);
+            o.textContent = s;
+            stSel.appendChild(o);
+          });
+        }
+
+        chSel.addEventListener("change", function () {
+          rebuildStores();
+        });
+        rebuildStores();
+      }
+
+      function allCountriesFlat() {
+        var map = {};
+        (regionData.regions || []).forEach(function (r) {
+          function addList(list) {
+            (list || []).forEach(function (c) {
+              map[c.country_code] = c.country_name;
+            });
+          }
+          addList(r.countries);
+          (r.subregions || []).forEach(function (sr) {
+            addList(sr.countries);
+          });
+        });
+        return Object.keys(map)
+          .sort()
+          .map(function (code) {
+            return { code: code, name: map[code] };
+          });
+      }
+
+      function countriesForRegionCode(code) {
+        if (code === "all") return allCountriesFlat();
+        var r = (regionData.regions || []).find(function (x) {
+          return x.region_code === code;
+        });
+        if (!r || !r.countries) return [];
+        return r.countries.map(function (c) {
+          return { code: c.country_code, name: c.country_name };
+        });
+      }
+
+      function fillRegionCountry() {
+        var rSel = $("regionSelect");
+        var cSel = $("countrySelect");
+        var regs = regionData.regions || [];
+        rSel.innerHTML =
+          '<option value="all">全部</option>' +
+          regs
+            .map(function (r) {
+              return (
+                '<option value="' +
+                r.region_code +
+                '">' +
+                r.region_name +
+                "</option>"
+              );
+            })
+            .join("");
+
+        function rebuildCountries() {
+          var list = countriesForRegionCode(rSel.value);
+          cSel.innerHTML = '<option value="all">全部</option>';
+          list.forEach(function (c) {
+            var o = document.createElement("option");
+            o.value = c.code;
+            o.textContent = c.name + "（" + c.code + "）";
+            cSel.appendChild(o);
+          });
+        }
+
+        rSel.addEventListener("change", rebuildCountries);
+        rebuildCountries();
+      }
+
+      function td(val, isPct, isMoney) {
+        var cls = "";
+        if (typeof val === "string" && val.indexOf("-") === 0 && val !== "-") cls = "num-neg";
+        else if (typeof val === "string" && /^[+]?\d/.test(val) && val.indexOf("-") !== 0) {
+          if (val.indexOf("%") > -1 && parseFloat(val) < 0) cls = "num-neg";
+          else if (val.indexOf("%") > -1 && parseFloat(val) > 0) cls = "num-pos";
+        }
+        if (isMoney && val.indexOf("-") === 0) cls = "num-neg";
+        if (isPct && parseFloat(val) < 0) cls = "num-neg";
+        if (isPct && parseFloat(val) > 0) cls = "num-pos";
+        return '<td class="' + cls + '">' + val + "</td>";
+      }
+
+      function renderBizTable() {
+        var rows = [
+          ["当期", "1,024", "86", "3,842", "42.7", "$39,651.32", "$10.32", "$2,510.40", "6.33%", "$1,890.20", "4.76%", "$412.10", "3.21%", "2.88%", "2.95%", "-5.52%", "-$2,190.76"],
+          ["环比", "+6.2%", "-1.1%", "+4.8%", "+3.1%", "+8.4%", "+0.6%", "+11.2%", "+0.4pt", "-2.1%", "-0.3pt", "+5.0%", "-0.4pt", "-0.2pt", "-0.1pt", "-1.2pt", "-9.8%"],
+          ["同比", "+12.0%", "+3.4%", "+9.1%", "+7.5%", "+15.2%", "+1.1%", "+18.6%", "-0.2pt", "+4.3%", "+0.5pt", "+8.1%", "+0.2pt", "+0.1pt", "+0.3pt", "+0.8pt", "+22.4%"]
+        ];
+        $("bizTbody").innerHTML = rows
+          .map(function (r) {
+            var cells = r.slice(1).map(function (v, i) {
+              var money = i === 4 || i === 5 || i === 6 || i === 9 || i === 10 || i === 15;
+              var pct = [7, 8, 9, 10, 11, 12, 13, 14, 15].indexOf(i) >= 0;
+              return td(v, pct, money);
+            });
+            return "<tr><td>" + r[0] + "</td>" + cells.join("") + "</tr>";
+          })
+          .join("");
+      }
+
+      function renderTrafficTable() {
+        var rows = [
+          ["当期", "182,400", "120,300", "2,027", "62,100", "540,000", "360,000", "180,000", "1,024", "0.56%", "0.85%", "2.4M", "96,000", "4.00%", "210", "2.85%"],
+          ["环比", "+4.1%", "+3.8%", "+2.9%", "+5.2%", "+3.5%", "+3.2%", "+4.0%", "+6.2%", "+0.1pt", "+0.2pt", "+5.5%", "+4.8%", "-0.1pt", "+8.0%", "+0.2pt"],
+          ["同比", "+18.0%", "+16.2%", "+14.5%", "+22.1%", "+12.8%", "+11.0%", "+19.5%", "+12.0%", "+0.3pt", "+0.4pt", "+20.1%", "+17.6%", "+0.2pt", "+12.0%", "+0.4pt"]
+        ];
+        $("trafficTbody").innerHTML = rows
+          .map(function (r) {
+            var cells = r.slice(1).map(function (v, i) {
+              var pct = i >= 8;
+              return td(v, pct, false);
+            });
+            return "<tr><td>" + r[0] + "</td>" + cells.join("") + "</tr>";
+          })
+          .join("");
+      }
+
+      function currentSkuLabel() {
+        var v = ($("skuInput").value || "").trim();
+        return v || "（未填 SKU 时展示汇总示意）";
+      }
+
+      function renderDetail() {
+        var sku = currentSkuLabel();
+        var samples = [
+          ["Govee", "Govee_US", "北美区", "美国", "1,210", "$14,200", "$820", "-4.2%", "58,200", "2.08%"],
+          ["Govee EU", "Govee_DE_1", "欧洲区", "德国", "642", "$9,100", "$540", "-6.1%", "31,400", "2.04%"],
+          ["独立站", "独立站-US", "北美区", "美国", "410", "$6,020", "$310", "-3.5%", "24,800", "1.65%"],
+          ["TTS", "TTS-US", "北美区", "美国", "198", "$2,100", "$190", "-8.0%", "12,000", "1.65%"]
+        ];
+        $("detailTbody").innerHTML = samples
+          .map(function (row) {
+            return (
+              "<tr><td>" +
+              sku +
+              "</td>" +
+              row
+                .map(function (cell, idx) {
+                  if (idx >= 4) return td(cell, cell.indexOf("%") > -1, cell.indexOf("$") === 0);
+                  return "<td>" + cell + "</td>";
+                })
+                .join("") +
+              "</tr>"
+            );
+          })
+          .join("");
+      }
+
+      function updateMeta() {
+        var ch = $("channelSelect");
+        var st = $("storeSelect");
+        var rg = $("regionSelect");
+        var ct = $("countrySelect");
+        var chText = ch.value === "all" ? "全部渠道" : decodeURIComponent(ch.value);
+        var stText = st.value === "all" ? "全部店铺" : decodeURIComponent(st.value);
+        var rgText = rg.options[rg.selectedIndex] ? rg.options[rg.selectedIndex].text : "";
+        var ctText = ct.options[ct.selectedIndex] ? ct.options[ct.selectedIndex].text : "";
+        $("metaBar").textContent =
+          "SKU：" +
+          currentSkuLabel() +
+          " ｜ " +
+          chText +
+          " / " +
+          stText +
+          " ｜ " +
+          rgText +
+          " / " +
+          ctText;
+        $("metaCurrency").textContent = "币种：" + $("currencySelect").value;
+      }
+
+      function refreshPeriodNotes() {
+        var note = fmtPeriodNote(startDate, endDate);
+        $("bizPeriodNote").textContent = note;
+        $("trafficPeriodNote").textContent = note;
+      }
+
+      function applyFilters() {
+        refreshPeriodNotes();
+        renderBizTable();
+        renderTrafficTable();
+        renderDetail();
+        updateMeta();
+      }
+
+      function initDatePicker() {
+        var mount = $("dateRangeMount");
+        datePickerApi = window.DateRangePicker.mount(mount, {
+          start: startDate,
+          end: endDate,
+          placeholder: "请选择日期范围",
+          zIndex: 400,
+          onChange: function (s, e) {
+            startDate = s || startDate;
+            endDate = e || endDate;
+          }
+        });
+      }
+
+      function resetAll() {
+        $("modelSelect").value = "";
+        $("skuMode").value = "fuzzy";
+        $("skuInput").value = "";
+        $("channelSelect").value = "all";
+        $("channelSelect").dispatchEvent(new Event("change"));
+        $("storeSelect").value = "all";
+        $("regionSelect").value = "all";
+        $("regionSelect").dispatchEvent(new Event("change"));
+        $("countrySelect").value = "all";
+        $("currencySelect").value = "USD";
+        startDate = "2026-02-01";
+        endDate = "2026-04-30";
+        if (datePickerApi) datePickerApi.set(startDate, endDate);
+        applyFilters();
+      }
+
+      $("toggleGuide").addEventListener("click", function () {
+        var p = $("guidePanel");
+        p.hidden = !p.hidden;
+      });
+      $("applyBtn").addEventListener("click", applyFilters);
+      $("resetBtn").addEventListener("click", resetAll);
+      $("skuInput").addEventListener("change", function () {
+        updateMeta();
+      });
+
+      Promise.all([
+        fetch(BASE + "渠道店铺基础数据_v1.json").then(function (r) {
+          if (!r.ok) throw new Error("渠道店铺基础数据加载失败");
+          return r.json();
+        }),
+        fetch(BASE + "区域国家基础数据_v1.json").then(function (r) {
+          if (!r.ok) throw new Error("区域国家基础数据加载失败");
+          return r.json();
+        })
+      ])
+        .then(function (pair) {
+          channelData = pair[0];
+          regionData = pair[1];
+          fillChannelStore();
+          fillRegionCountry();
+          initDatePicker();
+          applyFilters();
+        })
+        .catch(function (e) {
+          showLoadError(
+            e.message +
+              "。请使用本地 HTTP 打开本页（在本目录执行 python3 -m http.server 8765），以便相对路径能读取规范目录下的 JSON。"
+          );
+          $("channelSelect").innerHTML = '<option value="all">全部</option>';
+          $("storeSelect").innerHTML = '<option value="all">全部</option>';
+          $("regionSelect").innerHTML = '<option value="all">全部</option>';
+          $("countrySelect").innerHTML = '<option value="all">全部</option>';
+          initDatePicker();
+          applyFilters();
+        });
+    })();
+  </script>
+</body>
+</html>
