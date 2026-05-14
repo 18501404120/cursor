@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>经营分析仪表盘</title>
+  <title>经营分析看板</title>
   <style>
     :root {
       --bg:#071429; --panel:#0b1d38; --line:#1f3b63; --text:#dbeafe; --muted:#8fb0d9;
@@ -23,10 +23,15 @@
     .filters select,.filters button{height:28px;border-radius:6px;border:1px solid #32557f;background:#0e2a50;color:#dbeafe;font-size:12px;padding:0 8px}
     .filters button{cursor:pointer}
 
-    .progress-strip{padding:8px 10px;border:1px solid #2b4f7c;border-radius:10px;background:linear-gradient(180deg,#08213f 0%,#081b34 100%)}
-    .progress-head{display:flex;justify-content:space-between;align-items:center;font-size:12px;color:#9ec5f0;margin-bottom:6px}
-    .progress-track{height:12px;background:#0a2346;border-radius:999px;overflow:hidden;position:relative}
-    .progress-fill{height:100%;background:linear-gradient(90deg,#23d3ee 0%,#39a6ff 100%);border-radius:999px;box-shadow:0 0 8px rgba(34,211,238,.45)}
+    .hint-bar{font-size:11px;color:#8fb0d9;padding:4px 2px 0;line-height:1.45;max-width:1180px}
+    .compare-bar{display:flex;flex-wrap:wrap;gap:10px 16px;padding:6px 10px;border:1px solid #2b4f7c;border-radius:8px;background:rgba(8,33,63,.55);font-size:11px;color:#b6d4f8;margin-top:6px}
+    .compare-bar .k{color:#9ec5f0}
+    #dateRangeMount .drp-trigger{background:#0e2a50;border-color:#32557f;color:#dbeafe;min-width:220px}
+    #dateRangeMount .drp-text{color:#dbeafe}
+    #dateRangeMount .drp-text.drp-ph{color:#6b8aaf}
+    .pie-stat{cursor:pointer;transition:box-shadow .15s,border-color .15s}
+    .pie-stat:hover{border-color:#60a5fa!important}
+    .pie-stat.pie-stat-on{box-shadow:0 0 0 1px #22d3ee inset;border-color:#22d3ee!important}
 
     .kpi-row{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}
     .kpi{padding:8px 10px}
@@ -47,7 +52,7 @@
     .pie-path{font-size:12px;color:#9ec5f0}
     .pie-back{height:24px;border-radius:5px;border:1px solid #355f8f;background:#11325d;color:#cfe6ff;cursor:pointer;font-size:12px;padding:0 8px}
     .pie-stats{display:grid;grid-template-columns:1.2fr 1fr 1fr 1fr;gap:8px;margin:0 auto 8px;font-size:12px;max-width:620px}
-    .pie-stat{border:1px solid #2f527f;border-radius:8px;padding:6px 8px;background:#0d274a}
+    .pie-stat{border:1px solid #2f527f;border-radius:8px;padding:6px 8px;background:#0d274a;user-select:none}
     .pie-stat .k{color:#9ec5f0}
     .pie-stat .v{margin-top:2px;font-weight:700}
     .pie-wrap{display:grid;grid-template-columns:168px 1fr;gap:10px;align-items:center}
@@ -85,6 +90,13 @@
 
     .trend-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
     .trend-head select{height:26px;border-radius:5px;border:1px solid #355f8f;background:#11325d;color:#cfe6ff;font-size:12px;padding:0 8px}
+    .top-wrap{margin-top:4px}
+    .top-table{width:100%;border-collapse:collapse;font-size:12px}
+    .top-table th,.top-table td{border:1px solid #2f527f;padding:6px 8px;text-align:left}
+    .top-table th{background:#0d274a;color:#9ec5f0;font-weight:700}
+    .top-table tbody tr:hover{background:rgba(34,211,238,.06)}
+    .top-table .num{text-align:right;font-variant-numeric:tabular-nums}
+    .top-link{color:#60a5fa;cursor:pointer;text-decoration:underline}
 
     @media (max-width:1360px){
       .kpi-row{grid-template-columns:repeat(2,1fr)}
@@ -99,16 +111,16 @@
 <body>
 <div class="screen">
   <section class="header">
-    <div class="title">经营分析仪表盘</div>
+    <div class="title">经营分析看板</div>
     <div class="meta">
-      <span class="tag" id="metaRange">月份：1月-12月</span>
+      <span class="tag" id="metaRange">统计区间：--</span>
       <span class="tag">币种：USD</span>
       <span id="metaTime">更新时间：--</span>
     </div>
   </section>
 
   <section class="filters">
-    <label>月份范围</label><select id="fMonthStart"></select><span style="font-size:12px;color:#8fb0d9">至</span><select id="fMonthEnd"></select>
+    <label>统计区间</label><div id="dateRangeMount" style="display:inline-block;vertical-align:middle"></div>
     <label>区域</label><select id="fRegion"></select>
     <label>国家</label><select id="fCountry"></select>
     <label>渠道</label><select id="fChannel"></select>
@@ -118,8 +130,8 @@
     <button id="btnReset" type="button">重置筛选</button>
     <label>费用项</label><select id="fMetric"></select>
   </section>
-
-  <section class="progress-strip" id="timeProgressStrip"></section>
+  <div class="hint-bar">提示：下方三个结构图中的四个汇总块（当前值 / 目标达成率 / 同比 / 环比）可点击切换图例含义；图例行表示各维度的<strong>当前值占比</strong>，汇总块展示与点击项一致的口径。</div>
+  <div class="compare-bar" id="compareBar"></div>
 
   <section class="kpi-row">
     <article class="kpi" id="cardSalesAmount"></article>
@@ -130,24 +142,29 @@
   </section>
 
   <section class="row-3col">
-    <article class="panel"><h3>1）渠道贡献结构</h3><div class="box" id="channelBox"></div></article>
-    <article class="panel"><h3>2）区域贡献结构</h3><div class="box" id="regionBox"></div></article>
-    <article class="panel"><h3>3）场景贡献结构</h3><div class="box" id="sceneBox"></div></article>
+    <article class="panel"><h3>1）区域 · 结构与目标达成</h3><div class="box" id="regionBox"></div></article>
+    <article class="panel"><h3>2）渠道 · 结构与目标达成</h3><div class="box" id="channelBox"></div></article>
+    <article class="panel"><h3>3）场景 · 结构与目标达成</h3><div class="box" id="sceneBox"></div></article>
   </section>
 
   <section class="row-funnel">
-    <article class="panel"><h3>4）费用结构漏斗（点击费用项查看包含子费用）<span class="h3-note">占比是以营收为100%口径</span></h3><div class="box" id="funnelBox"></div></article>
+    <article class="panel"><h3>4）营收→毛利费用结构（点击费用条查看子项；品牌营销费已按财报口径剔除展示）</h3><div class="box" id="funnelBox"></div></article>
   </section>
 
   <section class="panel">
-    <h3>5）月度趋势（三线：BP目标 / 业务数据 / 财务数据）</h3>
+    <h3>5）趋势（每月）：BP目标 vs 业务实际 <span class="h3-note">至多两条线，与管报业务视角一致，不叠财务口径对比线</span></h3>
     <div class="box" id="trendBox"></div>
+  </section>
+
+  <section class="panel top-wrap">
+    <h3>6）需重点关注的 SKU（演示 · TOP10，默认按营收目标达成率从低到高）</h3>
+    <div class="box" id="topSkuBox"></div>
   </section>
 </div>
 
+<script src="../../../规范/assets/date-range-picker.js"></script>
 <script>
 (function(){
-  var TODAY = new Date('2026-05-08T12:00:00+08:00');
   var CURRENT_YEAR = 2026;
   var YEARS=[2025,2026];
   var REGIONS={"亚太区":["CN","JP"],"欧洲区":["DE","GB"],"北美区":["US","CA"]};
@@ -158,7 +175,6 @@
   function $(id){return document.getElementById(id);} 
   function fmtMoney(n){var v=Number(n)||0; if(Math.abs(v)>=1e6) return '$'+(v/1e6).toFixed(1)+'M'; if(Math.abs(v)>=1e3) return '$'+(v/1e3).toFixed(1)+'K'; return '$'+v.toFixed(0);} 
   function fmtPct(n){return (Number(n)||0).toFixed(1)+'%';}
-  function monthEndDate(y,m){return new Date(y,m,0);} 
 
   var DATA=[]; var id=1;
   YEARS.forEach(function(y){
@@ -190,17 +206,17 @@
 
                   DATA.push({id:id++,year:y,month:m,region:r,country:c,channel:ch,store:st,scene:sc,category:cat,
                     bp:{revenue:bpRev,sales:bpSales,gross:Math.round(bpRev*0.39), ad:bpAd, logistics:bpLog, platform:bpPla, other:bpOth,
-                        ad_perf:Math.round(bpAd*0.5),ad_brand:Math.round(bpAd*0.25),ad_promo:Math.round(bpAd*0.2),ad_sample:bpAd-Math.round(bpAd*0.5)-Math.round(bpAd*0.25)-Math.round(bpAd*0.2),
+                        ad_perf:Math.round(bpAd*0.75),ad_brand:0,ad_promo:Math.round(bpAd*0.2),ad_sample:bpAd-Math.round(bpAd*0.75)-Math.round(bpAd*0.2),
                         logistics_head:Math.round(bpLog*0.36),logistics_return:Math.round(bpLog*0.22),logistics_storage:Math.round(bpLog*0.24),logistics_tariff:bpLog-Math.round(bpLog*0.36)-Math.round(bpLog*0.22)-Math.round(bpLog*0.24),
                         platform_commission:Math.round(bpPla*0.44),platform_service:Math.round(bpPla*0.27),platform_payment:Math.round(bpPla*0.19),platform_storefee:bpPla-Math.round(bpPla*0.44)-Math.round(bpPla*0.27)-Math.round(bpPla*0.19),
                         other_misc:Math.round(bpOth*0.55),other_reserve:bpOth-Math.round(bpOth*0.55)},
                     biz:{revenue:bizRev,sales:bizSales,gross:bizGross,ad:bizAd,logistics:bizLog,platform:bizPla,other:bizOth,
-                        ad_perf:adB[0],ad_brand:adB[1],ad_promo:adB[2],ad_sample:adB[3],
+                        ad_perf:adB[0]+adB[1],ad_brand:0,ad_promo:adB[2],ad_sample:adB[3],
                         logistics_head:lgB[0],logistics_return:lgB[1],logistics_storage:lgB[2],logistics_tariff:lgB[3],
                         platform_commission:plB[0],platform_service:plB[1],platform_payment:plB[2],platform_storefee:plB[3],
                         other_misc:otB[0],other_reserve:otB[1]},
                     fin:{revenue:finRev,sales:finSales,gross:finGross,ad:finAd,logistics:finLog,platform:finPla,other:finOth,
-                        ad_perf:adF[0],ad_brand:adF[1],ad_promo:adF[2],ad_sample:adF[3],
+                        ad_perf:adF[0]+adF[1],ad_brand:0,ad_promo:adF[2],ad_sample:adF[3],
                         logistics_head:lgF[0],logistics_return:lgF[1],logistics_storage:lgF[2],logistics_tariff:lgF[3],
                         platform_commission:plF[0],platform_service:plF[1],platform_payment:plF[2],platform_storefee:plF[3],
                         other_misc:otF[0],other_reserve:otF[1]}
@@ -214,7 +230,35 @@
     }
   });
 
-  var state={expenseDrill:'ad',channelDrill:null,regionDrill:null,sceneDrill:null,channelFocus:null,regionFocus:null,sceneFocus:null};
+  var state={expenseDrill:'ad',channelDrill:null,regionDrill:null,sceneDrill:null,channelFocus:null,regionFocus:null,sceneFocus:null,pieStatMode:'cur'};
+  var dateRangeApi=null;
+
+  function parseYmdLocal(s){
+    if(window.DateRangePicker&&DateRangePicker.parseYmd) return DateRangePicker.parseYmd(s);
+    var p=(s||'').trim().split('-');
+    if(p.length!==3) return null;
+    var d=new Date(+p[0],+p[1]-1,+p[2]);
+    if(d.getFullYear()!==+p[0]||d.getMonth()!==+p[1]-1||d.getDate()!==+p[2]) return null;
+    return d;
+  }
+  function fmtYmdLocal(d){
+    if(!d) return '';
+    if(window.DateRangePicker&&DateRangePicker.fmtYmd) return DateRangePicker.fmtYmd(d);
+    var pad=function(n){return (n<10?'0':'')+n;};
+    return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
+  }
+  function monthIntersects(ds,de,y,m){
+    var sd=parseYmdLocal(ds), ed=parseYmdLocal(de);
+    if(!sd||!ed) return true;
+    var m0=new Date(y,m-1,1), m1=new Date(y,m,0,23,59,59,999);
+    return m1>=sd && m0<=ed;
+  }
+  function shiftYearYmd(ymd,deltaY){
+    var d=parseYmdLocal(ymd);
+    if(!d) return '';
+    var nd=new Date(d.getFullYear()+deltaY,d.getMonth(),d.getDate());
+    return fmtYmdLocal(nd);
+  }
 
   var METRICS={
     revenue:'营收',sales:'销售额',gross:'毛利',margin:'毛利率',
@@ -239,9 +283,9 @@
   function currentMetric(){return ($('fMetric')&&$('fMetric').value)||'revenue';}
 
   function currentFilter(){
-    var s=Number($('fMonthStart').value||1), e=Number($('fMonthEnd').value||12);
-    if(s>e){var t=s;s=e;e=t;}
-    return {monthStart:s,monthEnd:e,region:$('fRegion').value,country:$('fCountry').value,channel:$('fChannel').value,store:$('fStore').value,scene:$('fScene').value,category:$('fCategory').value};
+    var ds='2026-01-01', de='2026-12-31';
+    if(dateRangeApi){var g=dateRangeApi.get(); if(g.start) ds=g.start; if(g.end) de=g.end;}
+    return {dateStart:ds,dateEnd:de,region:$('fRegion').value,country:$('fCountry').value,channel:$('fChannel').value,store:$('fStore').value,scene:$('fScene').value,category:$('fCategory').value};
   }
 
   function passesDimFilter(r,f){
@@ -257,33 +301,30 @@
   function filteredRows(){
     var f=currentFilter();
     return DATA.filter(function(r){
-      if(r.year!==CURRENT_YEAR) return false;
-      if(r.month<f.monthStart||r.month>f.monthEnd) return false;
+      if(!monthIntersects(f.dateStart,f.dateEnd,r.year,r.month)) return false;
       return passesDimFilter(r,f);
     });
   }
 
-  function filteredRowsFor(year,start,end){
+  function filteredRowsFor(year,ds,de){
     var f=currentFilter();
     return DATA.filter(function(r){
       if(r.year!==year) return false;
-      if(r.month<start||r.month>end) return false;
+      if(!monthIntersects(ds,de,r.year,r.month)) return false;
       return passesDimFilter(r,f);
     });
   }
 
   function sumBy(rows,sys,key){return rows.reduce(function(s,r){return s+(Number((r[sys]&&r[sys][key])||0));},0);} 
 
-  function calcTimeProgress(){
+  function updateCompareBar(){
     var f=currentFilter();
-    var start=new Date(CURRENT_YEAR,f.monthStart-1,1,0,0,0,0);
-    var endMonthLast=monthEndDate(CURRENT_YEAR,f.monthEnd);
-    var end=new Date(CURRENT_YEAR,f.monthEnd-1,endMonthLast.getDate(),23,59,59,999);
-    var total=end-start;
-    if(total<=0) return 0;
-    if(TODAY<=start) return 0;
-    if(TODAY>=end) return 1;
-    return (TODAY-start)/total;
+    var lyS=shiftYearYmd(f.dateStart,-1), lyE=shiftYearYmd(f.dateEnd,-1);
+    var ed=parseYmdLocal(f.dateEnd);
+    var pmEnd=new Date(ed.getFullYear(),ed.getMonth(),0);
+    var pmStart=new Date(ed.getFullYear(),ed.getMonth()-1,1);
+    $('compareBar').innerHTML='<div><span class="k">同比</span>：与区间 <strong>'+lyS+'</strong> 至 <strong>'+lyE+'</strong> 的业务实际对比（自然日对齐移位一年）。</div>'+
+      '<div><span class="k">环比</span>：与紧邻上一完整自然月 <strong>'+fmtYmdLocal(pmStart)+'</strong> 至 <strong>'+fmtYmdLocal(pmEnd)+'</strong> 的业务实际对比（演示口径）。后续版本可支持手动调整对比区间。</div>';
   }
 
   function updateDeps(){
@@ -298,50 +339,31 @@
     if(cats.indexOf(keepCat)>=0) $('fCategory').value=keepCat;
   }
 
-  function renderTimeStrip(){
+  function updateMetaRange(){
     var f=currentFilter();
-    var p=calcTimeProgress();
-    var start='2026-'+String(f.monthStart).padStart(2,'0')+'-01';
-    var endDate=monthEndDate(CURRENT_YEAR,f.monthEnd).getDate();
-    var end='2026-'+String(f.monthEnd).padStart(2,'0')+'-'+String(endDate).padStart(2,'0');
-    var h='';
-    h+='<div class="progress-head"><span>时间进度（'+start+' 至 '+end+'）</span><span>'+fmtPct(p*100)+'</span></div>';
-    h+='<div class="progress-track"><div class="progress-fill" style="width:'+(p*100).toFixed(2)+'%"></div></div>';
-    $('timeProgressStrip').innerHTML=h;
-    $('metaRange').textContent='月份：'+f.monthStart+'月-'+f.monthEnd+'月';
+    $('metaRange').textContent='统计区间：'+f.dateStart+' 至 '+f.dateEnd;
   }
 
   function yoyPct(cur,prev){return prev?((cur-prev)/prev*100):0;}
   function momPct(cur,prev){return prev?((cur-prev)/prev*100):0;}
-  function metricStats(metricKey){
-    var f=currentFilter();
-    var rows=filteredRows();
-    var rowsLy=filteredRowsFor(CURRENT_YEAR-1,f.monthStart,f.monthEnd);
-    var rowsCm=filteredRowsFor(CURRENT_YEAR,f.monthEnd,f.monthEnd);
-    var pm=f.monthEnd>1?f.monthEnd-1:1;
-    var rowsPm=filteredRowsFor(CURRENT_YEAR,pm,pm);
-    var cur=sumBy(rows,'biz',metricKey);
-    var bp=sumBy(rows,'bp',metricKey);
-    var tp=bp*calcTimeProgress();
-    var ly=sumBy(rowsLy,'biz',metricKey);
-    var cm=sumBy(rowsCm,'biz',metricKey);
-    var pmv=sumBy(rowsPm,'biz',metricKey);
-    return {cur:cur,ach:tp?cur/tp*100:0,yoy:yoyPct(cur,ly),mom:momPct(cm,pmv)};
-  }
 
   function renderMetricCard(target,title,key,isRate){
     var f=currentFilter();
     var rows=filteredRows();
-    var rowsLy=filteredRowsFor(CURRENT_YEAR-1,f.monthStart,f.monthEnd);
-    var rowsCm=filteredRowsFor(CURRENT_YEAR,f.monthEnd,f.monthEnd);
-    var pm=f.monthEnd>1?f.monthEnd-1:1;
-    var rowsPm=filteredRowsFor(CURRENT_YEAR,pm,pm);
+    var lyS=shiftYearYmd(f.dateStart,-1), lyE=shiftYearYmd(f.dateEnd,-1);
+    var rowsLy=filteredRowsFor(CURRENT_YEAR-1,lyS,lyE);
+    var ed=parseYmdLocal(f.dateEnd);
+    var lmY=ed.getFullYear(), lmM=ed.getMonth()+1;
+    var dLmS=fmtYmdLocal(new Date(lmY,lmM-1,1)), dLmE=fmtYmdLocal(new Date(lmY,lmM,0));
+    var pmY=lmM>1?lmY:lmY-1, pmM=lmM>1?lmM-1:12;
+    var dPmS=fmtYmdLocal(new Date(pmY,pmM-1,1)), dPmE=fmtYmdLocal(new Date(pmY,pmM,0));
+    var rowsCm=filteredRowsFor(lmY,dLmS,dLmE);
+    var rowsPm=filteredRowsFor(pmY,dPmS,dPmE);
 
-    var bpTotal,bizTotal,bpByTime,bizAch,gap,curVal,lyVal,cmVal,pmVal;
+    var bpTotal,bizTotal,bizAch,gap,curVal,lyVal,cmVal,pmVal;
     if(isRate){
       bpTotal=sumBy(rows,'bp','gross')/Math.max(1,sumBy(rows,'bp','revenue'));
       bizTotal=sumBy(rows,'biz','gross')/Math.max(1,sumBy(rows,'biz','revenue'));
-      bpByTime=bpTotal;
       bizAch=bpTotal?bizTotal/bpTotal*100:0;
       gap=(bizTotal-bpTotal)*100;
       curVal=bizTotal*100;
@@ -351,9 +373,8 @@
     }else{
       bpTotal=sumBy(rows,'bp',key);
       bizTotal=sumBy(rows,'biz',key);
-      bpByTime=bpTotal*calcTimeProgress();
-      bizAch=bpByTime?bizTotal/bpByTime*100:0;
-      gap=bizTotal-bpByTime;
+      bizAch=bpTotal?bizTotal/bpTotal*100:0;
+      gap=bizTotal-bpTotal;
       curVal=bizTotal;
       lyVal=sumBy(rowsLy,'biz',key);
       cmVal=sumBy(rowsCm,'biz',key);
@@ -365,12 +386,12 @@
     h+='<div class="n">'+title+'</div>';
     h+='<div class="v">'+(isRate?fmtPct(curVal):fmtMoney(curVal))+'</div>';
     h+='<div class="list">';
-    h+='<div class="line"><span class="label">总预算</span><span>'+(isRate?fmtPct(bpTotal*100):fmtMoney(bpTotal))+'</span></div>';
-    h+='<div class="line"><span class="label">时间进度预算</span><span>'+(isRate?fmtPct(bpByTime*100):fmtMoney(bpByTime))+'</span></div>';
-    h+='<div class="line"><span class="label">预算达成率</span><span>'+fmtPct(bizAch)+'</span></div>';
+    h+='<div class="line"><span class="label">目标（区间内合计）</span><span>'+(isRate?fmtPct(bpTotal*100):fmtMoney(bpTotal))+'</span></div>';
+    h+='<div class="line"><span class="label">实际（区间内合计）</span><span>'+(isRate?fmtPct(bizTotal*100):fmtMoney(bizTotal))+'</span></div>';
+    h+='<div class="line"><span class="label">目标达成率</span><span>'+fmtPct(bizAch)+'</span></div>';
     h+='<div class="line"><span class="label">同比</span><span>'+fmtPct(yoyPct(curVal,lyVal))+'</span></div>';
     h+='<div class="line"><span class="label">环比</span><span>'+fmtPct(momPct(cmVal,pmVal))+'</span></div>';
-    h+='<div class="line"><span class="label">Gap</span><span class="'+gapCls+'">'+(gap>=0?'+':'')+(isRate?fmtPct(gap):fmtMoney(gap))+'</span></div>';
+    h+='<div class="line"><span class="label">与目标差额</span><span class="'+gapCls+'">'+(gap>=0?'+':'')+(isRate?fmtPct(gap):fmtMoney(gap))+'</span></div>';
     h+='</div>';
     $(target).innerHTML=h;
   }
@@ -395,11 +416,11 @@
     });
     return Object.keys(m).map(function(k){return{key:k,val:m[k]};}).sort(function(a,b){return b.val-a.val;});
   }
-  function rowsForScope(year,start,end,scope){
+  function rowsForScope(year,ds,de,scope){
     var f=currentFilter();
     return DATA.filter(function(r){
       if(r.year!==year) return false;
-      if(r.month<start||r.month>end) return false;
+      if(!monthIntersects(ds,de,r.year,r.month)) return false;
       if(!passesDimFilter(r,f)) return false;
       if(scope&&scope.channel&&r.channel!==scope.channel) return false;
       if(scope&&scope.store&&r.store!==scope.store) return false;
@@ -412,17 +433,21 @@
   }
   function metricStatsFromScope(metricKey,scope){
     var f=currentFilter();
-    var curRows=rowsForScope(CURRENT_YEAR,f.monthStart,f.monthEnd,scope);
-    var lyRows=rowsForScope(CURRENT_YEAR-1,f.monthStart,f.monthEnd,scope);
-    var cmRows=rowsForScope(CURRENT_YEAR,f.monthEnd,f.monthEnd,scope);
-    var pm=f.monthEnd>1?f.monthEnd-1:1;
-    var pmRows=rowsForScope(CURRENT_YEAR,pm,pm,scope);
+    var lyS=shiftYearYmd(f.dateStart,-1), lyE=shiftYearYmd(f.dateEnd,-1);
+    var ed=parseYmdLocal(f.dateEnd);
+    var lmY=ed.getFullYear(), lmM=ed.getMonth()+1;
+    var dLmS=fmtYmdLocal(new Date(lmY,lmM-1,1)), dLmE=fmtYmdLocal(new Date(lmY,lmM,0));
+    var pmY=lmM>1?lmY:lmY-1, pmM=lmM>1?lmM-1:12;
+    var dPmS=fmtYmdLocal(new Date(pmY,pmM-1,1)), dPmE=fmtYmdLocal(new Date(pmY,pmM,0));
+    var curRows=rowsForScope(CURRENT_YEAR,f.dateStart,f.dateEnd,scope);
+    var lyRows=rowsForScope(CURRENT_YEAR-1,lyS,lyE,scope);
+    var cmRows=rowsForScope(lmY,dLmS,dLmE,scope);
+    var pmRows=rowsForScope(pmY,dPmS,dPmE,scope);
     var cur=sumBy(curRows,'biz',metricKey);
     var bp=sumBy(curRows,'bp',metricKey);
-    var tp=bp*calcTimeProgress();
     return {
       cur:cur,
-      ach:tp?cur/tp*100:0,
+      ach:bp?cur/bp*100:0,
       yoy:yoyPct(cur,sumBy(lyRows,'biz',metricKey)),
       mom:momPct(sumBy(cmRows,'biz',metricKey),sumBy(pmRows,'biz',metricKey))
     };
@@ -449,15 +474,27 @@
       var pct=x.val/total*100;
       return '<div class="pie-item '+(selectedKey===x.key?'active':'')+'" data-k="'+x.key+'"><span class="dot" style="background:'+colors[i%colors.length]+'"></span><span class="pie-name">'+x.key+'</span><span class="pie-num">'+fmtMoney(x.val)+'</span><span class="pie-val">'+fmtPct(pct)+'</span></div>';
     }).join('');
+    var modes=[{m:'cur',k:'当前值',v:fmtMoney(summary.cur)},{m:'ach',k:'目标达成率',v:fmtPct(summary.ach)},{m:'yoy',k:'同比',v:fmtPct(summary.yoy)},{m:'mom',k:'环比',v:fmtPct(summary.mom)}];
+    var stats=modes.map(function(x){
+      var on=state.pieStatMode===x.m?' pie-stat-on':'';
+      return '<div class="pie-stat'+on+'" data-pie-mode="'+x.m+'" title="点击切换上方汇总块含义（图例仍为本期实际值占比）"><div class="k">'+x.k+'</div><div class="v">'+x.v+'</div></div>';
+    }).join('');
     var h='';
     h+='<div class="pie-hd"><div class="pie-path">'+path+'</div>'+(onBack?'<button class="pie-back" id="'+container+'Back">返回上层</button>':'')+'</div>';
-    h+='<div class="pie-stats"><div class="pie-stat"><div class="k">当前值</div><div class="v">'+fmtMoney(summary.cur)+'</div></div><div class="pie-stat"><div class="k">预算达成率</div><div class="v">'+fmtPct(summary.ach)+'</div></div><div class="pie-stat"><div class="k">同比</div><div class="v">'+fmtPct(summary.yoy)+'</div></div><div class="pie-stat"><div class="k">环比</div><div class="v">'+fmtPct(summary.mom)+'</div></div></div>';
+    h+='<div class="pie-stats">'+stats+'</div>';
     h+='<div class="pie-wrap">';
     h+='<svg viewBox="0 0 168 168" width="164" height="164">'+seg+'<circle cx="84" cy="84" r="40" fill="#0c2242"></circle><text x="84" y="79" text-anchor="middle" fill="#9ec5f0" font-size="11">'+title+'</text><text x="84" y="99" text-anchor="middle" fill="#dbeafe" font-size="13" font-weight="700">100%</text></svg>';
     h+='<div class="pie-legend">'+legend+'</div>';
     h+='</div>';
     $(container).innerHTML=h;
     if(onBack) $(container+'Back').onclick=onBack;
+    Array.prototype.forEach.call($(container).querySelectorAll('[data-pie-mode]'),function(el){
+      el.onclick=function(e){
+        e.stopPropagation();
+        state.pieStatMode=el.getAttribute('data-pie-mode')||'cur';
+        renderAll();
+      };
+    });
     if(onSelect){
       Array.prototype.forEach.call($(container).querySelectorAll('.pie-item'),function(el){
         el.onclick=function(){onSelect(el.getAttribute('data-k'));};
@@ -539,10 +576,15 @@
   function renderFunnel(){
     var f=currentFilter();
     var rows=filteredRows();
-    var rowsLy=filteredRowsFor(CURRENT_YEAR-1,f.monthStart,f.monthEnd);
-    var rowsCm=filteredRowsFor(CURRENT_YEAR,f.monthEnd,f.monthEnd);
-    var pm=f.monthEnd>1?f.monthEnd-1:1;
-    var rowsPm=filteredRowsFor(CURRENT_YEAR,pm,pm);
+    var lyS=shiftYearYmd(f.dateStart,-1), lyE=shiftYearYmd(f.dateEnd,-1);
+    var rowsLy=filteredRowsFor(CURRENT_YEAR-1,lyS,lyE);
+    var ed=parseYmdLocal(f.dateEnd);
+    var lmY=ed.getFullYear(), lmM=ed.getMonth()+1;
+    var dLmS=fmtYmdLocal(new Date(lmY,lmM-1,1)), dLmE=fmtYmdLocal(new Date(lmY,lmM,0));
+    var pmY=lmM>1?lmY:lmY-1, pmM=lmM>1?lmM-1:12;
+    var dPmS=fmtYmdLocal(new Date(pmY,pmM-1,1)), dPmE=fmtYmdLocal(new Date(pmY,pmM,0));
+    var rowsCm=filteredRowsFor(lmY,dLmS,dLmE);
+    var rowsPm=filteredRowsFor(pmY,dPmS,dPmE);
     var sales=sumBy(rows,'biz','sales'), revenue=sumBy(rows,'biz','revenue'), gross=sumBy(rows,'biz','gross');
     var revenueBase=Math.max(1,revenue);
     var topSubs=[
@@ -560,7 +602,7 @@
     ];
     var allChips=topSubs.concat(midSubs);
     var sub={
-      ad:[['广告费',sumBy(rows,'biz','ad_perf')],['品牌营销费',sumBy(rows,'biz','ad_brand')],['推广费',sumBy(rows,'biz','ad_promo')],['样品费',sumBy(rows,'biz','ad_sample')]],
+      ad:[['广告费',sumBy(rows,'biz','ad_perf')],['推广费',sumBy(rows,'biz','ad_promo')],['样品费',sumBy(rows,'biz','ad_sample')]],
       logistics:[['头程运费',sumBy(rows,'biz','logistics_head')],['退货运费',sumBy(rows,'biz','logistics_return')],['仓储费',sumBy(rows,'biz','logistics_storage')],['关税',sumBy(rows,'biz','logistics_tariff')]],
       platform:[['FBA佣金',sumBy(rows,'biz','platform_commission')],['平台服务费',sumBy(rows,'biz','platform_service')],['收单费用',sumBy(rows,'biz','platform_payment')],['店铺费用',sumBy(rows,'biz','platform_storefee')]],
       other:[['运杂费',sumBy(rows,'biz','other_misc')],['预留毛利',sumBy(rows,'biz','other_reserve')]],
@@ -574,11 +616,10 @@
     var drill=state.expenseDrill||'ad';
     var cur=funnelValue(rows,'biz',drill);
     var bp=funnelValue(rows,'bp',drill);
-    var tp=bp*calcTimeProgress();
     var ly=funnelValue(rowsLy,'biz',drill);
     var cm=funnelValue(rowsCm,'biz',drill);
     var pmv=funnelValue(rowsPm,'biz',drill);
-    var ach=tp?cur/tp*100:0;
+    var ach=bp?cur/bp*100:0;
     var ratio=cur/revenueBase*100;
     var yoy=yoyPct(cur,ly);
     var mom=momPct(cm,pmv);
@@ -604,10 +645,10 @@
     h+='</svg>';
     h+='</div>';
     var drillName=(allChips.find(function(x){return x.k===drill;})||{n:'费用项'}).n;
-    h+='<aside class="side-card"><h4>'+drillName+'（包含的子费用项）</h4><div class="side-current"><div class="nm">当前值</div><div class="row"><span class="main">'+fmtMoney(cur)+' / '+fmtPct(ratio)+'</span><span>达成率 '+fmtPct(ach)+'</span></div><div class="row"><span>同比 '+fmtPct(yoy)+'</span><span>环比 '+fmtPct(mom)+'</span></div></div><div class="side-list">';
+    h+='<aside class="side-card"><h4>'+drillName+'（包含的子费用项）</h4><div class="side-current"><div class="nm">当前值</div><div class="row"><span class="main">'+fmtMoney(cur)+' / '+fmtPct(ratio)+'</span><span>占目标 '+fmtPct(ach)+'</span></div><div class="row"><span>同比 '+fmtPct(yoy)+'</span><span>环比 '+fmtPct(mom)+'</span></div></div><div class="side-list">';
     (sub[drill]||[]).forEach(function(x){
       var keyMap={
-        '广告费':'ad_perf','品牌营销费':'ad_brand','推广费':'ad_promo','样品费':'ad_sample',
+        '广告费':'ad_perf','推广费':'ad_promo','样品费':'ad_sample',
         '头程运费':'logistics_head','退货运费':'logistics_return','仓储费':'logistics_storage','关税':'logistics_tariff',
         'FBA佣金':'platform_commission','平台服务费':'platform_service','收单费用':'platform_payment','店铺费用':'platform_storefee',
         '运杂费':'other_misc','预留毛利':'other_reserve','优惠合计':'discount','销售退货':'returns','销售税/VAT':'vat'
@@ -615,14 +656,14 @@
       var kk=keyMap[x[0]];
       var sv=kk?funnelValue(rows,'biz',kk):x[1];
       var sb=kk?funnelValue(rows,'bp',kk):0;
-      var st=sb*calcTimeProgress();
+      var st=sb;
       var sly=kk?funnelValue(rowsLy,'biz',kk):0;
       var scm=kk?funnelValue(rowsCm,'biz',kk):0;
       var spm=kk?funnelValue(rowsPm,'biz',kk):0;
       var sach=st?sv/st*100:0;
       var syoy=yoyPct(sv,sly);
       var smom=momPct(scm,spm);
-      h+='<div class="side-item"><div class="nm">'+x[0]+'</div><div class="vv"><span>'+fmtMoney(sv)+' / '+fmtPct(sv/revenueBase*100)+'</span><span>达成率 '+fmtPct(sach)+'</span></div><div class="vv"><span>同比 '+fmtPct(syoy)+'</span><span>环比 '+fmtPct(smom)+'</span></div></div>';
+      h+='<div class="side-item"><div class="nm">'+x[0]+'</div><div class="vv"><span>'+fmtMoney(sv)+' / '+fmtPct(sv/revenueBase*100)+'</span><span>占目标 '+fmtPct(sach)+'</span></div><div class="vv"><span>同比 '+fmtPct(syoy)+'</span><span>环比 '+fmtPct(smom)+'</span></div></div>';
     });
     h+='</div></aside></div>';
     $('funnelBox').innerHTML=h;
@@ -636,31 +677,50 @@
     });
   }
 
+  function eachMonthOverlapping(){
+    var f=currentFilter(), out=[], sd=parseYmdLocal(f.dateStart), ed=parseYmdLocal(f.dateEnd);
+    if(!sd||!ed) return [];
+    var cur=new Date(sd.getFullYear(),sd.getMonth(),1);
+    var endM=new Date(ed.getFullYear(),ed.getMonth(),1);
+    while(cur<=endM){
+      out.push({y:cur.getFullYear(),m:cur.getMonth()+1});
+      cur.setMonth(cur.getMonth()+1);
+    }
+    return out;
+  }
+
   function renderTrend(){
     var f=currentFilter();
     var metric=currentMetric();
+    var months=eachMonthOverlapping();
     var agg=[];
-    for(var m=f.monthStart;m<=f.monthEnd;m++){
-      var rs=filteredRowsFor(CURRENT_YEAR,m,m);
-      var bp,biz,fin;
+    months.forEach(function(mm){
+      var ms=fmtYmdLocal(new Date(mm.y,mm.m-1,1)), me=fmtYmdLocal(new Date(mm.y,mm.m,0));
+      var dS2=f.dateStart>ms?f.dateStart:ms;
+      var dE2=f.dateEnd<me?f.dateEnd:me;
+      var rs=filteredRowsFor(mm.y,dS2,dE2);
+      var bp,biz;
       if(metric==='margin'){
         bp=(sumBy(rs,'bp','gross')/Math.max(1,sumBy(rs,'bp','revenue')))*100;
         biz=(sumBy(rs,'biz','gross')/Math.max(1,sumBy(rs,'biz','revenue')))*100;
-        fin=(sumBy(rs,'fin','gross')/Math.max(1,sumBy(rs,'fin','revenue')))*100;
       }else{
-        bp=sumBy(rs,'bp',metric); biz=sumBy(rs,'biz',metric); fin=sumBy(rs,'fin',metric);
+        bp=sumBy(rs,'bp',metric); biz=sumBy(rs,'biz',metric);
       }
-      agg.push({m:m,bp:bp,biz:biz,fin:fin});
+      agg.push({label:mm.m+'月',bp:bp,biz:biz});
+    });
+    if(!agg.length){
+      $('trendBox').innerHTML='<div style="font-size:12px;color:#9ec5f0;padding:8px">请先在顶部选择统计区间（需至少覆盖一个自然月以便按月汇总）。</div>';
+      return;
     }
 
-    var max=agg.reduce(function(mx,x){return Math.max(mx,x.bp,x.biz,x.fin);},1);
-    var min=agg.reduce(function(mn,x){return Math.min(mn,x.bp,x.biz,x.fin);},0);
+    var max=agg.reduce(function(mx,x){return Math.max(mx,x.bp,x.biz);},1);
+    var min=agg.reduce(function(mn,x){return Math.min(mn,x.bp,x.biz);},0);
     if(min>0) min=0;
     var w=980,h=320,left=54,right=18,top=26,bottom=34;
     var cw=w-left-right,ch=h-top-bottom;
     function xOf(i){return left+i*(cw/Math.max(1,agg.length-1));}
     function yOf(v){return top+(max===min?ch/2:(max-v)/(max-min)*ch);}
-    function pts(k){return agg.map(function(x,i){return xOf(i).toFixed(1)+','+yOf(x[k]).toFixed(1);}).join(' ');}    
+    function pts(k){return agg.map(function(x,i){return xOf(i).toFixed(1)+','+yOf(x[k]).toFixed(1);}).join(' ');}
 
     var yGrid='';
     for(var i=0;i<=4;i++){
@@ -669,29 +729,59 @@
       yGrid+='<text x="'+(left-8)+'" y="'+(y+4).toFixed(1)+'" text-anchor="end" fill="#7fa7d2" font-size="11">'+(metric==='margin'?fmtPct(v):fmtMoney(v))+'</text>';
     }
 
-    var xLab=agg.map(function(x,i){var px=xOf(i);return '<text x="'+px.toFixed(1)+'" y="'+(h-10)+'" text-anchor="middle" fill="#8fb0d9" font-size="11">'+x.m+'月</text>';}).join('');
+    var xLab=agg.map(function(x,i){var px=xOf(i);return '<text x="'+px.toFixed(1)+'" y="'+(h-10)+'" text-anchor="middle" fill="#8fb0d9" font-size="11">'+x.label+'</text>';}).join('');
     function points(k,color){return agg.map(function(x,i){var px=xOf(i),py=yOf(x[k]);return '<circle cx="'+px.toFixed(1)+'" cy="'+py.toFixed(1)+'" r="3.5" fill="'+color+'"></circle>';}).join('');}
 
     var htm='';
-    htm+='<div class="trend-head"><div style="font-size:12px;color:#9ec5f0">维度：'+METRICS[metric]+'（单位：'+(metric==='margin'?'%':'USD')+'）</div></div>';
+    htm+='<div class="trend-head"><div style="font-size:12px;color:#9ec5f0">维度：'+METRICS[metric]+'（单位：'+(metric==='margin'?'%':'USD')+'） · 每月一点为区间内该自然月的实际与目标合计</div></div>';
     htm+='<svg viewBox="0 0 '+w+' '+h+'" width="100%" height="320">';
     htm+=yGrid;
     htm+='<polyline points="'+pts('bp')+'" fill="none" stroke="#60a5fa" stroke-width="3" stroke-dasharray="6 4"></polyline>';
     htm+='<polyline points="'+pts('biz')+'" fill="none" stroke="#22d3ee" stroke-width="3"></polyline>';
-    htm+='<polyline points="'+pts('fin')+'" fill="none" stroke="#34d399" stroke-width="3"></polyline>';
-    htm+=points('bp','#60a5fa')+points('biz','#22d3ee')+points('fin','#34d399');
-    htm+='<text x="54" y="16" fill="#60a5fa" font-size="12">BP目标</text><text x="114" y="16" fill="#22d3ee" font-size="12">业务数据</text><text x="184" y="16" fill="#34d399" font-size="12">财务数据</text>';
+    htm+=points('bp','#60a5fa')+points('biz','#22d3ee');
+    htm+='<text x="54" y="16" fill="#60a5fa" font-size="12">BP目标</text><text x="114" y="16" fill="#22d3ee" font-size="12">业务实际</text>';
     htm+=xLab;
     htm+='</svg>';
     $('trendBox').innerHTML=htm;
   }
 
-  function renderAll(){renderTimeStrip();renderKPI();renderChannel();renderRegion();renderScene();renderFunnel();renderTrend();}
+  function renderTopSku(){
+    var rows=filteredRows();
+    var g={};
+    rows.forEach(function(r){
+      var sku=r.channel+' / '+r.store+' / '+r.category;
+      if(!g[sku]) g[sku]={sku:sku,b:0,a:0};
+      g[sku].b+=r.bp.revenue; g[sku].a+=r.biz.revenue;
+    });
+    var arr=Object.keys(g).map(function(k){var o=g[k]; return {sku:k,b:o.b,a:o.a,ach:o.b?o.a/o.b*100:0};});
+    arr.sort(function(x,y){return x.ach-y.ach;});
+    arr=arr.slice(0,10);
+    var h='<table class="top-table"><thead><tr><th>#</th><th>SKU（演示键）</th><th class="num">营收实际</th><th class="num">营收目标</th><th class="num">目标达成率</th><th>操作</th></tr></thead><tbody>';
+    arr.forEach(function(r,i){
+      h+='<tr><td>'+(i+1)+'</td><td>'+r.sku+'</td><td class="num">'+fmtMoney(r.a)+'</td><td class="num">'+fmtMoney(r.b)+'</td><td class="num">'+fmtPct(r.ach)+'</td><td><span class="top-link" role="button" tabindex="0">下钻经营分析明细看板（演示）</span></td></tr>';
+    });
+    h+='</tbody></table><p style="font-size:11px;color:#8fb0d9;margin-top:8px">点击「下钻」将携带当前筛选条件与本表排序跳转「经营分析明细看板」，明细为全量数据并保持同一排序（正式版对接路由）。</p>';
+    $('topSkuBox').innerHTML=h;
+  }
+
+  function renderAll(){
+    updateMetaRange();
+    updateCompareBar();
+    renderKPI();
+    renderRegion();
+    renderChannel();
+    renderScene();
+    renderFunnel();
+    renderTrend();
+    renderTopSku();
+  }
 
   function init(){
-    setOptions('fMonthStart',[1,2,3,4,5,6,7,8,9,10,11,12],false);
-    setOptions('fMonthEnd',[1,2,3,4,5,6,7,8,9,10,11,12],false);
-    $('fMonthStart').value='1'; $('fMonthEnd').value='12';
+    if(!window.DateRangePicker){
+      $('dateRangeMount').innerHTML='<span style="color:#f87171;font-size:12px">日期范围控件脚本未加载，请用本地静态服务打开本页或检查 ../../../规范/assets/date-range-picker.js 路径。</span>';
+    }else{
+      dateRangeApi=DateRangePicker.mount($('dateRangeMount'),{start:'2026-01-01',end:'2026-12-31',compact:true,zIndex:1200,onChange:function(){renderAll();}});
+    }
 
     setOptions('fRegion',Object.keys(REGIONS),true);
     setOptions('fCountry',Object.keys(REGIONS).reduce(function(a,k){return a.concat(REGIONS[k]);},[]),true);
@@ -702,24 +792,20 @@
     setMetricOptions();
     $('fMetric').value='revenue';
 
-    ['fMonthStart','fMonthEnd','fRegion','fCountry','fChannel','fStore','fScene','fCategory','fMetric'].forEach(function(id){
+    ['fRegion','fCountry','fChannel','fStore','fScene','fCategory','fMetric'].forEach(function(id){
       $(id).addEventListener('change',function(){
         if(id==='fRegion'||id==='fChannel'||id==='fScene') updateDeps();
-        if(id==='fMonthStart'||id==='fMonthEnd'){
-          var s=Number($('fMonthStart').value||1), e=Number($('fMonthEnd').value||12);
-          if(s>e){ if(id==='fMonthStart') $('fMonthEnd').value=String(s); else $('fMonthStart').value=String(e); }
-        }
         if(id==='fMetric'){state.channelDrill=null;state.regionDrill=null;state.sceneDrill=null;}
         renderAll();
       });
     });
 
     $('btnReset').onclick=function(){
-      $('fMonthStart').value='1'; $('fMonthEnd').value='12';
+      if(dateRangeApi) dateRangeApi.set('2026-01-01','2026-12-31');
       ['fRegion','fCountry','fChannel','fStore','fScene','fCategory'].forEach(function(id){$(id).value='';});
       $('fMetric').value='revenue';
       updateDeps();
-      state.expenseDrill='ad';state.channelDrill=null;state.regionDrill=null;state.sceneDrill=null;
+      state.expenseDrill='ad';state.channelDrill=null;state.regionDrill=null;state.sceneDrill=null;state.pieStatMode='cur';
       renderAll();
     };
 
