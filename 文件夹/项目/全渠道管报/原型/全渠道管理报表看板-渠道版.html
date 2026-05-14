@@ -866,6 +866,19 @@
       color: #64748b;
     }
 
+    .sortable-th {
+      cursor: pointer;
+      user-select: none;
+      white-space: nowrap;
+    }
+
+    .sortable-th .sort-ic {
+      margin-left: 4px;
+      font-size: 11px;
+      color: #1677ff;
+      font-weight: 700;
+    }
+
     .row-toggle {
       width: 18px;
       height: 18px;
@@ -1126,7 +1139,6 @@
     }
 
     @media (max-width: 1440px) {
-      .cards { grid-template-columns: repeat(4, minmax(140px, 1fr)); }
       .status-grid { grid-template-columns: repeat(2, minmax(200px, 1fr)); }
     }
   </style>
@@ -1153,17 +1165,11 @@
       </header>
 
       <div class="page">
-        <div class="boundary-callout" role="note">
-          <strong>看板边界与使用方式（与会议结论对齐）</strong><br />
-          <strong>经营分析总看板</strong>：决策层总览，承担汇总卡片、趋势与 TOP 暴露问题。<strong>本页「渠道经营分析看板」</strong>：中层/渠道经营在<strong>同一套筛选与口径</strong>下对齐总看板，并以下方<strong>可筛选、可排序的明细表</strong>为主交付形态之一。<br />
-          典型问题链：<strong>总看板总览发现异常</strong> → <strong>本页调整区域/渠道/国家/场景等筛选定位</strong> → <strong>明细表全量排序找出最好/最差行</strong>（可从总看板 TOP 行携带筛选与排序跳转，原型略）。
-        </div>
-
         <section class="panel">
           <div class="panel-head">
             <div>
               <div class="panel-title">筛选与口径控制</div>
-              <div class="panel-sub">主交付为下方明细表；本区筛选变更后点击「搜索」联动全页。退款率/税费率等比率见明细占比列。</div>
+              <div class="panel-sub">筛选后点击「搜索」刷新下方明细表。</div>
             </div>
           </div>
 
@@ -1221,53 +1227,13 @@
             </div>
             <div class="filter-context-bar" id="filterContextBar" aria-live="polite"></div>
           </div>
-
-          <div class="cards" id="cardsHost"></div>
-        </section>
-
-        <section class="panel">
-          <div class="panel-head">
-            <div>
-              <div class="panel-title">趋势图</div>
-              <div class="panel-sub">图例<strong>最多同时勾选 2 条</strong>曲线（左轴多为金额，右轴为转化率/促销力度等）；支持日/周/月切换。<span class="req-dot" data-req-key="trend-grain-rule">!</span></div>
-            </div>
-            <div class="toolbar-right">
-              <div class="segment" id="grainTabs">
-                <button class="tab active" type="button" data-grain="day">日</button>
-                <button class="tab" type="button" data-grain="week">周</button>
-                <button class="tab" type="button" data-grain="month">月</button>
-              </div>
-            </div>
-          </div>
-          <div class="chart-panel">
-            <div class="panel-sub" style="margin-bottom:8px;">图例口径说明<span class="req-dot" data-req-key="trend-legend-rule">!</span></div>
-            <div class="legend" id="legendHost"></div>
-            <div class="chart-box">
-              <svg class="chart" id="chartSvg" viewBox="0 0 1200 320" preserveAspectRatio="none" aria-label="趋势图"></svg>
-            </div>
-          </div>
-        </section>
-
-        <section class="panel">
-          <div class="panel-head">
-            <div>
-              <div class="panel-title">销售额—营收—毛利 结构拆解</div>
-              <div class="panel-sub">与上方汇总卡片<strong>同源口径与同一筛选结果</strong>；点击梯形内费用节点后，右侧列出该节点子费用（与下方明细表费用列<strong>同一套费用项</strong>，非另一张独立「关系图」）。</div>
-            </div>
-          </div>
-          <div class="flow-panel">
-            <div class="flow-wrap">
-              <svg class="flow-svg" id="flowSvg" viewBox="0 0 1560 620" preserveAspectRatio="xMidYMid meet" aria-label="销售额营收毛利结构拆解"></svg>
-            </div>
-            <div class="flow-detail" id="flowDetail"></div>
-          </div>
         </section>
 
         <section class="panel table-panel">
           <div class="table-tools">
             <div>
               <div class="panel-title">明细表<span class="req-dot" data-req-key="table-detail-overview">!</span></div>
-              <div class="panel-sub" id="tableDesc">主行为业务系统取数；展开「财务维度」为财务系统取数（按映射配置），与主行独立；再下为对照差异。</div>
+              <div class="panel-sub" id="tableDesc">点击列标题排序；默认按营收达成%从高到低。首行为当前筛选下「总计」汇总。</div>
             </div>
             <div class="export-wrap">
               <button class="btn" id="exportBtn" type="button">导出</button>
@@ -1706,72 +1672,10 @@
       return { ...row, values };
     }
 
-    function mean(values) {
-      if (!values.length) return 0;
-      return values.reduce((sum, v) => sum + v, 0) / values.length;
-    }
-
-    function toGrain(dayValues) {
-      const toBuckets = (targetLen) => Array.from({ length: targetLen }, (_, i) => {
-        const start = Math.floor((i * dayValues.length) / targetLen);
-        const end = Math.floor(((i + 1) * dayValues.length) / targetLen);
-        const bucket = dayValues.slice(start, Math.max(end, start + 1));
-        return Number(mean(bucket).toFixed(2));
-      });
-      return {
-        day: dayValues,
-        week: toBuckets(8),
-        month: toBuckets(6)
-      };
-    }
-
-    function isSingleMskuSelected() {
-      const mode = document.getElementById("skuMode")?.value || "";
-      const keyword = (document.getElementById("skuKeyword")?.value || "").trim();
-      return mode === "精确" && /^[A-Za-z0-9-]+\+[^+]+\+[A-Za-z]{2}$/.test(keyword);
-    }
-
-    function getTrendSeries() {
-      const salesDay = [61, 63, 60, 66, 68, 70, 69, 74, 76, 78, 80, 79];
-      const revenueMainDay = [52, 54, 55, 58, 59, 61, 60, 63, 65, 67, 68, 70];
-      const grossDay = [24, 25, 24, 26, 26, 27, 28, 29, 30, 31, 30, 32];
-      const trafficDay = [122, 128, 126, 134, 138, 142, 140, 146, 149, 152, 156, 154];
-      const cvrDay = [3.22, 3.28, 3.31, 3.35, 3.37, 3.4, 3.38, 3.43, 3.47, 3.49, 3.52, 3.55];
-      const revenueDay = [52.5, 53.6, 53.2, 54.7, 55.1, 55.9, 55.6, 56.8, 57.2, 57.9, 58.3, 58.7]; // 总营收
-      const qtyDay = [11.8, 12.1, 12.0, 12.4, 12.7, 12.9, 12.8, 13.1, 13.4, 13.6, 13.8, 14.0]; // 总销量
-      const rrpDay = [5.6, 5.6, 5.5, 5.5, 5.4, 5.4, 5.4, 5.3, 5.3, 5.2, 5.2, 5.2];
-      const dealPriceDay = revenueDay.map((v, i) => Number((v / qtyDay[i]).toFixed(2))); // 成交价=总营收/销量
-      const promoDay = dealPriceDay.map((v, i) => Number((1 - (v / rrpDay[i])).toFixed(4)) * 100);
-
-      const series = [
-        { key: "销售额", color: "#60a5fa", data: toGrain(salesDay) },
-        { key: "营收", color: "#34d399", data: toGrain(revenueMainDay) },
-        { key: "毛利", color: "#f59e0b", data: toGrain(grossDay) },
-        { key: "流量", color: "#2563eb", data: toGrain(trafficDay) },
-        { key: "转化率", color: "#10b981", data: toGrain(cvrDay) }
-      ];
-      if (isSingleMskuSelected()) {
-        series.push(
-          { key: "成交价", color: "#f59e0b", data: toGrain(dealPriceDay) },
-          { key: "促销力度", color: "#ef4444", data: toGrain(promoDay) }
-        );
-      }
-      const moneySeries = new Set(["销售额", "营收", "毛利", "成交价"]);
-      const rate = currentCurrencyRate();
-      series.forEach((item) => {
-        if (!moneySeries.has(item.key)) return;
-        ["day", "week", "month"].forEach((grain) => {
-          item.data[grain] = item.data[grain].map((v) => Number((v * rate).toFixed(2)));
-        });
-      });
-      return series;
-    }
-
     const displayFeeColumns = [
       "销量",
       "营收",
       "毛利",
-      "订单销售额",
       "净销售额",
       "运费收入",
       "包装收入",
@@ -1808,13 +1712,11 @@
     ];
 
     const state = {
-      view: "business",
-      grain: "day",
       showRatio: true,
-      activeSeries: new Set(),
-      expandedRows: new Set(),
       retailerDimension: false,
-      selectedRetailers: new Set()
+      selectedRetailers: new Set(),
+      sortKey: "ach:营收",
+      sortDir: "desc"
     };
 
     function applyRetailerNameFilter(rows) {
@@ -1864,11 +1766,6 @@
       financeRows = baseRows.map(deriveFinanceRow);
     }
 
-    const cardsHost = document.getElementById("cardsHost");
-    const legendHost = document.getElementById("legendHost");
-    const chartSvg = document.getElementById("chartSvg");
-    const flowSvg = document.getElementById("flowSvg");
-    const flowDetail = document.getElementById("flowDetail");
     const detailTable = document.getElementById("detailTable");
     const tableDesc = document.getElementById("tableDesc");
     const reqPopover = document.getElementById("reqPopover");
@@ -1905,7 +1802,7 @@
 3. 选择“本币”后，页面金额按该国家本地币种统一刷新展示。<br>
 4. 当国家为“全部”或非单一国家时，币种固定为USD且不支持选择。`,
       "search-trigger": `搜索按钮逻辑：<br>
-1. 点击后统一应用当前所有筛选条件刷新卡片、趋势图、结构拆解、明细表。<br>
+1. 点击后应用当前筛选条件刷新明细表。<br>
 2. 若筛选条件非法（如日期反向），需前置拦截并提示。<br>
 3. 不需要额外“重置/应用”按钮，当前页仅保留搜索按钮。`,
       "trend-grain-rule": `趋势图时间粒度逻辑：<br>
@@ -1920,13 +1817,12 @@
 4. 促销力度 = 1 - 成交价 / RRP价。<br>
 5. 转化率、促销力度走右侧纵轴，其余指标走左侧纵轴。<br>
 6. 勾选「零售商维度」后，明细可有多行同一 MSKU（不同零售商）；趋势图中成交价/促销力度仍以<strong>全局唯一 MSKU</strong>为展示前提，语义为<strong>该 MSKU 下当前序列的成交价</strong>（若需按零售商拆线，由数据模块定义；原型仍为单序列演示）。`,
-      "table-detail-overview": `明细表主叙事（会议结论对齐）：<br>
-1. <strong>首行「总计」</strong>为当前筛选下全量汇总，与上方卡片、结构拆解同源。<br>
-2. <strong>目标与达成</strong>：表前列「营收/毛利/销量达成%」为<strong>相对组织目标的达成演示</strong>（原型占位数），用于一眼排序找最好/最差；<strong>费用明细列</strong>保留作结构解释，<strong>不与分项费用目标强行挂钩</strong>（无分项目标则不强求）。<br>
-3. <strong>主行「业务维度」</strong>：各列金额来自业务系统及其汇总规则。<br>
-4. 点击「+」展开<strong>「财务维度」</strong>与<strong>「业务−财务（次要对照）」</strong>：财务行按映射从财务系统独立取数；对照行为业务−财务差额，<strong>仅作排查辅助</strong>，非管报主卖点（管报以业务经营与<strong>目标达成</strong>为主，不做业务/财务营收双口径主叙事）。<br>
-5. 映射在「费用字段映射管理」中配置。<br>
-6. <strong>零售商维度</strong>：全页共用勾选；勾选后按店铺+MSKU+零售商拆行；未勾选按店铺+MSKU 合并（规则同前）。`,
+      "table-detail-overview": `渠道经营明细表（本页仅保留筛选 + 本表）：<br>
+1. <strong>首行「总计」</strong>为当前筛选下全量汇总，不参与排序，始终置顶。<br>
+2. <strong>结果指标</strong>内顺序为：销量、销量达成%、营收、营收达成%、毛利、毛利达成%；达成列为<strong>原型演示数</strong>，用于排序对比。<br>
+3. 其余列为收入链路 / 成本费用链路费用项；<strong>已移除「订单销售额」列</strong>；各数值列与达成列均支持<strong>点击表头排序</strong>（默认按营收达成%降序）。<br>
+4. 本页不再展示财务维度展开行与业务−财务对照行（若需对账请在财务系统或专项页查看）。<br>
+5. <strong>零售商维度</strong>：勾选后按店铺+MSKU+零售商拆行；未勾选按店铺+MSKU 合并。`,
       "retailer-dimension": `零售商维度（全页共用）：<br>
 1. 默认<strong>不勾选</strong>：列表与筛选区<strong>不展示</strong>零售商；明细粒度为<strong>店铺+MSKU</strong>，商超/分销下多零售商数据<strong>合并</strong>，缺失零售商已并入<strong>未知</strong>后再汇总。<br>
 2. <strong>勾选</strong>：列表增加「零售商」列，筛选区出现「零售商」多选（可搜索）；粒度为<strong>店铺+MSKU+零售商</strong>。<br>
@@ -1951,13 +1847,12 @@
 1. 差额 = 业务维度值 − 财务维度值（同一列、同一展开维度下对齐相减）。<br>
 2. 若<strong>财务维度为空</strong>（含：未配置映射、无财务关账数据、不满足展示条件等），<strong>不强行计算</strong>，该格为空或缺失态。<br>
 3. 本行<strong>非管报主叙事</strong>，仅用于排查映射/结账差异；不作为财务确认或记账依据。`,
-      "table-header-rule": `明细表列与展开行：<br>
+      "table-header-rule": `明细表列与分组（本页）：<br>
 1. 列分组及命名需与管报 Excel 方案一致（渠道版「出货授权成本」为打包展示）。<br>
-2. 表前「达成%」列为目标达成主叙事（原型演示）；主行为<strong>业务维度</strong>；展开依次为「财务维度」「业务−财务（次要对照）」。<br>
-3. 「财务维度」各列按<strong>映射从财务系统</strong>取数，与主行业务值无必然相等。<br>
-4. 带「（计算值=…）」类列的<strong>解释性口径</strong>放在表头「i」浮层中，列名展示为短标题。<br>
-5. 各列下方占比：分母统一为<strong>营收</strong>（收入净额），副文案为括号内数值，如 <strong>(89.12%)</strong>；<strong>营收</strong>列为 <strong>(100%)</strong>；销售额等可大于 100%。<br>
-6. 「销售额—营收—毛利 结构拆解」图右上角为「占比是以营收为100%口径」；图中各金额旁占比为 <strong>(xx.xx%)</strong>（营收主块为 <strong>(100%)</strong>）。`,
+2. 「结果指标」内含销量、销量达成%、营收、营收达成%、毛利、毛利达成%（达成列为原型演示）。<br>
+3. 各列表头可点击排序；带「（计算值=…）」类列的口径说明在表头「i」浮层中。<br>
+4. 各列下方占比：分母统一为<strong>营收</strong>（收入净额），副文案为括号内数值；<strong>营收</strong>列为 <strong>(100%)</strong>。<br>
+5. 本页已不展示「销售额—营收—毛利」结构拆解图；占比语义仍以营收为 100% 口径理解即可。`,
       "export-template": `导出模版：<a href="https://alidocs.dingtalk.com/i/nodes/a9E05BDRVQ6gzQaAh2Y9g407J63zgkYA" target="_blank" rel="noopener noreferrer">在钉钉文档打开</a><br><br>
 <strong>导出与「零售商」列（模版字段保持一致）</strong><br>
 1. 导出文件<strong>始终包含「零售商」列</strong>，与线上模版列一致。<br>
@@ -2176,460 +2071,107 @@
       return displayFeeColumns;
     }
 
-    function renderCards() {
-      const totalRow = buildRowsForView(state.view)[0];
-      const values = totalRow?.values || {};
-      const sale = convertAmount(values["销售额（计算值=净销售额+包装收入+运费收入）"] || 0);
-      const revenue = convertAmount(values["营收"] || 0);
-      const gross = convertAmount(values["毛利"] || 0);
-      const qty = values["销量"] || 0;
-      const currencyCode = currentCurrencyCode();
-      const sc = feeStatsCounts();
-      const confirmPct = sc.total ? Math.round((sc.ok / sc.total) * 100) : 0;
-      const cardMap = {
-        business: [
-          { title: "销售额", value: sale, unit: currencyCode, y: "+2.13%", m: "-12.31%", note: "净销售额 + 亚马逊运费收入 + 亚马逊包装收入", money: true },
-          { title: "营收", value: revenue, unit: currencyCode, y: "+1.82%", m: "-10.46%", note: "收入净额口径", money: true },
-          { title: "毛利", value: gross, unit: currencyCode, y: "+1.36%", m: "-8.12%", note: "业务口径毛利", money: true },
-          { title: "销量", value: qty, unit: "", y: "+2.13%", m: "-6.31%", note: "订单销量（扣减退货）；退款率/税费率见明细占比列" }
-        ],
-        finance: [
-          { title: "财务销售额", value: sale, unit: currencyCode, y: "+1.95%", m: "-11.22%", note: "按财务维度已接入字段汇总", money: true },
-          { title: "财务营收", value: revenue, unit: currencyCode, y: "+1.52%", m: "-9.63%", note: "月末确认口径", money: true },
-          { title: "财务毛利", value: gross, unit: currencyCode, y: "+1.10%", m: "-7.41%", note: "财务确认值", money: true },
-          { title: "确认率", value: `${confirmPct}%`, unit: "", y: "+2.00%", m: "+1.00%", note: `已接入 / 可统计费用项（${sc.total} 项，不含销量）` }
-        ],
-        delta: [
-          { title: "销售额差异", value: sale, unit: currencyCode, y: "", m: "", note: "业务 - 财务", money: true },
-          { title: "营收差异", value: revenue, unit: currencyCode, y: "", m: "", note: "收入净额差异", money: true },
-          { title: "毛利差异", value: gross, unit: currencyCode, y: "", m: "", note: "毛利口径差异", money: true },
-          { title: "偏差率", value: "3.59%", unit: "", y: "", m: "", note: "毛利差异 / 业务毛利" }
-        ]
-      };
-
-      cardsHost.innerHTML = cardMap[state.view].map((card) => `
-        <div class="card">
-          <div class="card-title">${card.title}</div>
-          <div class="card-value">${(typeof card.value === "number" && card.money) ? card.value.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : card.value}${card.unit ? `<span style="font-size:12px;color:#64748b;margin-left:4px;">${card.unit}</span>` : ""}</div>
-          <div class="card-sub">
-            ${card.y ? `<span class="trend-up">同比 ${card.y}</span>` : `<span class="trend-neutral">状态口径</span>`}
-            ${card.m ? `<span class="trend-down">环比 ${card.m}</span>` : `<span class="trend-neutral">按当前视图</span>`}
-          </div>
-        </div>
-      `).join("");
-    }
-
-    function trendSeriesKeys(series) {
-      return series.map((item) => item.key);
-    }
-
-    function clampActiveSeriesToMax(series, max) {
-      const keys = trendSeriesKeys(series);
-      const valid = new Set(keys);
-      let picked = keys.filter((k) => state.activeSeries.has(k) && valid.has(k));
-      if (!picked.length) picked = keys.slice(0, Math.min(max, keys.length));
-      if (picked.length > max) picked = picked.slice(0, max);
-      state.activeSeries = new Set(picked);
-    }
-
-    function renderLegend() {
-      const series = getTrendSeries();
-      clampActiveSeriesToMax(series, 2);
-      legendHost.innerHTML = series.map((item) => `
-        <span class="legend-item ${state.activeSeries.has(item.key) ? "" : "off"}" data-series="${item.key}">
-          <i class="legend-line" style="background:${item.color}"></i>${item.key}
-        </span>
-      `).join("");
-
-      Array.from(legendHost.querySelectorAll(".legend-item")).forEach((node) => {
-        node.addEventListener("click", () => {
-          const key = node.dataset.series;
-          if (state.activeSeries.has(key)) {
-            state.activeSeries.delete(key);
-            if (!state.activeSeries.size && series[0]) {
-              state.activeSeries.add(series[0].key);
-            }
-          } else {
-            const keys = trendSeriesKeys(series);
-            const picked = keys.filter((k) => state.activeSeries.has(k));
-            if (picked.length >= 2) {
-              state.activeSeries.delete(picked[0]);
-            }
-            state.activeSeries.add(key);
-          }
-          clampActiveSeriesToMax(series, 2);
-          renderLegend();
-          renderChart();
-        });
-      });
-    }
-
-    function buildPath(points) {
-      if (!points.length) return "";
-      return points.map((point, idx) => `${idx === 0 ? "M" : "L"}${point[0]},${point[1]}`).join(" ");
-    }
-
-    function renderChart() {
-      const width = 1200;
-      const height = 320;
-      const padLeft = 48;
-      const padRight = 52;
-      const padTop = 24;
-      const padBottom = 34;
-      const plotW = width - padLeft - padRight;
-      const plotH = height - padTop - padBottom;
-      const allTrend = getTrendSeries();
-      let series = allTrend.filter((item) => state.activeSeries.has(item.key));
-      if (!series.length) {
-        state.activeSeries = new Set(trendSeriesKeys(allTrend).slice(0, 2));
-        series = allTrend.filter((item) => state.activeSeries.has(item.key));
-      }
-      const rightAxisKeys = new Set(["转化率", "促销力度"]);
-      const leftSeries = series.filter((item) => !rightAxisKeys.has(item.key));
-      const rightSeries = series.filter((item) => rightAxisKeys.has(item.key));
-      const leftValues = leftSeries.flatMap((item) => item.data[state.grain]);
-      const rightValues = rightSeries.flatMap((item) => item.data[state.grain]);
-      const leftMin = 0;
-      const leftMax = Math.max(...leftValues, 1);
-      const rightMin = 0;
-      const rightMax = rightValues.length ? Math.max(...rightValues, 1) : 100;
-      const grid = [0, 0.25, 0.5, 0.75, 1];
-      const labelsMap = {
-        day: ["12-01", "12-03", "12-05", "12-07", "12-09", "12-11", "12-13", "12-15", "12-17", "12-19", "12-21", "12-23"],
-        week: ["W1", "W2", "W3", "W4", "W5", "W6", "W7", "W8"],
-        month: ["01月", "02月", "03月", "04月", "05月", "06月"]
-      };
-      const labels = labelsMap[state.grain];
-
-      let svg = `<defs>
-        <linearGradient id="chartBg" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stop-color="#f8fbff" />
-          <stop offset="100%" stop-color="#ffffff" />
-        </linearGradient>
-      </defs>
-      <rect x="0" y="0" width="${width}" height="${height}" fill="url(#chartBg)"></rect>`;
-
-      grid.forEach((g) => {
-        const y = padTop + plotH * g;
-        svg += `<line x1="${padLeft}" y1="${y}" x2="${width - padRight}" y2="${y}" stroke="#e5edf7" stroke-width="1"></line>`;
-        svg += `<text x="8" y="${y + 4}" font-size="11" fill="#94a3b8">${Math.round(leftMax * (1 - g))}</text>`;
-        if (rightSeries.length) {
-          const rightLabel = Number((rightMax * (1 - g)).toFixed(1));
-          svg += `<text x="${width - 4}" y="${y + 4}" text-anchor="end" font-size="11" fill="#94a3b8">${rightLabel}</text>`;
-        }
-      });
-
-      labels.forEach((label, idx) => {
-        const x = padLeft + (plotW / Math.max(labels.length - 1, 1)) * idx;
-        svg += `<text x="${x}" y="${height - 10}" text-anchor="middle" font-size="11" fill="#94a3b8">${label}</text>`;
-      });
-
-      series.forEach((item) => {
-        const vals = item.data[state.grain];
-        const points = vals.map((value, idx) => {
-          const x = padLeft + (plotW / Math.max(vals.length - 1, 1)) * idx;
-          const isRight = rightAxisKeys.has(item.key);
-          const min = isRight ? rightMin : leftMin;
-          const max = isRight ? rightMax : leftMax;
-          const y = padTop + plotH * (1 - ((value - min) / (max - min || 1)));
-          return [x, y];
-        });
-        svg += `<path d="${buildPath(points)}" fill="none" stroke="${item.color}" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"></path>`;
-        points.forEach((point) => {
-          svg += `<circle cx="${point[0]}" cy="${point[1]}" r="2.8" fill="${item.color}"></circle>`;
-        });
-      });
-
-      chartSvg.innerHTML = svg;
-    }
-
-    function shortMoney(value, fee = "") {
-      if (value === null || value === undefined) return "--";
-      const n = Number(value);
-      if (!Number.isFinite(n)) return "--";
-      if (fee === "销量") return n.toLocaleString("en-US", { maximumFractionDigits: 0 });
-      return convertAmount(n).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    }
-
-    function getFlowTitleLines(title) {
-      const map = {
-        "交易及平台费用小计": ["交易及平台", "费用小计"]
-      };
-      return map[title] || [title];
-    }
-
-    const flowNodeConfig = [
-      { key: "销售额", fee: "销售额（计算值=净销售额+包装收入+运费收入）", children: [], lane: "pillar", style: "pillar" },
-      { key: "营收", fee: "营收", children: [], lane: "pillar", style: "pillar" },
-      { key: "毛利", fee: "毛利", children: [], lane: "pillar", style: "pillar" },
-      {
-        key: "优惠合计",
-        fee: "优惠合计（计算值=折扣+直接扣减折扣）",
-        children: ["折扣", "直接扣减折扣"],
-        lane: "top",
-        style: "orange"
-      },
-      {
-        key: "销售退款",
-        fee: "销售退款",
-        children: ["销售退款"],
-        lane: "top",
-        style: "orange"
-      },
-      {
-        key: "销售税/VAT",
-        fee: "销售税/VAT",
-        children: ["销售税/VAT"],
-        lane: "top",
-        style: "orange"
-      },
-      {
-        key: "货值成本净额",
-        fee: "货值成本净额（计算值=出货授权成本+退货成本+平台赔偿）",
-        children: ["出货授权成本", "退货成本", "平台赔偿"],
-        lane: "mid",
-        style: "purple"
-      },
-      {
-        key: "广告宣传小计",
-        fee: "广告宣传小计（计算值=广告费+品牌营销费+推广费+样品费）",
-        children: ["广告费", "品牌营销费", "推广费", "样品费"],
-        lane: "mid",
-        style: "purple"
-      },
-      {
-        key: "物流成本小计",
-        fee: "物流成本小计（计算值=头程运费+尾程运费/FBA物流+退货运费+仓储费）",
-        children: ["头程运费", "尾程运费/FBA物流", "退货运费", "仓储费"],
-        lane: "mid",
-        style: "purple"
-      },
-      {
-        key: "交易及平台费用小计",
-        fee: "交易及平台费用小计（计算值=FBA佣金+平台服务费+收单费用/Payment Discount+店铺费用+Commission Fee）",
-        children: ["FBA佣金", "平台服务费", "收单费用/Payment Discount", "店铺费用", "Commission Fee"],
-        lane: "mid",
-        style: "purple"
-      },
-      {
-        key: "运杂费",
-        fee: "运杂费",
-        children: ["运杂费"],
-        lane: "mid",
-        style: "purple"
-      },
-      
-    ];
-
-    function getTotalValues() {
-      const rows = buildRowsForView(state.view);
-      return rows[0] ? rows[0].values : {};
-    }
-
-    function metricTrendDemoSeed(str) {
-      let h = 0;
-      for (let i = 0; i < str.length; i++) h = Math.imul(31, h) + str.charCodeAt(i) | 0;
-      return Math.abs(h);
-    }
-
-    function formatSignedPct(n) {
-      return (n >= 0 ? "+" : "") + n.toFixed(2) + "%";
-    }
-
-    function metricDemoTrends(seedStr) {
-      const h = metricTrendDemoSeed(seedStr);
-      const pick = (mod, shift) => ((((h >> shift) % mod) / Math.max(mod - 1, 1)) * 2 - 1) * 5.5;
-      return {
-        valueYoy: formatSignedPct(pick(97, 2)),
-        valueMom: formatSignedPct(pick(89, 5)),
-        ratioYoy: formatSignedPct(pick(61, 7) * 0.35),
-        ratioMom: formatSignedPct(pick(53, 9) * 0.38)
-      };
-    }
-
-    function flowMetricHtmlEscape(str) {
-      return String(str ?? "")
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;");
-    }
-
-    function flowMetricBlockHtml(feeKey, seedLabel, options) {
-      const title = options && options.title != null ? options.title : "";
-      const values = getTotalValues();
-      const revBase = revenueRatioBase(values);
-      const trends = metricDemoTrends(String(seedLabel || "") + "|" + String(feeKey || ""));
-      let valCell = "—";
-      let ratioCell = "—";
-      let ratioYoyCell = trends.ratioYoy;
-      let ratioMomCell = trends.ratioMom;
-
-      if (feeKey === "营收" && values[feeKey] !== null && values[feeKey] !== undefined && revBase) {
-        valCell = shortMoney(values[feeKey], feeKey);
-        ratioCell = "(100%)";
-      } else if (feeKey === "销量") {
-        const v = values[feeKey];
-        valCell = v !== null && v !== undefined ? shortMoney(v, feeKey) : "—";
-        ratioCell = "—";
-        ratioYoyCell = "—";
-        ratioMomCell = "—";
-      } else if (feeKey && values[feeKey] !== null && values[feeKey] !== undefined) {
-        valCell = shortMoney(values[feeKey], feeKey);
-        ratioCell = revBase ? `(${(Number(values[feeKey]) / revBase * 100).toFixed(2)}%)` : "(—)";
-      }
-
-      const escTitle = flowMetricHtmlEscape(title);
-      const nameCell = title
-        ? `<span class="flow-metric-name">${escTitle}</span>`
-        : `<span class="flow-metric-name flow-metric-name--empty" aria-hidden="true"></span>`;
-
-      return `
-        <div class="flow-metric-block">
-          ${nameCell}
-          <span class="flow-metric-head-val">${valCell}</span>
-          <span class="flow-metric-head-ratio">${ratioCell}</span>
-          <span class="flow-metric-lbl">同比</span>
-          <span class="flow-metric-trend-val">${trends.valueYoy}</span>
-          <span class="flow-metric-trend-ratio">${ratioYoyCell}</span>
-          <span class="flow-metric-lbl">环比</span>
-          <span class="flow-metric-trend-val">${trends.valueMom}</span>
-          <span class="flow-metric-trend-ratio">${ratioMomCell}</span>
-        </div>`;
-    }
-
-    function flowPillarHit(points, nodeKey) {
-      return `<g class="flow-node" data-node-key="${nodeKey}" style="cursor:pointer;"><polygon points="${points}" fill="rgba(255,255,255,0.001)" stroke="none" pointer-events="all"></polygon></g>`;
-    }
-
-    function flowItemBox(x, y, title, fee, values, style = "purple", active = false, boxWidth = 150) {
-      const val = values[fee];
-      const amount = shortMoney(val, fee);
-      const revBase = revenueRatioBase(values);
-      const ratio = (revBase && val !== null && val !== undefined) ? `${((Number(val) / revBase) * 100).toFixed(2)}` : "--";
-      const titleLines = getFlowTitleLines(title);
-      const stroke = style === "orange" ? "#f59e0b" : "#8b5cf6";
-      const fill = style === "orange" ? "#fff7ed" : "#faf5ff";
-      const activeStroke = style === "orange" ? "#d46b08" : "#6d28d9";
-      const centerX = x + (boxWidth / 2);
-      const titleFontSize = boxWidth <= 130 ? 12 : 13;
-      const amountFontSize = boxWidth <= 130 ? 13 : 14;
-      const titleSvg = titleLines.map((line, idx) => (
-        `<text x="${centerX}" y="${y + 23 + idx * 15}" text-anchor="middle" font-size="${titleFontSize}" font-weight="700" fill="#1f2937">${line}</text>`
-      )).join("");
-      const amountY = titleLines.length > 1 ? y + 54 : y + 47;
-      return `
-        <g class="flow-node" data-node-key="${title}" style="cursor:pointer;">
-          <rect x="${x}" y="${y}" width="${boxWidth}" height="66" rx="10" fill="${fill}" stroke="${active ? activeStroke : stroke}" stroke-width="${active ? 2.4 : 1.5}"></rect>
-          ${titleSvg}
-          <text x="${centerX}" y="${amountY}" text-anchor="middle" font-size="${amountFontSize}" font-weight="700" fill="#334155">${amount} (${ratio === "--" ? "--" : `${ratio}%`})</text>
-        </g>
-      `;
-    }
-
-    function renderFlowDiagram() {
-      const values = getTotalValues();
-      const selected = state.selectedFlowNode || "优惠合计";
-      const sales = shortMoney(values["销售额（计算值=净销售额+包装收入+运费收入）"]);
-      const revenue = shortMoney(values["收入净额（计算值=销售净额-销售税/VAT）"]);
-      const gross = shortMoney(values["毛利"]);
-      const revBase = revenueRatioBase(values);
-      const saleVal = Number(values["销售额（计算值=净销售额+包装收入+运费收入）"] || 0);
-      const salesPct = revBase ? ((saleVal / revBase) * 100).toFixed(2) : "--";
-      const grossRatio = revBase ? ((values["毛利"] || 0) / revBase * 100).toFixed(2) : "--";
-
-      const svg = `
-        <rect x="14" y="14" width="1532" height="592" rx="12" fill="#fff" stroke="#eef2f8"></rect>
-        <text x="1538" y="32" text-anchor="end" font-size="12" fill="#64748b">占比是以营收为100%口径</text>
-
-        <polygon points="220,34 1340,34 1268,118 292,118" fill="#eef8ff" stroke="#38bdf8" stroke-width="3"></polygon>
-        <text x="780" y="77" text-anchor="middle" font-size="34" font-weight="700" fill="#0f172a">销售额</text>
-        <text x="780" y="107" text-anchor="middle" font-size="26" font-weight="700" fill="#334155">${sales}${revBase ? ` (${salesPct}%)` : " (--)"}</text>
-        ${flowPillarHit("220,34 1340,34 1268,118 292,118", "销售额")}
-
-        ${flowItemBox(300, 138, "优惠合计", "优惠合计（计算值=折扣+直接扣减折扣）", values, "orange", selected === "优惠合计")}
-        ${flowItemBox(700, 138, "销售退款", "销售退款", values, "orange", selected === "销售退款")}
-        ${flowItemBox(1100, 138, "销售税/VAT", "销售税/VAT", values, "orange", selected === "销售税/VAT")}
-
-        <polygon points="320,222 1240,222 1174,306 386,306" fill="#f0f9ff" stroke="#3b82f6" stroke-width="3"></polygon>
-        <text x="780" y="264" text-anchor="middle" font-size="32" font-weight="700" fill="#0f172a">营收</text>
-        <text x="780" y="294" text-anchor="middle" font-size="24" font-weight="700" fill="#334155">${revenue}${revBase ? " (100%)" : " (--)"}</text>
-        ${flowPillarHit("320,222 1240,222 1174,306 386,306", "营收")}
-
-        ${flowItemBox(453, 324, "货值成本净额", "货值成本净额（计算值=出货授权成本+退货成本+平台赔偿）", values, "purple", selected === "货值成本净额", 125)}
-        ${flowItemBox(586, 324, "广告宣传小计", "广告宣传小计（计算值=广告费+品牌营销费+推广费+样品费）", values, "purple", selected === "广告宣传小计", 125)}
-        ${flowItemBox(719, 324, "物流成本小计", "物流成本小计（计算值=头程运费+尾程运费/FBA物流+退货运费+仓储费）", values, "purple", selected === "物流成本小计", 125)}
-        ${flowItemBox(852, 324, "交易及平台费用小计", "交易及平台费用小计（计算值=FBA佣金+平台服务费+收单费用/Payment Discount+店铺费用+Commission Fee）", values, "purple", selected === "交易及平台费用小计", 125)}
-        ${flowItemBox(985, 324, "运杂费", "运杂费", values, "purple", selected === "运杂费", 125)}
-
-        <polygon points="450,410 1110,410 1040,506 520,506" fill="#f5f3ff" stroke="#8b5cf6" stroke-width="3"></polygon>
-        <text x="780" y="458" text-anchor="middle" font-size="32" font-weight="700" fill="#0f172a">毛利</text>
-        <text x="780" y="489" text-anchor="middle" font-size="24" font-weight="700" fill="#334155">${gross}${revBase ? ` (${grossRatio}%)` : " (--)"}</text>
-        ${flowPillarHit("450,410 1110,410 1040,506 520,506", "毛利")}
-      `;
-
-      flowSvg.innerHTML = svg;
-      flowSvg.onclick = (event) => {
-        const node = event.target.closest(".flow-node");
-        if (!node) return;
-        const key = node.getAttribute("data-node-key");
-        state.selectedFlowNode = key;
-        renderFlowDiagram();
-        renderFlowDetail();
-      };
-    }
-
-    function renderFlowDetail() {
-      const selectedKey = state.selectedFlowNode || "优惠合计";
-      const selected = flowNodeConfig.find((item) => item.key === selectedKey) || flowNodeConfig[0];
-      const parentFee = selected.fee;
-      const hasSubBoxes = selected.children.length > 1;
-      const currentRow = `
-        <div class="flow-detail-current">
-          ${flowMetricBlockHtml(parentFee, selected.key, { title: selected.key })}
-        </div>`;
-      const list = hasSubBoxes
-        ? selected.children.map((fee) => `
-          <div class="flow-detail-item">
-            ${flowMetricBlockHtml(fee, fee, { title: fee })}
-          </div>`).join("")
-        : "";
-      flowDetail.innerHTML = `${currentRow}${hasSubBoxes ? `<div class="flow-detail-list">${list}</div>` : ""}`;
-    }
+    const REVENUE_FEE_SET = new Set([
+      "净销售额", "运费收入", "包装收入", "销售额（计算值=净销售额+包装收入+运费收入）",
+      "折扣", "直接扣减折扣", "优惠合计（计算值=折扣+直接扣减折扣）",
+      "销售收款（计算值=销售额-优惠合计）", "销售退款", "销售净额（计算值=销售收款-销售退款）",
+      "销售税/VAT", "收入净额（计算值=销售净额-销售税/VAT）"
+    ]);
 
     function getCellState(fee, view, value) {
       const base = feeStates[fee];
-      if (view === "business") return "";
-      if (view === "delta") {
-        return value === null ? "cell-missing" : "";
-      }
       if (base === "missing") return "cell-missing";
       if (base === "partial") return "cell-partial";
       return "";
     }
 
-    function achieveDemoPercents(row, idx) {
-      if (idx === 0) {
-        return ["97.2", "96.4", "95.8"];
+    function achievePercentMap(row) {
+      if (!row || row.region === "总计") {
+        return { 销量: 95.8, 营收: 97.2, 毛利: 96.4 };
       }
-      const seed = `${row.region || ""}|${row.sku || ""}|${idx}`;
+      const seed = `${row.region || ""}|${row.sku || ""}|${row.msku || ""}|${row.retailer || ""}`;
       let h = 0;
       for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) | 0;
       const base = 86 + (Math.abs(h) % 12);
-      return [
-        (base + (idx * 3) % 10).toFixed(1),
-        (base + 1 + (idx * 5) % 10).toFixed(1),
-        (base + 2 + (idx * 7) % 10).toFixed(1)
-      ];
+      return {
+        销量: Number((base + 2 + ((h >> 6) % 10)).toFixed(1)),
+        营收: Number((base + (h % 10)).toFixed(1)),
+        毛利: Number((base + 1 + ((h >> 3) % 10)).toFixed(1))
+      };
     }
 
-    function renderAchieveCells(row, idx) {
-      const [a, b, c] = achieveDemoPercents(row, idx);
-      return `
-        <td class="achieve-cell">${a}%</td>
-        <td class="achieve-cell">${b}%</td>
-        <td class="achieve-cell">${c}%</td>
-      `;
+    function buildFlatTableColumns() {
+      const base = displayFeeColumns.filter((f) => f !== "订单销售额");
+      const first = ["销量", "营收", "毛利"];
+      const out = [];
+      for (const fee of first) {
+        if (!base.includes(fee)) continue;
+        out.push({ kind: "fee", fee, sortKey: `fee:${fee}` });
+        out.push({
+          kind: "achieve",
+          forFee: fee,
+          label: fee === "销量" ? "销量达成%" : fee === "营收" ? "营收达成%" : "毛利达成%",
+          sortKey: `ach:${fee}`
+        });
+      }
+      for (const fee of base) {
+        if (first.includes(fee)) continue;
+        out.push({ kind: "fee", fee, sortKey: `fee:${fee}` });
+      }
+      return out;
+    }
+
+    function columnGroupOf(col) {
+      if (col.kind === "achieve") return "result";
+      const f = col.fee;
+      if (["销量", "营收", "毛利"].includes(f)) return "result";
+      if (REVENUE_FEE_SET.has(f)) return "revenue";
+      return "cost";
+    }
+
+    function sortIconHtml(sortKey) {
+      const on = state.sortKey === sortKey;
+      const ic = on ? (state.sortDir === "asc" ? "↑" : "↓") : "↕";
+      return `<span class="sort-ic" aria-hidden="true">${ic}</span>`;
+    }
+
+    function getSortValue(row, sortKey) {
+      if (!sortKey || !row) return 0;
+      if (sortKey.startsWith("dim:")) {
+        const k = sortKey.slice(4);
+        if (k === "region") return row.region || "";
+        if (k === "scene") return row.scene || "";
+        if (k === "team") return `${row.team || ""}\t${row.tl || ""}`;
+        if (k === "sku") return `${row.sku || ""}\t${row.msku || ""}`;
+        if (k === "retailer") return row.retailer || "";
+        return "";
+      }
+      if (sortKey.startsWith("ach:")) {
+        const fee = sortKey.slice(4);
+        const m = achievePercentMap(row);
+        return m[fee] ?? 0;
+      }
+      if (sortKey.startsWith("fee:")) {
+        const fee = sortKey.slice(4);
+        const v = row.values[fee];
+        if (v === null || v === undefined) return Number.NEGATIVE_INFINITY;
+        return Number(v);
+      }
+      return 0;
+    }
+
+    function compareRowsSort(a, b) {
+      const k = state.sortKey;
+      const dir = state.sortDir === "asc" ? 1 : -1;
+      if (k.startsWith("dim:")) {
+        const sa = String(getSortValue(a, k));
+        const sb = String(getSortValue(b, k));
+        return sa.localeCompare(sb, "zh-CN") * dir;
+      }
+      const va = getSortValue(a, k);
+      const vb = getSortValue(b, k);
+      if (va === vb) return 0;
+      return (Number(va) < Number(vb) ? -1 : 1) * dir;
     }
 
     function updateFilterContextBar() {
@@ -2653,81 +2195,75 @@
 
     function renderTable() {
       const retailerCol = state.retailerDimension;
-      const businessRows = buildRowsForView("business");
-      const financeRowsView = buildRowsForView("finance");
-      const deltaRows = buildRowsForView("delta");
-      const visibleFees = getVisibleFees();
+      const flatCols = buildFlatTableColumns();
       const groupCount = {
-        result: visibleFees.filter((fee) => ["销量", "营收", "毛利"].includes(fee)).length,
-        revenue: visibleFees.filter((fee) => [
-          "订单销售额", "净销售额", "运费收入", "包装收入", "销售额（计算值=净销售额+包装收入+运费收入）",
-          "折扣", "直接扣减折扣", "优惠合计（计算值=折扣+直接扣减折扣）",
-          "销售收款（计算值=销售额-优惠合计）", "销售退款", "销售净额（计算值=销售收款-销售退款）",
-          "销售税/VAT", "收入净额（计算值=销售净额-销售税/VAT）"
-        ].includes(fee)).length,
-        cost: visibleFees.filter((fee) => [
-          "出货授权成本", "退货成本", "平台赔偿", "货值成本净额（计算值=出货授权成本+退货成本+平台赔偿）",
-          "广告费", "品牌营销费", "推广费", "样品费", "广告宣传小计（计算值=广告费+品牌营销费+推广费+样品费）",
-          "头程运费", "尾程运费/FBA物流", "退货运费", "仓储费",
-          "物流成本小计（计算值=头程运费+尾程运费/FBA物流+退货运费+仓储费）",
-          "FBA佣金", "平台服务费", "收单费用/Payment Discount", "店铺费用", "Commission Fee",
-          "交易及平台费用小计（计算值=FBA佣金+平台服务费+收单费用/Payment Discount+店铺费用+Commission Fee）",
-          "运杂费"
-        ].includes(fee)).length
+        result: flatCols.filter((c) => columnGroupOf(c) === "result").length,
+        revenue: flatCols.filter((c) => columnGroupOf(c) === "revenue").length,
+        cost: flatCols.filter((c) => columnGroupOf(c) === "cost").length
       };
 
+      const businessRowsAll = buildRowsForView("business");
+      const head = businessRowsAll[0];
+      const tail = businessRowsAll.slice(1).sort(compareRowsSort);
+      const businessRows = head ? [head, ...tail] : [];
+
       tableDesc.textContent = retailerCol
-        ? "首行「总计」= 当前分析范围下全量汇总。前列营收/毛利/销量达成%为原型演示（相对组织目标，可排序能力后续接入）。主行业务取数；点「+」展开财务行与业务−财务次要对照。勾选零售商维度时按店铺+MSKU+零售商拆行。"
-        : "首行「总计」= 当前分析范围下全量汇总。前列达成%为原型演示。主行业务取数；点「+」展开财务行与业务−财务次要对照。未勾选零售商时按店铺+MSKU 合并。";
+        ? "点击列标题排序；默认按营收达成%从高到低。首行为「总计」。勾选零售商维度时按店铺+MSKU+零售商拆行。"
+        : "点击列标题排序；默认按营收达成%从高到低。首行为「总计」。未勾选零售商时按店铺+MSKU 合并。";
 
       const retailerTh = retailerCol
-        ? `<th class="left-5 sticky-base" style="min-width:120px;" rowspan="2">零售商</th>`
+        ? `<th rowspan="2" class="left-5 sticky-base sortable-th" data-sort-key="dim:retailer" scope="col">零售商${sortIconHtml("dim:retailer")}</th>`
         : "";
 
-      const achieveTh = `
-            <th rowspan="2" class="achieve-head" title="排序能力后续接入；当前为原型占位">营收<br>达成%</th>
-            <th rowspan="2" class="achieve-head" title="排序能力后续接入；当前为原型占位">毛利<br>达成%</th>
-            <th rowspan="2" class="achieve-head" title="排序能力后续接入；当前为原型占位">销量<br>达成%</th>
-      `;
+      const thDim = (key, cls, label) =>
+        `<th rowspan="2" class="${cls} sortable-th" data-sort-key="dim:${key}" scope="col">${label}${sortIconHtml(`dim:${key}`)}</th>`;
+
+      const thFlat = (col) => {
+        if (col.kind === "achieve") {
+          return `<th rowspan="2" class="achieve-head sortable-th" data-sort-key="${col.sortKey}" scope="col">${col.label}${sortIconHtml(col.sortKey)}</th>`;
+        }
+        const parsed = parseCalcInfo(col.fee);
+        const extra = feeColumnExtraHint(col.fee);
+        const hintParts = [];
+        if (parsed.calc) hintParts.push(parsed.calc);
+        if (extra) hintParts.push(extra);
+        const info = hintParts.length ? `
+                <span class="calc-icon" data-calc-trigger="1">i</span>
+                <div class="calc-pop">${hintParts.join("<br><br>")}</div>
+              ` : "";
+        return `<th rowspan="2" class="sortable-th" data-sort-key="${col.sortKey}" scope="col"><span class="th-title">${parsed.title}${info}</span>${sortIconHtml(col.sortKey)}</th>`;
+      };
 
       let thead = `
         <thead>
           <tr class="group">
-            <th class="left sticky-base" style="min-width:180px;" rowspan="2">区域/国家/店铺</th>
-            <th class="left-2 sticky-base" style="min-width:180px;" rowspan="2">场景/品类/品线</th>
-            <th class="left-3 sticky-base" style="min-width:170px;" rowspan="2">销售/TL</th>
-            <th class="left-4 sticky-base" style="min-width:210px;" rowspan="2">SKU信息</th>
+            ${thDim("region", "left sticky-base", "区域/国家/店铺")}
+            ${thDim("scene", "left-2 sticky-base", "场景/品类/品线")}
+            ${thDim("team", "left-3 sticky-base", "销售/TL")}
+            ${thDim("sku", "left-4 sticky-base", "SKU信息")}
             ${retailerTh}
-            ${achieveTh}
             <th colspan="${groupCount.result}">结果指标<span class="req-dot" data-req-key="table-header-rule">!</span></th>
             <th colspan="${groupCount.revenue}">收入链路<span class="req-dot" data-req-key="table-header-rule">!</span></th>
             <th colspan="${groupCount.cost}">成本费用链路<span class="req-dot" data-req-key="table-header-rule">!</span></th>
           </tr>
           <tr class="cols">
-            ${visibleFees.map((fee) => {
-              const parsed = parseCalcInfo(fee);
-              const extra = feeColumnExtraHint(fee);
-              const hintParts = [];
-              if (parsed.calc) hintParts.push(parsed.calc);
-              if (extra) hintParts.push(extra);
-              const info = hintParts.length ? `
-                <span class="calc-icon" data-calc-trigger="1">i</span>
-                <div class="calc-pop">${hintParts.join("<br><br>")}</div>
-              ` : "";
-              return `<th style="position:sticky;"><span class="th-title">${parsed.title}${info}</span></th>`;
-            }).join("")}
+            ${flatCols.map((c) => thFlat(c)).join("")}
           </tr>
         </thead>
       `;
 
-      const renderFeeCells = (row, view) => visibleFees.map((fee) => {
+      const renderMetricCell = (row, col) => {
+        if (col.kind === "achieve") {
+          const p = achievePercentMap(row);
+          const v = p[col.forFee];
+          return `<td class="achieve-cell">${v != null ? `${v}%` : "—"}</td>`;
+        }
+        const fee = col.fee;
         const value = row.values[fee];
         const ratio = row.ratios[fee];
-        const cellCls = getCellState(fee, view, value);
+        const cellCls = getCellState(fee, "business", value);
         let ratioText = "(--)";
-        if (view === "delta") {
-          ratioText = value === null ? "财务缺失" : `(${ratio && Number.isFinite(ratio) ? ratio.toFixed(2) : "0.00"}%)`;
-        } else if (fee === "营收" && ratio !== null && Number.isFinite(ratio)) {
+        if (fee === "营收" && ratio !== null && Number.isFinite(ratio)) {
           ratioText = "(100%)";
         } else if (ratio !== null && Number.isFinite(ratio)) {
           ratioText = `(${ratio.toFixed(2)}%)`;
@@ -2735,17 +2271,13 @@
         return `
           <td class="${cellCls}">
             <div class="metric-main">${formatValue(value, fee)}</div>
-            ${(state.showRatio && fee !== "销量" && view !== "delta") ? `<div class="metric-sub">${ratioText}</div>` : ""}
+            ${(state.showRatio && fee !== "销量") ? `<div class="metric-sub">${ratioText}</div>` : ""}
           </td>
         `;
-      }).join("");
+      };
 
-      const tbody = businessRows.map((row, idx) => {
-        const rowId = `row-${idx}`;
-        const opened = state.expandedRows.has(rowId);
-        const financeRow = financeRowsView[idx];
-        const deltaRow = deltaRows[idx];
-        const isSummary = idx === 0;
+      const tbody = businessRows.map((row) => {
+        const isSummary = row.region === "总计";
         const teamBlock = `
           <div class="row-meta">
             <div>${row.team || "--"}</div>
@@ -2761,65 +2293,24 @@
         const retailerCell = retailerCol
           ? `<td class="left-5 sticky-base">${row.retailer ? row.retailer : "—"}</td>`
           : "";
-        const expandPad = retailerCol ? `<td class="left-5 sticky-base"></td>` : "";
-        const achieveExpandPad = `<td class="achieve-cell achieve-cell-pad">—</td><td class="achieve-cell achieve-cell-pad">—</td><td class="achieve-cell achieve-cell-pad">—</td>`;
-
         return `
           <tr class="${isSummary ? "summary-row" : ""}">
-            <td class="left sticky-base">
-              <span class="row-label">
-                <button class="row-toggle ${opened ? "open" : ""}" type="button" data-row-toggle="${rowId}">${opened ? "−" : "+"}</button>${row.region}
-              </span>
-            </td>
+            <td class="left sticky-base">${row.region}</td>
             <td class="left-2 sticky-base">${row.scene}</td>
             <td class="left-3 sticky-base">${teamBlock}</td>
             <td class="left-4 sticky-base">${skuBlock}</td>
             ${retailerCell}
-            ${renderAchieveCells(row, idx)}
-            ${renderFeeCells(row, "business")}
+            ${flatCols.map((c) => renderMetricCell(row, c)).join("")}
           </tr>
-          ${opened ? `
-          <tr class="expand-row">
-            <td class="left sticky-base"><span class="expand-label">财务维度</span><span class="req-dot" data-req-key="table-finance-dimension">!</span></td>
-            <td class="left-2 sticky-base"></td>
-            <td class="left-3 sticky-base"></td>
-            <td class="left-4 sticky-base"></td>
-            ${expandPad}
-            ${achieveExpandPad}
-            ${renderFeeCells(financeRow, "finance")}
-          </tr>
-          <tr class="expand-row">
-            <td class="left sticky-base"><span class="expand-label">业务−财务（次要对照）</span><span class="req-dot" data-req-key="table-delta-rule">!</span></td>
-            <td class="left-2 sticky-base"></td>
-            <td class="left-3 sticky-base"></td>
-            <td class="left-4 sticky-base"></td>
-            ${expandPad}
-            ${achieveExpandPad}
-            ${renderFeeCells(deltaRow, "delta")}
-          </tr>
-          ` : ""}
         `;
       }).join("");
 
       detailTable.innerHTML = thead + `<tbody>${tbody}</tbody>`;
     }
 
-    function setGrain(grain) {
-      state.grain = grain;
-      Array.from(document.querySelectorAll("#grainTabs .tab")).forEach((node) => {
-        node.classList.toggle("active", node.dataset.grain === grain);
-      });
-      renderChart();
-    }
-
     function renderAll() {
       rebuildBaseAndFinance();
       updateFilterContextBar();
-      renderCards();
-      renderLegend();
-      renderChart();
-      renderFlowDiagram();
-      renderFlowDetail();
       renderTable();
     }
 
@@ -2963,21 +2454,19 @@
       updateRetailerTriggerText();
     }
 
-    Array.from(document.querySelectorAll("#grainTabs .tab")).forEach((node) => {
-      node.addEventListener("click", () => setGrain(node.dataset.grain));
-    });
-
-
     detailTable.addEventListener("click", (event) => {
-      const rowToggle = event.target.closest("[data-row-toggle]");
-      if (rowToggle) {
-        const id = rowToggle.dataset.rowToggle;
-        if (state.expandedRows.has(id)) {
-          state.expandedRows.delete(id);
+      const th = event.target.closest("thead th.sortable-th[data-sort-key]");
+      if (th) {
+        const key = th.getAttribute("data-sort-key");
+        if (!key) return;
+        if (state.sortKey === key) {
+          state.sortDir = state.sortDir === "asc" ? "desc" : "asc";
         } else {
-          state.expandedRows.add(id);
+          state.sortKey = key;
+          state.sortDir = key.startsWith("dim:") ? "asc" : "desc";
         }
         renderTable();
+        event.stopPropagation();
         return;
       }
 
