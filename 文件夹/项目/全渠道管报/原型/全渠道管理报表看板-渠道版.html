@@ -691,7 +691,7 @@
     th {
       position: sticky;
       top: 0;
-      z-index: 2;
+      z-index: 10;
       background: #f8fbff;
       color: #334155;
       font-weight: 700;
@@ -701,55 +701,93 @@
       top: 0;
       background: #eef5ff;
       border-bottom-color: #d7e6ff;
-      z-index: 4;
+      z-index: 12;
     }
 
     thead tr.cols th {
       top: 34px;
-      z-index: 3;
+      z-index: 11;
     }
 
+    /* 冻结列：left 累加必须与各列 width 一致，否则会与右侧指标列重叠错位 */
     th.left,
     td.left {
       text-align: left;
       position: sticky;
       left: 0;
-      background: inherit;
-      z-index: 5;
+      box-sizing: border-box;
+      width: 200px;
+      min-width: 200px;
+      max-width: 200px;
+      white-space: normal;
+      word-break: break-word;
+      background: #fff;
+      z-index: 6;
     }
 
     th.left-2,
     td.left-2 {
       position: sticky;
-      left: 180px;
-      background: inherit;
-      z-index: 5;
+      left: 200px;
+      box-sizing: border-box;
+      width: 200px;
+      min-width: 200px;
+      max-width: 200px;
+      white-space: normal;
+      word-break: break-word;
+      background: #fff;
+      z-index: 6;
     }
 
     th.left-3,
     td.left-3 {
       position: sticky;
-      left: 360px;
-      background: inherit;
-      z-index: 5;
+      left: 400px;
+      box-sizing: border-box;
+      width: 180px;
+      min-width: 180px;
+      max-width: 180px;
+      white-space: normal;
+      word-break: break-word;
+      background: #fff;
+      z-index: 6;
     }
 
     th.left-4,
     td.left-4 {
       position: sticky;
-      left: 520px;
-      background: inherit;
-      z-index: 5;
+      left: 580px;
+      box-sizing: border-box;
+      width: 220px;
+      min-width: 220px;
+      max-width: 220px;
+      white-space: normal;
+      word-break: break-word;
+      background: #fff;
+      z-index: 6;
     }
 
     th.left-5,
     td.left-5 {
       position: sticky;
-      left: 730px;
-      background: inherit;
-      z-index: 5;
-      min-width: 120px;
-      max-width: 160px;
+      left: 800px;
+      box-sizing: border-box;
+      width: 160px;
+      min-width: 140px;
+      max-width: 200px;
+      white-space: normal;
+      word-break: break-word;
+      background: #fff;
+      z-index: 6;
+    }
+
+    thead tr.group th.left,
+    thead tr.group th.left-2,
+    thead tr.group th.left-3,
+    thead tr.group th.left-4,
+    thead tr.group th.left-5 {
+      z-index: 20;
+      background: #eef5ff;
     }
 
     .sticky-base {
@@ -969,6 +1007,14 @@
     tr.summary-row td {
       background: #fcfdff;
       font-weight: 700;
+    }
+
+    tr.summary-row td.left,
+    tr.summary-row td.left-2,
+    tr.summary-row td.left-3,
+    tr.summary-row td.left-4,
+    tr.summary-row td.left-5 {
+      background: #fcfdff;
     }
 
     .achieve-cell.achieve-cell-pad {
@@ -1864,6 +1910,12 @@
       return { title: matched[1], calc: matched[2] };
     }
 
+    /** 表头短标题：避免「销售额」与已移除的订单销售额混淆 */
+    function feeHeaderDisplayTitle(fee) {
+      if (fee === "销售额（计算值=净销售额+包装收入+运费收入）") return "业务销售额(计)";
+      return parseCalcInfo(fee).title;
+    }
+
     const REGION_COUNTRY_DATA = [
       { region: "北美区", countries: ["US", "CA", "MX"] },
       { region: "欧洲区", countries: ["GB", "DE", "FR", "IT", "ES", "SE", "NO", "FI", "DK", "PL", "CZ", "HU"] },
@@ -2213,7 +2265,7 @@
                 <span class="calc-icon" data-calc-trigger="1">i</span>
                 <div class="calc-pop">${hintParts.join("<br><br>")}</div>
               ` : "";
-        return `<th class="sortable-th${sortedCls}" data-sort-key="${col.sortKey}" scope="col"><span class="th-title">${parsed.title}${info}</span>${sortIconHtml(col.sortKey)}</th>`;
+        return `<th class="sortable-th${sortedCls}" data-sort-key="${col.sortKey}" scope="col"><span class="th-title">${feeHeaderDisplayTitle(col.fee)}${info}</span>${sortIconHtml(col.sortKey)}</th>`;
       };
 
       let thead = `
