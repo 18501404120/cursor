@@ -66,7 +66,14 @@
     .structure-metric-title{font-size:13px;color:#bfe1ff;font-weight:700;margin-right:12px;white-space:nowrap;align-self:center}
     .structure-cols{align-items:stretch}
     .str-panel{display:flex;flex-direction:column;min-height:0;border:1px solid var(--line);border-radius:8px;background:rgba(9,25,49,.35);padding:8px}
-    .str-panel h4{margin:0 0 8px;font-size:13px;color:#bfe1ff;font-weight:700}
+    .str-panel h4.str-h4{margin:0 0 8px;font-size:13px;color:#bfe1ff;font-weight:700;display:flex;flex-wrap:wrap;align-items:baseline;gap:0 6px}
+    .str-panel h4 .str-h4-sub{font-size:11px;color:#8fb0d9;font-weight:600}
+    .trend-detail{margin-top:8px;padding:10px 12px;border:1px solid #2f527f;border-radius:8px;background:rgba(8,33,63,.55);font-size:12px;color:#d6e8ff;line-height:1.55}
+    .trend-detail.trend-detail--empty{color:#8fb0d9;font-size:11px}
+    .trend-detail .trend-dl-row{display:flex;justify-content:space-between;gap:12px;margin:3px 0;flex-wrap:wrap}
+    .trend-detail .trend-dl-row b{color:#9ec5f0;font-weight:700}
+    .trend-hit{fill:rgba(96,165,250,.06);cursor:pointer;transition:fill .12s}
+    .trend-hit:hover{fill:rgba(96,165,250,.16)}
     .str-body{flex:1;min-height:0;overflow:auto;padding:2px 0}
     .row-funnel{display:grid;grid-template-columns:1fr;gap:10px}
     .panel{padding:8px 10px;display:flex;flex-direction:column;min-height:0}
@@ -202,9 +209,9 @@
   <section class="panel structure-bundle">
     <div class="metric-tabs" id="structureMetricTabs"></div>
     <div class="row-3col structure-cols">
-      <article class="str-panel"><h4>1）区域</h4><div class="str-body" id="regionBox"></div></article>
-      <article class="str-panel"><h4>2）渠道</h4><div class="str-body" id="channelBox"></div></article>
-      <article class="str-panel"><h4>3）场景</h4><div class="str-body" id="sceneBox"></div></article>
+      <article class="str-panel"><h4 class="str-h4"><span class="str-h4-k">1）区域</span><span class="str-h4-sub" id="regionHdPath"></span></h4><div class="str-body" id="regionBox"></div></article>
+      <article class="str-panel"><h4 class="str-h4"><span class="str-h4-k">2）渠道</span><span class="str-h4-sub" id="channelHdPath"></span></h4><div class="str-body" id="channelBox"></div></article>
+      <article class="str-panel"><h4 class="str-h4"><span class="str-h4-k">3）场景</span><span class="str-h4-sub" id="sceneHdPath"></span></h4><div class="str-body" id="sceneBox"></div></article>
     </div>
   </section>
 
@@ -242,7 +249,8 @@
                 SCENES[sc].forEach(function(cat,cai){
                   var seed=(y%100)*100000+m*10000+ri*2000+ci*800+chi*300+si*70+sci*20+cai*7;
                   var bpRev=12000+(seed%5000);
-                  var bizRev=Math.round(bpRev*(0.82+(seed%35)/100));
+                  var mOsc=[0.93,0.86,1.06,0.88,1.04,0.84,0.97,1.08,0.91,0.95,1.02,0.89];
+                  var bizRev=Math.round(bpRev*(0.82+(seed%35)/100)*mOsc[m-1]);
                   var finRev=Math.round(bizRev*(0.94+(seed%9)/100));
                   var bpSales=Math.round(bpRev*1.12), bizSales=Math.round(bizRev*1.12), finSales=Math.round(finRev*1.12);
                   var bpAd=Math.round(bpRev*0.11), bpLog=Math.round(bpRev*0.08), bpPla=Math.round(bpRev*0.06), bpOth=Math.round(bpRev*0.01);
@@ -295,6 +303,7 @@
     structureMetric:'revenue',
     trendDim:'revenue',
     trendGrain:'month',
+    trendBucketI:null,
     topKeyType:'sku',
     topSort:{field:'revAch',dir:1}
   };
@@ -347,7 +356,7 @@
     return {s:fmtYmdLocal(pmStart),e:fmtYmdLocal(pmEnd)};
   }
   function mainDateRange(){
-    var ds='2026-01-01', de='2026-01-31';
+    var ds='2026-01-01', de='2026-12-31';
     if(dateRangeApi){var g=dateRangeApi.get(); if(g.start) ds=g.start; if(g.end) de=g.end;}
     return {dateStart:ds,dateEnd:de};
   }
@@ -584,7 +593,7 @@
     return fmtMoney(v);
   }
 
-  function renderPie(container,title,path,list,colors,summary,selectedKey,onSelect,onDrill,onBack,dim,mk,rowsBase){
+  function renderPie(container,list,colors,summary,selectedKey,onSelect,onDrill,onBack,dim,mk,rowsBase){
     if(state.pieStatMode==='yoycmp') state.pieStatMode='yoy';
     var total=list.reduce(function(s,x){return s+x.val;},0)||1;
     var start=-Math.PI/2, cx=84, cy=84, r=70;
@@ -637,7 +646,7 @@
       return '<div class="pie-stat'+on+'" data-pie-mode="'+x.m+'"><div class="k">'+x.k+'</div>'+body+'</div>';
     }).join('');
     var h='';
-    h+='<div class="pie-hd">'+(path?'<div class="pie-path">'+path+'</div>':'<div class="pie-path"></div>')+(onBack?'<button class="pie-back" id="'+container+'Back">返回上层</button>':'')+'</div>';
+    if(onBack){h+='<div class="pie-hd"><button class="pie-back" id="'+container+'Back">返回上层</button></div>';}
     h+='<div class="pie-stats">'+stats+'</div>';
     h+='<div class="pie-wrap">';
     h+='<svg viewBox="0 0 168 168" width="164" height="164">'+seg+'<circle cx="84" cy="84" r="40" fill="#0c2242"></circle></svg>';
@@ -668,48 +677,54 @@
     var rows=filteredRows(), mk=state.structureMetric;
     if(!state.channelDrill){
       var list=groupByMetric(rows,'channel',mk);
-      if(!list.length){$('channelBox').innerHTML='';return;}
+      if(!list.length){$('channelBox').innerHTML='';$('channelHdPath').textContent='';return;}
+      $('channelHdPath').textContent='';
       if(state.channelFocus && !list.some(function(x){return x.key===state.channelFocus;})) state.channelFocus=null;
       var scope=state.channelFocus?{channel:state.channelFocus}:null;
-      renderPie('channelBox','','渠道',list,['#60a5fa','#22d3ee','#34d399','#fbbf24'],metricStatsFromScope(mk,scope),state.channelFocus,function(k){state.channelFocus=k;renderChannel();},function(k){state.channelDrill=k;state.channelFocus=null;renderAll();},null,'channel',mk,rows);
+      renderPie('channelBox',list,['#60a5fa','#22d3ee','#34d399','#fbbf24'],metricStatsFromScope(mk,scope),state.channelFocus,function(k){state.channelFocus=k;renderChannel();},function(k){state.channelDrill=k;state.channelFocus=null;renderAll();},null,'channel',mk,rows);
     }else{
       var sub=groupByMetric(rows.filter(function(r){return r.channel===state.channelDrill;}),'store',mk);
-      if(!sub.length){$('channelBox').innerHTML='';return;}
+      if(!sub.length){$('channelBox').innerHTML='';$('channelHdPath').textContent='';return;}
+      $('channelHdPath').textContent=' · '+state.channelDrill+' · 店铺';
       if(state.channelFocus && !sub.some(function(x){return x.key===state.channelFocus;})) state.channelFocus=null;
       var scope2=state.channelFocus?{channel:state.channelDrill,store:state.channelFocus}:null;
-      renderPie('channelBox','','渠道 / '+state.channelDrill+' · 店铺',sub,['#22d3ee','#60a5fa','#34d399','#fbbf24','#fb923c'],metricStatsFromScope(mk,scope2),state.channelFocus,function(k){state.channelFocus=k;renderChannel();},null,function(){state.channelDrill=null;state.channelFocus=null;renderAll();},'store',mk,rows.filter(function(r){return r.channel===state.channelDrill;}));
+      renderPie('channelBox',sub,['#22d3ee','#60a5fa','#34d399','#fbbf24','#fb923c'],metricStatsFromScope(mk,scope2),state.channelFocus,function(k){state.channelFocus=k;renderChannel();},null,function(){state.channelDrill=null;state.channelFocus=null;renderAll();},'store',mk,rows.filter(function(r){return r.channel===state.channelDrill;}));
     }
   }
   function renderRegion(){
     var rows=filteredRows(), mk=state.structureMetric;
     if(!state.regionDrill){
       var list=groupByMetric(rows,'region',mk);
-      if(!list.length){$('regionBox').innerHTML='';return;}
+      if(!list.length){$('regionBox').innerHTML='';$('regionHdPath').textContent='';return;}
+      $('regionHdPath').textContent='';
       if(state.regionFocus && !list.some(function(x){return x.key===state.regionFocus;})) state.regionFocus=null;
       var scope=state.regionFocus?{region:state.regionFocus}:null;
-      renderPie('regionBox','','区域',list,['#34d399','#60a5fa','#22d3ee'],metricStatsFromScope(mk,scope),state.regionFocus,function(k){state.regionFocus=k;renderRegion();},function(k){state.regionDrill=k;state.regionFocus=null;renderAll();},null,'region',mk,rows);
+      renderPie('regionBox',list,['#34d399','#60a5fa','#22d3ee'],metricStatsFromScope(mk,scope),state.regionFocus,function(k){state.regionFocus=k;renderRegion();},function(k){state.regionDrill=k;state.regionFocus=null;renderAll();},null,'region',mk,rows);
     }else{
       var sub=groupByMetric(rows.filter(function(r){return r.region===state.regionDrill;}),'country',mk);
-      if(!sub.length){$('regionBox').innerHTML='';return;}
+      if(!sub.length){$('regionBox').innerHTML='';$('regionHdPath').textContent='';return;}
+      $('regionHdPath').textContent=' · '+state.regionDrill+' · 国家';
       if(state.regionFocus && !sub.some(function(x){return x.key===state.regionFocus;})) state.regionFocus=null;
       var scope2=state.regionFocus?{region:state.regionDrill,country:state.regionFocus}:null;
-      renderPie('regionBox','','区域 / '+state.regionDrill+' · 国家',sub,['#60a5fa','#22d3ee','#34d399'],metricStatsFromScope(mk,scope2),state.regionFocus,function(k){state.regionFocus=k;renderRegion();},null,function(){state.regionDrill=null;state.regionFocus=null;renderAll();},'country',mk,rows.filter(function(r){return r.region===state.regionDrill;}));
+      renderPie('regionBox',sub,['#60a5fa','#22d3ee','#34d399'],metricStatsFromScope(mk,scope2),state.regionFocus,function(k){state.regionFocus=k;renderRegion();},null,function(){state.regionDrill=null;state.regionFocus=null;renderAll();},'country',mk,rows.filter(function(r){return r.region===state.regionDrill;}));
     }
   }
   function renderScene(){
     var rows=filteredRows(), mk=state.structureMetric;
     if(!state.sceneDrill){
       var list=groupByMetric(rows,'scene',mk);
-      if(!list.length){$('sceneBox').innerHTML='';return;}
+      if(!list.length){$('sceneBox').innerHTML='';$('sceneHdPath').textContent='';return;}
+      $('sceneHdPath').textContent='';
       if(state.sceneFocus && !list.some(function(x){return x.key===state.sceneFocus;})) state.sceneFocus=null;
       var scope=state.sceneFocus?{scene:state.sceneFocus}:null;
-      renderPie('sceneBox','','场景',list,['#22d3ee','#34d399','#fbbf24'],metricStatsFromScope(mk,scope),state.sceneFocus,function(k){state.sceneFocus=k;renderScene();},function(k){state.sceneDrill=k;state.sceneFocus=null;renderAll();},null,'scene',mk,rows);
+      renderPie('sceneBox',list,['#22d3ee','#34d399','#fbbf24'],metricStatsFromScope(mk,scope),state.sceneFocus,function(k){state.sceneFocus=k;renderScene();},function(k){state.sceneDrill=k;state.sceneFocus=null;renderAll();},null,'scene',mk,rows);
     }else{
       var sub=groupByMetric(rows.filter(function(r){return r.scene===state.sceneDrill;}),'category',mk);
-      if(!sub.length){$('sceneBox').innerHTML='';return;}
+      if(!sub.length){$('sceneBox').innerHTML='';$('sceneHdPath').textContent='';return;}
+      $('sceneHdPath').textContent=' · '+state.sceneDrill+' · 品类';
       if(state.sceneFocus && !sub.some(function(x){return x.key===state.sceneFocus;})) state.sceneFocus=null;
       var scope2=state.sceneFocus?{scene:state.sceneDrill,category:state.sceneFocus}:null;
-      renderPie('sceneBox','','场景 / '+state.sceneDrill+' · 品类',sub,['#60a5fa','#22d3ee','#34d399','#fbbf24'],metricStatsFromScope(mk,scope2),state.sceneFocus,function(k){state.sceneFocus=k;renderScene();},null,function(){state.sceneDrill=null;state.sceneFocus=null;renderAll();},'category',mk,rows.filter(function(r){return r.scene===state.sceneDrill;}));
+      renderPie('sceneBox',sub,['#60a5fa','#22d3ee','#34d399','#fbbf24'],metricStatsFromScope(mk,scope2),state.sceneFocus,function(k){state.sceneFocus=k;renderScene();},null,function(){state.sceneDrill=null;state.sceneFocus=null;renderAll();},'category',mk,rows.filter(function(r){return r.scene===state.sceneDrill;}));
     }
   }
 
@@ -903,6 +918,42 @@
     return out;
   }
 
+  function trendGrainLabel(g){
+    return g==='day'?'日':(g==='week'?'周':'月');
+  }
+  function fillTrendDetail(pt,dim,grain){
+    var el=$('trendDetail');
+    if(!el||!pt) return;
+    el.classList.remove('trend-detail--empty');
+    var dimN={revenue:'营收',units:'销量',gross:'毛利',margin:'毛利率'}[dim]||dim;
+    var rng='桶内日期：'+pt.bs+' 至 '+pt.be+' · 展示粒度 '+trendGrainLabel(grain);
+    var head='<div style="font-weight:800;margin-bottom:6px;color:#bfe1ff">'+pt.label+' · '+dimN+'</div>';
+    if(dim==='revenue'){
+      el.innerHTML=head+
+        '<div class="trend-dl-row"><span><b>营销/营收目标（BP）</b></span><span>'+fmtMoney(pt.bp)+'</span></div>'+
+        '<div class="trend-dl-row"><span><b>营收实际</b></span><span>'+fmtMoney(pt.biz)+'</span></div>'+
+        '<div class="trend-dl-row"><span><b>达成率</b></span><span>'+fmtPct(pt.ach)+'</span></div>'+
+        '<div style="margin-top:8px;font-size:11px;color:#8fb0d9">'+rng+'</div>';
+    }else if(dim==='units'){
+      el.innerHTML=head+
+        '<div class="trend-dl-row"><span><b>销量目标（BP）</b></span><span>'+String(Math.round(pt.bp))+'</span></div>'+
+        '<div class="trend-dl-row"><span><b>销量实际</b></span><span>'+String(Math.round(pt.biz))+'</span></div>'+
+        '<div class="trend-dl-row"><span><b>达成率</b></span><span>'+fmtPct(pt.ach)+'</span></div>'+
+        '<div style="margin-top:8px;font-size:11px;color:#8fb0d9">'+rng+'</div>';
+    }else if(dim==='gross'){
+      el.innerHTML=head+
+        '<div class="trend-dl-row"><span><b>毛利目标（BP）</b></span><span>'+fmtMoney(pt.bp)+'</span></div>'+
+        '<div class="trend-dl-row"><span><b>毛利实际</b></span><span>'+fmtMoney(pt.biz)+'</span></div>'+
+        '<div class="trend-dl-row"><span><b>达成率</b></span><span>'+fmtPct(pt.ach)+'</span></div>'+
+        '<div style="margin-top:8px;font-size:11px;color:#8fb0d9">'+rng+'</div>';
+    }else{
+      el.innerHTML=head+
+        '<div class="trend-dl-row"><span><b>目标毛利率（BP）</b></span><span>'+fmtPct(pt.bp*100)+'</span></div>'+
+        '<div class="trend-dl-row"><span><b>实际毛利率</b></span><span>'+fmtPct(pt.biz*100)+'</span></div>'+
+        '<div style="margin-top:8px;font-size:11px;color:#8fb0d9">'+rng+'（毛利率不按柱展示达成率）</div>';
+    }
+  }
+
   function renderTrend(){
     var f=currentFilter();
     var rows=filteredRows();
@@ -910,12 +961,13 @@
     var grain=state.trendGrain;
     var buckets=trendBuckets(f,grain,rows);
     if(!buckets.length){
-      $('trendBox').innerHTML='<div style="font-size:12px;color:#9ec5f0;padding:8px">请先在顶部选择有效统计区间。</div>';
+      $('trendBox').innerHTML='<div style="font-size:12px;color:#9ec5f0;padding:8px">请先在顶部选择有效统计区间。</div>'+
+        '<div id="trendDetail" class="trend-detail trend-detail--empty">暂无趋势数据；选择有效区间后可点击各时间点查看目标、实际与达成率说明。</div>';
       return;
     }
     var agg=buckets.map(function(b){
       var o=bucketAgg(rows,b.bs,b.be,dim);
-      return {label:b.label,bp:o.bp,biz:o.biz,ach:o.ach};
+      return {label:b.label,bp:o.bp,biz:o.biz,ach:o.ach,bs:b.bs,be:b.be};
     });
 
     var maxL=agg.reduce(function(mx,x){return Math.max(mx,x.bp,x.biz);},1);
@@ -978,6 +1030,12 @@
 
     var xLab=agg.map(function(x,i){var px=xOf(i);return '<text x="'+px.toFixed(1)+'" y="'+(h-12)+'" text-anchor="middle" fill="#8fb0d9" font-size="10">'+x.label+'</text>';}).join('');
 
+    var hitW=agg.length<=1?Math.min(cw*0.55,220):Math.min(Math.max(22,cw/Math.max(1,agg.length)*0.78),(cw/Math.max(1,agg.length-1))*0.92);
+    var hits=agg.map(function(x,i){
+      var px=xOf(i);
+      return '<rect class="trend-hit" x="'+(px-hitW/2).toFixed(1)+'" y="'+top.toFixed(1)+'" width="'+hitW.toFixed(1)+'" height="'+ch.toFixed(1)+'" data-trend-i="'+i+'"/>';
+    }).join('');
+
     var unitLbl=dim==='margin'?'%':(dim==='units'?'件':'USD');
     var dims=[['revenue','营收'],['units','销量'],['gross','毛利'],['margin','毛利率']];
     var htm='';
@@ -1010,14 +1068,29 @@
     htm+='<polyline points="'+pts('biz')+'" fill="none" stroke="#38bdf8" stroke-width="2.6" stroke-linejoin="round"></polyline>';
     htm+=dots('biz','#38bdf8');
     htm+=xLab;
+    htm+=hits;
     htm+='</svg>';
+    htm+='<div id="trendDetail" class="trend-detail trend-detail--empty">点击图中某一时间点（柱/折线对应的月份或日期）查看该统计桶内的目标、实际与达成率等说明。</div>';
 
     $('trendBox').innerHTML=htm;
     Array.prototype.forEach.call($('trendBox').querySelectorAll('[data-trend-dim]'),function(btn){
-      btn.onclick=function(){state.trendDim=btn.getAttribute('data-trend-dim')||'revenue';renderTrend();};
+      btn.onclick=function(){state.trendBucketI=null;state.trendDim=btn.getAttribute('data-trend-dim')||'revenue';renderTrend();};
     });
     Array.prototype.forEach.call($('trendBox').querySelectorAll('[data-trend-grain]'),function(btn){
-      btn.onclick=function(){state.trendGrain=btn.getAttribute('data-trend-grain')||'month';renderTrend();};
+      btn.onclick=function(){state.trendBucketI=null;state.trendGrain=btn.getAttribute('data-trend-grain')||'month';renderTrend();};
+    });
+    var pickI=state.trendBucketI;
+    if(typeof pickI!=='number'||pickI<0||pickI>=agg.length) pickI=agg.length-1;
+    state.trendBucketI=pickI;
+    fillTrendDetail(agg[pickI],dim,grain);
+    Array.prototype.forEach.call($('trendBox').querySelectorAll('.trend-hit'),function(r){
+      r.onclick=function(ev){
+        ev.stopPropagation();
+        var i=+r.getAttribute('data-trend-i');
+        if(!isFinite(i)||i<0||i>=agg.length) return;
+        state.trendBucketI=i;
+        fillTrendDetail(agg[i],dim,grain);
+      };
     });
   }
 
@@ -1116,7 +1189,7 @@
     if(!window.DateRangePicker){
       $('dateRangeMount').innerHTML='<span style="color:#f87171;font-size:12px">日期范围控件脚本未加载，请用本地静态服务打开本页或检查 ../../../规范/assets/date-range-picker.js 路径。</span>';
     }else{
-      dateRangeApi=DateRangePicker.mount($('dateRangeMount'),{start:'2026-01-01',end:'2026-01-31',compact:true,zIndex:1200,onChange:function(){renderAll();}});
+      dateRangeApi=DateRangePicker.mount($('dateRangeMount'),{start:'2026-01-01',end:'2026-12-31',compact:true,zIndex:1200,onChange:function(){renderAll();}});
       var dc=defaultCompareRangeFromMain();
       compareRangeApi=DateRangePicker.mount($('compareRangeMount'),{start:dc.s,end:dc.e,compact:true,zIndex:1200,onChange:function(){renderAll();}});
     }
