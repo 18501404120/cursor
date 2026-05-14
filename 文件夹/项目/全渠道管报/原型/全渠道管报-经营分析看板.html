@@ -57,8 +57,9 @@
     .pie-stat .v{margin-top:2px;font-weight:700}
     .pie-wrap{display:grid;grid-template-columns:168px 1fr;gap:10px;align-items:center}
     .pie-legend{display:grid;gap:7px}
-    .pie-item{display:flex;align-items:center;gap:8px;font-size:12px;cursor:pointer;padding:2px 4px;border-radius:6px}
-    .pie-item.active{background:rgba(34,211,238,.15);box-shadow:0 0 0 1px rgba(34,211,238,.45) inset}
+    .pie-legend .pie-row{display:grid;grid-template-columns:10px 1fr auto auto;gap:6px;align-items:center;font-size:11px;padding:4px 6px;border-radius:6px;cursor:pointer}
+    .pie-legend .pie-row:hover{background:rgba(96,165,250,.08)}
+    .pie-legend .pie-row.active{background:rgba(34,211,238,.15);box-shadow:0 0 0 1px rgba(34,211,238,.45) inset}
     .dot{width:10px;height:10px;border-radius:50%}
     .pie-name{width:76px;color:#d6e8ff}
     .pie-num{width:74px;text-align:right;color:#dbeafe}
@@ -97,6 +98,16 @@
     .top-table tbody tr:hover{background:rgba(34,211,238,.06)}
     .top-table .num{text-align:right;font-variant-numeric:tabular-nums}
     .top-link{color:#60a5fa;cursor:pointer;text-decoration:underline}
+    .metric-tabs{display:flex;gap:4px;flex-wrap:wrap;margin:0 0 8px;padding:6px 8px;border:1px solid #2b4f7c;border-radius:8px;background:rgba(8,33,63,.45)}
+    .metric-tabs button{height:26px;padding:0 12px;border-radius:6px;border:1px solid #355f8f;background:#0e2a50;color:#9ec5f0;font-size:12px;cursor:pointer}
+    .metric-tabs button.on{background:linear-gradient(180deg,#1e4a7a 0%,#153a63 100%);color:#dbeafe;border-color:#60a5fa;box-shadow:0 0 0 1px rgba(96,165,250,.35)}
+    .filters input[type="text"]{height:28px;border-radius:6px;border:1px solid #32557f;background:#0e2a50;color:#dbeafe;font-size:12px;padding:0 8px;min-width:140px}
+    .trend-panel .trend-toolbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:8px;font-size:12px;color:#9ec5f0}
+    .trend-panel .trend-toolbar label{display:flex;align-items:center;gap:6px}
+    .th-sort{cursor:pointer;user-select:none;white-space:nowrap}
+    .th-sort:hover{color:#60a5fa}
+    .btn-view{padding:2px 10px;border-radius:5px;border:1px solid #355f8f;background:#11325d;color:#60a5fa;font-size:12px;cursor:pointer}
+    .btn-view:hover{border-color:#60a5fa}
 
     @media (max-width:1360px){
       .kpi-row{grid-template-columns:repeat(2,1fr)}
@@ -121,17 +132,23 @@
 
   <section class="filters">
     <label>统计区间</label><div id="dateRangeMount" style="display:inline-block;vertical-align:middle"></div>
+    <label>对比日期范围</label><div id="compareRangeMount" style="display:inline-block;vertical-align:middle"></div>
     <label>区域</label><select id="fRegion"></select>
     <label>国家</label><select id="fCountry"></select>
     <label>渠道</label><select id="fChannel"></select>
     <label>店铺</label><select id="fStore"></select>
     <label>场景</label><select id="fScene"></select>
     <label>品类</label><select id="fCategory"></select>
+    <label>SKU 模糊</label><input type="text" id="fSkuText" placeholder="model / sku / msku 模糊" autocomplete="off" />
     <button id="btnReset" type="button">重置筛选</button>
-    <label>费用项</label><select id="fMetric"></select>
   </section>
-  <div class="hint-bar">提示：下方三个结构图中的四个汇总块（当前值 / 目标达成率 / 同比 / 环比）可点击切换图例含义；图例行表示各维度的<strong>当前值占比</strong>，汇总块展示与点击项一致的口径。</div>
-  <div class="compare-bar" id="compareBar"></div>
+
+  <section class="panel trend-panel">
+    <h3>趋势 <span class="h3-note">日/周/月切换；指标单选；营收含目标线、实际线与达成率柱</span></h3>
+    <div class="box" id="trendBox"></div>
+  </section>
+
+  <div class="hint-bar">提示：结构图顶部页签切换「营收、毛利、销量、毛利率」；四个汇总块为「当前值 / 目标达成率 / 同比/对比 / 对比」；点击汇总块切换下列表口径。列表默认不选中任一行；点行可查看该行在汇总块中的聚焦指标。毛利率视图下列表不展示占比列。</div>
 
   <section class="kpi-row">
     <article class="kpi" id="cardSalesAmount"></article>
@@ -141,6 +158,7 @@
     <article class="kpi" id="cardMargin"></article>
   </section>
 
+  <div class="metric-tabs" id="structureMetricTabs"></div>
   <section class="row-3col">
     <article class="panel"><h3>1）区域 · 结构与目标达成</h3><div class="box" id="regionBox"></div></article>
     <article class="panel"><h3>2）渠道 · 结构与目标达成</h3><div class="box" id="channelBox"></div></article>
@@ -148,16 +166,11 @@
   </section>
 
   <section class="row-funnel">
-    <article class="panel"><h3>4）营收→毛利费用结构（点击费用条查看子项；品牌营销费已按财报口径剔除展示）</h3><div class="box" id="funnelBox"></div></article>
-  </section>
-
-  <section class="panel">
-    <h3>5）趋势（每月）：BP目标 vs 业务实际 <span class="h3-note">至多两条线，与管报业务视角一致，不叠财务口径对比线</span></h3>
-    <div class="box" id="trendBox"></div>
+    <article class="panel"><h3>4）营收→毛利费用结构（点击费用条查看子项）</h3><div class="box" id="funnelBox"></div></article>
   </section>
 
   <section class="panel top-wrap">
-    <h3>6）需重点关注的 SKU（演示 · TOP10，默认按营收目标达成率从低到高）</h3>
+    <h3>5）需重点关注的 SKU（TOP10）</h3>
     <div class="box" id="topSkuBox"></div>
   </section>
 </div>
@@ -165,7 +178,6 @@
 <script src="../../../规范/assets/date-range-picker.js"></script>
 <script>
 (function(){
-  var CURRENT_YEAR = 2026;
   var YEARS=[2025,2026];
   var REGIONS={"亚太区":["CN","JP"],"欧洲区":["DE","GB"],"北美区":["US","CA"]};
   var CHANNELS=["亚马逊","独立站","TikTok","线下"];
@@ -205,17 +217,20 @@
                   var otB=split4(bizOth,0.55,0.45,0), otF=split4(finOth,0.55,0.45,0);
 
                   DATA.push({id:id++,year:y,month:m,region:r,country:c,channel:ch,store:st,scene:sc,category:cat,
-                    bp:{revenue:bpRev,sales:bpSales,gross:Math.round(bpRev*0.39), ad:bpAd, logistics:bpLog, platform:bpPla, other:bpOth,
+                    model:'MDL-'+(1000+(seed%8999)),
+                    sku:'SKU-'+String(100000+((seed*17)%899999)),
+                    msku:'8'+String(10000000+((seed*13)%8999999)).slice(-7),
+                    bp:{revenue:bpRev,sales:bpSales,gross:Math.round(bpRev*0.39),units:Math.round(bpRev/25+seed%80), ad:bpAd, logistics:bpLog, platform:bpPla, other:bpOth,
                         ad_perf:Math.round(bpAd*0.75),ad_brand:0,ad_promo:Math.round(bpAd*0.2),ad_sample:bpAd-Math.round(bpAd*0.75)-Math.round(bpAd*0.2),
                         logistics_head:Math.round(bpLog*0.36),logistics_return:Math.round(bpLog*0.22),logistics_storage:Math.round(bpLog*0.24),logistics_tariff:bpLog-Math.round(bpLog*0.36)-Math.round(bpLog*0.22)-Math.round(bpLog*0.24),
                         platform_commission:Math.round(bpPla*0.44),platform_service:Math.round(bpPla*0.27),platform_payment:Math.round(bpPla*0.19),platform_storefee:bpPla-Math.round(bpPla*0.44)-Math.round(bpPla*0.27)-Math.round(bpPla*0.19),
                         other_misc:Math.round(bpOth*0.55),other_reserve:bpOth-Math.round(bpOth*0.55)},
-                    biz:{revenue:bizRev,sales:bizSales,gross:bizGross,ad:bizAd,logistics:bizLog,platform:bizPla,other:bizOth,
+                    biz:{revenue:bizRev,sales:bizSales,gross:bizGross,units:Math.round(bizRev/25+seed%70),ad:bizAd,logistics:bizLog,platform:bizPla,other:bizOth,
                         ad_perf:adB[0]+adB[1],ad_brand:0,ad_promo:adB[2],ad_sample:adB[3],
                         logistics_head:lgB[0],logistics_return:lgB[1],logistics_storage:lgB[2],logistics_tariff:lgB[3],
                         platform_commission:plB[0],platform_service:plB[1],platform_payment:plB[2],platform_storefee:plB[3],
                         other_misc:otB[0],other_reserve:otB[1]},
-                    fin:{revenue:finRev,sales:finSales,gross:finGross,ad:finAd,logistics:finLog,platform:finPla,other:finOth,
+                    fin:{revenue:finRev,sales:finSales,gross:finGross,units:Math.round(finRev/25+seed%65),ad:finAd,logistics:finLog,platform:finPla,other:finOth,
                         ad_perf:adF[0]+adF[1],ad_brand:0,ad_promo:adF[2],ad_sample:adF[3],
                         logistics_head:lgF[0],logistics_return:lgF[1],logistics_storage:lgF[2],logistics_tariff:lgF[3],
                         platform_commission:plF[0],platform_service:plF[1],platform_payment:plF[2],platform_storefee:plF[3],
@@ -230,8 +245,18 @@
     }
   });
 
-  var state={expenseDrill:'ad',channelDrill:null,regionDrill:null,sceneDrill:null,channelFocus:null,regionFocus:null,sceneFocus:null,pieStatMode:'cur'};
+  var state={
+    expenseDrill:'ad',channelDrill:null,regionDrill:null,sceneDrill:null,
+    channelFocus:null,regionFocus:null,sceneFocus:null,
+    pieStatMode:'cur',
+    structureMetric:'revenue',
+    trendDim:'revenue',
+    trendGrain:'day',
+    topKeyType:'sku',
+    topSort:{field:'revAch',dir:1}
+  };
   var dateRangeApi=null;
+  var compareRangeApi=null;
 
   function parseYmdLocal(s){
     if(window.DateRangePicker&&DateRangePicker.parseYmd) return DateRangePicker.parseYmd(s);
@@ -261,31 +286,46 @@
   }
 
   var METRICS={
-    revenue:'营收',sales:'销售额',gross:'毛利',margin:'毛利率',
+    revenue:'营收',sales:'销售额',gross:'毛利',margin:'毛利率',units:'销量',
     ad:'广告宣传小计',logistics:'物流成本小计',platform:'交易及平台费用小计',other:'其他费用',
     ad_perf:'广告费',ad_brand:'品牌营销费',ad_promo:'推广费',ad_sample:'样品费',
     logistics_head:'头程运费',logistics_return:'退货运费',logistics_storage:'仓储费',logistics_tariff:'关税',
     platform_commission:'FBA佣金',platform_service:'平台服务费',platform_payment:'收单费用',platform_storefee:'店铺费用',
     other_misc:'运杂费',other_reserve:'预留毛利'
   };
-  var METRIC_OPTIONS=[
-    {k:'revenue',n:'营收'},
-    {k:'gross',n:'毛利'},
-    {k:'sales',n:'销售额'},
-    {k:'ad',n:'广告宣传小计'},
-    {k:'logistics',n:'物流成本小计'},
-    {k:'platform',n:'交易及平台费用小计'},
-    {k:'other',n:'其他费用合计'}
-  ];
-
   function setOptions(id,arr,all){var el=$(id);var h=all?'<option value="">全部</option>':'';arr.forEach(function(x){h+='<option value="'+x+'">'+x+'</option>';});el.innerHTML=h;}
-  function setMetricOptions(){var h='';METRIC_OPTIONS.forEach(function(x){h+='<option value="'+x.k+'">'+x.n+'</option>';});$('fMetric').innerHTML=h;}
-  function currentMetric(){return ($('fMetric')&&$('fMetric').value)||'revenue';}
 
-  function currentFilter(){
+  function defaultCompareRangeFromMain(){
+    var f=mainDateRange();
+    var ed=parseYmdLocal(f.dateEnd);
+    if(!ed) return {s:'2026-01-01',e:'2026-01-31'};
+    var pmEnd=new Date(ed.getFullYear(),ed.getMonth(),0);
+    var pmStart=new Date(ed.getFullYear(),ed.getMonth()-1,1);
+    return {s:fmtYmdLocal(pmStart),e:fmtYmdLocal(pmEnd)};
+  }
+  function mainDateRange(){
     var ds='2026-01-01', de='2026-12-31';
     if(dateRangeApi){var g=dateRangeApi.get(); if(g.start) ds=g.start; if(g.end) de=g.end;}
-    return {dateStart:ds,dateEnd:de,region:$('fRegion').value,country:$('fCountry').value,channel:$('fChannel').value,store:$('fStore').value,scene:$('fScene').value,category:$('fCategory').value};
+    return {dateStart:ds,dateEnd:de};
+  }
+  function compareDateRange(){
+    var d=defaultCompareRangeFromMain();
+    var ds=d.s, de=d.e;
+    if(compareRangeApi){var g=compareRangeApi.get(); if(g.start) ds=g.start; if(g.end) de=g.end;}
+    return {dateStart:ds,dateEnd:de};
+  }
+
+  function currentFilter(){
+    var m=mainDateRange();
+    return {dateStart:m.dateStart,dateEnd:m.dateEnd,region:$('fRegion').value,country:$('fCountry').value,channel:$('fChannel').value,store:$('fStore').value,scene:$('fScene').value,category:$('fCategory').value,skuText:(($('fSkuText')&&$('fSkuText').value)||'').trim().toLowerCase()};
+  }
+
+  function passesSkuFilter(r,f){
+    if(!f.skuText) return true;
+    var q=f.skuText;
+    var skuKey=(r.store||'')+'-'+(r.category||'');
+    var blob=(r.model||'')+' '+(r.sku||'')+' '+(r.msku||'')+' '+skuKey;
+    return blob.toLowerCase().indexOf(q)>=0;
   }
 
   function passesDimFilter(r,f){
@@ -302,29 +342,56 @@
     var f=currentFilter();
     return DATA.filter(function(r){
       if(!monthIntersects(f.dateStart,f.dateEnd,r.year,r.month)) return false;
-      return passesDimFilter(r,f);
-    });
-  }
-
-  function filteredRowsFor(year,ds,de){
-    var f=currentFilter();
-    return DATA.filter(function(r){
-      if(r.year!==year) return false;
-      if(!monthIntersects(ds,de,r.year,r.month)) return false;
-      return passesDimFilter(r,f);
+      if(!passesDimFilter(r,f)) return false;
+      if(!passesSkuFilter(r,f)) return false;
+      return true;
     });
   }
 
   function sumBy(rows,sys,key){return rows.reduce(function(s,r){return s+(Number((r[sys]&&r[sys][key])||0));},0);} 
 
-  function updateCompareBar(){
+  function filteredRowsDateSpan(ds,de){
     var f=currentFilter();
-    var lyS=shiftYearYmd(f.dateStart,-1), lyE=shiftYearYmd(f.dateEnd,-1);
-    var ed=parseYmdLocal(f.dateEnd);
-    var pmEnd=new Date(ed.getFullYear(),ed.getMonth(),0);
-    var pmStart=new Date(ed.getFullYear(),ed.getMonth()-1,1);
-    $('compareBar').innerHTML='<div><span class="k">同比</span>：与区间 <strong>'+lyS+'</strong> 至 <strong>'+lyE+'</strong> 的业务实际对比（自然日对齐移位一年）。</div>'+
-      '<div><span class="k">环比</span>：与紧邻上一完整自然月 <strong>'+fmtYmdLocal(pmStart)+'</strong> 至 <strong>'+fmtYmdLocal(pmEnd)+'</strong> 的业务实际对比（演示口径）。后续版本可支持手动调整对比区间。</div>';
+    return DATA.filter(function(r){
+      if(!monthIntersects(ds,de,r.year,r.month)) return false;
+      if(!passesDimFilter(r,f)) return false;
+      if(!passesSkuFilter(r,f)) return false;
+      return true;
+    });
+  }
+
+  function aggBizMetric(rows,mk){
+    if(!rows.length) return 0;
+    if(mk==='margin'){
+      var gr=sumBy(rows,'biz','revenue');
+      return gr?sumBy(rows,'biz','gross')/gr:0;
+    }
+    if(mk==='units') return sumBy(rows,'biz','units');
+    return sumBy(rows,'biz',mk);
+  }
+  function aggBpMetric(rows,mk){
+    if(!rows.length) return 0;
+    if(mk==='margin'){
+      var gr=sumBy(rows,'bp','revenue');
+      return gr?sumBy(rows,'bp','gross')/gr:0;
+    }
+    if(mk==='units') return sumBy(rows,'bp','units');
+    return sumBy(rows,'bp',mk);
+  }
+
+  function renderStructureMetricTabs(){
+    var tabs=[{k:'revenue',n:'营收'},{k:'gross',n:'毛利'},{k:'units',n:'销量'},{k:'margin',n:'毛利率'}];
+    $('structureMetricTabs').innerHTML=tabs.map(function(t){
+      return '<button type="button" class="'+(state.structureMetric===t.k?'on':'')+'" data-sm="'+t.k+'">'+t.n+'</button>';
+    }).join('');
+    Array.prototype.forEach.call($('structureMetricTabs').querySelectorAll('button[data-sm]'),function(b){
+      b.onclick=function(){
+        state.structureMetric=b.getAttribute('data-sm')||'revenue';
+        state.channelDrill=null;state.regionDrill=null;state.sceneDrill=null;
+        renderStructureMetricTabs();
+        renderRegion();renderChannel();renderScene();
+      };
+    });
   }
 
   function updateDeps(){
@@ -345,22 +412,16 @@
   }
 
   function yoyPct(cur,prev){return prev?((cur-prev)/prev*100):0;}
-  function momPct(cur,prev){return prev?((cur-prev)/prev*100):0;}
 
   function renderMetricCard(target,title,key,isRate){
     var f=currentFilter();
     var rows=filteredRows();
     var lyS=shiftYearYmd(f.dateStart,-1), lyE=shiftYearYmd(f.dateEnd,-1);
-    var rowsLy=filteredRowsFor(CURRENT_YEAR-1,lyS,lyE);
-    var ed=parseYmdLocal(f.dateEnd);
-    var lmY=ed.getFullYear(), lmM=ed.getMonth()+1;
-    var dLmS=fmtYmdLocal(new Date(lmY,lmM-1,1)), dLmE=fmtYmdLocal(new Date(lmY,lmM,0));
-    var pmY=lmM>1?lmY:lmY-1, pmM=lmM>1?lmM-1:12;
-    var dPmS=fmtYmdLocal(new Date(pmY,pmM-1,1)), dPmE=fmtYmdLocal(new Date(pmY,pmM,0));
-    var rowsCm=filteredRowsFor(lmY,dLmS,dLmE);
-    var rowsPm=filteredRowsFor(pmY,dPmS,dPmE);
+    var rowsLy=filteredRowsDateSpan(lyS,lyE);
+    var cf=compareDateRange();
+    var rowsCmp=filteredRowsDateSpan(cf.dateStart,cf.dateEnd);
 
-    var bpTotal,bizTotal,bizAch,gap,curVal,lyVal,cmVal,pmVal;
+    var bpTotal,bizTotal,bizAch,gap,curVal,lyVal,cmpVal;
     if(isRate){
       bpTotal=sumBy(rows,'bp','gross')/Math.max(1,sumBy(rows,'bp','revenue'));
       bizTotal=sumBy(rows,'biz','gross')/Math.max(1,sumBy(rows,'biz','revenue'));
@@ -368,8 +429,7 @@
       gap=(bizTotal-bpTotal)*100;
       curVal=bizTotal*100;
       lyVal=(sumBy(rowsLy,'biz','gross')/Math.max(1,sumBy(rowsLy,'biz','revenue')))*100;
-      cmVal=(sumBy(rowsCm,'biz','gross')/Math.max(1,sumBy(rowsCm,'biz','revenue')))*100;
-      pmVal=(sumBy(rowsPm,'biz','gross')/Math.max(1,sumBy(rowsPm,'biz','revenue')))*100;
+      cmpVal=(sumBy(rowsCmp,'biz','gross')/Math.max(1,sumBy(rowsCmp,'biz','revenue')))*100;
     }else{
       bpTotal=sumBy(rows,'bp',key);
       bizTotal=sumBy(rows,'biz',key);
@@ -377,8 +437,7 @@
       gap=bizTotal-bpTotal;
       curVal=bizTotal;
       lyVal=sumBy(rowsLy,'biz',key);
-      cmVal=sumBy(rowsCm,'biz',key);
-      pmVal=sumBy(rowsPm,'biz',key);
+      cmpVal=sumBy(rowsCmp,'biz',key);
     }
 
     var gapCls=gap>=0?'gap-good':'gap-bad';
@@ -390,7 +449,7 @@
     h+='<div class="line"><span class="label">实际（区间内合计）</span><span>'+(isRate?fmtPct(bizTotal*100):fmtMoney(bizTotal))+'</span></div>';
     h+='<div class="line"><span class="label">目标达成率</span><span>'+fmtPct(bizAch)+'</span></div>';
     h+='<div class="line"><span class="label">同比</span><span>'+fmtPct(yoyPct(curVal,lyVal))+'</span></div>';
-    h+='<div class="line"><span class="label">环比</span><span>'+fmtPct(momPct(cmVal,pmVal))+'</span></div>';
+    h+='<div class="line"><span class="label">对比</span><span>'+fmtPct(yoyPct(curVal,cmpVal))+'</span></div>';
     h+='<div class="line"><span class="label">与目标差额</span><span class="'+gapCls+'">'+(gap>=0?'+':'')+(isRate?fmtPct(gap):fmtMoney(gap))+'</span></div>';
     h+='</div>';
     $(target).innerHTML=h;
@@ -400,7 +459,7 @@
     renderMetricCard('cardSalesAmount','销售额','sales',false);
     renderMetricCard('cardRevenue','营收','revenue',false);
     renderMetricCard('cardGross','毛利','gross',false);
-    renderMetricCard('cardSales','销量','sales',false);
+    renderMetricCard('cardSales','销量','units',false);
     renderMetricCard('cardMargin','毛利率','margin',true);
     $('metaTime').textContent='更新时间：'+new Date().toLocaleString('zh-CN',{hour12:false});
   }
@@ -409,12 +468,23 @@
     var v=Number((sys&&sys[key])||0);
     return Number.isFinite(v)?v:0;
   }
-  function groupByMetric(rows,key,metricKey){
-    var m={};
+  function groupByMetric(rows,key,mk){
+    var agg={};
     rows.forEach(function(r){
-      m[r[key]]=(m[r[key]]||0)+metricValue(r.biz,metricKey);
+      var k=r[key];
+      if(!agg[k]) agg[k]={rev:0,g:0,u:0,bprev:0,bpg:0,bpu:0};
+      agg[k].rev+=r.biz.revenue; agg[k].g+=r.biz.gross; agg[k].u+=r.biz.units;
+      agg[k].bprev+=r.bp.revenue; agg[k].bpg+=r.bp.gross; agg[k].bpu+=r.bp.units;
     });
-    return Object.keys(m).map(function(k){return{key:k,val:m[k]};}).sort(function(a,b){return b.val-a.val;});
+    return Object.keys(agg).map(function(k){
+      var o=agg[k];
+      var val,bpT;
+      if(mk==='margin'){val=o.rev?o.g/o.rev:0; bpT=o.bprev?o.bpg/o.bprev:0;}
+      else if(mk==='units'){val=o.u; bpT=o.bpu;}
+      else if(mk==='gross'){val=o.g; bpT=o.bpg;}
+      else {val=o.rev; bpT=o.bprev;}
+      return {key:k,val:val,bpVal:bpT};
+    }).sort(function(a,b){return b.val-a.val;});
   }
   function rowsForScope(year,ds,de,scope){
     var f=currentFilter();
@@ -422,6 +492,7 @@
       if(r.year!==year) return false;
       if(!monthIntersects(ds,de,r.year,r.month)) return false;
       if(!passesDimFilter(r,f)) return false;
+      if(!passesSkuFilter(r,f)) return false;
       if(scope&&scope.channel&&r.channel!==scope.channel) return false;
       if(scope&&scope.store&&r.store!==scope.store) return false;
       if(scope&&scope.region&&r.region!==scope.region) return false;
@@ -431,26 +502,30 @@
       return true;
     });
   }
+  function applyScope(rows,scope){
+    if(!scope) return rows;
+    return rows.filter(function(r){
+      if(scope.channel&&r.channel!==scope.channel) return false;
+      if(scope.store&&r.store!==scope.store) return false;
+      if(scope.region&&r.region!==scope.region) return false;
+      if(scope.country&&r.country!==scope.country) return false;
+      if(scope.scene&&r.scene!==scope.scene) return false;
+      if(scope.category&&r.category!==scope.category) return false;
+      return true;
+    });
+  }
   function metricStatsFromScope(metricKey,scope){
     var f=currentFilter();
+    var curRows=applyScope(filteredRows(),scope);
     var lyS=shiftYearYmd(f.dateStart,-1), lyE=shiftYearYmd(f.dateEnd,-1);
-    var ed=parseYmdLocal(f.dateEnd);
-    var lmY=ed.getFullYear(), lmM=ed.getMonth()+1;
-    var dLmS=fmtYmdLocal(new Date(lmY,lmM-1,1)), dLmE=fmtYmdLocal(new Date(lmY,lmM,0));
-    var pmY=lmM>1?lmY:lmY-1, pmM=lmM>1?lmM-1:12;
-    var dPmS=fmtYmdLocal(new Date(pmY,pmM-1,1)), dPmE=fmtYmdLocal(new Date(pmY,pmM,0));
-    var curRows=rowsForScope(CURRENT_YEAR,f.dateStart,f.dateEnd,scope);
-    var lyRows=rowsForScope(CURRENT_YEAR-1,lyS,lyE,scope);
-    var cmRows=rowsForScope(lmY,dLmS,dLmE,scope);
-    var pmRows=rowsForScope(pmY,dPmS,dPmE,scope);
-    var cur=sumBy(curRows,'biz',metricKey);
-    var bp=sumBy(curRows,'bp',metricKey);
-    return {
-      cur:cur,
-      ach:bp?cur/bp*100:0,
-      yoy:yoyPct(cur,sumBy(lyRows,'biz',metricKey)),
-      mom:momPct(sumBy(cmRows,'biz',metricKey),sumBy(pmRows,'biz',metricKey))
-    };
+    var lyRows=applyScope(filteredRowsDateSpan(lyS,lyE),scope);
+    var cf=compareDateRange();
+    var cmpRows=applyScope(filteredRowsDateSpan(cf.dateStart,cf.dateEnd),scope);
+    var cur=aggBizMetric(curRows,metricKey);
+    var bp=aggBpMetric(curRows,metricKey);
+    var lyV=aggBizMetric(lyRows,metricKey);
+    var cmpV=aggBizMetric(cmpRows,metricKey);
+    return {cur:cur,bp:bp,ach:bp?cur/bp*100:0,yoy:yoyPct(cur,lyV),cmpV:cmpV,cmpPct:yoyPct(cur,cmpV)};
   }
 
   function arc(cx,cy,r,start,end){
@@ -460,7 +535,13 @@
     return 'M '+cx+' '+cy+' L '+x1+' '+y1+' A '+r+' '+r+' 0 '+large+' 1 '+x2+' '+y2+' Z';
   }
 
-  function renderPie(container,title,path,list,colors,summary,selectedKey,onSelect,onDrill,onBack){
+  function fmtMetricCell(mk,v){
+    if(mk==='margin') return fmtPct(v*100);
+    if(mk==='units') return String(Math.round(v));
+    return fmtMoney(v);
+  }
+
+  function renderPie(container,title,path,list,colors,summary,selectedKey,onSelect,onDrill,onBack,dim,mk,rowsBase){
     var total=list.reduce(function(s,x){return s+x.val;},0)||1;
     var start=-Math.PI/2, cx=84, cy=84, r=70;
     var seg='';
@@ -470,20 +551,50 @@
       seg+='<path d="'+arc(cx,cy,r,start,end)+'" fill="'+colors[i%colors.length]+'" opacity="0.95" data-k="'+x.key+'"></path>';
       start=end;
     });
+    var f=currentFilter();
+    var lyS=shiftYearYmd(f.dateStart,-1), lyE=shiftYearYmd(f.dateEnd,-1);
+    var lyAll=filteredRowsDateSpan(lyS,lyE);
+    var cf=compareDateRange();
+    var cmpAll=filteredRowsDateSpan(cf.dateStart,cf.dateEnd);
+    function lyDim(k){return aggBizMetric(lyAll.filter(function(r){return r[dim]===k;}),mk);}
+    function cmpDim(k){return aggBizMetric(cmpAll.filter(function(r){return r[dim]===k;}),mk);}
+
     var legend=list.map(function(x,i){
-      var pct=x.val/total*100;
-      return '<div class="pie-item '+(selectedKey===x.key?'active':'')+'" data-k="'+x.key+'"><span class="dot" style="background:'+colors[i%colors.length]+'"></span><span class="pie-name">'+x.key+'</span><span class="pie-num">'+fmtMoney(x.val)+'</span><span class="pie-val">'+fmtPct(pct)+'</span></div>';
+      var pct=total?x.val/total*100:0;
+      var sl=rowsBase.filter(function(r){return r[dim]===x.key;});
+      var cur=aggBizMetric(sl,mk), bp=aggBpMetric(sl,mk), ach=bp?cur/bp*100:0;
+      var lyV=lyDim(x.key), cmpV=cmpDim(x.key);
+      var mode=state.pieStatMode;
+      var rowCls='pie-row'+(selectedKey===x.key?' active':'');
+      if(mode==='cur'){
+        var p2=mk==='margin'?'—':fmtPct(pct);
+        return '<div class="'+rowCls+'" data-k="'+x.key+'"><span class="dot" style="background:'+colors[i%colors.length]+'"></span><span class="pie-name">'+x.key+'</span><span class="pie-num">'+fmtMetricCell(mk,cur)+'</span><span class="pie-val">'+p2+'</span></div>';
+      }
+      if(mode==='ach'){
+        return '<div class="'+rowCls+'" data-k="'+x.key+'"><span class="dot" style="background:'+colors[i%colors.length]+'"></span><span class="pie-name">'+x.key+'</span><span class="pie-num">'+fmtMetricCell(mk,bp)+' / '+fmtMetricCell(mk,cur)+'</span><span class="pie-val">'+fmtPct(ach)+'</span></div>';
+      }
+      if(mode==='yoycmp'){
+        return '<div class="'+rowCls+'" data-k="'+x.key+'"><span class="dot" style="background:'+colors[i%colors.length]+'"></span><span class="pie-name">'+x.key+'</span><span class="pie-num">'+fmtMetricCell(mk,cur)+'</span><span class="pie-val">同比'+fmtPct(yoyPct(cur,lyV))+' 对比值'+fmtMetricCell(mk,cmpV)+'</span></div>';
+      }
+      return '<div class="'+rowCls+'" data-k="'+x.key+'"><span class="dot" style="background:'+colors[i%colors.length]+'"></span><span class="pie-name">'+x.key+'</span><span class="pie-num">'+fmtMetricCell(mk,cur)+'</span><span class="pie-val">'+fmtPct(yoyPct(cur,cmpV))+'</span></div>';
     }).join('');
-    var modes=[{m:'cur',k:'当前值',v:fmtMoney(summary.cur)},{m:'ach',k:'目标达成率',v:fmtPct(summary.ach)},{m:'yoy',k:'同比',v:fmtPct(summary.yoy)},{m:'mom',k:'环比',v:fmtPct(summary.mom)}];
+
+    var sCur=mk==='margin'?fmtPct(summary.cur*100): (mk==='units'?String(Math.round(summary.cur)):fmtMoney(summary.cur));
+    var modes=[
+      {m:'cur',k:'当前值',v:sCur},
+      {m:'ach',k:'目标达成率',v:fmtPct(summary.ach)},
+      {m:'yoycmp',k:'同比/对比',v:fmtPct(summary.yoy)},
+      {m:'cmp',k:'对比',v:fmtPct(summary.cmpPct)}
+    ];
     var stats=modes.map(function(x){
       var on=state.pieStatMode===x.m?' pie-stat-on':'';
-      return '<div class="pie-stat'+on+'" data-pie-mode="'+x.m+'" title="点击切换上方汇总块含义（图例仍为本期实际值占比）"><div class="k">'+x.k+'</div><div class="v">'+x.v+'</div></div>';
+      return '<div class="pie-stat'+on+'" data-pie-mode="'+x.m+'"><div class="k">'+x.k+'</div><div class="v">'+x.v+'</div></div>';
     }).join('');
     var h='';
     h+='<div class="pie-hd"><div class="pie-path">'+path+'</div>'+(onBack?'<button class="pie-back" id="'+container+'Back">返回上层</button>':'')+'</div>';
     h+='<div class="pie-stats">'+stats+'</div>';
     h+='<div class="pie-wrap">';
-    h+='<svg viewBox="0 0 168 168" width="164" height="164">'+seg+'<circle cx="84" cy="84" r="40" fill="#0c2242"></circle><text x="84" y="79" text-anchor="middle" fill="#9ec5f0" font-size="11">'+title+'</text><text x="84" y="99" text-anchor="middle" fill="#dbeafe" font-size="13" font-weight="700">100%</text></svg>';
+    h+='<svg viewBox="0 0 168 168" width="164" height="164">'+seg+'<circle cx="84" cy="84" r="40" fill="#0c2242"></circle></svg>';
     h+='<div class="pie-legend">'+legend+'</div>';
     h+='</div>';
     $(container).innerHTML=h;
@@ -492,11 +603,11 @@
       el.onclick=function(e){
         e.stopPropagation();
         state.pieStatMode=el.getAttribute('data-pie-mode')||'cur';
-        renderAll();
+        renderRegion();renderChannel();renderScene();
       };
     });
     if(onSelect){
-      Array.prototype.forEach.call($(container).querySelectorAll('.pie-item'),function(el){
+      Array.prototype.forEach.call($(container).querySelectorAll('.pie-row'),function(el){
         el.onclick=function(){onSelect(el.getAttribute('data-k'));};
       });
     }
@@ -508,51 +619,51 @@
   }
 
   function renderChannel(){
-    var rows=filteredRows(), metric=currentMetric();
+    var rows=filteredRows(), mk=state.structureMetric;
     if(!state.channelDrill){
-      var list=groupByMetric(rows,'channel',metric);
+      var list=groupByMetric(rows,'channel',mk);
       if(!list.length){$('channelBox').innerHTML='';return;}
-      if(!state.channelFocus || !list.some(function(x){return x.key===state.channelFocus;})) state.channelFocus=list[0].key;
-      var focus=state.channelFocus;
-      renderPie('channelBox','渠道层','渠道层 · '+(METRICS[metric]||metric),list,['#60a5fa','#22d3ee','#34d399','#fbbf24'],metricStatsFromScope(metric,{channel:focus}),focus,function(k){state.channelFocus=k;renderChannel();},function(k){state.channelDrill=k;state.channelFocus=null;renderAll();},null);
+      if(state.channelFocus && !list.some(function(x){return x.key===state.channelFocus;})) state.channelFocus=null;
+      var scope=state.channelFocus?{channel:state.channelFocus}:null;
+      renderPie('channelBox','','渠道 · '+METRICS[mk],list,['#60a5fa','#22d3ee','#34d399','#fbbf24'],metricStatsFromScope(mk,scope),state.channelFocus,function(k){state.channelFocus=k;renderChannel();},function(k){state.channelDrill=k;state.channelFocus=null;renderAll();},null,'channel',mk,rows);
     }else{
-      var sub=groupByMetric(rows.filter(function(r){return r.channel===state.channelDrill;}),'store',metric);
+      var sub=groupByMetric(rows.filter(function(r){return r.channel===state.channelDrill;}),'store',mk);
       if(!sub.length){$('channelBox').innerHTML='';return;}
-      if(!state.channelFocus || !sub.some(function(x){return x.key===state.channelFocus;})) state.channelFocus=sub[0].key;
-      var focus2=state.channelFocus;
-      renderPie('channelBox','店铺层','渠道层 / '+state.channelDrill+' / 店铺层 · '+(METRICS[metric]||metric),sub,['#22d3ee','#60a5fa','#34d399','#fbbf24','#fb923c'],metricStatsFromScope(metric,{channel:state.channelDrill,store:focus2}),focus2,function(k){state.channelFocus=k;renderChannel();},null,function(){state.channelDrill=null;state.channelFocus=null;renderAll();});
+      if(state.channelFocus && !sub.some(function(x){return x.key===state.channelFocus;})) state.channelFocus=null;
+      var scope2=state.channelFocus?{channel:state.channelDrill,store:state.channelFocus}:null;
+      renderPie('channelBox','','渠道 / '+state.channelDrill+' · 店铺 · '+METRICS[mk],sub,['#22d3ee','#60a5fa','#34d399','#fbbf24','#fb923c'],metricStatsFromScope(mk,scope2),state.channelFocus,function(k){state.channelFocus=k;renderChannel();},null,function(){state.channelDrill=null;state.channelFocus=null;renderAll();},'store',mk,rows.filter(function(r){return r.channel===state.channelDrill;}));
     }
   }
   function renderRegion(){
-    var rows=filteredRows(), metric=currentMetric();
+    var rows=filteredRows(), mk=state.structureMetric;
     if(!state.regionDrill){
-      var list=groupByMetric(rows,'region',metric);
+      var list=groupByMetric(rows,'region',mk);
       if(!list.length){$('regionBox').innerHTML='';return;}
-      if(!state.regionFocus || !list.some(function(x){return x.key===state.regionFocus;})) state.regionFocus=list[0].key;
-      var focus=state.regionFocus;
-      renderPie('regionBox','区域层','区域层 · '+(METRICS[metric]||metric),list,['#34d399','#60a5fa','#22d3ee'],metricStatsFromScope(metric,{region:focus}),focus,function(k){state.regionFocus=k;renderRegion();},function(k){state.regionDrill=k;state.regionFocus=null;renderAll();},null);
+      if(state.regionFocus && !list.some(function(x){return x.key===state.regionFocus;})) state.regionFocus=null;
+      var scope=state.regionFocus?{region:state.regionFocus}:null;
+      renderPie('regionBox','','区域 · '+METRICS[mk],list,['#34d399','#60a5fa','#22d3ee'],metricStatsFromScope(mk,scope),state.regionFocus,function(k){state.regionFocus=k;renderRegion();},function(k){state.regionDrill=k;state.regionFocus=null;renderAll();},null,'region',mk,rows);
     }else{
-      var sub=groupByMetric(rows.filter(function(r){return r.region===state.regionDrill;}),'country',metric);
+      var sub=groupByMetric(rows.filter(function(r){return r.region===state.regionDrill;}),'country',mk);
       if(!sub.length){$('regionBox').innerHTML='';return;}
-      if(!state.regionFocus || !sub.some(function(x){return x.key===state.regionFocus;})) state.regionFocus=sub[0].key;
-      var focus2=state.regionFocus;
-      renderPie('regionBox','国家层','区域层 / '+state.regionDrill+' / 国家层 · '+(METRICS[metric]||metric),sub,['#60a5fa','#22d3ee','#34d399'],metricStatsFromScope(metric,{region:state.regionDrill,country:focus2}),focus2,function(k){state.regionFocus=k;renderRegion();},null,function(){state.regionDrill=null;state.regionFocus=null;renderAll();});
+      if(state.regionFocus && !sub.some(function(x){return x.key===state.regionFocus;})) state.regionFocus=null;
+      var scope2=state.regionFocus?{region:state.regionDrill,country:state.regionFocus}:null;
+      renderPie('regionBox','','区域 / '+state.regionDrill+' · 国家 · '+METRICS[mk],sub,['#60a5fa','#22d3ee','#34d399'],metricStatsFromScope(mk,scope2),state.regionFocus,function(k){state.regionFocus=k;renderRegion();},null,function(){state.regionDrill=null;state.regionFocus=null;renderAll();},'country',mk,rows.filter(function(r){return r.region===state.regionDrill;}));
     }
   }
   function renderScene(){
-    var rows=filteredRows(), metric=currentMetric();
+    var rows=filteredRows(), mk=state.structureMetric;
     if(!state.sceneDrill){
-      var list=groupByMetric(rows,'scene',metric);
+      var list=groupByMetric(rows,'scene',mk);
       if(!list.length){$('sceneBox').innerHTML='';return;}
-      if(!state.sceneFocus || !list.some(function(x){return x.key===state.sceneFocus;})) state.sceneFocus=list[0].key;
-      var focus=state.sceneFocus;
-      renderPie('sceneBox','场景层','场景层 · '+(METRICS[metric]||metric),list,['#22d3ee','#34d399','#fbbf24'],metricStatsFromScope(metric,{scene:focus}),focus,function(k){state.sceneFocus=k;renderScene();},function(k){state.sceneDrill=k;state.sceneFocus=null;renderAll();},null);
+      if(state.sceneFocus && !list.some(function(x){return x.key===state.sceneFocus;})) state.sceneFocus=null;
+      var scope=state.sceneFocus?{scene:state.sceneFocus}:null;
+      renderPie('sceneBox','','场景 · '+METRICS[mk],list,['#22d3ee','#34d399','#fbbf24'],metricStatsFromScope(mk,scope),state.sceneFocus,function(k){state.sceneFocus=k;renderScene();},function(k){state.sceneDrill=k;state.sceneFocus=null;renderAll();},null,'scene',mk,rows);
     }else{
-      var sub=groupByMetric(rows.filter(function(r){return r.scene===state.sceneDrill;}),'category',metric);
+      var sub=groupByMetric(rows.filter(function(r){return r.scene===state.sceneDrill;}),'category',mk);
       if(!sub.length){$('sceneBox').innerHTML='';return;}
-      if(!state.sceneFocus || !sub.some(function(x){return x.key===state.sceneFocus;})) state.sceneFocus=sub[0].key;
-      var focus2=state.sceneFocus;
-      renderPie('sceneBox','品类层','场景层 / '+state.sceneDrill+' / 品类层 · '+(METRICS[metric]||metric),sub,['#60a5fa','#22d3ee','#34d399','#fbbf24'],metricStatsFromScope(metric,{scene:state.sceneDrill,category:focus2}),focus2,function(k){state.sceneFocus=k;renderScene();},null,function(){state.sceneDrill=null;state.sceneFocus=null;renderAll();});
+      if(state.sceneFocus && !sub.some(function(x){return x.key===state.sceneFocus;})) state.sceneFocus=null;
+      var scope2=state.sceneFocus?{scene:state.sceneDrill,category:state.sceneFocus}:null;
+      renderPie('sceneBox','','场景 / '+state.sceneDrill+' · 品类 · '+METRICS[mk],sub,['#60a5fa','#22d3ee','#34d399','#fbbf24'],metricStatsFromScope(mk,scope2),state.sceneFocus,function(k){state.sceneFocus=k;renderScene();},null,function(){state.sceneDrill=null;state.sceneFocus=null;renderAll();},'category',mk,rows.filter(function(r){return r.scene===state.sceneDrill;}));
     }
   }
 
@@ -577,16 +688,11 @@
     var f=currentFilter();
     var rows=filteredRows();
     var lyS=shiftYearYmd(f.dateStart,-1), lyE=shiftYearYmd(f.dateEnd,-1);
-    var rowsLy=filteredRowsFor(CURRENT_YEAR-1,lyS,lyE);
-    var ed=parseYmdLocal(f.dateEnd);
-    var lmY=ed.getFullYear(), lmM=ed.getMonth()+1;
-    var dLmS=fmtYmdLocal(new Date(lmY,lmM-1,1)), dLmE=fmtYmdLocal(new Date(lmY,lmM,0));
-    var pmY=lmM>1?lmY:lmY-1, pmM=lmM>1?lmM-1:12;
-    var dPmS=fmtYmdLocal(new Date(pmY,pmM-1,1)), dPmE=fmtYmdLocal(new Date(pmY,pmM,0));
-    var rowsCm=filteredRowsFor(lmY,dLmS,dLmE);
-    var rowsPm=filteredRowsFor(pmY,dPmS,dPmE);
+    var rowsLy=filteredRowsDateSpan(lyS,lyE);
+    var cf=compareDateRange();
+    var rowsCmp=filteredRowsDateSpan(cf.dateStart,cf.dateEnd);
     var sales=sumBy(rows,'biz','sales'), revenue=sumBy(rows,'biz','revenue'), gross=sumBy(rows,'biz','gross');
-    var revenueBase=Math.max(1,revenue);
+    var salesBase=Math.max(1,sales);
     var topSubs=[
       {k:'discount',n:'优惠合计',v:funnelValue(rows,'biz','discount')},
       {k:'returns',n:'销售退货',v:funnelValue(rows,'biz','returns')},
@@ -617,18 +723,17 @@
     var cur=funnelValue(rows,'biz',drill);
     var bp=funnelValue(rows,'bp',drill);
     var ly=funnelValue(rowsLy,'biz',drill);
-    var cm=funnelValue(rowsCm,'biz',drill);
-    var pmv=funnelValue(rowsPm,'biz',drill);
+    var cmpTot=funnelValue(rowsCmp,'biz',drill);
     var ach=bp?cur/bp*100:0;
-    var ratio=cur/revenueBase*100;
+    var ratio=cur/salesBase*100;
     var yoy=yoyPct(cur,ly);
-    var mom=momPct(cm,pmv);
+    var cmpRate=yoyPct(cur,cmpTot);
 
     function chipRect(x,y,w,h,item,top){
       return '<g class="svg-chip '+(top?'top':'')+' '+(drill===item.k?'active':'')+'" data-funnel-k="'+item.k+'">'+
         '<rect x="'+x+'" y="'+y+'" width="'+w+'" height="'+h+'" rx="8"></rect>'+
         '<text x="'+(x+w/2)+'" y="'+(y+20)+'" text-anchor="middle" fill="#dbeafe" font-size="12" font-weight="700">'+item.n+'</text>'+
-        '<text x="'+(x+w/2)+'" y="'+(y+38)+'" text-anchor="middle" fill="#dbeafe" font-size="12" font-weight="700">'+fmtMoney(item.v)+' ('+fmtPct(item.v/revenueBase*100)+')</text>'+
+        '<text x="'+(x+w/2)+'" y="'+(y+38)+'" text-anchor="middle" fill="#dbeafe" font-size="12" font-weight="700">'+fmtMoney(item.v)+' ('+fmtPct(item.v/salesBase*100)+')</text>'+
       '</g>';
     }
 
@@ -637,15 +742,15 @@
     h+='<div class="funnel-main">';
     h+='<svg viewBox="0 0 980 420" width="100%" height="420">';
     h+='<defs><filter id="glow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="4" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>';
-    h+='<g filter="url(#glow)">'+funnelNode('90,18 890,18 850,88 130,88','销售额',fmtMoney(sales)+' ('+fmtPct((sales/revenueBase)*100)+')',{fill:'#ecfdff',stroke:'#25c6f7',text:'#075985',ty:52,vy:78},490)+'</g>';
+    h+='<g filter="url(#glow)">'+funnelNode('90,18 890,18 850,88 130,88','销售额',fmtMoney(sales)+' (100%)',{fill:'#ecfdff',stroke:'#25c6f7',text:'#075985',ty:52,vy:78},490)+'</g>';
     h+=chipRect(211,102,178,48,topSubs[0],true)+chipRect(401,102,178,48,topSubs[1],true)+chipRect(591,102,178,48,topSubs[2],true);
-    h+='<g filter="url(#glow)">'+funnelNode('145,164 835,164 795,246 185,246','营收',fmtMoney(revenue)+' (100%)',{fill:'#eff5ff',stroke:'#3b82f6',text:'#1e3a8a',ty:200,vy:232},490)+'</g>';
+    h+='<g filter="url(#glow)">'+funnelNode('145,164 835,164 795,246 185,246','营收',fmtMoney(revenue)+' ('+fmtPct(revenue/salesBase*100)+')',{fill:'#eff5ff',stroke:'#3b82f6',text:'#1e3a8a',ty:200,vy:232},490)+'</g>';
     h+=chipRect(20,262,150,48,midSubs[0],false)+chipRect(178,262,150,48,midSubs[1],false)+chipRect(336,262,150,48,midSubs[2],false)+chipRect(494,262,150,48,midSubs[3],false)+chipRect(652,262,150,48,midSubs[4],false)+chipRect(810,262,150,48,midSubs[5],false);
-    h+='<g filter="url(#glow)">'+funnelNode('205,324 775,324 730,406 250,406','毛利',fmtMoney(gross)+' ('+fmtPct((gross/revenueBase)*100)+')',{fill:'#f7efff',stroke:'#8b5cf6',text:'#5b21b6',ty:360,vy:392},490)+'</g>';
+    h+='<g filter="url(#glow)">'+funnelNode('205,324 775,324 730,406 250,406','毛利',fmtMoney(gross)+' ('+fmtPct(gross/salesBase*100)+')',{fill:'#f7efff',stroke:'#8b5cf6',text:'#5b21b6',ty:360,vy:392},490)+'</g>';
     h+='</svg>';
     h+='</div>';
     var drillName=(allChips.find(function(x){return x.k===drill;})||{n:'费用项'}).n;
-    h+='<aside class="side-card"><h4>'+drillName+'（包含的子费用项）</h4><div class="side-current"><div class="nm">当前值</div><div class="row"><span class="main">'+fmtMoney(cur)+' / '+fmtPct(ratio)+'</span><span>占目标 '+fmtPct(ach)+'</span></div><div class="row"><span>同比 '+fmtPct(yoy)+'</span><span>环比 '+fmtPct(mom)+'</span></div></div><div class="side-list">';
+    h+='<aside class="side-card"><h4>'+drillName+'（包含的子费用项）</h4><div class="side-current"><div class="nm">当前值</div><div class="row"><span class="main">'+fmtMoney(cur)+' / '+fmtPct(ratio)+'</span><span>占目标 '+fmtPct(ach)+'</span></div><div class="row"><span>同比 '+fmtPct(yoy)+'</span><span>对比 '+fmtPct(cmpRate)+'</span></div></div><div class="side-list">';
     (sub[drill]||[]).forEach(function(x){
       var keyMap={
         '广告费':'ad_perf','推广费':'ad_promo','样品费':'ad_sample',
@@ -658,12 +763,11 @@
       var sb=kk?funnelValue(rows,'bp',kk):0;
       var st=sb;
       var sly=kk?funnelValue(rowsLy,'biz',kk):0;
-      var scm=kk?funnelValue(rowsCm,'biz',kk):0;
-      var spm=kk?funnelValue(rowsPm,'biz',kk):0;
+      var scmp=kk?funnelValue(rowsCmp,'biz',kk):0;
       var sach=st?sv/st*100:0;
       var syoy=yoyPct(sv,sly);
-      var smom=momPct(scm,spm);
-      h+='<div class="side-item"><div class="nm">'+x[0]+'</div><div class="vv"><span>'+fmtMoney(sv)+' / '+fmtPct(sv/revenueBase*100)+'</span><span>占目标 '+fmtPct(sach)+'</span></div><div class="vv"><span>同比 '+fmtPct(syoy)+'</span><span>环比 '+fmtPct(smom)+'</span></div></div>';
+      var scmpRate=yoyPct(sv,scmp);
+      h+='<div class="side-item"><div class="nm">'+x[0]+'</div><div class="vv"><span>'+fmtMoney(sv)+' / '+fmtPct(sv/salesBase*100)+'</span><span>占目标 '+fmtPct(sach)+'</span></div><div class="vv"><span>同比 '+fmtPct(syoy)+'</span><span>对比 '+fmtPct(scmpRate)+'</span></div></div>';
     });
     h+='</div></aside></div>';
     $('funnelBox').innerHTML=h;
@@ -689,90 +793,246 @@
     return out;
   }
 
+  function daysInMonth(y,m){return new Date(y,m,0).getDate();}
+  function eachDayInclusive(ds,de){
+    var a=parseYmdLocal(ds), b=parseYmdLocal(de);
+    if(!a||!b||a>b) return [];
+    var o=[], d=new Date(a.getTime());
+    while(d<=b){o.push(fmtYmdLocal(new Date(d))); d.setDate(d.getDate()+1);}
+    return o;
+  }
+  function overlapDayCount(bs,be,y,m){
+    var ms=fmtYmdLocal(new Date(y,m-1,1)), me=fmtYmdLocal(new Date(y,m,0));
+    var fs=bs>ms?bs:ms;
+    var fe=be<me?be:me;
+    var sd=parseYmdLocal(fs), ed=parseYmdLocal(fe);
+    if(!sd||!ed||sd>ed) return 0;
+    return Math.round((ed-sd)/864e5)+1;
+  }
+  function rowDim(sys,r,dim){
+    if(dim==='margin'){
+      var rv=Number((r[sys]&&r[sys].revenue)||0);
+      return rv?Number((r[sys]&&r[sys].gross)||0)/rv:0;
+    }
+    if(dim==='units') return Number((r[sys]&&r[sys].units)||0);
+    if(dim==='gross') return Number((r[sys]&&r[sys].gross)||0);
+    return Number((r[sys]&&r[sys].revenue)||0);
+  }
+  function bucketAgg(rows,bs,be,dim){
+    var bpV=0,bizV=0;
+    rows.forEach(function(r){
+      var od=overlapDayCount(bs,be,r.year,r.month);
+      if(!od) return;
+      var di=daysInMonth(r.year,r.month);
+      var f=od/di;
+      bpV+=rowDim('bp',r,dim)*f;
+      bizV+=rowDim('biz',r,dim)*f;
+    });
+    var ach=(dim==='margin')?0:(bpV?bizV/bpV*100:0);
+    return {bp:bpV,biz:bizV,ach:ach};
+  }
+  function trendBuckets(f,grain,rows){
+    var out=[];
+    if(grain==='month'){
+      eachMonthOverlapping().forEach(function(mm){
+        var ms=fmtYmdLocal(new Date(mm.y,mm.m-1,1)), me=fmtYmdLocal(new Date(mm.y,mm.m,0));
+        var bs=f.dateStart>ms?f.dateStart:ms;
+        var be=f.dateEnd<me?f.dateEnd:me;
+        out.push({label:mm.y+'-'+(mm.m<10?'0':'')+mm.m,bs:bs,be:be});
+      });
+      return out;
+    }
+    if(grain==='day'){
+      eachDayInclusive(f.dateStart,f.dateEnd).forEach(function(ymd){
+        out.push({label:ymd.slice(5),bs:ymd,be:ymd});
+      });
+      return out;
+    }
+    var days=eachDayInclusive(f.dateStart,f.dateEnd);
+    for(var i=0;i<days.length;i+=7){
+      var chunk=days.slice(i,i+7);
+      if(!chunk.length) break;
+      out.push({label:chunk[0].slice(5)+'~'+chunk[chunk.length-1].slice(5),bs:chunk[0],be:chunk[chunk.length-1]});
+    }
+    return out;
+  }
+
   function renderTrend(){
     var f=currentFilter();
-    var metric=currentMetric();
-    var months=eachMonthOverlapping();
-    var agg=[];
-    months.forEach(function(mm){
-      var ms=fmtYmdLocal(new Date(mm.y,mm.m-1,1)), me=fmtYmdLocal(new Date(mm.y,mm.m,0));
-      var dS2=f.dateStart>ms?f.dateStart:ms;
-      var dE2=f.dateEnd<me?f.dateEnd:me;
-      var rs=filteredRowsFor(mm.y,dS2,dE2);
-      var bp,biz;
-      if(metric==='margin'){
-        bp=(sumBy(rs,'bp','gross')/Math.max(1,sumBy(rs,'bp','revenue')))*100;
-        biz=(sumBy(rs,'biz','gross')/Math.max(1,sumBy(rs,'biz','revenue')))*100;
-      }else{
-        bp=sumBy(rs,'bp',metric); biz=sumBy(rs,'biz',metric);
-      }
-      agg.push({label:mm.m+'月',bp:bp,biz:biz});
-    });
-    if(!agg.length){
-      $('trendBox').innerHTML='<div style="font-size:12px;color:#9ec5f0;padding:8px">请先在顶部选择统计区间（需至少覆盖一个自然月以便按月汇总）。</div>';
+    var rows=filteredRows();
+    var dim=state.trendDim;
+    var grain=state.trendGrain;
+    var buckets=trendBuckets(f,grain,rows);
+    if(!buckets.length){
+      $('trendBox').innerHTML='<div style="font-size:12px;color:#9ec5f0;padding:8px">请先在顶部选择有效统计区间。</div>';
       return;
     }
+    var agg=buckets.map(function(b){
+      var o=bucketAgg(rows,b.bs,b.be,dim);
+      return {label:b.label,bp:o.bp,biz:o.biz,ach:o.ach};
+    });
 
-    var max=agg.reduce(function(mx,x){return Math.max(mx,x.bp,x.biz);},1);
-    var min=agg.reduce(function(mn,x){return Math.min(mn,x.bp,x.biz);},0);
-    if(min>0) min=0;
-    var w=980,h=320,left=54,right=18,top=26,bottom=34;
+    var maxL=agg.reduce(function(mx,x){return Math.max(mx,x.bp,x.biz);},1);
+    var minL=agg.reduce(function(mn,x){return Math.min(mn,x.bp,x.biz);},0);
+    if(minL>0) minL=0;
+    var maxA=100,minA=0;
+    var w=980,h=340,left=54,right=dim==='margin'?18:48,top=30,bottom=38;
     var cw=w-left-right,ch=h-top-bottom;
-    function xOf(i){return left+i*(cw/Math.max(1,agg.length-1));}
-    function yOf(v){return top+(max===min?ch/2:(max-v)/(max-min)*ch);}
-    function pts(k){return agg.map(function(x,i){return xOf(i).toFixed(1)+','+yOf(x[k]).toFixed(1);}).join(' ');}
+    function xOf(i){return agg.length<=1?left+cw/2:left+i*(cw/Math.max(1,agg.length-1));}
+    function yL(v){return top+(maxL===minL?ch/2:(maxL-v)/(maxL-minL)*ch);}
 
     var yGrid='';
-    for(var i=0;i<=4;i++){
-      var y=top+i*(ch/4), v=max-(max-min)*(i/4);
+    for(var gi=0;gi<=4;gi++){
+      var y=top+gi*(ch/4), v=maxL-(maxL-minL)*(gi/4);
       yGrid+='<line x1="'+left+'" y1="'+y.toFixed(1)+'" x2="'+(w-right)+'" y2="'+y.toFixed(1)+'" stroke="#24466f" stroke-dasharray="4 4"></line>';
-      yGrid+='<text x="'+(left-8)+'" y="'+(y+4).toFixed(1)+'" text-anchor="end" fill="#7fa7d2" font-size="11">'+(metric==='margin'?fmtPct(v):fmtMoney(v))+'</text>';
+      yGrid+='<text x="'+(left-8)+'" y="'+(y+4).toFixed(1)+'" text-anchor="end" fill="#7fa7d2" font-size="11">'+(dim==='margin'?fmtPct(v*100):(dim==='units'?String(Math.round(v)):fmtMoney(v)))+'</text>';
+    }
+    if(dim!=='margin'){
+      for(var gj=0;gj<=4;gj++){
+        var ya=top+gj*(ch/4), va=maxA-(maxA-minA)*(gj/4);
+        yGrid+='<text x="'+(w-right+4)+'" y="'+(ya+4).toFixed(1)+'" text-anchor="start" fill="#6ee7b7" font-size="10">'+fmtPct(va)+'</text>';
+      }
     }
 
-    var xLab=agg.map(function(x,i){var px=xOf(i);return '<text x="'+px.toFixed(1)+'" y="'+(h-10)+'" text-anchor="middle" fill="#8fb0d9" font-size="11">'+x.label+'</text>';}).join('');
-    function points(k,color){return agg.map(function(x,i){var px=xOf(i),py=yOf(x[k]);return '<circle cx="'+px.toFixed(1)+'" cy="'+py.toFixed(1)+'" r="3.5" fill="'+color+'"></circle>';}).join('');}
+    function pts(k){
+      if(agg.length===1){
+        var px=xOf(0), py=yL(agg[0][k]);
+        return px.toFixed(1)+','+py.toFixed(1)+' '+px.toFixed(1)+','+py.toFixed(1);
+      }
+      return agg.map(function(x,i){return xOf(i).toFixed(1)+','+yL(x[k]).toFixed(1);}).join(' ');
+    }
+    function dots(k,color){return agg.map(function(x,i){var px=xOf(i),py=yL(x[k]);return '<circle cx="'+px.toFixed(1)+'" cy="'+py.toFixed(1)+'" r="3.2" fill="'+color+'"></circle>';}).join('');}
 
+    var bars='';
+    if(dim!=='margin'){
+      var bw=cw/Math.max(1,agg.length)*0.28;
+      var yb=top+ch;
+      agg.forEach(function(x,i){
+        var px=xOf(i);
+        var hbar=ch*Math.max(0,Math.min(100,x.ach))/100;
+        var y0=yb-hbar;
+        bars+='<rect x="'+(px-bw/2).toFixed(1)+'" y="'+y0.toFixed(1)+'" width="'+bw.toFixed(1)+'" height="'+hbar.toFixed(1)+'" fill="#34d399" opacity="0.35" rx="2"></rect>';
+      });
+    }
+
+    var xLab=agg.map(function(x,i){var px=xOf(i);return '<text x="'+px.toFixed(1)+'" y="'+(h-12)+'" text-anchor="middle" fill="#8fb0d9" font-size="10">'+x.label+'</text>';}).join('');
+
+    var unitLbl=dim==='margin'?'%':(dim==='units'?'件':'USD');
     var htm='';
-    htm+='<div class="trend-head"><div style="font-size:12px;color:#9ec5f0">维度：'+METRICS[metric]+'（单位：'+(metric==='margin'?'%':'USD')+'） · 每月一点为区间内该自然月的实际与目标合计</div></div>';
-    htm+='<svg viewBox="0 0 '+w+' '+h+'" width="100%" height="320">';
+    htm+='<div class="trend-toolbar">';
+    htm+='<label>指标 <select id="trendDimSel">';
+    [['revenue','营收'],['units','销量'],['gross','毛利'],['margin','毛利率']].forEach(function(t){
+      htm+='<option value="'+t[0]+'"'+(dim===t[0]?' selected':'')+'>'+t[1]+'</option>';
+    });
+    htm+='</select></label>';
+    htm+='<label>粒度 <select id="trendGrainSel">';
+    [['day','日'],['week','周'],['month','月']].forEach(function(t){
+      htm+='<option value="'+t[0]+'"'+(grain===t[0]?' selected':'')+'>'+t[1]+'</option>';
+    });
+    htm+='</select></label>';
+    htm+='<span style="opacity:.85">单位：'+unitLbl+'；柱为达成率（目标内合计口径）</span>';
+    htm+='</div>';
+    htm+='<svg viewBox="0 0 '+w+' '+h+'" width="100%" height="'+h+'">';
     htm+=yGrid;
-    htm+='<polyline points="'+pts('bp')+'" fill="none" stroke="#60a5fa" stroke-width="3" stroke-dasharray="6 4"></polyline>';
-    htm+='<polyline points="'+pts('biz')+'" fill="none" stroke="#22d3ee" stroke-width="3"></polyline>';
-    htm+=points('bp','#60a5fa')+points('biz','#22d3ee');
-    htm+='<text x="54" y="16" fill="#60a5fa" font-size="12">BP目标</text><text x="114" y="16" fill="#22d3ee" font-size="12">业务实际</text>';
+    htm+=bars;
+    htm+='<polyline points="'+pts('bp')+'" fill="none" stroke="#60a5fa" stroke-width="2.6" stroke-dasharray="6 4"></polyline>';
+    htm+='<polyline points="'+pts('biz')+'" fill="none" stroke="#22d3ee" stroke-width="2.6"></polyline>';
+    htm+=dots('bp','#60a5fa')+dots('biz','#22d3ee');
+    htm+='<text x="54" y="18" fill="#60a5fa" font-size="11">目标</text><text x="94" y="18" fill="#22d3ee" font-size="11">实际</text>';
+    if(dim!=='margin') htm+='<text x="150" y="18" fill="#34d399" font-size="11">达成率柱</text>';
     htm+=xLab;
     htm+='</svg>';
     $('trendBox').innerHTML=htm;
+    $('trendDimSel').onchange=function(){state.trendDim=this.value||'revenue';renderTrend();};
+    $('trendGrainSel').onchange=function(){state.trendGrain=this.value||'day';renderTrend();};
   }
 
+  function topKeyOf(r){
+    if(state.topKeyType==='model') return r.model||'';
+    if(state.topKeyType==='msku') return r.msku||'';
+    return r.sku||'';
+  }
+  function sortMark(field){
+    if(state.topSort.field!==field) return '';
+    return state.topSort.dir>0?' ▲':' ▼';
+  }
   function renderTopSku(){
     var rows=filteredRows();
     var g={};
     rows.forEach(function(r){
-      var sku=r.channel+' / '+r.store+' / '+r.category;
-      if(!g[sku]) g[sku]={sku:sku,b:0,a:0};
-      g[sku].b+=r.bp.revenue; g[sku].a+=r.biz.revenue;
+      var k=topKeyOf(r);
+      if(!k) return;
+      if(!g[k]) g[k]={key:k,bpRev:0,bizRev:0,bpU:0,bizU:0,bpG:0,bizG:0};
+      g[k].bpRev+=r.bp.revenue; g[k].bizRev+=r.biz.revenue;
+      g[k].bpU+=r.bp.units; g[k].bizU+=r.biz.units;
+      g[k].bpG+=r.bp.gross; g[k].bizG+=r.biz.gross;
     });
-    var arr=Object.keys(g).map(function(k){var o=g[k]; return {sku:k,b:o.b,a:o.a,ach:o.b?o.a/o.b*100:0};});
-    arr.sort(function(x,y){return x.ach-y.ach;});
+    var arr=Object.keys(g).map(function(k){
+      var o=g[k];
+      return {
+        key:k,
+        revA:o.bizRev, revAch:o.bpRev?o.bizRev/o.bpRev*100:0,
+        qtyA:o.bizU, qtyAch:o.bpU?o.bizU/o.bpU*100:0,
+        grsA:o.bizG, grsAch:o.bpG?o.bizG/o.bpG*100:0
+      };
+    });
+    var sf=state.topSort.field, sd=state.topSort.dir;
+    arr.sort(function(a,b){
+      var av=a[sf], bv=b[sf];
+      if(av===bv) return a.key<b.key?-1:1;
+      return av<bv?-sd:sd;
+    });
     arr=arr.slice(0,10);
-    var h='<table class="top-table"><thead><tr><th>#</th><th>SKU（演示键）</th><th class="num">营收实际</th><th class="num">营收目标</th><th class="num">目标达成率</th><th>操作</th></tr></thead><tbody>';
-    arr.forEach(function(r,i){
-      h+='<tr><td>'+(i+1)+'</td><td>'+r.sku+'</td><td class="num">'+fmtMoney(r.a)+'</td><td class="num">'+fmtMoney(r.b)+'</td><td class="num">'+fmtPct(r.ach)+'</td><td><span class="top-link" role="button" tabindex="0">下钻经营分析明细看板（演示）</span></td></tr>';
+
+    var dimOpts=[{v:'sku',n:'SKU'},{v:'model',n:'MODEL'},{v:'msku',n:'MSKU'}];
+    var dimSel='<select id="topKeyTypeSel" style="height:22px;border-radius:4px;border:1px solid #355f8f;background:#11325d;color:#cfe6ff;font-size:11px">';
+    dimOpts.forEach(function(o){
+      dimSel+='<option value="'+o.v+'"'+(state.topKeyType===o.v?' selected':'')+'>'+o.n+'</option>';
     });
-    h+='</tbody></table><p style="font-size:11px;color:#8fb0d9;margin-top:8px">点击「下钻」将携带当前筛选条件与本表排序跳转「经营分析明细看板」，明细为全量数据并保持同一排序（正式版对接路由）。</p>';
+    dimSel+='</select>';
+
+    function th(field,label){
+      return '<th class="th-sort num" data-ts="'+field+'">'+label+sortMark(field)+'</th>';
+    }
+
+    var h='<table class="top-table"><thead><tr><th>#</th><th>主键 '+dimSel+'</th>';
+    h+=th('revA','实际营收')+th('revAch','营收达成率')+th('qtyA','实际销量')+th('qtyAch','销量达成率')+th('grsA','实际毛利')+th('grsAch','毛利达成率')+'<th>操作</th></tr></thead><tbody>';
+    arr.forEach(function(r,i){
+      var q='keyType='+encodeURIComponent(state.topKeyType)+'&key='+encodeURIComponent(r.key)+'&dateStart='+encodeURIComponent(currentFilter().dateStart)+'&dateEnd='+encodeURIComponent(currentFilter().dateEnd);
+      h+='<tr><td>'+(i+1)+'</td><td>'+r.key+'</td>';
+      h+='<td class="num">'+fmtMoney(r.revA)+'</td><td class="num">'+fmtPct(r.revAch)+'</td>';
+      h+='<td class="num">'+String(Math.round(r.qtyA))+'</td><td class="num">'+fmtPct(r.qtyAch)+'</td>';
+      h+='<td class="num">'+fmtMoney(r.grsA)+'</td><td class="num">'+fmtPct(r.grsAch)+'</td>';
+      h+='<td><button type="button" class="btn-view" data-href="经营分析明细看板.html?'+q+'">查看</button></td></tr>';
+    });
+    h+='</tbody></table><p style="font-size:11px;color:#8fb0d9;margin-top:8px">「查看」跳转经营分析明细看板（演示 URL 参数）；默认按营收达成率从低到高排序。</p>';
     $('topSkuBox').innerHTML=h;
+    $('topKeyTypeSel').onchange=function(){
+      state.topKeyType=this.value||'sku';
+      renderTopSku();
+    };
+    Array.prototype.forEach.call($('topSkuBox').querySelectorAll('th[data-ts]'),function(el){
+      el.onclick=function(){
+        var fd=el.getAttribute('data-ts');
+        if(state.topSort.field===fd) state.topSort.dir*=-1;
+        else{state.topSort.field=fd;state.topSort.dir=1;}
+        renderTopSku();
+      };
+    });
+    Array.prototype.forEach.call($('topSkuBox').querySelectorAll('button.btn-view'),function(btn){
+      btn.onclick=function(){window.location.href=btn.getAttribute('data-href');};
+    });
   }
 
   function renderAll(){
     updateMetaRange();
-    updateCompareBar();
+    renderStructureMetricTabs();
     renderKPI();
+    renderTrend();
     renderRegion();
     renderChannel();
     renderScene();
     renderFunnel();
-    renderTrend();
     renderTopSku();
   }
 
@@ -781,6 +1041,8 @@
       $('dateRangeMount').innerHTML='<span style="color:#f87171;font-size:12px">日期范围控件脚本未加载，请用本地静态服务打开本页或检查 ../../../规范/assets/date-range-picker.js 路径。</span>';
     }else{
       dateRangeApi=DateRangePicker.mount($('dateRangeMount'),{start:'2026-01-01',end:'2026-12-31',compact:true,zIndex:1200,onChange:function(){renderAll();}});
+      var dc=defaultCompareRangeFromMain();
+      compareRangeApi=DateRangePicker.mount($('compareRangeMount'),{start:dc.s,end:dc.e,compact:true,zIndex:1200,onChange:function(){renderAll();}});
     }
 
     setOptions('fRegion',Object.keys(REGIONS),true);
@@ -789,23 +1051,24 @@
     setOptions('fStore',Object.keys(STORES).reduce(function(a,k){return a.concat(STORES[k]);},[]),true);
     setOptions('fScene',Object.keys(SCENES),true);
     setOptions('fCategory',Object.keys(SCENES).reduce(function(a,k){return a.concat(SCENES[k]);},[]),true);
-    setMetricOptions();
-    $('fMetric').value='revenue';
 
-    ['fRegion','fCountry','fChannel','fStore','fScene','fCategory','fMetric'].forEach(function(id){
+    ['fRegion','fCountry','fChannel','fStore','fScene','fCategory'].forEach(function(id){
       $(id).addEventListener('change',function(){
         if(id==='fRegion'||id==='fChannel'||id==='fScene') updateDeps();
-        if(id==='fMetric'){state.channelDrill=null;state.regionDrill=null;state.sceneDrill=null;}
         renderAll();
       });
     });
+    if($('fSkuText')) $('fSkuText').addEventListener('input',function(){renderAll();});
 
     $('btnReset').onclick=function(){
       if(dateRangeApi) dateRangeApi.set('2026-01-01','2026-12-31');
+      var d2=defaultCompareRangeFromMain();
+      if(compareRangeApi) compareRangeApi.set(d2.s,d2.e);
       ['fRegion','fCountry','fChannel','fStore','fScene','fCategory'].forEach(function(id){$(id).value='';});
-      $('fMetric').value='revenue';
+      if($('fSkuText')) $('fSkuText').value='';
       updateDeps();
       state.expenseDrill='ad';state.channelDrill=null;state.regionDrill=null;state.sceneDrill=null;state.pieStatMode='cur';
+      state.structureMetric='revenue';state.trendDim='revenue';state.trendGrain='day';state.topKeyType='sku';state.topSort={field:'revAch',dir:1};
       renderAll();
     };
 
