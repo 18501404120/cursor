@@ -63,6 +63,7 @@
     .row-3col{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
     .structure-bundle{padding:10px 12px}
     .structure-bundle .metric-tabs{margin:0 0 10px}
+    .structure-metric-title{font-size:13px;color:#bfe1ff;font-weight:700;margin-right:12px;white-space:nowrap;align-self:center}
     .structure-cols{align-items:stretch}
     .str-panel{display:flex;flex-direction:column;min-height:0;border:1px solid var(--line);border-radius:8px;background:rgba(9,25,49,.35);padding:8px}
     .str-panel h4{margin:0 0 8px;font-size:13px;color:#bfe1ff;font-weight:700}
@@ -134,10 +135,14 @@
     .top-table tbody tr:hover{background:rgba(34,211,238,.06)}
     .top-table .num{text-align:right;font-variant-numeric:tabular-nums}
     .top-link{color:#60a5fa;cursor:pointer;text-decoration:underline}
-    .metric-tabs{display:flex;gap:4px;flex-wrap:wrap;margin:0 0 8px;padding:6px 8px;border:1px solid #2b4f7c;border-radius:8px;background:rgba(8,33,63,.45)}
+    .metric-tabs{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:0;padding:0;border:none;background:transparent;border-radius:0}
     .metric-tabs button{height:26px;padding:0 12px;border-radius:6px;border:1px solid #355f8f;background:#0e2a50;color:#9ec5f0;font-size:12px;cursor:pointer}
     .metric-tabs button.on{background:linear-gradient(180deg,#1e4a7a 0%,#153a63 100%);color:#dbeafe;border-color:#60a5fa;box-shadow:0 0 0 1px rgba(96,165,250,.35)}
-    .trend-panel .trend-toolbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:8px;font-size:12px;color:#9ec5f0}
+    .trend-toolbar{display:flex;flex-wrap:wrap;align-items:center;width:100%;margin-bottom:8px;gap:8px;font-size:12px;color:#9ec5f0}
+    .trend-toolbar__left{flex:1 1 0;min-width:0;display:flex;flex-wrap:wrap;gap:6px;justify-content:flex-start;align-items:center}
+    .trend-toolbar__mid .trend-mini-legend{display:inline-flex;flex-wrap:wrap;align-items:center;gap:12px;font-size:11px;color:#9ec5f0}
+    .trend-toolbar__right{flex:1 1 0;min-width:0;display:flex;flex-wrap:wrap;gap:10px;justify-content:flex-end;align-items:center}
+    .trend-panel .trend-toolbar{display:flex}
     .trend-panel .trend-toolbar label{display:flex;align-items:center;gap:6px}
     .th-sort{cursor:pointer;user-select:none;white-space:nowrap}
     .th-sort:hover{color:#60a5fa}
@@ -289,7 +294,7 @@
     pieStatMode:'cur',
     structureMetric:'revenue',
     trendDim:'revenue',
-    trendGrain:'day',
+    trendGrain:'month',
     topKeyType:'sku',
     topSort:{field:'revAch',dir:1}
   };
@@ -342,7 +347,7 @@
     return {s:fmtYmdLocal(pmStart),e:fmtYmdLocal(pmEnd)};
   }
   function mainDateRange(){
-    var ds='2026-01-01', de='2026-12-31';
+    var ds='2026-01-01', de='2026-01-31';
     if(dateRangeApi){var g=dateRangeApi.get(); if(g.start) ds=g.start; if(g.end) de=g.end;}
     return {dateStart:ds,dateEnd:de};
   }
@@ -419,7 +424,7 @@
 
   function renderStructureMetricTabs(){
     var tabs=[{k:'revenue',n:'营收'},{k:'gross',n:'毛利'},{k:'units',n:'销量'},{k:'margin',n:'毛利率'}];
-    $('structureMetricTabs').innerHTML=tabs.map(function(t){
+    $('structureMetricTabs').innerHTML='<span class="structure-metric-title">区域-渠道-场景层级分析</span>'+tabs.map(function(t){
       return '<button type="button" class="'+(state.structureMetric===t.k?'on':'')+'" data-sm="'+t.k+'">'+t.n+'</button>';
     }).join('');
     Array.prototype.forEach.call($('structureMetricTabs').querySelectorAll('button[data-sm]'),function(b){
@@ -879,7 +884,7 @@
         var ms=fmtYmdLocal(new Date(mm.y,mm.m-1,1)), me=fmtYmdLocal(new Date(mm.y,mm.m,0));
         var bs=f.dateStart>ms?f.dateStart:ms;
         var be=f.dateEnd<me?f.dateEnd:me;
-        out.push({label:mm.y+'-'+(mm.m<10?'0':'')+mm.m,bs:bs,be:be});
+        out.push({label:mm.m+'月',bs:bs,be:be});
       });
       return out;
     }
@@ -976,24 +981,25 @@
     var unitLbl=dim==='margin'?'%':(dim==='units'?'件':'USD');
     var dims=[['revenue','营收'],['units','销量'],['gross','毛利'],['margin','毛利率']];
     var htm='';
-    htm+='<div class="trend-toolbar" style="display:flex;flex-wrap:wrap;align-items:center;gap:12px;margin-bottom:8px">';
-    htm+='<div class="trend-legends">';
+    htm+='<div class="trend-toolbar">';
+    htm+='<div class="trend-toolbar__left"><div class="trend-legends">';
     dims.forEach(function(t){
       htm+='<button type="button" class="'+(dim===t[0]?'on':'')+'" data-trend-dim="'+t[0]+'">'+t[1]+'</button>';
     });
-    htm+='</div>';
+    htm+='</div></div>';
+    htm+='<div class="trend-toolbar__mid"><span class="trend-mini-legend">';
+    htm+='<span style="display:inline-flex;align-items:center;gap:5px"><svg width="22" height="3" aria-hidden="true"><line x1="0" y1="1.5" x2="22" y2="1.5" stroke="#fb923c" stroke-width="2" stroke-dasharray="5 4"/></svg>计划</span>';
+    htm+='<span style="display:inline-flex;align-items:center;gap:5px"><svg width="22" height="3" aria-hidden="true"><line x1="0" y1="1.5" x2="22" y2="1.5" stroke="#38bdf8" stroke-width="2.2"/></svg>实际</span>';
+    if(dim!=='margin') htm+='<span style="display:inline-flex;align-items:center;gap:5px"><span style="width:10px;height:10px;background:#14b8a6;border-radius:2px;opacity:.55"></span>达成率</span>';
+    htm+='</span></div>';
+    htm+='<div class="trend-toolbar__right">';
     htm+='<div class="grain-seg" role="group">';
     [['day','日'],['week','周'],['month','月']].forEach(function(t){
       htm+='<button type="button" class="'+(grain===t[0]?'on':'')+'" data-trend-grain="'+t[0]+'">'+t[1]+'</button>';
     });
     htm+='</div>';
-    htm+='<span class="trend-mini-legend" style="display:flex;align-items:center;gap:12px;font-size:11px;color:#9ec5f0">';
-    htm+='<span style="display:inline-flex;align-items:center;gap:5px"><svg width="22" height="3" aria-hidden="true"><line x1="0" y1="1.5" x2="22" y2="1.5" stroke="#fb923c" stroke-width="2" stroke-dasharray="5 4"/></svg>计划</span>';
-    htm+='<span style="display:inline-flex;align-items:center;gap:5px"><svg width="22" height="3" aria-hidden="true"><line x1="0" y1="1.5" x2="22" y2="1.5" stroke="#38bdf8" stroke-width="2.2"/></svg>实际</span>';
-    if(dim!=='margin') htm+='<span style="display:inline-flex;align-items:center;gap:5px"><span style="width:10px;height:10px;background:#14b8a6;border-radius:2px;opacity:.55"></span>达成率</span>';
-    htm+='</span>';
-    htm+='<span style="font-size:11px;color:#8fb0d9;margin-left:auto">单位：'+unitLbl+'</span>';
-    htm+='</div>';
+    htm+='<span style="font-size:11px;color:#8fb0d9">单位：'+unitLbl+'</span>';
+    htm+='</div></div>';
 
     htm+='<svg viewBox="0 0 '+w+' '+h+'" width="100%" height="'+h+'">';
     htm+='<defs><linearGradient id="trendAreaFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#38bdf8" stop-opacity="0.35"/><stop offset="100%" stop-color="#071429" stop-opacity="0.05"/></linearGradient></defs>';
@@ -1011,7 +1017,7 @@
       btn.onclick=function(){state.trendDim=btn.getAttribute('data-trend-dim')||'revenue';renderTrend();};
     });
     Array.prototype.forEach.call($('trendBox').querySelectorAll('[data-trend-grain]'),function(btn){
-      btn.onclick=function(){state.trendGrain=btn.getAttribute('data-trend-grain')||'day';renderTrend();};
+      btn.onclick=function(){state.trendGrain=btn.getAttribute('data-trend-grain')||'month';renderTrend();};
     });
   }
 
@@ -1110,7 +1116,7 @@
     if(!window.DateRangePicker){
       $('dateRangeMount').innerHTML='<span style="color:#f87171;font-size:12px">日期范围控件脚本未加载，请用本地静态服务打开本页或检查 ../../../规范/assets/date-range-picker.js 路径。</span>';
     }else{
-      dateRangeApi=DateRangePicker.mount($('dateRangeMount'),{start:'2026-01-01',end:'2026-12-31',compact:true,zIndex:1200,onChange:function(){renderAll();}});
+      dateRangeApi=DateRangePicker.mount($('dateRangeMount'),{start:'2026-01-01',end:'2026-01-31',compact:true,zIndex:1200,onChange:function(){renderAll();}});
       var dc=defaultCompareRangeFromMain();
       compareRangeApi=DateRangePicker.mount($('compareRangeMount'),{start:dc.s,end:dc.e,compact:true,zIndex:1200,onChange:function(){renderAll();}});
     }
