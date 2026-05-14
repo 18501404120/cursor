@@ -879,6 +879,15 @@
       font-weight: 700;
     }
 
+    .sortable-th.th-sorted {
+      background: #e8f3ff;
+      box-shadow: inset 0 -2px 0 #1677ff;
+    }
+
+    thead tr.group th:not([rowspan]) {
+      vertical-align: middle;
+    }
+
     .row-toggle {
       width: 18px;
       height: 18px;
@@ -932,22 +941,6 @@
       color: #003a8c;
     }
 
-    .filter-context-bar {
-      margin-top: 10px;
-      padding: 8px 10px;
-      background: #fafafa;
-      border: 1px solid #f0f0f0;
-      border-radius: 6px;
-      font-size: 12px;
-      color: rgba(0, 0, 0, 0.78);
-      line-height: 1.45;
-    }
-
-    .filter-context-bar .ctx-k {
-      color: rgba(0, 0, 0, 0.45);
-      margin-right: 4px;
-    }
-
     .achieve-head {
       text-align: right;
       font-size: 11px;
@@ -956,6 +949,11 @@
       white-space: nowrap;
       background: #f0f7ff;
       border-left: 1px solid #d6e4ff;
+    }
+
+    .achieve-head.th-sorted {
+      background: #d9ecff;
+      box-shadow: inset 0 -2px 0 #1677ff;
     }
 
     .achieve-cell {
@@ -1225,7 +1223,6 @@
                 </div>
               </div>
             </div>
-            <div class="filter-context-bar" id="filterContextBar" aria-live="polite"></div>
           </div>
         </section>
 
@@ -2174,25 +2171,6 @@
       return (Number(va) < Number(vb) ? -1 : 1) * dir;
     }
 
-    function updateFilterContextBar() {
-      const bar = document.getElementById("filterContextBar");
-      if (!bar) return;
-      const optText = (id) => {
-        const el = document.getElementById(id);
-        if (!el) return "—";
-        const opt = el.options[el.selectedIndex];
-        return opt && opt.text ? opt.text.trim() : "—";
-      };
-      const bits = [
-        `<span class="ctx-k">区域</span>${optText("regionFilter")}`,
-        `<span class="ctx-k">国家</span>${optText("countryFilter")}`,
-        `<span class="ctx-k">渠道</span>${optText("channelFilter")}`,
-        `<span class="ctx-k">店铺</span>${optText("storeFilter")}`,
-        `<span class="ctx-k">场景</span>${optText("sceneFilter")}`
-      ];
-      bar.innerHTML = `<strong>当前分析范围</strong>（「全部」表示未收窄该维）：${bits.join(" · ")}。明细表首行「总计」= 以上条件下的全量汇总。`;
-    }
-
     function renderTable() {
       const retailerCol = state.retailerDimension;
       const flatCols = buildFlatTableColumns();
@@ -2212,15 +2190,19 @@
         : "点击列标题排序；默认按营收达成%从高到低。首行为「总计」。未勾选零售商时按店铺+MSKU 合并。";
 
       const retailerTh = retailerCol
-        ? `<th rowspan="2" class="left-5 sticky-base sortable-th" data-sort-key="dim:retailer" scope="col">零售商${sortIconHtml("dim:retailer")}</th>`
+        ? `<th rowspan="2" class="left-5 sticky-base sortable-th${state.sortKey === "dim:retailer" ? " th-sorted" : ""}" data-sort-key="dim:retailer" scope="col">零售商${sortIconHtml("dim:retailer")}</th>`
         : "";
 
-      const thDim = (key, cls, label) =>
-        `<th rowspan="2" class="${cls} sortable-th" data-sort-key="dim:${key}" scope="col">${label}${sortIconHtml(`dim:${key}`)}</th>`;
+      const thDim = (key, cls, label) => {
+        const sk = `dim:${key}`;
+        const sortedCls = state.sortKey === sk ? " th-sorted" : "";
+        return `<th rowspan="2" class="${cls} sortable-th${sortedCls}" data-sort-key="${sk}" scope="col">${label}${sortIconHtml(sk)}</th>`;
+      };
 
       const thFlat = (col) => {
+        const sortedCls = state.sortKey === col.sortKey ? " th-sorted" : "";
         if (col.kind === "achieve") {
-          return `<th rowspan="2" class="achieve-head sortable-th" data-sort-key="${col.sortKey}" scope="col">${col.label}${sortIconHtml(col.sortKey)}</th>`;
+          return `<th class="achieve-head sortable-th${sortedCls}" data-sort-key="${col.sortKey}" scope="col">${col.label}${sortIconHtml(col.sortKey)}</th>`;
         }
         const parsed = parseCalcInfo(col.fee);
         const extra = feeColumnExtraHint(col.fee);
@@ -2231,7 +2213,7 @@
                 <span class="calc-icon" data-calc-trigger="1">i</span>
                 <div class="calc-pop">${hintParts.join("<br><br>")}</div>
               ` : "";
-        return `<th rowspan="2" class="sortable-th" data-sort-key="${col.sortKey}" scope="col"><span class="th-title">${parsed.title}${info}</span>${sortIconHtml(col.sortKey)}</th>`;
+        return `<th class="sortable-th${sortedCls}" data-sort-key="${col.sortKey}" scope="col"><span class="th-title">${parsed.title}${info}</span>${sortIconHtml(col.sortKey)}</th>`;
       };
 
       let thead = `
@@ -2243,8 +2225,8 @@
             ${thDim("sku", "left-4 sticky-base", "SKU信息")}
             ${retailerTh}
             <th colspan="${groupCount.result}">结果指标<span class="req-dot" data-req-key="table-header-rule">!</span></th>
-            <th colspan="${groupCount.revenue}">收入链路<span class="req-dot" data-req-key="table-header-rule">!</span></th>
-            <th colspan="${groupCount.cost}">成本费用链路<span class="req-dot" data-req-key="table-header-rule">!</span></th>
+            <th colspan="${groupCount.revenue}">收入链路</th>
+            <th colspan="${groupCount.cost}">成本费用链路</th>
           </tr>
           <tr class="cols">
             ${flatCols.map((c) => thFlat(c)).join("")}
@@ -2310,7 +2292,6 @@
 
     function renderAll() {
       rebuildBaseAndFinance();
-      updateFilterContextBar();
       renderTable();
     }
 
