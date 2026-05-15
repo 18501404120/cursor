@@ -225,23 +225,37 @@
       white-space: normal;
       line-height: 1.35;
       padding: 8px 6px;
+      box-sizing: border-box;
+    }
+    .data-table.pivot-table {
+      table-layout: fixed;
+      width: auto;
+    }
+    .data-table.pivot-table th.sub-h-pivot,
+    .data-table.pivot-table td.pivot-cell {
+      width: 108px;
+      min-width: 108px;
+      max-width: 108px;
+      box-sizing: border-box;
     }
     .data-table thead tr.h2 th.sub-h-pivot {
       white-space: normal;
       line-height: 1.25;
-      min-width: 96px;
-      max-width: 120px;
-      width: 96px;
+      width: 108px;
+      min-width: 108px;
+      max-width: 108px;
       font-size: 10px;
       font-weight: 600;
       color: #595959;
       text-align: center;
       vertical-align: middle;
       padding: 6px 4px;
+      box-sizing: border-box;
     }
     .data-table td.pivot-cell {
-      min-width: 96px;
-      max-width: 120px;
+      width: 108px;
+      min-width: 108px;
+      max-width: 108px;
       white-space: normal;
       text-align: right;
       vertical-align: top;
@@ -714,7 +728,7 @@
           <div class="panel-head">
             <div>
               <div class="panel-title">页面说明</div>
-              <div class="panel-sub">对比项在首列；列头两层为「SKU1/SKU2…」与各渠道。产品范围通过「分析模式」同一行的 MSKU、SKU、Model 三个多选下拉（支持搜索、多选）组合筛选；默认仅展开少量关键指标。</div>
+              <div class="panel-sub">对比项在首列；列头为「产品：xxx」+ 各渠道。点击「添加产品」在弹层内选择 Model / SKU / MSKU 任一维度检索多选；已选以标签展示可删除。</div>
             </div>
             <button type="button" class="guide-toggle" id="toggleGuide">查看页面说明</button>
           </div>
@@ -725,8 +739,8 @@
                 <span>本页为「出货授权价 / 渠道经营」视角的演示原型：默认不强调财务采购价、关税等字段；若需对齐财务明细，仍以 <a class="ref-link" href="./财务费用字段与业务字段映射维护.html">费用字段映射管理</a> 中的业务指标池为准。可选指标与顺序同源；其后可勾选 ASP、流量与转化等增补列。「当期」为主时间范围内演示绝对值；「同比」「对比」仅展示百分比，不含绝对额。渠道与店铺候选来自规范基础数据 JSON。</span>
               </div>
               <ul class="guide-list">
-                <li>MSKU / SKU / Model 三列多选：MSKU 为完整销售编码；SKU 为生产编码（前缀）；Model 为 8 位型号前缀。并集去重后生成透视表列（最多 6 列 SKU）。</li>
-                <li>「按单个生产 SKU 汇总」时，请在「SKU」维度中至少勾选一个生产编码；演示汇总行取该组第一个选中值。</li>
+                <li>「添加产品」弹层内三选一维度：MSKU（完整销售编码）、SKU（生产编码）、Model（8 位型号）。多产品对比最多 6 列；单产品对比仅保留 1 个。</li>
+                <li>单产品对比 + SKU 维度：列头展示为「产品：编码（汇总）」。</li>
                 <li>单元格主数字为当期演示值；灰字为同比与对比期涨跌（演示随机种子）。</li>
               </ul>
             </div>
@@ -734,27 +748,15 @@
 
             <div class="filter-bar-wide">
               <div class="hint-bar" id="modeHint">
-                当前为多 MSKU 并排对比。与「按单个生产 SKU 汇总」互斥；汇总模式下请在「SKU」维度选择生产编码。
+                当前为多产品对比。点击「添加产品」按 Model / SKU / MSKU 任一维度检索并加入对比列表。
               </div>
               <div class="filter-row">
-                <div class="field" style="min-width: 220px; flex: 0 0 auto">
+                <div class="field" style="min-width: 200px; flex: 0 0 auto">
                   <label>分析模式</label>
                   <div class="mode-inline" id="aggModeRow">
-                    <label><input type="radio" name="aggMode" value="msku" checked /> 多 MSKU 并排对比</label>
-                    <label><input type="radio" name="aggMode" value="prod" /> 按单个生产 SKU 汇总</label>
+                    <label><input type="radio" name="aggMode" value="multi" checked /> 多产品对比</label>
+                    <label><input type="radio" name="aggMode" value="single" /> 单产品对比</label>
                   </div>
-                </div>
-                <div class="msf-field">
-                  <label>MSKU</label>
-                  <div id="msfMsku"></div>
-                </div>
-                <div class="msf-field">
-                  <label>SKU</label>
-                  <div id="msfSkuDim"></div>
-                </div>
-                <div class="msf-field">
-                  <label>Model</label>
-                  <div id="msfModel"></div>
                 </div>
                 <div class="field">
                   <label>时间范围（当期）</label>
@@ -768,6 +770,11 @@
                     <button type="button" class="btn secondary" id="resetBtn">重置</button>
                   </div>
                 </div>
+              </div>
+              <div class="sku-strip">
+                <span class="sku-strip-label">已选产品</span>
+                <div id="productChips" class="sku-chips" aria-live="polite"></div>
+                <button type="button" class="btn secondary" id="btnOpenProductModal">添加产品</button>
               </div>
               <details class="metric-details" id="metricDetails">
                 <summary>自定义显示指标（默认少量关键项，其余勾选后展示）</summary>
@@ -786,7 +793,7 @@
           <div class="panel-head">
             <div>
               <div class="panel-title">经营对比 · 按渠道（透视表）</div>
-              <div class="panel-sub">列头两层：第一层为所选 SKU（SKU1、SKU2…），第二层为该 SKU 下的渠道列；行头为对比项。与「产品对比」在出货授权价视角下可合并入口（是否单独保留菜单由业务确认）。</div>
+              <div class="panel-sub">列头两层：第一层为「产品：xxx」，第二层为各渠道；行头为对比项。与「产品对比」在出货授权价视角下可合并入口（是否单独保留菜单由业务确认）。</div>
             </div>
           </div>
           <div class="panel-body">
@@ -796,6 +803,30 @@
       </div>
     </main>
   </div>
+
+  <div class="modal-mask" id="productModal" role="dialog" aria-modal="true" aria-labelledby="productModalTitle">
+    <div class="modal-box">
+      <div class="modal-hd">
+        <div class="ttl" id="productModalTitle">添加产品</div>
+        <button type="button" class="modal-close" id="productModalClose" aria-label="关闭">×</button>
+      </div>
+      <div class="modal-bd">
+        <div class="mode-inline" style="margin-bottom: 12px">
+          <span style="color: #8c8c8c">产品维度：</span>
+          <label><input type="radio" name="pickDim" value="msku" checked /> MSKU</label>
+          <label><input type="radio" name="pickDim" value="sku" /> SKU</label>
+          <label><input type="radio" name="pickDim" value="model" /> Model</label>
+        </div>
+        <div style="font-size: 12px; color: #8c8c8c; margin-bottom: 8px">在下方多选框中搜索并勾选（演示数据）；确认后加入「已选产品」标签区。</div>
+        <div id="modalMsfMount" style="width: 100%"></div>
+      </div>
+      <div class="modal-ft">
+        <button type="button" class="btn secondary" id="productModalCancel">取消</button>
+        <button type="button" class="btn" id="productModalApply">确认添加</button>
+      </div>
+    </div>
+  </div>
+
 
   <script>
     (function () {
@@ -891,11 +922,10 @@
 
       var MAX_COMPARE_SKU = 6;
 
-      var prodAggCode = "";
+      var selectedProducts = ["H6072-US01", "H6078-EU01"];
       var metricVisible = {};
-      var mfMsku = null;
-      var mfSkuDim = null;
-      var mfModel = null;
+      var modalMsf = null;
+      var modalDim = "msku";
 
       function initMetricVisibleMap() {
         metricVisible = {};
@@ -936,7 +966,7 @@
 
       function getAggMode() {
         var r = document.querySelector('input[name="aggMode"]:checked');
-        return r && r.value === "prod" ? "prod" : "msku";
+        return r && r.value === "single" ? "single" : "multi";
       }
 
       function getVisibleMetrics() {
@@ -948,8 +978,14 @@
         return out;
       }
 
-      function uniqPushMsku(arr, v) {
-        if (v && arr.indexOf(v) < 0) arr.push(v);
+      function getModelOpts() {
+        var out = [];
+        for (var i = 0; i < DEMO_MSKU_LIST.length; i++) {
+          var pr = (DEMO_MSKU_LIST[i].split("-")[0] || DEMO_MSKU_LIST[i]).trim();
+          if (pr && out.indexOf(pr) < 0) out.push(pr);
+        }
+        out.sort();
+        return out;
       }
 
       function expandPrefixToMskus(prefix) {
@@ -962,42 +998,46 @@
         return out;
       }
 
-      function getMergedMskuList() {
+      function uniqPush(arr, v) {
+        if (v && arr.indexOf(v) < 0) arr.push(v);
+      }
+
+      function expandDimToProducts(dim, values) {
         var out = [];
-        if (!mfMsku || !mfSkuDim || !mfModel) return out;
-        var a = mfMsku.getValues() || [];
-        for (var i = 0; i < a.length; i++) uniqPushMsku(out, a[i]);
-        var models = mfModel.getValues() || [];
-        for (var mi = 0; mi < models.length; mi++) {
-          var exp = expandPrefixToMskus(models[mi]);
-          for (var j = 0; j < exp.length; j++) uniqPushMsku(out, exp[j]);
+        var i;
+        if (dim === "msku") {
+          for (i = 0; i < values.length; i++) uniqPush(out, values[i]);
+          return out;
         }
-        var prods = mfSkuDim.getValues() || [];
-        for (var pi = 0; pi < prods.length; pi++) {
-          var exp2 = expandPrefixToMskus(prods[pi]);
-          for (var k = 0; k < exp2.length; k++) uniqPushMsku(out, exp2[k]);
+        if (dim === "sku") {
+          if (getAggMode() === "single" && values.length) {
+            return [values[0] + "（汇总）"];
+          }
+          for (i = 0; i < values.length; i++) {
+            var exp = expandPrefixToMskus(values[i]);
+            for (var j = 0; j < exp.length; j++) uniqPush(out, exp[j]);
+          }
+          return out;
         }
-        return out.slice(0, MAX_COMPARE_SKU);
+        if (dim === "model") {
+          if (getAggMode() === "single" && values.length) {
+            return [values[0] + "（汇总）"];
+          }
+          for (i = 0; i < values.length; i++) {
+            var exp2 = expandPrefixToMskus(values[i]);
+            for (var k = 0; k < exp2.length; k++) uniqPush(out, exp2[k]);
+          }
+        }
+        return out;
       }
 
-      function syncProdAggFromFilters() {
-        prodAggCode = "";
-        if (getAggMode() !== "prod" || !mfSkuDim) return;
-        var sv = mfSkuDim.getValues() || [];
-        if (sv.length) prodAggCode = sv[0];
-      }
-
-      function getDisplaySkus() {
-        syncProdAggFromFilters();
-        if (getAggMode() === "prod") {
-          if (prodAggCode) return [prodAggCode + "（生产 SKU 汇总）"];
-          return ["（请在「SKU」维度勾选一个生产编码）"];
+      function getDisplayProducts() {
+        if (getAggMode() === "single") {
+          if (selectedProducts.length) return [selectedProducts[0]];
+          return ["（请先添加产品）"];
         }
-        var merged = getMergedMskuList();
-        if (!merged.length) {
-          return ["（请在 MSKU / SKU / Model 中至少选择一项）"];
-        }
-        return merged;
+        if (!selectedProducts.length) return ["（请先添加产品）"];
+        return selectedProducts.slice(0, MAX_COMPARE_SKU);
       }
 
       function syncMetricCheckboxes() {
@@ -1033,9 +1073,45 @@
         }
         grid.innerHTML = html.join("");
         grid.onchange = function (e) {
-          var t = e.target;
-          if (!t || t.getAttribute("data-metric") == null) return;
-          metricVisible[t.getAttribute("data-metric")] = !!t.checked;
+          var tgt = e.target;
+          if (!tgt || tgt.getAttribute("data-metric") == null) return;
+          metricVisible[tgt.getAttribute("data-metric")] = !!tgt.checked;
+          apply();
+        };
+      }
+
+      function renderProductChips() {
+        var host = $("productChips");
+        if (!host) return;
+        if (!selectedProducts.length) {
+          host.innerHTML =
+            "<span style=\"font-size:12px;color:#8c8c8c\">暂无已选产品，请点击「添加产品」。</span>";
+          return;
+        }
+        var parts = [];
+        for (var i = 0; i < selectedProducts.length; i++) {
+          var s = selectedProducts[i];
+          parts.push(
+            "<span class=\"sku-chip\"><span class=\"nm\" title=\"" +
+              esc(s) +
+              "\">" +
+              esc(s) +
+              "</span><button type=\"button\" class=\"rm\" data-rm-prod=\"" +
+              esc(s) +
+              "\" aria-label=\"移除 " +
+              esc(s) +
+              "\">×</button></span>"
+          );
+        }
+        host.innerHTML = parts.join("");
+        host.onclick = function (e) {
+          var btn = e.target.closest("[data-rm-prod]");
+          if (!btn) return;
+          var val = btn.getAttribute("data-rm-prod");
+          selectedProducts = selectedProducts.filter(function (x) {
+            return x !== val;
+          });
+          renderProductChips();
           apply();
         };
       }
@@ -1044,21 +1120,102 @@
         var el = $("modeHint");
         if (!el) return;
         el.classList.remove("hint-warn");
-        if (getAggMode() === "prod") {
-          if (!prodAggCode) {
+        if (getAggMode() === "single") {
+          if (!selectedProducts.length) {
             el.textContent =
-              "已切换为「按单个生产 SKU 汇总」。请在同一行的「SKU」维度多选框中至少勾选一个生产编码（演示汇总取第一个选中项）。";
+              "当前为单产品对比。请通过「添加产品」选择 1 个产品（SKU / Model 维度可选汇总口径）。";
             el.classList.add("hint-warn");
           } else {
             el.textContent =
-              "当前为生产 SKU 汇总：下表按「" +
-              prodAggCode +
-              "」合并其下辖 MSKU。若需对比多个 MSKU，请切回「多 MSKU 并排对比」。多生产编码的深度分析请逐个切换（会议结论）。";
+              "当前为单产品对比：下表仅展示「" +
+              selectedProducts[0] +
+              "」。切换多产品对比可并排最多 " +
+              MAX_COMPARE_SKU +
+              " 个产品。";
           }
         } else {
           el.textContent =
-            "当前为多 MSKU 并排对比（参考汽车之家多车型并列）。不含财务采购价、关税视角时，可与渠道侧「产品对比」合并考虑以减少重复页面（是否保留本页需业务确认）。";
+            "当前为多产品对比（参考汽车之家多车型并列）。已选 " +
+            selectedProducts.length +
+            " 个产品，最多 " +
+            MAX_COMPARE_SKU +
+            " 个。不含财务采购价视角时，可与渠道侧「产品对比」合并考虑（是否保留本页需业务确认）。";
         }
+      }
+
+      function getModalDim() {
+        var r = document.querySelector('input[name="pickDim"]:checked');
+        return r ? r.value : "msku";
+      }
+
+      function mountModalMsf() {
+        var MSF = window.MultiSelectFilter;
+        if (!MSF || !$("modalMsfMount")) return;
+        if (modalMsf && modalMsf.destroy) modalMsf.destroy();
+        modalDim = getModalDim();
+        var opts = [];
+        var placeholder = "请选择";
+        if (modalDim === "msku") {
+          placeholder = "请选择 MSKU";
+          opts = DEMO_MSKU_LIST.map(function (x) {
+            return { value: x, label: x };
+          });
+        } else if (modalDim === "sku") {
+          placeholder = "请选择 SKU";
+          opts = DEMO_PROD_LIST.map(function (x) {
+            return { value: x, label: x };
+          });
+        } else {
+          placeholder = "请选择 Model";
+          opts = getModelOpts().map(function (x) {
+            return { value: x, label: x };
+          });
+        }
+        modalMsf = MSF.mount($("modalMsfMount"), {
+          placeholder: placeholder,
+          showSelectAll: false,
+          zIndex: 900,
+          getOptions: function () {
+            return opts;
+          },
+          initialValues: [],
+          onChange: function () {}
+        });
+      }
+
+      function openProductModal() {
+        $("productModal").classList.add("show");
+        mountModalMsf();
+      }
+
+      function closeProductModal() {
+        $("productModal").classList.remove("show");
+      }
+
+      function applyProductModal() {
+        if (!modalMsf) return;
+        var dim = getModalDim();
+        var vals = modalMsf.getValues() || [];
+        if (!vals.length) {
+          alert("请至少勾选一个产品。");
+          return;
+        }
+        var toAdd = expandDimToProducts(dim, vals);
+        if (getAggMode() === "single") {
+          selectedProducts = toAdd.slice(0, 1);
+        } else {
+          for (var i = 0; i < toAdd.length; i++) {
+            if (selectedProducts.indexOf(toAdd[i]) < 0) selectedProducts.push(toAdd[i]);
+          }
+          if (selectedProducts.length > MAX_COMPARE_SKU) {
+            selectedProducts = selectedProducts.slice(0, MAX_COMPARE_SKU);
+            alert("最多并排对比 " + MAX_COMPARE_SKU + " 个产品，已截断。");
+          }
+        }
+        closeProductModal();
+        renderProductChips();
+        updateModeHint();
+        apply();
       }
 
       function showLoadError(msg) {
@@ -1262,9 +1419,7 @@
             cls +
             '" title="' +
             esc(skuLabel) +
-            '">SKU' +
-            (si + 1) +
-            "：" +
+            '">产品：' +
             esc(skuLabel) +
             "</th>";
         }
@@ -1308,7 +1463,7 @@
           return (
             "<tbody><tr><td colspan=\"" +
             Math.max(2, totalSpan) +
-            "\">请先选择 SKU 或等待基础数据加载。</td></tr></tbody>"
+            "\">请先添加产品或等待基础数据加载。</td></tr></tbody>"
           );
         }
         var rows = [];
@@ -1344,11 +1499,11 @@
           return "<p class=\"table-empty\">请至少在「自定义显示指标」中勾选一个对比项。</p>";
         }
         var chCols = getChannelPivotColumns();
-        var displaySkus = getDisplaySkus();
+        var displaySkus = getDisplayProducts();
         var nSub = chCols.length;
         var nSku = displaySkus.length;
         return (
-          "<table class=\"data-table\">" +
+          "<table class=\"data-table pivot-table\">" +
           buildPivotColgroup(nSku, nSub) +
           buildPivotThead(displaySkus, chCols) +
           buildPivotTbody(displaySkus, chCols, function (col) {
@@ -1363,13 +1518,8 @@
       }
 
       function refreshPeriodNotes() {
-        var mode = getAggMode() === "prod" ? "生产 SKU 汇总" : "多 MSKU 并排";
-        var skuPart =
-          getAggMode() === "prod"
-            ? prodAggCode
-              ? "汇总编码：" + prodAggCode
-              : "汇总编码：未选择"
-            : "已选 MSKU：" + (getMergedMskuList().join("、") || "无");
+        var mode = getAggMode() === "single" ? "单产品对比" : "多产品对比";
+        var skuPart = "已选产品：" + (selectedProducts.join("、") || "无");
         $("metaBar").textContent =
           mode +
           " ｜ " +
@@ -1385,14 +1535,13 @@
       }
 
       function apply() {
-        syncProdAggFromFilters();
         refreshPeriodNotes();
         renderChannelBlocks();
       }
 
       function resetAll() {
-        prodAggCode = "";
-        document.querySelector('input[name="aggMode"][value="msku"]').checked = true;
+        selectedProducts = ["H6072-US01", "H6078-EU01"];
+        document.querySelector('input[name="aggMode"][value="multi"]').checked = true;
         initMetricVisibleMap();
         mainStart = "2026-02-01";
         mainEnd = "2026-04-30";
@@ -1402,68 +1551,9 @@
         if (pickerMain) pickerMain.set(mainStart, mainEnd);
         if (pickerCmp) pickerCmp.set(cmpStart, cmpEnd);
         buildMetricCheckGrid();
-        initMultiFilters();
+        renderProductChips();
         updateModeHint();
         apply();
-      }
-
-      function initMultiFilters() {
-        var MSF = window.MultiSelectFilter;
-        if (!MSF || typeof MSF.mount !== "function") return;
-        if (mfMsku && mfMsku.destroy) mfMsku.destroy();
-        if (mfSkuDim && mfSkuDim.destroy) mfSkuDim.destroy();
-        if (mfModel && mfModel.destroy) mfModel.destroy();
-        mfMsku = null;
-        mfSkuDim = null;
-        mfModel = null;
-        var modelOpts = [];
-        for (var i = 0; i < DEMO_MSKU_LIST.length; i++) {
-          var pr = (DEMO_MSKU_LIST[i].split("-")[0] || DEMO_MSKU_LIST[i]).trim();
-          if (pr && modelOpts.indexOf(pr) < 0) modelOpts.push(pr);
-        }
-        modelOpts.sort();
-        mfMsku = MSF.mount($("msfMsku"), {
-          placeholder: "请选择 MSKU",
-          showSelectAll: false,
-          zIndex: 450,
-          getOptions: function () {
-            return DEMO_MSKU_LIST.map(function (x) {
-              return { value: x, label: x };
-            });
-          },
-          initialValues: ["H6072-US01", "H6078-EU01"],
-          onChange: function () {
-            apply();
-          }
-        });
-        mfSkuDim = MSF.mount($("msfSkuDim"), {
-          placeholder: "请选择生产 SKU",
-          showSelectAll: false,
-          zIndex: 455,
-          getOptions: function () {
-            return DEMO_PROD_LIST.map(function (x) {
-              return { value: x, label: x };
-            });
-          },
-          initialValues: [],
-          onChange: function () {
-            apply();
-          }
-        });
-        mfModel = MSF.mount($("msfModel"), {
-          placeholder: "请选择 Model",
-          showSelectAll: false,
-          zIndex: 460,
-          getOptions: function () {
-            return modelOpts.map(function (x) {
-              return { value: x, label: x };
-            });
-          },
-          initialValues: [],
-          onChange: function () {
-            apply();
-          }
-        });
       }
 
       function initPickers() {
@@ -1499,12 +1589,20 @@
       $("applyBtn").addEventListener("click", apply);
       $("resetBtn").addEventListener("click", resetAll);
 
+      $("btnOpenProductModal").addEventListener("click", openProductModal);
+      $("productModalClose").addEventListener("click", closeProductModal);
+      $("productModalCancel").addEventListener("click", closeProductModal);
+      $("productModalApply").addEventListener("click", applyProductModal);
+      $("productModal").addEventListener("click", function (e) {
+        if (e.target === $("productModal")) closeProductModal();
+      });
+      document.querySelectorAll('input[name="pickDim"]').forEach(function (r) {
+        r.addEventListener("change", mountModalMsf);
+      });
       $("aggModeRow").addEventListener("change", function () {
-        if (getAggMode() === "prod") {
-          if (mfMsku) mfMsku.clear();
-          if (mfModel) mfModel.clear();
-        } else {
-          prodAggCode = "";
+        if (getAggMode() === "single" && selectedProducts.length > 1) {
+          selectedProducts = selectedProducts.slice(0, 1);
+          renderProductChips();
         }
         updateModeHint();
         apply();
@@ -1534,7 +1632,7 @@
         .then(function (ch) {
           channelData = ch;
           initPickers();
-          initMultiFilters();
+          renderProductChips();
           buildMetricCheckGrid();
           updateModeHint();
           apply();
@@ -1551,7 +1649,7 @@
             ]
           };
           initPickers();
-          initMultiFilters();
+          renderProductChips();
           buildMetricCheckGrid();
           updateModeHint();
           apply();
