@@ -26,6 +26,23 @@
 | 背景 | **不透明背景色**（与表头设计一致，如 `#fafafa`），避免滚动时与数据行叠字。 |
 | 分隔（建议） | `box-shadow: 0 1px 0 #f0f0f0` 或与边框色一致，滚动时表头与首行数据有清晰分界。 |
 | **格线可辨（必守）** | **表头** `thead th` 的外框与单元格分隔线须在浅色表头底上**肉眼清晰可辨**（禁止仅用与底色对比极弱的浅灰作为表头唯一网格线）；**多行表头**时，首行与次行间须有 **加粗（如 `2px`）或更深色** 的水平分隔，避免两行视觉融成一块。表体 `td` 可采用相对更浅的网格以减轻噪音，但不得出现「表头格线糊掉、无法判断列边界」的情况。推荐色值示例：表头线 `#94a3b8`～`#64748b`（slate 系），表体线 `#e2e8f0`～`#e5edf7`；具体与主题色对齐即可。 |
+| **全表网格（参考）** | 与「经营分析」类多列对比表一致：**整表**为连续网格——`border-collapse: collapse`（默认），每个单元格均有可见边框，横竖线贯通、无「半截线」或大块无框空白。表头区域整体使用**浅蓝灰底**（如 `#eef5ff`、`#f1f5f9`），表体行以**白底**或极浅灰为主，与表头形成分区但仍靠**格线**读列，勿仅靠留白区分。 |
+
+---
+
+## 2.1 多层级表头须无缝贴合（必守）
+
+当 `thead` 内存在 **两行及以上** 表头（分组行 + 列名行，或更多级）时，须保证 **层级之间无可见间隙**（无白条、无滚动时透出表体的「断层」）。
+
+| 项目 | 要求 |
+|------|------|
+| DOM 结构 | 所有表头行必须放在 **同一 `<thead>` 内**，按顺序连续排列多个 `<tr>`。**禁止**用多个 `<thead>`、**禁止**在表头行之间插入非表格行元素充当间距。 |
+| 行距与外边距 | **禁止**在 `thead tr` 上使用 `margin`；若表格外层用 flex/grid 包裹表格，**禁止**对 `thead`/`tr` 使用 `gap` 造成行距。 |
+| `border-spacing` | 若使用 `border-collapse: separate`（非默认），必须设 **`border-spacing: 0`**，并自行处理圆角与边框重叠；**默认仍推荐 `collapse`**。 |
+| 空行 | **禁止**用空 `<tr>` / 占位行制造「视觉呼吸缝」。 |
+| 多行 `sticky` 与「假缝隙」 | 第二行及以下表头 `th` 的 `sticky` **`top`** 必须等于 **上一行表头已渲染的累计高度**（像素级对齐）。若 `top` 小于上一行真实高度，纵向滚动时会在两行表头之间**露出表体内容**，形成假间隙。**推荐**：为首行表头设固定 **`height`/`min-height`**（或由设计稿给出），并用 **CSS 变量**（如 `--thead-level1-h`）同时赋给第二行 `th` 的 `top`。**首行若含 `rowspan>1` 的角格**，勿对其设会压扁跨行的固定 `height`；仅对本行独占的 `th`（如 `:not([rowspan])`）定高，或按实测高度调整变量。 |
+| 内边距 | 行与行之间仅靠 **共享的 `1px` 边框** 贴合；用 `padding` 控制单元格内留白即可，**不要**对相邻级 `th` 叠加 `margin-bottom` / `margin-top`。 |
+| 裁切与圆角 | 谨慎对表头 `tr`/`th` 使用 `overflow: hidden` + 大圆角，避免角部裁切造成「线不闭合」或露底；若需圆角，优先在**表格外容器**上做，且不得破坏 `thead` 行连续贴齐。 |
 
 ---
 
@@ -35,6 +52,7 @@
 - 第二行及以下：需设置 **`top` 为第一行实际高度**（或由设计稿给出像素值），保证两行均固定。  
 - 复杂表头建议与前端统一用组件（如 Ant Design Table）或单独说明每一行的 `sticky` 偏移。
 - **与「格线可辨」配合**：两行表头之间除 `sticky` 偏移外，须有 **肉眼可见** 的水平分隔（见第 2 节表格中「格线可辨」行），避免仅依赖背景色差区分两行。
+- **与 §2.1 配合**：多层级表头的 **无缝贴合** 与 **`sticky` 行高对齐** 须同时满足，见 **§2.1**。
 
 ---
 
@@ -77,13 +95,28 @@
   overflow: auto;
   max-height: min(60vh, 720px); /* 按页面留白调整 */
 }
+.table-scroll-wrap thead {
+  --thead-level1-h: 38px; /* 首行「非 rowspan」格的设计高度：须与第二行 th 的 sticky top 一致 */
+}
 .table-scroll-wrap thead th {
   position: sticky;
-  top: 0;
   z-index: 2;
   background: #fafafa;
   border: 1px solid #94a3b8; /* 表头格线须可辨，勿用过浅线 */
   box-shadow: 0 1px 0 #cbd5e1;
+}
+.table-scroll-wrap thead tr:first-child th {
+  top: 0;
+}
+/* 首行若含 rowspan=2 角格，勿对其设固定 height，仅约束本行独占的 th，避免 rowspan 被压扁 */
+.table-scroll-wrap thead tr:first-child th:not([rowspan]) {
+  min-height: var(--thead-level1-h);
+  height: var(--thead-level1-h);
+  box-sizing: border-box;
+  vertical-align: middle;
+}
+.table-scroll-wrap thead tr:nth-child(2) th {
+  top: var(--thead-level1-h); /* 须写在通用 thead th 之后，避免被 top:0 覆盖 */
 }
 .data-table th.col-action,
 .data-table td.col-action {
@@ -111,4 +144,4 @@
 
 ---
 
-*文档版本：1.2（新增：表头/多行表头格线可识别性要求）｜与 Cursor Rule `table-sticky-header` 同步维护*
+*文档版本：1.3（新增：全表网格参考、多层级表头无缝与 sticky 行高对齐）｜与 Cursor Rule `table-sticky-header` 同步维护*
