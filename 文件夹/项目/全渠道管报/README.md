@@ -14,7 +14,7 @@ python3 -m http.server 8000
 然后在浏览器打开（建议先打开入口页）：
 
 - **`http://localhost:8000/原型/index.html`**（原型目录导航，含全部 HTML 链接）
-- `http://localhost:8000/原型/全渠道管报-全渠道产品分析.html`（页面名称：**全渠道产品分析**）
+- `http://localhost:8000/原型/全渠道管报-经营分析看板.html`（页面名称：**经营分析看板**）
 - `http://localhost:8000/原型/经营分析明细.html`（页面名称：**经营分析明细**）
 - `http://localhost:8000/原型/全渠道管理报表看板.html`（页面名称：**业务经营分析看板**）
 - `http://localhost:8000/原型/全渠道管报-业务口径与前端展示方案.html`
