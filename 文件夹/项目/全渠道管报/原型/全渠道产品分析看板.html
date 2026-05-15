@@ -214,6 +214,55 @@
       font-variant-numeric: tabular-nums;
     }
     .data-table td.tri-cur { font-size: 10px; }
+    .data-table th.sku-h1 {
+      text-align: center;
+      font-size: 11px;
+      font-weight: 700;
+      background: #e6f4ff;
+      border-bottom: 1px solid #bae0ff;
+      vertical-align: middle;
+      white-space: normal;
+      line-height: 1.35;
+      padding: 8px 6px;
+    }
+    .data-table th.sku-h1.sku-start {
+      border-left: 2px solid var(--blue);
+    }
+    .data-table thead tr.h2 th.sub-h-pivot {
+      white-space: normal;
+      line-height: 1.25;
+      min-width: 96px;
+      max-width: 120px;
+      width: 96px;
+      font-size: 10px;
+      font-weight: 600;
+      color: #595959;
+      text-align: center;
+      vertical-align: middle;
+      padding: 6px 4px;
+    }
+    .data-table thead tr.h2 th.sku-boundary-left {
+      border-left: 2px solid var(--blue);
+    }
+    .data-table td.pivot-cell {
+      min-width: 96px;
+      max-width: 120px;
+      white-space: normal;
+      text-align: right;
+      vertical-align: top;
+      padding: 6px 8px;
+      font-size: 11px;
+    }
+    .pivot-cell .v-main {
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
+    }
+    .pivot-cell .v-sub {
+      font-size: 10px;
+      color: #8c8c8c;
+      margin-top: 3px;
+      line-height: 1.35;
+    }
     .data-table th:first-child,
     .data-table td:first-child {
       text-align: left;
@@ -658,7 +707,7 @@
           <div class="panel-head">
             <div>
               <div class="panel-title">页面说明</div>
-              <div class="panel-sub">顶部采用「选车式」多 SKU 条：可加入多个 MSKU 并排对照；指标按最小颗粒度逐列展示，默认仅展开少量经营关键项，其余在「自定义显示指标」中勾选。不含财务采购价视角时，可与渠道侧「产品对比」合并设计以降低重复心智（是否保留独立页需业务确认）。</div>
+              <div class="panel-sub">顶部「选车式」多 SKU 条不变；下方主表为透视结构——首列为对比项（指标），横向按 SKU1、SKU2…分组，每组第二层为各渠道（演示列名含亚马逊 / Shopify / 线下商超等）；默认仅展开少量关键指标，其余在「自定义显示指标」中勾选。</div>
             </div>
             <button type="button" class="guide-toggle" id="toggleGuide">查看页面说明</button>
           </div>
@@ -669,9 +718,9 @@
                 <span>本页为「出货授权价 / 渠道经营」视角的演示原型：默认不强调财务采购价、关税等字段；若需对齐财务明细，仍以 <a class="ref-link" href="./财务费用字段与业务字段映射维护.html">费用字段映射管理</a> 中的业务指标池为准。可选指标与顺序同源；其后可勾选 ASP、流量与转化等增补列。「当期」为主时间范围内演示绝对值；「同比」「对比」仅展示百分比，不含绝对额。渠道、店铺、区域、国家来自规范基础数据 JSON。</span>
               </div>
               <ul class="guide-list">
-                <li>多 MSKU 模式：同一树节点下按已选顺序自上而下排列多行，每行对应一个 SKU，便于纵向对照（交互参考汽车之家「选车型」多车并列）。</li>
-                <li>生产 SKU 汇总模式：在搜索面板中勾选一个生产编码（如 H6199），下钻各表按该编码汇总其下辖 MSKU；若需同时深挖多个生产编码，请逐个切换（会议结论：接受该限制）。</li>
-                <li>展开控件仅在每个树节点「第一条 SKU 行」显示；其余 SKU 行缩进对齐，共享同一展开状态。</li>
+                <li>多 MSKU 模式：主表每行一个对比指标，列方向为「SKU × 渠道」矩阵；SKU 顺序与顶部对比条一致，可增加多个 SKU（演示最多 6 个）。</li>
+                <li>生产 SKU 汇总模式：在添加面板中勾选一个生产编码（如 H6199），列头仍为多渠道，单元格为汇总口径演示值；多生产编码请逐个切换分析。</li>
+                <li>单元格主数字为当期演示值；灰字行为同比与对比期涨跌（演示随机种子，非真实接口）。</li>
               </ul>
             </div>
             <div id="dataLoadError" class="load-err" hidden></div>
@@ -722,8 +771,8 @@
         <section class="panel">
           <div class="panel-head">
             <div>
-              <div class="panel-title">经营分析 · 按渠道与店铺</div>
-              <div class="panel-sub">与「产品对比」在出货授权价视角下可合并为同一入口，减少重复页面；是否单独保留本菜单由业务确认。</div>
+              <div class="panel-title">经营对比 · 按渠道（透视表）</div>
+              <div class="panel-sub">列头两层：第一层为所选 SKU（SKU1、SKU2…），第二层为该 SKU 下的渠道列；行头为对比项。与「产品对比」在出货授权价视角下可合并入口（是否单独保留菜单由业务确认）。</div>
             </div>
           </div>
           <div class="panel-body">
@@ -734,8 +783,8 @@
         <section class="panel">
           <div class="panel-head">
             <div>
-              <div class="panel-title">经营分析 · 按区域与国家</div>
-              <div class="panel-sub">下钻口径与上方渠道表一致；生产 SKU 汇总时各区域行同样按该编码合并演示数据。</div>
+              <div class="panel-title">经营对比 · 按区域（透视表）</div>
+              <div class="panel-sub">结构同渠道表：第一层为 SKU，第二层为大区（北美区、欧洲区等）；行头仍为对比项。</div>
             </div>
           </div>
           <div class="panel-body">
@@ -846,20 +895,21 @@
         "日均流量",
         "订单",
         "T-CR",
-        "B-CR"
+        "B-CR",
+        "营收达成率"
       ];
 
       var ALL_TABLE_METRICS = BIZ_FEE_METRICS.concat(PRODUCT_ANALYSIS_EXTRA_METRICS);
 
       /** 默认仅展示的关键经营指标（其余在「自定义显示指标」中勾选） */
       var DEFAULT_VISIBLE_METRICS = [
-        "销量",
-        "净销售额",
+        "销售额",
         "营收",
+        "营收达成率",
+        "销量",
         "毛利",
         "ASP",
-        "订单",
-        "T-CR"
+        "订单"
       ];
 
       /** 演示用 MSKU 列表（实际应由检索接口返回） */
@@ -899,6 +949,7 @@
         订单销售额: "订单含税、含退款、含折扣等口径的销售额（按渠道定义）",
         净销售额: "RRP价×销售数量（含退货数量）",
         销售额: "净销售额+包装收入+运费收入",
+        营收: "业务口径下的营业收入（与数仓/管报定义一致，演示为模拟值）",
         销量: "订单销量（扣减退货）",
         毛利: "收入净额减各成本费用项后的毛利（以 Excel 取值为准）",
         ASP: "Average Selling Price，客单价（含税/口径以数仓定义为准，演示为模拟值）",
@@ -907,7 +958,8 @@
         日均流量: "主期内日均会话或日均 UV（口径以埋点/数仓定义为准）",
         订单: "主期内有效订单量（与销量、GMV 同周期对齐）",
         "T-CR": "Total Conversion Rate：订单数 ÷ Total Sessions（或业务约定口径）",
-        "B-CR": "Browser Conversion Rate：订单数 ÷ Browser Sessions（或业务约定口径）"
+        "B-CR": "Browser Conversion Rate：订单数 ÷ Browser Sessions（或业务约定口径）",
+        营收达成率: "营收相对目标或计划的达成比例（演示为随机百分比，正式环境以目标配置与数仓为准）"
       };
 
       var channelData = null;
@@ -918,8 +970,6 @@
       var cmpEnd = "2026-01-31";
       var pickerMain = null;
       var pickerCmp = null;
-      var expandedCh = {};
-      var expandedRg = {};
       var tempMskuChecked = {};
       var tempProdPicked = "";
 
@@ -939,16 +989,6 @@
           if (metricVisible[nm]) out.push(nm);
         }
         return out;
-      }
-
-      function metricIndexInAll(name) {
-        return ALL_TABLE_METRICS.indexOf(name);
-      }
-
-      function getAnchorSku() {
-        if (getAggMode() === "prod" && prodAggCode) return prodAggCode;
-        if (selectedSkus.length) return selectedSkus[0];
-        return "（未选择）";
       }
 
       function getDisplaySkus() {
@@ -1279,6 +1319,9 @@
         if (metricName === "T-CR" || metricName === "B-CR") {
           return fmtPct2(h);
         }
+        if (metricName === "营收达成率") {
+          return (68 + (h % 28)).toFixed(1) + "%";
+        }
         if (metricName.indexOf("税") >= 0 || metricName.indexOf("VAT") >= 0) {
           return fmtMoney(500 + (h % 80000) / 5);
         }
@@ -1286,38 +1329,11 @@
       }
 
       function isPtYoyCmp(metricName) {
+        if (metricName === "营收达成率") return false;
         if (metricName === "毛利") return true;
         if (metricName.indexOf("率") >= 0) return true;
         if (metricName === "T-CR" || metricName === "B-CR") return true;
         return false;
-      }
-
-      function cellsForRow(skuKey, rowKey) {
-        var metrics = getVisibleMetrics();
-        var parts = [];
-        for (var mi = 0; mi < metrics.length; mi++) {
-          var name = metrics[mi];
-          var idx = metricIndexInAll(name);
-          if (idx < 0) continue;
-          var h = hashStr(skuKey + "|" + rowKey + "|" + name);
-          var cur = formatCurrent(name, h);
-          var yoy = isPtYoyCmp(name) ? ptOnly(h + 11) : pctOnly(h + 11);
-          var cmp = isPtYoyCmp(name) ? ptOnly(h + 911) : pctOnly(h + 911);
-          parts.push(
-            "<td class=\"tri-cur\">" +
-              cur +
-              "</td><td class=\"tri-yoy " +
-              pctClass(yoy) +
-              "\">" +
-              yoy +
-              "</td><td class=\"tri-cmp " +
-              pctClass(cmp) +
-              "\">" +
-              cmp +
-              "</td>"
-          );
-        }
-        return parts.join("");
       }
 
       function esc(s) {
@@ -1327,249 +1343,220 @@
           .replace(/\"/g, "&quot;");
       }
 
-      function buildTheadHtml() {
-        var metrics = getVisibleMetrics();
-        var r1 =
-          "<tr class=\"h1\"><th rowspan=\"2\" class=\"corner-th\">SKU · 层级</th>";
-        var r2 = "<tr class=\"h2\">";
-        if (!metrics.length) {
+      /**
+       * 渠道透视列：第二层为渠道；展示名与基础数据 channel_name 对齐（亚马逊/Shopify/线下商超为业务可读别名）。
+       */
+      var CHANNEL_PIVOT_PREF = [
+        { channel_name: "Govee", colLabel: "亚马逊", subNote: "Govee" },
+        { channel_name: "独立站", colLabel: "Shopify", subNote: "独立站" },
+        { channel_name: "Offline", colLabel: "线下商超", subNote: "Offline" },
+        { channel_name: "TTS", colLabel: "TTS", subNote: "" },
+        { channel_name: "京东", colLabel: "京东", subNote: "" }
+      ];
+
+      function getChannelPivotColumns() {
+        if (!channelData || !channelData.channels) return [];
+        var byName = {};
+        channelData.channels.forEach(function (ch) {
+          byName[ch.channel_name] = true;
+        });
+        var out = [];
+        for (var i = 0; i < CHANNEL_PIVOT_PREF.length; i++) {
+          var p = CHANNEL_PIVOT_PREF[i];
+          if (byName[p.channel_name]) out.push(p);
+        }
+        if (!out.length) {
+          channelData.channels.slice(0, 5).forEach(function (ch) {
+            out.push({
+              channel_name: ch.channel_name,
+              colLabel: ch.channel_name,
+              subNote: ""
+            });
+          });
+        }
+        return out;
+      }
+
+      function getRegionPivotColumns() {
+        if (!regionData || !regionData.regions) return [];
+        var out = [];
+        for (var i = 0; i < regionData.regions.length && i < 6; i++) {
+          var rg = regionData.regions[i];
+          out.push({ key: "RG|" + rg.region_code, label: rg.region_name });
+        }
+        return out;
+      }
+
+      function pivotCellHtml(sku, subRowKey, metricName) {
+        var h = hashStr(sku + "|" + subRowKey + "|" + metricName);
+        var cur = formatCurrent(metricName, h);
+        var yoy = isPtYoyCmp(metricName) ? ptOnly(h + 11) : pctOnly(h + 11);
+        var cmp = isPtYoyCmp(metricName) ? ptOnly(h + 911) : pctOnly(h + 911);
+        return (
+          "<td class=\"pivot-cell\"><div class=\"v-main\">" +
+          esc(cur) +
+          "</div><div class=\"v-sub\">同比 " +
+          esc(yoy) +
+          " · 对比 " +
+          esc(cmp) +
+          "</div></td>"
+        );
+      }
+
+      function buildPivotColgroup(nSku, nSub) {
+        var w = 108;
+        var html = ['<colgroup><col class="col-first" style="min-width:168px" />'];
+        for (var i = 0; i < nSku * nSub; i++) {
+          html.push('<col style="width:' + w + 'px" />');
+        }
+        html.push("</colgroup>");
+        return html.join("");
+      }
+
+      function buildPivotThead(displaySkus, subCols) {
+        var nSub = subCols.length;
+        if (!displaySkus.length || !nSub) {
           return (
-            "<thead><tr class=\"h1\"><th class=\"corner-th\">SKU · 层级</th>" +
-            "<th colspan=\"3\" class=\"metric-grp\">（未选择指标）</th></tr></thead>"
+            "<thead><tr class=\"h1\"><th class=\"corner-th\">对比项</th><th>（无列）</th></tr></thead>"
           );
         }
-        for (var i = 0; i < metrics.length; i++) {
-          var nm = metrics[i];
-          var tit = BIZ_METRIC_DESC[nm] ? esc(BIZ_METRIC_DESC[nm]) : esc(nm);
-          var headInner = esc(nm);
-          if (nm === "T-CR" || nm === "B-CR") {
-            headInner =
-              esc(nm) +
+        var r1 = '<tr class="h1"><th rowspan="2" class="corner-th">对比项</th>';
+        var r2 = '<tr class="h2">';
+        for (var si = 0; si < displaySkus.length; si++) {
+          var skuLabel = displaySkus[si];
+          var cls = "sku-h1";
+          if (si > 0) cls += " sku-start";
+          r1 +=
+            '<th colspan="' +
+            nSub +
+            '" class="' +
+            cls +
+            '" title="' +
+            esc(skuLabel) +
+            '">SKU' +
+            (si + 1) +
+            "：" +
+            esc(skuLabel) +
+            "</th>";
+        }
+        r1 += "</tr>";
+        for (var si = 0; si < displaySkus.length; si++) {
+          for (var ci = 0; ci < nSub; ci++) {
+            var col = subCols[ci];
+            var tdCls = "sub-h sub-h-pivot";
+            if (ci === 0 && si > 0) tdCls += " sku-boundary-left";
+            var lab;
+            if (col.colLabel != null) {
+              lab = esc(col.colLabel);
+              if (col.subNote) {
+                lab +=
+                  "<br /><span style=\"font-size:9px;color:#8c8c8c;font-weight:400\">" +
+                  esc(col.subNote) +
+                  "</span>";
+              }
+            } else {
+              lab = esc(col.label);
+            }
+            r2 += '<th class="' + tdCls + '">' + lab + "</th>";
+          }
+        }
+        r2 += "</tr>";
+        return "<thead>" + r1 + r2 + "</thead>";
+      }
+
+      function buildPivotTbody(displaySkus, subCols, subKeyFromCol) {
+        var metrics = getVisibleMetrics();
+        var nSub = subCols.length;
+        var nSku = displaySkus.length;
+        var totalSpan = 1 + nSku * nSub;
+        if (!metrics.length) {
+          return (
+            "<tbody><tr><td colspan=\"" +
+            Math.max(2, totalSpan) +
+            "\">请至少在「自定义显示指标」中勾选一个对比项。</td></tr></tbody>"
+          );
+        }
+        if (!nSku || !nSub) {
+          return (
+            "<tbody><tr><td colspan=\"" +
+            Math.max(2, totalSpan) +
+            "\">请先选择 SKU 或等待基础数据加载。</td></tr></tbody>"
+          );
+        }
+        var rows = [];
+        for (var mi = 0; mi < metrics.length; mi++) {
+          var mname = metrics[mi];
+          var tit = BIZ_METRIC_DESC[mname] ? esc(BIZ_METRIC_DESC[mname]) : esc(mname);
+          var headInner = esc(mname);
+          if (mname === "T-CR" || mname === "B-CR" || mname === "营收达成率") {
+            headInner +=
               "<span class=\"th-help\" title=\"" +
               tit +
               "\" aria-label=\"" +
               tit +
               "\">?</span>";
           }
-          r1 += "<th colspan=\"3\" class=\"metric-grp\" title=\"" + tit + "\">" + headInner + "</th>";
-          r2 += "<th class=\"sub-h\">当期</th><th class=\"sub-h\">同比</th><th class=\"sub-h\">对比</th>";
+          var parts = ["<tr><td>" + headInner + "</td>"];
+          for (var si = 0; si < displaySkus.length; si++) {
+            var sku = displaySkus[si];
+            for (var ci = 0; ci < nSub; ci++) {
+              var subKey = subKeyFromCol(subCols[ci]);
+              parts.push(pivotCellHtml(sku, subKey, mname));
+            }
+          }
+          parts.push("</tr>");
+          rows.push(parts.join(""));
         }
-        r1 += "</tr>";
-        r2 += "</tr>";
-        return "<thead>" + r1 + r2 + "</thead>";
+        return "<tbody>" + rows.join("") + "</tbody>";
       }
 
-      function buildColgroupHtml() {
-        var metrics = getVisibleMetrics();
-        var w = 68;
-        var html = ["<colgroup><col class=\"col-first\" />"];
-        for (var i = 0; i < metrics.length; i++) {
-          html.push("<col style=\"width:" + w + "px\" />");
-          html.push("<col style=\"width:" + w + "px\" />");
-          html.push("<col style=\"width:" + w + "px\" />");
-        }
-        html.push("</colgroup>");
-        return html.join("");
-      }
-
-      function treeCellHtml(level, showToggle, toggleKey, expanded, hasKids, labelHtml) {
-        var pad = level >= 1 ? " tree-pad-1" : "";
-        var btn;
-        if (showToggle && hasKids) {
-          btn =
-            "<button type=\"button\" class=\"tree-toggle\" data-toggle=\"" +
-            esc(toggleKey) +
-            "\" aria-expanded=\"" +
-            (expanded ? "true" : "false") +
-            "\">" +
-            (expanded ? "−" : "+") +
-            "</button>";
-        } else if (showToggle) {
-          btn = "<button type=\"button\" class=\"tree-toggle\" disabled aria-hidden=\"true\">·</button>";
-        } else {
-          btn = "<span class=\"tree-spacer\" aria-hidden=\"true\"></span>";
-        }
-        return (
-          "<div class=\"tree-cell" +
-          pad +
-          "\">" +
-          btn +
-          "<span class=\"tree-label\">" +
-          labelHtml +
-          "</span></div>"
-        );
-      }
-
-      function pushMultiRows(out, displaySkus, spec) {
-        var rk = spec.rowKey;
-        for (var si = 0; si < displaySkus.length; si++) {
-          var sku = displaySkus[si];
-          var rowCls = "row-sku-" + si % 6;
-          var showToggle = spec.showToggle && si === 0;
-          var label = esc(sku) + " · " + spec.labelHtml;
-          var treeHtml = treeCellHtml(
-            spec.level,
-            showToggle,
-            spec.toggleKey || "",
-            spec.expanded,
-            spec.hasKids,
-            label
-          );
-          out.push(
-            "<tr class=\"" +
-              rowCls +
-              "\"><td>" +
-              treeHtml +
-              "</td>" +
-              cellsForRow(sku, rk) +
-              "</tr>"
-          );
-        }
-      }
-
-      function renderChannelTableHtml() {
+      function renderChannelPivotHtml() {
         if (!channelData || !channelData.channels) return "<p class=\"table-empty\">无渠道数据</p>";
-        var metrics = getVisibleMetrics();
-        if (!metrics.length) {
-          return "<p class=\"table-empty\">请至少在「自定义显示指标」中勾选一个指标列。</p>";
+        if (!getVisibleMetrics().length) {
+          return "<p class=\"table-empty\">请至少在「自定义显示指标」中勾选一个对比项。</p>";
         }
+        var chCols = getChannelPivotColumns();
         var displaySkus = getDisplaySkus();
-        var anchor = getAnchorSku();
-        var out = [];
-        pushMultiRows(out, displaySkus, {
-          rowKey: "CH|TOTAL",
-          level: 0,
-          labelHtml: "总渠道汇总",
-          showToggle: false,
-          hasKids: false,
-          expanded: false,
-          toggleKey: ""
-        });
-        channelData.channels.forEach(function (ch) {
-          var ck = anchor + "|CH|" + ch.channel_name;
-          var stores = ch.stores || [];
-          var hasKids = stores.length > 0;
-          var exp = !!expandedCh[ck];
-          pushMultiRows(out, displaySkus, {
-            rowKey: "CH|" + ch.channel_name,
-            level: 0,
-            labelHtml: esc(ch.channel_name) + "（渠道汇总）",
-            showToggle: true,
-            toggleKey: ck,
-            hasKids: hasKids,
-            expanded: exp
-          });
-          if (hasKids && exp) {
-            stores.forEach(function (st) {
-              pushMultiRows(out, displaySkus, {
-                rowKey: "ST|" + ch.channel_name + "|" + st,
-                level: 1,
-                labelHtml: esc(st) + "（店铺）",
-                showToggle: false,
-                hasKids: false,
-                expanded: false,
-                toggleKey: ""
-              });
-            });
-          }
-        });
+        var nSub = chCols.length;
+        var nSku = displaySkus.length;
         return (
           "<table class=\"data-table\">" +
-          buildColgroupHtml() +
-          buildTheadHtml() +
-          "<tbody>" +
-          out.join("") +
-          "</tbody></table>"
+          buildPivotColgroup(nSku, nSub) +
+          buildPivotThead(displaySkus, chCols) +
+          buildPivotTbody(displaySkus, chCols, function (col) {
+            return "CH|" + col.channel_name;
+          }) +
+          "</table>"
         );
       }
 
-      function renderRegionTableHtml() {
+      function renderRegionPivotHtml() {
         if (!regionData || !regionData.regions) return "<p class=\"table-empty\">无区域数据</p>";
-        var metrics = getVisibleMetrics();
-        if (!metrics.length) {
-          return "<p class=\"table-empty\">请至少在「自定义显示指标」中勾选一个指标列。</p>";
+        if (!getVisibleMetrics().length) {
+          return "<p class=\"table-empty\">请至少在「自定义显示指标」中勾选一个对比项。</p>";
         }
+        var rgCols = getRegionPivotColumns();
         var displaySkus = getDisplaySkus();
-        var anchor = getAnchorSku();
-        var out = [];
-        pushMultiRows(out, displaySkus, {
-          rowKey: "RG|TOTAL",
-          level: 0,
-          labelHtml: "全区域汇总",
-          showToggle: false,
-          hasKids: false,
-          expanded: false,
-          toggleKey: ""
-        });
-        regionData.regions.forEach(function (rg) {
-          var rk = anchor + "|RG|" + rg.region_code;
-          var countries = rg.countries || [];
-          var hasKids = countries.length > 0;
-          var exp = !!expandedRg[rk];
-          pushMultiRows(out, displaySkus, {
-            rowKey: "RG|" + rg.region_code,
-            level: 0,
-            labelHtml: esc(rg.region_name) + "（区域汇总）",
-            showToggle: true,
-            toggleKey: rk,
-            hasKids: hasKids,
-            expanded: exp
-          });
-          if (hasKids && exp) {
-            countries.forEach(function (c) {
-              pushMultiRows(out, displaySkus, {
-                rowKey: "CT|" + rg.region_code + "|" + c.country_code,
-                level: 1,
-                labelHtml: esc(c.country_name) + "（" + esc(c.country_code) + "）",
-                showToggle: false,
-                hasKids: false,
-                expanded: false,
-                toggleKey: ""
-              });
-            });
-          }
-        });
+        var nSub = rgCols.length;
+        var nSku = displaySkus.length;
         return (
           "<table class=\"data-table\">" +
-          buildColgroupHtml() +
-          buildTheadHtml() +
-          "<tbody>" +
-          out.join("") +
-          "</tbody></table>"
+          buildPivotColgroup(nSku, nSub) +
+          buildPivotThead(displaySkus, rgCols) +
+          buildPivotTbody(displaySkus, rgCols, function (col) {
+            return col.key;
+          }) +
+          "</table>"
         );
-      }
-
-      function bindTree(containerId, kind) {
-        var root = $(containerId);
-        if (!root) return;
-        root.onclick = function (e) {
-          var btn = e.target.closest(".tree-toggle[data-toggle]");
-          if (!btn || btn.disabled) return;
-          var key = btn.getAttribute("data-toggle");
-          if (kind === "ch") {
-            if (expandedCh[key]) delete expandedCh[key];
-            else expandedCh[key] = true;
-            $("channelBlocks").innerHTML = renderChannelTableHtml();
-            bindTree("channelBlocks", "ch");
-          } else {
-            if (expandedRg[key]) delete expandedRg[key];
-            else expandedRg[key] = true;
-            $("regionBlocks").innerHTML = renderRegionTableHtml();
-            bindTree("regionBlocks", "rg");
-          }
-        };
       }
 
       function renderChannelBlocks() {
-        $("channelBlocks").innerHTML = renderChannelTableHtml();
-        bindTree("channelBlocks", "ch");
+        $("channelBlocks").innerHTML = renderChannelPivotHtml();
       }
 
       function renderRegionBlocks() {
-        $("regionBlocks").innerHTML = renderRegionTableHtml();
-        bindTree("regionBlocks", "rg");
+        $("regionBlocks").innerHTML = renderRegionPivotHtml();
       }
-
       function refreshPeriodNotes() {
         var mode = getAggMode() === "prod" ? "生产 SKU 汇总" : "多 MSKU 并排";
         var skuPart =
@@ -1608,8 +1595,6 @@
         var m = momRange(mainStart, mainEnd);
         cmpStart = m.start;
         cmpEnd = m.end;
-        expandedCh = {};
-        expandedRg = {};
         if (pickerMain) pickerMain.set(mainStart, mainEnd);
         if (pickerCmp) pickerCmp.set(cmpStart, cmpEnd);
         buildMetricCheckGrid();
