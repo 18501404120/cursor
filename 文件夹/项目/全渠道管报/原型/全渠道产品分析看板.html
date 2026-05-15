@@ -18,8 +18,9 @@
       --shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
       --head-bg: #fafafa;
       --thead-h1: 40px;
-      --thead-h2: 44px;
-      --thead-h3: 36px;
+      --thead-h2: 40px;
+      --thead-h3: 34px;
+      --pivot-tri-col: 128px;
     }
     * { box-sizing: border-box; }
     html, body { height: 100%; }
@@ -208,34 +209,68 @@
     .data-table td.tri-cur,
     .data-table td.tri-yoy,
     .data-table td.tri-cmp {
-      width: 82px;
-      min-width: 82px;
-      max-width: 82px;
+      width: var(--pivot-tri-col);
+      min-width: var(--pivot-tri-col);
+      max-width: var(--pivot-tri-col);
       box-sizing: border-box;
-      text-align: center;
-      padding: 5px 4px;
+      padding: 5px 6px;
       font-variant-numeric: tabular-nums;
-      white-space: normal;
+      white-space: nowrap;
       vertical-align: middle;
-      line-height: 1.35;
+      line-height: 1.25;
       font-size: 10px;
+      overflow: hidden;
     }
     .data-table td.tri-cur {
       font-weight: 600;
       font-size: 11px;
+      text-align: left;
+    }
+    .data-table td.tri-cur .tri-cur-inner {
+      text-align: left;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .data-table td.tri-yoy .tri-split,
+    .data-table td.tri-cmp .tri-split {
+      display: flex;
+      flex-direction: row;
+      justify-content: space-between;
+      align-items: center;
+      gap: 6px;
+      width: 100%;
+      min-width: 0;
+      white-space: nowrap;
+    }
+    .data-table td.tri-yoy .tri-val,
+    .data-table td.tri-cmp .tri-val {
+      flex: 1 1 auto;
+      min-width: 0;
+      text-align: left;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .data-table td.tri-yoy .tri-rate,
+    .data-table td.tri-cmp .tri-rate {
+      flex: 0 0 auto;
+      text-align: right;
+      white-space: nowrap;
+      font-weight: 600;
     }
     .data-table th.sub-h-tri {
-      width: 82px;
-      min-width: 82px;
-      max-width: 82px;
+      width: var(--pivot-tri-col);
+      min-width: var(--pivot-tri-col);
+      max-width: var(--pivot-tri-col);
       font-size: 10px;
       font-weight: 600;
       color: #595959;
       text-align: center;
       vertical-align: middle;
-      padding: 5px 3px;
+      padding: 5px 4px;
       box-sizing: border-box;
       background: #f5f7fa;
+      white-space: nowrap;
     }
     .data-table th.sub-h-ch {
       font-size: 10px;
@@ -243,10 +278,17 @@
       color: #434343;
       text-align: center;
       vertical-align: middle;
-      padding: 6px 4px;
+      padding: 5px 4px;
       background: #eef2f8;
-      white-space: normal;
-      line-height: 1.25;
+      white-space: nowrap;
+      line-height: 1.2;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .data-table th.sub-h-ch .ch-sub {
+      font-size: 9px;
+      color: #8c8c8c;
+      font-weight: 400;
     }
     .data-table th.sku-h1 {
       text-align: center;
@@ -255,10 +297,14 @@
       background: var(--head-bg);
       border-bottom: 1px solid #f0f0f0;
       vertical-align: middle;
-      white-space: normal;
-      line-height: 1.35;
-      padding: 8px 6px;
+      white-space: nowrap;
+      line-height: 1.25;
+      padding: 6px 6px;
       box-sizing: border-box;
+      height: var(--thead-h1);
+      min-height: var(--thead-h1);
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
     .data-table.pivot-table {
       table-layout: fixed;
@@ -276,30 +322,39 @@
     .data-table thead tr.h1 th {
       position: sticky;
       top: 0;
-      z-index: 4;
+      z-index: 5;
       background: var(--head-bg);
       box-shadow: 0 1px 0 #f0f0f0;
     }
     .data-table thead tr.h1 th.corner-th {
-      z-index: 6;
+      z-index: 7;
       vertical-align: middle;
       font-size: 12px;
       max-width: none;
       white-space: nowrap;
+      line-height: 1.2;
+      padding: 6px 8px;
+      box-sizing: border-box;
     }
     .data-table thead tr.h2 th {
       position: sticky;
       top: var(--thead-h1);
-      z-index: 4;
+      z-index: 5;
       background: #eef2f8;
       box-shadow: 0 1px 0 #f0f0f0;
+      height: var(--thead-h2);
+      min-height: var(--thead-h2);
+      box-sizing: border-box;
     }
     .data-table thead tr.h3 th {
       position: sticky;
       top: calc(var(--thead-h1) + var(--thead-h2));
-      z-index: 4;
+      z-index: 5;
       background: #f5f7fa;
       box-shadow: 0 1px 0 #f0f0f0;
+      height: var(--thead-h3);
+      min-height: var(--thead-h3);
+      box-sizing: border-box;
     }
     .data-table tbody td:first-child { background: #fff; }
     .data-table tbody tr.row-target td:first-child { background: #f0f9ff; }
@@ -1306,25 +1361,29 @@
         var clsY = pctClass(yoyRate);
         var clsC = pctClass(cmpRate);
         return (
-          "<td class=\"tri-cur\">" +
+          "<td class=\"tri-cur\"><div class=\"tri-cur-inner\">" +
           esc(cur) +
-          "</td><td class=\"tri-yoy\">" +
+          "</div></td><td class=\"tri-yoy\"><div class=\"tri-split\">" +
+          "<span class=\"tri-val\">" +
           esc(yoyVal) +
-          " " +
-          (clsY ? "<span class=\"" + esc(clsY) + "\">" : "<span>") +
+          "</span><span class=\"tri-rate" +
+          (clsY ? " " + esc(clsY) : "") +
+          "\">" +
           esc(yoyRate) +
-          "</span></td><td class=\"tri-cmp\">" +
+          "</span></div></td><td class=\"tri-cmp\"><div class=\"tri-split\">" +
+          "<span class=\"tri-val\">" +
           esc(cmpVal) +
-          " " +
-          (clsC ? "<span class=\"" + esc(clsC) + "\">" : "<span>") +
+          "</span><span class=\"tri-rate" +
+          (clsC ? " " + esc(clsC) : "") +
+          "\">" +
           esc(cmpRate) +
-          "</span></td>"
+          "</span></div></td>"
         );
       }
 
       function buildPivotColgroup(nSku, nCh, colsPerCh) {
         colsPerCh = colsPerCh || PIVOT_SUB_COLS;
-        var w = 82;
+        var w = 128;
         var html = ['<colgroup><col class="col-first" style="min-width:168px" />'];
         for (var i = 0; i < nSku * nCh * colsPerCh; i++) {
           html.push('<col style="width:' + w + 'px" />');
@@ -1364,7 +1423,7 @@
               lab = esc(col.colLabel);
               if (col.subNote) {
                 lab +=
-                  "<br /><span style=\"font-size:9px;color:#8c8c8c;font-weight:400\">" +
+                  "<span class=\"ch-sub\"> · " +
                   esc(col.subNote) +
                   "</span>";
               }
