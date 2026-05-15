@@ -467,6 +467,13 @@
     .filter-row-actions #resetBtn {
       flex-shrink: 0;
     }
+    .field-channel-msf .channel-msf-root {
+      min-width: 220px;
+      max-width: 320px;
+    }
+    .filter-row-actions .field.field-channel-msf {
+      flex-shrink: 0;
+    }
     .msf-field {
       min-width: 200px;
       max-width: 260px;
@@ -776,6 +783,10 @@
                 <span class="sku-strip-label">已选产品</span>
                 <div id="productChips" class="sku-chips" aria-live="polite"></div>
                 <button type="button" class="btn secondary" id="btnOpenProductModal">添加产品</button>
+                <div class="field field-channel-msf">
+                  <label>渠道</label>
+                  <div id="channelMsfMount" class="channel-msf-root"></div>
+                </div>
                 <div class="field">
                   <label>时间范围（当期）</label>
                   <div id="dateMainMount" class="date-mount"></div>
@@ -939,7 +950,7 @@
       }
 
       /** 与透视表渠道列种子一致，用于演示默认「达成率最低」的 MSKU */
-      var ACH_DEMO_CHANNEL_KEYS = ["Govee", "独立站", "Offline", "线下分销", "TTS", "京东"];
+      var ACH_DEMO_CHANNEL_KEYS = ["Govee", "独立站", "APP商城", "Offline", "线下分销", "TTS", "京东"];
 
       function worstDemoAchievementRatePct(msku) {
         var minR = 999;
@@ -972,6 +983,7 @@
       var metricVisible = {};
       var modalMsf = null;
       var modalDim = "msku";
+      var channelMsf = null;
 
       function initMetricVisibleMap() {
         metricVisible = {};
@@ -999,6 +1011,9 @@
       };
 
       var channelData = null;
+      /** 透视表渠道多选默认值（channel_name，须与 CHANNEL_PIVOT_PREF 及基础数据一致） */
+      var CHANNEL_FILTER_DEFAULT_NAMES = ["Govee", "独立站", "APP商城", "Offline"];
+      var selectedChannelNames = CHANNEL_FILTER_DEFAULT_NAMES.slice();
       var mainStart = "2026-02-01";
       var mainEnd = "2026-04-30";
       var cmpStart = "2025-11-01";
@@ -1187,6 +1202,27 @@
         });
       }
 
+      function mountChannelMsf() {
+        var MSF = window.MultiSelectFilter;
+        var mountEl = $("channelMsfMount");
+        if (!MSF || !mountEl || !channelData) return;
+        if (channelMsf && channelMsf.destroy) channelMsf.destroy();
+        selectedChannelNames = filterValidChannelNames(selectedChannelNames).slice();
+        channelMsf = MSF.mount(mountEl, {
+          placeholder: "请选择渠道",
+          showSelectAll: true,
+          zIndex: 380,
+          getOptions: function () {
+            return getChannelOptionsForFilter();
+          },
+          initialValues: selectedChannelNames.slice(),
+          onChange: function (vals) {
+            selectedChannelNames = vals && vals.length ? vals.slice() : [];
+            apply();
+          }
+        });
+      }
+
       function openProductModal() {
         $("productModal").classList.add("show");
         mountModalMsf();
@@ -1338,11 +1374,44 @@
       var CHANNEL_PIVOT_PREF = [
         { channel_name: "Govee", colLabel: "亚马逊", subNote: "Govee" },
         { channel_name: "独立站", colLabel: "Shopify", subNote: "独立站" },
+        { channel_name: "APP商城", colLabel: "APP商城", subNote: "" },
         { channel_name: "Offline", colLabel: "线下商超", subNote: "Offline" },
         { channel_name: "线下分销", colLabel: "线下分销", subNote: "" },
         { channel_name: "TTS", colLabel: "TTS", subNote: "" },
         { channel_name: "京东", colLabel: "京东", subNote: "" }
       ];
+
+      function getChannelOptionsForFilter() {
+        if (!channelData || !channelData.channels) return [];
+        var byName = {};
+        channelData.channels.forEach(function (ch) {
+          byName[ch.channel_name] = true;
+        });
+        var opts = [];
+        for (var i = 0; i < CHANNEL_PIVOT_PREF.length; i++) {
+          var p = CHANNEL_PIVOT_PREF[i];
+          if (!byName[p.channel_name]) continue;
+          opts.push({
+            value: p.channel_name,
+            label: p.colLabel + (p.subNote ? " · " + p.subNote : "")
+          });
+        }
+        return opts;
+      }
+
+      function filterValidChannelNames(names) {
+        var opts = getChannelOptionsForFilter();
+        var valid = opts.map(function (o) {
+          return o.value;
+        });
+        var v = (names || []).filter(function (n) {
+          return valid.indexOf(n) >= 0;
+        });
+        if (v.length) return v;
+        return CHANNEL_FILTER_DEFAULT_NAMES.filter(function (n) {
+          return valid.indexOf(n) >= 0;
+        });
+      }
 
       function getChannelPivotColumns() {
         if (!channelData || !channelData.channels) return [];
@@ -1353,16 +1422,9 @@
         var out = [];
         for (var i = 0; i < CHANNEL_PIVOT_PREF.length; i++) {
           var p = CHANNEL_PIVOT_PREF[i];
-          if (byName[p.channel_name]) out.push(p);
-        }
-        if (!out.length) {
-          channelData.channels.slice(0, 8).forEach(function (ch) {
-            out.push({
-              channel_name: ch.channel_name,
-              colLabel: ch.channel_name,
-              subNote: ""
-            });
-          });
+          if (!byName[p.channel_name]) continue;
+          if (selectedChannelNames.indexOf(p.channel_name) < 0) continue;
+          out.push(p);
         }
         return out;
       }
@@ -1524,6 +1586,9 @@
           return "<p class=\"table-empty\">请至少在「自定义显示指标」中勾选一个对比项。</p>";
         }
         var chCols = getChannelPivotColumns();
+        if (!chCols.length) {
+          return "<p class=\"table-empty\">请在「渠道」中至少勾选一个渠道；若已全部取消，表格将不展示渠道列。</p>";
+        }
         var displaySkus = getDisplayProducts();
         var nCh = chCols.length;
         var nSku = displaySkus.length;
@@ -1600,6 +1665,10 @@
         cmpEnd = m.end;
         if (pickerMain) pickerMain.set(mainStart, mainEnd);
         if (pickerCmp) pickerCmp.set(cmpStart, cmpEnd);
+        selectedChannelNames = filterValidChannelNames(CHANNEL_FILTER_DEFAULT_NAMES.slice()).slice();
+        if (channelMsf && channelMsf.setValues) {
+          channelMsf.setValues(selectedChannelNames.slice());
+        }
         buildMetricCheckGrid();
         renderProductChips();
         apply();
@@ -1669,6 +1738,7 @@
         .then(function (ch) {
           channelData = ch;
           initPickers();
+          mountChannelMsf();
           renderProductChips();
           buildMetricCheckGrid();
           apply();
@@ -1682,6 +1752,7 @@
             channels: [
               { channel_name: "Govee", stores: ["Govee_US", "Govee_DE"] },
               { channel_name: "独立站", stores: ["独立站-US", "独立站-EU"] },
+              { channel_name: "APP商城", stores: ["APP-US"] },
               { channel_name: "Offline", stores: ["Offline-US"] },
               { channel_name: "线下分销", stores: ["分销-华东"] },
               { channel_name: "TTS", stores: ["TTS-US"] },
@@ -1689,6 +1760,7 @@
             ]
           };
           initPickers();
+          mountChannelMsf();
           renderProductChips();
           buildMetricCheckGrid();
           apply();
