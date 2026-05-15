@@ -675,7 +675,7 @@
 
     table {
       border-collapse: collapse;
-      min-width: 4200px;
+      min-width: 4480px;
       width: 100%;
     }
 
@@ -910,6 +910,37 @@
       white-space: nowrap;
     }
 
+    #detailTable thead tr.cols th.sortable-th {
+      min-width: 152px;
+      box-sizing: border-box;
+      vertical-align: top;
+    }
+
+    #detailTable thead tr.cols th.achieve-head {
+      min-width: 112px;
+      box-sizing: border-box;
+    }
+
+    .th-metric-head {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 8px;
+      min-width: 0;
+    }
+
+    .th-metric-head .th-title {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .th-metric-head .sort-ic {
+      flex-shrink: 0;
+      margin-left: 0;
+      line-height: 1.25;
+      padding-top: 1px;
+    }
+
     .sortable-th .sort-ic {
       margin-left: 4px;
       font-size: 11px;
@@ -1082,7 +1113,7 @@
       white-space: normal;
     }
 
-    .calc-icon {
+    button.calc-icon {
       width: 16px;
       height: 16px;
       border-radius: 50%;
@@ -1091,21 +1122,28 @@
       color: #1d4ed8;
       font-size: 11px;
       font-weight: 700;
+      font-family: inherit;
       display: inline-flex;
       align-items: center;
       justify-content: center;
       cursor: pointer;
       user-select: none;
       flex-shrink: 0;
+      padding: 0;
+      line-height: 1;
+      vertical-align: middle;
     }
 
-    .calc-pop {
+    button.calc-icon:hover {
+      border-color: #1677ff;
+      background: #e0efff;
+    }
+
+    .calc-pop-external {
       display: none;
-      position: absolute;
-      left: 50%;
-      top: 30px;
-      transform: translateX(-50%);
-      width: 280px;
+      position: fixed;
+      z-index: 10050;
+      width: min(320px, calc(100vw - 24px));
       border: 1px solid #bfd7ff;
       border-radius: 8px;
       background: #ffffff;
@@ -1114,13 +1152,23 @@
       padding: 10px 12px;
       font-size: 12px;
       color: #334155;
-      z-index: 20;
       white-space: normal;
       line-height: 1.5;
     }
 
-    .calc-pop.show {
+    .calc-pop-external.show {
       display: block;
+    }
+
+    #detailTable tbody td.metric-col:not(.achieve-cell) {
+      min-width: 152px;
+      box-sizing: border-box;
+      white-space: normal;
+    }
+
+    #detailTable tbody td.metric-col.achieve-cell {
+      min-width: 112px;
+      box-sizing: border-box;
     }
 
     .req-dot {
@@ -1297,8 +1345,12 @@
     </main>
   </div>
   <div class="req-popover" id="reqPopover"></div>
+  <div class="calc-pop-external" id="calcPopover" role="tooltip"></div>
 
   <script>
+    /** 底表「销售额」计算列（括号内占比为 100% 的基准列） */
+    const SALES_AMOUNT_FEE = "销售额（计算值=净销售额+包装收入+运费收入）";
+
     const feeColumns = [
       "订单销售额",
       "净销售额",
@@ -1380,6 +1432,8 @@
     };
 
     function revenueRatioBase(values) {
+      const sales = values[SALES_AMOUNT_FEE];
+      if (sales !== null && sales !== undefined && Math.abs(Number(sales)) > 1e-9) return Number(sales);
       const r = values["营收"];
       if (r !== null && r !== undefined && Math.abs(Number(r)) > 1e-9) return Number(r);
       const alt = values["收入净额（计算值=销售净额-销售税/VAT）"];
@@ -1405,6 +1459,15 @@
         return "以订单成交金额视角为口径，仅提供与财务的销售额进行核对，在业务管理报表中不参与计算";
       }
       return "";
+    }
+
+    function feeCalcHintHtml(fee) {
+      const parsed = parseCalcInfo(fee);
+      const extra = feeColumnExtraHint(fee);
+      const parts = [];
+      if (parsed.calc) parts.push(parsed.calc);
+      if (extra) parts.push(extra);
+      return parts.join("<br><br>");
     }
 
     function round2(value) {
@@ -1719,7 +1782,6 @@
       "销量",
       "营收",
       "毛利",
-      "净销售额",
       "运费收入",
       "包装收入",
       "销售额（计算值=净销售额+包装收入+运费收入）",
@@ -1812,6 +1874,7 @@
     const detailTable = document.getElementById("detailTable");
     const tableDesc = document.getElementById("tableDesc");
     const reqPopover = document.getElementById("reqPopover");
+    const calcPopover = document.getElementById("calcPopover");
     const exportBtn = document.getElementById("exportBtn");
     const exportMenu = document.getElementById("exportMenu");
     const regionFilter = document.getElementById("regionFilter");
@@ -1863,7 +1926,7 @@
       "table-detail-overview": `渠道经营明细表（本页仅保留筛选 + 本表）：<br>
 1. <strong>首行「总计」</strong>为当前筛选下全量汇总，不参与排序，始终置顶。<br>
 2. <strong>结果指标</strong>内顺序为：销量、销量达成%、营收、营收达成%、毛利、毛利达成%；达成列为<strong>原型演示数</strong>，用于排序对比。<br>
-3. 其余列为收入链路 / 成本费用链路费用项；<strong>已移除「订单销售额」列</strong>；各数值列与达成列均支持<strong>点击表头排序</strong>（默认按营收达成%降序）。<br>
+3. 其余列为收入链路 / 成本费用链路费用项；<strong>已移除「订单销售额」列</strong>；各数值列与达成列均支持<strong>点击表头排序</strong>（默认按营收达成%降序）。括号内占比以<strong>销售额</strong>为 100% 分母。<br>
 4. 本页不再展示财务维度展开行与业务−财务对照行（若需对账请在财务系统或专项页查看）。<br>
 5. <strong>零售商维度</strong>：勾选后按店铺+MSKU+零售商拆行；未勾选按店铺+MSKU 合并。`,
       "retailer-dimension": `零售商维度（全页共用）：<br>
@@ -1878,7 +1941,7 @@
 4. 有选择时：过滤零售商名称命中项；零售商为空的行（其他渠道）<strong>始终展示</strong>。`,
       "table-finance-dimension": `<strong>财务维度行：两套取数 + 映射填数</strong><br>
 1. <strong>独立链路</strong>：业务主行与财务维度行分别走业务系统、财务系统，数据源与加工逻辑不同。<br>
-2. <strong>按映射填格</strong>：每个业务列表头对应一项业务指标。若映射为「业务销售额 ↔ 财务销售额」，则该列财务维度格为<strong>财务系统</strong>销售额汇总；若映射为「业务 A ↔ 财务 B + C（及允许的减项）」，则该格为财务系统中 B、C 等按配置运算后的汇总。<br>
+2. <strong>按映射填格</strong>：每个业务列表头对应一项业务指标。若映射为「销售额 ↔ 财务销售额」，则该列财务维度格为<strong>财务系统</strong>销售额汇总；若映射为「业务 A ↔ 财务 B + C（及允许的减项）」，则该格为财务系统中 B、C 等按配置运算后的汇总。<br>
 3. <strong>无映射则空</strong>：某业务列未配置任何「业务→财务」映射时，<strong>财务维度</strong>在该列下为<strong>空</strong>（不默认沿用业务主行值）。<br><br>
 <strong>时间粒度与预估（财务常为整月）</strong><br>
 1. 财务侧多为<strong>整月关账</strong>粒度，非逐日即席。<br>
@@ -1894,8 +1957,8 @@
 1. 列分组及命名需与管报 Excel 方案一致（渠道版「出货授权成本」为打包展示）。<br>
 2. 「结果指标」内含销量、销量达成%、营收、营收达成%、毛利、毛利达成%（达成列为原型演示）。<br>
 3. 各列表头可点击排序；带「（计算值=…）」类列的口径说明在表头「i」浮层中。<br>
-4. 各列下方占比：分母统一为<strong>营收</strong>（收入净额），副文案为括号内数值；<strong>营收</strong>列为 <strong>(100%)</strong>。<br>
-5. 本页已不展示「销售额—营收—毛利」结构拆解图；占比语义仍以营收为 100% 口径理解即可。`,
+4. 各列下方占比：分母统一为<strong>销售额</strong>（净销售额+包装收入+运费收入 的计算列），副文案为括号内百分比；<strong>销售额</strong>列自身为 <strong>(100%)</strong>。<br>
+5. 本页已不展示「销售额—营收—毛利」结构拆解图；占比以销售额为 100% 理解即可（未展示「净销售额」独立列，仍参与销售额合成）。`,
       "export-template": `导出模版：<a href="https://alidocs.dingtalk.com/i/nodes/a9E05BDRVQ6gzQaAh2Y9g407J63zgkYA" target="_blank" rel="noopener noreferrer">在钉钉文档打开</a><br><br>
 <strong>导出与「零售商」列（模版字段保持一致）</strong><br>
 1. 导出文件<strong>始终包含「零售商」列</strong>，与线上模版列一致。<br>
@@ -1910,9 +1973,9 @@
       return { title: matched[1], calc: matched[2] };
     }
 
-    /** 表头短标题：避免「销售额」与已移除的订单销售额混淆 */
+    /** 表头短标题 */
     function feeHeaderDisplayTitle(fee) {
-      if (fee === "销售额（计算值=净销售额+包装收入+运费收入）") return "业务销售额(计)";
+      if (fee === SALES_AMOUNT_FEE) return "销售额";
       return parseCalcInfo(fee).title;
     }
 
@@ -2121,7 +2184,7 @@
     }
 
     const REVENUE_FEE_SET = new Set([
-      "净销售额", "运费收入", "包装收入", "销售额（计算值=净销售额+包装收入+运费收入）",
+      "运费收入", "包装收入", "销售额（计算值=净销售额+包装收入+运费收入）",
       "折扣", "直接扣减折扣", "优惠合计（计算值=折扣+直接扣减折扣）",
       "销售收款（计算值=销售额-优惠合计）", "销售退款", "销售净额（计算值=销售收款-销售退款）",
       "销售税/VAT", "收入净额（计算值=销售净额-销售税/VAT）"
@@ -2224,6 +2287,7 @@
     }
 
     function renderTable() {
+      calcPopover?.classList.remove("show");
       const retailerCol = state.retailerDimension;
       const flatCols = buildFlatTableColumns();
       const groupCount = {
@@ -2261,11 +2325,10 @@
         const hintParts = [];
         if (parsed.calc) hintParts.push(parsed.calc);
         if (extra) hintParts.push(extra);
-        const info = hintParts.length ? `
-                <span class="calc-icon" data-calc-trigger="1">i</span>
-                <div class="calc-pop">${hintParts.join("<br><br>")}</div>
-              ` : "";
-        return `<th class="sortable-th${sortedCls}" data-sort-key="${col.sortKey}" scope="col"><span class="th-title">${feeHeaderDisplayTitle(col.fee)}${info}</span>${sortIconHtml(col.sortKey)}</th>`;
+        const info = hintParts.length
+          ? `<button type="button" class="calc-icon" data-calc-fee="${encodeURIComponent(col.fee)}" aria-label="本列口径说明">i</button>`
+          : "";
+        return `<th class="sortable-th${sortedCls}" data-sort-key="${col.sortKey}" scope="col"><div class="th-metric-head"><span class="th-title">${feeHeaderDisplayTitle(col.fee)}${info}</span>${sortIconHtml(col.sortKey)}</div></th>`;
       };
 
       let thead = `
@@ -2290,20 +2353,20 @@
         if (col.kind === "achieve") {
           const p = achievePercentMap(row);
           const v = p[col.forFee];
-          return `<td class="achieve-cell">${v != null ? `${v}%` : "—"}</td>`;
+          return `<td class="achieve-cell metric-col">${v != null ? `${v}%` : "—"}</td>`;
         }
         const fee = col.fee;
         const value = row.values[fee];
         const ratio = row.ratios[fee];
         const cellCls = getCellState(fee, "business", value);
         let ratioText = "(--)";
-        if (fee === "营收" && ratio !== null && Number.isFinite(ratio)) {
+        if (fee === SALES_AMOUNT_FEE && ratio !== null && Number.isFinite(ratio)) {
           ratioText = "(100%)";
         } else if (ratio !== null && Number.isFinite(ratio)) {
           ratioText = `(${ratio.toFixed(2)}%)`;
         }
         return `
-          <td class="${cellCls}">
+          <td class="${cellCls} metric-col">
             <div class="metric-main">${formatValue(value, fee)}</div>
             ${(state.showRatio && fee !== "销量") ? `<div class="metric-sub">${ratioText}</div>` : ""}
           </td>
@@ -2488,6 +2551,36 @@
     }
 
     detailTable.addEventListener("click", (event) => {
+      const calcBtn = event.target.closest("button.calc-icon[data-calc-fee]");
+      if (calcBtn && calcPopover) {
+        event.preventDefault();
+        event.stopPropagation();
+        const raw = calcBtn.getAttribute("data-calc-fee") || "";
+        let fee = raw;
+        try {
+          fee = decodeURIComponent(raw);
+        } catch {
+          fee = raw;
+        }
+        const html = feeCalcHintHtml(fee);
+        if (!html) return;
+        calcPopover.innerHTML = html;
+        const rect = calcBtn.getBoundingClientRect();
+        const pw = Math.min(320, window.innerWidth - 24);
+        let left = rect.left + rect.width / 2 - pw / 2;
+        left = Math.max(12, Math.min(left, window.innerWidth - pw - 12));
+        let top = rect.bottom + 8;
+        const estH = 160;
+        if (top + estH > window.innerHeight - 12) {
+          top = Math.max(12, rect.top - estH - 8);
+        }
+        calcPopover.style.width = `${pw}px`;
+        calcPopover.style.left = `${left}px`;
+        calcPopover.style.top = `${top}px`;
+        calcPopover.classList.add("show");
+        return;
+      }
+
       const th = event.target.closest("thead th.sortable-th[data-sort-key]");
       if (th) {
         const key = th.getAttribute("data-sort-key");
@@ -2500,18 +2593,7 @@
         }
         renderTable();
         event.stopPropagation();
-        return;
       }
-
-      const trigger = event.target.closest("[data-calc-trigger]");
-      if (!trigger) return;
-      const pop = trigger.nextElementSibling;
-      if (!pop) return;
-      Array.from(detailTable.querySelectorAll(".calc-pop.show")).forEach((node) => {
-        if (node !== pop) node.classList.remove("show");
-      });
-      pop.classList.toggle("show");
-      event.stopPropagation();
     });
 
     document.addEventListener("click", (event) => {
@@ -2521,6 +2603,7 @@
 
       const reqDot = event.target.closest(".req-dot");
       if (reqDot) {
+        calcPopover?.classList.remove("show");
         const key = reqDot.dataset.reqKey;
         const text = reqTextMap[key];
         if (text) {
@@ -2539,8 +2622,12 @@
         return;
       }
 
-      if (!event.target.closest("#detailTable")) {
-        Array.from(detailTable.querySelectorAll(".calc-pop.show")).forEach((node) => node.classList.remove("show"));
+      if (event.target.closest("#calcPopover")) {
+        return;
+      }
+
+      if (!event.target.closest("button.calc-icon[data-calc-fee]")) {
+        calcPopover?.classList.remove("show");
       }
       reqPopover.classList.remove("show");
     });
