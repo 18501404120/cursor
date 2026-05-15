@@ -1,7 +1,8 @@
 /**
  * 日期范围选择（原型用）— 对齐全局规范《日期范围选择框-全局UI规范》
  * 展示：左侧日历图标 + YYYY-MM-DD 至 YYYY-MM-DD + 清空；点击展开双月历面板。
- * 用法：DateRangePicker.mount(containerElement, { start, end, onChange, placeholder, zIndex })
+ * 用法：DateRangePicker.mount(containerElement, { start, end, onChange, placeholder, zIndex, useBodyPortal })
+ * useBodyPortal：默认 true，展开时将面板挂到 document.body + fixed 定位，避免被 overflow 裁切或后续板块遮挡。
  * 返回：{ get(), set(s,e), destroy(), close() }
  */
 (function (global) {
@@ -95,9 +96,11 @@
     injectStyle();
     options = options || {};
     var zIndex = options.zIndex != null ? options.zIndex : 300;
+    var useBodyPortal = options.useBodyPortal !== false;
     var placeholder = options.placeholder || '请选择日期范围';
     var compact = !!options.compact;
     var onChange = typeof options.onChange === 'function' ? options.onChange : function () {};
+    var floatInterval = null;
 
     var rangeStart = parseYmd(options.start);
     var rangeEnd = parseYmd(options.end);
@@ -180,10 +183,47 @@
       renderCalendars();
     }
 
+    function stopFloatSync() {
+      if (floatInterval) {
+        clearInterval(floatInterval);
+        floatInterval = null;
+      }
+      window.removeEventListener('resize', positionFloatedPanel);
+      window.removeEventListener('scroll', positionFloatedPanel, true);
+    }
+
+    function restorePanelToContainer() {
+      if (panel.parentNode === document.body) {
+        container.appendChild(panel);
+      }
+      panel.style.position = '';
+      panel.style.left = '';
+      panel.style.top = '';
+      panel.style.marginTop = '';
+      panel.style.zIndex = '';
+    }
+
+    function positionFloatedPanel() {
+      if (!open || !useBodyPortal || panel.parentNode !== document.body) return;
+      var r = trigger.getBoundingClientRect();
+      var ph = panel.offsetHeight || 320;
+      var pw = panel.offsetWidth || 460;
+      var top = r.bottom + 4;
+      if (top + ph > window.innerHeight - 8) top = Math.max(8, r.top - ph - 4);
+      var left = Math.max(8, Math.min(r.left, window.innerWidth - pw - 8));
+      panel.style.position = 'fixed';
+      panel.style.left = left + 'px';
+      panel.style.top = top + 'px';
+      panel.style.marginTop = '0';
+      panel.style.zIndex = String(zIndex);
+    }
+
     function close() {
+      stopFloatSync();
       open = false;
       panel.classList.remove('drp-show');
       trigger.classList.remove('drp-open', 'drp-focus');
+      restorePanelToContainer();
     }
 
     function openPanel() {
@@ -194,6 +234,16 @@
       panel.classList.add('drp-show');
       trigger.classList.add('drp-open', 'drp-focus');
       renderCalendars();
+      if (useBodyPortal) {
+        document.body.appendChild(panel);
+        positionFloatedPanel();
+        requestAnimationFrame(function () {
+          requestAnimationFrame(positionFloatedPanel);
+        });
+        window.addEventListener('resize', positionFloatedPanel);
+        window.addEventListener('scroll', positionFloatedPanel, true);
+        floatInterval = setInterval(positionFloatedPanel, 200);
+      }
     }
 
     function buildMonthGrid(monthFirst) {
@@ -303,7 +353,7 @@
 
     function handleDayClick(e) {
       var cell = e.target.closest('.drp-day');
-      if (!cell || !container.contains(cell)) return;
+      if (!cell || !panel.contains(cell)) return;
       var y = +cell.getAttribute('data-y'),
         mo = +cell.getAttribute('data-m'),
         da = +cell.getAttribute('data-d');
@@ -371,8 +421,11 @@
       e.stopPropagation();
     });
 
-    function onDocClick() {
-      if (open) close();
+    function onDocClick(e) {
+      if (!open) return;
+      if (container.contains(e.target)) return;
+      if (useBodyPortal && panel.contains(e.target)) return;
+      close();
     }
 
     document.addEventListener('click', onDocClick);
@@ -385,7 +438,10 @@
       set: set,
       close: close,
       destroy: function () {
+        stopFloatSync();
         document.removeEventListener('click', onDocClick);
+        open = false;
+        restorePanelToContainer();
         container.innerHTML = '';
         container._drpDestroy = null;
         delete container._drpDestroy;
