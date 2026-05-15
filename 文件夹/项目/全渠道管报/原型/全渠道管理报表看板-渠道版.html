@@ -907,44 +907,11 @@
     .sortable-th {
       cursor: pointer;
       user-select: none;
-      position: relative;
-      overflow: visible;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 6px;
-      min-width: 96px;
-      max-width: 240px;
-      white-space: normal;
-      vertical-align: middle;
-      box-sizing: border-box;
-      padding: 8px 6px;
-    }
-
-    .sortable-th .th-title {
-      flex: 1 1 auto;
-      min-width: 0;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      flex-wrap: wrap;
-      gap: 4px;
-      text-align: center;
-      line-height: 1.25;
-    }
-
-    .achieve-head.sortable-th {
-      justify-content: flex-end;
-    }
-
-    .achieve-head.sortable-th .th-title {
-      justify-content: flex-end;
-      text-align: right;
+      white-space: nowrap;
     }
 
     .sortable-th .sort-ic {
-      flex: 0 0 auto;
-      margin-left: 0;
+      margin-left: 4px;
       font-size: 11px;
       color: #1677ff;
       font-weight: 700;
@@ -1107,12 +1074,17 @@
       background: #fffaf0;
     }
 
+    .th-title {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      line-height: 1.2;
+      white-space: normal;
+    }
+
     .calc-icon {
       width: 16px;
       height: 16px;
-      margin: 0;
-      padding: 0;
-      font: inherit;
       border-radius: 50%;
       border: 1px solid #91caff;
       background: #eaf3ff;
@@ -1125,16 +1097,15 @@
       cursor: pointer;
       user-select: none;
       flex-shrink: 0;
-      position: relative;
-      z-index: 2;
-      pointer-events: auto;
     }
 
     .calc-pop {
       display: none;
-      position: fixed;
+      position: absolute;
+      left: 50%;
+      top: 30px;
+      transform: translateX(-50%);
       width: 280px;
-      max-width: calc(100vw - 16px);
       border: 1px solid #bfd7ff;
       border-radius: 8px;
       background: #ffffff;
@@ -1143,7 +1114,7 @@
       padding: 10px 12px;
       font-size: 12px;
       color: #334155;
-      z-index: 10050;
+      z-index: 20;
       white-space: normal;
       line-height: 1.5;
     }
@@ -1168,15 +1139,11 @@
       line-height: 1;
       vertical-align: middle;
       user-select: none;
-      position: relative;
-      z-index: 3;
-      flex-shrink: 0;
-      pointer-events: auto;
     }
 
     .req-popover {
       position: fixed;
-      z-index: 10060;
+      z-index: 999;
       display: none;
       width: 420px;
       max-width: calc(100vw - 24px);
@@ -1309,7 +1276,7 @@
           <div class="table-tools">
             <div>
               <div class="panel-title">明细表<span class="req-dot" data-req-key="table-detail-overview">!</span></div>
-              <div class="panel-sub" id="tableDesc">点击列标题排序；默认按营收达成%从高到低。首行为当前筛选下「总计」汇总；括号内占比为相对「销售额」列。</div>
+              <div class="panel-sub" id="tableDesc">点击列标题排序；默认按营收达成%从高到低。首行为当前筛选下「总计」汇总。</div>
             </div>
             <div class="export-wrap">
               <button class="btn" id="exportBtn" type="button">导出</button>
@@ -1372,9 +1339,6 @@
       "毛利"
     ];
 
-    /** 表头展示为「销售额」；占比括号分母同此字段 */
-    const SALES_AMOUNT_FEE = "销售额（计算值=净销售额+包装收入+运费收入）";
-
     const feeStates = {
       "订单销售额": "ok",
       "净销售额": "ok",
@@ -1416,8 +1380,6 @@
     };
 
     function revenueRatioBase(values) {
-      const s = values[SALES_AMOUNT_FEE];
-      if (s !== null && s !== undefined && Math.abs(Number(s)) > 1e-9) return Number(s);
       const r = values["营收"];
       if (r !== null && r !== undefined && Math.abs(Number(r)) > 1e-9) return Number(r);
       const alt = values["收入净额（计算值=销售净额-销售税/VAT）"];
@@ -1901,10 +1863,9 @@
       "table-detail-overview": `渠道经营明细表（本页仅保留筛选 + 本表）：<br>
 1. <strong>首行「总计」</strong>为当前筛选下全量汇总，不参与排序，始终置顶。<br>
 2. <strong>结果指标</strong>内顺序为：销量、销量达成%、营收、营收达成%、毛利、毛利达成%；达成列为<strong>原型演示数</strong>，用于排序对比。<br>
-3. 其余列为收入链路 / 成本费用链路费用项；<strong>已移除「订单销售额」列</strong>；表头「销售额」对应底表「销售额（计算值=净销售额+包装收入+运费收入）」；各数值列与达成列均支持<strong>点击表头排序</strong>（默认按营收达成%降序）。<br>
-4. 各列下方括号占比以<strong>销售额</strong>为分母，<strong>销售额</strong>列显示为 <strong>(100%)</strong>。<br>
-5. 本页不再展示财务维度展开行与业务−财务对照行（若需对账请在财务系统或专项页查看）。<br>
-6. <strong>零售商维度</strong>：勾选后按店铺+MSKU+零售商拆行；未勾选按店铺+MSKU 合并。`,
+3. 其余列为收入链路 / 成本费用链路费用项；<strong>已移除「订单销售额」列</strong>；各数值列与达成列均支持<strong>点击表头排序</strong>（默认按营收达成%降序）。<br>
+4. 本页不再展示财务维度展开行与业务−财务对照行（若需对账请在财务系统或专项页查看）。<br>
+5. <strong>零售商维度</strong>：勾选后按店铺+MSKU+零售商拆行；未勾选按店铺+MSKU 合并。`,
       "retailer-dimension": `零售商维度（全页共用）：<br>
 1. 默认<strong>不勾选</strong>：列表与筛选区<strong>不展示</strong>零售商；明细粒度为<strong>店铺+MSKU</strong>，商超/分销下多零售商数据<strong>合并</strong>，缺失零售商已并入<strong>未知</strong>后再汇总。<br>
 2. <strong>勾选</strong>：列表增加「零售商」列，筛选区出现「零售商」多选（可搜索）；粒度为<strong>店铺+MSKU+零售商</strong>。<br>
@@ -1932,9 +1893,9 @@
       "table-header-rule": `明细表列与分组（本页）：<br>
 1. 列分组及命名需与管报 Excel 方案一致（渠道版「出货授权成本」为打包展示）。<br>
 2. 「结果指标」内含销量、销量达成%、营收、营收达成%、毛利、毛利达成%（达成列为原型演示）。<br>
-3. 各列表头可点击排序；带「（计算值=…）」类列的口径说明在表头「i」浮层中（点击「i」展开，勿点排序箭头旁空白误触排序）。<br>
-4. 各列下方占比：分母统一为<strong>销售额</strong>（净销售额+运费收入+包装收入，与表头「销售额」列一致），副文案为括号内数值；<strong>销售额</strong>列为 <strong>(100%)</strong>。<br>
-5. 本页已不展示「销售额—营收—毛利」结构拆解图；占比以<strong>销售额</strong>为 100% 口径理解即可。`,
+3. 各列表头可点击排序；带「（计算值=…）」类列的口径说明在表头「i」浮层中。<br>
+4. 各列下方占比：分母统一为<strong>营收</strong>（收入净额），副文案为括号内数值；<strong>营收</strong>列为 <strong>(100%)</strong>。<br>
+5. 本页已不展示「销售额—营收—毛利」结构拆解图；占比语义仍以营收为 100% 口径理解即可。`,
       "export-template": `导出模版：<a href="https://alidocs.dingtalk.com/i/nodes/a9E05BDRVQ6gzQaAh2Y9g407J63zgkYA" target="_blank" rel="noopener noreferrer">在钉钉文档打开</a><br><br>
 <strong>导出与「零售商」列（模版字段保持一致）</strong><br>
 1. 导出文件<strong>始终包含「零售商」列</strong>，与线上模版列一致。<br>
@@ -1949,8 +1910,9 @@
       return { title: matched[1], calc: matched[2] };
     }
 
+    /** 表头短标题：避免「销售额」与已移除的订单销售额混淆 */
     function feeHeaderDisplayTitle(fee) {
-      if (fee === SALES_AMOUNT_FEE) return "销售额";
+      if (fee === "销售额（计算值=净销售额+包装收入+运费收入）") return "业务销售额(计)";
       return parseCalcInfo(fee).title;
     }
 
@@ -2276,8 +2238,8 @@
       const businessRows = head ? [head, ...tail] : [];
 
       tableDesc.textContent = retailerCol
-        ? "点击列标题排序；默认按营收达成%从高到低。首行为「总计」。括号内占比为相对「销售额」列。勾选零售商维度时按店铺+MSKU+零售商拆行。"
-        : "点击列标题排序；默认按营收达成%从高到低。首行为「总计」。括号内占比为相对「销售额」列。未勾选零售商时按店铺+MSKU 合并。";
+        ? "点击列标题排序；默认按营收达成%从高到低。首行为「总计」。勾选零售商维度时按店铺+MSKU+零售商拆行。"
+        : "点击列标题排序；默认按营收达成%从高到低。首行为「总计」。未勾选零售商时按店铺+MSKU 合并。";
 
       const retailerTh = retailerCol
         ? `<th rowspan="2" class="left-5 sticky-base sortable-th${state.sortKey === "dim:retailer" ? " th-sorted" : ""}" data-sort-key="dim:retailer" scope="col">零售商${sortIconHtml("dim:retailer")}</th>`
@@ -2300,7 +2262,7 @@
         if (parsed.calc) hintParts.push(parsed.calc);
         if (extra) hintParts.push(extra);
         const info = hintParts.length ? `
-                <button type="button" class="calc-icon" data-calc-trigger="1" aria-label="口径说明">i</button>
+                <span class="calc-icon" data-calc-trigger="1">i</span>
                 <div class="calc-pop">${hintParts.join("<br><br>")}</div>
               ` : "";
         return `<th class="sortable-th${sortedCls}" data-sort-key="${col.sortKey}" scope="col"><span class="th-title">${feeHeaderDisplayTitle(col.fee)}${info}</span>${sortIconHtml(col.sortKey)}</th>`;
@@ -2335,7 +2297,7 @@
         const ratio = row.ratios[fee];
         const cellCls = getCellState(fee, "business", value);
         let ratioText = "(--)";
-        if (fee === SALES_AMOUNT_FEE && ratio !== null && Number.isFinite(ratio)) {
+        if (fee === "营收" && ratio !== null && Number.isFinite(ratio)) {
           ratioText = "(100%)";
         } else if (ratio !== null && Number.isFinite(ratio)) {
           ratioText = `(${ratio.toFixed(2)}%)`;
@@ -2526,34 +2488,6 @@
     }
 
     detailTable.addEventListener("click", (event) => {
-      const calcBtn = event.target.closest("[data-calc-trigger]");
-      if (calcBtn && detailTable.contains(calcBtn)) {
-        const pop = calcBtn.nextElementSibling;
-        if (!pop || !pop.classList.contains("calc-pop")) return;
-        event.preventDefault();
-        event.stopPropagation();
-        reqPopover.classList.remove("show");
-        const willShow = !pop.classList.contains("show");
-        Array.from(detailTable.querySelectorAll(".calc-pop.show")).forEach((node) => {
-          if (node !== pop) node.classList.remove("show");
-        });
-        if (willShow) {
-          const r = calcBtn.getBoundingClientRect();
-          const w = 280;
-          let left = r.left + r.width / 2 - w / 2;
-          left = Math.max(8, Math.min(window.innerWidth - w - 8, left));
-          let top = r.bottom + 6;
-          const estH = 180;
-          if (top + estH > window.innerHeight) top = Math.max(8, r.top - estH);
-          pop.style.left = `${left}px`;
-          pop.style.top = `${top}px`;
-          pop.style.right = "auto";
-          pop.style.transform = "none";
-        }
-        pop.classList.toggle("show");
-        return;
-      }
-
       const th = event.target.closest("thead th.sortable-th[data-sort-key]");
       if (th) {
         const key = th.getAttribute("data-sort-key");
@@ -2564,10 +2498,20 @@
           state.sortKey = key;
           state.sortDir = key.startsWith("dim:") ? "asc" : "desc";
         }
-        reqPopover.classList.remove("show");
         renderTable();
         event.stopPropagation();
+        return;
       }
+
+      const trigger = event.target.closest("[data-calc-trigger]");
+      if (!trigger) return;
+      const pop = trigger.nextElementSibling;
+      if (!pop) return;
+      Array.from(detailTable.querySelectorAll(".calc-pop.show")).forEach((node) => {
+        if (node !== pop) node.classList.remove("show");
+      });
+      pop.classList.toggle("show");
+      event.stopPropagation();
     });
 
     document.addEventListener("click", (event) => {
@@ -2588,7 +2532,6 @@
           reqPopover.style.top = `${top}px`;
           reqPopover.classList.add("show");
         }
-        event.stopPropagation();
         return;
       }
 
