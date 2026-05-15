@@ -172,6 +172,7 @@
       width: max-content;
       min-width: 100%;
       border-collapse: collapse;
+      border-spacing: 0;
       font-size: 11px;
     }
     .data-table th,
@@ -218,15 +219,12 @@
       text-align: center;
       font-size: 11px;
       font-weight: 700;
-      background: #e6f4ff;
-      border-bottom: 1px solid #bae0ff;
+      background: var(--head-bg);
+      border-bottom: 1px solid #f0f0f0;
       vertical-align: middle;
       white-space: normal;
       line-height: 1.35;
       padding: 8px 6px;
-    }
-    .data-table th.sku-h1.sku-start {
-      border-left: 2px solid var(--blue);
     }
     .data-table thead tr.h2 th.sub-h-pivot {
       white-space: normal;
@@ -240,9 +238,6 @@
       text-align: center;
       vertical-align: middle;
       padding: 6px 4px;
-    }
-    .data-table thead tr.h2 th.sku-boundary-left {
-      border-left: 2px solid var(--blue);
     }
     .data-table td.pivot-cell {
       min-width: 96px;
@@ -400,6 +395,17 @@
       flex-wrap: wrap;
       align-items: flex-end;
       gap: 16px 24px;
+    }
+    .msf-field {
+      min-width: 200px;
+      max-width: 260px;
+      flex: 1 1 200px;
+    }
+    .msf-field > label {
+      display: block;
+      font-size: 12px;
+      color: #595959;
+      margin-bottom: 4px;
     }
     .sku-strip {
       display: flex;
@@ -681,6 +687,7 @@
     }
   </style>
   <script src="../../../规范/assets/date-range-picker.js"></script>
+  <script src="../../../规范/assets/multi-select-filter.js"></script>
 </head>
 <body>
   <div class="layout">
@@ -707,7 +714,7 @@
           <div class="panel-head">
             <div>
               <div class="panel-title">页面说明</div>
-              <div class="panel-sub">顶部「选车式」多 SKU 条不变；下方主表为透视结构——首列为对比项（指标），横向按 SKU1、SKU2…分组，每组第二层为各渠道（演示列名含亚马逊 / Shopify / 线下商超等）；默认仅展开少量关键指标，其余在「自定义显示指标」中勾选。</div>
+              <div class="panel-sub">对比项在首列；列头两层为「SKU1/SKU2…」与各渠道。产品范围通过「分析模式」同一行的 MSKU、SKU、Model 三个多选下拉（支持搜索、多选）组合筛选；默认仅展开少量关键指标。</div>
             </div>
             <button type="button" class="guide-toggle" id="toggleGuide">查看页面说明</button>
           </div>
@@ -715,32 +722,39 @@
             <div class="guide-panel" id="guidePanel" hidden>
               <div class="guide-alert">
                 <span class="guide-tag">口径</span>
-                <span>本页为「出货授权价 / 渠道经营」视角的演示原型：默认不强调财务采购价、关税等字段；若需对齐财务明细，仍以 <a class="ref-link" href="./财务费用字段与业务字段映射维护.html">费用字段映射管理</a> 中的业务指标池为准。可选指标与顺序同源；其后可勾选 ASP、流量与转化等增补列。「当期」为主时间范围内演示绝对值；「同比」「对比」仅展示百分比，不含绝对额。渠道、店铺、区域、国家来自规范基础数据 JSON。</span>
+                <span>本页为「出货授权价 / 渠道经营」视角的演示原型：默认不强调财务采购价、关税等字段；若需对齐财务明细，仍以 <a class="ref-link" href="./财务费用字段与业务字段映射维护.html">费用字段映射管理</a> 中的业务指标池为准。可选指标与顺序同源；其后可勾选 ASP、流量与转化等增补列。「当期」为主时间范围内演示绝对值；「同比」「对比」仅展示百分比，不含绝对额。渠道与店铺候选来自规范基础数据 JSON。</span>
               </div>
               <ul class="guide-list">
-                <li>多 MSKU 模式：主表每行一个对比指标，列方向为「SKU × 渠道」矩阵；SKU 顺序与顶部对比条一致，可增加多个 SKU（演示最多 6 个）。</li>
-                <li>生产 SKU 汇总模式：在添加面板中勾选一个生产编码（如 H6199），列头仍为多渠道，单元格为汇总口径演示值；多生产编码请逐个切换分析。</li>
-                <li>单元格主数字为当期演示值；灰字行为同比与对比期涨跌（演示随机种子，非真实接口）。</li>
+                <li>MSKU / SKU / Model 三列多选：MSKU 为完整销售编码；SKU 为生产编码（前缀）；Model 为 8 位型号前缀。并集去重后生成透视表列（最多 6 列 SKU）。</li>
+                <li>「按单个生产 SKU 汇总」时，请在「SKU」维度中至少勾选一个生产编码；演示汇总行取该组第一个选中值。</li>
+                <li>单元格主数字为当期演示值；灰字为同比与对比期涨跌（演示随机种子）。</li>
               </ul>
             </div>
             <div id="dataLoadError" class="load-err" hidden></div>
 
             <div class="filter-bar-wide">
-              <div class="sku-strip">
-                <span class="sku-strip-label">已选 SKU</span>
-                <div id="skuChips" class="sku-chips" aria-live="polite"></div>
-                <button type="button" class="btn secondary" id="btnOpenSkuPanel">添加 SKU…</button>
-              </div>
               <div class="hint-bar" id="modeHint">
-                当前为多 MSKU 并排对比。生产 SKU 汇总与多车并排互斥，请二选一。
+                当前为多 MSKU 并排对比。与「按单个生产 SKU 汇总」互斥；汇总模式下请在「SKU」维度选择生产编码。
               </div>
               <div class="filter-row">
-                <div class="field" style="min-width: 280px">
+                <div class="field" style="min-width: 220px; flex: 0 0 auto">
                   <label>分析模式</label>
                   <div class="mode-inline" id="aggModeRow">
                     <label><input type="radio" name="aggMode" value="msku" checked /> 多 MSKU 并排对比</label>
                     <label><input type="radio" name="aggMode" value="prod" /> 按单个生产 SKU 汇总</label>
                   </div>
+                </div>
+                <div class="msf-field">
+                  <label>MSKU</label>
+                  <div id="msfMsku"></div>
+                </div>
+                <div class="msf-field">
+                  <label>SKU</label>
+                  <div id="msfSkuDim"></div>
+                </div>
+                <div class="msf-field">
+                  <label>Model</label>
+                  <div id="msfModel"></div>
                 </div>
                 <div class="field">
                   <label>时间范围（当期）</label>
@@ -779,63 +793,8 @@
             <div class="table-scroll-wrap" id="channelBlocks"></div>
           </div>
         </section>
-
-        <section class="panel">
-          <div class="panel-head">
-            <div>
-              <div class="panel-title">经营对比 · 按区域（透视表）</div>
-              <div class="panel-sub">结构同渠道表：第一层为 SKU，第二层为大区（北美区、欧洲区等）；行头仍为对比项。</div>
-            </div>
-          </div>
-          <div class="panel-body">
-            <div class="table-scroll-wrap" id="regionBlocks"></div>
-          </div>
-        </section>
       </div>
     </main>
-  </div>
-
-  <div class="modal-mask" id="skuModal" role="dialog" aria-modal="true" aria-labelledby="skuModalTitle">
-    <div class="modal-box">
-      <div class="modal-hd">
-        <div class="ttl" id="skuModalTitle">添加 SKU</div>
-        <button type="button" class="modal-close" id="skuModalClose" aria-label="关闭">×</button>
-      </div>
-      <div class="modal-bd">
-        <div class="mode-inline" style="margin-bottom: 10px">
-          <span style="color: #8c8c8c">面板内：</span>
-          <label><input type="radio" name="pickTab" value="msku" checked /> 按 MSKU（8 位及后缀）</label>
-          <label><input type="radio" name="pickTab" value="prod" /> 按生产 SKU（汇总）</label>
-        </div>
-        <div id="pickMskuBlock">
-          <label class="field" style="width: 100%; margin-bottom: 8px">
-            <span style="font-size: 12px; color: #595959">MSKU 检索</span>
-            <div class="sku-combo" style="width: 100%; margin-top: 4px">
-              <select id="mskuMode" aria-label="MSKU 匹配模式">
-                <option value="fuzzy">模糊</option>
-                <option value="exact">精确</option>
-                <option value="eight">8 位搜索</option>
-              </select>
-              <input id="mskuSearch" type="text" placeholder="请输入 SKU" autocomplete="off" />
-            </div>
-          </label>
-          <div style="font-size: 12px; color: #8c8c8c; margin-bottom: 6px">从演示列表勾选后加入对比条（可多选）：</div>
-          <ul class="pick-list" id="mskuPickList"></ul>
-        </div>
-        <div id="pickProdBlock" hidden>
-          <label class="field" style="width: 100%; margin-bottom: 8px">
-            <span style="font-size: 12px; color: #595959">生产 SKU 模糊检索</span>
-            <input id="prodSearch" type="text" placeholder="例：H6199、H6072" autocomplete="off" style="width: 100%; margin-top: 4px; height: 28px; border: 1px solid #d9d9d9; border-radius: 4px; padding: 0 8px; font-size: 12px; font-family: inherit" />
-          </label>
-          <div style="font-size: 12px; color: #8c8c8c; margin-bottom: 6px">勾选一个编码后，将切换到「按单个生产 SKU 汇总」并清空并排 MSKU（会议：多生产 SKU 深度分析请逐个进行）。</div>
-          <ul class="pick-list" id="prodPickList"></ul>
-        </div>
-      </div>
-      <div class="modal-ft">
-        <button type="button" class="btn secondary" id="skuModalCancel">取消</button>
-        <button type="button" class="btn" id="skuModalApply">加入对比条</button>
-      </div>
-    </div>
   </div>
 
   <script>
@@ -932,9 +891,11 @@
 
       var MAX_COMPARE_SKU = 6;
 
-      var selectedSkus = ["H6072-US01", "H6078-EU01"];
       var prodAggCode = "";
       var metricVisible = {};
+      var mfMsku = null;
+      var mfSkuDim = null;
+      var mfModel = null;
 
       function initMetricVisibleMap() {
         metricVisible = {};
@@ -963,15 +924,12 @@
       };
 
       var channelData = null;
-      var regionData = null;
       var mainStart = "2026-02-01";
       var mainEnd = "2026-04-30";
       var cmpStart = "2025-11-01";
       var cmpEnd = "2026-01-31";
       var pickerMain = null;
       var pickerCmp = null;
-      var tempMskuChecked = {};
-      var tempProdPicked = "";
 
       function $(id) {
         return document.getElementById(id);
@@ -991,13 +949,56 @@
         return out;
       }
 
+      function uniqPushMsku(arr, v) {
+        if (v && arr.indexOf(v) < 0) arr.push(v);
+      }
+
+      function expandPrefixToMskus(prefix) {
+        var out = [];
+        for (var i = 0; i < DEMO_MSKU_LIST.length; i++) {
+          var m = DEMO_MSKU_LIST[i];
+          var p = m.split("-")[0] || m;
+          if (p === prefix || m.indexOf(prefix) === 0) out.push(m);
+        }
+        return out;
+      }
+
+      function getMergedMskuList() {
+        var out = [];
+        if (!mfMsku || !mfSkuDim || !mfModel) return out;
+        var a = mfMsku.getValues() || [];
+        for (var i = 0; i < a.length; i++) uniqPushMsku(out, a[i]);
+        var models = mfModel.getValues() || [];
+        for (var mi = 0; mi < models.length; mi++) {
+          var exp = expandPrefixToMskus(models[mi]);
+          for (var j = 0; j < exp.length; j++) uniqPushMsku(out, exp[j]);
+        }
+        var prods = mfSkuDim.getValues() || [];
+        for (var pi = 0; pi < prods.length; pi++) {
+          var exp2 = expandPrefixToMskus(prods[pi]);
+          for (var k = 0; k < exp2.length; k++) uniqPushMsku(out, exp2[k]);
+        }
+        return out.slice(0, MAX_COMPARE_SKU);
+      }
+
+      function syncProdAggFromFilters() {
+        prodAggCode = "";
+        if (getAggMode() !== "prod" || !mfSkuDim) return;
+        var sv = mfSkuDim.getValues() || [];
+        if (sv.length) prodAggCode = sv[0];
+      }
+
       function getDisplaySkus() {
+        syncProdAggFromFilters();
         if (getAggMode() === "prod") {
           if (prodAggCode) return [prodAggCode + "（生产 SKU 汇总）"];
-          return ["（请先选择生产 SKU）"];
+          return ["（请在「SKU」维度勾选一个生产编码）"];
         }
-        if (!selectedSkus.length) return ["（请在对比条中添加 MSKU）"];
-        return selectedSkus.slice();
+        var merged = getMergedMskuList();
+        if (!merged.length) {
+          return ["（请在 MSKU / SKU / Model 中至少选择一项）"];
+        }
+        return merged;
       }
 
       function syncMetricCheckboxes() {
@@ -1040,47 +1041,6 @@
         };
       }
 
-      function renderSkuChips() {
-        var host = $("skuChips");
-        if (!host) return;
-        if (getAggMode() === "prod") {
-          host.innerHTML =
-            "<span style=\"font-size:12px;color:#8c8c8c\">生产 SKU 汇总模式下，对比条由汇总编码驱动；请通过「添加 SKU…」或切换回多 MSKU 模式编辑列表。</span>";
-          return;
-        }
-        if (!selectedSkus.length) {
-          host.innerHTML =
-            "<span style=\"font-size:12px;color:#8c8c8c\">暂无已选 MSKU，请点击「添加 SKU…」。</span>";
-          return;
-        }
-        var parts = [];
-        for (var i = 0; i < selectedSkus.length; i++) {
-          var s = selectedSkus[i];
-          parts.push(
-            "<span class=\"sku-chip\"><span class=\"nm\" title=\"" +
-              esc(s) +
-              "\">" +
-              esc(s) +
-              "</span><button type=\"button\" class=\"rm\" data-rm-sku=\"" +
-              esc(s) +
-              "\" aria-label=\"移除 " +
-              esc(s) +
-              "\">×</button></span>"
-          );
-        }
-        host.innerHTML = parts.join("");
-        host.onclick = function (e) {
-          var btn = e.target.closest("[data-rm-sku]");
-          if (!btn) return;
-          var val = btn.getAttribute("data-rm-sku");
-          selectedSkus = selectedSkus.filter(function (x) {
-            return x !== val;
-          });
-          renderSkuChips();
-          apply();
-        };
-      }
-
       function updateModeHint() {
         var el = $("modeHint");
         if (!el) return;
@@ -1088,7 +1048,7 @@
         if (getAggMode() === "prod") {
           if (!prodAggCode) {
             el.textContent =
-              "已切换为「按单个生产 SKU 汇总」，尚未选择生产编码。请打开「添加 SKU…」，在「按生产 SKU」页签中检索并勾选一个编码后加入。";
+              "已切换为「按单个生产 SKU 汇总」。请在同一行的「SKU」维度多选框中至少勾选一个生产编码（演示汇总取第一个选中项）。";
             el.classList.add("hint-warn");
           } else {
             el.textContent =
@@ -1100,125 +1060,6 @@
           el.textContent =
             "当前为多 MSKU 并排对比（参考汽车之家多车型并列）。不含财务采购价、关税视角时，可与渠道侧「产品对比」合并考虑以减少重复页面（是否保留本页需业务确认）。";
         }
-      }
-
-      function openSkuModal() {
-        $("skuModal").classList.add("show");
-        tempMskuChecked = {};
-        for (var i = 0; i < selectedSkus.length; i++) tempMskuChecked[selectedSkus[i]] = true;
-        tempProdPicked = prodAggCode;
-        syncPickTabUi();
-        filterMskuPickList();
-        filterProdPickList();
-      }
-
-      function closeSkuModal() {
-        $("skuModal").classList.remove("show");
-      }
-
-      function syncPickTabUi() {
-        var msku = document.querySelector('input[name="pickTab"][value="msku"]').checked;
-        $("pickMskuBlock").hidden = !msku;
-        $("pickProdBlock").hidden = msku;
-      }
-
-      function filterMskuPickList() {
-        var q = ($("mskuSearch").value || "").trim().toLowerCase();
-        var mode = $("mskuMode").value;
-        var ul = $("mskuPickList");
-        var html = [];
-        for (var i = 0; i < DEMO_MSKU_LIST.length; i++) {
-          var code = DEMO_MSKU_LIST[i];
-          var ok = true;
-          if (q) {
-            if (mode === "exact") ok = code.toLowerCase() === q;
-            else if (mode === "eight") {
-              var pre = code.split("-")[0] || code;
-              ok = pre.toLowerCase().indexOf(q) >= 0 || code.toLowerCase().indexOf(q) >= 0;
-            } else ok = code.toLowerCase().indexOf(q) >= 0;
-          }
-          if (!ok) continue;
-          var c = tempMskuChecked[code] ? " checked" : "";
-          html.push(
-            "<li><input type=\"checkbox\" data-pick-msku=\"" +
-              esc(code) +
-              "\"" +
-              c +
-              " /><span>" +
-              esc(code) +
-              "</span></li>"
-          );
-        }
-        ul.innerHTML = html.length ? html.join("") : "<li style=\"color:#8c8c8c\">无匹配项（演示数据）</li>";
-        ul.onchange = function (e) {
-          var t = e.target;
-          if (!t || !t.getAttribute("data-pick-msku")) return;
-          var c = t.getAttribute("data-pick-msku");
-          if (t.checked) tempMskuChecked[c] = true;
-          else delete tempMskuChecked[c];
-        };
-      }
-
-      function filterProdPickList() {
-        var q = ($("prodSearch").value || "").trim().toLowerCase();
-        var ul = $("prodPickList");
-        var html = [];
-        for (var i = 0; i < DEMO_PROD_LIST.length; i++) {
-          var code = DEMO_PROD_LIST[i];
-          if (q && code.toLowerCase().indexOf(q) < 0) continue;
-          var c = tempProdPicked === code ? " checked" : "";
-          html.push(
-            "<li><input type=\"radio\" name=\"pickProdOne\" value=\"" +
-              esc(code) +
-              "\"" +
-              c +
-              " /><span>" +
-              esc(code) +
-              "（演示：下辖 MSKU 汇总）</span></li>"
-          );
-        }
-        ul.innerHTML = html.length ? html.join("") : "<li style=\"color:#8c8c8c\">无匹配项</li>";
-        ul.onchange = function (e) {
-          var t = e.target;
-          if (t && t.name === "pickProdOne" && t.checked) tempProdPicked = t.value;
-        };
-      }
-
-      function applySkuModal() {
-        var tabEl = document.querySelector('input[name="pickTab"]:checked');
-        var tab = tabEl && tabEl.value === "prod" ? "prod" : "msku";
-        if (tab === "prod") {
-          var r = document.querySelector('input[name="pickProdOne"]:checked');
-          if (!r || !r.value) {
-            alert("请选择一个生产 SKU（演示为单选；多编码请逐个切换分析）。");
-            return;
-          }
-          prodAggCode = r.value;
-          document.querySelector('input[name="aggMode"][value="prod"]').checked = true;
-          selectedSkus = [];
-        } else {
-          var add = [];
-          for (var k in tempMskuChecked) {
-            if (tempMskuChecked[k]) add.push(k);
-          }
-          if (!add.length) {
-            alert("请至少勾选一个 MSKU。");
-            return;
-          }
-          document.querySelector('input[name="aggMode"][value="msku"]').checked = true;
-          prodAggCode = "";
-          for (var i = 0; i < add.length; i++) {
-            if (selectedSkus.indexOf(add[i]) < 0) selectedSkus.push(add[i]);
-          }
-          if (selectedSkus.length > MAX_COMPARE_SKU) {
-            selectedSkus = selectedSkus.slice(0, MAX_COMPARE_SKU);
-            alert("最多并排对比 " + MAX_COMPARE_SKU + " 个 MSKU，已截断。");
-          }
-        }
-        closeSkuModal();
-        renderSkuChips();
-        updateModeHint();
-        apply();
       }
 
       function showLoadError(msg) {
@@ -1377,16 +1218,6 @@
         return out;
       }
 
-      function getRegionPivotColumns() {
-        if (!regionData || !regionData.regions) return [];
-        var out = [];
-        for (var i = 0; i < regionData.regions.length && i < 6; i++) {
-          var rg = regionData.regions[i];
-          out.push({ key: "RG|" + rg.region_code, label: rg.region_name });
-        }
-        return out;
-      }
-
       function pivotCellHtml(sku, subRowKey, metricName) {
         var h = hashStr(sku + "|" + subRowKey + "|" + metricName);
         var cur = formatCurrent(metricName, h);
@@ -1425,7 +1256,6 @@
         for (var si = 0; si < displaySkus.length; si++) {
           var skuLabel = displaySkus[si];
           var cls = "sku-h1";
-          if (si > 0) cls += " sku-start";
           r1 +=
             '<th colspan="' +
             nSub +
@@ -1444,7 +1274,6 @@
           for (var ci = 0; ci < nSub; ci++) {
             var col = subCols[ci];
             var tdCls = "sub-h sub-h-pivot";
-            if (ci === 0 && si > 0) tdCls += " sku-boundary-left";
             var lab;
             if (col.colLabel != null) {
               lab = esc(col.colLabel);
@@ -1530,33 +1359,10 @@
         );
       }
 
-      function renderRegionPivotHtml() {
-        if (!regionData || !regionData.regions) return "<p class=\"table-empty\">无区域数据</p>";
-        if (!getVisibleMetrics().length) {
-          return "<p class=\"table-empty\">请至少在「自定义显示指标」中勾选一个对比项。</p>";
-        }
-        var rgCols = getRegionPivotColumns();
-        var displaySkus = getDisplaySkus();
-        var nSub = rgCols.length;
-        var nSku = displaySkus.length;
-        return (
-          "<table class=\"data-table\">" +
-          buildPivotColgroup(nSku, nSub) +
-          buildPivotThead(displaySkus, rgCols) +
-          buildPivotTbody(displaySkus, rgCols, function (col) {
-            return col.key;
-          }) +
-          "</table>"
-        );
-      }
-
       function renderChannelBlocks() {
         $("channelBlocks").innerHTML = renderChannelPivotHtml();
       }
 
-      function renderRegionBlocks() {
-        $("regionBlocks").innerHTML = renderRegionPivotHtml();
-      }
       function refreshPeriodNotes() {
         var mode = getAggMode() === "prod" ? "生产 SKU 汇总" : "多 MSKU 并排";
         var skuPart =
@@ -1564,7 +1370,7 @@
             ? prodAggCode
               ? "汇总编码：" + prodAggCode
               : "汇总编码：未选择"
-            : "已选 MSKU：" + (selectedSkus.length ? selectedSkus.join("、") : "无");
+            : "已选 MSKU：" + (getMergedMskuList().join("、") || "无");
         $("metaBar").textContent =
           mode +
           " ｜ " +
@@ -1580,13 +1386,12 @@
       }
 
       function apply() {
+        syncProdAggFromFilters();
         refreshPeriodNotes();
         renderChannelBlocks();
-        renderRegionBlocks();
       }
 
       function resetAll() {
-        selectedSkus = ["H6072-US01", "H6078-EU01"];
         prodAggCode = "";
         document.querySelector('input[name="aggMode"][value="msku"]').checked = true;
         initMetricVisibleMap();
@@ -1598,9 +1403,68 @@
         if (pickerMain) pickerMain.set(mainStart, mainEnd);
         if (pickerCmp) pickerCmp.set(cmpStart, cmpEnd);
         buildMetricCheckGrid();
-        renderSkuChips();
+        initMultiFilters();
         updateModeHint();
         apply();
+      }
+
+      function initMultiFilters() {
+        var MSF = window.MultiSelectFilter;
+        if (!MSF || typeof MSF.mount !== "function") return;
+        if (mfMsku && mfMsku.destroy) mfMsku.destroy();
+        if (mfSkuDim && mfSkuDim.destroy) mfSkuDim.destroy();
+        if (mfModel && mfModel.destroy) mfModel.destroy();
+        mfMsku = null;
+        mfSkuDim = null;
+        mfModel = null;
+        var modelOpts = [];
+        for (var i = 0; i < DEMO_MSKU_LIST.length; i++) {
+          var pr = (DEMO_MSKU_LIST[i].split("-")[0] || DEMO_MSKU_LIST[i]).trim();
+          if (pr && modelOpts.indexOf(pr) < 0) modelOpts.push(pr);
+        }
+        modelOpts.sort();
+        mfMsku = MSF.mount($("msfMsku"), {
+          placeholder: "请选择 MSKU",
+          showSelectAll: false,
+          zIndex: 450,
+          getOptions: function () {
+            return DEMO_MSKU_LIST.map(function (x) {
+              return { value: x, label: x };
+            });
+          },
+          initialValues: ["H6072-US01", "H6078-EU01"],
+          onChange: function () {
+            apply();
+          }
+        });
+        mfSkuDim = MSF.mount($("msfSkuDim"), {
+          placeholder: "请选择生产 SKU",
+          showSelectAll: false,
+          zIndex: 455,
+          getOptions: function () {
+            return DEMO_PROD_LIST.map(function (x) {
+              return { value: x, label: x };
+            });
+          },
+          initialValues: [],
+          onChange: function () {
+            apply();
+          }
+        });
+        mfModel = MSF.mount($("msfModel"), {
+          placeholder: "请选择 Model",
+          showSelectAll: false,
+          zIndex: 460,
+          getOptions: function () {
+            return modelOpts.map(function (x) {
+              return { value: x, label: x };
+            });
+          },
+          initialValues: [],
+          onChange: function () {
+            apply();
+          }
+        });
       }
 
       function initPickers() {
@@ -1636,23 +1500,13 @@
       $("applyBtn").addEventListener("click", apply);
       $("resetBtn").addEventListener("click", resetAll);
 
-      $("btnOpenSkuPanel").addEventListener("click", openSkuModal);
-      $("skuModalClose").addEventListener("click", closeSkuModal);
-      $("skuModalCancel").addEventListener("click", closeSkuModal);
-      $("skuModalApply").addEventListener("click", applySkuModal);
-      $("skuModal").addEventListener("click", function (e) {
-        if (e.target === $("skuModal")) closeSkuModal();
-      });
-
-      document.querySelectorAll('input[name="pickTab"]').forEach(function (r) {
-        r.addEventListener("change", syncPickTabUi);
-      });
-      $("mskuSearch").addEventListener("input", filterMskuPickList);
-      $("mskuMode").addEventListener("change", filterMskuPickList);
-      $("prodSearch").addEventListener("input", filterProdPickList);
-
       $("aggModeRow").addEventListener("change", function () {
-        renderSkuChips();
+        if (getAggMode() === "prod") {
+          if (mfMsku) mfMsku.clear();
+          if (mfModel) mfModel.clear();
+        } else {
+          prodAggCode = "";
+        }
         updateModeHint();
         apply();
       });
@@ -1673,22 +1527,16 @@
         apply();
       });
 
-      Promise.all([
-        fetch(BASE + "渠道店铺基础数据_v1.json").then(function (r) {
+      fetch(BASE + "渠道店铺基础数据_v1.json")
+        .then(function (r) {
           if (!r.ok) throw new Error("渠道店铺基础数据加载失败");
           return r.json();
-        }),
-        fetch(BASE + "区域国家基础数据_v1.json").then(function (r) {
-          if (!r.ok) throw new Error("区域国家基础数据加载失败");
-          return r.json();
         })
-      ])
-        .then(function (pair) {
-          channelData = pair[0];
-          regionData = pair[1];
+        .then(function (ch) {
+          channelData = ch;
           initPickers();
+          initMultiFilters();
           buildMetricCheckGrid();
-          renderSkuChips();
           updateModeHint();
           apply();
         })
@@ -1703,26 +1551,9 @@
               { channel_name: "独立站", stores: ["独立站-US", "独立站-EU"] }
             ]
           };
-          regionData = {
-            regions: [
-              {
-                region_code: "NA",
-                region_name: "北美区",
-                countries: [
-                  { country_code: "US", country_name: "美国" },
-                  { country_code: "CA", country_name: "加拿大" }
-                ]
-              },
-              {
-                region_code: "EU",
-                region_name: "欧洲区",
-                countries: [{ country_code: "DE", country_name: "德国" }]
-              }
-            ]
-          };
           initPickers();
+          initMultiFilters();
           buildMetricCheckGrid();
-          renderSkuChips();
           updateModeHint();
           apply();
         });
