@@ -17,7 +17,9 @@
       --red: #ef4444;
       --shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
       --head-bg: #fafafa;
-      --thead-h1: 38px;
+      --thead-h1: 40px;
+      --thead-h2: 44px;
+      --thead-h3: 36px;
     }
     * { box-sizing: border-box; }
     html, body { height: 100%; }
@@ -206,15 +208,46 @@
     .data-table td.tri-cur,
     .data-table td.tri-yoy,
     .data-table td.tri-cmp {
-      width: 68px;
-      min-width: 68px;
-      max-width: 68px;
+      width: 82px;
+      min-width: 82px;
+      max-width: 82px;
       box-sizing: border-box;
       text-align: center;
-      padding: 6px 2px;
+      padding: 5px 4px;
       font-variant-numeric: tabular-nums;
+      white-space: normal;
+      vertical-align: middle;
+      line-height: 1.35;
+      font-size: 10px;
     }
-    .data-table td.tri-cur { font-size: 10px; }
+    .data-table td.tri-cur {
+      font-weight: 600;
+      font-size: 11px;
+    }
+    .data-table th.sub-h-tri {
+      width: 82px;
+      min-width: 82px;
+      max-width: 82px;
+      font-size: 10px;
+      font-weight: 600;
+      color: #595959;
+      text-align: center;
+      vertical-align: middle;
+      padding: 5px 3px;
+      box-sizing: border-box;
+      background: #f5f7fa;
+    }
+    .data-table th.sub-h-ch {
+      font-size: 10px;
+      font-weight: 600;
+      color: #434343;
+      text-align: center;
+      vertical-align: middle;
+      padding: 6px 4px;
+      background: #eef2f8;
+      white-space: normal;
+      line-height: 1.25;
+    }
     .data-table th.sku-h1 {
       text-align: center;
       font-size: 11px;
@@ -230,47 +263,6 @@
     .data-table.pivot-table {
       table-layout: fixed;
       width: auto;
-    }
-    .data-table.pivot-table th.sub-h-pivot,
-    .data-table.pivot-table td.pivot-cell {
-      width: 108px;
-      min-width: 108px;
-      max-width: 108px;
-      box-sizing: border-box;
-    }
-    .data-table thead tr.h2 th.sub-h-pivot {
-      white-space: normal;
-      line-height: 1.25;
-      width: 108px;
-      min-width: 108px;
-      max-width: 108px;
-      font-size: 10px;
-      font-weight: 600;
-      color: #595959;
-      text-align: center;
-      vertical-align: middle;
-      padding: 6px 4px;
-      box-sizing: border-box;
-    }
-    .data-table td.pivot-cell {
-      width: 108px;
-      min-width: 108px;
-      max-width: 108px;
-      white-space: normal;
-      text-align: right;
-      vertical-align: top;
-      padding: 6px 8px;
-      font-size: 11px;
-    }
-    .pivot-cell .v-main {
-      font-weight: 600;
-      font-variant-numeric: tabular-nums;
-    }
-    .pivot-cell .v-sub {
-      font-size: 10px;
-      color: #8c8c8c;
-      margin-top: 3px;
-      line-height: 1.35;
     }
     .data-table th:first-child,
     .data-table td:first-child {
@@ -299,7 +291,14 @@
       position: sticky;
       top: var(--thead-h1);
       z-index: 4;
-      background: #f0f4fa;
+      background: #eef2f8;
+      box-shadow: 0 1px 0 #f0f0f0;
+    }
+    .data-table thead tr.h3 th {
+      position: sticky;
+      top: calc(var(--thead-h1) + var(--thead-h2));
+      z-index: 4;
+      background: #f5f7fa;
       box-shadow: 0 1px 0 #f0f0f0;
     }
     .data-table tbody td:first-child { background: #fff; }
@@ -731,7 +730,7 @@
           <div class="panel-head">
             <div>
               <div class="panel-title">经营对比 · 按渠道（透视表）</div>
-              <div class="panel-sub">列头两层：第一层为「产品：xxx」，第二层为各渠道；行头为对比项。与「产品对比」在出货授权价视角下可合并入口（是否单独保留菜单由业务确认）。</div>
+              <div class="panel-sub">列头三层：产品 → 渠道 →「当前 / 同比 / 对比」；「当前」为当期主数字，「同比」「对比」为对应期演示额 + 涨跌率。行头为对比项。</div>
             </div>
           </div>
           <div class="panel-body">
@@ -866,8 +865,8 @@
         return Math.abs(h);
       }
 
-      /** 与透视单元格 pivotCellHtml 的渠道种子一致，用于演示默认「达成率最低」的 MSKU */
-      var ACH_DEMO_CHANNEL_KEYS = ["Govee", "独立站", "Offline", "TTS", "京东"];
+      /** 与透视表渠道列种子一致，用于演示默认「达成率最低」的 MSKU */
+      var ACH_DEMO_CHANNEL_KEYS = ["Govee", "独立站", "Offline", "线下分销", "TTS", "京东"];
 
       function worstDemoAchievementRatePct(msku) {
         var minR = 999;
@@ -1260,12 +1259,14 @@
       }
 
       /**
-       * 渠道透视列：第二层为渠道；展示名与基础数据 channel_name 对齐（亚马逊/Shopify/线下商超为业务可读别名）。
+       * 渠道透视列：第二层为渠道名；第三层固定为「当前 / 同比 / 对比」三列。
+       * channel_name 须与基础数据 JSON 中 channels[].channel_name 一致。
        */
       var CHANNEL_PIVOT_PREF = [
         { channel_name: "Govee", colLabel: "亚马逊", subNote: "Govee" },
         { channel_name: "独立站", colLabel: "Shopify", subNote: "独立站" },
         { channel_name: "Offline", colLabel: "线下商超", subNote: "Offline" },
+        { channel_name: "线下分销", colLabel: "线下分销", subNote: "" },
         { channel_name: "TTS", colLabel: "TTS", subNote: "" },
         { channel_name: "京东", colLabel: "京东", subNote: "" }
       ];
@@ -1282,7 +1283,7 @@
           if (byName[p.channel_name]) out.push(p);
         }
         if (!out.length) {
-          channelData.channels.slice(0, 5).forEach(function (ch) {
+          channelData.channels.slice(0, 8).forEach(function (ch) {
             out.push({
               channel_name: ch.channel_name,
               colLabel: ch.channel_name,
@@ -1293,26 +1294,42 @@
         return out;
       }
 
-      function pivotCellHtml(sku, subRowKey, metricName) {
-        var h = hashStr(sku + "|" + subRowKey + "|" + metricName);
-        var cur = formatCurrent(metricName, h);
-        var yoy = isPtYoyCmp(metricName) ? ptOnly(h + 11) : pctOnly(h + 11);
-        var cmp = isPtYoyCmp(metricName) ? ptOnly(h + 911) : pctOnly(h + 911);
+      var PIVOT_SUB_COLS = 3;
+      var PIVOT_TRI_LABELS = ["当前", "同比", "对比"];
+
+      function pivotTripleCells(sku, subRowKey, metricName) {
+        var hCur = hashStr(sku + "|" + subRowKey + "|" + metricName);
+        var hYoyAbs = hashStr(sku + "|" + subRowKey + "|" + metricName + "|同期额");
+        var hCmpAbs = hashStr(sku + "|" + subRowKey + "|" + metricName + "|对比额");
+        var cur = formatCurrent(metricName, hCur);
+        var yoyVal = formatCurrent(metricName, hYoyAbs);
+        var cmpVal = formatCurrent(metricName, hCmpAbs);
+        var yoyRate = isPtYoyCmp(metricName) ? ptOnly(hCur + 11) : pctOnly(hCur + 11);
+        var cmpRate = isPtYoyCmp(metricName) ? ptOnly(hCur + 911) : pctOnly(hCur + 911);
+        var clsY = pctClass(yoyRate);
+        var clsC = pctClass(cmpRate);
         return (
-          "<td class=\"pivot-cell\"><div class=\"v-main\">" +
+          "<td class=\"tri-cur\">" +
           esc(cur) +
-          "</div><div class=\"v-sub\">同比 " +
-          esc(yoy) +
-          " · 对比 " +
-          esc(cmp) +
-          "</div></td>"
+          "</td><td class=\"tri-yoy\">" +
+          esc(yoyVal) +
+          " " +
+          (clsY ? "<span class=\"" + esc(clsY) + "\">" : "<span>") +
+          esc(yoyRate) +
+          "</span></td><td class=\"tri-cmp\">" +
+          esc(cmpVal) +
+          " " +
+          (clsC ? "<span class=\"" + esc(clsC) + "\">" : "<span>") +
+          esc(cmpRate) +
+          "</span></td>"
         );
       }
 
-      function buildPivotColgroup(nSku, nSub) {
-        var w = 108;
+      function buildPivotColgroup(nSku, nCh, colsPerCh) {
+        colsPerCh = colsPerCh || PIVOT_SUB_COLS;
+        var w = 82;
         var html = ['<colgroup><col class="col-first" style="min-width:168px" />'];
-        for (var i = 0; i < nSku * nSub; i++) {
+        for (var i = 0; i < nSku * nCh * colsPerCh; i++) {
           html.push('<col style="width:' + w + 'px" />');
         }
         html.push("</colgroup>");
@@ -1320,33 +1337,31 @@
       }
 
       function buildPivotThead(displaySkus, subCols) {
-        var nSub = subCols.length;
-        if (!displaySkus.length || !nSub) {
+        var nCh = subCols.length;
+        var tri = PIVOT_SUB_COLS;
+        if (!displaySkus.length || !nCh) {
           return (
             "<thead><tr class=\"h1\"><th class=\"corner-th\">对比项</th><th>（无列）</th></tr></thead>"
           );
         }
-        var r1 = '<tr class="h1"><th rowspan="2" class="corner-th">对比项</th>';
-        var r2 = '<tr class="h2">';
+        var spanPerSku = nCh * tri;
+        var r1 = '<tr class="h1"><th rowspan="3" class="corner-th">对比项</th>';
         for (var si = 0; si < displaySkus.length; si++) {
           var skuLabel = displaySkus[si];
-          var cls = "sku-h1";
           r1 +=
             '<th colspan="' +
-            nSub +
-            '" class="' +
-            cls +
-            '" title="' +
+            spanPerSku +
+            '" class="sku-h1" title="' +
             esc(skuLabel) +
             '">产品：' +
             esc(skuLabel) +
             "</th>";
         }
         r1 += "</tr>";
-        for (var si = 0; si < displaySkus.length; si++) {
-          for (var ci = 0; ci < nSub; ci++) {
+        var r2 = '<tr class="h2">';
+        for (si = 0; si < displaySkus.length; si++) {
+          for (var ci = 0; ci < nCh; ci++) {
             var col = subCols[ci];
-            var tdCls = "sub-h sub-h-pivot";
             var lab;
             if (col.colLabel != null) {
               lab = esc(col.colLabel);
@@ -1357,20 +1372,30 @@
                   "</span>";
               }
             } else {
-              lab = esc(col.label);
+              lab = esc(col.label || col.channel_name);
             }
-            r2 += '<th class="' + tdCls + '">' + lab + "</th>";
+            r2 += '<th colspan="' + tri + '" class="sub-h-ch">' + lab + "</th>";
           }
         }
         r2 += "</tr>";
-        return "<thead>" + r1 + r2 + "</thead>";
+        var r3 = '<tr class="h3">';
+        for (si = 0; si < displaySkus.length; si++) {
+          for (ci = 0; ci < nCh; ci++) {
+            for (var t = 0; t < tri; t++) {
+              r3 += '<th class="sub-h-tri">' + PIVOT_TRI_LABELS[t] + "</th>";
+            }
+          }
+        }
+        r3 += "</tr>";
+        return "<thead>" + r1 + r2 + r3 + "</thead>";
       }
 
       function buildPivotTbody(displaySkus, subCols, subKeyFromCol) {
         var metrics = getVisibleMetrics();
-        var nSub = subCols.length;
+        var nCh = subCols.length;
+        var tri = PIVOT_SUB_COLS;
         var nSku = displaySkus.length;
-        var totalSpan = 1 + nSku * nSub;
+        var totalSpan = 1 + nSku * nCh * tri;
         if (!metrics.length) {
           return (
             "<tbody><tr><td colspan=\"" +
@@ -1378,7 +1403,7 @@
             "\">请至少在「自定义显示指标」中勾选一个对比项。</td></tr></tbody>"
           );
         }
-        if (!nSku || !nSub) {
+        if (!nSku || !nCh) {
           return (
             "<tbody><tr><td colspan=\"" +
             Math.max(2, totalSpan) +
@@ -1401,9 +1426,9 @@
           var parts = ["<tr><td>" + headInner + "</td>"];
           for (var si = 0; si < displaySkus.length; si++) {
             var sku = displaySkus[si];
-            for (var ci = 0; ci < nSub; ci++) {
+            for (var ci = 0; ci < nCh; ci++) {
               var subKey = subKeyFromCol(subCols[ci]);
-              parts.push(pivotCellHtml(sku, subKey, mname));
+              parts.push(pivotTripleCells(sku, subKey, mname));
             }
           }
           parts.push("</tr>");
@@ -1419,11 +1444,11 @@
         }
         var chCols = getChannelPivotColumns();
         var displaySkus = getDisplayProducts();
-        var nSub = chCols.length;
+        var nCh = chCols.length;
         var nSku = displaySkus.length;
         return (
           "<table class=\"data-table pivot-table\">" +
-          buildPivotColgroup(nSku, nSub) +
+          buildPivotColgroup(nSku, nCh, PIVOT_SUB_COLS) +
           buildPivotThead(displaySkus, chCols) +
           buildPivotTbody(displaySkus, chCols, function (col) {
             return "CH|" + col.channel_name;
@@ -1546,7 +1571,11 @@
           channelData = {
             channels: [
               { channel_name: "Govee", stores: ["Govee_US", "Govee_DE"] },
-              { channel_name: "独立站", stores: ["独立站-US", "独立站-EU"] }
+              { channel_name: "独立站", stores: ["独立站-US", "独立站-EU"] },
+              { channel_name: "Offline", stores: ["Offline-US"] },
+              { channel_name: "线下分销", stores: ["分销-华东"] },
+              { channel_name: "TTS", stores: ["TTS-US"] },
+              { channel_name: "京东", stores: ["京东旗舰店"] }
             ]
           };
           initPickers();
