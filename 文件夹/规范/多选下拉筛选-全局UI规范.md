@@ -2,7 +2,8 @@
 
 > **适用范围**：ERP / 管报 / 配置类页面中，用于**筛选条件**的「多选枚举」控件（如零售商、场景、品类、MSKU 列表等）。  
 > **不适用**：表单内非筛选用途的复杂树形选择、品线 Tag 多选（仍以《产品信息筛选区》2.3 为准）、以及产品单独声明的控件。  
-> **配套实现**：`文件夹/规范/assets/multi-select-filter.js`（`MultiSelectFilter.mount`）；与仓库 `.cursor/rules/multi-select-filter.mdc` 配套使用。
+> **配套实现**：`文件夹/规范/assets/multi-select-filter.js`（`MultiSelectFilter.mount`）；与仓库 `.cursor/rules/multi-select-filter.mdc` 配套使用。  
+> **MSKU 业务键**：明细行唯一键为 **`msku + 店铺名称`**（见《销售主数据-全局业务规范》§4）。筛选项展示「单个 MSKU」且未限定店铺时，指标应按 **MSKU 下多店铺汇总**，不得假设 MSKU 字符串全局唯一。
 
 ---
 
@@ -58,4 +59,5 @@
 | 版本 | 日期 | 说明 |
 |------|------|------|
 | v1.0 | 2026-05-06 | 首版：懒加载、搜索、多选、默认「全部」及 SKU/MSKU 例外。 |
+| v1.1 | 2026-05-18 | 对齐《销售主数据-全局业务规范》：MSKU+店铺唯一键、未选店铺时 MSKU 汇总。 |
 | v1.1 | 2026-05-07 | 补充 `useBodyPortal` 与《下拉与浮层-防遮挡》引用。 |
