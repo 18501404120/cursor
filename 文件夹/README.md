@@ -8,9 +8,10 @@
 
 1. 将 `main` 推送到 GitHub 后，工作流 [`.github/workflows/pages.yml`](../.github/workflows/pages.yml) 会把仓库根目录的静态文件发布到 **`gh-pages`** 分支。
 2. 在仓库 **Settings → Pages**：发布源选 **Deploy from a branch**，分支 **`gh-pages`**，目录 **`/(root)`**。
-3. 打开站点根入口（含各项目原型链接）：  
-   `https://18501404120.github.io/cursor/`  
-   或根目录 [`index.html`](../index.html) 中的卡片链接。
+3. 打开站点入口：  
+   - 项目总目录（推荐）：[`文件夹/项目/index.html`](https://18501404120.github.io/cursor/%E6%96%87%E4%BB%B6%E5%A4%B9/%E9%A1%B9%E7%9B%AE/index.html)  
+   - 仓库根：[`https://18501404120.github.io/cursor/`](../index.html)  
+   同步与预览说明见 [`项目/README.md`](./项目/README.md)。
 
 多数原型内脚本使用 `fetch` 读取同仓库下的 JSON（例如 `文件夹/规范/基础数据/`），**不要用 `file://` 直接双击打开**，否则会触发浏览器跨域限制。
 
