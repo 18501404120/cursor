@@ -1342,7 +1342,7 @@
   var PLAN_STORAGE_KEY_V3 = "marketing_expense_plan_v3";
   var PLAN_STORAGE_KEY_V2 = "marketing_expense_plan_usd_v2";
   /** 与《营销费用规划》共用：示例版本变更时清空规划缓存 */
-  var SAMPLE_DATA_VERSION = "global-channel-store-v202605";
+  var SAMPLE_DATA_VERSION = "global-sales-base-v20260519";
   var ASSET_BASE = "../../../../规范";
   var DATA_JSON_PATHS = {
     scene: [
@@ -1356,6 +1356,12 @@
     channelStore: [
       ASSET_BASE + "/基础数据/渠道店铺基础数据_v1.json",
       "../../规范/基础数据/渠道店铺基础数据_v1.json"
+    ],
+    salesBase: [
+      ASSET_BASE + "/基础数据/销售基础信息_v1.json",
+      ASSET_BASE + "/基础数据/销售基础信息_原型子集_v1.json",
+      "../../规范/基础数据/销售基础信息_v1.json",
+      "../../规范/基础数据/销售基础信息_原型子集_v1.json"
     ]
   };
   var MONTH_NAMES = ["1月", "2月", "3月", "4月", "5月", "6月", "7月", "8月", "9月", "10月", "11月", "12月"];
@@ -1366,8 +1372,9 @@
   var CHANNEL_STORE_DATA = [];
   var CHANNEL_SELECT_OPTIONS = [{ value: "", label: "全渠道" }];
   var SHOP_GEO_RING = [];
-  var PROTOTYPE_SKUS = ["H6065301", "H6076113", "H6011001", "H6159001", "B5040101", "A7067301"];
-  var PROTOTYPE_MODELS = ["H6065", "H6076", "H6011", "H6159", "B5040", "A7067"];
+  var PROTOTYPE_SKUS = ["H6065301", "H6076113", "H617E3D1", "H6840312", "B5040101", "H1310111"];
+  var PROTOTYPE_MODELS = ["H6065", "H6076", "H617E", "H6840", "B5040", "H1310"];
+  var SALES_BASE_RECORDS = [];
   /** 与规划页：顶部月份范围 + 地理/渠道/店铺多选 */
   var currentFilter = { monthStart: "", monthEnd: "" };
   var _fltGeoMsf = { region: null, country: null, channel: null, store: null };
@@ -2104,7 +2111,7 @@
     if (!sk.length) return "SKU: 全部\nMSKU: 全部";
     var sku8 = sk[0];
     var mrow = findMockMskuRowBySku(sku8);
-    var msku = mrow ? mrow.msku : sku8 + "+Govee+US";
+    var msku = mrow ? mrow.msku : resolveListingRow(sku8, inferGeoFromStoreName("Govee_US", "Govee")).msku;
     if (sk.length > 1) {
       return "SKU: " + sk.join("、") + "\nMSKU: （多 SKU 见拆分明细）";
     }
@@ -2117,7 +2124,8 @@
     for (var i = 0; i < MOCK_MSKU_UNIVERSE.length; i++) {
       if (String(MOCK_MSKU_UNIVERSE[i].sku || "").toUpperCase() === k) return MOCK_MSKU_UNIVERSE[i];
     }
-    return null;
+    var rec = findSalesRecord(sku8, "");
+    return rec ? salesRecToMockRow(rec) : null;
   }
 
   function regionDisplayName(code) {
@@ -2163,9 +2171,13 @@
   }
 
   function sceneCategoryLineHtml(r) {
-    var sc = String(r.mScenario != null ? r.mScenario : "").trim() || "—";
-    var cat = String(r.mCategory != null ? r.mCategory : "").trim() || "—";
-    var line = productLineCodeForScenarioCategory(sc, cat);
+    var mrow = findMockMskuRow(r.msku) || {};
+    var sc = String(r.mScenario != null ? r.mScenario : mrow.scenario || "").trim() || "—";
+    var cat = String(r.mCategory != null ? r.mCategory : mrow.category || "").trim() || "—";
+    var line =
+      mrow.productLine != null && String(mrow.productLine).trim()
+        ? String(mrow.productLine).trim()
+        : productLineCodeForScenarioCategory(sc, cat);
     return escapeHtml(sc) + "/" + escapeHtml(cat) + "/" + escapeHtml(line);
   }
 
@@ -2205,32 +2217,54 @@
 
   function rebuildMockMskuUniverse() {
     MOCK_MSKU_UNIVERSE = [];
-    if (!SCENARIO_CATEGORY_TREE.length) return;
     if (!SHOP_GEO_RING.length) rebuildChannelStoreGlobals();
     var ring = SHOP_GEO_RING.length ? SHOP_GEO_RING : [inferGeoFromStoreName("Govee_US", "Govee")];
+    var shopSet = {};
+    ring.forEach(function (g) {
+      shopSet[g.shop] = 1;
+    });
+    (FILTER_STORE_CODES || []).forEach(function (s) {
+      shopSet[s] = 1;
+    });
     var tags = [planNpTagLabelForYear(2026), planNpTagLabelForYear(2025), planNpTagLabelForYear(2024), ""];
+    if (SALES_BASE_RECORDS.length) {
+      var seen = {};
+      var ti = 0;
+      SALES_BASE_RECORDS.forEach(function (rec) {
+        var sku = String(rec.sku || "").trim();
+        if (PROTOTYPE_SKUS.indexOf(sku) < 0) return;
+        var shop = String(rec["店铺名称"] || "").trim();
+        if (!shopSet[shop]) return;
+        var key = String(rec.msku || "") + "\t" + shop;
+        if (seen[key]) return;
+        seen[key] = 1;
+        MOCK_MSKU_UNIVERSE.push(salesRecToMockRow(rec, tags[ti++ % tags.length]));
+      });
+      if (!MOCK_MSKU_UNIVERSE.length) {
+        SALES_BASE_RECORDS.forEach(function (rec2) {
+          var sku2 = String(rec2.sku || "").trim();
+          if (PROTOTYPE_SKUS.indexOf(sku2) < 0) return;
+          var key2 = String(rec2.msku || "") + "\t" + String(rec2["店铺名称"] || "");
+          if (seen[key2]) return;
+          seen[key2] = 1;
+          MOCK_MSKU_UNIVERSE.push(salesRecToMockRow(rec2, tags[ti++ % tags.length]));
+        });
+      }
+      return;
+    }
+    if (!SCENARIO_CATEGORY_TREE.length) return;
     var idx = 0;
     SCENARIO_CATEGORY_TREE.forEach(function (node) {
       if (!node.categories || node.scenario === "未分类") return;
-      node.categories.forEach(function (cat) {
+      node.categories.forEach(function () {
         for (var k = 0; k < 2; k++) {
           var sku8 = PROTOTYPE_SKUS[(idx + k) % PROTOTYPE_SKUS.length];
-          var tag = tags[idx % tags.length];
           var geo = ring[idx % ring.length];
           idx++;
-          MOCK_MSKU_UNIVERSE.push({
-            scenario: node.scenario,
-            category: cat,
-            shop: geo.shop,
-            region_code: geo.region_code,
-            country_code: geo.country_code,
-            channel: geo.channel,
-            sku: sku8,
-            msku: mskuListingId(sku8, geo),
-            model: sku8.slice(0, 5),
-            newProductTag: tag,
-            _bpM: {}
-          });
+          var row = resolveListingRow(sku8, geo);
+          row.newProductTag = tags[idx % tags.length];
+          if (!row.scenario) row.scenario = node.scenario;
+          MOCK_MSKU_UNIVERSE.push(row);
         }
       });
     });
@@ -2271,17 +2305,18 @@
       var shop = shops[i % shops.length] || "Govee_US";
       var geo = inferGeoFromStoreName(shop, pchList[i % Math.max(pchList.length, 1)] || "Govee");
       var sku8 = getPlanSkus(plan)[i % Math.max(getPlanSkus(plan).length, 1)] || skuSeed;
+      var listing = resolveListingRow(sku8, geo);
       out.push({
-        scenario: plan.scenario,
-        category: plan.category,
-        shop: shop,
-        sku: sku8,
-        msku: mskuListingId(sku8, geo),
-        model: String(sku8).slice(0, 5),
+        scenario: listing.scenario || plan.scenario,
+        category: listing.category || plan.category,
+        shop: listing.shop || shop,
+        sku: listing.sku || sku8,
+        msku: listing.msku,
+        model: listing.model || String(sku8).slice(0, 5),
         newProductTag: planNpTagValue(plan),
-        region_code: prList[i % Math.max(prList.length, 1)] || geo.region_code,
-        country_code: pcList[i % Math.max(pcList.length, 1)] || geo.country_code,
-        channel: pchList[i % Math.max(pchList.length, 1)] || geo.channel,
+        region_code: prList[i % Math.max(prList.length, 1)] || listing.region_code || geo.region_code,
+        country_code: pcList[i % Math.max(pcList.length, 1)] || listing.country_code || geo.country_code,
+        channel: pchList[i % Math.max(pchList.length, 1)] || listing.channel || geo.channel,
         _bpM: {}
       });
     }
@@ -2955,8 +2990,88 @@
     if (MOCK_MSKU_UNIVERSE.length) rebuildMockMskuUniverse();
   }
 
+  function applySalesBasePayload(data) {
+    if (!data || !Array.isArray(data.records)) return;
+    SALES_BASE_RECORDS = data.records;
+    rebuildMockMskuUniverse();
+  }
+
+  function channelNameForStore(shop) {
+    var s = String(shop || "").trim();
+    if (!s) return "";
+    for (var ci = 0; ci < CHANNEL_STORE_DATA.length; ci++) {
+      var c = CHANNEL_STORE_DATA[ci];
+      var stores = c.stores || [];
+      for (var si = 0; si < stores.length; si++) {
+        if (stores[si] === s) return c.channel;
+      }
+    }
+    if (/^APP商城/.test(s)) return "APP商城";
+    if (/^独立站/.test(s)) return "独立站";
+    if (/^TTS/.test(s)) return "TTS";
+    if (/^Offline/.test(s)) return "Offline";
+    return "Govee";
+  }
+
+  function salesRecToMockRow(rec, newProductTag) {
+    var shop = String(rec["店铺名称"] || "").trim();
+    var ch = channelNameForStore(shop);
+    var geo = inferGeoFromStoreName(shop, ch);
+    var sku = String(rec.sku || "").trim();
+    return {
+      scenario: String(rec["场景"] || "").trim(),
+      category: String(rec["品类"] || "").trim(),
+      shop: shop,
+      region_code: geo.region_code,
+      country_code: geo.country_code,
+      channel: geo.channel,
+      sku: sku,
+      msku: String(rec.msku || "").trim(),
+      model: String(rec.model || "").trim() || sku.slice(0, 5),
+      productLine: rec["品线"] != null ? String(rec["品线"]) : "",
+      newProductTag: newProductTag || "",
+      _bpM: {}
+    };
+  }
+
+  function findSalesRecord(sku8, shop) {
+    var sku = String(sku8 || "").trim();
+    var sh = String(shop || "").trim();
+    if (!sku || !SALES_BASE_RECORDS.length) return null;
+    if (sh) {
+      for (var i = 0; i < SALES_BASE_RECORDS.length; i++) {
+        var r = SALES_BASE_RECORDS[i];
+        if (r.sku === sku && r["店铺名称"] === sh) return r;
+      }
+    }
+    for (var j = 0; j < SALES_BASE_RECORDS.length; j++) {
+      if (SALES_BASE_RECORDS[j].sku === sku) return SALES_BASE_RECORDS[j];
+    }
+    return null;
+  }
+
+  function resolveListingRow(sku8, geo) {
+    var g = geo || inferGeoFromStoreName("Govee_US", "Govee");
+    var rec = findSalesRecord(sku8, g.shop);
+    if (rec) return salesRecToMockRow(rec);
+    return {
+      scenario: "",
+      category: "",
+      shop: g.shop,
+      region_code: g.region_code,
+      country_code: g.country_code,
+      channel: g.channel,
+      sku: String(sku8 || "").trim(),
+      msku: String(sku8 || "").trim(),
+      model: String(sku8 || "").slice(0, 5),
+      productLine: "",
+      newProductTag: "",
+      _bpM: {}
+    };
+  }
+
   function mskuListingId(sku8, geo) {
-    return String(sku8 || "").trim() + "+" + String(geo.channel || "").trim() + "+" + String(geo.country_code || "US").trim();
+    return resolveListingRow(sku8, geo).msku;
   }
 
   function getRegionByCode(code) {
@@ -4875,6 +4990,10 @@
     seedDemoPlansIfEmpty();
     updateScCatTrigger();
     updateNpTagTrigger();
+    refreshAll();
+  });
+  fetchFirst(DATA_JSON_PATHS.salesBase, function (d) {
+    applySalesBasePayload(d);
     refreshAll();
   });
 })();
