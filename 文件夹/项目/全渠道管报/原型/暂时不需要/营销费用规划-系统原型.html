@@ -1401,7 +1401,7 @@
     add(
       "splitSkuCol",
       "拆分表 · SKU 信息",
-      "第一行为 sku 编码示意；第二行为「SKU + 渠道 + 国家」组合示意，便于与主数据对照。"
+      "第一行为 **8 位生产 SKU**（与《销售主数据-全局业务规范》一致）；第二行为 **MSKU**（渠道可售 Listing 编码，示例形如 SKU+渠道+国家）。明细行唯一键为 MSKU×店铺。"
     );
     add(
       "splitNpTagCol",
@@ -2040,13 +2040,27 @@
     );
   }
 
+  /** 从拆分行或主数据解析 8 位生产 SKU */
+  function productionSkuFromRow(r) {
+    var mrow = findMockMskuRow(r && r.msku) || {};
+    if (r && r.sku) return String(r.sku).trim();
+    if (mrow.sku) return String(mrow.sku).trim();
+    var m = String((r && r.msku) || mrow.msku || "").trim();
+    if (/^[A-Za-z0-9]{8}(\+|\/|$)/.test(m)) return m.slice(0, 8).toUpperCase();
+    return "";
+  }
+
   function skuInfoCellHtml(r) {
     var mrow = findMockMskuRow(r.msku) || {};
-    var ch = String(r.channel != null ? r.channel : mrow.channel || "").trim() || "—";
-    var cc = String(r.country_code != null ? r.country_code : mrow.country_code || "").trim() || "—";
-    var sku = String(r.msku || "").trim() || "—";
-    var line2 = sku + " / " + ch + " / " + cc;
-    return '<span class="split-cell-lines">sku:' + escapeHtml(sku) + "\n" + escapeHtml(line2) + "</span>";
+    var sku8 = productionSkuFromRow(r) || "—";
+    var msku = String(r.msku || mrow.msku || "").trim() || "—";
+    return (
+      '<span class="split-cell-lines">SKU: ' +
+      escapeHtml(sku8) +
+      "\nMSKU: " +
+      escapeHtml(msku) +
+      "</span>"
+    );
   }
 
   /** 拆分结果表：从示例主数据取该 MSKU 的新品标签 */
@@ -2366,6 +2380,7 @@
             region_code: geo.region_code,
             country_code: geo.country_code,
             channel: geo.channel,
+            sku: sku8,
             msku: mskuListingId(sku8, geo),
             model: sku8.slice(0, 5),
             newProductTag: tag,
@@ -2500,6 +2515,7 @@
         scenario: plan.scenario,
         category: plan.category,
         shop: shop,
+        sku: sku8,
         msku: mskuListingId(sku8, geo),
         model: String(sku8).slice(0, 5),
         newProductTag: planNpTagValue(plan),
@@ -3794,6 +3810,7 @@
           newProductTag: plan.newProductTag,
           shop: x.m.shop,
           msku: x.m.msku,
+          sku: x.m.sku,
           region_code: x.m.region_code,
           country_code: x.m.country_code,
           channel: x.m.channel,
@@ -3834,6 +3851,7 @@
             monthYm: r.monthYm,
             shop: r.shop,
             msku: r.msku,
+            sku: r.sku,
             region_code: r.region_code,
             country_code: r.country_code,
             channel: r.channel,
@@ -4723,7 +4741,7 @@
       escapeHtml("全场景/全部品类/全部品线") +
       "</span></td>" +
       '<td><span class="split-cell-lines">sales: 全部\nTL: 全部</span></td>' +
-      '<td><span class="split-cell-lines">sku: 全部SKU</span></td>' +
+      '<td><span class="split-cell-lines">SKU: 全部\nMSKU: 全部</span></td>' +
       "<td></td>" +
       "<td>—</td>" +
       '<td class="num">' +

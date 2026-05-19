@@ -2101,8 +2101,23 @@
 
   function planSkuInfoCellText(p) {
     var sk = getPlanSkus(p);
-    if (!sk.length) return "sku: 全部SKU";
-    return "sku: " + sk.join("、");
+    if (!sk.length) return "SKU: 全部\nMSKU: 全部";
+    var sku8 = sk[0];
+    var mrow = findMockMskuRowBySku(sku8);
+    var msku = mrow ? mrow.msku : sku8 + "+Govee+US";
+    if (sk.length > 1) {
+      return "SKU: " + sk.join("、") + "\nMSKU: （多 SKU 见拆分明细）";
+    }
+    return "SKU: " + sku8 + "\nMSKU: " + msku;
+  }
+
+  function findMockMskuRowBySku(sku8) {
+    var k = String(sku8 || "").trim().toUpperCase();
+    if (!k) return null;
+    for (var i = 0; i < MOCK_MSKU_UNIVERSE.length; i++) {
+      if (String(MOCK_MSKU_UNIVERSE[i].sku || "").toUpperCase() === k) return MOCK_MSKU_UNIVERSE[i];
+    }
+    return null;
   }
 
   function regionDisplayName(code) {
@@ -2160,13 +2175,26 @@
     return '<span class="split-cell-lines">sales: ' + escapeHtml(o.sales) + "\nTL: " + escapeHtml(o.tl) + "</span>";
   }
 
+  function productionSkuFromRow(r) {
+    var mrow = findMockMskuRow(r && r.msku) || {};
+    if (r && r.sku) return String(r.sku).trim();
+    if (mrow.sku) return String(mrow.sku).trim();
+    var m = String((r && r.msku) || mrow.msku || "").trim();
+    if (/^[A-Za-z0-9]{8}(\+|\/|$)/.test(m)) return m.slice(0, 8).toUpperCase();
+    return "";
+  }
+
   function skuInfoCellHtml(r) {
     var mrow = findMockMskuRow(r.msku) || {};
-    var ch = String(r.channel != null ? r.channel : mrow.channel || "").trim() || "—";
-    var cc = String(r.country_code != null ? r.country_code : mrow.country_code || "").trim() || "—";
-    var sku = String(r.msku || "").trim() || "—";
-    var line2 = sku + " / " + ch + " / " + cc;
-    return '<span class="split-cell-lines">sku:' + escapeHtml(sku) + "\n" + escapeHtml(line2) + "</span>";
+    var sku8 = productionSkuFromRow(r) || "—";
+    var msku = String(r.msku || mrow.msku || "").trim() || "—";
+    return (
+      '<span class="split-cell-lines">SKU: ' +
+      escapeHtml(sku8) +
+      "\nMSKU: " +
+      escapeHtml(msku) +
+      "</span>"
+    );
   }
 
   function splitRowNpTagCellHtml(r) {
@@ -2197,6 +2225,7 @@
             region_code: geo.region_code,
             country_code: geo.country_code,
             channel: geo.channel,
+            sku: sku8,
             msku: mskuListingId(sku8, geo),
             model: sku8.slice(0, 5),
             newProductTag: tag,
@@ -2246,6 +2275,7 @@
         scenario: plan.scenario,
         category: plan.category,
         shop: shop,
+        sku: sku8,
         msku: mskuListingId(sku8, geo),
         model: String(sku8).slice(0, 5),
         newProductTag: planNpTagValue(plan),
@@ -2411,6 +2441,7 @@
           monthYm: ym,
           shop: x.m.shop,
           msku: x.m.msku,
+          sku: x.m.sku,
           region_code: x.m.region_code,
           country_code: x.m.country_code,
           channel: x.m.channel,
@@ -2452,6 +2483,7 @@
             monthYm: r.monthYm,
             shop: r.shop,
             msku: r.msku,
+            sku: r.sku,
             region_code: r.region_code,
             country_code: r.country_code,
             channel: r.channel,
@@ -2629,7 +2661,7 @@
       '<td class="split-path-cell">总计</td>' +
       '<td class="split-path-cell"><span class="split-cell-lines">' + escapeHtml("全场景/全部品类/全部品线") + "</span></td>" +
       '<td><span class="split-cell-lines">sales: 全部\nTL: 全部</span></td>' +
-      '<td><span class="split-cell-lines">sku: 全部SKU</span></td>' +
+      '<td><span class="split-cell-lines">SKU: 全部\nMSKU: 全部</span></td>' +
       "<td></td>" +
       "<td>—</td>" +
       '<td class="num">' + formatPct01(sumSplit > 0 ? 1 : 0) + "</td>" +
