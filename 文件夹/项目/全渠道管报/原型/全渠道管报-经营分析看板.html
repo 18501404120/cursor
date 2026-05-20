@@ -816,12 +816,24 @@
     var yoy=yoyPct(cur,ly);
     var cmpRate=yoyPct(cur,cmpTot);
 
+    var FUNNEL_CX=490;
+
     function chipRect(x,y,w,h,item,top){
+      var titleFs=item.n.length>7?10:12;
       return '<g class="svg-chip '+(top?'top':'')+' '+(drill===item.k?'active':'')+'" data-funnel-k="'+item.k+'">'+
         '<rect x="'+x+'" y="'+y+'" width="'+w+'" height="'+h+'" rx="8"></rect>'+
-        '<text x="'+(x+w/2)+'" y="'+(y+20)+'" text-anchor="middle" fill="#dbeafe" font-size="12" font-weight="700">'+item.n+'</text>'+
-        '<text x="'+(x+w/2)+'" y="'+(y+38)+'" text-anchor="middle" fill="#dbeafe" font-size="12" font-weight="700">'+fmtMoney(item.v)+' ('+fmtPct(item.v/salesBase*100)+')</text>'+
+        '<text x="'+(x+w/2)+'" y="'+(y+19)+'" text-anchor="middle" fill="#dbeafe" font-size="'+titleFs+'" font-weight="700">'+item.n+'</text>'+
+        '<text x="'+(x+w/2)+'" y="'+(y+37)+'" text-anchor="middle" fill="#dbeafe" font-size="11" font-weight="700">'+fmtMoney(item.v)+' ('+fmtPct(item.v/salesBase*100)+')</text>'+
       '</g>';
+    }
+
+    /** 费用条横排：相对漏斗中线 FUNNEL_CX 整体居中 */
+    function layoutChipRow(chips,y,opts){
+      opts=opts||{};
+      var w=opts.w||132, gap=opts.gap||8, h=opts.h||48, cx=opts.centerX!=null?opts.centerX:FUNNEL_CX, top=!!opts.top;
+      var n=chips.length, totalW=n*w+(n-1)*gap, x0=cx-totalW/2, html='';
+      for(var i=0;i<n;i++){ html+=chipRect(x0+i*(w+gap),y,w,h,chips[i],top); }
+      return html;
     }
 
     var h='';
@@ -829,11 +841,11 @@
     h+='<div class="funnel-main">';
     h+='<svg viewBox="0 0 980 420" width="100%" height="420">';
     h+='<defs><filter id="glow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="4" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>';
-    h+='<g filter="url(#glow)">'+funnelNode('90,18 890,18 850,88 130,88','销售额',fmtMoney(sales)+' (100%)',{fill:'#ecfdff',stroke:'#25c6f7',text:'#075985',ty:52,vy:78},490)+'</g>';
-    h+=chipRect(211,102,178,48,topSubs[0],true)+chipRect(401,102,178,48,topSubs[1],true)+chipRect(591,102,178,48,topSubs[2],true);
-    h+='<g filter="url(#glow)">'+funnelNode('145,164 835,164 795,246 185,246','营收',fmtMoney(revenue)+' ('+fmtPct(revenue/salesBase*100)+')',{fill:'#eff5ff',stroke:'#3b82f6',text:'#1e3a8a',ty:200,vy:232},490)+'</g>';
-    h+=chipRect(30,262,150,48,midSubs[0],false)+chipRect(200,262,150,48,midSubs[1],false)+chipRect(370,262,150,48,midSubs[2],false)+chipRect(540,262,150,48,midSubs[3],false)+chipRect(710,262,150,48,midSubs[4],false);
-    h+='<g filter="url(#glow)">'+funnelNode('205,324 775,324 730,406 250,406','毛利',fmtMoney(gross)+' ('+fmtPct(gross/salesBase*100)+')',{fill:'#f7efff',stroke:'#8b5cf6',text:'#5b21b6',ty:360,vy:392},490)+'</g>';
+    h+='<g filter="url(#glow)">'+funnelNode('90,18 890,18 850,88 130,88','销售额',fmtMoney(sales)+' (100%)',{fill:'#ecfdff',stroke:'#25c6f7',text:'#075985',ty:52,vy:78},FUNNEL_CX)+'</g>';
+    h+=layoutChipRow(topSubs,102,{w:168,gap:12,h:48,top:true});
+    h+='<g filter="url(#glow)">'+funnelNode('145,164 835,164 795,246 185,246','营收',fmtMoney(revenue)+' ('+fmtPct(revenue/salesBase*100)+')',{fill:'#eff5ff',stroke:'#3b82f6',text:'#1e3a8a',ty:200,vy:232},FUNNEL_CX)+'</g>';
+    h+=layoutChipRow(midSubs,262,{w:128,gap:6,h:48,top:false});
+    h+='<g filter="url(#glow)">'+funnelNode('205,324 775,324 730,406 250,406','毛利',fmtMoney(gross)+' ('+fmtPct(gross/salesBase*100)+')',{fill:'#f7efff',stroke:'#8b5cf6',text:'#5b21b6',ty:360,vy:392},FUNNEL_CX)+'</g>';
     h+='</svg>';
     h+='</div>';
     var drillName=(allChips.find(function(x){return x.k===drill;})||{n:'费用项'}).n;
