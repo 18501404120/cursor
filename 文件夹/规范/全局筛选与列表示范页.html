@@ -1,0 +1,757 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>全局筛选与列表示范 · 销售主数据规范</title>
+  <script src="assets/month-range-picker.js"></script>
+  <script src="assets/multi-select-filter.js"></script>
+  <style>
+    :root {
+      --brand: #1677ff;
+      --border: #d9d9d9;
+      --line: #f0f0f0;
+      --text: #1e293b;
+      --muted: #64748b;
+      --label: #595959;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      font-size: 13px;
+      color: var(--text);
+      background: #f5f7fa;
+    }
+    .page-hd {
+      background: #fff;
+      border-bottom: 1px solid var(--line);
+      padding: 14px 20px;
+    }
+    .page-hd h1 { margin: 0 0 6px; font-size: 18px; }
+    .page-hd p { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.55; }
+    .page-hd a { color: var(--brand); }
+    .filter-panel {
+      background: #fff;
+      padding: 14px 20px 16px;
+      border-bottom: 1px solid var(--line);
+    }
+    .filter-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px 24px;
+      align-items: center;
+    }
+    .f-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+    .f-item > label {
+      color: var(--label);
+      font-size: 13px;
+      white-space: nowrap;
+    }
+    .f-item select,
+    .f-item .ctl-host {
+      min-width: 120px;
+    }
+    select.ctl {
+      height: 32px;
+      padding: 0 28px 0 10px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-size: 13px;
+      background: #fff;
+    }
+    select.ctl:focus { border-color: var(--brand); outline: none; box-shadow: 0 0 0 2px rgba(22,119,255,.12); }
+    .sku-group {
+      display: inline-flex;
+      align-items: stretch;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      overflow: hidden;
+      background: #fff;
+    }
+    .sku-group:focus-within {
+      border-color: var(--brand);
+      box-shadow: 0 0 0 2px rgba(22,119,255,.12);
+    }
+    .sku-group select {
+      border: none;
+      border-right: 1px solid var(--line);
+      border-radius: 0;
+      height: 30px;
+      padding: 0 8px;
+      font-size: 12px;
+      background: #fafafa;
+    }
+    .sku-group input {
+      border: none;
+      height: 30px;
+      width: 140px;
+      padding: 0 10px;
+      font-size: 13px;
+    }
+    .sku-group input:focus { outline: none; }
+    .sc-cat-wrap { position: relative; min-width: 200px; }
+    .sc-cat-trigger {
+      height: 32px; min-width: 200px; padding: 0 28px 0 10px;
+      border: 1px solid var(--border); border-radius: 6px; background: #fff;
+      text-align: left; cursor: pointer; position: relative; font-size: 13px;
+    }
+    .sc-cat-trigger::after {
+      content: ""; position: absolute; right: 10px; top: 50%; margin-top: -3px;
+      border: 5px solid transparent; border-top-color: #8c8c8c;
+    }
+    .sc-cat-wrap.open .sc-cat-trigger { border-color: var(--brand); box-shadow: 0 0 0 2px rgba(22,119,255,.12); }
+    .sc-cat-pop {
+      position: absolute; left: 0; top: calc(100% + 4px); z-index: 500;
+      display: flex; background: #fff; border: 1px solid var(--border);
+      border-radius: 8px; box-shadow: 0 8px 24px rgba(15,23,42,.12);
+    }
+    .sc-cat-pop[hidden] { display: none !important; }
+    .sc-cat-col { width: 160px; max-height: 280px; overflow-y: auto; border-right: 1px solid var(--line); }
+    .sc-cat-col:last-child { border-right: none; width: 200px; }
+    .sc-cat-item {
+      display: flex; align-items: center; gap: 6px; padding: 7px 10px;
+      cursor: pointer; font-size: 12px;
+    }
+    .sc-cat-item:hover { background: #f5f5f5; }
+    .sc-cat-item.active { background: #e6f4ff; color: var(--brand); font-weight: 600; }
+    .pl-tags {
+      display: inline-flex; flex-wrap: wrap; align-items: center; gap: 4px;
+      min-height: 32px; padding: 2px 6px; border: 1px solid var(--border);
+      border-radius: 6px; background: #fff; min-width: 160px; max-width: 280px;
+      cursor: text;
+    }
+    .pl-tags.open { border-color: var(--brand); box-shadow: 0 0 0 2px rgba(22,119,255,.12); }
+    .pl-tag {
+      display: inline-flex; align-items: center; gap: 4px;
+      padding: 0 6px; height: 22px; background: #f5f5f5; border: 1px solid #e8e8e8;
+      border-radius: 4px; font-size: 12px; font-family: ui-monospace, monospace;
+    }
+    .pl-tag button { border: none; background: none; cursor: pointer; color: #999; padding: 0 2px; }
+    .pl-drop {
+      position: absolute; z-index: 450; background: #fff; border: 1px solid var(--border);
+      border-radius: 8px; box-shadow: 0 8px 20px rgba(0,0,0,.1);
+      max-height: 240px; overflow-y: auto; min-width: 180px; display: none;
+    }
+    .pl-drop.show { display: block; }
+    .pl-opt { padding: 6px 12px; cursor: pointer; display: flex; align-items: center; gap: 8px; }
+    .pl-opt:hover { background: #f1f5f9; }
+    .pl-opt.on { color: var(--brand); font-weight: 600; }
+    .filter-actions {
+      display: flex; gap: 10px; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line);
+    }
+    .btn {
+      height: 32px; padding: 0 16px; border-radius: 6px; font-size: 13px; cursor: pointer; border: 1px solid var(--border);
+      background: #fff;
+    }
+    .btn-primary { background: var(--brand); color: #fff; border-color: var(--brand); }
+    .btn-primary:hover { background: #4096ff; }
+    .result-bar {
+      padding: 10px 20px; font-size: 12px; color: var(--muted);
+      background: #fff; border-bottom: 1px solid var(--line);
+    }
+    .table-wrap {
+      margin: 16px 20px 24px;
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      overflow: auto;
+      max-height: calc(100vh - 320px);
+    }
+    table.data-tbl {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+    table.data-tbl th,
+    table.data-tbl td {
+      border: 1px solid #e2e8f0;
+      padding: 8px 10px;
+      white-space: nowrap;
+    }
+    table.data-tbl thead th {
+      position: sticky;
+      top: 0;
+      z-index: 2;
+      background: #eef5ff;
+      font-weight: 600;
+      color: #0f2f63;
+    }
+    table.data-tbl tbody tr:nth-child(even) { background: #fafbfc; }
+    table.data-tbl td.num { text-align: right; font-variant-numeric: tabular-nums; }
+    .mono { font-family: ui-monospace, monospace; font-size: 11px; }
+    .load-err { color: #b91c1c; padding: 20px; }
+  </style>
+</head>
+<body>
+  <header class="page-hd">
+    <h1>全局筛选与列表示范页</h1>
+    <p>
+      演示《<a href="销售主数据-全局业务规范.md">销售主数据-全局业务规范</a>》§12 筛选联动：区域↔国家、渠道↔店铺独立 AND；
+      场景品类组合（跨场景多选记忆）；model/SKU/MSKU 互不级联；品线仅过滤结果；店铺/国家收窄有售 SKU/MSKU。
+      列表 100 条来自 <code>基础数据/全局筛选示范数据_v1.json</code>（源于销售基础信息宽表）。
+      请用 <kbd>python3 -m http.server</kbd> 在仓库根目录预览。
+    </p>
+  </header>
+
+  <section class="filter-panel" id="filterPanel">
+    <div class="filter-grid" style="display:flex;flex-wrap:wrap;gap:12px 24px;align-items:center;">
+      <div class="f-item"><label for="fltRegion">区域</label><select id="fltRegion" class="ctl"><option value="">全部</option></select></div>
+      <div class="f-item"><label for="fltCountry">国家</label><select id="fltCountry" class="ctl"><option value="">全部</option></select></div>
+      <div class="f-item"><label for="fltChannel">渠道</label><select id="fltChannel" class="ctl"><option value="">全部</option></select></div>
+      <div class="f-item"><label for="fltStore">店铺</label><select id="fltStore" class="ctl"><option value="">全部</option></select></div>
+      <div class="f-item">
+        <label>场景品类</label>
+        <div class="sc-cat-wrap" id="scCatWrap">
+          <button type="button" class="sc-cat-trigger" id="scCatTrigger" aria-expanded="false">请选择</button>
+          <div id="scCatPop" class="sc-cat-pop" hidden>
+            <div class="sc-cat-col" id="scCatSceneCol"></div>
+            <div class="sc-cat-col" id="scCatCatCol"></div>
+          </div>
+        </div>
+      </div>
+      <div class="f-item" style="position:relative;">
+        <label>品线</label>
+        <div id="plHost" class="pl-tags" tabindex="0"><span style="color:#bfbfbf;font-size:12px;">请选择</span></div>
+        <div id="plDrop" class="pl-drop"></div>
+      </div>
+      <div class="f-item"><label for="fltModel">model</label><select id="fltModel" class="ctl"><option value="">请选择</option></select></div>
+      <div class="f-item">
+        <label>SKU</label>
+        <div class="sku-group">
+          <select id="fltSkuMode" aria-label="SKU检索模式">
+            <option value="fuzzy">模糊</option>
+            <option value="exact">精确</option>
+            <option value="eight">8位搜索</option>
+          </select>
+          <input type="text" id="fltSkuInput" placeholder="请输入SKU" autocomplete="off" />
+        </div>
+      </div>
+      <div class="f-item"><label>MSKU</label><div id="fltMskuHost" class="ctl-host" style="min-width:200px;"></div></div>
+      <div class="f-item"><label for="fltTl">TL</label><select id="fltTl" class="ctl"><option value="">全部</option></select></div>
+      <div class="f-item"><label for="fltSales">Sales</label><select id="fltSales" class="ctl"><option value="">全部</option></select></div>
+      <div class="f-item"><label>日期范围</label><div id="fltMonthHost"></div></div>
+      <div class="f-item"><label>对比范围</label><div id="fltCompareHost"></div></div>
+    </div>
+    <div class="filter-actions">
+      <button type="button" class="btn btn-primary" id="btnSearch">查询</button>
+      <button type="button" class="btn" id="btnReset">重置</button>
+    </div>
+  </section>
+
+  <div class="result-bar" id="resultBar">加载中…</div>
+
+  <div class="table-wrap">
+    <table class="data-tbl">
+      <thead>
+        <tr>
+          <th>区域</th><th>国家</th><th>渠道</th><th>店铺</th>
+          <th>场景</th><th>品类</th><th>品线</th><th>model</th><th>SKU</th><th>MSKU</th>
+          <th>TL</th><th>Sales</th>
+          <th>销售额</th><th>销量</th>
+        </tr>
+      </thead>
+      <tbody id="tblBody"></tbody>
+    </table>
+  </div>
+
+  <script>
+(function () {
+  "use strict";
+
+  var BASE = "基础数据/";
+  var DEMO_ROWS = [];
+  var SALES_POOL = [];
+  var REGION_DATA = { regions: [] };
+  var CHANNEL_DATA = [];
+  var SCENE_TREE = [];
+  var STORE_GEO = {};
+  var MODELS = [];
+  var PRODUCT_LINES = [];
+  var TL_OPTS = [];
+  var SALES_OPTS = [];
+
+  var activeScene = "";
+  var selectedByScene = {};
+  var selectedPL = new Set();
+  var mskuMsf = null;
+  var monthPicker = null;
+  var comparePicker = null;
+
+  function leafKey(scene, cat) { return scene + "\t" + cat; }
+  function allSelectedLeaves() {
+    var out = [];
+    Object.keys(selectedByScene).forEach(function (sc) {
+      (selectedByScene[sc] || []).forEach(function (k) { out.push(k); });
+    });
+    return out;
+  }
+  function escapeHtml(s) {
+    return String(s == null ? "" : s)
+      .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  }
+
+  function fetchJson(path) {
+    return fetch(BASE + path).then(function (r) {
+      if (!r.ok) throw new Error(path + " HTTP " + r.status);
+      return r.json();
+    });
+  }
+
+  function buildStoreGeo(mappings) {
+    STORE_GEO = {};
+    (mappings || []).forEach(function (m) {
+      STORE_GEO[m.store_name] = {
+        region_code: m.region_code,
+        country_code: m.country_code,
+        channel_name: m.channel_name
+      };
+    });
+  }
+
+  function countriesForRegion(regionCode) {
+    var out = [];
+    var seen = {};
+    (REGION_DATA.regions || []).forEach(function (r) {
+      if (regionCode && r.region_code !== regionCode) return;
+      (r.countries || []).forEach(function (c) {
+        if (!c.country_code || seen[c.country_code]) return;
+        seen[c.country_code] = 1;
+        out.push(c);
+      });
+    });
+    return out;
+  }
+
+  function fillSelect(el, items, allLabel) {
+    el.innerHTML = "";
+    var o0 = document.createElement("option");
+    o0.value = "";
+    o0.textContent = allLabel || "全部";
+    el.appendChild(o0);
+    items.forEach(function (it) {
+      var o = document.createElement("option");
+      o.value = it.value;
+      o.textContent = it.label;
+      el.appendChild(o);
+    });
+  }
+
+  function wireRegionCountry() {
+    var regEl = document.getElementById("fltRegion");
+    var ctyEl = document.getElementById("fltCountry");
+    fillSelect(regEl, (REGION_DATA.regions || []).map(function (r) {
+      return { value: r.region_code, label: r.region_name };
+    }));
+    function refreshCountry() {
+      var rc = regEl.value;
+      var list = countriesForRegion(rc);
+      fillSelect(ctyEl, list.map(function (c) {
+        return { value: c.country_code, label: c.country_name + "（" + c.country_code + "）" };
+      }));
+    }
+    regEl.addEventListener("change", function () {
+      ctyEl.value = "";
+      refreshCountry();
+      refreshMskuOptions();
+    });
+    ctyEl.addEventListener("change", function () { refreshMskuOptions(); });
+    refreshCountry();
+  }
+
+  function wireChannelStore() {
+    var chEl = document.getElementById("fltChannel");
+    var stEl = document.getElementById("fltStore");
+    fillSelect(chEl, CHANNEL_DATA.map(function (c) {
+      return { value: c.channel, label: c.channel };
+    }));
+    function refreshStore() {
+      var ch = chEl.value;
+      var stores = [];
+      if (!ch) {
+        CHANNEL_DATA.forEach(function (c) {
+          (c.stores || []).forEach(function (s) { if (stores.indexOf(s) < 0) stores.push(s); });
+        });
+      } else {
+        var row = CHANNEL_DATA.find(function (c) { return c.channel === ch; });
+        stores = row ? row.stores.slice() : [];
+      }
+      fillSelect(stEl, stores.map(function (s) { return { value: s, label: s }; }));
+    }
+    chEl.addEventListener("change", function () {
+      stEl.value = "";
+      refreshStore();
+      refreshMskuOptions();
+    });
+    stEl.addEventListener("change", function () { refreshMskuOptions(); });
+    refreshStore();
+  }
+
+  function renderSceneCol() {
+    var col = document.getElementById("scCatSceneCol");
+    col.innerHTML = "";
+    SCENE_TREE.forEach(function (s) {
+      var div = document.createElement("div");
+      div.className = "sc-cat-item" + (s.scene_name === activeScene ? " active" : "");
+      div.textContent = s.scene_name;
+      div.dataset.scene = s.scene_name;
+      div.addEventListener("click", function () {
+        activeScene = s.scene_name;
+        renderSceneCol();
+        renderCatCol();
+      });
+      col.appendChild(div);
+    });
+    if (!activeScene && SCENE_TREE.length) {
+      activeScene = SCENE_TREE[0].scene_name;
+      renderSceneCol();
+    }
+  }
+
+  function renderCatCol() {
+    var col = document.getElementById("scCatCatCol");
+    col.innerHTML = "";
+    var scene = SCENE_TREE.find(function (s) { return s.scene_name === activeScene; });
+    if (!scene) return;
+    var picked = selectedByScene[activeScene] || [];
+    (scene.categories || []).forEach(function (c) {
+      var k = leafKey(activeScene, c.category_name);
+      var div = document.createElement("label");
+      div.className = "sc-cat-item";
+      var cb = document.createElement("input");
+      cb.type = "checkbox";
+      cb.checked = picked.indexOf(k) >= 0;
+      cb.addEventListener("change", function () {
+        var arr = selectedByScene[activeScene] || [];
+        if (cb.checked) {
+          if (arr.indexOf(k) < 0) arr.push(k);
+        } else {
+          arr = arr.filter(function (x) { return x !== k; });
+        }
+        selectedByScene[activeScene] = arr;
+        updateScCatTrigger();
+      });
+      var span = document.createElement("span");
+      span.textContent = c.category_name;
+      div.appendChild(cb);
+      div.appendChild(span);
+      col.appendChild(div);
+    });
+  }
+
+  function updateScCatTrigger() {
+    var leaves = allSelectedLeaves();
+    var btn = document.getElementById("scCatTrigger");
+    if (!leaves.length) {
+      btn.textContent = "请选择";
+      return;
+    }
+    if (leaves.length <= 2) {
+      btn.textContent = leaves.map(function (k) {
+        var p = k.split("\t");
+        return p[0] + "/" + p[1];
+      }).join("；");
+    } else {
+      btn.textContent = "已选 " + leaves.length + " 项";
+    }
+  }
+
+  function wireSceneCategory() {
+    var wrap = document.getElementById("scCatWrap");
+    var pop = document.getElementById("scCatPop");
+    var btn = document.getElementById("scCatTrigger");
+    btn.addEventListener("click", function (e) {
+      e.stopPropagation();
+      var open = !wrap.classList.contains("open");
+      wrap.classList.toggle("open", open);
+      pop.hidden = !open;
+      btn.setAttribute("aria-expanded", open ? "true" : "false");
+      if (open) {
+        renderSceneCol();
+        renderCatCol();
+      }
+    });
+    document.addEventListener("click", function () {
+      wrap.classList.remove("open");
+      pop.hidden = true;
+      btn.setAttribute("aria-expanded", "false");
+    });
+    pop.addEventListener("click", function (e) { e.stopPropagation(); });
+  }
+
+  function renderPLTags() {
+    var host = document.getElementById("plHost");
+    host.innerHTML = "";
+    if (!selectedPL.size) {
+      host.innerHTML = '<span style="color:#bfbfbf;font-size:12px;">请选择</span>';
+      return;
+    }
+    selectedPL.forEach(function (code) {
+      var tag = document.createElement("span");
+      tag.className = "pl-tag";
+      tag.textContent = code;
+      var x = document.createElement("button");
+      x.type = "button";
+      x.textContent = "×";
+      x.addEventListener("click", function (e) {
+        e.stopPropagation();
+        selectedPL.delete(code);
+        renderPLTags();
+        renderPLDrop();
+      });
+      tag.appendChild(x);
+      host.appendChild(tag);
+    });
+  }
+
+  function renderPLDrop() {
+    var drop = document.getElementById("plDrop");
+    drop.innerHTML = "";
+    PRODUCT_LINES.forEach(function (code) {
+      var row = document.createElement("div");
+      row.className = "pl-opt" + (selectedPL.has(code) ? " on" : "");
+      var cb = document.createElement("input");
+      cb.type = "checkbox";
+      cb.checked = selectedPL.has(code);
+      cb.addEventListener("change", function () {
+        if (cb.checked) selectedPL.add(code); else selectedPL.delete(code);
+        renderPLTags();
+        renderPLDrop();
+      });
+      row.appendChild(cb);
+      row.appendChild(document.createTextNode(code));
+      drop.appendChild(row);
+    });
+  }
+
+  function wireProductLine() {
+    var host = document.getElementById("plHost");
+    var drop = document.getElementById("plDrop");
+    host.addEventListener("click", function (e) {
+      e.stopPropagation();
+      host.classList.add("open");
+      var r = host.getBoundingClientRect();
+      drop.style.left = r.left + "px";
+      drop.style.top = r.bottom + 4 + "px";
+      drop.classList.add("show");
+      renderPLDrop();
+    });
+    document.addEventListener("click", function () {
+      host.classList.remove("open");
+      drop.classList.remove("show");
+    });
+    drop.addEventListener("click", function (e) { e.stopPropagation(); });
+  }
+
+  function getEligibleSalesRecords() {
+    var store = document.getElementById("fltStore").value;
+    var country = document.getElementById("fltCountry").value;
+    return SALES_POOL.filter(function (r) {
+      var g = STORE_GEO[r["店铺名称"]];
+      if (!g) return true;
+      if (store && r["店铺名称"] !== store) return false;
+      if (country && g.country_code !== country) return false;
+      return true;
+    });
+  }
+
+  function refreshMskuOptions() {
+    if (!mskuMsf) return;
+    mskuMsf.refreshOptions();
+  }
+
+  function getMskuOptions() {
+    var eligible = getEligibleSalesRecords();
+    var seen = {};
+    var out = [];
+    eligible.forEach(function (r) {
+      var m = r.msku;
+      if (!m || seen[m]) return;
+      seen[m] = 1;
+      out.push({ value: m, label: m });
+    });
+    out.sort(function (a, b) { return a.value.localeCompare(b.value); });
+    return out.slice(0, 500);
+  }
+
+  function rowPassesFilter(row) {
+    var region = document.getElementById("fltRegion").value;
+    var country = document.getElementById("fltCountry").value;
+    var channel = document.getElementById("fltChannel").value;
+    var store = document.getElementById("fltStore").value;
+    var model = document.getElementById("fltModel").value;
+    var skuMode = document.getElementById("fltSkuMode").value;
+    var skuInput = document.getElementById("fltSkuInput").value.trim();
+    var tl = document.getElementById("fltTl").value;
+    var sales = document.getElementById("fltSales").value;
+    var mskuVals = mskuMsf ? mskuMsf.getValues() : [];
+
+    if (region && row.region_code !== region) return false;
+    if (country && row.country_code !== country) return false;
+    if (channel && row.channel_name !== channel) return false;
+    if (store && row.store_name !== store) return false;
+
+    var leaves = allSelectedLeaves();
+    if (leaves.length) {
+      var k = leafKey(row.scene, row.category);
+      if (leaves.indexOf(k) < 0) return false;
+    }
+    if (selectedPL.size && !selectedPL.has(row.product_line)) return false;
+    if (model && row.model !== model) return false;
+
+    if (skuInput) {
+      if (skuMode === "fuzzy") {
+        if (row.sku.indexOf(skuInput) < 0) return false;
+      } else if (skuMode === "exact") {
+        if (row.msku !== skuInput) return false;
+      } else if (skuMode === "eight") {
+        if (row.sku.length !== 8 || row.sku.indexOf(skuInput) !== 0) return false;
+      }
+    }
+    if (mskuVals.length && mskuVals.indexOf(row.msku) < 0) return false;
+    if (tl && row.tl !== tl) return false;
+    if (sales && row.sales !== sales) return false;
+    return true;
+  }
+
+  function renderTable(rows) {
+    var tb = document.getElementById("tblBody");
+    tb.innerHTML = rows.map(function (r) {
+      return "<tr>" +
+        "<td>" + escapeHtml(r.region_name) + "</td>" +
+        "<td>" + escapeHtml(r.country_name) + "</td>" +
+        "<td>" + escapeHtml(r.channel_name) + "</td>" +
+        "<td class=\"mono\">" + escapeHtml(r.store_name) + "</td>" +
+        "<td>" + escapeHtml(r.scene) + "</td>" +
+        "<td>" + escapeHtml(r.category) + "</td>" +
+        "<td>" + escapeHtml(r.product_line) + "</td>" +
+        "<td class=\"mono\">" + escapeHtml(r.model) + "</td>" +
+        "<td class=\"mono\">" + escapeHtml(r.sku) + "</td>" +
+        "<td class=\"mono\">" + escapeHtml(r.msku) + "</td>" +
+        "<td>" + escapeHtml(r.tl) + "</td>" +
+        "<td>" + escapeHtml(r.sales) + "</td>" +
+        "<td class=\"num\">" + escapeHtml(r.sales_amount.toLocaleString("en-US", { minimumFractionDigits: 2 })) + "</td>" +
+        "<td class=\"num\">" + escapeHtml(r.sales_qty) + "</td>" +
+        "</tr>";
+    }).join("");
+    document.getElementById("resultBar").textContent =
+      "共 " + rows.length + " 条（示范数据 100 条；日期范围/对比范围仅演示控件，不参与本表过滤）";
+  }
+
+  function doSearch() {
+    var filtered = DEMO_ROWS.filter(rowPassesFilter);
+    renderTable(filtered);
+  }
+
+  function doReset() {
+    document.getElementById("fltRegion").value = "";
+    document.getElementById("fltCountry").value = "";
+    document.getElementById("fltChannel").value = "";
+    document.getElementById("fltStore").value = "";
+    document.getElementById("fltModel").value = "";
+    document.getElementById("fltSkuMode").value = "fuzzy";
+    document.getElementById("fltSkuInput").value = "";
+    document.getElementById("fltTl").value = "";
+    document.getElementById("fltSales").value = "";
+    selectedByScene = {};
+    selectedPL.clear();
+    updateScCatTrigger();
+    renderPLTags();
+    if (mskuMsf) mskuMsf.clear();
+    if (monthPicker) monthPicker.set("2025-10", "2026-04");
+    if (comparePicker) comparePicker.set("2024-10", "2025-04");
+    document.getElementById("fltRegion").dispatchEvent(new Event("change"));
+    document.getElementById("fltChannel").dispatchEvent(new Event("change"));
+    renderTable(DEMO_ROWS);
+  }
+
+  function initPickers() {
+    var now = new Date();
+    var y = now.getFullYear();
+    var m = now.getMonth() + 1;
+    var end = y + "-" + (m < 10 ? "0" : "") + m;
+    var startYm = (y - 1) + "-" + (m < 10 ? "0" : "") + m;
+    monthPicker = MonthRangePicker.mount(document.getElementById("fltMonthHost"), {
+      start: startYm,
+      end: end,
+      useBodyPortal: true
+    });
+    comparePicker = MonthRangePicker.mount(document.getElementById("fltCompareHost"), {
+      start: (y - 2) + "-" + (m < 10 ? "0" : "") + m,
+      end: (y - 1) + "-" + (m < 10 ? "0" : "") + m,
+      useBodyPortal: true
+    });
+    mskuMsf = MultiSelectFilter.mount(document.getElementById("fltMskuHost"), {
+      placeholder: "请选择 MSKU",
+      showSelectAll: false,
+      useBodyPortal: true,
+      getOptions: function () { return getMskuOptions(); }
+    });
+  }
+
+  function loadAll() {
+    Promise.all([
+      fetchJson("全局筛选示范数据_v1.json"),
+      fetchJson("销售基础信息_v1.json"),
+      fetchJson("区域国家基础数据_v1.json"),
+      fetchJson("渠道店铺基础数据_v1.json"),
+      fetchJson("场景品类基础数据_v1.json"),
+      fetchJson("店铺国家映射_v1.json"),
+      fetchJson("销售主数据索引_v1.json")
+    ]).then(function (arr) {
+      DEMO_ROWS = arr[0].records || [];
+      SALES_POOL = arr[1].records || [];
+      REGION_DATA = arr[2];
+      CHANNEL_DATA = (arr[3].channels || []).map(function (c) {
+        return { channel: c.channel_name, stores: c.stores || [] };
+      });
+      SCENE_TREE = (arr[4].scenes || []).filter(function (s) { return s.scene_name !== "未分类"; });
+      buildStoreGeo((arr[5].mappings || []));
+      MODELS = arr[6].models || [];
+      var plSet = {};
+      SALES_POOL.forEach(function (r) { if (r["品线"]) plSet[r["品线"]] = 1; });
+      PRODUCT_LINES = Object.keys(plSet).sort();
+      var tlSet = {};
+      var saSet = {};
+      DEMO_ROWS.forEach(function (r) {
+        tlSet[r.tl] = 1;
+        saSet[r.sales] = 1;
+      });
+      TL_OPTS = Object.keys(tlSet).sort();
+      SALES_OPTS = Object.keys(saSet).sort();
+
+      fillSelect(document.getElementById("fltModel"), MODELS.map(function (m) {
+        return { value: m, label: m };
+      }), "请选择");
+      fillSelect(document.getElementById("fltTl"), TL_OPTS.map(function (t) {
+        return { value: t, label: t };
+      }));
+      fillSelect(document.getElementById("fltSales"), SALES_OPTS.map(function (s) {
+        return { value: s, label: s };
+      }));
+
+      wireRegionCountry();
+      wireChannelStore();
+      wireSceneCategory();
+      wireProductLine();
+      initPickers();
+      renderTable(DEMO_ROWS);
+    }).catch(function (e) {
+      document.getElementById("resultBar").innerHTML =
+        '<span class="load-err">加载失败：' + escapeHtml(e.message) +
+        '。请在仓库根目录执行 python3 -m http.server 8765 后访问本页。</span>';
+    });
+  }
+
+  document.getElementById("btnSearch").addEventListener("click", doSearch);
+  document.getElementById("btnReset").addEventListener("click", doReset);
+  loadAll();
+})();
+  </script>
+</body>
+</html>
