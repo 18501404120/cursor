@@ -188,8 +188,34 @@
     }
     .modal-bd { padding: 12px 16px 16px; overflow: auto; }
     .log-tbl { width: 100%; border-collapse: collapse; font-size: 12px; }
-    .log-tbl th, .log-tbl td { border: 1px solid #e2e8f0; padding: 8px 10px; text-align: left; }
+    .log-tbl th, .log-tbl td { border: 1px solid #e2e8f0; padding: 8px 10px; text-align: left; vertical-align: top; }
     .log-tbl thead th { background: #f8fafc; }
+    .modal-box.modal-wide { width: min(720px, 96vw); }
+    .modal-ft {
+      padding: 10px 16px 14px; border-top: 1px solid var(--line);
+      display: flex; justify-content: flex-end; gap: 10px;
+    }
+    .cell-one { white-space: normal; max-width: 280px; }
+    .cell-labeled .cell-k { color: var(--muted); }
+    .cell-labeled > div + div { margin-top: 4px; }
+    .log-diff { font-size: 11px; line-height: 1.45; }
+    .log-diff .k { color: var(--muted); }
+    .log-note { font-size: 11px; color: var(--muted); margin: 10px 0 0; }
+    .form-grid {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 12px 16px;
+    }
+    .form-grid label { display: block; font-size: 12px; color: var(--label); margin-bottom: 4px; }
+    .form-grid input, .form-grid select {
+      width: 100%; height: 32px; padding: 0 10px;
+      border: 1px solid var(--border); border-radius: 6px; font-size: 13px; box-sizing: border-box;
+    }
+    .import-tip { font-size: 12px; color: var(--muted); line-height: 1.55; margin: 0 0 12px; }
+    .import-actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 12px; }
+    .upload-zone {
+      border: 1px dashed var(--border); border-radius: 8px; padding: 20px;
+      text-align: center; color: var(--muted); font-size: 12px; background: #fafbfc;
+    }
+    .upload-zone.has-file { border-color: var(--brand); color: var(--text); background: #f0f7ff; }
     .result-bar {
       padding: 10px 20px; font-size: 12px; color: var(--muted);
       background: #fff; border-bottom: 1px solid var(--line);
@@ -306,13 +332,71 @@
 
   <div id="plDrop" class="pl-drop"></div>
 
-  <div class="modal-mask" id="logModal" role="dialog" aria-modal="true" aria-labelledby="logModalTitle" hidden>
-    <div class="modal-box">
+  <div class="modal-mask" id="addModal" role="dialog" aria-modal="true" aria-labelledby="addModalTitle" hidden>
+    <div class="modal-box modal-wide">
       <div class="modal-hd">
-        <h3 id="logModalTitle">操作日志</h3>
-        <button type="button" class="modal-close" id="logModalClose" aria-label="关闭">×</button>
+        <h3 id="addModalTitle">新增销售主数据</h3>
+        <button type="button" class="modal-close" data-close="addModal" aria-label="关闭">×</button>
+      </div>
+      <div class="modal-bd">
+        <form id="addForm" class="form-grid" autocomplete="off">
+          <div><label for="formRegion">区域</label><select id="formRegion" class="ctl"></select></div>
+          <div><label for="formCountry">国家</label><select id="formCountry" class="ctl"></select></div>
+          <div><label for="formChannel">渠道</label><select id="formChannel" class="ctl"></select></div>
+          <div><label for="formStore">店铺</label><select id="formStore" class="ctl"></select></div>
+          <div><label for="formScene">场景</label><select id="formScene" class="ctl"></select></div>
+          <div><label for="formCategory">品类</label><select id="formCategory" class="ctl"></select></div>
+          <div><label for="formProductLine">品线</label><select id="formProductLine" class="ctl"></select></div>
+          <div><label for="formSku">SKU（8位）</label><input id="formSku" type="text" placeholder="请输入SKU" /></div>
+          <div><label for="formMsku">MSKU</label><input id="formMsku" type="text" placeholder="请输入MSKU" /></div>
+          <div><label for="formTl">TL</label><input id="formTl" type="text" placeholder="请输入TL" /></div>
+          <div><label for="formSales">Sales</label><input id="formSales" type="text" placeholder="请输入Sales" /></div>
+          <div><label for="formSalesAmount">销售额</label><input id="formSalesAmount" type="number" step="0.01" min="0" placeholder="0.00" /></div>
+          <div><label for="formSalesQty">销量</label><input id="formSalesQty" type="number" step="1" min="0" placeholder="0" /></div>
+        </form>
+      </div>
+      <div class="modal-ft">
+        <button type="button" class="btn" data-close="addModal">取消</button>
+        <button type="button" class="btn btn-primary" id="addFormSubmit">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-mask" id="importModal" role="dialog" aria-modal="true" aria-labelledby="importModalTitle" hidden>
+    <div class="modal-box modal-wide">
+      <div class="modal-hd">
+        <h3 id="importModalTitle">导入</h3>
+        <button type="button" class="modal-close" data-close="importModal" aria-label="关闭">×</button>
+      </div>
+      <div class="modal-bd">
+        <p class="import-tip">请下载模板填写后上传。导入将校验区域/国家、渠道/店铺等联动字段；示范页解析 CSV 首行数据并追加一条记录。</p>
+        <div class="import-actions">
+          <button type="button" class="btn" id="btnDownloadTemplate">下载模板</button>
+          <label class="btn btn-primary" style="cursor:pointer;margin:0;">
+            选择文件
+            <input type="file" id="importFile" accept=".csv,.xlsx,.xls" style="display:none;" />
+          </label>
+        </div>
+        <div class="upload-zone" id="importDropZone">点击「选择文件」或拖拽 CSV 到此处</div>
+        <p id="importFileName" style="font-size:12px;color:var(--muted);margin:8px 0 0;"></p>
+      </div>
+      <div class="modal-ft">
+        <button type="button" class="btn" data-close="importModal">取消</button>
+        <button type="button" class="btn btn-primary" id="importSubmit">开始导入</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-mask" id="logModal" role="dialog" aria-modal="true" aria-labelledby="logModalTitle" hidden>
+    <div class="modal-box modal-wide">
+      <div class="modal-hd">
+        <h3 id="logModalTitle">日志</h3>
+        <button type="button" class="modal-close" data-close="logModal" aria-label="关闭">×</button>
       </div>
       <div class="modal-bd" id="logModalBody"></div>
+      <div class="modal-ft">
+        <button type="button" class="btn btn-primary" data-close="logModal">关闭</button>
+      </div>
     </div>
   </div>
 
@@ -346,6 +430,14 @@
   var selectedPL = new Set();
   var monthPicker = null;
   var comparePicker = null;
+  var ROW_LOGS = {};
+  var importFileRef = null;
+  var FIELD_LABELS = {
+    region_name: "区域", country_name: "国家", store_name: "店铺", channel_name: "渠道",
+    scene: "场景", category: "品类", product_line: "品线",
+    sku: "SKU", msku: "MSKU", tl: "TL", sales: "Sales",
+    sales_amount: "销售额", sales_qty: "销量"
+  };
 
   function leafKey(scene, cat) { return scene + "\t" + cat; }
   function allSelectedLeaves() {
@@ -672,52 +764,112 @@
     return true;
   }
 
-  function cellStack(mainLines, subLines) {
-    var html = (mainLines || []).map(function (line) {
-      return escapeHtml(line);
+  function joinSlash(parts) {
+    return (parts || []).filter(function (p) { return p != null && String(p).trim() !== ""; })
+      .map(function (p) { return String(p).trim(); }).join("/");
+  }
+
+  function labeledCell(pairs) {
+    var html = (pairs || []).map(function (p) {
+      return '<div><span class="cell-k">' + escapeHtml(p.label) + "：</span>" + escapeHtml(p.value || "—") + "</div>";
+    }).join("");
+    return '<div class="cell-stack cell-labeled">' + html + "</div>";
+  }
+
+  function formatLogDiff(obj) {
+    if (!obj || !Object.keys(obj).length) return "—";
+    return Object.keys(obj).map(function (k) {
+      var label = FIELD_LABELS[k] || k;
+      var v = obj[k];
+      if (k === "sales_amount" && v != null && v !== "") {
+        v = Number(v).toLocaleString("en-US", { minimumFractionDigits: 2 });
+      }
+      return '<span class="k">' + escapeHtml(label) + "：</span>" + escapeHtml(v);
     }).join("<br/>");
-    if (subLines && subLines.length) {
-      html += '<div class="sub">' + subLines.map(function (line) {
-        return escapeHtml(line);
-      }).join(" · ") + "</div>";
-    }
-    return '<div class="cell-stack">' + html + "</div>";
+  }
+
+  function seedRowLogs() {
+    DEMO_ROWS.forEach(function (r, idx) {
+      if (ROW_LOGS[r.id]) return;
+      if (idx === 0) {
+        ROW_LOGS[r.id] = [{
+          adjuster: "sykie",
+          time: "2026-03-01 10:20:00",
+          before: { sales_amount: 30000, sales_qty: 500 },
+          after: { sales_amount: r.sales_amount, sales_qty: r.sales_qty }
+        }];
+      } else if (idx === 1) {
+        ROW_LOGS[r.id] = [{
+          adjuster: "sykie",
+          time: "2026-03-01 10:20:00",
+          before: { tl: "李四", sales: "Bob Wang" },
+          after: { tl: r.tl, sales: r.sales }
+        }];
+      } else {
+        ROW_LOGS[r.id] = [{
+          adjuster: "系统",
+          time: "2026-02-01 09:00:00",
+          before: {},
+          after: { sku: r.sku, msku: r.msku, sales_amount: r.sales_amount }
+        }];
+      }
+    });
+  }
+
+  function appendRowLog(rowId, entry) {
+    if (!ROW_LOGS[rowId]) ROW_LOGS[rowId] = [];
+    ROW_LOGS[rowId].unshift(entry);
   }
 
   function buildLogHtml(row) {
-    var skuPair = escapeHtml(row.sku) + " / " + escapeHtml(row.msku);
+    var logs = ROW_LOGS[row.id] || [];
+    if (!logs.length) {
+      return '<p style="color:#64748b;font-size:12px;">暂无变更记录。</p>';
+    }
+    var rows = logs.map(function (log) {
+      return "<tr><td>" + escapeHtml(log.adjuster) + "</td><td>" + escapeHtml(log.time) + "</td>" +
+        '<td><div class="log-diff">' + formatLogDiff(log.before) + "</div></td>" +
+        '<td><div class="log-diff">' + formatLogDiff(log.after) + "</div></td></tr>";
+    }).join("");
     return (
-      '<table class="log-tbl"><thead><tr><th>操作人</th><th>操作时间</th><th>操作类型</th><th>变更说明</th></tr></thead><tbody>' +
-      "<tr><td>sykie</td><td>2026-03-01 10:20:00</td><td>编辑</td><td>SKU/MSKU：" + skuPair + "</td></tr>" +
-      "<tr><td>张三</td><td>2026-02-18 14:05:11</td><td>导入</td><td>批量导入销售主数据（示范）</td></tr>" +
-      "</tbody></table>" +
-      '<p style="font-size:11px;color:#64748b;margin-top:10px;">说明：日志仅展示<strong>实际发生变更</strong>的字段（示意数据）。</p>'
+      '<table class="log-tbl"><thead><tr><th>调整人</th><th>调整时间</th><th>调整前</th><th>调整后</th></tr></thead><tbody>' +
+      rows + "</tbody></table>" +
+      '<p class="log-note">说明：日志仅展示<strong>实际发生变更</strong>的字段（示意数据）。</p>'
     );
   }
 
-  function openLogModal(row) {
-    document.getElementById("logModalTitle").textContent =
-      "操作日志 · " + (row.store_name || "") + " / " + (row.msku || "");
-    document.getElementById("logModalBody").innerHTML = buildLogHtml(row);
-    var modal = document.getElementById("logModal");
-    modal.hidden = false;
-    modal.classList.add("show");
+  function openModal(id) {
+    var el = document.getElementById(id);
+    el.hidden = false;
+    el.classList.add("show");
   }
 
-  function closeLogModal() {
-    var modal = document.getElementById("logModal");
-    modal.classList.remove("show");
-    modal.hidden = true;
+  function closeModal(id) {
+    var el = document.getElementById(id);
+    el.classList.remove("show");
+    el.hidden = true;
   }
+
+  function openLogModal(row) {
+    document.getElementById("logModalTitle").textContent = "日志";
+    document.getElementById("logModalBody").innerHTML = buildLogHtml(row);
+    openModal("logModal");
+  }
+
+  function closeLogModal() { closeModal("logModal"); }
 
   function renderTable(rows) {
     var tb = document.getElementById("tblBody");
     tb.innerHTML = rows.map(function (r) {
+      var countryDisp = r.country_name || r.country_code || "";
       return "<tr data-row-id=\"" + r.id + "\">" +
-        "<td>" + cellStack([r.region_name, r.country_name, r.store_name]) + "</td>" +
-        "<td>" + cellStack([r.scene, r.category], [r.product_line]) + "</td>" +
-        "<td class=\"mono\">" + cellStack([r.sku, r.msku]) + "</td>" +
-        "<td>" + cellStack([r.tl, r.sales]) + "</td>" +
+        '<td class="cell-one">' + escapeHtml(joinSlash([r.region_name, countryDisp, r.store_name])) + "</td>" +
+        '<td class="cell-one">' + escapeHtml(joinSlash([r.scene, r.category, r.product_line])) + "</td>" +
+        '<td class="mono cell-stack">' + escapeHtml(r.sku) + "<br/>" + escapeHtml(r.msku) + "</td>" +
+        "<td>" + labeledCell([
+          { label: "TL", value: r.tl },
+          { label: "Sales", value: r.sales }
+        ]) + "</td>" +
         "<td class=\"num\">" + escapeHtml(r.sales_amount.toLocaleString("en-US", { minimumFractionDigits: 2 })) + "</td>" +
         "<td class=\"num\">" + escapeHtml(r.sales_qty) + "</td>" +
         "<td class=\"col-actions\"><button type=\"button\" class=\"link-btn\" data-log-id=\"" + r.id + "\">日志</button></td>" +
@@ -725,6 +877,325 @@
     }).join("");
     document.getElementById("resultBar").textContent =
       "共 " + rows.length + " 条（示范数据 100 条；日期范围/对比范围仅演示控件，不参与本表过滤）";
+  }
+
+  function getNextRowId() {
+    var max = 0;
+    DEMO_ROWS.forEach(function (r) { if (r.id > max) max = r.id; });
+    return max + 1;
+  }
+
+  function regionNameByCode(code) {
+    var r = (REGION_DATA.regions || []).find(function (x) { return x.region_code === code; });
+    return r ? r.region_name : code;
+  }
+
+  function countryNameByCode(code, regionCode) {
+    var list = countriesForRegion(regionCode || "");
+    var c = list.find(function (x) { return x.country_code === code; });
+    return c ? c.country_name : code;
+  }
+
+  function channelByStore(store) {
+    var ch = "";
+    CHANNEL_DATA.forEach(function (c) {
+      if ((c.stores || []).indexOf(store) >= 0) ch = c.channel;
+    });
+    return ch;
+  }
+
+  function formRefreshCountry() {
+    var reg = document.getElementById("formRegion").value;
+    var ctyEl = document.getElementById("formCountry");
+    fillSelect(ctyEl, countriesForRegion(reg).map(function (c) {
+      return { value: c.country_code, label: c.country_name + "（" + c.country_code + "）" };
+    }));
+  }
+
+  function formRefreshStore() {
+    var ch = document.getElementById("formChannel").value;
+    var stEl = document.getElementById("formStore");
+    var stores = [];
+    if (!ch) {
+      CHANNEL_DATA.forEach(function (c) {
+        (c.stores || []).forEach(function (s) { if (stores.indexOf(s) < 0) stores.push(s); });
+      });
+    } else {
+      var row = CHANNEL_DATA.find(function (c) { return c.channel === ch; });
+      stores = row ? row.stores.slice() : [];
+    }
+    fillSelect(stEl, stores.map(function (s) { return { value: s, label: s }; }));
+  }
+
+  function formRefreshCategory() {
+    var scene = document.getElementById("formScene").value;
+    var catEl = document.getElementById("formCategory");
+    var s = SCENE_TREE.find(function (x) { return x.scene_name === scene; });
+    var cats = s ? (s.categories || []) : [];
+    fillSelect(catEl, cats.map(function (c) {
+      return { value: c.category_name, label: c.category_name };
+    }), "请选择");
+  }
+
+  function initAddFormOptions() {
+    fillSelect(document.getElementById("formRegion"), (REGION_DATA.regions || []).map(function (r) {
+      return { value: r.region_code, label: r.region_name };
+    }), "请选择");
+    fillSelect(document.getElementById("formChannel"), CHANNEL_DATA.map(function (c) {
+      return { value: c.channel, label: c.channel };
+    }), "请选择");
+    fillSelect(document.getElementById("formScene"), SCENE_TREE.map(function (s) {
+      return { value: s.scene_name, label: s.scene_name };
+    }), "请选择");
+    fillSelect(document.getElementById("formProductLine"), PRODUCT_LINES.map(function (pl) {
+      return { value: pl, label: pl };
+    }), "请选择");
+    formRefreshCountry();
+    formRefreshStore();
+    formRefreshCategory();
+  }
+
+  function resetAddForm() {
+    document.getElementById("addForm").reset();
+    formRefreshCountry();
+    formRefreshStore();
+    formRefreshCategory();
+  }
+
+  function wireFormLinkage() {
+    var regEl = document.getElementById("formRegion");
+    var ctyEl = document.getElementById("formCountry");
+    var chEl = document.getElementById("formChannel");
+    var stEl = document.getElementById("formStore");
+    var sceneEl = document.getElementById("formScene");
+
+    regEl.addEventListener("change", function () {
+      ctyEl.value = "";
+      formRefreshCountry();
+    });
+    chEl.addEventListener("change", function () {
+      stEl.value = "";
+      formRefreshStore();
+    });
+    sceneEl.addEventListener("change", function () {
+      document.getElementById("formCategory").value = "";
+      formRefreshCategory();
+    });
+    stEl.addEventListener("change", function () {
+      var store = stEl.value;
+      if (!store) return;
+      var geo = STORE_GEO[store];
+      if (geo) {
+        regEl.value = geo.region_code || "";
+        formRefreshCountry();
+        ctyEl.value = geo.country_code || "";
+      }
+      var ch = channelByStore(store);
+      if (ch) {
+        chEl.value = ch;
+        formRefreshStore();
+        stEl.value = store;
+      }
+    });
+  }
+
+  function readAddFormRow() {
+    var regionCode = document.getElementById("formRegion").value;
+    var countryCode = document.getElementById("formCountry").value;
+    var channel = document.getElementById("formChannel").value;
+    var store = document.getElementById("formStore").value;
+    var scene = document.getElementById("formScene").value;
+    var category = document.getElementById("formCategory").value;
+    var productLine = document.getElementById("formProductLine").value;
+    var sku = document.getElementById("formSku").value.trim();
+    var msku = document.getElementById("formMsku").value.trim();
+    var tl = document.getElementById("formTl").value.trim();
+    var sales = document.getElementById("formSales").value.trim();
+    var salesAmount = parseFloat(document.getElementById("formSalesAmount").value, 10) || 0;
+    var salesQty = parseInt(document.getElementById("formSalesQty").value, 10) || 0;
+    if (!store || !sku || !msku) {
+      alert("请至少填写店铺、SKU、MSKU。");
+      return null;
+    }
+    return {
+      id: getNextRowId(),
+      region_code: regionCode,
+      region_name: regionNameByCode(regionCode),
+      country_code: countryCode,
+      country_name: countryNameByCode(countryCode, regionCode),
+      channel_name: channel || channelByStore(store),
+      store_name: store,
+      scene: scene,
+      category: category,
+      product_line: productLine,
+      model: sku.length >= 5 ? sku.substring(0, 5) : sku,
+      sku: sku,
+      msku: msku,
+      tl: tl,
+      sales: sales,
+      sales_amount: salesAmount,
+      sales_qty: salesQty
+    };
+  }
+
+  function saveAddForm() {
+    var row = readAddFormRow();
+    if (!row) return;
+    DEMO_ROWS.unshift(row);
+    appendRowLog(row.id, {
+      adjuster: "sykie",
+      time: new Date().toISOString().slice(0, 19).replace("T", " "),
+      before: {},
+      after: {
+        region_name: row.region_name,
+        country_name: row.country_name,
+        store_name: row.store_name,
+        scene: row.scene,
+        category: row.category,
+        product_line: row.product_line,
+        sku: row.sku,
+        msku: row.msku,
+        tl: row.tl,
+        sales: row.sales,
+        sales_amount: row.sales_amount,
+        sales_qty: row.sales_qty
+      }
+    });
+    renderTable(DEMO_ROWS.filter(rowPassesFilter));
+    closeModal("addModal");
+    resetAddForm();
+  }
+
+  function openAddModal() {
+    initAddFormOptions();
+    openModal("addModal");
+  }
+
+  function downloadImportTemplate() {
+    var header = "区域编码,国家编码,渠道,店铺,场景,品类,品线,SKU,MSKU,TL,Sales,销售额,销量";
+    var sample = "EU,NL,Govee,Govee_NL,游戏,方块灯,6014,H6065301,H6065301-DE,钱七,Eva Liu,10000,100";
+    var blob = new Blob(["\ufeff" + header + "\n" + sample], { type: "text/csv;charset=utf-8" });
+    var a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "销售主数据导入模板.csv";
+    a.click();
+    URL.revokeObjectURL(a.href);
+  }
+
+  function setImportFile(file) {
+    importFileRef = file || null;
+    var zone = document.getElementById("importDropZone");
+    var nameEl = document.getElementById("importFileName");
+    if (file) {
+      zone.classList.add("has-file");
+      zone.textContent = "已选择文件";
+      nameEl.textContent = file.name;
+    } else {
+      zone.classList.remove("has-file");
+      zone.textContent = "点击「选择文件」或拖拽 CSV 到此处";
+      nameEl.textContent = "";
+    }
+  }
+
+  function parseCsvLine(line) {
+    return line.split(",").map(function (s) { return s.trim(); });
+  }
+
+  function importFromCsv(text) {
+    var lines = text.split(/\r?\n/).filter(function (l) { return l.trim(); });
+    if (lines.length < 2) {
+      alert("CSV 无数据行。");
+      return;
+    }
+    var cols = parseCsvLine(lines[1]);
+    var regionCode = cols[0] || "EU";
+    var countryCode = cols[1] || "NL";
+    var channel = cols[2] || "Govee";
+    var store = cols[3] || "Govee_NL";
+    var row = {
+      id: getNextRowId(),
+      region_code: regionCode,
+      region_name: regionNameByCode(regionCode),
+      country_code: countryCode,
+      country_name: countryNameByCode(countryCode, regionCode),
+      channel_name: channel,
+      store_name: store,
+      scene: cols[4] || "",
+      category: cols[5] || "",
+      product_line: cols[6] || "",
+      sku: cols[7] || "",
+      msku: cols[8] || "",
+      tl: cols[9] || "",
+      sales: cols[10] || "",
+      sales_amount: parseFloat(cols[11], 10) || 0,
+      sales_qty: parseInt(cols[12], 10) || 0,
+      model: (cols[7] || "").substring(0, 5)
+    };
+    if (!row.sku || !row.msku) {
+      alert("导入行缺少 SKU 或 MSKU。");
+      return;
+    }
+    DEMO_ROWS.unshift(row);
+    appendRowLog(row.id, {
+      adjuster: "sykie",
+      time: new Date().toISOString().slice(0, 19).replace("T", " "),
+      before: {},
+      after: {
+        sku: row.sku,
+        msku: row.msku,
+        sales_amount: row.sales_amount,
+        sales_qty: row.sales_qty
+      }
+    });
+    renderTable(DEMO_ROWS.filter(rowPassesFilter));
+    closeModal("importModal");
+    setImportFile(null);
+    document.getElementById("importFile").value = "";
+    alert("导入成功（示范：已追加 1 条）。");
+  }
+
+  function runImport() {
+    if (!importFileRef) {
+      alert("请先选择 CSV 文件。");
+      return;
+    }
+    var reader = new FileReader();
+    reader.onload = function () { importFromCsv(String(reader.result || "")); };
+    reader.readAsText(importFileRef, "UTF-8");
+  }
+
+  function wireModalClose() {
+    document.querySelectorAll("[data-close]").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        closeModal(btn.getAttribute("data-close"));
+      });
+    });
+    ["addModal", "importModal", "logModal"].forEach(function (id) {
+      document.getElementById(id).addEventListener("click", function (e) {
+        if (e.target === document.getElementById(id)) closeModal(id);
+      });
+    });
+  }
+
+  function wireImportModal() {
+    var zone = document.getElementById("importDropZone");
+    var input = document.getElementById("importFile");
+    if (!zone || !input) return;
+    input.addEventListener("change", function () {
+      setImportFile(input.files && input.files[0] ? input.files[0] : null);
+    });
+    zone.addEventListener("dragover", function (e) { e.preventDefault(); });
+    zone.addEventListener("drop", function (e) {
+      e.preventDefault();
+      var f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+      if (f) setImportFile(f);
+    });
+  }
+
+  function openImportModal() {
+    setImportFile(null);
+    document.getElementById("importFile").value = "";
+    openModal("importModal");
   }
 
   function doSearch() {
@@ -804,6 +1275,10 @@
     wireSceneCategory();
     wireProductLine();
     initPickers();
+    seedRowLogs();
+    wireFormLinkage();
+    wireImportModal();
+    wireModalClose();
     renderTable(DEMO_ROWS);
     document.getElementById("resultBar").textContent =
       "共 " + DEMO_ROWS.length + " 条示范数据（内嵌主数据；日期/对比范围仅演示控件）";
@@ -832,22 +1307,17 @@
   }
 
   document.getElementById("btnSearch").addEventListener("click", doSearch);
-  document.getElementById("btnAdd").addEventListener("click", function () {
-    alert("示范页：「新增」为占位操作，正式环境将打开录入表单。");
-  });
-  document.getElementById("btnImport").addEventListener("click", function () {
-    alert("示范页：「导入」为占位操作，正式环境将打开文件上传与校验流程。");
-  });
+  document.getElementById("btnAdd").addEventListener("click", openAddModal);
+  document.getElementById("btnImport").addEventListener("click", openImportModal);
+  document.getElementById("addFormSubmit").addEventListener("click", saveAddForm);
+  document.getElementById("importSubmit").addEventListener("click", runImport);
+  document.getElementById("btnDownloadTemplate").addEventListener("click", downloadImportTemplate);
   document.getElementById("tblBody").addEventListener("click", function (e) {
     var btn = e.target.closest("[data-log-id]");
     if (!btn) return;
     var id = parseInt(btn.getAttribute("data-log-id"), 10);
     var row = DEMO_ROWS.find(function (r) { return r.id === id; });
     if (row) openLogModal(row);
-  });
-  document.getElementById("logModalClose").addEventListener("click", closeLogModal);
-  document.getElementById("logModal").addEventListener("click", function (e) {
-    if (e.target === document.getElementById("logModal")) closeLogModal();
   });
   document.getElementById("fltSkuMode").addEventListener("change", function () {
     var mode = document.getElementById("fltSkuMode").value;
