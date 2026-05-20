@@ -274,7 +274,7 @@
     window.addEventListener("resize", tick);
   }
 
-  /** 标注/字段 i：固定叠在目标 getBoundingClientRect 右上角，不插入文档流 */
+  /** 开发/测试编号点：固定叠在目标 getBoundingClientRect 右上角，不插入文档流 */
   function positionPortalIcon(icon, target) {
     const rect = target.getBoundingClientRect();
     if (rect.width <= 0 && rect.height <= 0) {
@@ -288,7 +288,7 @@
     icon.style.top = `${Math.round(rect.top - h * 0.35)}px`;
   }
 
-  function attachNearTarget(icon, target) {
+  function attachAnnotationPortal(icon, target) {
     if (!isVisibleTarget(target)) return false;
     icon.classList.add("pa-icon-portal");
     document.body.appendChild(icon);
@@ -296,6 +296,80 @@
     update();
     PORTAL_ENTRIES.push({ icon, target, update });
     bindPortalReposition();
+    return true;
+  }
+
+  function resolveFieldTipTarget(item) {
+    const target = resolve(item.selector);
+    if (!target) return null;
+    const mode = item.inlineAnchor || "";
+    if (mode === "filterLabel") {
+      const row = target.closest(".f");
+      const lab = row && row.querySelector("label");
+      return lab || target;
+    }
+    return target;
+  }
+
+  /** 用户字段 i：紧跟说明文字之后，参与行内排版（表头写在 th 内，不挤列宽） */
+  function attachFieldTipInline(icon, target, item) {
+    if (!isVisibleTarget(target)) return false;
+    icon.classList.add("pa-tip-inline");
+    const inlineAnchor = (item && item.inlineAnchor) || "";
+    if (inlineAnchor === "afterElement") {
+      target.insertAdjacentElement("afterend", icon);
+      return true;
+    }
+    const tag = (target.tagName || "").toUpperCase();
+
+    if (tag === "TH") {
+      const wrap = document.createElement("span");
+      wrap.className = "pa-tip-label-wrap";
+      const labelText = target.textContent.trim();
+      target.textContent = "";
+      if (labelText) wrap.appendChild(document.createTextNode(labelText));
+      wrap.appendChild(icon);
+      target.appendChild(wrap);
+      return true;
+    }
+
+    if (target.classList && target.classList.contains("th-inner")) {
+      target.appendChild(icon);
+      return true;
+    }
+
+    if (tag === "LABEL") {
+      target.insertAdjacentElement("afterend", icon);
+      return true;
+    }
+
+    if (target.classList && target.classList.contains("lab")) {
+      const first = target.firstElementChild;
+      if (first && first.tagName === "SPAN" && target.children.length > 1) {
+        first.insertAdjacentElement("afterend", icon);
+        return true;
+      }
+      target.appendChild(icon);
+      return true;
+    }
+
+    const canAppend = !["INPUT", "SELECT", "TEXTAREA"].includes(tag);
+    if (canAppend && target.children.length === 0 && target.textContent.trim()) {
+      const wrap = document.createElement("span");
+      wrap.className = "pa-tip-label-wrap";
+      wrap.textContent = target.textContent.trim();
+      target.textContent = "";
+      wrap.appendChild(icon);
+      target.appendChild(wrap);
+      return true;
+    }
+
+    if (canAppend) {
+      target.appendChild(icon);
+      return true;
+    }
+
+    target.insertAdjacentElement("afterend", icon);
     return true;
   }
 
@@ -312,7 +386,7 @@
     dot.setAttribute("data-pa-item-key", key);
     dot.textContent = String(index + 1);
     dot.title = item.title || "说明";
-    if (!attachNearTarget(dot, target)) return;
+    if (!attachAnnotationPortal(dot, target)) return;
     dot.addEventListener("click", (event) => {
       event.stopPropagation();
       editablePopover(config, state, key, item.title || "说明", saved || item.body || "", dot, dot.textContent);
@@ -320,7 +394,7 @@
   }
 
   function addFieldTip(config, state, item, index) {
-    const target = resolve(item.selector);
+    const target = resolveFieldTipTarget(item);
     if (!target) return;
     const key = `fieldTip:${item.id || index}`;
     if (state.hidden && state.hidden[key]) return;
@@ -332,7 +406,7 @@
     icon.setAttribute("data-pa-item-key", key);
     icon.textContent = "i";
     icon.title = item.title || "字段释义";
-    if (!attachNearTarget(icon, target)) return;
+    if (!attachFieldTipInline(icon, target, item)) return;
     icon.addEventListener("click", (event) => {
       event.stopPropagation();
       editablePopover(config, state, key, item.title || "字段释义", saved || item.body || "", icon, icon.textContent);
