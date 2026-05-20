@@ -281,34 +281,39 @@
                   var bizLog=Math.round(bizRev*(0.06+(seed%3)/100)), finLog=Math.round(bizLog*(0.96+(seed%8)/100));
                   var bizPla=Math.round(bizRev*(0.05+(seed%3)/100)), finPla=Math.round(bizPla*(0.95+(seed%8)/100));
                   var bizOth=Math.round(bizRev*0.01), finOth=Math.round(bizOth*(0.95+(seed%8)/100));
-                  var bizGross=bizRev-bizAd-bizLog-bizPla-bizOth-Math.round(bizRev*0.38);
-                  var finGross=finRev-finAd-finLog-finPla-finOth-Math.round(finRev*0.39);
+                  var bizGross=bizRev-bizAd-bizLog-bizPla-bizOth-bizGoods;
+                  var finGross=finRev-finAd-finLog-finPla-finOth-finGoods;
 
                   function split4(total,a,b,c){var x=Math.round(total*a),y2=Math.round(total*b),z=Math.round(total*c);return [x,y2,z,total-x-y2-z];}
+                  function split3(total,a,b){var x=Math.round(total*a),y2=Math.round(total*b);return [x,y2,total-x-y2];}
                   var adB=split4(bizAd,0.5,0.25,0.2), adF=split4(finAd,0.5,0.25,0.2);
-                  var lgB=split4(bizLog,0.36,0.22,0.24), lgF=split4(finLog,0.36,0.22,0.24);
+                  var lgB=split3(bizLog,0.42,0.33), lgF=split3(finLog,0.42,0.33);
                   var plB=split4(bizPla,0.44,0.27,0.19), plF=split4(finPla,0.44,0.27,0.19);
-                  var otB=split4(bizOth,0.55,0.45,0), otF=split4(finOth,0.55,0.45,0);
+                  var bizGoods=Math.round(bizRev*0.38), finGoods=Math.round(finRev*0.39), bpGoods=Math.round(bpRev*0.38);
+                  var gShipB=split3(bizGoods,0.72,0.18), gShipF=split3(finGoods,0.72,0.18), gShipBp=split3(bpGoods,0.72,0.18);
 
                   DATA.push({id:id++,year:y,month:m,region:r,country:c,channel:ch,store:st,scene:sc,category:cat,
                     model:'MDL-'+(1000+(seed%8999)),
                     sku:'SKU-'+String(100000+((seed*17)%899999)),
                     msku:'8'+String(10000000+((seed*13)%8999999)).slice(-7),
-                    bp:{revenue:bpRev,sales:bpSales,gross:Math.round(bpRev*0.39),units:Math.round(bpRev/25+seed%80), ad:bpAd, logistics:bpLog, platform:bpPla, other:bpOth,
+                    bp:{revenue:bpRev,sales:bpSales,gross:Math.round(bpRev*0.39),units:Math.round(bpRev/25+seed%80), ad:bpAd, logistics:bpLog, platform:bpPla, other:bpOth, goods_value:bpGoods,
                         ad_perf:Math.round(bpAd*0.75),ad_brand:0,ad_promo:Math.round(bpAd*0.2),ad_sample:bpAd-Math.round(bpAd*0.75)-Math.round(bpAd*0.2),
-                        logistics_head:Math.round(bpLog*0.36),logistics_return:Math.round(bpLog*0.22),logistics_storage:Math.round(bpLog*0.24),logistics_tariff:bpLog-Math.round(bpLog*0.36)-Math.round(bpLog*0.22)-Math.round(bpLog*0.24),
+                        logistics_head:Math.round(bpLog*0.42),logistics_return:Math.round(bpLog*0.33),logistics_storage:bpLog-Math.round(bpLog*0.42)-Math.round(bpLog*0.33),logistics_tariff:0,
                         platform_commission:Math.round(bpPla*0.44),platform_service:Math.round(bpPla*0.27),platform_payment:Math.round(bpPla*0.19),platform_storefee:bpPla-Math.round(bpPla*0.44)-Math.round(bpPla*0.27)-Math.round(bpPla*0.19),
-                        other_misc:Math.round(bpOth*0.55),other_reserve:bpOth-Math.round(bpOth*0.55)},
-                    biz:{revenue:bizRev,sales:bizSales,gross:bizGross,units:Math.round(bizRev/25+seed%70),ad:bizAd,logistics:bizLog,platform:bizPla,other:bizOth,
+                        other_misc:bpOth,other_reserve:0,
+                        goods_ship_auth:gShipBp[0],goods_return:gShipBp[1],goods_comp:gShipBp[2]},
+                    biz:{revenue:bizRev,sales:bizSales,gross:bizGross,units:Math.round(bizRev/25+seed%70),ad:bizAd,logistics:bizLog,platform:bizPla,other:bizOth,goods_value:bizGoods,
                         ad_perf:adB[0]+adB[1],ad_brand:0,ad_promo:adB[2],ad_sample:adB[3],
-                        logistics_head:lgB[0],logistics_return:lgB[1],logistics_storage:lgB[2],logistics_tariff:lgB[3],
+                        logistics_head:lgB[0],logistics_return:lgB[1],logistics_storage:lgB[2],logistics_tariff:0,
                         platform_commission:plB[0],platform_service:plB[1],platform_payment:plB[2],platform_storefee:plB[3],
-                        other_misc:otB[0],other_reserve:otB[1]},
-                    fin:{revenue:finRev,sales:finSales,gross:finGross,units:Math.round(finRev/25+seed%65),ad:finAd,logistics:finLog,platform:finPla,other:finOth,
+                        other_misc:bizOth,other_reserve:0,
+                        goods_ship_auth:gShipB[0],goods_return:gShipB[1],goods_comp:gShipB[2]},
+                    fin:{revenue:finRev,sales:finSales,gross:finGross,units:Math.round(finRev/25+seed%65),ad:finAd,logistics:finLog,platform:finPla,other:finOth,goods_value:finGoods,
                         ad_perf:adF[0]+adF[1],ad_brand:0,ad_promo:adF[2],ad_sample:adF[3],
-                        logistics_head:lgF[0],logistics_return:lgF[1],logistics_storage:lgF[2],logistics_tariff:lgF[3],
+                        logistics_head:lgF[0],logistics_return:lgF[1],logistics_storage:lgF[2],logistics_tariff:0,
                         platform_commission:plF[0],platform_service:plF[1],platform_payment:plF[2],platform_storefee:plF[3],
-                        other_misc:otF[0],other_reserve:otF[1]}
+                        other_misc:finOth,other_reserve:0,
+                        goods_ship_auth:gShipF[0],goods_return:gShipF[1],goods_comp:gShipF[2]}
                   });
                 });
               });
@@ -361,11 +366,12 @@
 
   var METRICS={
     revenue:'营收',sales:'销售额',gross:'毛利',margin:'毛利率',units:'销量',
-    ad:'广告宣传小计',logistics:'物流成本小计',platform:'交易及平台费用小计',other:'其他费用',
+    goods_value:'货值成本净额',ad:'广告宣传小计',logistics:'物流成本小计',platform:'交易及平台费用小计',other:'其他费用',
+    goods_ship_auth:'出货授权成本',goods_return:'退货成本',goods_comp:'平台赔偿',
     ad_perf:'广告费',ad_brand:'品牌营销费',ad_promo:'推广费',ad_sample:'样品费',
-    logistics_head:'头程运费',logistics_return:'退货运费',logistics_storage:'仓储费',logistics_tariff:'关税',
+    logistics_head:'头程运费',logistics_return:'退货运费',logistics_storage:'仓储费',
     platform_commission:'FBA佣金',platform_service:'平台服务费',platform_payment:'收单费用',platform_storefee:'店铺费用',
-    other_misc:'运杂费',other_reserve:'预留毛利'
+    other_misc:'运杂费'
   };
   function setOptions(id,arr,all){var el=$(id);var h=all?'<option value="">全部</option>':'';arr.forEach(function(x){h+='<option value="'+x+'">'+x+'</option>';});el.innerHTML=h;}
 
@@ -759,9 +765,11 @@
     var salesV=sumBy(rows,sys,'sales');
     var revV=sumBy(rows,sys,'revenue');
     var diff=Math.max(0,salesV-revV);
-    if(key==='discount') return Math.round(diff*0.5);
+    if(key==='discount_promo') return Math.round(diff*0.32);
+    if(key==='discount_direct') return Math.round(diff*0.18);
+    if(key==='discount') return Math.round(diff*0.32)+Math.round(diff*0.18);
     if(key==='returns') return Math.round(diff*0.24);
-    if(key==='vat') return Math.max(0,diff-Math.round(diff*0.5)-Math.round(diff*0.24));
+    if(key==='vat') return Math.max(0,diff-Math.round(diff*0.32)-Math.round(diff*0.18)-Math.round(diff*0.24));
     return sumBy(rows,sys,key);
   }
 
@@ -780,27 +788,25 @@
       {k:'vat',n:'销售税/VAT',v:funnelValue(rows,'biz','vat')}
     ];
     var midSubs=[
+      {k:'goods_value',n:'货值成本净额',v:funnelValue(rows,'biz','goods_value')},
       {k:'ad',n:'广告宣传小计',v:funnelValue(rows,'biz','ad')},
       {k:'logistics',n:'物流成本小计',v:funnelValue(rows,'biz','logistics')},
       {k:'platform',n:'交易及平台费用小计',v:funnelValue(rows,'biz','platform')},
-      {k:'other_misc',n:'运杂费',v:funnelValue(rows,'biz','other_misc')},
-      {k:'other_reserve',n:'预留毛利',v:funnelValue(rows,'biz','other_reserve')},
-      {k:'other',n:'其他费用合计',v:funnelValue(rows,'biz','other')}
+      {k:'other_misc',n:'运杂费',v:funnelValue(rows,'biz','other_misc')}
     ];
     var allChips=topSubs.concat(midSubs);
     var sub={
+      goods_value:[['出货授权成本',sumBy(rows,'biz','goods_ship_auth')],['退货成本',sumBy(rows,'biz','goods_return')],['平台赔偿',sumBy(rows,'biz','goods_comp')]],
       ad:[['广告费',sumBy(rows,'biz','ad_perf')],['推广费',sumBy(rows,'biz','ad_promo')],['样品费',sumBy(rows,'biz','ad_sample')]],
-      logistics:[['头程运费',sumBy(rows,'biz','logistics_head')],['退货运费',sumBy(rows,'biz','logistics_return')],['仓储费',sumBy(rows,'biz','logistics_storage')],['关税',sumBy(rows,'biz','logistics_tariff')]],
+      logistics:[['头程运费',sumBy(rows,'biz','logistics_head')],['退货运费',sumBy(rows,'biz','logistics_return')],['仓储费',sumBy(rows,'biz','logistics_storage')]],
       platform:[['FBA佣金',sumBy(rows,'biz','platform_commission')],['平台服务费',sumBy(rows,'biz','platform_service')],['收单费用',sumBy(rows,'biz','platform_payment')],['店铺费用',sumBy(rows,'biz','platform_storefee')]],
-      other:[['运杂费',sumBy(rows,'biz','other_misc')],['预留毛利',sumBy(rows,'biz','other_reserve')]],
       other_misc:[['运杂费',sumBy(rows,'biz','other_misc')]],
-      other_reserve:[['预留毛利',sumBy(rows,'biz','other_reserve')]],
-      discount:[['优惠合计',funnelValue(rows,'biz','discount')]],
+      discount:[['折扣',funnelValue(rows,'biz','discount_promo')],['直接扣减折扣',funnelValue(rows,'biz','discount_direct')]],
       returns:[['销售退货',funnelValue(rows,'biz','returns')]],
       vat:[['销售税/VAT',funnelValue(rows,'biz','vat')]]
     };
 
-    var drill=state.expenseDrill||'ad';
+    var drill=state.expenseDrill||'goods_value';
     var cur=funnelValue(rows,'biz',drill);
     var bp=funnelValue(rows,'bp',drill);
     var ly=funnelValue(rowsLy,'biz',drill);
@@ -826,7 +832,7 @@
     h+='<g filter="url(#glow)">'+funnelNode('90,18 890,18 850,88 130,88','销售额',fmtMoney(sales)+' (100%)',{fill:'#ecfdff',stroke:'#25c6f7',text:'#075985',ty:52,vy:78},490)+'</g>';
     h+=chipRect(211,102,178,48,topSubs[0],true)+chipRect(401,102,178,48,topSubs[1],true)+chipRect(591,102,178,48,topSubs[2],true);
     h+='<g filter="url(#glow)">'+funnelNode('145,164 835,164 795,246 185,246','营收',fmtMoney(revenue)+' ('+fmtPct(revenue/salesBase*100)+')',{fill:'#eff5ff',stroke:'#3b82f6',text:'#1e3a8a',ty:200,vy:232},490)+'</g>';
-    h+=chipRect(20,262,150,48,midSubs[0],false)+chipRect(178,262,150,48,midSubs[1],false)+chipRect(336,262,150,48,midSubs[2],false)+chipRect(494,262,150,48,midSubs[3],false)+chipRect(652,262,150,48,midSubs[4],false)+chipRect(810,262,150,48,midSubs[5],false);
+    h+=chipRect(30,262,150,48,midSubs[0],false)+chipRect(200,262,150,48,midSubs[1],false)+chipRect(370,262,150,48,midSubs[2],false)+chipRect(540,262,150,48,midSubs[3],false)+chipRect(710,262,150,48,midSubs[4],false);
     h+='<g filter="url(#glow)">'+funnelNode('205,324 775,324 730,406 250,406','毛利',fmtMoney(gross)+' ('+fmtPct(gross/salesBase*100)+')',{fill:'#f7efff',stroke:'#8b5cf6',text:'#5b21b6',ty:360,vy:392},490)+'</g>';
     h+='</svg>';
     h+='</div>';
@@ -835,9 +841,10 @@
     (sub[drill]||[]).forEach(function(x){
       var keyMap={
         '广告费':'ad_perf','推广费':'ad_promo','样品费':'ad_sample',
-        '头程运费':'logistics_head','退货运费':'logistics_return','仓储费':'logistics_storage','关税':'logistics_tariff',
+        '出货授权成本':'goods_ship_auth','退货成本':'goods_return','平台赔偿':'goods_comp',
+        '头程运费':'logistics_head','退货运费':'logistics_return','仓储费':'logistics_storage',
         'FBA佣金':'platform_commission','平台服务费':'platform_service','收单费用':'platform_payment','店铺费用':'platform_storefee',
-        '运杂费':'other_misc','预留毛利':'other_reserve','优惠合计':'discount','销售退货':'returns','销售税/VAT':'vat'
+        '运杂费':'other_misc','折扣':'discount_promo','直接扣减折扣':'discount_direct','销售退货':'returns','销售税/VAT':'vat'
       };
       var kk=keyMap[x[0]];
       var sv=kk?funnelValue(rows,'biz',kk):x[1];
