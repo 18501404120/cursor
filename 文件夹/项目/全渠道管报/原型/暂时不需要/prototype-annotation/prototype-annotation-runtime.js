@@ -5,6 +5,8 @@
   const STORAGE_PREFIX = "prototypeAnnotation:";
   const OBSERVER_STORE_KEY = "__prototypeAnnotationObserver";
   const RENDER_TIMER_KEY = "__prototypeAnnotationRenderTimer";
+  const PORTAL_REPOSITION_KEY = "__prototypeAnnotationPortalReposition";
+  const PORTAL_ENTRIES = [];
   let outsideCloseBound = false;
 
   function clone(value) {
@@ -41,6 +43,7 @@
       window[RENDER_TIMER_KEY] = null;
     }
     document.querySelectorAll(`[${ROOT_ATTR}]`).forEach((node) => node.remove());
+    PORTAL_ENTRIES.length = 0;
   }
 
   function resolve(selector) {
@@ -249,19 +252,6 @@
     renderView(body);
   }
 
-  function isControlTarget(target) {
-    if (!target) return false;
-    const tag = target.tagName;
-    if (tag === "BUTTON" || tag === "INPUT" || tag === "SELECT" || tag === "TEXTAREA") return true;
-    if (target.classList.contains("btn")) return true;
-    return false;
-  }
-
-  function canAppendChild(target) {
-    const tag = (target && target.tagName) || "";
-    return !["INPUT", "SELECT", "TEXTAREA"].includes(tag);
-  }
-
   function isVisibleTarget(target) {
     if (!target) return false;
     if (target.closest("[hidden]")) return false;
@@ -270,31 +260,42 @@
     return rects.length > 0;
   }
 
+  function bindPortalReposition() {
+    if (window[PORTAL_REPOSITION_KEY]) return;
+    window[PORTAL_REPOSITION_KEY] = true;
+    const tick = () => {
+      PORTAL_ENTRIES.forEach((entry) => {
+        if (entry.icon && entry.icon.isConnected && entry.target && entry.target.isConnected) {
+          entry.update();
+        }
+      });
+    };
+    window.addEventListener("scroll", tick, true);
+    window.addEventListener("resize", tick);
+  }
+
+  /** 标注/字段 i：固定叠在目标 getBoundingClientRect 右上角，不插入文档流 */
+  function positionPortalIcon(icon, target) {
+    const rect = target.getBoundingClientRect();
+    if (rect.width <= 0 && rect.height <= 0) {
+      icon.style.visibility = "hidden";
+      return;
+    }
+    icon.style.visibility = "visible";
+    const w = icon.offsetWidth || 16;
+    const h = icon.offsetHeight || 16;
+    icon.style.left = `${Math.round(rect.right - w * 0.55)}px`;
+    icon.style.top = `${Math.round(rect.top - h * 0.35)}px`;
+  }
+
   function attachNearTarget(icon, target) {
     if (!isVisibleTarget(target)) return false;
-    if (isControlTarget(target)) {
-      if (canAppendChild(target)) {
-        const style = window.getComputedStyle(target);
-        if (style.position === "static") target.style.position = "relative";
-        icon.classList.add("pa-icon-on-control");
-        target.appendChild(icon);
-        return true;
-      }
-      const anchor = document.createElement("span");
-      anchor.className = "pa-root";
-      anchor.style.display = "inline-flex";
-      anchor.style.alignItems = "center";
-      anchor.style.verticalAlign = "middle";
-      target.insertAdjacentElement("afterend", anchor);
-      anchor.appendChild(icon);
-      return true;
-    }
-    if (canAppendChild(target)) {
-      icon.classList.add("pa-inline-icon");
-      target.appendChild(icon);
-      return true;
-    }
-    target.insertAdjacentElement("afterend", icon);
+    icon.classList.add("pa-icon-portal");
+    document.body.appendChild(icon);
+    const update = () => positionPortalIcon(icon, target);
+    update();
+    PORTAL_ENTRIES.push({ icon, target, update });
+    bindPortalReposition();
     return true;
   }
 
@@ -506,6 +507,11 @@
     if (window[RENDER_TIMER_KEY]) clearTimeout(window[RENDER_TIMER_KEY]);
     window[RENDER_TIMER_KEY] = setTimeout(() => {
       renderAll(config, state);
+      PORTAL_ENTRIES.forEach((entry) => {
+        if (entry.icon && entry.icon.isConnected && entry.target && entry.target.isConnected) {
+          entry.update();
+        }
+      });
     }, 80);
   }
 
