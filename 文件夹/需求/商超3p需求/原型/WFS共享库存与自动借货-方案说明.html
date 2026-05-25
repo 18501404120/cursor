@@ -474,8 +474,10 @@
       <div class="panel-hd"><span class="num">6</span> 计算公式（已定口径）</div>
       <div class="panel-bd">
         <div class="formula-box">
-          <div class="c">// ① 总量：禁止用三店库存相加</div>
-          <div><span class="h">可分配池 P</span> = max(0, <span class="h">Q_wfs</span> − S_wm − S_bby − S_lowes)</div>
+          <div class="c">// ① 先扣订单锁定合计 L，再扣安全库存</div>
+          <div><span class="h">Q_eff</span> = max(0, <span class="h">Q_wfs</span> − <span class="w">L</span>)</div>
+          <div><span class="h">可分配池 P</span> = max(0, <span class="h">Q_eff</span> − S_wm − S_bby − S_lowes)</div>
+          <div class="c">// L = 各店「订单锁定库存」之和（待推 WFS 预占）</div>
           <br>
           <div class="c">// ② 各店配平目标（整数舍入规则见 MD §9.3）</div>
           <div><span class="h">应有_i</span> = round(P × 比例_i) + 安全库存_i</div>
@@ -511,6 +513,11 @@
             <input type="number" id="in-low-c" value="160" min="0" style="margin-bottom:4px">
             <input type="number" id="in-low-s" value="40" min="0">
           </div>
+          <div class="field"><label>WM / BBY / Lowes 订单锁定</label>
+            <input type="number" id="in-wm-lock" value="0" min="0" title="待推WFS预占">
+            <input type="number" id="in-bby-lock" value="0" min="0" style="margin-top:4px" title="例：进ERP后30">
+            <input type="number" id="in-low-lock" value="0" min="0" style="margin-top:4px">
+          </div>
           <div class="field"><label>WM / BBY / Lowes 比例 %</label>
             <input type="number" id="in-wm-pct" value="30" min="0" max="100">
             <input type="number" id="in-bby-pct" value="30" min="0" max="100" readonly style="margin-top:4px;background:#f1f5f9">
@@ -522,7 +529,7 @@
           <table class="result-table">
             <thead>
               <tr>
-                <th>店铺</th><th>当前</th><th>安全</th><th>触发</th>
+                <th>店铺</th><th>当前</th><th>订单锁定库存</th><th>安全</th><th>触发</th>
                 <th>应有</th><th>缺料</th><th>富余</th><th>配平后</th><th>平台同步</th>
               </tr>
             </thead>
@@ -579,8 +586,8 @@
         <p style="font-size:12px;font-weight:700;margin:16px 0 8px">四层防控（推荐全部启用 P0）</p>
         <div class="mitigation-grid">
           <div class="mit-card">
-            <h5>① 订单预占<span class="p0">P0</span></h5>
-            BBY/Lowes 单<strong>一进 ERP</strong>即占用「待推 WFS」并扣减该店逻辑可售；推仓成功/取消时回滚。
+            <h5>① 订单锁定库存<span class="p0">P0</span></h5>
+            列表列「订单锁定库存」= 待推 WFS 预占；进 ERP 锁定、推 WFS 释放；<strong>分配池先扣 Σ锁定</strong>。
           </div>
           <div class="mit-card">
             <h5>② 风险扫描<span class="p0">P0</span></h5>
@@ -643,7 +650,7 @@
       </div>
     </section>
 
-    <p style="text-align:center;font-size:11px;color:#94a3b8;margin-top:20px">v2.2 · 2026-05-22 · 含 WFS/谷仓共享二选一互斥</p>
+    <p style="text-align:center;font-size:11px;color:#94a3b8;margin-top:20px">v2.3 · 含订单锁定库存列与分配池扣减 L</p>
   </div>
 
   <script>
@@ -663,24 +670,26 @@
       return {
         sku: $('in-sku').value.trim() || 'SKU',
         wfs: Math.max(0, +$('in-wfs').value || 0),
-        wm: { c: +$('in-wm-c').value||0, s: +$('in-wm-s').value||0, p: wmP/100 },
-        bby: { c: +$('in-bby-c').value||0, s: +$('in-bby-s').value||0, p: bbyP/100 },
-        low: { c: +$('in-low-c').value||0, s: +$('in-low-s').value||0, p: lowP/100 },
+        wm: { c: +$('in-wm-c').value||0, lock: +$('in-wm-lock').value||0, s: +$('in-wm-s').value||0, p: wmP/100 },
+        bby: { c: +$('in-bby-c').value||0, lock: +$('in-bby-lock').value||0, s: +$('in-bby-s').value||0, p: bbyP/100 },
+        low: { c: +$('in-low-c').value||0, lock: +$('in-low-lock').value||0, s: +$('in-low-s').value||0, p: lowP/100 },
         pctOk: Math.abs(wmP + bbyP + lowP - 100) < 0.01
       };
     }
 
     function compute(d) {
       var safeSum = d.wm.s + d.bby.s + d.low.s;
-      var pool = Math.max(0, d.wfs - safeSum);
+      var lockSum = (d.wm.lock || 0) + (d.bby.lock || 0) + (d.low.lock || 0);
+      var qEff = Math.max(0, d.wfs - lockSum);
+      var pool = Math.max(0, qEff - safeSum);
       function target(pct, safe) { return Math.round(pool * pct) + safe; }
       var tw = target(d.wm.p, d.wm.s);
       var tb = target(d.bby.p, d.bby.s);
       var tl = target(d.low.p, d.low.s);
       var rows = [
-        { key: 'wm', name: 'WM 3P-US', c: d.wm.c, s: d.wm.s, t: tw },
-        { key: 'bby', name: 'BBY 3P-US', c: d.bby.c, s: d.bby.s, t: tb },
-        { key: 'low', name: 'Lowes 3P-US', c: d.low.c, s: d.low.s, t: tl }
+        { key: 'wm', name: 'WM 3P-US', c: d.wm.c, lock: d.wm.lock || 0, s: d.wm.s, t: tw },
+        { key: 'bby', name: 'BBY 3P-US', c: d.bby.c, lock: d.bby.lock || 0, s: d.bby.s, t: tb },
+        { key: 'low', name: 'Lowes 3P-US', c: d.low.c, lock: d.low.lock || 0, s: d.low.s, t: tl }
       ];
       rows.forEach(function (r) {
         r.trig = r.c < r.s;
@@ -689,7 +698,7 @@
         r.sync = r.t < 1 ? '停售(0)' : String(r.t);
       });
       var triggered = rows.some(function (r) { return r.trig; });
-      return { pool: pool, safeSum: safeSum, rows: rows, triggered: triggered };
+      return { pool: pool, safeSum: safeSum, lockSum: lockSum, qEff: qEff, rows: rows, triggered: triggered };
     }
 
     function simulateTransfers(rows) {
@@ -751,15 +760,18 @@
       $('tbody').innerHTML = r.rows.map(function (row) {
         var cls = row.trig ? 'trigger-row' : '';
         if (row.surplus > 0) cls += ' surplus-row';
+        var lockCell = row.lock > 0
+          ? '<strong style="color:var(--warn)">' + row.lock + '</strong>' : '0';
         return '<tr class="' + cls.trim() + '">' +
-          '<td>' + row.name + '</td><td>' + row.c + '</td><td>' + row.s + '</td>' +
+          '<td>' + row.name + '</td><td>' + row.c + '</td><td>' + lockCell + '</td><td>' + row.s + '</td>' +
           '<td>' + (row.trig ? '<span class="tag tag-danger">是</span>' : '否') + '</td>' +
           '<td>' + row.t + '</td><td>' + row.short + '</td><td>' + row.surplus + '</td>' +
           '<td>' + row.t + '</td><td>' + row.sync + '</td></tr>';
       }).join('');
 
-      $('pool-info').textContent =
-        '可分配池 P = ' + d.wfs + ' − (' + d.wm.s + '+' + d.bby.s + '+' + d.low.s + ') = ' + r.pool;
+      $('pool-info').innerHTML =
+        '订单锁定合计 L = ' + r.lockSum + ' → Q_eff = ' + d.wfs + ' − L = <strong>' + r.qEff + '</strong><br>' +
+        '可分配池 P = Q_eff − (' + d.wm.s + '+' + d.bby.s + '+' + d.low.s + ') = <strong>' + r.pool + '</strong>';
 
       $('trigger-info').innerHTML = r.triggered
         ? '<span class="tag tag-warn">已触发</span> 存在店铺当前可售 &lt; 安全库存 → 发群告警 + 一次配平'
@@ -784,7 +796,8 @@
       render();
     }
 
-    ['in-sku','in-wfs','in-wm-c','in-wm-s','in-bby-c','in-bby-s','in-low-c','in-low-s','in-wm-pct','in-bby-pct'].forEach(function (id) {
+    ['in-sku','in-wfs','in-wm-c','in-wm-s','in-bby-c','in-bby-s','in-low-c','in-low-s',
+     'in-wm-lock','in-bby-lock','in-low-lock','in-wm-pct','in-bby-pct'].forEach(function (id) {
       $(id).addEventListener('input', id === 'in-wm-pct' || id === 'in-bby-pct' ? syncPct : render);
     });
     syncPct();
