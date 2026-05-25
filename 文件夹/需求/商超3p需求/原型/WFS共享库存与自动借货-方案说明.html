@@ -352,6 +352,35 @@
     .mutex-opt.on { border-color: var(--wfs); background: var(--wfs-soft); box-shadow: 0 0 0 3px rgba(124,58,237,0.15); }
     .mutex-opt.off { opacity: 0.55; }
     .mutex-x { font-size: 22px; color: var(--danger); font-weight: 800; }
+
+    .push-cycle {
+      display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px;
+      margin: 12px 0; align-items: stretch;
+    }
+    @media (max-width: 900px) { .push-cycle { grid-template-columns: 1fr; } }
+    .pc-step {
+      border: 2px solid var(--line); border-radius: 10px; padding: 10px 8px;
+      text-align: center; font-size: 11px; background: #fff; position: relative;
+    }
+    .pc-step.pc-push { border-color: #86efac; background: var(--good-soft); }
+    .pc-step.pc-acc { border-color: #fcd34d; background: var(--warn-soft); }
+    .pc-step.pc-show { border-color: #93c5fd; background: var(--brand-soft); }
+    .pc-step .pc-time { font-size: 10px; color: var(--muted); font-weight: 700; }
+    .pc-step .pc-qty { font-size: 18px; font-weight: 800; color: #0f2f63; margin: 4px 0; }
+    .pc-loop-hint {
+      text-align: center; font-size: 11px; color: var(--brand); font-weight: 700;
+      margin-top: 8px; padding: 8px; border: 1px dashed #93c5fd; border-radius: 8px;
+      background: #f8fbff;
+    }
+    .lock-ledger {
+      width: 100%; border-collapse: collapse; font-size: 11px; margin-top: 10px;
+    }
+    .lock-ledger th, .lock-ledger td { border: 1px solid var(--line); padding: 6px 8px; }
+    .lock-ledger th { background: #f1f5f9; }
+    .lock-ledger .up { color: var(--warn); font-weight: 700; }
+    .lock-ledger .down { color: var(--good); font-weight: 700; }
+    .store-tag-bby { font-size: 9px; background: #ecfdf5; color: #0f766e; padding: 1px 5px; border-radius: 4px; }
+    .store-tag-low { font-size: 9px; background: #f5f3ff; color: #7c3aed; padding: 1px 5px; border-radius: 4px; }
   </style>
 </head>
 <body>
@@ -432,23 +461,65 @@
           <ul class="ratio-legend" id="viz-donut-legend"></ul>
         </div>
 
-        <p class="viz-title">④ 订单锁定 · 生命周期（BBY / Lowes 约 10 分钟窗口）</p>
+        <p class="viz-title">④ 订单锁定 · 单笔订单（进单 → 推单释放）</p>
         <div class="lifecycle">
           <div class="lc-step lc-in">
             <div class="lc-icon">📥</div>
-            <strong>进 ERP</strong><br>锁定 +N<br>当前 −N
+            <strong>进 ERP</strong><br>锁定 <strong>+实际件数</strong><br>当前 −同数量
           </div>
           <div class="lc-arrow">→</div>
           <div class="lc-step">
             <div class="lc-icon">⏳</div>
-            <strong>等待推 WFS</strong><br>占用 L<br>防超卖
+            <strong>等待批量推 WFS</strong><br>累入本店 L<br>（最多约 10 分钟）
           </div>
           <div class="lc-arrow">→</div>
           <div class="lc-step lc-out">
-            <div class="lc-icon">✅</div>
-            <strong>推 WFS 成功</strong><br>释放锁定<br>WFS 实查↓
+            <div class="lc-icon">📤</div>
+            <strong>推 WFS 成功</strong><br>锁定 <strong>−实际推单件数</strong><br>以推单结果为准
           </div>
         </div>
+
+        <p class="viz-title" style="margin-top:16px">④b BBY / Lowes · 10 分钟推单周期（锁定 = 待下批推单的实际件数合计）</p>
+        <p style="font-size:12px;margin:0 0 8px;color:var(--muted)">
+          <span class="tag tag-warn">要点</span>
+          列表「订单锁定库存」= 自<strong>上次批量推单成功</strong>起，本店待推 WFS 订单的<strong>实际件数累加</strong>；
+          <strong>推单时按本批每单实际推成功数量释放</strong>，不是估算值；释放后归零，至<strong>下次推单（约 10 分钟）</strong>再重新累加。
+          WM 推单更频，示例锁定为 0。
+        </p>
+        <div class="push-cycle" id="viz-push-cycle">
+          <div class="pc-step pc-push">
+            <div class="pc-time">① T=0 批量推 WFS</div>
+            <div class="pc-qty" id="pc-release">−25</div>
+            按<strong>实际推单</strong>件数释放<br><span class="store-tag-bby">BBY 示例</span>
+          </div>
+          <div class="pc-step">
+            <div class="pc-time">② 推单后</div>
+            <div class="pc-qty" style="font-size:14px">L=0</div>
+            本批锁定清空<br>等待新单
+          </div>
+          <div class="pc-step pc-acc">
+            <div class="pc-time">③ 0～10 分钟</div>
+            <div class="pc-qty" id="pc-accum">+25</div>
+            新单进 ERP<br>每笔 +实际件数
+          </div>
+          <div class="pc-step pc-show">
+            <div class="pc-time">④ 当前展示</div>
+            <div class="pc-qty" id="pc-now-l">25</div>
+            订单锁定库存<br>= 待下批推单
+          </div>
+          <div class="pc-step pc-push">
+            <div class="pc-time">⑤ T=10 再推单</div>
+            <div class="pc-qty" id="pc-next">−25</div>
+            再按实际推单释放<br>循环 ①
+          </div>
+        </div>
+        <div class="pc-loop-hint">↻ 每约 10 分钟一轮：推单释放（实际数量）→ 窗口内累加锁定 → 再推单释放 …</div>
+        <table class="lock-ledger" id="lock-ledger-table" aria-label="BBY 锁定累加示例">
+          <thead>
+            <tr><th>时刻</th><th>事件</th><th>本单件数</th><th>BBY 锁定 L</th><th>BBY 当前可售</th></tr>
+          </thead>
+          <tbody id="lock-ledger-body"></tbody>
+        </table>
 
         <div class="concept-grid">
           <div class="concept-card">
@@ -506,8 +577,9 @@
                 <div class="store-bar-target" id="bar-bby-target"></div>
               </div>
             </div>
-            <div class="metric"><span>当前可售</span><strong id="v-bby-c">30</strong></div>
-            <div class="metric lock-line"><span>订单锁定库存</span><strong id="v-bby-lock">0</strong></div>
+            <div class="metric"><span>当前可售</span><strong id="v-bby-c">25</strong></div>
+            <div class="metric lock-line"><span>订单锁定库存</span><strong id="v-bby-lock">25</strong></div>
+            <div class="metric" style="font-size:10px;color:var(--muted)"><span>待下批推单</span><span>约10min</span></div>
             <div class="metric"><span>安全库存</span><strong id="v-bby-s">30</strong></div>
             <div class="metric"><span>共享比例</span><strong id="v-bby-p">30%</strong></div>
             <div class="metric"><span>应有</span><strong id="v-bby-t">—</strong></div>
@@ -523,8 +595,9 @@
                 <div class="store-bar-target" id="bar-low-target"></div>
               </div>
             </div>
-            <div class="metric"><span>当前可售</span><strong id="v-low-c">160</strong></div>
-            <div class="metric lock-line"><span>订单锁定库存</span><strong id="v-low-lock">0</strong></div>
+            <div class="metric"><span>当前可售</span><strong id="v-low-c">125</strong></div>
+            <div class="metric lock-line"><span>订单锁定库存</span><strong id="v-low-lock">15</strong></div>
+            <div class="metric" style="font-size:10px;color:var(--muted)"><span>待下批推单</span><span>约10min</span></div>
             <div class="metric"><span>安全库存</span><strong id="v-low-s">40</strong></div>
             <div class="metric"><span>共享比例</span><strong id="v-low-p">40%</strong></div>
             <div class="metric"><span>应有</span><strong id="v-low-t">—</strong></div>
@@ -800,18 +873,21 @@
             <input type="number" id="in-wm-s" value="30" min="0">
           </div>
           <div class="field"><label>BBY 当前 / 安全</label>
-            <input type="number" id="in-bby-c" value="30" min="0" style="margin-bottom:4px">
+            <input type="number" id="in-bby-c" value="25" min="0" style="margin-bottom:4px" title="已扣本周期锁定">
             <input type="number" id="in-bby-s" value="30" min="0">
           </div>
           <div class="field"><label>Lowes 当前 / 安全</label>
-            <input type="number" id="in-low-c" value="160" min="0" style="margin-bottom:4px">
+            <input type="number" id="in-low-c" value="125" min="0" style="margin-bottom:4px">
             <input type="number" id="in-low-s" value="40" min="0">
           </div>
           <div class="field"><label>WM / BBY / Lowes 订单锁定</label>
-            <input type="number" id="in-wm-lock" value="0" min="0" title="待推WFS预占">
-            <input type="number" id="in-bby-lock" value="0" min="0" style="margin-top:4px" title="例：进ERP后30">
-            <input type="number" id="in-low-lock" value="0" min="0" style="margin-top:4px">
+            <input type="number" id="in-wm-lock" value="0" min="0" title="WM推单更频，示例为0">
+            <input type="number" id="in-bby-lock" value="25" min="0" style="margin-top:4px" title="自上次推单后待推件数合计">
+            <input type="number" id="in-low-lock" value="15" min="0" style="margin-top:4px" title="自上次推单后待推件数合计">
           </div>
+          <p style="grid-column:1/-1;font-size:11px;color:var(--muted);margin:0">
+            锁定 = 待<strong>下次批量推 WFS</strong>的实际件数合计；推单成功按<strong>实际推单数量</strong>释放，至下批推单前重新累加。
+          </p>
           <div class="field"><label>WM / BBY / Lowes 比例 %</label>
             <input type="number" id="in-wm-pct" value="30" min="0" max="100">
             <input type="number" id="in-bby-pct" value="30" min="0" max="100" readonly style="margin-top:4px;background:#f1f5f9">
@@ -874,14 +950,17 @@
           <div style="align-self:center;font-size:12px;color:var(--danger);font-weight:800" id="os-risk-label">—</div>
         </div>
 
-        <p class="viz-title">10 分钟窗口时间线</p>
+        <p class="viz-title">10 分钟窗口时间线（推单释放 · 按实际件数）</p>
         <div class="timeline">
-          <div class="tl-step"><div class="t">T0</div>📥 BBY 进 ERP<br>锁定+N</div>
+          <div class="tl-step"><div class="t">T0</div>📤 批量推 WFS<br>锁定 <strong>−实际推单</strong></div>
           <div class="tl-arrow">→</div>
-          <div class="tl-step danger"><div class="t">0～10min</div>⚠ WM 仍可卖<br>实物被占</div>
+          <div class="tl-step danger"><div class="t">0～10min</div>📥 新单进 ERP<br>锁定 <strong>+实际件数</strong></div>
           <div class="tl-arrow">→</div>
-          <div class="tl-step warn"><div class="t">T10</div>📤 批量推 WFS<br>释放锁定</div>
+          <div class="tl-step warn"><div class="t">T10</div>📤 再推单<br>再按实际释放</div>
         </div>
+        <p style="font-size:11px;color:var(--muted);margin:8px 0 0">
+          例：BBY 在 10:00 推单释放 25 件 → 10:03 进单 8 件、10:07 进单 17 件 → 锁定显示 25 → 10:10 推单再释放 25（与 §0 ledger 联动）。
+        </p>
 
         <div class="formula-box" style="margin:14px 0;font-size:11px">
           <div class="c">// 超卖风险（扫描任务，≤10min）</div>
@@ -894,7 +973,7 @@
         <div class="mitigation-grid">
           <div class="mit-card">
             <h5>① 订单锁定库存<span class="p0">P0</span></h5>
-            列表列「订单锁定库存」= 待推 WFS 预占；进 ERP 锁定、推 WFS 释放；<strong>分配池先扣 Σ锁定</strong>。
+            = 待<strong>下次批量推 WFS</strong>的实际件数合计；进 ERP <strong>+实际件数</strong>；推单成功 <strong>−实际推单件数</strong>；约 10 分钟一轮。
           </div>
           <div class="mit-card">
             <h5>② 风险扫描<span class="p0">P0</span></h5>
@@ -957,7 +1036,7 @@
       </div>
     </section>
 
-    <p style="text-align:center;font-size:11px;color:#94a3b8;margin-top:20px">v4 · 图形化导读 / 堆叠条 / 决策流程图 / 配平示意 / 超卖对比柱</p>
+    <p style="text-align:center;font-size:11px;color:#94a3b8;margin-top:20px">v4.1 · 示例含 BBY/Lowes 锁定；10 分钟推单按实际件数释放/累加</p>
   </div>
 
   <script>
@@ -1133,6 +1212,30 @@
       }).join('');
     }
 
+    function renderPushCycle(d) {
+      var bbyL = d.bby.lock || 0;
+      var el = function (id, txt) { var e = $(id); if (e) e.textContent = txt; };
+      el('pc-release', '−' + bbyL);
+      el('pc-accum', '+' + bbyL);
+      el('pc-now-l', String(bbyL));
+      el('pc-next', '−' + bbyL);
+      var body = $('lock-ledger-body');
+      if (!body) return;
+      if (bbyL <= 0) {
+        body.innerHTML = '<tr><td colspan="5" style="color:var(--muted)">BBY 锁定为 0：表示刚推单释放完毕，或 WM 类即时推单店。调大 §7「BBY 订单锁定」查看累加台账。</td></tr>';
+        return;
+      }
+      var q1 = Math.max(1, Math.round(bbyL * 0.32));
+      var q2 = bbyL - q1;
+      var cBefore = d.bby.c + bbyL;
+      body.innerHTML =
+        '<tr><td>10:00</td><td>批量推 WFS 成功</td><td class="down">−' + bbyL + '（实际推单）</td><td>0</td><td>' + cBefore + '</td></tr>' +
+        '<tr><td>10:03</td><td>订单 A 进 ERP</td><td class="up">+' + q1 + '</td><td>' + q1 + '</td><td>' + (cBefore - q1) + '</td></tr>' +
+        '<tr><td>10:07</td><td>订单 B 进 ERP</td><td class="up">+' + q2 + '</td><td><strong>' + bbyL + '</strong></td><td><strong>' + d.bby.c + '</strong></td></tr>' +
+        '<tr style="background:#fff7ed"><td>现在</td><td>待下次推单（≈10min）</td><td>—</td><td><strong style="color:var(--warn)">' + bbyL + '</strong></td><td><strong>' + d.bby.c + '</strong></td></tr>' +
+        '<tr><td>10:10</td><td>预计再推单释放</td><td class="down">−' + bbyL + '（实际推单）</td><td>→0</td><td>不变*</td></tr>';
+    }
+
     function renderOversell(d, r) {
       var commit = r.rows.reduce(function (s, x) { return s + x.c; }, 0) + r.lockSum;
       var wfs = d.wfs;
@@ -1216,6 +1319,7 @@
       if ($('trigger-info-dec')) $('trigger-info-dec').innerHTML = trigHtml;
 
       renderCalcBars(r.rows);
+      renderPushCycle(d);
       renderOversell(d, r);
 
       var sim = r.triggered ? simulateTransfers(r.rows) : null;
