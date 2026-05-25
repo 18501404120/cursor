@@ -241,6 +241,7 @@
       <a href="#decision">触发判断</a>
       <a href="#alert">群告警</a>
       <a href="#pool">三店共享池</a>
+      <a href="#mutex">WFS/谷仓二选一</a>
       <a href="#formula">公式</a>
       <a href="#calc">三店演算</a>
       <a href="#balance">配平步骤</a>
@@ -418,9 +419,59 @@
       </div>
     </section>
 
-    <!-- 5 公式 -->
+    <!-- WFS/谷仓互斥 -->
+    <section class="panel" id="mutex">
+      <div class="panel-hd"><span class="num">5</span> WFS 仓共享 vs 谷仓共享 · 二选一</div>
+      <div class="panel-bd">
+        <p style="margin:0 0 14px;font-size:13px">
+          <span class="tag tag-danger">硬性规则</span>
+          同一 <strong>8 位 SKU</strong> 只能启用一种共享：<strong>WFS 仓共享</strong>（本方案）或 <strong>谷仓共享</strong>（ERP 既有能力），<strong>不可同时配置</strong>。
+        </p>
+        <div class="cols-2">
+          <div style="border:2px solid #c4b5fd;border-radius:12px;padding:14px;background:var(--wfs-soft)">
+            <h4 style="margin:0 0 8px;font-size:14px">WFS 仓共享（本方案）</h4>
+            <ul style="margin:0;padding-left:18px;font-size:12px;color:var(--muted)">
+              <li>总量 = <strong>WFS 接口实查</strong></li>
+              <li>参与店：WM / BBY / Lowes 3P-US</li>
+              <li>自动配平、待推预占、超卖扫描</li>
+            </ul>
+          </div>
+          <div style="border:2px solid var(--line);border-radius:12px;padding:14px;background:#fafbff">
+            <h4 style="margin:0 0 8px;font-size:14px">谷仓共享（既有模块）</h4>
+            <ul style="margin:0;padding-left:18px;font-size:12px;color:var(--muted)">
+              <li>总量 = <strong>谷仓库存</strong></li>
+              <li>沿用「谷仓共享库存设置」</li>
+              <li>与 WFS 共享 <strong>互斥</strong></li>
+            </ul>
+          </div>
+        </div>
+        <table class="mock-table" style="margin-top:14px">
+          <thead><tr><th>操作</th><th>系统行为</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>保存 WFS 共享，但该 SKU 已启用谷仓共享</td>
+              <td><span class="tag tag-danger">拒绝</span> 提示：请先停用谷仓共享</td>
+            </tr>
+            <tr>
+              <td>保存谷仓共享，但该 SKU 已启用 WFS 共享</td>
+              <td><span class="tag tag-danger">拒绝</span> 提示：请先停用 WFS 仓共享</td>
+            </tr>
+            <tr>
+              <td>切换模式</td>
+              <td>先删除/停用当前模式全部配置 → 再启用另一模式（记 MODE_SWITCH 日志）</td>
+            </tr>
+          </tbody>
+        </table>
+        <p style="font-size:12px;color:var(--muted);margin:12px 0 0;padding:10px;background:#f8fafc;border-radius:8px;border-left:4px solid var(--brand)">
+          <strong>与订单履约区分：</strong>订单在 WFS 库存不足时<strong>改推谷仓发货</strong>属于履约兜底，不等于同时开启「谷仓共享配置」。共享模式仍二选一。
+          详见 <a href="WFS共享库存与自动借货-详细方案.md#55-wfs-仓共享与谷仓共享互斥硬性产品规则">MD §5.5</a>。
+        </p>
+      </div>
+    </section>
+
+    <!-- 公式 -->
     <section class="panel" id="formula">
-      <div class="panel-hd"><span class="num">5</span> 计算公式（已定口径）</div>
+      <div class="panel-hd"><span class="num">6</span> 计算公式（已定口径）</div>
       <div class="panel-bd">
         <div class="formula-box">
           <div class="c">// ① 总量：禁止用三店库存相加</div>
@@ -443,7 +494,7 @@
 
     <!-- 6 演算 -->
     <section class="panel" id="calc">
-      <div class="panel-hd"><span class="num">6</span> 三店交互演算（默认 = 标准示例）</div>
+      <div class="panel-hd"><span class="num">7</span> 三店交互演算（默认 = 标准示例）</div>
       <div class="panel-bd">
         <div class="calc-toolbar">
           <div class="field"><label>8 位 SKU（告警预览）</label><input id="in-sku" value="B6062A01"></div>
@@ -486,7 +537,7 @@
 
     <!-- 7 配平 -->
     <section class="panel" id="balance">
-      <div class="panel-hd"><span class="num">7</span> 一次配平：虚拟借货顺序（缺料从大到小）</div>
+      <div class="panel-hd"><span class="num">8</span> 一次配平：虚拟借货顺序（缺料从大到小）</div>
       <div class="panel-bd">
         <ol style="font-size:13px;padding-left:20px;margin:0">
           <li>缺料店按 <strong>缺料量降序</strong> 排队（例：WM 50 → BBY 30）。</li>
@@ -500,7 +551,7 @@
 
     <!-- 10分钟超卖 -->
     <section class="panel" id="risk10">
-      <div class="panel-hd"><span class="num">8</span> 10 分钟推 WFS 窗口 · 超卖风险与防控</div>
+      <div class="panel-hd"><span class="num">9</span> 10 分钟推 WFS 窗口 · 超卖风险与防控</div>
       <div class="panel-bd">
         <p style="margin:0 0 12px;font-size:13px">
           <span class="tag tag-warn">风险来源</span>
@@ -576,7 +627,7 @@
 
     <!-- 9 同步推单 -->
     <section class="panel" id="sync">
-      <div class="panel-hd"><span class="num">9</span> 平台同步与推单门禁</div>
+      <div class="panel-hd"><span class="num">10</span> 平台同步与推单门禁</div>
       <div class="panel-bd">
         <table class="mock-table">
           <thead><tr><th>店铺</th><th>回写可售</th><th>停售</th><th>推单</th></tr></thead>
@@ -592,7 +643,7 @@
       </div>
     </section>
 
-    <p style="text-align:center;font-size:11px;color:#94a3b8;margin-top:20px">v2.1 · 2026-05-22 · 三店演算 + 低于安全库存告警 + 10分钟推WFS超卖防控</p>
+    <p style="text-align:center;font-size:11px;color:#94a3b8;margin-top:20px">v2.2 · 2026-05-22 · 含 WFS/谷仓共享二选一互斥</p>
   </div>
 
   <script>
