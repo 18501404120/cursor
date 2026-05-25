@@ -105,11 +105,23 @@
     .metric { font-size: 11px; color: var(--muted); margin: 3px 0; display: flex; justify-content: space-between; }
     .metric strong { color: var(--text); font-size: 14px; }
     .wfs-hub {
-      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      display: flex; flex-direction: column; align-items: stretch; justify-content: center;
       border-radius: 12px; background: linear-gradient(135deg, #8b5cf6, #6d28d9);
-      color: #fff; text-align: center; padding: 12px 8px; font-size: 11px; font-weight: 700;
+      color: #fff; text-align: left; padding: 12px 10px; font-size: 11px; font-weight: 600;
+      line-height: 1.55;
     }
-    .wfs-hub .big { font-size: 22px; margin-top: 4px; }
+    .wfs-hub .big { font-size: 22px; font-weight: 800; text-align: center; margin: 4px 0 8px; }
+    .wfs-hub .row { display: flex; justify-content: space-between; opacity: 0.95; }
+    .metric.lock-line strong { color: var(--warn); }
+    .pool-summary {
+      margin-top: 12px; padding: 12px 14px; background: #f8fbff;
+      border: 1px solid var(--line); border-radius: 10px; font-size: 12px; line-height: 1.7;
+    }
+    .guide-chain {
+      font-size: 12px; line-height: 1.75; color: var(--muted);
+      padding: 12px; background: #f8fafc; border-radius: 10px; border: 1px solid var(--line);
+      font-family: ui-monospace, Menlo, monospace; white-space: pre-wrap;
+    }
 
     /* 机器人消息 */
     .im-wrap {
@@ -229,29 +241,98 @@
   <div class="page">
     <h1>商超 3P · WFS 共享库存与自动借货</h1>
     <p class="subtitle">
-      图形化方案说明 v2 · 参与店：<strong>WM 3P-US / BBY 3P-US / Lowes 3P-US</strong> ·
-      <a href="WFS共享库存与自动借货-详细方案.md">完整 MD 方案（二次加工底稿）</a>
+      图形化说明 v3 · 参与店：<strong>WM / BBY / Lowes 3P-US</strong> ·
+      <a href="WFS共享库存与自动借货-详细方案.md#0-方案导读请先读本章">MD 方案导读（第 0 章）</a>
     </p>
     <div class="doc-banner">
-      <span>📄 实施与评审请以 <a href="WFS共享库存与自动借货-详细方案.md">详细方案.md</a> 为准；本页侧重流程可视与交互演算。</span>
+      <span>📄 叙述主线在 MD <strong>第 0 章</strong>；本页与演算表、三店卡片字段一致。下方参数联动。</span>
     </div>
 
     <nav class="nav">
+      <a href="#guide">方案导读</a>
+      <a href="#pool">三店共享池</a>
+      <a href="#calc">演算表</a>
       <a href="#flow">主流程</a>
       <a href="#decision">触发判断</a>
       <a href="#alert">群告警</a>
-      <a href="#pool">三店共享池</a>
       <a href="#mutex">WFS/谷仓二选一</a>
       <a href="#formula">公式</a>
-      <a href="#calc">三店演算</a>
       <a href="#balance">配平步骤</a>
       <a href="#risk10">10分钟超卖防控</a>
       <a href="#sync">同步与推单</a>
     </nav>
 
-    <!-- 1 主流程泳道 -->
+    <!-- 0 导读 -->
+    <section class="panel" id="guide">
+      <div class="panel-hd"><span class="num">0</span> 方案导读（一张图理清）</div>
+      <div class="panel-bd">
+        <p style="margin:0 0 10px;font-size:13px"><strong>实物只有一份</strong>（WFS 实查）→ 先扣 <strong>订单锁定 L</strong> → 再扣 <strong>安全库存</strong> → 得到 <strong>可分配池 P</strong> → 按比例算各店 <strong>应有</strong> → 不够则 <strong>虚拟配平</strong> → <strong>同步平台</strong>。</p>
+        <div class="guide-chain">Q_wfs（WFS实查）
+  − L（订单锁定合计 = WM+BBY+Lowes 各店锁定之和）
+  = Q_eff（可分配基数）
+  − Σ安全库存
+  = P（可分配池）
+→ 应有_i = P × 比例_i + 安全_i
+→ 当前_i：已扣本店锁定，用于触发/缺料
+→ 任一 当前 &lt; 安全 → 告警 + 一次配平</div>
+        <p style="font-size:12px;margin:12px 0 0;color:var(--muted)">订单锁定：BBY/Lowes 单<strong>进 ERP 即 +锁定、当前−</strong>；<strong>推 WFS 成功即释放锁定</strong>。三店卡片与 §7 演算表字段一致。</p>
+      </div>
+    </section>
+
+    <!-- 4 三店池 - moved before flow in nav, content here -->
+    <section class="panel" id="pool">
+      <div class="panel-hd"><span class="num">1</span> 三店虚拟共享池（与演算表联动）</div>
+      <div class="panel-bd">
+        <p style="margin:0 0 10px;font-size:13px">
+          <span class="tag tag-wfs">非真调拨</span>
+          下列数值随 §7 参数变化；<strong>订单锁定库存</strong> 参与右侧 WFS 汇总（扣减可分配池）。
+        </p>
+        <div class="pool-3">
+          <div class="store-card" id="card-wm">
+            <h4>WM 3P-US</h4>
+            <div class="metric"><span>当前可售</span><strong id="v-wm-c">10</strong></div>
+            <div class="metric lock-line"><span>订单锁定库存</span><strong id="v-wm-lock">0</strong></div>
+            <div class="metric"><span>安全库存</span><strong id="v-wm-s">30</strong></div>
+            <div class="metric"><span>共享比例</span><strong id="v-wm-p">30%</strong></div>
+            <div class="metric"><span>应有</span><strong id="v-wm-t">—</strong></div>
+            <div class="metric"><span>同步平台</span><strong id="v-wm-sync">—</strong></div>
+          </div>
+          <div class="store-card" id="card-bby">
+            <h4>BBY 3P-US</h4>
+            <div class="metric"><span>当前可售</span><strong id="v-bby-c">30</strong></div>
+            <div class="metric lock-line"><span>订单锁定库存</span><strong id="v-bby-lock">0</strong></div>
+            <div class="metric"><span>安全库存</span><strong id="v-bby-s">30</strong></div>
+            <div class="metric"><span>共享比例</span><strong id="v-bby-p">30%</strong></div>
+            <div class="metric"><span>应有</span><strong id="v-bby-t">—</strong></div>
+            <div class="metric"><span>同步平台</span><strong id="v-bby-sync">—</strong></div>
+          </div>
+          <div class="store-card" id="card-low">
+            <h4>Lowes 3P-US</h4>
+            <div class="metric"><span>当前可售</span><strong id="v-low-c">160</strong></div>
+            <div class="metric lock-line"><span>订单锁定库存</span><strong id="v-low-lock">0</strong></div>
+            <div class="metric"><span>安全库存</span><strong id="v-low-s">40</strong></div>
+            <div class="metric"><span>共享比例</span><strong id="v-low-p">40%</strong></div>
+            <div class="metric"><span>应有</span><strong id="v-low-t">—</strong></div>
+            <div class="metric"><span>同步平台</span><strong id="v-low-sync">—</strong></div>
+          </div>
+          <div class="wfs-hub">
+            <div style="text-align:center;font-size:10px;opacity:0.9">WFS 实物（唯一总量）</div>
+            <div class="big" id="v-wfs">200</div>
+            <div class="row"><span>锁定合计 L</span><strong id="hub-l">0</strong></div>
+            <div class="row"><span>Q_eff = Q−L</span><strong id="hub-qeff">200</strong></div>
+            <div class="row"><span>可分配池 P</span><strong id="hub-p">—</strong></div>
+          </div>
+        </div>
+        <div class="pool-summary" id="pool-summary">调整 §7 中 WFS 实查与各店「当前 / 订单锁定」后，本区与演算表同步更新。</div>
+        <p style="font-size:12px;color:var(--muted);margin:10px 0 0">
+          出单由 WFS 发货，扣减<strong>下单店份额</strong>；份额可来自它店虚拟借入（借货日志）。<strong>锁定</strong>只表示「已接单未推仓」，推仓成功后释放。
+        </p>
+      </div>
+    </section>
+
+    <!-- 主流程 -->
     <section class="panel" id="flow">
-      <div class="panel-hd"><span class="num">1</span> 端到端主流程（单次任务）</div>
+      <div class="panel-hd"><span class="num">2</span> 端到端主流程（单次任务）</div>
       <div class="panel-bd">
         <p style="margin:0 0 12px;font-size:13px;color:var(--muted)">
           <span class="tag tag-wfs">实物唯一</span>
@@ -263,7 +344,7 @@
             <div class="lane">定时任务</div>
             <div class="steps">
               <span class="step-pill">拉 WFS 实查</span><span class="arrow-r">→</span>
-              <span class="step-pill">汇总待推WFS占用</span><span class="arrow-r">→</span>
+              <span class="step-pill">汇总订单锁定 L</span><span class="arrow-r">→</span>
               <span class="step-pill">超卖风险扫描</span><span class="arrow-r">→</span>
               <span class="step-pill">读三店配置/可售</span>
             </div>
@@ -311,7 +392,7 @@
 
     <!-- 2 决策树 -->
     <section class="panel" id="decision">
-      <div class="panel-hd"><span class="num">2</span> 是否触发自动配平？</div>
+      <div class="panel-hd"><span class="num">3</span> 是否触发自动配平？</div>
       <div class="panel-bd">
         <div class="tree">
           <ul>
@@ -342,7 +423,7 @@
 
     <!-- 3 群告警 -->
     <section class="panel" id="alert">
-      <div class="panel-hd"><span class="num">3</span> 群消息机器人告警（低于安全库存）</div>
+      <div class="panel-hd"><span class="num">4</span> 群消息机器人告警（低于安全库存）</div>
       <div class="panel-bd">
         <div class="cols-2">
           <div class="im-wrap">
@@ -375,47 +456,6 @@
             </p>
           </div>
         </div>
-      </div>
-    </section>
-
-    <!-- 4 三店池 -->
-    <section class="panel" id="pool">
-      <div class="panel-hd"><span class="num">4</span> 三店虚拟共享池（非真调拨）</div>
-      <div class="panel-bd">
-        <div class="pool-3">
-          <div class="store-card" id="card-wm">
-            <h4>WM 3P-US</h4>
-            <div class="metric"><span>当前可售</span><strong id="v-wm-c">10</strong></div>
-            <div class="metric"><span>安全库存</span><strong id="v-wm-s">30</strong></div>
-            <div class="metric"><span>共享比例</span><strong id="v-wm-p">30%</strong></div>
-            <div class="metric"><span>应有</span><strong id="v-wm-t">—</strong></div>
-            <div class="metric"><span>同步平台</span><strong id="v-wm-sync">—</strong></div>
-          </div>
-          <div class="store-card" id="card-bby">
-            <h4>BBY 3P-US</h4>
-            <div class="metric"><span>当前可售</span><strong id="v-bby-c">30</strong></div>
-            <div class="metric"><span>安全库存</span><strong id="v-bby-s">30</strong></div>
-            <div class="metric"><span>共享比例</span><strong id="v-bby-p">30%</strong></div>
-            <div class="metric"><span>应有</span><strong id="v-bby-t">—</strong></div>
-            <div class="metric"><span>同步平台</span><strong id="v-bby-sync">—</strong></div>
-          </div>
-          <div class="store-card" id="card-low">
-            <h4>Lowes 3P-US</h4>
-            <div class="metric"><span>当前可售</span><strong id="v-low-c">160</strong></div>
-            <div class="metric"><span>安全库存</span><strong id="v-low-s">40</strong></div>
-            <div class="metric"><span>共享比例</span><strong id="v-low-p">40%</strong></div>
-            <div class="metric"><span>应有</span><strong id="v-low-t">—</strong></div>
-            <div class="metric"><span>同步平台</span><strong id="v-low-sync">—</strong></div>
-          </div>
-          <div class="wfs-hub">
-            WFS 实查
-            <div class="big" id="v-wfs">200</div>
-            唯一总量
-          </div>
-        </div>
-        <p style="font-size:12px;color:var(--muted);margin:12px 0 0">
-          出单后由 WFS 发货，扣减的是<strong>下单店份额</strong>；若份额来自它店虚拟借入，记入借货日志（见 MD 方案 §10、§13）。
-        </p>
       </div>
     </section>
 
@@ -739,11 +779,15 @@
       var r = compute(d);
 
       $('v-wfs').textContent = d.wfs;
+      $('hub-l').textContent = r.lockSum;
+      $('hub-qeff').textContent = r.qEff;
+      $('hub-p').textContent = r.pool;
       var map = { wm: d.wm, bby: d.bby, low: d.low };
       STORES.forEach(function (st) {
         var row = r.rows.find(function (x) { return x.key === st.key; });
         var m = map[st.key];
         $('v-' + st.key + '-c').textContent = m.c;
+        $('v-' + st.key + '-lock').textContent = m.lock || 0;
         $('v-' + st.key + '-s').textContent = m.s;
         $('v-' + st.key + '-p').textContent = Math.round(m.p * 100) + '%';
         $('v-' + st.key + '-t').textContent = row.t;
@@ -769,9 +813,11 @@
           '<td>' + row.t + '</td><td>' + row.sync + '</td></tr>';
       }).join('');
 
-      $('pool-info').innerHTML =
+      var poolHtml =
         '订单锁定合计 L = ' + r.lockSum + ' → Q_eff = ' + d.wfs + ' − L = <strong>' + r.qEff + '</strong><br>' +
         '可分配池 P = Q_eff − (' + d.wm.s + '+' + d.bby.s + '+' + d.low.s + ') = <strong>' + r.pool + '</strong>';
+      $('pool-info').innerHTML = poolHtml;
+      if ($('pool-summary')) $('pool-summary').innerHTML = poolHtml;
 
       $('trigger-info').innerHTML = r.triggered
         ? '<span class="tag tag-warn">已触发</span> 存在店铺当前可售 &lt; 安全库存 → 发群告警 + 一次配平'
