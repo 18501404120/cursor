@@ -1,0 +1,748 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>商超3P · WFS 共享库存与自动借货 · 方案说明</title>
+  <style>
+    :root {
+      --bg: #eef3fb;
+      --surface: #fff;
+      --text: #0f172a;
+      --muted: #475569;
+      --line: #dbe4f0;
+      --brand: #0b5ed7;
+      --brand-soft: #e7f1ff;
+      --good: #0f766e;
+      --good-soft: #ecfdf5;
+      --warn: #b45309;
+      --warn-soft: #fff7ed;
+      --danger: #b91c1c;
+      --danger-soft: #fef2f2;
+      --wfs: #7c3aed;
+      --wfs-soft: #f5f3ff;
+      --shadow: 0 10px 26px rgba(15, 23, 42, 0.08);
+      --radius: 14px;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "PingFang SC", "Microsoft YaHei", sans-serif;
+      background: linear-gradient(160deg, #eaf0fb 0%, var(--bg) 65%, #f6f9ff 100%);
+      color: var(--text);
+      line-height: 1.6;
+    }
+    .page { max-width: 1180px; margin: 0 auto; padding: 20px 16px 48px; }
+    h1 { margin: 0 0 8px; font-size: 22px; font-weight: 800; color: #0f2f63; }
+    .subtitle { margin: 0 0 20px; font-size: 13px; color: var(--muted); }
+    .subtitle a { color: var(--brand); font-weight: 600; }
+    .nav {
+      position: sticky; top: 0; z-index: 10;
+      display: flex; flex-wrap: wrap; gap: 8px;
+      padding: 10px 0 14px;
+      background: linear-gradient(180deg, #eef3fb 70%, transparent);
+    }
+    .nav a {
+      font-size: 12px; text-decoration: none; color: var(--brand);
+      padding: 6px 12px; border-radius: 999px;
+      border: 1px solid #bfdbfe; background: #fff;
+    }
+    .panel {
+      margin-top: 16px;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+    .panel-hd {
+      padding: 12px 16px;
+      font-size: 14px; font-weight: 800; color: #0f2f63;
+      border-bottom: 1px solid var(--line);
+      background: #f8fbff;
+    }
+    .panel-bd { padding: 16px; }
+    .tag {
+      display: inline-block; font-size: 11px; font-weight: 700;
+      padding: 2px 8px; border-radius: 6px; margin-right: 6px;
+    }
+    .tag-wfs { background: var(--wfs-soft); color: var(--wfs); }
+    .tag-good { background: var(--good-soft); color: var(--good); }
+    .tag-warn { background: var(--warn-soft); color: var(--warn); }
+    .tag-danger { background: var(--danger-soft); color: var(--danger); }
+
+    /* 总览流程 */
+    .flow-wrap { overflow-x: auto; padding: 8px 0; }
+    .flow {
+      display: flex; align-items: stretch; gap: 0;
+      min-width: 900px;
+    }
+    .flow-node {
+      flex: 1; min-width: 130px;
+      border: 2px solid var(--line);
+      border-radius: 12px;
+      padding: 12px;
+      background: #fff;
+      position: relative;
+    }
+    .flow-node.highlight { border-color: var(--brand); background: var(--brand-soft); }
+    .flow-node.wfs { border-color: #c4b5fd; background: var(--wfs-soft); }
+    .flow-node .t { font-size: 13px; font-weight: 800; margin-bottom: 6px; }
+    .flow-node .d { font-size: 11px; color: var(--muted); line-height: 1.5; }
+    .flow-arrow {
+      display: flex; align-items: center; justify-content: center;
+      width: 36px; flex-shrink: 0;
+      font-size: 20px; color: #94a3b8; font-weight: 700;
+    }
+
+    /* 虚拟池示意 */
+    .pool-diagram {
+      display: grid;
+      grid-template-columns: 1fr 80px 1fr;
+      gap: 12px;
+      align-items: center;
+    }
+    @media (max-width: 720px) {
+      .pool-diagram { grid-template-columns: 1fr; }
+    }
+    .store-card {
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 14px;
+      background: #fafbff;
+    }
+    .store-card h4 { margin: 0 0 8px; font-size: 14px; }
+    .store-card .metric { font-size: 12px; color: var(--muted); margin: 4px 0; }
+    .store-card .metric strong { color: var(--text); font-size: 15px; }
+    .wfs-hub {
+      text-align: center;
+      padding: 16px 10px;
+      border-radius: 50%;
+      width: 80px; height: 80px;
+      margin: 0 auto;
+      background: linear-gradient(135deg, #8b5cf6, #6d28d9);
+      color: #fff;
+      font-size: 11px;
+      font-weight: 800;
+      display: flex; align-items: center; justify-content: center;
+      box-shadow: 0 8px 20px rgba(109, 40, 217, 0.35);
+    }
+    .bidir {
+      font-size: 11px; color: var(--muted); text-align: center;
+      line-height: 1.4;
+    }
+
+    /* 公式 */
+    .formula-box {
+      background: #0f172a;
+      color: #e2e8f0;
+      border-radius: 10px;
+      padding: 14px 16px;
+      font-family: ui-monospace, "SF Mono", Menlo, monospace;
+      font-size: 13px;
+      line-height: 1.8;
+    }
+    .formula-box .comment { color: #94a3b8; }
+    .formula-box .hl { color: #7dd3fc; }
+    .formula-box .ok { color: #6ee7b7; }
+    .formula-box .warn { color: #fcd34d; }
+
+    /* 演算表 */
+    .calc-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+    .field label {
+      display: block; font-size: 12px; color: var(--muted);
+      margin-bottom: 4px; font-weight: 600;
+    }
+    .field input, .field select {
+      width: 100%; padding: 8px 10px;
+      border: 1px solid var(--line); border-radius: 8px;
+      font-size: 14px;
+    }
+    .result-table {
+      width: 100%; border-collapse: collapse;
+      font-size: 13px;
+    }
+    .result-table th, .result-table td {
+      border: 1px solid var(--line);
+      padding: 10px 12px;
+      text-align: center;
+    }
+    .result-table th {
+      background: #f1f5f9;
+      font-weight: 700;
+      position: sticky; top: 0;
+    }
+    .result-table tr.shortage td { background: #fef2f2; }
+    .result-table tr.surplus td { background: var(--good-soft); }
+    .result-table tr.trigger td:first-child { box-shadow: inset 3px 0 0 var(--danger); }
+
+    .steps { counter-reset: step; list-style: none; padding: 0; margin: 0; }
+    .steps li {
+      counter-increment: step;
+      padding: 12px 12px 12px 44px;
+      border-left: 3px solid var(--brand-soft);
+      margin-bottom: 8px;
+      position: relative;
+      background: #fafbff;
+      border-radius: 0 10px 10px 0;
+      font-size: 13px;
+    }
+    .steps li::before {
+      content: counter(step);
+      position: absolute; left: 10px; top: 12px;
+      width: 24px; height: 24px;
+      background: var(--brand); color: #fff;
+      border-radius: 50%;
+      font-size: 12px; font-weight: 800;
+      display: flex; align-items: center; justify-content: center;
+    }
+
+    .note {
+      font-size: 12px; color: var(--muted);
+      padding: 10px 12px;
+      background: var(--warn-soft);
+      border-radius: 8px;
+      border-left: 4px solid var(--warn);
+      margin-top: 12px;
+    }
+    .cols-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    @media (max-width: 800px) { .cols-2 { grid-template-columns: 1fr; } }
+
+    .mock-table {
+      width: 100%; border-collapse: collapse; font-size: 12px;
+    }
+    .mock-table th, .mock-table td {
+      border: 1px solid var(--line); padding: 8px 10px;
+    }
+    .mock-table th { background: #f1f5f9; }
+    .btn-mock {
+      display: inline-block; padding: 4px 10px;
+      background: var(--brand); color: #fff;
+      border-radius: 6px; font-size: 12px; font-weight: 600;
+    }
+
+    /* 配平动画条 */
+    .balance-viz { margin-top: 16px; }
+    .bar-row { margin-bottom: 12px; }
+    .bar-label { font-size: 12px; font-weight: 700; margin-bottom: 4px; display: flex; justify-content: space-between; }
+    .bar-track {
+      height: 22px; background: #f1f5f9;
+      border-radius: 6px; overflow: hidden; position: relative;
+    }
+    .bar-current { height: 100%; background: #94a3b8; transition: width 0.4s; }
+    .bar-target { position: absolute; top: 0; height: 100%; border-right: 3px dashed var(--brand); }
+    .bar-safety {
+      position: absolute; top: 0; height: 100%;
+      background: rgba(185, 28, 28, 0.15);
+      border-right: 2px solid var(--danger);
+    }
+    .legend { display: flex; flex-wrap: wrap; gap: 12px; font-size: 11px; color: var(--muted); margin-top: 8px; }
+    .legend span::before {
+      content: ""; display: inline-block; width: 12px; height: 12px;
+      margin-right: 4px; vertical-align: -2px; border-radius: 2px;
+    }
+    .legend .l-cur::before { background: #94a3b8; }
+    .legend .l-tgt::before { background: transparent; border-right: 3px dashed var(--brand); width: 8px; }
+    .legend .l-safe::before { background: rgba(185,28,28,0.2); }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <h1>商超 3P · WFS 共享库存与自动借货</h1>
+    <p class="subtitle">
+      图形化方案说明（与业务对齐版）· 关联文档：
+      <a href="../方案/01-WFS多品牌库存区分与借调消耗追溯.md">需求 01 区分与追溯</a>、
+      <a href="../方案/02-WFS跨平台共享库存与超卖防控.md">需求 02 超卖防控</a>、
+      <a href="../方案/03-WFS库存借调自助与校验.md">需求 03 借调校验</a>
+    </p>
+
+    <nav class="nav">
+      <a href="#overview">总览</a>
+      <a href="#concept">核心概念</a>
+      <a href="#config">共享库存设置</a>
+      <a href="#formula">计算公式</a>
+      <a href="#calc">交互演算</a>
+      <a href="#balance">一次配平</a>
+      <a href="#sync">平台同步</a>
+      <a href="#order">订单与推单</a>
+      <a href="#scope">范围与约束</a>
+    </nav>
+
+    <!-- 总览 -->
+    <section class="panel" id="overview">
+      <div class="panel-hd">1. 端到端总览</div>
+      <div class="panel-bd">
+        <p style="margin:0 0 12px;font-size:13px;color:var(--muted)">
+          <span class="tag tag-wfs">实物唯一</span>
+          WFS 仓内真实库存通过接口实查；WM、BBY 等店铺<strong>不拆实物</strong>，只在 ERP 内做逻辑分货与虚拟借货，并回写各店平台可售。
+        </p>
+        <div class="flow-wrap">
+          <div class="flow">
+            <div class="flow-node wfs">
+              <div class="t">WFS 接口</div>
+              <div class="d">拉取 SKU 可用实物总量（唯一真相源）</div>
+            </div>
+            <div class="flow-arrow">→</div>
+            <div class="flow-node">
+              <div class="t">共享库存设置</div>
+              <div class="d">8 位 SKU + 店铺 → MSKU<br>共享比例（合计 100%）<br>安全库存（固定件数）</div>
+            </div>
+            <div class="flow-arrow">→</div>
+            <div class="flow-node highlight">
+              <div class="t">触发检测</div>
+              <div class="d">任参与店：<br>当前逻辑可售 &lt; 安全库存</div>
+            </div>
+            <div class="flow-arrow">→</div>
+            <div class="flow-node highlight">
+              <div class="t">自动借货（一次配平）</div>
+              <div class="d">算应有 → 虚拟调剂 → 各店可售 = 应有</div>
+            </div>
+            <div class="flow-arrow">→</div>
+            <div class="flow-node">
+              <div class="t">同步平台可售</div>
+              <div class="d">WM、BBY 均回写<br>可售 &lt; 1 停售</div>
+            </div>
+            <div class="flow-arrow">→</div>
+            <div class="flow-node">
+              <div class="t">订单推单</div>
+              <div class="d">分货不足 / 无借货 → 不可推 WFS 或谷仓</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 核心概念 -->
+    <section class="panel" id="concept">
+      <div class="panel-hd">2. 核心概念：虚拟共享池（非真调拨）</div>
+      <div class="panel-bd">
+        <div class="pool-diagram">
+          <div class="store-card" id="card-wm">
+            <h4>WM 3P-US <span class="tag tag-good">参与共享</span></h4>
+            <div class="metric">当前逻辑可售：<strong id="viz-wm-cur">10</strong></div>
+            <div class="metric">安全库存：<strong id="viz-wm-safe">30</strong></div>
+            <div class="metric">配平后应有：<strong id="viz-wm-tgt">—</strong></div>
+            <div class="metric">平台可售（同步）：<strong id="viz-wm-sell">—</strong></div>
+          </div>
+          <div>
+            <div class="wfs-hub">WFS<br>实查<br><span id="viz-wfs">200</span></div>
+            <p class="bidir">实物只在 WFS<br>店铺间不跨仓调拨<br>出单可消耗他店份额</p>
+          </div>
+          <div class="store-card" id="card-bby">
+            <h4>BBY 3P-US <span class="tag tag-good">参与共享</span></h4>
+            <div class="metric">当前逻辑可售：<strong id="viz-bby-cur">160</strong></div>
+            <div class="metric">安全库存：<strong id="viz-bby-safe">30</strong></div>
+            <div class="metric">配平后应有：<strong id="viz-bby-tgt">—</strong></div>
+            <div class="metric">平台可售（同步）：<strong id="viz-bby-sell">—</strong></div>
+          </div>
+        </div>
+        <div class="note">
+          <strong>重要：</strong>自动借货不会在仓库间产生真实库存调整单；只是把 WFS 总量「算」到各店可售上。
+          某店出单时，可能实际发的是 WFS 里由另一店份额覆盖的货——已在借入店的<strong>逻辑可售 / 已借货</strong>中体现。
+        </div>
+      </div>
+    </section>
+
+    <!-- 配置 -->
+    <section class="panel" id="config">
+      <div class="panel-hd">3. 共享库存设置（配置页逻辑）</div>
+      <div class="panel-bd">
+        <div class="cols-2">
+          <div>
+            <p style="font-size:13px;margin:0 0 10px"><span class="tag tag-warn">配置粒度</span> 8 位 SKU + 店铺 → 自动映射该店 MSKU（无需单独配 MSKU）</p>
+            <table class="mock-table">
+              <thead>
+                <tr>
+                  <th>8 位 SKU</th>
+                  <th>共享库存店铺</th>
+                  <th>共享比例</th>
+                  <th>安全库存（件）</th>
+                  <th>操作</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>H5011001</td>
+                  <td>WM 3P-US</td>
+                  <td>30%</td>
+                  <td>30</td>
+                  <td><span class="btn-mock">编辑</span></td>
+                </tr>
+                <tr>
+                  <td>H5011001</td>
+                  <td>BBY 3P-US</td>
+                  <td>70%</td>
+                  <td>30</td>
+                  <td><span class="btn-mock">编辑</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div>
+            <p style="font-size:13px;font-weight:700;margin:0 0 8px">校验规则</p>
+            <ul style="font-size:12px;color:var(--muted);padding-left:18px;margin:0">
+              <li>参与店铺：当前 <strong>WM + BBY</strong>，后续可扩展更多店</li>
+              <li>共享比例合计必须 <strong>= 100%</strong></li>
+              <li>安全库存为 <strong>固定件数</strong>（非比例）</li>
+              <li>须同 8 位 SKU、不同店铺 MSKU，<strong>不可跨仓</strong></li>
+            </ul>
+            <p style="font-size:13px;font-weight:700;margin:16px 0 8px">不在本页处理</p>
+            <ul style="font-size:12px;color:var(--muted);padding-left:18px;margin:0">
+              <li>现有人工借货申请 / 审批（沿用已有功能）</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 公式 -->
+    <section class="panel" id="formula">
+      <div class="panel-hd">4. 计算公式（已定口径）</div>
+      <div class="panel-bd">
+        <div class="formula-box">
+          <div><span class="comment">// ① 唯一总量：仅用 WFS 接口实查，不用各店库存相加</span></div>
+          <div><span class="hl">可分配池</span> = WFS实查可用 − Σ(各参与店安全库存)</div>
+          <br>
+          <div><span class="comment">// ② 各店目标（配平后应达到的逻辑可售 / 平台可售）</span></div>
+          <div><span class="hl">应有<sub>i</sub></span> = 可分配池 × 共享比例<sub>i</sub> + 安全库存<sub>i</sub></div>
+          <br>
+          <div><span class="comment">// ③ 触发：当前 = 该店该 SKU 逻辑可售（含已同步平台可售、含已虚拟借入）</span></div>
+          <div><span class="warn">若 ∃ 店：当前 &lt; 安全库存 → 触发一次自动配平</span></div>
+          <br>
+          <div><span class="comment">// ④ 缺料 / 富余（用于配平排序）</span></div>
+          <div><span class="hl">缺料</span> = max(0, 应有 − 当前)　　<span class="ok">富余</span> = max(0, 当前 − 应有)</div>
+          <br>
+          <div><span class="comment">// ⑤ 配平结果：各店当前 := 应有；平台可售 := 应有（&lt;1 则停售）</span></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 交互演算 -->
+    <section class="panel" id="calc">
+      <div class="panel-hd">5. 交互演算（可调参数）</div>
+      <div class="panel-bd">
+        <div class="calc-grid">
+          <div class="field">
+            <label>WFS 接口实查可用</label>
+            <input type="number" id="in-wfs" value="200" min="0">
+          </div>
+          <div class="field">
+            <label>WM 当前逻辑可售</label>
+            <input type="number" id="in-wm-cur" value="10" min="0">
+          </div>
+          <div class="field">
+            <label>BBY 当前逻辑可售</label>
+            <input type="number" id="in-bby-cur" value="160" min="0">
+          </div>
+          <div class="field">
+            <label>WM 安全库存（件）</label>
+            <input type="number" id="in-wm-safe" value="30" min="0">
+          </div>
+          <div class="field">
+            <label>BBY 安全库存（件）</label>
+            <input type="number" id="in-bby-safe" value="30" min="0">
+          </div>
+          <div class="field">
+            <label>WM 共享比例（%）</label>
+            <input type="number" id="in-wm-pct" value="30" min="0" max="100">
+          </div>
+          <div class="field">
+            <label>BBY 共享比例（%）</label>
+            <input type="number" id="in-bby-pct" value="70" min="0" max="100" readonly title="自动 = 100% − WM%">
+          </div>
+        </div>
+        <p id="pct-warn" style="font-size:12px;color:var(--danger);display:none">共享比例合计须为 100%</p>
+
+        <table class="result-table" id="result-table">
+          <thead>
+            <tr>
+              <th>店铺</th>
+              <th>当前可售</th>
+              <th>安全库存</th>
+              <th>是否触发</th>
+              <th>应有</th>
+              <th>缺料</th>
+              <th>富余</th>
+              <th>配平后可售</th>
+              <th>平台同步</th>
+            </tr>
+          </thead>
+          <tbody id="result-body"></tbody>
+        </table>
+        <p id="pool-line" style="font-size:13px;font-weight:700;margin:12px 0 0"></p>
+        <p id="trigger-line" style="font-size:13px;margin:4px 0 0"></p>
+        <p id="balance-line" style="font-size:13px;margin:4px 0 0;color:var(--good)"></p>
+      </div>
+    </section>
+
+    <!-- 配平 -->
+    <section class="panel" id="balance">
+      <div class="panel-hd">6. 一次配平规则</div>
+      <div class="panel-bd">
+        <ol class="steps">
+          <li>检测到<strong>任一</strong>参与店 <code>当前 &lt; 安全库存</code>，对本 SKU 启动<strong>一次</strong>配平（非循环多轮）。</li>
+          <li>用 WFS 实查计算<strong>可分配池</strong>与各店<strong>应有</strong>。</li>
+          <li>富余店 → 缺料店虚拟调剂；缺料店按<strong>缺料量从大到小</strong>排队分配富余份额。</li>
+          <li>配平后：各店<strong>当前逻辑可售 = 应有</strong>；已借货体现在借入店可售中。</li>
+          <li>同步 WM、BBY 平台可售 = 应有；<strong>可售 &lt; 1 → 停售</strong>。</li>
+        </ol>
+        <div class="balance-viz" id="balance-bars"></div>
+        <div class="legend">
+          <span class="l-cur">当前可售</span>
+          <span class="l-tgt">应有（配平目标）</span>
+          <span class="l-safe">安全库存线</span>
+        </div>
+        <div class="note" id="borrow-narrative" style="margin-top:16px"></div>
+      </div>
+    </section>
+
+    <!-- 同步 -->
+    <section class="panel" id="sync">
+      <div class="panel-hd">7. 平台可售同步</div>
+      <div class="panel-bd">
+        <table class="mock-table">
+          <thead>
+            <tr><th>店铺</th><th>是否回写可售</th><th>写入值</th><th>停售规则</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>WM 3P-US</td>
+              <td><span class="tag tag-good">是</span></td>
+              <td>配平后的<strong>应有</strong>（逻辑可售）</td>
+              <td>可售 &lt; 1 → 停售</td>
+            </tr>
+            <tr>
+              <td>BBY 3P-US</td>
+              <td><span class="tag tag-good">是</span></td>
+              <td>同上</td>
+              <td>可售 &lt; 1 → 停售</td>
+            </tr>
+          </tbody>
+        </table>
+        <p class="note" style="margin-top:12px">
+          所有平台可售均为<strong>计算结果</strong>，不是人工在 Mirakl 后台单独维护。与需求 02「主库存 = WFS、子店闸门」一致，且 WM 同样纳入回写（业务已确认）。
+        </p>
+      </div>
+    </section>
+
+    <!-- 订单 -->
+    <section class="panel" id="order">
+      <div class="panel-hd">8. 订单推单与消耗</div>
+      <div class="panel-bd">
+        <div class="cols-2">
+          <div>
+            <p style="font-size:13px;font-weight:700;margin:0 0 8px">推单门禁</p>
+            <p style="font-size:13px;margin:0;color:var(--muted)">
+              <span class="tag tag-danger">拦截</span>
+              若逻辑分货 / 借货后仍<strong>不足以发货</strong>（无有效借货、可售不足），则<strong>不允许</strong>向 WFS 或谷仓推单。
+            </p>
+          </div>
+          <div>
+            <p style="font-size:13px;font-weight:700;margin:0 0 8px">出单消耗（示意）</p>
+            <svg viewBox="0 0 420 120" width="100%" style="max-width:420px" aria-label="出单消耗示意">
+              <rect x="10" y="20" width="90" height="50" rx="8" fill="#e7f1ff" stroke="#0b5ed7"/>
+              <text x="55" y="50" text-anchor="middle" font-size="11" fill="#0f2f63">BBY 出单</text>
+              <path d="M100 45 H160" stroke="#64748b" marker-end="url(#arr)"/>
+              <rect x="160" y="10" width="100" height="70" rx="8" fill="#f5f3ff" stroke="#7c3aed"/>
+              <text x="210" y="38" text-anchor="middle" font-size="10" fill="#5b21b6">WFS 发货</text>
+              <text x="210" y="55" text-anchor="middle" font-size="9" fill="#64748b">扣减共享池</text>
+              <text x="210" y="70" text-anchor="middle" font-size="9" fill="#64748b">记 BBY 份额</text>
+              <path d="M260 45 H310" stroke="#64748b" marker-end="url(#arr)"/>
+              <rect x="310" y="20" width="100" height="50" rx="8" fill="#ecfdf5" stroke="#0f766e"/>
+              <text x="360" y="50" text-anchor="middle" font-size="10" fill="#0f766e">台账/追溯</text>
+              <defs>
+                <marker id="arr" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+                  <path d="M0,0 L6,3 L0,6 Z" fill="#64748b"/>
+                </marker>
+              </defs>
+            </svg>
+            <p style="font-size:11px;color:var(--muted);margin:8px 0 0">与需求 01：订单行需能标识消耗的是本店份额或共享池中的借调份额。</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 范围 -->
+    <section class="panel" id="scope">
+      <div class="panel-hd">9. 范围、约束与待与订单模块对齐项</div>
+      <div class="panel-bd">
+        <table class="mock-table">
+          <thead>
+            <tr><th>项</th><th>已定</th><th>说明</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>实物来源</td><td>WFS 接口实查</td><td>可分配池唯一总量来源</td></tr>
+            <tr><td>参与店</td><td>WM、BBY（可扩展）</td><td>同 SKU 配置共享比例 + 安全库存</td></tr>
+            <tr><td>真调拨</td><td>无</td><td>仅虚拟分货 + 平台可售同步</td></tr>
+            <tr><td>人工借货</td><td>沿用现有</td><td>本方案不展开</td></tr>
+            <tr><td>BBY 先 WFS 再谷仓</td><td>待对齐</td><td>与订单履约策略另议，本页不展开</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <p style="text-align:center;font-size:11px;color:#94a3b8;margin-top:24px">
+      文档版本：2026-05-22 · 商超 3P 需求 · 原型说明页
+    </p>
+  </div>
+
+  <script>
+    (function () {
+      var stores = [
+        { key: 'wm', name: 'WM 3P-US' },
+        { key: 'bby', name: 'BBY 3P-US' }
+      ];
+
+      function el(id) { return document.getElementById(id); }
+
+      function readInputs() {
+        var wmPct = Number(el('in-wm-pct').value) || 0;
+        var bbyPct = 100 - wmPct;
+        el('in-bby-pct').value = bbyPct;
+        var pctOk = Math.abs(wmPct + bbyPct - 100) < 0.01;
+        el('pct-warn').style.display = pctOk ? 'none' : 'block';
+        return {
+          wfs: Math.max(0, Number(el('in-wfs').value) || 0),
+          wm: { cur: Math.max(0, Number(el('in-wm-cur').value) || 0), safe: Math.max(0, Number(el('in-wm-safe').value) || 0), pct: wmPct / 100 },
+          bby: { cur: Math.max(0, Number(el('in-bby-cur').value) || 0), safe: Math.max(0, Number(el('in-bby-safe').value) || 0), pct: bbyPct / 100 },
+          pctOk: pctOk
+        };
+      }
+
+      function compute(data) {
+        var safeSum = data.wm.safe + data.bby.safe;
+        var pool = Math.max(0, data.wfs - safeSum);
+        var wmTarget = Math.round(pool * data.wm.pct + data.wm.safe);
+        var bbyTarget = Math.round(pool * data.bby.pct + data.bby.safe);
+        var wmShort = Math.max(0, wmTarget - data.wm.cur);
+        var bbyShort = Math.max(0, bbyTarget - data.bby.cur);
+        var wmSurplus = Math.max(0, data.wm.cur - wmTarget);
+        var bbySurplus = Math.max(0, data.bby.cur - bbyTarget);
+        var wmTrig = data.wm.cur < data.wm.safe;
+        var bbyTrig = data.bby.cur < data.bby.safe;
+        var triggered = wmTrig || bbyTrig;
+        return {
+          pool: pool, safeSum: safeSum, triggered: triggered,
+          wm: { target: wmTarget, short: wmShort, surplus: wmSurplus, trig: wmTrig },
+          bby: { target: bbyTarget, short: bbyShort, surplus: bbySurplus, trig: bbyTrig }
+        };
+      }
+
+      function platformSync(target) {
+        if (target < 1) return '停售（0）';
+        return String(target);
+      }
+
+      function simulateBalance(r, data) {
+        if (!r.triggered) return '未触发：所有店当前可售均 ≥ 安全库存。';
+        var shorts = [];
+        var surpluses = [];
+        if (r.wm.short > 0) shorts.push({ name: 'WM', amount: r.wm.short });
+        if (r.bby.short > 0) shorts.push({ name: 'BBY', amount: r.bby.short });
+        if (r.wm.surplus > 0) surpluses.push({ name: 'WM', amount: r.wm.surplus });
+        if (r.bby.surplus > 0) surpluses.push({ name: 'BBY', amount: r.bby.surplus });
+        shorts.sort(function (a, b) { return b.amount - a.amount; });
+        surpluses.sort(function (a, b) { return b.amount - a.amount; });
+        var lines = ['配平：一次执行，配平后各店可售 = 应有。'];
+        if (shorts.length && surpluses.length) {
+          lines.push('缺料店按缺料量从大到小：' + shorts.map(function (s) { return s.name + '(' + s.amount + ')'; }).join(' → '));
+          lines.push('富余店供给：' + surpluses.map(function (s) { return s.name + '(富余' + s.amount + ')'; }).join('、'));
+          var sIdx = 0;
+          shorts.forEach(function (sh) {
+            var left = sh.amount;
+            while (left > 0 && sIdx < surpluses.length) {
+              var give = Math.min(left, surpluses[sIdx].amount);
+              if (give > 0) lines.push('虚拟：' + surpluses[sIdx].name + ' → ' + sh.name + ' 调剂 ' + give + ' 件');
+              surpluses[sIdx].amount -= give;
+              left -= give;
+              if (surpluses[sIdx].amount <= 0) sIdx++;
+            }
+          });
+        } else if (shorts.length) {
+          lines.push('各店均缺料，由 WFS 可分配池整体抬升各店可售至「应有」（不依赖店间富余）。');
+        }
+        lines.push('结果：WM 可售 ' + platformSync(r.wm.target) + '，BBY 可售 ' + platformSync(r.bby.target));
+        return lines.join('\n');
+      }
+
+      function renderBars(r, data) {
+        var maxVal = Math.max(data.wfs, r.wm.target, r.bby.target, data.wm.cur, data.bby.cur, 1);
+        var html = '';
+        [{ label: 'WM 3P-US', cur: data.wm.cur, safe: data.wm.safe, tgt: r.wm.target },
+         { label: 'BBY 3P-US', cur: data.bby.cur, safe: data.bby.safe, tgt: r.bby.target }].forEach(function (row) {
+          var curW = (row.cur / maxVal * 100).toFixed(1);
+          var tgtW = (row.tgt / maxVal * 100).toFixed(1);
+          var safeW = (row.safe / maxVal * 100).toFixed(1);
+          html += '<div class="bar-row"><div class="bar-label"><span>' + row.label + '</span><span>当前 ' + row.cur + ' → 应有 ' + row.tgt + '</span></div>';
+          html += '<div class="bar-track"><div class="bar-safety" style="width:' + safeW + '%"></div>';
+          html += '<div class="bar-current" style="width:' + curW + '%"></div>';
+          html += '<div class="bar-target" style="left:' + tgtW + '%"></div></div></div>';
+        });
+        el('balance-bars').innerHTML = html;
+      }
+
+      function render() {
+        var data = readInputs();
+        var r = compute(data);
+
+        el('viz-wfs').textContent = data.wfs;
+        el('viz-wm-cur').textContent = data.wm.cur;
+        el('viz-bby-cur').textContent = data.bby.cur;
+        el('viz-wm-safe').textContent = data.wm.safe;
+        el('viz-bby-safe').textContent = data.bby.safe;
+        el('viz-wm-tgt').textContent = r.wm.target;
+        el('viz-bby-tgt').textContent = r.bby.target;
+        el('viz-wm-sell').textContent = platformSync(r.wm.target);
+        el('viz-bby-sell').textContent = platformSync(r.bby.target);
+
+        var rows = [
+          { name: 'WM 3P-US', cur: data.wm.cur, safe: data.wm.safe, trig: r.wm.trig, tgt: r.wm.target, short: r.wm.short, surplus: r.wm.surplus },
+          { name: 'BBY 3P-US', cur: data.bby.cur, safe: data.bby.safe, trig: r.bby.trig, tgt: r.bby.target, short: r.bby.short, surplus: r.bby.surplus }
+        ];
+        var tbody = el('result-body');
+        tbody.innerHTML = rows.map(function (row) {
+          var cls = row.trig ? 'trigger ' : '';
+          if (row.short > 0) cls += 'shortage ';
+          if (row.surplus > 0) cls += 'surplus ';
+          return '<tr class="' + cls.trim() + '">' +
+            '<td>' + row.name + '</td>' +
+            '<td>' + row.cur + '</td>' +
+            '<td>' + row.safe + '</td>' +
+            '<td>' + (row.trig ? '<span class="tag tag-danger">是</span>' : '否') + '</td>' +
+            '<td>' + row.tgt + '</td>' +
+            '<td>' + row.short + '</td>' +
+            '<td>' + row.surplus + '</td>' +
+            '<td>' + row.tgt + '</td>' +
+            '<td>' + platformSync(row.tgt) + '</td>' +
+            '</tr>';
+        }).join('');
+
+        el('pool-line').textContent =
+          '可分配池 = ' + data.wfs + ' − ' + r.safeSum + ' = ' + r.pool +
+          '　｜　WM 应有 = ' + r.pool + '×' + Math.round(data.wm.pct * 100) + '%+' + data.wm.safe + ' = ' + r.wm.target +
+          '　｜　BBY 应有 = ' + r.bby.target;
+
+        el('trigger-line').innerHTML = r.triggered
+          ? '<span class="tag tag-warn">已触发</span> 存在店铺当前可售 &lt; 安全库存，执行一次配平。'
+          : '<span class="tag tag-good">未触发</span> 各店当前可售均 ≥ 安全库存。';
+
+        el('balance-line').textContent = data.pctOk ? '' : '请先将共享比例调整为合计 100%。';
+        el('borrow-narrative').innerHTML = '<strong>本例配平叙述：</strong><pre style="margin:8px 0 0;font-size:12px;white-space:pre-wrap;font-family:inherit">' +
+          simulateBalance(r, data) + '</pre>';
+
+        renderBars(r, data);
+      }
+
+      ['in-wfs', 'in-wm-cur', 'in-bby-cur', 'in-wm-safe', 'in-bby-safe', 'in-wm-pct'].forEach(function (id) {
+        el(id).addEventListener('input', render);
+      });
+      render();
+    })();
+  </script>
+</body>
+</html>
