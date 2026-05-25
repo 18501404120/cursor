@@ -203,6 +203,26 @@
     .mock-table th, .mock-table td { border: 1px solid var(--line); padding: 8px; }
     .mock-table th { background: #f1f5f9; }
     .legend { display: flex; flex-wrap: wrap; gap: 14px; font-size: 11px; color: var(--muted); margin-top: 8px; }
+
+    /* 10分钟时间轴 */
+    .timeline { display: flex; gap: 0; margin: 12px 0; overflow-x: auto; }
+    .tl-step {
+      flex: 1; min-width: 100px; padding: 10px 8px; text-align: center;
+      border: 1px solid var(--line); background: #fff; font-size: 11px; position: relative;
+    }
+    .tl-step.danger { background: #fef2f2; border-color: #fca5a5; }
+    .tl-step.warn { background: var(--warn-soft); border-color: #fcd34d; }
+    .tl-step .t { font-weight: 800; color: #0f2f63; margin-bottom: 4px; }
+    .tl-arrow { display: flex; align-items: center; color: #94a3b8; font-size: 16px; padding: 0 2px; }
+    .mitigation-grid {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px;
+    }
+    .mit-card {
+      border: 1px solid var(--line); border-radius: 10px; padding: 12px;
+      background: #fafbff; font-size: 12px;
+    }
+    .mit-card h5 { margin: 0 0 6px; font-size: 13px; color: #0f2f63; }
+    .mit-card .p0 { font-size: 10px; color: #fff; background: var(--danger); padding: 1px 6px; border-radius: 4px; margin-left: 6px; }
   </style>
 </head>
 <body>
@@ -224,6 +244,7 @@
       <a href="#formula">公式</a>
       <a href="#calc">三店演算</a>
       <a href="#balance">配平步骤</a>
+      <a href="#risk10">10分钟超卖防控</a>
       <a href="#sync">同步与推单</a>
     </nav>
 
@@ -241,8 +262,9 @@
             <div class="lane">定时任务</div>
             <div class="steps">
               <span class="step-pill">拉 WFS 实查</span><span class="arrow-r">→</span>
-              <span class="step-pill">读三店配置</span><span class="arrow-r">→</span>
-              <span class="step-pill">读当前逻辑可售</span>
+              <span class="step-pill">汇总待推WFS占用</span><span class="arrow-r">→</span>
+              <span class="step-pill">超卖风险扫描</span><span class="arrow-r">→</span>
+              <span class="step-pill">读三店配置/可售</span>
             </div>
           </div>
           <div class="swimlane-row">
@@ -476,9 +498,85 @@
       </div>
     </section>
 
-    <!-- 8 同步推单 -->
+    <!-- 10分钟超卖 -->
+    <section class="panel" id="risk10">
+      <div class="panel-hd"><span class="num">8</span> 10 分钟推 WFS 窗口 · 超卖风险与防控</div>
+      <div class="panel-bd">
+        <p style="margin:0 0 12px;font-size:13px">
+          <span class="tag tag-warn">风险来源</span>
+          <strong>BBY、Lowes</strong> 订单约 <strong>每 10 分钟</strong> 批量推 WFS 仓 → 进 ERP 后逻辑可售<strong>不会立刻</strong>随 WFS 实扣下降；
+          窗口内 <strong>WM 仍可快速卖货</strong>，三店平台可售之和可能 &gt; WFS 实查 → <strong>超卖</strong>。
+          详见 <a href="WFS共享库存与自动借货-详细方案.md#23-10-分钟推单窗口超卖风险与防控bby--lowes">MD §23</a>。
+        </p>
+
+        <p style="font-size:12px;font-weight:700;margin:0 0 8px">时间线（单 SKU 示意）</p>
+        <div class="timeline">
+          <div class="tl-step"><div class="t">T0</div>BBY 拉单进 ERP<br>可售仍显示 60</div>
+          <div class="tl-arrow">→</div>
+          <div class="tl-step danger"><div class="t">T0～T10</div>WM 卖出 50 件<br>WFS 实查↓ 可售未同步</div>
+          <div class="tl-arrow">→</div>
+          <div class="tl-step warn"><div class="t">T10</div>批量推 WFS<br>才发现实物不够</div>
+        </div>
+
+        <div class="formula-box" style="margin:14px 0;font-size:11px">
+          <div class="c">// 超卖风险（扫描任务，≤10min）</div>
+          <div><span class="h">Commit</span> = Σ店可售 + <span class="w">待推WFS占用</span> + 可选(WM缓冲)</div>
+          <div><span class="h">Risk</span> = Commit − <span class="h">Q_wfs实查</span> &gt; θ → 告警 + 自动处置</div>
+          <div><span class="h">配平用有效量</span> Q_eff = Q_wfs − 待推占用 − WM缓冲</div>
+        </div>
+
+        <p style="font-size:12px;font-weight:700;margin:16px 0 8px">四层防控（推荐全部启用 P0）</p>
+        <div class="mitigation-grid">
+          <div class="mit-card">
+            <h5>① 订单预占<span class="p0">P0</span></h5>
+            BBY/Lowes 单<strong>一进 ERP</strong>即占用「待推 WFS」并扣减该店逻辑可售；推仓成功/取消时回滚。
+          </div>
+          <div class="mit-card">
+            <h5>② 风险扫描<span class="p0">P0</span></h5>
+            每 ≤10 分钟比对 WFS 实查与总承诺量；超阈值进入处置。
+          </div>
+          <div class="mit-card">
+            <h5>③ 群告警<span class="p0">P0</span></h5>
+            新模板「超卖风险预警」，与「低于安全库存」区分。
+          </div>
+          <div class="mit-card">
+            <h5>④ 自动压可售<span class="p0">P0</span></h5>
+            优先压 BBY/Lowes 平台可售或停售；可与需求 02「WM 销量激增预测」叠加。
+          </div>
+        </div>
+
+        <div class="cols-2" style="margin-top:16px">
+          <div class="im-wrap">
+            <div class="im-msg">
+              <div class="im-avatar">⚡</div>
+              <div class="im-body">
+                <div class="im-name">业务告警 <span class="bot-tag">🤖 机器人</span></div>
+                <div class="im-bubble">
+                  <div class="title">WFS 共享库存超卖风险预警</div>
+                  <div style="font-size:13px">B6062A01 在 10 分钟内存在超卖风险：WFS实查 150，已承诺 250（待推WFS 50，三店可售合计 200）。请检查 WM 销量或停售子店。</div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div>
+            <table class="mock-table">
+              <tr><th>等级</th><th>动作</th></tr>
+              <tr><td>L1</td><td>仅群告警</td></tr>
+              <tr><td>L2</td><td>自动压低 BBY / Lowes 可售</td></tr>
+              <tr><td>L3</td><td>子店可售置 0（停售）</td></tr>
+              <tr><td>L4</td><td>升级人工 / 工单</td></tr>
+            </table>
+            <p style="font-size:11px;color:var(--muted);margin-top:8px">
+              说明：无法 100% 消除 10 分钟窗口；预占+扫描将风险降到可运营范围。
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 9 同步推单 -->
     <section class="panel" id="sync">
-      <div class="panel-hd"><span class="num">8</span> 平台同步与推单门禁</div>
+      <div class="panel-hd"><span class="num">9</span> 平台同步与推单门禁</div>
       <div class="panel-bd">
         <table class="mock-table">
           <thead><tr><th>店铺</th><th>回写可售</th><th>停售</th><th>推单</th></tr></thead>
@@ -494,7 +592,7 @@
       </div>
     </section>
 
-    <p style="text-align:center;font-size:11px;color:#94a3b8;margin-top:20px">v2 · 2026-05-22 · 含 Lowes 三店演算与群告警示意</p>
+    <p style="text-align:center;font-size:11px;color:#94a3b8;margin-top:20px">v2.1 · 2026-05-22 · 三店演算 + 低于安全库存告警 + 10分钟推WFS超卖防控</p>
   </div>
 
   <script>
