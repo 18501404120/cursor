@@ -482,8 +482,8 @@
         <p class="viz-title" style="margin-top:16px">④b BBY / Lowes · 10 分钟推单周期（锁定 = 待下批推单的实际件数合计）</p>
         <p style="font-size:12px;margin:0 0 8px;color:var(--muted)">
           <span class="tag tag-warn">要点</span>
-          列表「订单锁定库存」= 自<strong>上次批量推单成功</strong>起，本店待推 WFS 订单的<strong>实际件数累加</strong>；
-          <strong>推单时按本批每单实际推成功数量释放</strong>，不是估算值；释放后归零，至<strong>下次推单（约 10 分钟）</strong>再重新累加。
+          <strong>待拉单预占</strong> = 上批<strong>推 WFS 成功</strong>件数（α=1.0）；<strong>待推 WFS 锁定</strong> = 已进 ERP 未推成功。
+          列表<strong>合计</strong> = 两者相加；推单按实际件数释放待推部分，每批结束刷新预占。
           WM 推单更频，示例锁定为 0。
         </p>
         <div class="push-cycle" id="viz-push-cycle">
@@ -561,7 +561,9 @@
               </div>
             </div>
             <div class="metric"><span>当前可售</span><strong id="v-wm-c">10</strong></div>
-            <div class="metric lock-line"><span>订单锁定库存</span><strong id="v-wm-lock">0</strong></div>
+            <div class="metric lock-line"><span>订单锁定（合计）</span><strong id="v-wm-lock">0</strong></div>
+            <div class="metric" style="font-size:10px"><span>待推 WFS</span><strong id="v-wm-lock-erp">0</strong></div>
+            <div class="metric" style="font-size:10px"><span>待拉单预占</span><strong id="v-wm-lock-proxy">0</strong></div>
             <div class="metric"><span>安全库存</span><strong id="v-wm-s">30</strong></div>
             <div class="metric"><span>共享比例</span><strong id="v-wm-p">30%</strong></div>
             <div class="metric"><span>应有</span><strong id="v-wm-t">—</strong></div>
@@ -578,8 +580,9 @@
               </div>
             </div>
             <div class="metric"><span>当前可售</span><strong id="v-bby-c">25</strong></div>
-            <div class="metric lock-line"><span>订单锁定库存</span><strong id="v-bby-lock">25</strong></div>
-            <div class="metric" style="font-size:10px;color:var(--muted)"><span>待下批推单</span><span>约10min</span></div>
+            <div class="metric lock-line"><span>订单锁定（合计）</span><strong id="v-bby-lock">30</strong></div>
+            <div class="metric" style="font-size:10px"><span>待推 WFS</span><strong id="v-bby-lock-erp">5</strong></div>
+            <div class="metric" style="font-size:10px"><span>待拉单预占</span><strong id="v-bby-lock-proxy" title="上批推WFS成功">25</strong></div>
             <div class="metric"><span>安全库存</span><strong id="v-bby-s">30</strong></div>
             <div class="metric"><span>共享比例</span><strong id="v-bby-p">30%</strong></div>
             <div class="metric"><span>应有</span><strong id="v-bby-t">—</strong></div>
@@ -596,8 +599,9 @@
               </div>
             </div>
             <div class="metric"><span>当前可售</span><strong id="v-low-c">125</strong></div>
-            <div class="metric lock-line"><span>订单锁定库存</span><strong id="v-low-lock">15</strong></div>
-            <div class="metric" style="font-size:10px;color:var(--muted)"><span>待下批推单</span><span>约10min</span></div>
+            <div class="metric lock-line"><span>订单锁定（合计）</span><strong id="v-low-lock">15</strong></div>
+            <div class="metric" style="font-size:10px"><span>待推 WFS</span><strong id="v-low-lock-erp">0</strong></div>
+            <div class="metric" style="font-size:10px"><span>待拉单预占</span><strong id="v-low-lock-proxy">15</strong></div>
             <div class="metric"><span>安全库存</span><strong id="v-low-s">40</strong></div>
             <div class="metric"><span>共享比例</span><strong id="v-low-p">40%</strong></div>
             <div class="metric"><span>应有</span><strong id="v-low-t">—</strong></div>
@@ -880,13 +884,18 @@
             <input type="number" id="in-low-c" value="125" min="0" style="margin-bottom:4px">
             <input type="number" id="in-low-s" value="40" min="0">
           </div>
-          <div class="field"><label>WM / BBY / Lowes 订单锁定</label>
-            <input type="number" id="in-wm-lock" value="0" min="0" title="WM推单更频，示例为0">
-            <input type="number" id="in-bby-lock" value="25" min="0" style="margin-top:4px" title="自上次推单后待推件数合计">
-            <input type="number" id="in-low-lock" value="15" min="0" style="margin-top:4px" title="自上次推单后待推件数合计">
+          <div class="field"><label>待推 WFS 锁定（三店）</label>
+            <input type="number" id="in-wm-lock-erp" value="0" min="0">
+            <input type="number" id="in-bby-lock-erp" value="5" min="0" style="margin-top:4px">
+            <input type="number" id="in-low-lock-erp" value="0" min="0" style="margin-top:4px">
+          </div>
+          <div class="field"><label>待拉单预占（=上批推WFS成功）</label>
+            <input type="number" id="in-wm-lock-proxy" value="0" min="0">
+            <input type="number" id="in-bby-lock-proxy" value="25" min="0" style="margin-top:4px" title="上批推WFS成功25件">
+            <input type="number" id="in-low-lock-proxy" value="15" min="0" style="margin-top:4px">
           </div>
           <p style="grid-column:1/-1;font-size:11px;color:var(--muted);margin:0">
-            锁定 = 待<strong>下次批量推 WFS</strong>的实际件数合计；推单成功按<strong>实际推单数量</strong>释放，至下批推单前重新累加。
+            <strong>订单锁定库存（合计）</strong> = 待推 WFS + 待拉单预占；预占口径 = 上批<strong>推 WFS 成功</strong>件数，α=1.0。
           </p>
           <div class="field"><label>WM / BBY / Lowes 比例 %</label>
             <input type="number" id="in-wm-pct" value="30" min="0" max="100">
@@ -899,7 +908,7 @@
           <table class="result-table">
             <thead>
               <tr>
-                <th>店铺</th><th>当前</th><th>订单锁定库存</th><th>安全</th><th>触发</th>
+                <th>店铺</th><th>当前</th><th>待推WFS</th><th>待拉单预占</th><th>锁定合计</th><th>安全</th><th>触发</th>
                 <th>应有</th><th>缺料</th><th>富余</th><th>配平后</th><th>平台同步</th>
               </tr>
             </thead>
@@ -1036,7 +1045,7 @@
       </div>
     </section>
 
-    <p style="text-align:center;font-size:11px;color:#94a3b8;margin-top:20px">v4.1 · 示例含 BBY/Lowes 锁定；10 分钟推单按实际件数释放/累加</p>
+    <p style="text-align:center;font-size:11px;color:#94a3b8;margin-top:20px">v4.2 · 锁定拆：待推WFS + 待拉单预占（上批推WFS成功，α=1.0）</p>
   </div>
 
   <script>
@@ -1049,6 +1058,19 @@
 
     function $(id) { return document.getElementById(id); }
 
+    function storeLock(key, pct) {
+      var erp = +$('in-' + key + '-lock-erp').value || 0;
+      var proxy = +$('in-' + key + '-lock-proxy').value || 0;
+      return {
+        c: +$('in-' + key + '-c').value || 0,
+        lockErp: erp,
+        lockProxy: proxy,
+        lock: erp + proxy,
+        s: +$('in-' + key + '-s').value || 0,
+        p: pct / 100
+      };
+    }
+
     function read() {
       var wmP = +$('in-wm-pct').value || 0;
       var bbyP = +$('in-bby-pct').value || 0;
@@ -1056,11 +1078,15 @@
       return {
         sku: $('in-sku').value.trim() || 'SKU',
         wfs: Math.max(0, +$('in-wfs').value || 0),
-        wm: { c: +$('in-wm-c').value||0, lock: +$('in-wm-lock').value||0, s: +$('in-wm-s').value||0, p: wmP/100 },
-        bby: { c: +$('in-bby-c').value||0, lock: +$('in-bby-lock').value||0, s: +$('in-bby-s').value||0, p: bbyP/100 },
-        low: { c: +$('in-low-c').value||0, lock: +$('in-low-lock').value||0, s: +$('in-low-s').value||0, p: lowP/100 },
+        wm: storeLock('wm', wmP),
+        bby: storeLock('bby', bbyP),
+        low: storeLock('low', lowP),
         pctOk: Math.abs(wmP + bbyP + lowP - 100) < 0.01
       };
+    }
+
+    function readStoreMap(d) {
+      return { wm: d.wm, bby: d.bby, low: d.low };
     }
 
     function compute(d) {
@@ -1073,9 +1099,9 @@
       var tb = target(d.bby.p, d.bby.s);
       var tl = target(d.low.p, d.low.s);
       var rows = [
-        { key: 'wm', name: 'WM 3P-US', c: d.wm.c, lock: d.wm.lock || 0, s: d.wm.s, t: tw },
-        { key: 'bby', name: 'BBY 3P-US', c: d.bby.c, lock: d.bby.lock || 0, s: d.bby.s, t: tb },
-        { key: 'low', name: 'Lowes 3P-US', c: d.low.c, lock: d.low.lock || 0, s: d.low.s, t: tl }
+        { key: 'wm', name: 'WM 3P-US', c: d.wm.c, lockErp: d.wm.lockErp, lockProxy: d.wm.lockProxy, lock: d.wm.lock, s: d.wm.s, t: tw },
+        { key: 'bby', name: 'BBY 3P-US', c: d.bby.c, lockErp: d.bby.lockErp, lockProxy: d.bby.lockProxy, lock: d.bby.lock, s: d.bby.s, t: tb },
+        { key: 'low', name: 'Lowes 3P-US', c: d.low.c, lockErp: d.low.lockErp, lockProxy: d.low.lockProxy, lock: d.low.lock, s: d.low.s, t: tl }
       ];
       rows.forEach(function (r) {
         r.trig = r.c < r.s;
@@ -1213,7 +1239,7 @@
     }
 
     function renderPushCycle(d) {
-      var bbyL = d.bby.lock || 0;
+      var bbyL = d.bby.lockProxy || 0;
       var el = function (id, txt) { var e = $(id); if (e) e.textContent = txt; };
       el('pc-release', '−' + bbyL);
       el('pc-accum', '+' + bbyL);
@@ -1274,12 +1300,14 @@
       $('hub-l').textContent = r.lockSum;
       $('hub-qeff').textContent = r.qEff;
       $('hub-p').textContent = r.pool;
-      var map = { wm: d.wm, bby: d.bby, low: d.low };
+      var map = readStoreMap(d);
       STORES.forEach(function (st) {
         var row = r.rows.find(function (x) { return x.key === st.key; });
         var m = map[st.key];
         $('v-' + st.key + '-c').textContent = m.c;
         $('v-' + st.key + '-lock').textContent = m.lock || 0;
+        if ($('v-' + st.key + '-lock-erp')) $('v-' + st.key + '-lock-erp').textContent = m.lockErp || 0;
+        if ($('v-' + st.key + '-lock-proxy')) $('v-' + st.key + '-lock-proxy').textContent = m.lockProxy || 0;
         $('v-' + st.key + '-s').textContent = m.s;
         $('v-' + st.key + '-p').textContent = Math.round(m.p * 100) + '%';
         $('v-' + st.key + '-t').textContent = row.t;
@@ -1297,18 +1325,22 @@
       $('tbody').innerHTML = r.rows.map(function (row) {
         var cls = row.trig ? 'trigger-row' : '';
         if (row.surplus > 0) cls += ' surplus-row';
-        var lockCell = row.lock > 0
-          ? '<strong style="color:var(--warn)">' + row.lock + '</strong>' : '0';
+        var erpCell = row.lockErp > 0 ? '<strong>' + row.lockErp + '</strong>' : '0';
+        var proxyCell = row.lockProxy > 0
+          ? '<strong style="color:var(--warn)" title="上批推WFS成功">' + row.lockProxy + '</strong>' : '0';
+        var sumCell = row.lock > 0
+          ? '<strong style="color:#0f2f63">' + row.lock + '</strong>' : '0';
         return '<tr class="' + cls.trim() + '">' +
-          '<td>' + row.name + '</td><td>' + row.c + '</td><td>' + lockCell + '</td><td>' + row.s + '</td>' +
+          '<td>' + row.name + '</td><td>' + row.c + '</td><td>' + erpCell + '</td><td>' + proxyCell + '</td><td>' + sumCell + '</td><td>' + row.s + '</td>' +
           '<td>' + (row.trig ? '<span class="tag tag-danger">是</span>' : '否') + '</td>' +
           '<td>' + row.t + '</td><td>' + row.short + '</td><td>' + row.surplus + '</td>' +
           '<td>' + row.t + '</td><td>' + row.sync + '</td></tr>';
       }).join('');
 
       var poolHtml =
-        '订单锁定合计 L = ' + r.lockSum + ' → Q_eff = ' + d.wfs + ' − L = <strong>' + r.qEff + '</strong><br>' +
-        '可分配池 P = Q_eff − (' + d.wm.s + '+' + d.bby.s + '+' + d.low.s + ') = <strong>' + r.pool + '</strong>';
+        '锁定合计 L = ' + r.lockSum + '（待推WFS ' + (d.wm.lockErp+d.bby.lockErp+d.low.lockErp) +
+        ' + 待拉单预占 ' + (d.wm.lockProxy+d.bby.lockProxy+d.low.lockProxy) + '）<br>' +
+        'Q_eff = ' + d.wfs + ' − L = <strong>' + r.qEff + '</strong>；可分配池 P = <strong>' + r.pool + '</strong>';
       $('pool-info').innerHTML = poolHtml;
       if ($('pool-summary')) $('pool-summary').innerHTML = poolHtml;
 
@@ -1338,7 +1370,9 @@
     }
 
     ['in-sku','in-wfs','in-wm-c','in-wm-s','in-bby-c','in-bby-s','in-low-c','in-low-s',
-     'in-wm-lock','in-bby-lock','in-low-lock','in-wm-pct','in-bby-pct'].forEach(function (id) {
+     'in-wm-lock-erp','in-bby-lock-erp','in-low-lock-erp',
+     'in-wm-lock-proxy','in-bby-lock-proxy','in-low-lock-proxy',
+     'in-wm-pct','in-bby-pct'].forEach(function (id) {
       $(id).addEventListener('input', id === 'in-wm-pct' || id === 'in-bby-pct' ? syncPct : render);
     });
     syncPct();
