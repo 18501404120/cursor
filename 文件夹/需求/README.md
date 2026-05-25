@@ -41,4 +41,17 @@
 
 ---
 
+## HTML 原型在线预览（个人 GitHub）
+
+1. 将本仓库 **`main`** 推送到个人 GitHub（远程示例：`https://github.com/18501404120/cursor.git`）。
+2. 推送后 **GitHub Actions** 会将站点发布到 **`gh-pages`** 分支（工作流：`.github/workflows/pages.yml`）。
+3. 仓库 **Settings → Pages**：发布源选 **Deploy from a branch**，分支 **`gh-pages`**，目录 **`/(root)`**。
+4. 在浏览器打开：
+   - **需求总入口**：[文件夹/需求/index.html](index.html)（在线：<https://18501404120.github.io/cursor/%E6%96%87%E4%BB%B6%E5%A4%B9/%E9%9C%80%E6%B1%82/index.html>）
+   - **商超 3P · WFS 方案说明**：[商超3p需求/原型/WFS共享库存与自动借货-方案说明.html](商超3p需求/原型/WFS共享库存与自动借货-方案说明.html)
+
+**本地预览**：在仓库根（含 `.git` 的 `方案设计` 目录）执行 `python3 -m http.server 8765`，访问 `http://localhost:8765/文件夹/需求/index.html`。勿用 `file://` 打开含脚本的页面。
+
+---
+
 *评估逻辑依据：`文件夹/提示词/产品经理定位.md`（智岩科技 ERP 产品经理职责与业务模块）。*
