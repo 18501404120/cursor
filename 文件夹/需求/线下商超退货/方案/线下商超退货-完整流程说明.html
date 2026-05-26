@@ -1,0 +1,726 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>线下商超退货 · 完整流程说明</title>
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  <style>
+    :root {
+      --bg: #eef3fb; --surface: #fff; --text: #0f172a; --muted: #475569;
+      --line: #dbe4f0; --brand: #0b5ed7; --brand-soft: #e7f1ff;
+      --good: #0f766e; --good-soft: #ecfdf5;
+      --warn: #b45309; --warn-soft: #fffbeb;
+      --danger: #b91c1c; --danger-soft: #fef2f2;
+      --purple: #7c3aed; --purple-soft: #f5f3ff;
+      --shadow: 0 8px 24px rgba(15,23,42,.07); --radius: 12px;
+      --a1: #0369a1; --a1-soft: #e0f2fe;
+      --a2: #0f766e; --a2-soft: #ccfbf1;
+      --b: #b45309; --b-soft: #fef3c7;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; font-family: "PingFang SC", "Microsoft YaHei", sans-serif;
+      background: linear-gradient(165deg, #eaf0fb, var(--bg) 60%, #f8fafc);
+      color: var(--text); line-height: 1.65;
+    }
+    .page { max-width: 1100px; margin: 0 auto; padding: 20px 16px 56px; }
+    h1 { margin: 0 0 6px; font-size: 22px; color: #0f2f63; }
+    .sub { margin: 0 0 14px; font-size: 13px; color: var(--muted); }
+    .sub a { color: var(--brand); font-weight: 600; text-decoration: none; }
+    .sub a:hover { text-decoration: underline; }
+    .hero {
+      padding: 16px 18px; background: #fff; border: 1px solid var(--line);
+      border-radius: var(--radius); box-shadow: var(--shadow); margin-bottom: 14px;
+    }
+    .hero p { margin: 0; font-size: 14px; }
+    .hero-warn {
+      margin-top: 10px; padding: 12px 14px; background: var(--warn-soft);
+      border: 1px solid #fcd34d; border-radius: 10px; font-size: 13px;
+    }
+    .nav {
+      position: sticky; top: 0; z-index: 30; display: flex; flex-wrap: wrap; gap: 6px;
+      padding: 8px 0 12px; background: linear-gradient(180deg, #eef3fb 85%, transparent);
+    }
+    .nav a {
+      font-size: 12px; text-decoration: none; color: var(--brand);
+      padding: 5px 10px; border-radius: 999px; border: 1px solid #bfdbfe; background: #fff;
+    }
+    .nav a:hover { background: var(--brand-soft); }
+    section {
+      margin-top: 14px; background: var(--surface); border: 1px solid var(--line);
+      border-radius: var(--radius); box-shadow: var(--shadow); overflow: hidden;
+    }
+    section > header {
+      padding: 12px 16px; font-size: 14px; font-weight: 800; color: #0f2f63;
+      border-bottom: 1px solid var(--line); background: #f8fbff;
+    }
+    section > .bd { padding: 16px; }
+    .lead { font-size: 15px; font-weight: 600; color: #0f2f63; margin: 0 0 10px; }
+    .muted { font-size: 13px; color: var(--muted); margin: 0 0 12px; }
+
+    /* 分类树 */
+    .tree-wrap { display: flex; flex-direction: column; align-items: center; gap: 0; margin: 16px 0; }
+    .tree-root {
+      padding: 12px 24px; background: var(--brand-soft); border: 2px solid #93c5fd;
+      border-radius: 10px; font-weight: 800; font-size: 14px; text-align: center;
+    }
+    .tree-branches { display: flex; gap: 24px; margin-top: 0; flex-wrap: wrap; justify-content: center; }
+    .tree-col { display: flex; flex-direction: column; align-items: center; min-width: 200px; }
+    .tree-line { width: 2px; height: 24px; background: #94a3b8; }
+    .tree-node {
+      padding: 10px 16px; border-radius: 10px; font-size: 13px; font-weight: 700;
+      text-align: center; border: 2px solid; width: 100%;
+    }
+    .tree-node.a { border-color: #7dd3fc; background: var(--a1-soft); color: var(--a1); }
+    .tree-node.b { border-color: #fcd34d; background: var(--b-soft); color: var(--b); }
+    .tree-sub { margin-top: 8px; display: flex; flex-direction: column; gap: 8px; width: 100%; }
+    .tree-leaf {
+      padding: 8px 12px; border-radius: 8px; font-size: 12px; border: 1px solid var(--line);
+      background: #fafbff;
+    }
+    .tree-leaf strong { display: block; font-size: 13px; margin-bottom: 2px; }
+    .tree-leaf .tag { font-size: 10px; color: var(--muted); }
+
+    /* Tab */
+    .tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
+    .tab-btn {
+      padding: 8px 16px; border-radius: 999px; border: 2px solid var(--line);
+      background: #fff; font-size: 13px; font-weight: 700; cursor: pointer;
+      font-family: inherit; color: var(--muted); transition: all .15s;
+    }
+    .tab-btn:hover { border-color: #93c5fd; color: var(--brand); }
+    .tab-btn.active-a1 { border-color: #38bdf8; background: var(--a1-soft); color: var(--a1); }
+    .tab-btn.active-a2 { border-color: #2dd4bf; background: var(--a2-soft); color: var(--a2); }
+    .tab-btn.active-b  { border-color: #fbbf24; background: var(--b-soft); color: var(--b); }
+    .tab-panel { display: none; animation: fadeIn .25s ease; }
+    .tab-panel.active { display: block; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
+    /* 泳道图 */
+    .swimlane { overflow-x: auto; margin: 12px 0; }
+    .swimlane-inner { min-width: 720px; }
+    .sl-header { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 8px; }
+    .sl-col-h {
+      padding: 8px; text-align: center; font-size: 12px; font-weight: 800;
+      border-radius: 8px; color: #fff;
+    }
+    .sl-col-h.c1 { background: #6366f1; }
+    .sl-col-h.c2 { background: var(--brand); }
+    .sl-col-h.c3 { background: var(--good); }
+    .sl-col-h.c4 { background: #64748b; }
+    .sl-steps { display: flex; flex-direction: column; gap: 6px; }
+    .sl-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; align-items: stretch; }
+    .sl-cell { min-height: 52px; position: relative; }
+    .sl-step {
+      padding: 8px 10px; border-radius: 8px; font-size: 11px; line-height: 1.5;
+      border: 1px solid var(--line); background: #fafbff; height: 100%;
+    }
+    .sl-step .num {
+      display: inline-block; width: 18px; height: 18px; line-height: 18px; text-align: center;
+      border-radius: 50%; background: var(--brand); color: #fff; font-size: 10px;
+      font-weight: 800; margin-right: 4px;
+    }
+    .sl-step.highlight { border-color: #93c5fd; background: var(--brand-soft); }
+    .sl-step.warn { border-color: #fcd34d; background: var(--warn-soft); }
+    .sl-step.good { border-color: #6ee7b7; background: var(--good-soft); }
+    .sl-empty { background: transparent; border: none; }
+
+    /* 角色卡片 */
+    .role-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 10px; }
+    .role-card {
+      padding: 12px; border: 1px solid var(--line); border-radius: 10px;
+      background: #fafbff; font-size: 12px;
+    }
+    .role-card .icon { font-size: 24px; margin-bottom: 6px; }
+    .role-card h4 { margin: 0 0 6px; font-size: 13px; color: #0f2f63; }
+    .role-card p { margin: 0; color: var(--muted); line-height: 1.6; }
+
+    /* 流程管道 */
+    .flow-pipe {
+      display: flex; flex-wrap: wrap; align-items: center; justify-content: center;
+      gap: 4px; margin: 16px 0; font-size: 12px;
+    }
+    .fp-node {
+      padding: 10px 14px; border-radius: 10px; text-align: center; min-width: 100px;
+      border: 2px solid var(--line); background: #fff; max-width: 140px;
+    }
+    .fp-node.decision { border-radius: 4px; transform: rotate(0deg); border-color: #fcd34d; background: var(--warn-soft); }
+    .fp-node.end { border-color: #86efac; background: var(--good-soft); border-radius: 999px; }
+    .fp-node.brand { border-color: #93c5fd; background: var(--brand-soft); }
+    .fp-arr { color: #94a3b8; font-weight: 800; font-size: 16px; }
+
+    /* 对比表 */
+    .cmp-table-wrap { overflow-x: auto; margin: 12px 0; }
+    table.cmp { width: 100%; border-collapse: collapse; font-size: 12px; min-width: 680px; }
+    table.cmp th, table.cmp td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+    table.cmp th { background: #f1f5f9; font-weight: 800; color: #0f2f63; }
+    table.cmp th.col-a1 { background: var(--a1-soft); }
+    table.cmp th.col-a2 { background: var(--a2-soft); }
+    table.cmp th.col-b  { background: var(--b-soft); }
+    table.cmp td.yes { color: var(--good); font-weight: 700; }
+    table.cmp td.no  { color: var(--danger); font-weight: 700; }
+
+    /* 时间轴 */
+    .timeline { margin: 16px 0; padding: 16px; background: #f8fafc; border-radius: 10px; border: 1px solid var(--line); }
+    .tl-label { font-size: 11px; color: var(--muted); margin-bottom: 6px; font-weight: 700; }
+    .tl-track { position: relative; height: 32px; background: #e2e8f0; border-radius: 6px; margin-bottom: 16px; overflow: visible; }
+    .tl-bar {
+      position: absolute; top: 4px; height: 24px; border-radius: 4px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 10px; font-weight: 700; color: #fff;
+    }
+    .tl-bar.ma { background: #6366f1; }
+    .tl-bar.wh { background: var(--good); }
+    .tl-dots { display: flex; gap: 0; align-items: center; height: 100%; padding: 0 8px; }
+    .tl-dot {
+      width: 10px; height: 10px; border-radius: 50%; background: #6366f1;
+      margin-right: 24px; flex-shrink: 0;
+    }
+    .tl-months { display: flex; justify-content: space-between; font-size: 10px; color: var(--muted); padding: 0 4px; }
+
+    /* 缺口卡片 */
+    .gap-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 10px; }
+    .gap-card {
+      padding: 12px; border-left: 4px solid var(--danger); border-radius: 0 8px 8px 0;
+      background: var(--danger-soft); font-size: 12px;
+    }
+    .gap-card h5 { margin: 0 0 4px; font-size: 13px; color: var(--danger); }
+    .gap-card p { margin: 0; color: var(--muted); }
+
+    /* 系统架构图 */
+    .sys-flow { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 8px; margin: 16px 0; }
+    .sys-box {
+      padding: 12px 16px; border-radius: 10px; font-size: 12px; font-weight: 700;
+      text-align: center; min-width: 120px; border: 2px solid;
+    }
+    .sys-box.ext { border-color: #c4b5fd; background: var(--purple-soft); color: var(--purple); }
+    .sys-box.off { border-color: #fcd34d; background: var(--warn-soft); color: var(--warn); }
+    .sys-box.int { border-color: #93c5fd; background: var(--brand-soft); color: var(--brand); }
+    .sys-arr { font-size: 20px; color: #94a3b8; }
+
+    /* Mermaid */
+    .mermaid-wrap { overflow-x: auto; margin: 12px 0; }
+    .mermaid { text-align: center; }
+
+    /* 要点列表 */
+    .points { margin: 0; padding: 0; list-style: none; }
+    .points li {
+      padding: 8px 12px 8px 32px; margin-bottom: 6px; font-size: 13px;
+      background: #f8fafc; border-radius: 8px; border: 1px solid var(--line);
+      position: relative;
+    }
+    .points li::before {
+      content: "✓"; position: absolute; left: 10px; top: 8px;
+      color: var(--good); font-weight: 800;
+    }
+
+    /* 示例演算 */
+    .calc-box {
+      padding: 14px; background: #f0fdf4; border: 1px solid #86efac;
+      border-radius: 10px; font-size: 13px; font-family: "SF Mono", Consolas, monospace;
+      line-height: 1.8; margin: 12px 0;
+    }
+
+    .scope-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    @media (max-width: 600px) { .scope-grid { grid-template-columns: 1fr; } }
+    .scope-in, .scope-out {
+      padding: 12px; border-radius: 10px; font-size: 13px;
+    }
+    .scope-in { background: var(--good-soft); border: 1px solid #6ee7b7; }
+    .scope-out { background: #f1f5f9; border: 1px solid var(--line); }
+    .scope-in h5, .scope-out h5 { margin: 0 0 8px; font-size: 13px; }
+    .scope-in ul, .scope-out ul { margin: 0; padding-left: 1.2em; }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <p class="sub">
+      <a href="线下商超退货-完整流程梳理.md">← Markdown 版</a>
+      · 信息来源：会议1（全渠道管报 · 商超线下退货专题）
+      · v1.0 · 2026-05-26
+    </p>
+    <h1>线下商超退货 · 完整流程说明</h1>
+    <p class="sub">图文并茂业务方案页 · 可直接浏览器预览 · 供产品 / 财务 / 物流 / 管报对齐认知</p>
+
+    <div class="hero">
+      <p><strong>核心问题：</strong>商超存在<strong>线下大批量退货</strong>，但 ERP 几乎无完整记录——管报看到的销量是「卖出去的」，<strong>没有扣减退货</strong>，收入与 RMA 率失真。</p>
+    </div>
+    <div class="hero hero-warn" style="margin-top:-6px;background:#fff;border-color:var(--line);box-shadow:var(--shadow);padding:14px 18px;">
+      <p style="margin:0;font-size:13px"><strong>范围：</strong>纳入 KA 大批量退收入（CRM 类）；<strong>不纳入</strong> C 端零星退 1～2 件、与退货无关的小额 MA 扣费。</p>
+    </div>
+
+    <nav class="nav">
+      <a href="#s-class">分类总览</a>
+      <a href="#s-roles">参与角色</a>
+      <a href="#s-flows">三条流程</a>
+      <a href="#s-compare">对比表</a>
+      <a href="#s-b-time">B 类时间差</a>
+      <a href="#s-offline">线下协作</a>
+      <a href="#s-gap">系统缺口</a>
+      <a href="#s-rules">业务规则</a>
+    </nav>
+
+    <!-- 1 分类 -->
+    <section id="s-class">
+      <header>1 · 两大退货类型 · 三种业务形态</header>
+      <div class="bd">
+        <p class="lead">按<strong>业务动因</strong>分 A 类（C 端传导 RMA）与 B 类（KA 批量滞销）；A 类再按有无实物回仓拆成两种。</p>
+
+        <div class="tree-wrap">
+          <div class="tree-root">线下商超退货（均影响收入）</div>
+          <div class="tree-line" style="height:20px"></div>
+          <div class="tree-branches">
+            <div class="tree-col">
+              <div class="tree-node a">A 类 · 常规 RMA<br><span style="font-weight:400;font-size:11px">C 端消费者退货 → KA 向供应商索赔</span></div>
+              <div class="tree-sub">
+                <div class="tree-leaf" style="border-color:#7dd3fc">
+                  <strong style="color:var(--a1)">A-1 退款 + 退货</strong>
+                  实物回海外仓 · 典型：Costco 高价值品（屋檐灯）
+                  <span class="tag">损坏为主 → 报废/返修/拆配件</span>
+                </div>
+                <div class="tree-leaf" style="border-color:#2dd4bf">
+                  <strong style="color:var(--a2)">A-2 仅退款</strong>
+                  无实物 · 纯走账扣款 · 典型：沃尔玛等多数 KA
+                  <span class="tag">财务只核金额，不核入库数量</span>
+                </div>
+              </div>
+            </div>
+            <div class="tree-col">
+              <div class="tree-node b">B 类 · 批量滞销退货<br><span style="font-weight:400;font-size:11px">KA 季末/项目结束未卖完协商退回</span></div>
+              <div class="tree-sub">
+                <div class="tree-leaf" style="border-color:#fcd34d">
+                  <strong style="color:var(--b)">B 退款 + 退货</strong>
+                  整批实物回仓 · 典型：Costco、山姆
+                  <span class="tag">全新未拆箱 → 可上架再售</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="mermaid-wrap">
+          <pre class="mermaid">
+flowchart LR
+  subgraph A类
+    A1["A-1 退款+退货<br/>Costco"]
+    A2["A-2 仅退款<br/>沃尔玛等"]
+  end
+  subgraph B类
+    B1["B 批量滞销<br/>Costco/山姆"]
+  end
+  Start(["C端或KA发起"]) --> A1
+  Start --> A2
+  Start --> B1
+  style A1 fill:#e0f2fe,stroke:#0369a1
+  style A2 fill:#ccfbf1,stroke:#0f766e
+  style B1 fill:#fef3c7,stroke:#b45309
+          </pre>
+        </div>
+      </div>
+    </section>
+
+    <!-- 2 角色 -->
+    <section id="s-roles">
+      <header>2 · 参与角色与职责</header>
+      <div class="bd">
+        <div class="role-grid">
+          <div class="role-card">
+            <div class="icon">🏪</div>
+            <h4>商超 KA</h4>
+            <p>发起退货/扣款；提供 RMA 凭证、MA 文件；安排实物发运（若有）</p>
+          </div>
+          <div class="role-card">
+            <div class="icon">💼</div>
+            <h4>商务 / 业务</h4>
+            <p>登录客户对账系统审批；下载凭证；钉钉表格登记；通知物流</p>
+          </div>
+          <div class="role-card">
+            <div class="icon">🚚</div>
+            <h4>物流</h4>
+            <p>海外仓建单、跟踪分批签收；确认收齐后邮件通知财务</p>
+          </div>
+          <div class="role-card">
+            <div class="icon">📊</div>
+            <h4>财务</h4>
+            <p>核对扣款；录入回款明细；建销售退货单（B 类）；季度对账；协作上架</p>
+          </div>
+          <div class="role-card">
+            <div class="icon">📦</div>
+            <h4>海外仓（猫头鹰等）</h4>
+            <p>实物签收；反馈每批到货；B 类全新品配合上架</p>
+          </div>
+        </div>
+
+        <div class="flow-pipe" style="margin-top:20px">
+          <div class="fp-node brand">商超 KA</div>
+          <span class="fp-arr">→</span>
+          <div class="fp-node brand">商务/业务</div>
+          <span class="fp-arr">→</span>
+          <div class="fp-node brand">物流</div>
+          <span class="fp-arr">→</span>
+          <div class="fp-node brand">财务</div>
+          <span class="fp-arr">↕</span>
+          <div class="fp-node" style="border-color:#86efac;background:var(--good-soft)">海外仓<br><small>签收/上架</small></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 3 三条流程 -->
+    <section id="s-flows">
+      <header>3 · 三条业务链路 · 分步流程</header>
+      <div class="bd">
+        <p class="muted">点击下方标签切换场景，查看对应泳道步骤与要点。</p>
+
+        <div class="tabs" role="tablist">
+          <button class="tab-btn active-a1" data-tab="a1" role="tab">A-1 退款+退货（Costco）</button>
+          <button class="tab-btn" data-tab="a2" role="tab">A-2 仅退款（沃尔玛等）</button>
+          <button class="tab-btn" data-tab="b" role="tab">B 批量滞销（山姆等）</button>
+          <button class="tab-btn" data-tab="a-all" role="tab">A 类总流程图</button>
+        </div>
+
+        <!-- A-1 -->
+        <div class="tab-panel active" id="panel-a1">
+          <p class="lead">A-1 · 高价值品 C 端 RMA → 实物退回猫头鹰海外仓</p>
+          <div class="swimlane">
+            <div class="swimlane-inner">
+              <div class="sl-header">
+                <div class="sl-col-h c1">Costco 对账系统</div>
+                <div class="sl-col-h c2">商务 / 业务</div>
+                <div class="sl-col-h c3">物流 / 海外仓</div>
+                <div class="sl-col-h c4">财务</div>
+              </div>
+              <div class="sl-steps">
+                <div class="sl-row">
+                  <div class="sl-cell"><div class="sl-step"><span class="num">1</span>汇总 C 端 RMA 凭证，系统弹出扣款通知</div></div>
+                  <div class="sl-cell"><div class="sl-step highlight"><span class="num">2</span>登录对账系统，审批同意本批次</div></div>
+                  <div class="sl-cell sl-empty"></div>
+                  <div class="sl-cell sl-empty"></div>
+                </div>
+                <div class="sl-row">
+                  <div class="sl-cell sl-empty"></div>
+                  <div class="sl-cell"><div class="sl-step highlight"><span class="num">3</span>下载凭证/明细；钉钉在线表格登记</div></div>
+                  <div class="sl-cell"><div class="sl-step good"><span class="num">4</span>钉钉/邮件：将有货退回猫头鹰仓</div></div>
+                  <div class="sl-cell sl-empty"></div>
+                </div>
+                <div class="sl-row">
+                  <div class="sl-cell sl-empty"></div>
+                  <div class="sl-cell sl-empty"></div>
+                  <div class="sl-cell"><div class="sl-step warn"><span class="num">5</span>签收（多为损坏品）→ 报废 / 返修 / 拆配件</div></div>
+                  <div class="sl-cell"><div class="sl-step"><span class="num">6</span>核对扣款 → 货款中抵扣（非单独打款）</div></div>
+                </div>
+                <div class="sl-row">
+                  <div class="sl-cell sl-empty"></div>
+                  <div class="sl-cell sl-empty"></div>
+                  <div class="sl-cell sl-empty"></div>
+                  <div class="sl-cell"><div class="sl-step"><span class="num">7</span>季度与客户对账单核实</div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <ul class="points">
+            <li>实物退<strong>加州猫头鹰海外仓</strong>；目前<strong>无规范 ERP 销售退货单</strong>，物流有操作但 ERP 无单据</li>
+            <li>若 KA 在本地门店消化 C 端退货，<strong>不会挂到供应商</strong>，流程不启动</li>
+            <li>扣款在<strong>应付货款中直接扣除</strong>，一般不单独向客户打款</li>
+          </ul>
+        </div>
+
+        <!-- A-2 -->
+        <div class="tab-panel" id="panel-a2">
+          <p class="lead">A-2 · 多数 KA：仅退款不退货，纯走账</p>
+          <div class="swimlane">
+            <div class="swimlane-inner" style="min-width:560px">
+              <div class="sl-header" style="grid-template-columns:repeat(3,1fr)">
+                <div class="sl-col-h c1">KA 后台 / 导出</div>
+                <div class="sl-col-h c2">销售部 Excel / 钉钉</div>
+                <div class="sl-col-h c4">财务</div>
+              </div>
+              <div class="sl-steps">
+                <div class="sl-row" style="grid-template-columns:repeat(3,1fr)">
+                  <div class="sl-cell"><div class="sl-step"><span class="num">1</span>导出 RMA 明细（SKU/数量/单价/金额）</div></div>
+                  <div class="sl-cell"><div class="sl-step highlight"><span class="num">2</span>钉钉在线表格登记；消息 push 合并计数</div></div>
+                  <div class="sl-cell sl-empty"></div>
+                </div>
+                <div class="sl-row" style="grid-template-columns:repeat(3,1fr)">
+                  <div class="sl-cell sl-empty"></div>
+                  <div class="sl-cell sl-empty"></div>
+                  <div class="sl-cell"><div class="sl-step"><span class="num">3</span>只核对<strong>金额</strong>（一般不核入库数量）</div></div>
+                </div>
+                <div class="sl-row" style="grid-template-columns:repeat(3,1fr)">
+                  <div class="sl-cell sl-empty"></div>
+                  <div class="sl-cell sl-empty"></div>
+                  <div class="sl-cell"><div class="sl-step"><span class="num">4</span>录入回款明细（扣款行，目前仅金额级）</div></div>
+                </div>
+                <div class="sl-row" style="grid-template-columns:repeat(3,1fr)">
+                  <div class="sl-cell sl-empty"></div>
+                  <div class="sl-cell sl-empty"></div>
+                  <div class="sl-cell"><div class="sl-step"><span class="num">5</span>货款结算抵扣 → 季度对账核实</div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <ul class="points">
+            <li><strong>无实物退回</strong>；需 Item Number → 内部 SKU 映射（商超产品基础信息）</li>
+            <li>沃尔玛 RMA 常有 <strong>10% 手续费</strong>（在退款总额之上），财务分摊到对应 SKU</li>
+            <li>系统有 RMA 导入入口，但<strong>维护不完整</strong>，上传量大时难整体维护</li>
+          </ul>
+          <div class="calc-box">
+            沃尔玛手续费示例：<br>
+            退货 100 pcs × $1 = $100<br>
+            手续费 10% = $10（加在总额之上）<br>
+            → $10 分摊到该扣款行下各 SKU → 金蝶按物料分组汇总入账
+          </div>
+        </div>
+
+        <!-- B -->
+        <div class="tab-panel" id="panel-b">
+          <p class="lead">B · KA 季末卖不动 → 整批退回 → 全新可再售</p>
+          <div class="swimlane">
+            <div class="swimlane-inner">
+              <div class="sl-header">
+                <div class="sl-col-h c1">商超 KA</div>
+                <div class="sl-col-h c2">商务</div>
+                <div class="sl-col-h c3">物流 / WMS</div>
+                <div class="sl-col-h c4">财务</div>
+              </div>
+              <div class="sl-steps">
+                <div class="sl-row">
+                  <div class="sl-cell"><div class="sl-step"><span class="num">1</span>协商批量退货（如 2000 台，仅总量无分仓明细）</div></div>
+                  <div class="sl-cell"><div class="sl-step highlight"><span class="num">2</span>邮件通知物流：预计总量、目标仓</div></div>
+                  <div class="sl-cell"><div class="sl-step good"><span class="num">3</span>海外仓 WMS 建退货入库单（如 2000 pcs）</div></div>
+                  <div class="sl-cell sl-empty"></div>
+                </div>
+                <div class="sl-row">
+                  <div class="sl-cell"><div class="sl-step warn"><span class="num">4</span>各省仓陆续发运（约 1～2 个月）</div></div>
+                  <div class="sl-cell sl-empty"></div>
+                  <div class="sl-cell"><div class="sl-step good"><span class="num">5</span>每批签收反馈（2/1 收 200，3/10 收 400…）</div></div>
+                  <div class="sl-cell sl-empty"></div>
+                </div>
+                <div class="sl-row">
+                  <div class="sl-cell sl-empty"></div>
+                  <div class="sl-cell sl-empty"></div>
+                  <div class="sl-cell"><div class="sl-step highlight"><span class="num">6</span>确认总量收齐 → 邮件通知财务</div></div>
+                  <div class="sl-cell"><div class="sl-step"><span class="num">7</span>手工建「销售退货单」按签收月入账</div></div>
+                </div>
+                <div class="sl-row">
+                  <div class="sl-cell"><div class="sl-step"><span class="num">8</span>MA/扣款文件 1～5 月陆续到达</div></div>
+                  <div class="sl-cell"><div class="sl-step"><span class="num">9</span>销售部 Excel 登记 MA</div></div>
+                  <div class="sl-cell"><div class="sl-step good"><span class="num">10</span>协作上架（全新未拆箱）</div></div>
+                  <div class="sl-cell"><div class="sl-step"><span class="num">11</span>陆续录入账面扣款（可与入库月不一致）</div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <ul class="points">
+            <li>以<strong>仓库实际接收为准</strong>；WMS 未与 ERP 对接，靠邮件 + 仓内系统跟踪</li>
+            <li>挂账：信息充分挂<strong>具体客户</strong>，否则只挂<strong>渠道</strong>；按<strong>确认签收月</strong>入账</li>
+            <li>再售出产生新收入；管报上某月 RMA 率可能异常高——建议对批量退货<strong>单独打标签</strong></li>
+          </ul>
+        </div>
+
+        <!-- A 类总流程 mermaid -->
+        <div class="tab-panel" id="panel-a-all">
+          <p class="lead">A 类 · 从 C 端退货到货款抵扣（分岔逻辑）</p>
+          <div class="mermaid-wrap">
+            <pre class="mermaid">
+flowchart TD
+  Start(["C 端消费者向 KA 门店退货"]) --> Local{"KA 能否本地消化?"}
+  Local -->|是| End1(["不挂供应商 · 结束"])
+  Local -->|否| Type{"退货形式"}
+  Type -->|A-1| A1["实物运回海外仓<br/>Costco 等"]
+  Type -->|A-2| A2["仅走账扣款<br/>沃尔玛等"]
+  A1 --> Sys1["对账系统审批 + 钉钉登记"]
+  A2 --> Sys2["Excel 登记 SKU/数量/金额"]
+  Sys1 --> Log["通知物流收货"]
+  Sys2 --> Fin1["财务核金额"]
+  Log --> WH["海外仓签收 · 报废/返修"]
+  WH --> Deduct["货款中扣减"]
+  Fin1 --> Deduct
+  Sys1 --> Deduct
+  Deduct --> Rec(["月度出账 · 季度对账"])
+  style A1 fill:#e0f2fe,stroke:#0369a1
+  style A2 fill:#ccfbf1,stroke:#0f766e
+            </pre>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 4 对比 -->
+    <section id="s-compare">
+      <header>4 · 三条链路并排对比</header>
+      <div class="bd">
+        <div class="cmp-table-wrap">
+          <table class="cmp">
+            <thead>
+              <tr>
+                <th style="width:120px">维度</th>
+                <th class="col-a1">A-1 退款+退货</th>
+                <th class="col-a2">A-2 仅退款</th>
+                <th class="col-b">B 批量滞销</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td><strong>触发</strong></td><td>C 端 RMA → Costco</td><td>C 端 RMA → 其他 KA</td><td>KA 季末卖不动协商</td></tr>
+              <tr><td><strong>实物回仓</strong></td><td class="yes">✅ 猫头鹰仓</td><td class="no">❌ 无</td><td class="yes">✅ 指定海外仓</td></tr>
+              <tr><td><strong>货物状态</strong></td><td>损坏为主</td><td>—</td><td><strong>全新未拆箱</strong></td></tr>
+              <tr><td><strong>信息入口</strong></td><td>KA 对账系统</td><td>KA 导出 + Excel</td><td>邮件预告总量</td></tr>
+              <tr><td><strong>物流协作</strong></td><td>钉钉 / 邮件</td><td>—</td><td>邮件 + WMS 建单</td></tr>
+              <tr><td><strong>ERP 入库单</strong></td><td class="no">❌ 无规范单据</td><td class="no">❌ 无</td><td class="yes">✅ 销售退货单</td></tr>
+              <tr><td><strong>财务核对</strong></td><td>金额 + 凭证</td><td>主要核金额</td><td>MA 金额 + 入库数量</td></tr>
+              <tr><td><strong>扣款方式</strong></td><td>货款抵扣</td><td>货款抵扣</td><td>货款抵扣（MA 陆续）</td></tr>
+              <tr><td><strong>能否再售</strong></td><td class="no">❌ 报废/返修</td><td>—</td><td class="yes">✅ 上架再售</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- 5 B类时间差 -->
+    <section id="s-b-time">
+      <header>5 · B 类关键：扣款与入库「不同步」</header>
+      <div class="bd">
+        <p class="lead">同一批 B 类退货，MA 扣款文件与实物入库往往<strong>跨月发生</strong>，目前靠 Excel + 邮件人工关联。</p>
+        <div class="timeline">
+          <div class="tl-label">MA / 扣款文件（1～5 月陆续到达，财务陆续入账）</div>
+          <div class="tl-track">
+            <div class="tl-dots">
+              <div class="tl-dot" title="1月"></div>
+              <div class="tl-dot" title="2月"></div>
+              <div class="tl-dot" style="margin-right:40px" title="3月"></div>
+              <div class="tl-dot" title="4月"></div>
+              <div class="tl-dot" title="5月"></div>
+            </div>
+          </div>
+          <div class="tl-label">实物入库（如 5 月集中签收完毕，一次性建销售退货单）</div>
+          <div class="tl-track">
+            <div class="tl-bar wh" style="left:55%;width:38%">5 月签收 2000 pcs</div>
+          </div>
+          <div class="tl-months"><span>1 月</span><span>2 月</span><span>3 月</span><span>4 月</span><span>5 月</span></div>
+        </div>
+        <p class="muted">例：山姆协商 2 月开始退 2000 台，4 月底才收齐；物流按<strong>实际签收</strong>分批反馈，收齐后财务才建入库单。</p>
+      </div>
+    </section>
+
+    <!-- 6 线下协作 -->
+    <section id="s-offline">
+      <header>6 · 当前线下协作 vs 系统</header>
+      <div class="bd">
+        <p class="muted">三类场景均<strong>高度依赖线下工具</strong>，尚未形成 ERP 闭环。</p>
+        <div class="sys-flow">
+          <div class="sys-box ext">KA 对账系统<br><small>Costco 等</small></div>
+          <span class="sys-arr">→</span>
+          <div class="sys-box off">钉钉表格<br>邮件 · Excel</div>
+          <span class="sys-arr">→</span>
+          <div class="sys-box int">ERP 回款明细<br><small>仅金额级</small></div>
+          <span class="sys-arr">→</span>
+          <div class="sys-box int">金蝶分组入账</div>
+        </div>
+        <div class="sys-flow">
+          <div class="sys-box off">邮件预告</div>
+          <span class="sys-arr">→</span>
+          <div class="sys-box int">海外仓 WMS<br><small>未对接 ERP</small></div>
+          <span class="sys-arr">⇢ 手工</span>
+          <div class="sys-box int">ERP 销售退货单<br><small>仅 B 类</small></div>
+        </div>
+        <div class="cmp-table-wrap" style="margin-top:16px">
+          <table class="cmp">
+            <thead>
+              <tr><th>协作内容</th><th>A-1</th><th>A-2</th><th>B</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>账 / 扣款登记</td><td>钉钉 Excel</td><td>钉钉 Excel</td><td>销售部 Excel</td></tr>
+              <tr><td>货 / 物流</td><td>钉钉 / 邮件</td><td>—</td><td>邮件 + WMS</td></tr>
+              <tr><td>财务入账</td><td>回款明细（金额）</td><td>回款明细（金额）</td><td>销售退货单 + 回款</td></tr>
+              <tr><td>对账</td><td colspan="3" style="text-align:center">季度与客户对账单核对</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- 7 缺口 -->
+    <section id="s-gap">
+      <header>7 · 系统缺口（管报视角）</header>
+      <div class="bd">
+        <div class="gap-grid">
+          <div class="gap-card"><h5>销量未扣退货</h5><p>管报按「卖出」统计，线下退货未体现 → 收入、RMA 率偏高</p></div>
+          <div class="gap-card"><h5>扣款无 SKU 明细</h5><p>ERP 回款明细一行一个金额，无法按 SKU 做毛利分析</p></div>
+          <div class="gap-card"><h5>A-1 无入库单</h5><p>实物回仓未规范进 ERP，库存与退货数量不可见</p></div>
+          <div class="gap-card"><h5>海外仓未对接</h5><p>猫头鹰等 WMS 独立建单，签收进度无法自动同步</p></div>
+          <div class="gap-card"><h5>扣款与入库不同步</h5><p>B 类 MA 陆续、入库集中，同一批退货跨月难关联</p></div>
+          <div class="gap-card"><h5>批量退货无标签</h5><p>B 类也进 MA，常规 RMA 指标被批量退货拉高</p></div>
+        </div>
+        <p class="lead" style="margin-top:20px">会议讨论的系统化方向（待落地）</p>
+        <ul class="points">
+          <li>业务上传客户 RMA/MA 明细 → 自动映射 Item Number → SKU，计算手续费分摊</li>
+          <li>财务确认 / 对账状态流转；与星罗对账、SPS 订单衔接（预计收款扣退货后净值）</li>
+          <li>B 类：物流签收 → 半自动/自动生成销售退货单；批量滞销退货单独打标签</li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- 8 规则 -->
+    <section id="s-rules">
+      <header>8 · 关键业务规则</header>
+      <div class="bd">
+        <div class="scope-grid">
+          <div class="scope-in">
+            <h5>退款方式</h5>
+            <ul>
+              <li>一般<strong>不单独打款</strong>，在应付货款中直接扣除</li>
+              <li>每月出账含扣款；财务<strong>按季度</strong>与客户对账单核对</li>
+            </ul>
+          </div>
+          <div class="scope-out">
+            <h5>单价与成本</h5>
+            <ul>
+              <li>优先取<strong>客户导出表中的单价</strong>（含历史成本）</li>
+              <li>系统自动取价可能取到最新成本 → 与对账对不上</li>
+            </ul>
+          </div>
+        </div>
+        <ul class="points" style="margin-top:12px">
+          <li><strong>Costco 栈板：</strong>退货可能只能定位到 PN，无法区分颜色 SKU → 成本相同，按销售比例人工分摊数量</li>
+          <li><strong>尾差：</strong>分摊后 0.0x 元差异可手动调整到某一 SKU</li>
+          <li><strong>B 类再售：</strong>入库后再售出产生新收入；某月 RMA 率异常高属正常，建议打标区分</li>
+        </ul>
+      </div>
+    </section>
+
+    <p class="sub" style="margin-top:24px;text-align:center">
+      依据会议原文整理 · 若与正式商务/财务制度冲突，以制度为准
+    </p>
+  </div>
+
+  <script>
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: 'base',
+      themeVariables: {
+        primaryColor: '#e7f1ff',
+        primaryBorderColor: '#0b5ed7',
+        lineColor: '#64748b',
+        fontFamily: '"PingFang SC","Microsoft YaHei",sans-serif'
+      },
+      flowchart: { curve: 'basis', padding: 16 }
+    });
+
+    const tabs = document.querySelectorAll('.tab-btn');
+    const panels = document.querySelectorAll('.tab-panel');
+    const tabStyles = { a1: 'active-a1', a2: 'active-a2', b: 'active-b', 'a-all': 'active-a1' };
+
+    tabs.forEach(btn => {
+      btn.addEventListener('click', () => {
+        const id = btn.dataset.tab;
+        tabs.forEach(t => {
+          t.classList.remove('active-a1', 'active-a2', 'active-b');
+        });
+        btn.classList.add(tabStyles[id] || 'active-a1');
+        panels.forEach(p => p.classList.remove('active'));
+        document.getElementById('panel-' + id).classList.add('active');
+      });
+    });
+  </script>
+</body>
+</html>
