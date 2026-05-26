@@ -381,13 +381,64 @@
     .lock-ledger .down { color: var(--good); font-weight: 700; }
     .store-tag-bby { font-size: 9px; background: #ecfdf5; color: #0f766e; padding: 1px 5px; border-radius: 4px; }
     .store-tag-low { font-size: 9px; background: #f5f3ff; color: #7c3aed; padding: 1px 5px; border-radius: 4px; }
+
+    .reader-guide {
+      padding: 14px 16px; background: #f0f9ff; border: 1px solid #93c5fd;
+      border-radius: 10px; font-size: 13px; line-height: 1.75; margin-bottom: 14px;
+    }
+    .reader-guide strong { color: #0f2f63; }
+    .dual-track {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 14px 0;
+    }
+    @media (max-width: 700px) { .dual-track { grid-template-columns: 1fr; } }
+    .track-box {
+      border-radius: 10px; padding: 12px; font-size: 12px; line-height: 1.65;
+    }
+    .track-box.platform { background: #fefce8; border: 1px solid #fde047; }
+    .track-box.erp { background: #f8fafc; border: 1px solid var(--line); }
+    .track-box h5 { margin: 0 0 8px; font-size: 13px; }
+    .moment-list { display: flex; flex-direction: column; gap: 12px; margin-top: 14px; }
+    .moment-card {
+      border: 1px solid var(--line); border-radius: 12px; overflow: hidden;
+      background: #fff; font-size: 12px;
+    }
+    .moment-card .mc-hd {
+      display: flex; align-items: center; gap: 10px; padding: 10px 14px;
+      background: #f8fbff; border-bottom: 1px solid var(--line);
+    }
+    .moment-card .mc-time {
+      font-weight: 800; color: #0f2f63; min-width: 88px; font-size: 13px;
+    }
+    .moment-card .mc-badge {
+      font-size: 10px; padding: 2px 8px; border-radius: 999px; font-weight: 700;
+    }
+    .mc-badge.blind { background: #fef3c7; color: #92400e; }
+    .mc-badge.known { background: #dcfce7; color: #166534; }
+    .mc-badge.action { background: #dbeafe; color: #1e40af; }
+    .moment-card .mc-bd {
+      display: grid; grid-template-columns: 1fr 200px; gap: 12px; padding: 12px 14px;
+    }
+    @media (max-width: 800px) { .moment-card .mc-bd { grid-template-columns: 1fr; } }
+    .moment-card ul { margin: 0; padding-left: 18px; line-height: 1.7; }
+    .moment-card li { margin: 4px 0; }
+    .state-mini {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 6px;
+      font-size: 11px; background: #f8fafc; border-radius: 8px; padding: 10px;
+    }
+    .state-mini div { display: flex; justify-content: space-between; padding: 2px 0; }
+    .state-mini .lbl { color: var(--muted); }
+    .state-mini .val { font-weight: 700; }
+    .state-mini .val.warn { color: var(--warn); }
+    .state-mini .sum { grid-column: 1/-1; border-top: 1px dashed var(--line); margin-top: 6px; padding-top: 6px; font-weight: 800; }
+    .timeline-svg { width: 100%; max-width: 900px; display: block; margin: 12px auto; }
+    .legend-erp { font-size: 11px; color: var(--muted); margin: 8px 0 0; }
   </style>
 </head>
 <body>
   <div class="page">
     <h1>商超 3P · WFS 共享库存与自动借货</h1>
     <p class="subtitle">
-      图形化说明 v4 · 参与店：<strong>WM / BBY / Lowes 3P-US</strong> ·
+      图形化说明 v4.3 · 参与店：<strong>WM / BBY / Lowes 3P-US</strong> ·
       <a href="WFS共享库存与自动借货-详细方案.md#0-方案导读请先读本章">MD 方案导读（第 0 章）</a>
     </p>
     <div class="doc-banner">
@@ -396,6 +447,7 @@
 
     <nav class="nav">
       <a href="#guide">方案导读</a>
+      <a href="#timeline">10分钟时刻详解</a>
       <a href="#pool">三店共享池</a>
       <a href="#calc">演算表</a>
       <a href="#flow">主流程</a>
@@ -479,52 +531,75 @@
           </div>
         </div>
 
-        <p class="viz-title" style="margin-top:16px">④b BBY / Lowes · 10 分钟推单周期（锁定 = 待下批推单的实际件数合计）</p>
-        <p style="font-size:12px;margin:0 0 8px;color:var(--muted)">
-          <span class="tag tag-warn">要点</span>
-          <strong>待拉单预占</strong> = 上批<strong>推 WFS 成功</strong>件数（α=1.0）；<strong>待推 WFS 锁定</strong> = 已进 ERP 未推成功。
-          列表<strong>合计</strong> = 两者相加；推单按实际件数释放待推部分，每批结束刷新预占。
-          WM 推单更频，示例锁定为 0。
-        </p>
-        <div class="push-cycle" id="viz-push-cycle">
-          <div class="pc-step pc-push">
-            <div class="pc-time">① T=0 批量推 WFS</div>
-            <div class="pc-qty" id="pc-release">−25</div>
-            按<strong>实际推单</strong>件数释放<br><span class="store-tag-bby">BBY 示例</span>
+        <p class="viz-title" style="margin-top:16px">④b 先读这里：两个词 + 两类时间</p>
+        <div class="reader-guide">
+          <strong>订单锁定库存（列表合计）</strong> = <strong>待推 WFS 锁定</strong> + <strong>待拉单预占</strong>。<br>
+          <strong>待推 WFS 锁定</strong>：本批<strong>已拉进 ERP</strong>、还没推 WFS 成功的真实件数（§7 可调「待推 WFS」）。<br>
+          <strong>待拉单预占</strong>：<strong>严格等于</strong>上一批<strong>推 WFS 成功</strong>件数（§7「待拉单预占」）；代表「下次拉单前 ERP 看不见的成交」。<br>
+          <span class="tag tag-danger" style="margin-top:6px;display:inline-block">易错</span>
+          没有 10:03、10:07 逐笔进单——只有 <strong>10:00、10:10… 定时拉单</strong> 那一刻才知道「本批一共多少件」。
+        </div>
+
+        <div class="dual-track">
+          <div class="track-box platform">
+            <h5>🛒 BBY 平台侧（顾客下单）</h5>
+            10:00～10:10 内持续有人下单，平台库存按上次同步展示。<br>
+            <strong>ERP 此时看不到</strong>这些新单的具体笔数和时间。
           </div>
-          <div class="pc-step">
-            <div class="pc-time">② 推单后</div>
-            <div class="pc-qty" style="font-size:14px">L=0</div>
-            本批锁定清空<br>等待新单
-          </div>
-          <div class="pc-step pc-acc">
-            <div class="pc-time">③ 0～10 分钟</div>
-            <div class="pc-qty" id="pc-accum">?</div>
-            <strong>ERP 无逐笔数据</strong><br>仅 L^proxy 预占
-          </div>
-          <div class="pc-step pc-show">
-            <div class="pc-time">④ 当前展示</div>
-            <div class="pc-qty" id="pc-now-l">25</div>
-            预占=上批推成功<br>非实时订单
-          </div>
-          <div class="pc-step pc-push">
-            <div class="pc-time">⑤ T=10 再推单</div>
-            <div class="pc-qty" id="pc-next">−25</div>
-            再按实际推单释放<br>循环 ①
+          <div class="track-box erp">
+            <h5>🖥 ERP 侧（系统知道的）</h5>
+            只在<strong>定时任务</strong>运行时更新：拉单 → 待推锁定 ↑ → 推 WFS → 待推锁定 ↓ → 批末把「推成功件数」写入待拉单预占。
           </div>
         </div>
-        <div class="pc-loop-hint">↻ 每约 10 分钟一轮：拉单（仅此知道本批合计）→ 推 WFS 释放 → 刷新 L^proxy；中间无逐笔</div>
-        <p style="font-size:11px;color:var(--danger);margin:8px 0;padding:8px;background:#fef2f2;border-radius:8px">
-          <strong>图例说明：</strong>下表<strong>没有</strong> 10:03/10:07 逐笔行——ERP 只在 <strong>10:00、10:10 拉单时刻</strong> 才知道本批订单总量。
+        <p style="margin-top:12px;font-size:13px">
+          <a href="#timeline"><strong>→ 继续阅读：每个时刻逐步详解（含数字状态卡）</strong></a>
         </p>
-        <table class="lock-ledger" id="lock-ledger-table" aria-label="BBY 按拉单批次台账（非逐笔）">
-          <thead>
-            <tr><th>时刻</th><th>事件（仅批处理可见）</th><th>本批件数</th><th>待推WFS</th><th>待拉单预占</th><th>锁定合计</th></tr>
-          </thead>
-          <tbody id="lock-ledger-body"></tbody>
-        </table>
+      </div>
+    </section>
 
-        <p class="viz-title" style="margin-top:18px">⑤ 池耗尽：配平后仍全店低于安全</p>
+    <!-- 时刻详解独立面板 -->
+    <section class="panel" id="timeline">
+      <div class="panel-hd"><span class="num">★</span> BBY 示例 · 10 分钟周期 · 每个时刻在做什么（联动 §7）</div>
+      <div class="panel-bd">
+        <p style="margin:0 0 10px;font-size:13px">以下以 <strong>BBY 3P-US、某一 8 位 SKU</strong> 为例；数字来自下方 §7 演算（改参数后本区自动变）。</p>
+
+        <svg class="timeline-svg" viewBox="0 0 900 56" aria-label="ERP可见性时间轴">
+          <rect x="0" y="20" width="900" height="16" rx="4" fill="#e2e8f0"/>
+          <rect x="0" y="20" width="400" height="16" rx="4" fill="#fde68a"/>
+          <rect x="400" y="20" width="80" height="16" rx="0" fill="#86efac"/>
+          <rect x="480" y="20" width="420" height="16" rx="4" fill="#fde68a"/>
+          <text x="200" y="14" text-anchor="middle" font-size="11" fill="#92400e">盲区：仅预占（不知新单件数）</text>
+          <text x="440" y="14" text-anchor="middle" font-size="11" fill="#166534" font-weight="bold">10:00 任务</text>
+          <text x="690" y="14" text-anchor="middle" font-size="11" fill="#92400e">盲区：仅预占</text>
+          <text x="50" y="50" font-size="10" fill="#64748b">09:50</text>
+          <text x="400" y="50" font-size="10" fill="#64748b">10:00 拉单+推单</text>
+          <text x="850" y="50" font-size="10" fill="#64748b">10:10 下次拉单</text>
+          <polygon points="400,38 408,48 392,48" fill="#0b5ed7"/>
+          <text x="400" y="36" text-anchor="middle" font-size="9" fill="#0b5ed7">▼任务</text>
+        </svg>
+        <p class="legend-erp">黄色 = ERP <strong>不知道</strong>本段 BBY 新成交明细；绿色短条 = <strong>定时任务</strong>内拉单、推 WFS、刷新预占。</p>
+
+        <div class="moment-list" id="moment-detail-list"></div>
+
+        <p class="viz-title" style="margin-top:20px">对照简表（与上图卡片一致）</p>
+        <div style="overflow-x:auto">
+          <table class="lock-ledger" id="lock-ledger-table">
+            <thead>
+              <tr>
+                <th>时刻</th><th>ERP能否感知新单</th><th>发生的事</th>
+                <th>待推WFS</th><th>待拉单预占</th><th>锁定合计</th><th>当前可售</th>
+              </tr>
+            </thead>
+            <tbody id="lock-ledger-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel" id="guide-pool-exhaust">
+      <div class="panel-hd"><span class="num">0b</span> 池耗尽：配平后仍全店低于安全</div>
+      <div class="panel-bd">
+        <p class="viz-title">⑤ 池耗尽：配平后仍全店低于安全</p>
         <div style="padding:12px;border:2px solid #b91c1c;border-radius:10px;background:#fef2f2;font-size:12px;line-height:1.7">
           <strong>触发：</strong>配平后 <strong>WM / BBY / Lowes 仍全部</strong> 当前 &lt; 安全。<br>
           <strong>处置：</strong>BBY、Lowes 可售 <strong>置 0</strong>；<strong>WM 不置 0</strong>；该 <strong>8 位 SKU 整 SKU</strong> 关闭 WFS 仓共享（WM 也不再与子店共享）。<br>
@@ -1249,25 +1324,104 @@
       }).join('');
     }
 
+    function stateMini(erp, proxy, sum, avail) {
+      return '<div class="state-mini">' +
+        '<div><span class="lbl">待推 WFS</span><span class="val">' + erp + '</span></div>' +
+        '<div><span class="lbl">待拉单预占</span><span class="val warn">' + proxy + '</span></div>' +
+        '<div class="sum"><span class="lbl">锁定合计</span><span class="val">' + sum + '</span></div>' +
+        (avail != null ? '<div class="sum" style="border-top:0;padding-top:0"><span class="lbl">BBY 当前可售</span><span class="val">' + avail + '</span></div>' : '') +
+        '</div>';
+    }
+
+    function momentCard(time, badgeCls, badgeTxt, bullets, erp, proxy, sum, avail) {
+      return '<article class="moment-card">' +
+        '<div class="mc-hd"><span class="mc-time">' + time + '</span>' +
+        '<span class="mc-badge ' + badgeCls + '">' + badgeTxt + '</span></div>' +
+        '<div class="mc-bd"><ul>' + bullets.map(function (b) { return '<li>' + b + '</li>'; }).join('') + '</ul>' +
+        stateMini(erp, proxy, sum, avail) + '</div></article>';
+    }
+
     function renderPushCycle(d) {
       var proxy = d.bby.lockProxy || 0;
       var erp = d.bby.lockErp || 0;
       var sum = d.bby.lock || 0;
-      var batchPull = proxy; // 演示：本批拉单量≈上批预占阶；可调 §7 待拉单预占
-      var el = function (id, txt) { var e = $(id); if (e) e.textContent = txt; };
-      el('pc-release', '−' + proxy);
-      el('pc-accum', '无逐笔');
-      el('pc-now-l', String(sum));
-      el('pc-next', '拉单+' + batchPull);
+      var avail = d.bby.c || 0;
+      var batchPull = proxy;
+      var pushOk = proxy;
+
+      var list = $('moment-detail-list');
+      if (list) {
+        list.innerHTML =
+          momentCard('09:50～09:59', 'blind', '盲区 · ERP 不知新单',
+            [
+              '<strong>平台：</strong>顾客在 BBY 下单，库存按<strong>上次同步</strong>的可售数扣减展示。',
+              '<strong>ERP：</strong>定时任务未到，<strong>没有</strong>本批订单列表；也<strong>不知道</strong> 09:53 卖了几件。',
+              '<strong>系统动作：</strong>无拉单、无推 WFS；仅用<strong>待拉单预占</strong>占池（= 上一批 10:00 推 WFS 成功件数 ' + proxy + '）。',
+              '<strong>待推 WFS</strong> = 0（上一批已推完）。',
+              '扣共享池时：L = 0 + ' + proxy + ' = <strong>' + proxy + '</strong>。'
+            ], 0, proxy, proxy, avail) +
+
+          momentCard('10:00:00', 'action', '定时任务开始',
+            [
+              '<strong>触发：</strong>约每 10 分钟一次的 BBY 拉单 + 推 WFS 任务启动。',
+              '<strong>平台：</strong>09:50～10:00 的成交将在此刻<strong>一次性</strong>进入 ERP（不是逐笔实时）。',
+              '<strong>ERP：</strong>从「完全不知道本批件数」→「知道本批合计」。'
+            ], 0, proxy, proxy, avail) +
+
+          momentCard('10:00:05', 'known', '拉单完成 · ERP 已知本批',
+            [
+              '<strong>事件：</strong>定时<strong>拉单</strong>，本批共 <strong class="up">+' + batchPull + '</strong> 件进入 ERP。',
+              '<strong>待推 WFS</strong> 立即 +' + batchPull + '（真实锁定，按实际件数）。',
+              '拉单瞬间<strong>待拉单预占清零</strong>（本批已可见，不再用代理）。',
+              '锁定合计 = ' + batchPull + ' + 0 = <strong>' + batchPull + '</strong>。'
+            ], batchPull, 0, batchPull, avail) +
+
+          momentCard('10:00:20', 'action', '推 WFS 成功 · 释放待推',
+            [
+              '<strong>事件：</strong>本批订单推 WFS，成功 <strong class="down">−' + pushOk + '</strong> 件（以接口回执为准，可与拉单数不同）。',
+              '<strong>待推 WFS</strong> 按实际成功件数减少 → 本例归 <strong>0</strong>。',
+              'WFS 侧已接单，实物占用以 WFS 为准；本地「待推」不再占池。',
+              '批末将把<strong>推成功件数 ' + pushOk + '</strong> 记入下一窗口的待拉单预占。'
+            ], 0, 0, 0, avail) +
+
+          momentCard('10:00:25', 'blind', '批末 · 刷新预占',
+            [
+              '<strong>规则：</strong>待拉单预占 := 本批<strong>推 WFS 成功</strong>件数（α=1.0，严格相等）。',
+              '本例写入 <strong>' + proxy + '</strong>，代表「10:00～10:10 之间 ERP 仍看不见的潜在销量」。',
+              '<strong>不是</strong>实时订单数，也<strong>不是</strong> 10:03/10:07 的逐笔合计。',
+              '进入下一盲区：待推=0，预占=' + proxy + '，合计=<strong>' + proxy + '</strong>。'
+            ], 0, proxy, proxy, avail) +
+
+          momentCard('现在（例 10:05）', 'blind', '盲区内 · 联动 §7',
+            [
+              '<strong>平台：</strong>10:00 后又有人下单，ERP <strong>仍不知道</strong>具体件数，要等 10:10 拉单。',
+              '<strong>待拉单预占</strong> 保持 <strong>' + proxy + '</strong>（上批推成功，不变）。',
+              '<strong>待推 WFS</strong> = §7 中 BBY「待推 WFS」= <strong>' + erp + '</strong>' +
+              (erp > 0 ? '（若有值：表示已有订单进 ERP、尚未推完，与是否到 10:10 无关）' : '（演示为 0：10:00 那批已全部推完）') + '。',
+              '锁定合计 = ' + erp + ' + ' + proxy + ' = <strong>' + sum + '</strong>；BBY 当前可售 = §7「当前」= <strong>' + avail + '</strong>。',
+              '<span style="color:var(--danger)">勿误解：</span>不存在 10:03、10:07 台账行；中间只有预占 + 可选的待推。'
+            ], erp, proxy, sum, avail) +
+
+          momentCard('10:10:00', 'known', '下次拉单（预告）',
+            [
+              '<strong>事件：</strong>第二次定时拉单，ERP 才第一次知道 10:00～10:10 的<strong>本批合计</strong>。',
+              '拉单后：待拉单预占清零；待推 WFS += 本批实际件数；再推 WFS、再刷新预占，循环。',
+              '本表<strong>不编造</strong> 10:10 的具体件数（真实值由平台回传）。'
+            ], '?', '→0', '?', null);
+      }
+
       var body = $('lock-ledger-body');
       if (!body) return;
+      var visNo = '<span style="color:#92400e">否</span>';
+      var visYes = '<span style="color:#166534;font-weight:700">是（本批合计）</span>';
+      var visPart = '<span style="color:#92400e">否（仅见已进ERP）</span>';
       body.innerHTML =
-        '<tr style="background:#f8fafc"><td>09:50～10:00</td><td>平台成交（ERP不可见）</td><td>—</td><td>0</td><td><strong style="color:var(--warn)">' + proxy + '</strong></td><td>' + proxy + '</td></tr>' +
-        '<tr><td><strong>10:00</strong></td><td><strong>定时拉单</strong>（仅此知道本批）</td><td class="up"><strong>+' + batchPull + '</strong></td><td><strong>' + batchPull + '</strong></td><td>0</td><td><strong>' + batchPull + '</strong></td></tr>' +
-        '<tr><td>10:00</td><td>本批推 WFS 成功</td><td class="down">−' + proxy + '</td><td>0</td><td>0</td><td>0</td></tr>' +
-        '<tr><td>10:00 批末</td><td>刷新预占 := 上批推成功</td><td>—</td><td>0</td><td><strong style="color:var(--warn)">' + proxy + '</strong></td><td>' + proxy + '</td></tr>' +
-        '<tr style="background:#fff7ed"><td><strong>现在</strong></td><td>等待下次拉单（≈10min）</td><td>—</td><td><strong>' + erp + '</strong></td><td><strong>' + proxy + '</strong></td><td><strong>' + sum + '</strong></td></tr>' +
-        '<tr><td><strong>10:10</strong></td><td>下次定时拉单（才知新一批合计）</td><td>?</td><td colspan="3" style="color:var(--muted)">不以 10:03/10:07 逐笔展示</td></tr>';
+        '<tr style="background:#fffbeb"><td>09:50～09:59</td><td>' + visNo + '</td><td>平台成交，ERP 无明细</td><td>0</td><td>' + proxy + '</td><td><strong>' + proxy + '</strong></td><td>' + avail + '</td></tr>' +
+        '<tr><td>10:00 拉单</td><td>' + visYes + '</td><td>本批 +' + batchPull + ' 进 ERP</td><td class="up"><strong>' + batchPull + '</strong></td><td>0</td><td><strong>' + batchPull + '</strong></td><td>↓随锁定</td></tr>' +
+        '<tr><td>10:00 推 WFS</td><td>' + visYes + '</td><td>成功 −' + pushOk + '，释放待推</td><td>0</td><td>0</td><td>0</td><td>↑释放</td></tr>' +
+        '<tr><td>10:00 批末</td><td>' + visNo + '</td><td>预占 := 推成功 ' + proxy + '</td><td>0</td><td class="up"><strong>' + proxy + '</strong></td><td><strong>' + proxy + '</strong></td><td>' + avail + '</td></tr>' +
+        '<tr style="background:#fff7ed"><td><strong>现在</strong></td><td>' + visPart + '</td><td>等下次拉单；§7 演示态</td><td><strong>' + erp + '</strong></td><td><strong>' + proxy + '</strong></td><td><strong>' + sum + '</strong></td><td><strong>' + avail + '</strong></td></tr>' +
+        '<tr><td>10:10</td><td>' + visYes + '</td><td>才知新一批合计</td><td colspan="4" style="color:var(--muted)">不以 10:03/10:07 逐笔建账</td></tr>';
     }
 
     function renderOversell(d, r) {
