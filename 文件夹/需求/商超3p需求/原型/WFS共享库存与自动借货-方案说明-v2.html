@@ -143,10 +143,13 @@
   <div class="page">
     <p style="font-size:12px;margin:0 0 8px"><a href="index.html">← 原型目录</a> · <a href="WFS共享库存与自动借货-方案-v2.md">MD v2</a> · <a href="WFS共享库存与自动借货-详细方案.md">详细方案 v1</a></p>
     <h1>WFS 共享库存与自动借货 · 方案说明 v2</h1>
-    <p class="sub">易懂版 · 图文为主 · 约束见文末 · 2026-05-22</p>
+    <p class="sub">易懂版 v2.1 · 触发 <strong>C &lt; S + L</strong> · 2026-05-22 业务确认</p>
 
     <div class="hero">
-      <p><strong>一句话：</strong>WM / BBY / Lowes 共卖 <strong>同一 WFS 仓</strong> 的货；ERP 按实查和锁定算出各店能卖多少，不够就 <strong>虚拟配平</strong> 并回写平台；<strong>不搬实物</strong>。</p>
+      <p><strong>一句话：</strong>WM / BBY / Lowes 共卖 <strong>同一 WFS 仓</strong>；拉单时同步<strong>平台可售</strong>，用<strong>本批销量</strong>作锁定；若 <strong>可售 &lt; 安全 + 锁定</strong> 则虚拟配平，应有 = 比例份额 + 安全 + 锁定。</p>
+    </div>
+    <div class="hero" style="margin-top:-8px;background:#f0fdf4;border-color:#86efac">
+      <p style="margin:0;font-size:13px"><strong>确认示例（BBY）：</strong>上次可售 100、上轮销量 10；本次拉单可售 <strong>80</strong>、安全 <strong>70</strong>、本批锁定 <strong>20</strong> → 80 &lt; 70+20=90 → <strong style="color:var(--danger)">触发配平</strong></p>
     </div>
 
     <nav class="nav">
@@ -227,7 +230,7 @@
 
         <div class="stores" id="store-cards">
           <div class="store" data-k="wm"><h4>WM 3P-US</h4><div class="m">当前 <b id="sc-wm-c">60</b></div><div class="m">锁定 <b id="sc-wm-l">0</b></div><div class="m">安全 <b id="sc-wm-s">30</b></div><div class="m">应有 <b id="sc-wm-t">51</b></div></div>
-          <div class="store" data-k="bby"><h4>BBY 3P-US</h4><div class="m">当前 <b id="sc-bby-c">25</b></div><div class="m">锁定 <b id="sc-bby-l">30</b></div><div class="m">安全 <b id="sc-bby-s">30</b></div><div class="m">应有 <b id="sc-bby-t">51</b></div></div>
+          <div class="store" data-k="bby"><h4>BBY 3P-US</h4><div class="m">当前 <b id="sc-bby-c">80</b></div><div class="m">本批锁定 <b id="sc-bby-l">20</b></div><div class="m">安全 <b id="sc-bby-s">70</b></div><div class="m">应有 <b id="sc-bby-t">—</b></div></div>
           <div class="store" data-k="low"><h4>Lowes 3P-US</h4><div class="m">当前 <b id="sc-low-c">80</b></div><div class="m">锁定 <b id="sc-low-l">15</b></div><div class="m">安全 <b id="sc-low-s">40</b></div><div class="m">应有 <b id="sc-low-t">68</b></div></div>
         </div>
       </div>
@@ -237,11 +240,11 @@
     <section id="s4">
       <header>4 · 订单锁定 + 10 分钟拉单（BBY 示例）</header>
       <div class="bd">
-        <p class="lead">锁定 = <strong>待推 WFS</strong>（已进 ERP）+ <strong>待拉单预占</strong>（上批推成功件数，α=1.0）</p>
+        <p class="lead"><strong>平台可售</strong>：顾客下单当场减少；<strong>拉单时</strong>读到的数写入 ERP。<strong>本批锁定 L</strong> = 本 10 分钟销量。<strong>待拉单预占</strong> = 上轮销量（拉单前占池用）。</p>
 
         <div class="win-grid">
-          <div class="win a"><h5>窗口 A · 拉单前</h5>平台在卖，ERP <strong>不知道</strong>新单 → 只靠「待拉单预占」占池。</div>
-          <div class="win b"><h5>窗口 B · 进 ERP～推 WFS</h5>ERP 已知 → 「待推 WFS」真实锁定，当前可售减少。</div>
+          <div class="win a"><h5>拉单前</h5>平台在卖，ERP 可售可能旧；<strong>预占 = 上轮销量</strong>（如 10）。</div>
+          <div class="win b"><h5>拉单时</h5>同步可售（如 80），算本批 L（如 20）；<strong>若 C &lt; S + L → 触发</strong>。</div>
         </div>
 
         <p><span class="tag tag-danger">易错</span> 没有 10:03、10:07 逐笔进单——只有 <strong>10:00、10:10 定时拉单</strong> 才知道本批合计。</p>
@@ -289,16 +292,16 @@
           <div><label>WFS 实查</label><input type="number" id="in-wfs" value="200"></div>
           <div><label>WM 当前</label><input type="number" id="in-wm-c" value="60"></div>
           <div><label>WM 安全</label><input type="number" id="in-wm-s" value="30"></div>
-          <div><label>WM 待推</label><input type="number" id="in-wm-erp" value="0"></div>
-          <div><label>WM 预占</label><input type="number" id="in-wm-proxy" value="0"></div>
-          <div><label>BBY 当前</label><input type="number" id="in-bby-c" value="25"></div>
-          <div><label>BBY 安全</label><input type="number" id="in-bby-s" value="30"></div>
-          <div><label>BBY 待推</label><input type="number" id="in-bby-erp" value="5"></div>
-          <div><label>BBY 预占</label><input type="number" id="in-bby-proxy" value="25"></div>
+          <div><label>WM 本批锁定</label><input type="number" id="in-wm-batch" value="0"></div>
+          <div><label>WM 上轮预占</label><input type="number" id="in-wm-proxy" value="0"></div>
+          <div><label>BBY 当前可售</label><input type="number" id="in-bby-c" value="80"></div>
+          <div><label>BBY 安全</label><input type="number" id="in-bby-s" value="70"></div>
+          <div><label>BBY 本批锁定</label><input type="number" id="in-bby-batch" value="20"></div>
+          <div><label>BBY 上轮预占</label><input type="number" id="in-bby-proxy" value="10"></div>
           <div><label>Lowes 当前</label><input type="number" id="in-low-c" value="80"></div>
           <div><label>Lowes 安全</label><input type="number" id="in-low-s" value="40"></div>
-          <div><label>Lowes 待推</label><input type="number" id="in-low-erp" value="0"></div>
-          <div><label>Lowes 预占</label><input type="number" id="in-low-proxy" value="15"></div>
+          <div><label>Lowes 本批锁定</label><input type="number" id="in-low-batch" value="0"></div>
+          <div><label>Lowes 上轮预占</label><input type="number" id="in-low-proxy" value="0"></div>
           <div><label>WM 比例 %</label><input type="number" id="in-wm-pct" value="30"></div>
           <div><label>BBY 比例 %</label><input type="number" id="in-bby-pct" value="30"></div>
         </div>
@@ -306,7 +309,7 @@
         <div style="overflow-x:auto">
           <table>
             <thead>
-              <tr><th>店</th><th>当前</th><th>待推</th><th>预占</th><th>锁定</th><th>安全</th><th>触发</th><th>应有</th></tr>
+              <tr><th>店</th><th>当前 C</th><th>本批 L</th><th>预占</th><th>扣池合计</th><th>安全 S</th><th>S+L</th><th>触发</th><th>应有 T</th></tr>
             </thead>
             <tbody id="calc-tbody"></tbody>
           </table>
@@ -319,7 +322,7 @@
       <header>6 · 池耗尽（极端情况）</header>
       <div class="bd">
         <div class="exhaust">
-          <strong>何时：</strong>虚拟配平之后，WM / BBY / Lowes <strong>仍然全部</strong> 当前可售 &lt; 安全库存。<br>
+          <strong>何时：</strong>虚拟配平之后，三店仍全部 <strong>C &lt; S + L</strong>（或仍无法满足应有）。<br>
           <strong>做什么：</strong>BBY、Lowes 平台可售 → <strong>0</strong>；<strong>WM 不置 0</strong>；该 8 位 SKU <strong>关闭 WFS 仓共享</strong>（WM 也不再与子店共享）。<br>
           <strong>恢复：</strong>需运营人工确认后重新开启共享。
         </div>
@@ -335,13 +338,13 @@
           <li>只信 WFS 接口实查；失败时不静默用旧值做配平。</li>
           <li>WFS 仓共享与谷仓共享同一 SKU <strong>二选一</strong>。</li>
           <li>自动配平不产生调拨单、不搬实物。</li>
-          <li>锁定已在 Q_eff 中扣除；配平比较「当前 vs 安全」，不对锁定二次扣减。</li>
-          <li>待拉单预占 = 上批推 WFS 成功件数（α=1.0）；禁止按 10:03 等逐笔建账。</li>
+          <li>触发（已定）：<strong>C &lt; S + L</strong>（L = 本批销量）；应有 <strong>T = 比例份额 + S + L</strong>。</li>
+          <li>可售以拉单时平台同步为准；待拉单预占 = 上轮销量；禁止按 10:03 等逐笔建账。</li>
           <li>10 分钟窗口无法 100% 消除超卖；依赖预占 + 风险扫描 + 配平。</li>
           <li>池耗尽关共享后不自动恢复。</li>
           <li>接口、表结构、验收、非功能见 <a href="WFS共享库存与自动借货-详细方案.md">详细方案 v1</a>。</li>
         </ol>
-        <p style="margin-top:12px"><strong>待确认：</strong>上批推成功为 0 时预占是否严格为 0；拉单与推 WFS 是否同一任务。</p>
+        <p style="margin-top:12px"><strong>待确认：</strong>上轮销量为 0 时预占是否严格为 0；拉单与推 WFS 是否同一任务。</p>
       </div>
     </section>
   </div>
@@ -363,14 +366,14 @@
         return {
           c: +$('in-' + k + '-c').value || 0,
           s: +$('in-' + k + '-s').value || 0,
-          erp: +$('in-' + k + '-erp').value || 0,
+          batch: +$('in-' + k + '-batch').value || 0,
           proxy: +$('in-' + k + '-proxy').value || 0
         };
       }
       var wm = st('wm'), bby = st('bby'), low = st('low');
-      wm.lock = wm.erp + wm.proxy;
-      bby.lock = bby.erp + bby.proxy;
-      low.lock = low.erp + low.proxy;
+      wm.poolLock = wm.batch + wm.proxy;
+      bby.poolLock = bby.batch + bby.proxy;
+      low.poolLock = low.batch + low.proxy;
       return {
         wfs: +$('in-wfs').value || 0,
         wm: wm, bby: bby, low: low,
@@ -379,44 +382,48 @@
     }
 
     function compute(d) {
-      var lockSum = d.wm.lock + d.bby.lock + d.low.lock;
+      var lockSum = d.wm.poolLock + d.bby.poolLock + d.low.poolLock;
       var safeSum = d.wm.s + d.bby.s + d.low.s;
       var qEff = d.wfs - lockSum;
       var pool = Math.max(0, qEff - safeSum);
       var rows = STORES.map(function (st) {
         var m = d[st.key];
         var pct = d.pcts[st.key];
-        var t = Math.round(pool * pct) + m.s;
+        var t = Math.round(pool * pct) + m.s + m.batch;
+        var sl = m.s + m.batch;
         return {
           key: st.key, name: st.name,
-          c: m.c, erp: m.erp, proxy: m.proxy, lock: m.lock, s: m.s,
-          t: t, trig: m.c < m.s
+          c: m.c, batch: m.batch, proxy: m.proxy, poolLock: m.poolLock, s: m.s, sl: sl,
+          t: t, trig: m.c < sl
         };
       });
       return { lockSum: lockSum, safeSum: safeSum, qEff: qEff, pool: pool, rows: rows,
         triggered: rows.some(function (r) { return r.trig; }) };
     }
 
-    function renderMoments(proxy, erp, sum) {
-      var batch = proxy;
+    function renderMoments(c, s, batch, proxy) {
+      var sl = s + batch;
+      var trig = c < sl;
       var cards = [
-        { t: '09:50～09:59', b: 'blind', bt: '盲区', erp: 0, proxy: proxy, sum: proxy,
-          ul: ['平台持续成交，ERP 无明细', '待推=0，预占=' + proxy + '（=上批推成功）', '锁定合计=' + proxy] },
-        { t: '10:00 拉单', b: 'known', bt: 'ERP 知本批', erp: batch, proxy: 0, sum: batch,
-          ul: ['本批 +' + batch + ' 进 ERP', '预占清零，待推=' + batch] },
-        { t: '10:00 推 WFS', b: 'known', bt: '释放', erp: 0, proxy: 0, sum: 0,
-          ul: ['按回执释放待推', '批末：预占 := 推成功 ' + proxy] },
-        { t: '现在', b: 'blind', bt: '盲区内', erp: erp, proxy: proxy, sum: sum,
-          ul: ['等 10:10 才知新一批合计', '待推=' + erp + ' + 预占=' + proxy + ' = ' + sum, '数字联动 §5 演算'] }
+        { t: '上轮结束', b: 'blind', bt: '预占 10', ul: [
+          'ERP 可售曾同步为 100（示例）',
+          '上轮销量 → 待拉单预占 = ' + proxy
+        ], c: '100', batch: '—', proxy: String(proxy), chk: '—' },
+        { t: '10:00 拉单', b: 'known', bt: '同步+算 L', ul: [
+          '从平台读到可售 <strong>' + c + '</strong>（已扣本段销量）',
+          '本批销量锁定 L = <strong>' + batch + '</strong>（如 100−80）',
+          '判断：' + c + ' &lt; ' + s + '+' + batch + ' = ' + sl + ' → ' + (trig ? '<strong style="color:var(--danger)">触发</strong>' : '不触发')
+        ], c: String(c), batch: String(batch), proxy: '0', chk: c + '&lt;' + sl },
+        { t: '本批结束', b: 'blind', bt: '写下轮预占', ul: [
+          'L^proxy := 本批 L = ' + batch,
+          '配平目标 T ≈ 比例份额 + S + L'
+        ], c: String(c), batch: String(batch), proxy: String(batch), chk: '—' }
       ];
-      $('moments').innerHTML = cards.map(function (c) {
-        return '<div class="moment"><div class="mh"><span class="t">' + c.t + '</span>' +
-          '<span class="badge ' + c.b + '">' + c.bt + '</span></div><div class="mb"><ul>' +
-          c.ul.map(function (li) { return '<li>' + li + '</li>'; }).join('') +
-          '</ul><div class="nums">' +
-          '<div><span>待推</span><b>' + c.erp + '</b></div>' +
-          '<div><span>预占</span><b>' + c.proxy + '</b></div>' +
-          '<div class="sum"><span>合计</span><b>' + c.sum + '</b></div></div></div></div>';
+      $('moments').innerHTML = cards.map(function (card) {
+        return '<div class="moment"><div class="mh"><span class="t">' + card.t + '</span><span class="badge ' + card.b + '">' + card.bt + '</span></div>' +
+          '<div class="mb"><ul>' + card.ul.map(function (li) { return '<li>' + li + '</li>'; }).join('') +
+          '</ul><div class="nums"><div><span>C</span><b>' + card.c + '</b></div><div><span>本批L</span><b>' + card.batch + '</b></div>' +
+          '<div><span>预占</span><b>' + card.proxy + '</b></div><div class="sum"><span>C&lt;S+L?</span><b>' + card.chk + '</b></div></div></div></div>';
       }).join('');
     }
 
@@ -430,26 +437,27 @@
       $('v-p').textContent = r.pool;
       r.rows.forEach(function (row) {
         $('sc-' + row.key + '-c').textContent = row.c;
-        $('sc-' + row.key + '-l').textContent = row.lock;
+        $('sc-' + row.key + '-l').textContent = row.batch;
         $('sc-' + row.key + '-s').textContent = row.s;
         $('sc-' + row.key + '-t').textContent = row.t;
         var el = document.querySelector('.store[data-k="' + row.key + '"]');
         if (el) el.classList.toggle('trig', row.trig);
       });
-      renderMoments(d.bby.proxy, d.bby.erp, d.bby.lock);
+      renderMoments(d.bby.c, d.bby.s, d.bby.batch, d.bby.proxy);
       $('trig-msg').innerHTML = r.triggered
-        ? '<span class="tag tag-warn">已触发</span> 有店当前 &lt; 安全 → 告警 + 一次虚拟配平 + 同步平台'
-        : '<span style="color:var(--good);font-weight:700">未触发</span> 各店当前 ≥ 安全';
+        ? '<span class="tag tag-warn">已触发</span> 有店 <strong>C &lt; S + L（本批）</strong> → 告警 + 配平；应有 T = 比例份额 + S + L'
+        : '<span style="color:var(--good);font-weight:700">未触发</span> 各店 C ≥ S + L（本批）';
       $('calc-tbody').innerHTML = r.rows.map(function (row) {
         return '<tr class="' + (row.trig ? 'trig' : '') + '"><td>' + row.name + '</td><td>' + row.c +
-          '</td><td>' + row.erp + '</td><td>' + row.proxy + '</td><td><b>' + row.lock +
-          '</td><td>' + row.s + '</td><td>' + (row.trig ? '是' : '否') + '</td><td><b>' + row.t + '</b></td></tr>';
+          '</td><td><b>' + row.batch + '</b></td><td>' + row.proxy + '</td><td>' + row.poolLock +
+          '</td><td>' + row.s + '</td><td>' + row.sl + '</td><td>' + (row.trig ? '<b style="color:var(--danger)">是</b>' : '否') +
+          '</td><td><b>' + row.t + '</b></td></tr>';
       }).join('');
     }
 
-    ['in-wfs','in-wm-c','in-wm-s','in-wm-erp','in-wm-proxy',
-     'in-bby-c','in-bby-s','in-bby-erp','in-bby-proxy',
-     'in-low-c','in-low-s','in-low-erp','in-low-proxy','in-wm-pct','in-bby-pct'].forEach(function (id) {
+    ['in-wfs','in-wm-c','in-wm-s','in-wm-batch','in-wm-proxy',
+     'in-bby-c','in-bby-s','in-bby-batch','in-bby-proxy',
+     'in-low-c','in-low-s','in-low-batch','in-low-proxy','in-wm-pct','in-bby-pct'].forEach(function (id) {
       $(id).addEventListener('input', render);
     });
     render();
