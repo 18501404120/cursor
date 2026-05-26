@@ -499,13 +499,13 @@
           </div>
           <div class="pc-step pc-acc">
             <div class="pc-time">③ 0～10 分钟</div>
-            <div class="pc-qty" id="pc-accum">+25</div>
-            新单进 ERP<br>每笔 +实际件数
+            <div class="pc-qty" id="pc-accum">?</div>
+            <strong>ERP 无逐笔数据</strong><br>仅 L^proxy 预占
           </div>
           <div class="pc-step pc-show">
             <div class="pc-time">④ 当前展示</div>
             <div class="pc-qty" id="pc-now-l">25</div>
-            订单锁定库存<br>= 待下批推单
+            预占=上批推成功<br>非实时订单
           </div>
           <div class="pc-step pc-push">
             <div class="pc-time">⑤ T=10 再推单</div>
@@ -513,13 +513,23 @@
             再按实际推单释放<br>循环 ①
           </div>
         </div>
-        <div class="pc-loop-hint">↻ 每约 10 分钟一轮：推单释放（实际数量）→ 窗口内累加锁定 → 再推单释放 …</div>
-        <table class="lock-ledger" id="lock-ledger-table" aria-label="BBY 锁定累加示例">
+        <div class="pc-loop-hint">↻ 每约 10 分钟一轮：拉单（仅此知道本批合计）→ 推 WFS 释放 → 刷新 L^proxy；中间无逐笔</div>
+        <p style="font-size:11px;color:var(--danger);margin:8px 0;padding:8px;background:#fef2f2;border-radius:8px">
+          <strong>图例说明：</strong>下表<strong>没有</strong> 10:03/10:07 逐笔行——ERP 只在 <strong>10:00、10:10 拉单时刻</strong> 才知道本批订单总量。
+        </p>
+        <table class="lock-ledger" id="lock-ledger-table" aria-label="BBY 按拉单批次台账（非逐笔）">
           <thead>
-            <tr><th>时刻</th><th>事件</th><th>本单件数</th><th>BBY 锁定 L</th><th>BBY 当前可售</th></tr>
+            <tr><th>时刻</th><th>事件（仅批处理可见）</th><th>本批件数</th><th>待推WFS</th><th>待拉单预占</th><th>锁定合计</th></tr>
           </thead>
           <tbody id="lock-ledger-body"></tbody>
         </table>
+
+        <p class="viz-title" style="margin-top:18px">⑤ 池耗尽：配平后仍全店低于安全</p>
+        <div style="padding:12px;border:2px solid #b91c1c;border-radius:10px;background:#fef2f2;font-size:12px;line-height:1.7">
+          <strong>触发：</strong>一次虚拟配平后，<strong>WM / BBY / Lowes 仍全部</strong> 当前 &lt; 安全库存。<br>
+          <strong>自动处置：</strong>BBY、Lowes 平台可售 <strong>置 0</strong>；该 SKU <strong>WFS 仓共享开关自动关闭</strong>（WM 默认不因此关共享，待业务确认）。<br>
+          <span style="color:var(--muted)">详见 MD §0.6.1</span>
+        </div>
 
         <div class="concept-grid">
           <div class="concept-card">
@@ -1239,27 +1249,24 @@
     }
 
     function renderPushCycle(d) {
-      var bbyL = d.bby.lockProxy || 0;
+      var proxy = d.bby.lockProxy || 0;
+      var erp = d.bby.lockErp || 0;
+      var sum = d.bby.lock || 0;
+      var batchPull = proxy; // 演示：本批拉单量≈上批预占阶；可调 §7 待拉单预占
       var el = function (id, txt) { var e = $(id); if (e) e.textContent = txt; };
-      el('pc-release', '−' + bbyL);
-      el('pc-accum', '+' + bbyL);
-      el('pc-now-l', String(bbyL));
-      el('pc-next', '−' + bbyL);
+      el('pc-release', '−' + proxy);
+      el('pc-accum', '无逐笔');
+      el('pc-now-l', String(sum));
+      el('pc-next', '拉单+' + batchPull);
       var body = $('lock-ledger-body');
       if (!body) return;
-      if (bbyL <= 0) {
-        body.innerHTML = '<tr><td colspan="5" style="color:var(--muted)">BBY 锁定为 0：表示刚推单释放完毕，或 WM 类即时推单店。调大 §7「BBY 订单锁定」查看累加台账。</td></tr>';
-        return;
-      }
-      var q1 = Math.max(1, Math.round(bbyL * 0.32));
-      var q2 = bbyL - q1;
-      var cBefore = d.bby.c + bbyL;
       body.innerHTML =
-        '<tr><td>10:00</td><td>批量推 WFS 成功</td><td class="down">−' + bbyL + '（实际推单）</td><td>0</td><td>' + cBefore + '</td></tr>' +
-        '<tr><td>10:03</td><td>订单 A 进 ERP</td><td class="up">+' + q1 + '</td><td>' + q1 + '</td><td>' + (cBefore - q1) + '</td></tr>' +
-        '<tr><td>10:07</td><td>订单 B 进 ERP</td><td class="up">+' + q2 + '</td><td><strong>' + bbyL + '</strong></td><td><strong>' + d.bby.c + '</strong></td></tr>' +
-        '<tr style="background:#fff7ed"><td>现在</td><td>待下次推单（≈10min）</td><td>—</td><td><strong style="color:var(--warn)">' + bbyL + '</strong></td><td><strong>' + d.bby.c + '</strong></td></tr>' +
-        '<tr><td>10:10</td><td>预计再推单释放</td><td class="down">−' + bbyL + '（实际推单）</td><td>→0</td><td>不变*</td></tr>';
+        '<tr style="background:#f8fafc"><td>09:50～10:00</td><td>平台成交（ERP不可见）</td><td>—</td><td>0</td><td><strong style="color:var(--warn)">' + proxy + '</strong></td><td>' + proxy + '</td></tr>' +
+        '<tr><td><strong>10:00</strong></td><td><strong>定时拉单</strong>（仅此知道本批）</td><td class="up"><strong>+' + batchPull + '</strong></td><td><strong>' + batchPull + '</strong></td><td>0</td><td><strong>' + batchPull + '</strong></td></tr>' +
+        '<tr><td>10:00</td><td>本批推 WFS 成功</td><td class="down">−' + proxy + '</td><td>0</td><td>0</td><td>0</td></tr>' +
+        '<tr><td>10:00 批末</td><td>刷新预占 := 上批推成功</td><td>—</td><td>0</td><td><strong style="color:var(--warn)">' + proxy + '</strong></td><td>' + proxy + '</td></tr>' +
+        '<tr style="background:#fff7ed"><td><strong>现在</strong></td><td>等待下次拉单（≈10min）</td><td>—</td><td><strong>' + erp + '</strong></td><td><strong>' + proxy + '</strong></td><td><strong>' + sum + '</strong></td></tr>' +
+        '<tr><td><strong>10:10</strong></td><td>下次定时拉单（才知新一批合计）</td><td>?</td><td colspan="3" style="color:var(--muted)">不以 10:03/10:07 逐笔展示</td></tr>';
     }
 
     function renderOversell(d, r) {
