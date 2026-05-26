@@ -231,61 +231,6 @@
     .scope-out { background: #f1f5f9; border: 1px solid var(--line); }
     .scope-in h5, .scope-out h5 { margin: 0 0 8px; font-size: 13px; }
     .scope-in ul, .scope-out ul { margin: 0; padding-left: 1.2em; }
-
-    /* A 类总流程 · 纯 CSS + SVG 决策树 */
-    .decision-flow {
-      width: 100%; max-width: 920px; margin: 16px auto; font-size: 12px;
-      display: flex; flex-direction: column; align-items: center;
-    }
-    .df-node {
-      padding: 10px 18px; border-radius: 10px; border: 2px solid var(--line);
-      background: #fff; text-align: center; line-height: 1.5; position: relative; z-index: 1;
-    }
-    .df-node.start { border-color: #93c5fd; background: var(--brand-soft); border-radius: 999px; font-weight: 700; }
-    .df-node.end { border-color: #86efac; background: var(--good-soft); border-radius: 999px; font-weight: 700; }
-    .df-node.action { border-color: #cbd5e1; background: #fafbff; width: 100%; }
-    .df-node.action-a1 { border-color: #7dd3fc; background: var(--a1-soft); width: 100%; }
-    .df-node.action-a2 { border-color: #2dd4bf; background: var(--a2-soft); width: 100%; }
-    .df-node.merge { border-color: #fcd34d; background: var(--warn-soft); font-weight: 700; }
-    .df-diamond-box {
-      padding: 10px 16px; background: var(--warn-soft); border: 2px solid #fcd34d;
-      border-radius: 8px; font-weight: 700; text-align: center; position: relative; z-index: 1;
-    }
-    .df-vline { width: 2px; height: 22px; background: #64748b; flex-shrink: 0; }
-    .df-lbl { font-size: 11px; font-weight: 800; color: var(--muted); text-align: center; display: block; padding: 2px 0; }
-    .df-lbl.yes { color: var(--good); }
-    .df-lbl.no { color: var(--brand); }
-
-    .df-fork1 { width: 100%; display: flex; flex-direction: column; align-items: center; }
-    .df-fork1-svg { width: 100%; max-width: 720px; height: 36px; display: block; }
-    .df-fork1-cols {
-      display: grid; grid-template-columns: 1fr 1fr; gap: 48px;
-      width: 100%; max-width: 820px; align-items: start;
-    }
-    .df-fork1-col { display: flex; flex-direction: column; align-items: center; gap: 0; }
-    .df-fork1-col.right { align-items: stretch; }
-
-    .df-fork2 { width: 100%; display: flex; flex-direction: column; align-items: center; }
-    .df-fork2-svg { width: 100%; max-width: 680px; height: 40px; display: block; }
-    .df-fork2-cols {
-      display: grid; grid-template-columns: 1fr 1fr; gap: 32px;
-      width: 100%; align-items: start;
-    }
-    .df-lane { display: flex; flex-direction: column; align-items: center; gap: 0; }
-    .df-lane-head {
-      font-size: 13px; font-weight: 800; padding: 8px 12px; border-radius: 8px;
-      text-align: center; width: 100%;
-    }
-    .df-lane-head.a1 { background: var(--a1-soft); color: var(--a1); border: 2px solid #7dd3fc; }
-    .df-lane-head.a2 { background: var(--a2-soft); color: var(--a2); border: 2px solid #2dd4bf; }
-
-    .df-merge-block { width: 100%; display: flex; flex-direction: column; align-items: center; }
-    .df-merge-svg { width: 100%; max-width: 680px; height: 36px; display: block; }
-
-    @media (max-width: 680px) {
-      .df-fork1-cols, .df-fork2-cols { grid-template-columns: 1fr; gap: 24px; }
-      .df-fork1-svg, .df-fork2-svg, .df-merge-svg { display: none; }
-    }
   </style>
 </head>
 <body>
@@ -421,7 +366,6 @@ flowchart LR
           <button class="tab-btn active-a1" data-tab="a1" role="tab">A-1 退款+退货（Costco）</button>
           <button class="tab-btn" data-tab="a2" role="tab">A-2 仅退款（沃尔玛等）</button>
           <button class="tab-btn" data-tab="b" role="tab">B 批量滞销（山姆等）</button>
-          <button class="tab-btn" data-tab="a-all" role="tab">A 类总流程图</button>
         </div>
 
         <!-- A-1 -->
@@ -561,85 +505,6 @@ flowchart LR
             <li>挂账：信息充分挂<strong>具体客户</strong>，否则只挂<strong>渠道</strong>；按<strong>确认签收月</strong>入账</li>
             <li>再售出产生新收入；管报上某月 RMA 率可能异常高——建议对批量退货<strong>单独打标签</strong></li>
           </ul>
-        </div>
-
-        <!-- A 类总流程 · CSS 决策树 -->
-        <div class="tab-panel" id="panel-a-all">
-          <p class="lead">A 类 · 从 C 端退货到货款抵扣（分岔逻辑）</p>
-          <div class="decision-flow">
-            <!-- 主干 -->
-            <div class="df-node start">C 端消费者向 KA 门店退货</div>
-            <div class="df-vline"></div>
-            <div class="df-diamond-box">KA 能否在本地门店消化？</div>
-
-            <!-- 第一处分岔：是 | 否 -->
-            <div class="df-fork1">
-              <svg class="df-fork1-svg" viewBox="0 0 720 36" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
-                <path d="M360,0 L360,14" stroke="#64748b" stroke-width="2" fill="none"/>
-                <path d="M180,14 L540,14" stroke="#64748b" stroke-width="2" fill="none"/>
-                <path d="M180,14 L180,36" stroke="#64748b" stroke-width="2" fill="none"/>
-                <path d="M540,14 L540,36" stroke="#64748b" stroke-width="2" fill="none"/>
-              </svg>
-              <div class="df-fork1-cols">
-                <!-- 左：是 → 结束 -->
-                <div class="df-fork1-col">
-                  <span class="df-lbl yes">是</span>
-                  <div class="df-node end" style="margin-top:8px">不挂供应商<br>流程结束</div>
-                </div>
-                <!-- 右：否 → 退货形式 → A-1 / A-2 并行 -->
-                <div class="df-fork1-col right">
-                  <span class="df-lbl no">否，需向供应商索赔</span>
-                  <div class="df-vline" style="align-self:center"></div>
-                  <div class="df-diamond-box" style="align-self:center">退货形式？</div>
-
-                  <div class="df-fork2">
-                    <svg class="df-fork2-svg" viewBox="0 0 680 40" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
-                      <path d="M340,0 L340,16" stroke="#64748b" stroke-width="2" fill="none"/>
-                      <path d="M170,16 L510,16" stroke="#64748b" stroke-width="2" fill="none"/>
-                      <path d="M170,16 L170,40" stroke="#64748b" stroke-width="2" fill="none"/>
-                      <path d="M510,16 L510,40" stroke="#64748b" stroke-width="2" fill="none"/>
-                    </svg>
-                    <div class="df-fork2-cols">
-                      <!-- A-1 左支 -->
-                      <div class="df-lane">
-                        <div class="df-lane-head a1">A-1 退款 + 退货</div>
-                        <div class="df-vline"></div>
-                        <div class="df-node action-a1">实物运回海外仓<br><small>Costco 等高价值品</small></div>
-                        <div class="df-vline"></div>
-                        <div class="df-node action">对账系统审批<br>钉钉在线表格登记</div>
-                        <div class="df-vline"></div>
-                        <div class="df-node action">通知物流收货</div>
-                        <div class="df-vline"></div>
-                        <div class="df-node action">海外仓签收<br><small>报废 / 返修 / 拆配件</small></div>
-                      </div>
-                      <!-- A-2 右支（与 A-1 并排） -->
-                      <div class="df-lane">
-                        <div class="df-lane-head a2">A-2 仅退款</div>
-                        <div class="df-vline"></div>
-                        <div class="df-node action-a2">仅走账扣款，无实物<br><small>沃尔玛等多数 KA</small></div>
-                        <div class="df-vline"></div>
-                        <div class="df-node action">Excel 登记<br>SKU、数量、金额</div>
-                        <div class="df-vline"></div>
-                        <div class="df-node action">财务核对金额<br><small>一般不核入库数量</small></div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <!-- 两支汇合 -->
-                  <div class="df-merge-block">
-                    <svg class="df-merge-svg" viewBox="0 0 680 36" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
-                      <path d="M170,0 L170,18 L340,18" stroke="#64748b" stroke-width="2" fill="none"/>
-                      <path d="M510,0 L510,18 L340,18" stroke="#64748b" stroke-width="2" fill="none"/>
-                      <path d="M340,18 L340,36" stroke="#64748b" stroke-width="2" fill="none"/>
-                    </svg>
-                    <div class="df-node merge" style="align-self:center">从应付货款中扣减<br><small>一般不单独打款</small></div>
-                    <div class="df-vline" style="align-self:center"></div>
-                    <div class="df-node end" style="align-self:center">月度出账含扣款<br>季度与客户对账单核实</div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
         </div>
       </div>
     </section>
@@ -813,7 +678,7 @@ flowchart LR
 
     const tabs = document.querySelectorAll('.tab-btn');
     const panels = document.querySelectorAll('.tab-panel');
-    const tabStyles = { a1: 'active-a1', a2: 'active-a2', b: 'active-b', 'a-all': 'active-a1' };
+    const tabStyles = { a1: 'active-a1', a2: 'active-a2', b: 'active-b' };
 
     tabs.forEach(btn => {
       btn.addEventListener('click', () => {
