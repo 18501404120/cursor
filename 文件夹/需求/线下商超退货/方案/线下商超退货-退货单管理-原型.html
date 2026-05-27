@@ -81,7 +81,7 @@
       overflow: hidden; margin-top: 12px;
     }
     .table-scroll { overflow: auto; max-height: calc(100vh - 320px); }
-    table.data { width: 100%; border-collapse: collapse; font-size: 12px; min-width: 1580px; }
+    table.data { width: 100%; border-collapse: collapse; font-size: 12px; min-width: 1680px; }
     table.data th, table.data td {
       border: 1px solid var(--line); padding: 8px 10px; text-align: left;
       vertical-align: middle;
@@ -203,16 +203,78 @@
     }
     .toast.show { display: block; animation: fadeUp .3s ease; }
     @keyframes fadeUp { from { opacity: 0; transform: translate(-50%, 8px); } to { opacity: 1; transform: translate(-50%, 0); } }
+
+    /* 角色通知 */
+    .topbar-right { display: flex; align-items: center; gap: 12px; }
+    .role-sel {
+      height: 28px; padding: 0 8px; border-radius: 4px; border: 1px solid #434343;
+      background: #141414; color: #fff; font-size: 12px;
+    }
+    .notify-btn {
+      position: relative; height: 28px; padding: 0 10px; border-radius: 4px;
+      border: 1px solid #434343; background: #141414; color: #fff;
+      cursor: pointer; font-size: 12px;
+    }
+    .notify-btn .badge {
+      position: absolute; top: -6px; right: -6px; min-width: 16px; height: 16px;
+      padding: 0 4px; border-radius: 8px; background: #ff4d4f; color: #fff;
+      font-size: 10px; line-height: 16px; text-align: center;
+    }
+    .notify-panel {
+      margin: 0 20px 12px; background: #fff; border: 1px solid var(--line);
+      border-radius: 8px; overflow: hidden;
+    }
+    .notify-panel-hd {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 10px 14px; background: #f8fafc; border-bottom: 1px solid var(--line);
+      font-size: 13px; font-weight: 600; color: #0f2f63;
+    }
+    .notify-panel-hd span { font-weight: 400; font-size: 12px; color: var(--muted); }
+    .notify-list { max-height: 160px; overflow-y: auto; }
+    .notify-item {
+      display: flex; align-items: flex-start; gap: 10px; padding: 10px 14px;
+      border-bottom: 1px solid var(--line); font-size: 12px; cursor: pointer;
+    }
+    .notify-item:hover { background: #fafbff; }
+    .notify-item.done { opacity: .55; }
+    .notify-item.highlight { background: #fff7e6; }
+    .notify-role {
+      flex-shrink: 0; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600;
+    }
+    .notify-role.biz { background: #e0f2fe; color: #0369a1; }
+    .notify-role.log { background: #ecfdf5; color: #0f766e; }
+    .notify-role.fin { background: #fef3c7; color: #b45309; }
+    .notify-body { flex: 1; line-height: 1.5; }
+    .notify-body strong { color: var(--brand); }
+    .notify-time { flex-shrink: 0; color: var(--muted); font-size: 11px; }
+    .tag-role {
+      display: inline-block; padding: 1px 6px; border-radius: 3px;
+      font-size: 10px; font-weight: 600; margin-left: 4px;
+    }
+    .tag-role.biz { background: #e0f2fe; color: #0369a1; }
+    .tag-role.log { background: #ecfdf5; color: #0f766e; }
+    .tag-role.fin { background: #fef3c7; color: #b45309; }
   </style>
 </head>
 <body>
 <div class="erp-layout">
   <header class="topbar">
     <span class="logo">ERP · 全渠道管报</span>
-    <nav>
-      <a href="线下商超退货-完整流程说明.html">流程说明</a>
-      <a href="线下商超退货-退货单管理-解决方案.md">解决方案 MD</a>
-    </nav>
+    <div class="topbar-right">
+      <label style="font-size:12px;color:#91caff">当前角色</label>
+      <select class="role-sel" id="current-role" title="切换角色视角，筛选待办通知">
+        <option value="商务">商务</option>
+        <option value="物流">物流</option>
+        <option value="财务">财务</option>
+      </select>
+      <button type="button" class="notify-btn" id="btn-toggle-notify" title="待办通知">
+        🔔 待办 <span class="badge" id="notify-badge">0</span>
+      </button>
+      <nav>
+        <a href="线下商超退货-完整流程说明.html">流程说明</a>
+        <a href="线下商超退货-退货单管理-解决方案.md">解决方案 MD</a>
+      </nav>
+    </div>
   </header>
 
   <div class="page-hd">
@@ -221,8 +283,16 @@
   </div>
 
   <div class="solution-banner">
-    <strong>方案要点：</strong>行级<strong>处理方式</strong>单字段（返修上架 / 原箱上架 / 拆其他 SKU 上架 / 报废）；A-1 先 WMS 预报再签收；A-2 仅扣款核对。
-    详见 <a href="线下商超退货-退货单管理-解决方案.md">解决方案文档</a>。
+    <strong>方案要点：</strong>导入后按操作步骤<strong>通知对应角色</strong>（商务/物流/财务）来本页操作；当前步骤完成后自动通知下一角色，直至全流程结束。
+    行级<strong>处理方式</strong>决定操作链；详见 <a href="线下商超退货-退货单管理-解决方案.md">解决方案文档</a>。
+  </div>
+
+  <div class="notify-panel" id="notify-panel">
+    <div class="notify-panel-hd">
+      <span>待办通知 · 按角色推送</span>
+      <span id="notify-hint">切换顶部「当前角色」查看各角色待办；点击通知定位到对应行</span>
+    </div>
+    <div class="notify-list" id="notify-list"></div>
   </div>
 
   <div class="filter-panel">
@@ -308,6 +378,7 @@
               <th>退货类型</th>
               <th>处理方式</th>
               <th>操作</th>
+              <th>待办角色</th>
               <th>建议 ERP 动作</th>
               <th>行状态</th>
             </tr>
@@ -410,6 +481,19 @@
   };
   var FLOW_A2 = ['已财务核对'];
 
+  var STEP_ROLES = {
+    '已确认': '商务',
+    '已WMS预报': '物流',
+    '已上架': '物流',
+    '推金蝶退货单': '财务',
+    '已建其他入库单': '物流',
+    '已财务核对': '财务'
+  };
+
+  var notifications = [];
+  var notifySeq = 0;
+  var currentRole = '商务';
+
   var MSKU_CATALOG = [
     'H70501', 'H70502', 'H70503', 'H70504', 'H61201', 'H61202', 'H61203',
     'H61234', 'H61235', 'H61236', 'H61237', 'H61238', 'H61239',
@@ -466,6 +550,117 @@
     else r.status = '待确认';
   }
 
+  function getPendingAction(r) {
+    var steps = getFlowSteps(r);
+    var cur = r.flowStep || 0;
+    if (cur >= steps.length) return null;
+    var action = steps[cur];
+    return { action: action, role: STEP_ROLES[action] || '—' };
+  }
+
+  function roleClass(role) {
+    if (role === '商务') return 'biz';
+    if (role === '物流') return 'log';
+    if (role === '财务') return 'fin';
+    return 'biz';
+  }
+
+  function pushNotification(r, action, role) {
+    notifySeq += 1;
+    notifications.unshift({
+      id: notifySeq,
+      line: r.line,
+      batch: r.batch,
+      role: role,
+      action: action,
+      text: '批次 ' + r.batch + ' · 行 ' + r.line + '（' + (r.msku || r.custCode) + '）请操作「' + action + '」',
+      status: 'pending',
+      time: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
+    });
+    renderNotifyPanel();
+  }
+
+  function completeNotificationsForStep(r, action) {
+    notifications.forEach(function (n) {
+      if (n.line === r.line && n.action === action && n.status === 'pending') {
+        n.status = 'done';
+      }
+    });
+    renderNotifyPanel();
+  }
+
+  function renderNotifyPanel() {
+    var role = currentRole;
+    var pending = notifications.filter(function (n) { return n.status === 'pending' && n.role === role; });
+    var list = document.getElementById('notify-list');
+    var badge = document.getElementById('notify-badge');
+    badge.textContent = pending.length;
+    badge.style.display = pending.length ? 'block' : 'none';
+
+    var shown = notifications.filter(function (n) {
+      return n.role === role && (n.status === 'pending' || n.status === 'done');
+    }).slice(0, 12);
+
+    if (!shown.length) {
+      list.innerHTML = '<div style="padding:14px;color:var(--muted);font-size:12px">「' + role + '」暂无待办通知</div>';
+      return;
+    }
+
+    list.innerHTML = shown.map(function (n) {
+      return '<div class="notify-item' + (n.status === 'done' ? ' done' : '') + '" data-line="' + n.line + '">' +
+        '<span class="notify-role ' + roleClass(n.role) + '">' + n.role + '</span>' +
+        '<div class="notify-body">' + n.text + (n.status === 'done' ? ' <em>（已完成）</em>' : '') + '</div>' +
+        '<span class="notify-time">' + n.time + '</span></div>';
+    }).join('');
+
+    list.querySelectorAll('.notify-item:not(.done)').forEach(function (el) {
+      el.addEventListener('click', function () {
+        var line = +el.dataset.line;
+        var tr = document.querySelector('#tbody tr[data-line="' + line + '"]');
+        if (tr) {
+          tr.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          tr.style.outline = '2px solid #1677ff';
+          setTimeout(function () { tr.style.outline = ''; }, 2000);
+        }
+      });
+    });
+  }
+
+  function seedNotificationsFromRows() {
+    notifications = [];
+    notifySeq = 0;
+    allRows.forEach(function (r) {
+      var p = getPendingAction(r);
+      if (p) pushNotification(r, p.action, p.role);
+    });
+  }
+
+  function notifyAfterImport(batchId, count) {
+    var parsed = mockParseRows();
+    parsed.forEach(function (p, i) {
+      var mockR = {
+        line: allRows.length + i + 1,
+        batch: batchId,
+        custCode: p.custCode,
+        msku: p.msku,
+        type: importType,
+        handleMode: p.handleMode,
+        flowStep: 0
+      };
+      if (importType === 'A-2') mockR.handleMode = null;
+      var pending = getPendingAction(mockR);
+      if (pending) pushNotification(mockR, pending.action, pending.role);
+    });
+    toast('批次 ' + batchId + ' 已生成 ' + count + ' 行，已通知各角色待办');
+  }
+
+  function pendingRoleHtml(r) {
+    var p = getPendingAction(r);
+    if (!p) return '<span style="color:#999">—</span>';
+    return '<span class="tag-role ' + roleClass(p.role) + '">' + p.role + '</span>' +
+      '<span style="font-size:11px;color:var(--muted)">' + p.action + '</span>';
+  }
+
   function operationCellHtml(r) {
     var steps = getFlowSteps(r);
     if (!steps.length) return '<span style="color:#999">—</span>';
@@ -489,10 +684,18 @@
     var steps = getFlowSteps(r);
     if ((r.flowStep || 0) >= steps.length) return;
     var label = steps[r.flowStep || 0];
+    var doneRole = STEP_ROLES[label];
     r.flowStep = (r.flowStep || 0) + 1;
+    completeNotificationsForStep(r, label);
     syncStatusFromFlow(r);
+    var pending = getPendingAction(r);
+    if (pending) {
+      pushNotification(r, pending.action, pending.role);
+      toast('「' + doneRole + '」已完成「' + label + '」→ 已通知「' + pending.role + '」操作「' + pending.action + '」');
+    } else {
+      toast('行 ' + line + '：全部操作已完成，流程结束');
+    }
     renderTable();
-    toast('行 ' + line + '：已标记「' + label + '」');
   }
 
   function amount(r) {
@@ -569,6 +772,7 @@
         '<td><span class="tag ' + tagClass(r.type) + '">' + typeLabel(r.type) + '</span></td>' +
         '<td>' + handleSelectHtml(r) + '</td>' +
         '<td class="col-op">' + operationCellHtml(r) + '</td>' +
+        '<td>' + pendingRoleHtml(r) + '</td>' +
         '<td><span class="tag tag-action">' + suggestAction(r) + '</span></td>' +
         '<td><span class="tag tag-status">' + r.status + '</span></td>' +
         '</tr>';
@@ -637,6 +841,9 @@
         r.handleMode = el.value;
         r.flowStep = 0;
         syncStatusFromFlow(r);
+        notifications = notifications.filter(function (n) { return n.line !== r.line; });
+        var p = getPendingAction(r);
+        if (p) pushNotification(r, p.action, p.role);
         renderTable();
       });
     });
@@ -781,11 +988,14 @@
       } else {
         sum.innerHTML += '<li>默认「原箱上架」，签收完成后生成销售退货单任务</li>';
       }
+      sum.innerHTML += '<li><strong>导入后将按首步操作通知对应角色</strong>（商务/物流/财务），完成后链式通知下一角色</li>';
       setStep(3);
       return;
     }
     document.getElementById('modal-import').classList.remove('open');
-    toast('已生成退货批次（原型演示）');
+    var batchId = document.getElementById('new-batch-id').textContent;
+    var cnt = +document.getElementById('confirm-count').textContent;
+    notifyAfterImport(batchId, cnt);
   });
 
   document.getElementById('btn-forecast').addEventListener('click', function () {
@@ -810,6 +1020,12 @@
     toast('已重置筛选');
   });
 
+  document.getElementById('current-role').addEventListener('change', function (e) {
+    currentRole = e.target.value;
+    renderNotifyPanel();
+  });
+
+  seedNotificationsFromRows();
   renderTable();
 })();
 </script>
