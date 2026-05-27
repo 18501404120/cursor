@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>线下商超退货 · 退货单管理</title>
+  <style>
+    :root {
+      --brand: #1677ff; --brand-soft: #e6f4ff;
+      --border: #d9d9d9; --line: #f0f0f0;
+      --text: #1e293b; --muted: #64748b; --label: #595959;
+      --good: #0f766e; --warn: #b45309; --danger: #b91c1c;
+      --a1: #0369a1; --a2: #0f766e; --b: #b45309;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+      font-size: 13px; color: var(--text); background: #f5f7fa;
+    }
+    .erp-layout { min-height: 100vh; display: flex; flex-direction: column; }
+    .topbar {
+      background: #001529; color: #fff; padding: 0 20px; height: 48px;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .topbar .logo { font-weight: 700; font-size: 14px; }
+    .topbar a { color: #91caff; font-size: 12px; text-decoration: none; margin-left: 12px; }
+    .topbar a:hover { text-decoration: underline; }
+    .page-hd {
+      background: #fff; border-bottom: 1px solid var(--line);
+      padding: 14px 20px;
+    }
+    .page-hd h1 { margin: 0 0 4px; font-size: 18px; color: #0f2f63; }
+    .page-hd p { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.55; }
+    .page-hd a { color: var(--brand); }
+    .solution-banner {
+      margin: 12px 20px 0; padding: 12px 14px; background: var(--brand-soft);
+      border: 1px solid #91caff; border-radius: 8px; font-size: 12px; line-height: 1.6;
+    }
+    .solution-banner strong { color: #0958d9; }
+    .filter-panel {
+      background: #fff; padding: 14px 20px 16px; border-bottom: 1px solid var(--line);
+    }
+    .filter-grid {
+      display: flex; flex-wrap: wrap; gap: 12px 16px; align-items: center;
+    }
+    .f-item { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+    .f-item > label { color: var(--label); white-space: nowrap; }
+    .ctl-wrap { position: relative; display: inline-flex; align-items: center; }
+    select.ctl {
+      height: 32px; min-width: 88px; max-width: 120px;
+      padding: 0 28px 0 10px; border: 1px solid var(--border);
+      border-radius: 6px; font-size: 13px; background: #fff;
+    }
+    select.ctl:focus { border-color: var(--brand); outline: none; box-shadow: 0 0 0 2px rgba(22,119,255,.12); }
+    .ctl-clear {
+      position: absolute; right: 22px; top: 50%; transform: translateY(-50%);
+      border: none; background: transparent; color: rgba(0,0,0,.25);
+      cursor: pointer; font-size: 12px; padding: 2px 4px; z-index: 1;
+    }
+    .ctl-clear:hover { color: rgba(0,0,0,.45); }
+    .ctl-clear[hidden] { display: none; }
+    input.ctl-text {
+      height: 32px; width: 140px; padding: 0 10px;
+      border: 1px solid var(--border); border-radius: 6px;
+    }
+    .btn {
+      height: 32px; padding: 0 14px; border-radius: 6px; font-size: 13px;
+      cursor: pointer; border: 1px solid var(--border); background: #fff;
+      font-family: inherit;
+    }
+    .btn-primary { background: var(--brand); color: #fff; border-color: var(--brand); }
+    .btn-primary:hover { background: #4096ff; }
+    .btn-ghost:hover { color: var(--brand); border-color: var(--brand); }
+    .toolbar {
+      display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
+      padding: 12px 20px; background: #fff; border-bottom: 1px solid var(--line);
+    }
+    .main { flex: 1; padding: 0 20px 24px; }
+    .table-wrap {
+      background: #fff; border: 1px solid var(--line); border-radius: 8px;
+      overflow: hidden; margin-top: 12px;
+    }
+    .table-scroll { overflow: auto; max-height: calc(100vh - 320px); }
+    table.data { width: 100%; border-collapse: collapse; font-size: 12px; min-width: 1280px; }
+    table.data th, table.data td {
+      border: 1px solid var(--line); padding: 8px 10px; text-align: left;
+      vertical-align: middle;
+    }
+    table.data thead th {
+      position: sticky; top: 0; z-index: 2;
+      background: #fafafa; font-weight: 600; color: var(--label);
+      box-shadow: 0 1px 0 var(--line);
+    }
+    table.data tbody tr:hover { background: #fafbff; }
+    table.data tbody tr.row-warn { background: #fffbeb; }
+    .tag {
+      display: inline-block; padding: 2px 8px; border-radius: 4px;
+      font-size: 11px; font-weight: 600;
+    }
+    .tag-a1 { background: #e0f2fe; color: var(--a1); }
+    .tag-a2 { background: #ccfbf1; color: var(--a2); }
+    .tag-b { background: #fef3c7; color: var(--b); }
+    .tag-status { background: #f1f5f9; color: #475569; }
+    .tag-action { background: #f5f3ff; color: #6d28d9; max-width: 160px; }
+    select.cell-sel {
+      width: 72px; height: 28px; font-size: 12px;
+      border: 1px solid var(--border); border-radius: 4px;
+    }
+    select.cell-sel:disabled { background: #f5f5f5; color: #999; }
+    .num-r { text-align: right; font-variant-numeric: tabular-nums; }
+    .link { color: var(--brand); cursor: pointer; text-decoration: none; }
+    .link:hover { text-decoration: underline; }
+    .batch-bar {
+      display: flex; align-items: center; gap: 12px; padding: 10px 14px;
+      background: #f8fafc; border-bottom: 1px solid var(--line); font-size: 12px;
+    }
+    .batch-bar strong { color: #0f2f63; }
+
+    /* Modal */
+    .modal-mask {
+      display: none; position: fixed; inset: 0; background: rgba(0,0,0,.45);
+      z-index: 100; align-items: center; justify-content: center; padding: 20px;
+    }
+    .modal-mask.open { display: flex; }
+    .modal {
+      background: #fff; border-radius: 10px; width: 100%; max-width: 720px;
+      max-height: 90vh; overflow: hidden; display: flex; flex-direction: column;
+      box-shadow: 0 12px 40px rgba(0,0,0,.15);
+    }
+    .modal-hd {
+      padding: 14px 18px; border-bottom: 1px solid var(--line);
+      font-weight: 700; font-size: 15px;
+    }
+    .modal-bd { padding: 18px; overflow-y: auto; flex: 1; }
+    .modal-ft {
+      padding: 12px 18px; border-top: 1px solid var(--line);
+      display: flex; justify-content: flex-end; gap: 8px;
+    }
+    .steps { display: flex; gap: 0; margin-bottom: 18px; }
+    .step {
+      flex: 1; text-align: center; padding: 8px; font-size: 12px;
+      border-bottom: 2px solid var(--line); color: var(--muted);
+    }
+    .step.active { border-color: var(--brand); color: var(--brand); font-weight: 700; }
+    .step.done { border-color: var(--good); color: var(--good); }
+    .form-row { margin-bottom: 14px; }
+    .form-row label { display: block; margin-bottom: 6px; color: var(--label); font-weight: 600; }
+    .type-cards { display: flex; gap: 10px; flex-wrap: wrap; }
+    .type-card {
+      flex: 1; min-width: 180px; padding: 12px; border: 2px solid var(--line);
+      border-radius: 8px; cursor: pointer; transition: all .15s;
+    }
+    .type-card:hover { border-color: #93c5fd; }
+    .type-card.selected { border-color: var(--brand); background: var(--brand-soft); }
+    .type-card h4 { margin: 0 0 4px; font-size: 13px; }
+    .type-card p { margin: 0; font-size: 11px; color: var(--muted); }
+    .upload-zone {
+      border: 2px dashed var(--border); border-radius: 8px; padding: 28px;
+      text-align: center; color: var(--muted); cursor: pointer;
+    }
+    .upload-zone:hover { border-color: var(--brand); background: #fafbff; }
+    .upload-zone input { display: none; }
+    .parse-preview { font-size: 12px; color: var(--muted); margin-top: 8px; }
+    .toast {
+      position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+      background: #1e293b; color: #fff; padding: 10px 18px; border-radius: 8px;
+      font-size: 13px; z-index: 200; display: none;
+    }
+    .toast.show { display: block; animation: fadeUp .3s ease; }
+    @keyframes fadeUp { from { opacity: 0; transform: translate(-50%, 8px); } to { opacity: 1; transform: translate(-50%, 0); } }
+  </style>
+</head>
+<body>
+<div class="erp-layout">
+  <header class="topbar">
+    <span class="logo">ERP · 全渠道管报</span>
+    <nav>
+      <a href="线下商超退货-完整流程说明.html">流程说明</a>
+      <a href="线下商超退货-退货单管理-解决方案.md">解决方案 MD</a>
+    </nav>
+  </header>
+
+  <div class="page-hd">
+    <h1>线下商超退货 · 退货单管理</h1>
+    <p>导入客户对账单或原始凭证 → 选择退货类型（A-1 / A-2 / B）→ 自动解析 MSKU、数量、手续费、退款金额 → 行级配置处置方式 → 生成后续 WMS / ERP 建议动作</p>
+  </div>
+
+  <div class="solution-banner">
+    <strong>方案要点：</strong>统一替代钉钉 Excel 重复登记；A-1 先「猫头鹰入库预报」再签收；返修原 SKU → 销售退货单，拆其他 SKU → 其他入库单；A-2 仅扣款核对；B 类原箱上架 → 签收后销售退货单。
+    详见 <a href="线下商超退货-退货单管理-解决方案.md">解决方案文档</a>。
+  </div>
+
+  <div class="filter-panel">
+    <div class="filter-grid">
+      <div class="f-item">
+        <label>客户 KA</label>
+        <div class="ctl-wrap">
+          <select class="ctl" id="f-ka">
+            <option value="">全部</option>
+            <option>Costco</option>
+            <option>沃尔玛</option>
+            <option>山姆</option>
+          </select>
+          <button type="button" class="ctl-clear" hidden data-for="f-ka">×</button>
+        </div>
+      </div>
+      <div class="f-item">
+        <label>退货类型</label>
+        <div class="ctl-wrap">
+          <select class="ctl" id="f-type">
+            <option value="">全部</option>
+            <option value="A-1">A-1 退款+退货</option>
+            <option value="A-2">A-2 仅退款</option>
+            <option value="B">B 批量滞销</option>
+          </select>
+          <button type="button" class="ctl-clear" hidden data-for="f-type">×</button>
+        </div>
+      </div>
+      <div class="f-item">
+        <label>批次状态</label>
+        <div class="ctl-wrap">
+          <select class="ctl" id="f-status">
+            <option value="">全部</option>
+            <option>待确认</option>
+            <option>已确认</option>
+            <option>待预报</option>
+            <option>已签收</option>
+          </select>
+          <button type="button" class="ctl-clear" hidden data-for="f-status">×</button>
+        </div>
+      </div>
+      <div class="f-item">
+        <label>MSKU</label>
+        <input type="text" class="ctl-text" id="f-msku" placeholder="模糊搜索">
+      </div>
+      <button type="button" class="btn btn-primary" id="btn-query">查询</button>
+      <button type="button" class="btn btn-ghost" id="btn-reset">重置</button>
+    </div>
+  </div>
+
+  <div class="toolbar">
+    <button type="button" class="btn btn-primary" id="btn-import">导入对账单 / 凭证</button>
+    <button type="button" class="btn btn-ghost" id="btn-forecast">批量提交物流预报</button>
+    <button type="button" class="btn btn-ghost">导出</button>
+    <span style="margin-left:auto;color:var(--muted);font-size:12px">共 <strong id="row-count">5</strong> 行明细 · 当前批次 <strong id="batch-id">RT-20260526-001</strong></span>
+  </div>
+
+  <main class="main">
+    <div class="table-wrap">
+      <div class="batch-bar">
+        <span>批次 <strong id="bar-batch">RT-20260526-001</strong></span>
+        <span>客户 <strong>Costco</strong></span>
+        <span>类型 <span class="tag tag-a1">A-1 退款+退货</span></span>
+        <span>导入 <strong>2026-05-26 10:32</strong></span>
+        <span>退款合计 <strong class="num-r">$12,480.50</strong></span>
+        <span>状态 <span class="tag tag-status">待确认</span></span>
+      </div>
+      <div class="table-scroll">
+        <table class="data" id="detail-table">
+          <thead>
+            <tr>
+              <th style="width:32px"><input type="checkbox" id="chk-all" checked></th>
+              <th>行号</th>
+              <th>MSKU</th>
+              <th>生产 SKU</th>
+              <th class="num-r">数量</th>
+              <th class="num-r">单价</th>
+              <th class="num-r">手续费</th>
+              <th class="num-r">退款金额</th>
+              <th>退货类型</th>
+              <th>是否返修上架</th>
+              <th>是否原箱上架</th>
+              <th>是否拆其他 SKU 上架</th>
+              <th>建议 ERP 动作</th>
+              <th>行状态</th>
+            </tr>
+          </thead>
+          <tbody id="tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- 导入向导 -->
+<div class="modal-mask" id="modal-import" role="dialog" aria-labelledby="import-title">
+  <div class="modal">
+    <div class="modal-hd" id="import-title">导入对账单 / 原始凭证</div>
+    <div class="modal-bd">
+      <div class="steps">
+        <div class="step active" data-step="1">1. 类型与文件</div>
+        <div class="step" data-step="2">2. 解析预览</div>
+        <div class="step" data-step="3">3. 确认入库</div>
+      </div>
+      <div id="panel-step1">
+        <div class="form-row">
+          <label>客户 KA</label>
+          <select class="ctl" id="imp-ka" style="min-width:160px;max-width:none">
+            <option value="Costco">Costco</option>
+            <option value="沃尔玛">沃尔玛</option>
+            <option value="山姆">山姆</option>
+          </select>
+        </div>
+        <div class="form-row">
+          <label>退货类型（批次级，导入前必选）</label>
+          <div class="type-cards" id="type-cards">
+            <div class="type-card selected" data-type="A-1">
+              <h4>A-1 退款 + 退货</h4>
+              <p>实物回猫头鹰仓；需配置返修/原箱/拆 SKU</p>
+            </div>
+            <div class="type-card" data-type="A-2">
+              <h4>A-2 仅退款</h4>
+              <p>无实物；仅核对扣款金额</p>
+            </div>
+            <div class="type-card" data-type="B">
+              <h4>B 批量滞销</h4>
+              <p>全新未拆箱；签收后销售退货单</p>
+            </div>
+          </div>
+        </div>
+        <div class="form-row">
+          <label>上传文件</label>
+          <label class="upload-zone" id="upload-zone">
+            <input type="file" id="file-input" accept=".xlsx,.xls,.csv">
+            <div>点击或拖拽上传 Costco 对账导出 / 沃尔玛 RMA / CSV 模板</div>
+            <div class="parse-preview" id="file-name">未选择文件（原型：点击下一步将模拟解析 3 行）</div>
+          </label>
+        </div>
+      </div>
+      <div id="panel-step2" hidden>
+        <p style="margin:0 0 10px;color:var(--muted);font-size:12px">已解析 <strong id="parse-count">0</strong> 行，可修改处置下拉；映射失败行标黄。</p>
+        <div style="overflow:auto;max-height:280px;border:1px solid var(--line);border-radius:6px">
+          <table class="data" style="min-width:900px">
+            <thead>
+              <tr>
+                <th>MSKU</th><th>数量</th><th>单价</th><th>手续费</th><th>退款金额</th>
+                <th>返修上架</th><th>原箱上架</th><th>拆其他 SKU</th>
+              </tr>
+            </thead>
+            <tbody id="preview-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+      <div id="panel-step3" hidden>
+        <p style="margin:0;font-size:13px">将生成退货批次 <strong id="new-batch-id">RT-NEW</strong>，共 <strong id="confirm-count">0</strong> 行。</p>
+        <ul style="margin:12px 0 0;padding-left:18px;color:var(--muted);font-size:12px;line-height:1.7" id="confirm-summary"></ul>
+      </div>
+    </div>
+    <div class="modal-ft">
+      <button type="button" class="btn btn-ghost" id="btn-modal-cancel">取消</button>
+      <button type="button" class="btn btn-ghost" id="btn-modal-prev" hidden>上一步</button>
+      <button type="button" class="btn btn-primary" id="btn-modal-next">下一步</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(function () {
+  var YES_NO = ['—', '是', '否'];
+  var batchType = 'A-1';
+
+  var rows = [
+    { line: 1, msku: 'B07XXXX-01', sku: 'H70501', qty: 12, price: 89.99, fee: 0, type: 'A-1',
+      repair: '是', origBox: '否', otherSku: '否', status: '待确认' },
+    { line: 2, msku: 'B07YYYY-02', sku: 'H70502', qty: 8, price: 79.50, fee: 0, type: 'A-1',
+      repair: '是', origBox: '否', otherSku: '是', status: '待确认' },
+    { line: 3, msku: 'PN-屋檐灯-黑', sku: '（待映射）', qty: 5, price: 120, fee: 0, type: 'A-1',
+      repair: '否', origBox: '否', otherSku: '否', status: '待确认', warn: true },
+    { line: 4, msku: 'WM-ITEM-9912', sku: 'H61234', qty: 20, price: 45, fee: 90, type: 'A-2',
+      repair: '—', origBox: '—', otherSku: '—', status: '已确认' },
+    { line: 5, msku: 'SAM-BULK-01', sku: 'H61200', qty: 200, price: 32.5, fee: 0, type: 'B',
+      repair: '—', origBox: '是', otherSku: '—', status: '待预报' }
+  ];
+
+  function amount(r) {
+    return (r.qty * r.price + (r.fee || 0)).toFixed(2);
+  }
+
+  function suggestAction(r) {
+    if (r.type === 'A-2') return '回款扣款核对';
+    if (r.type === 'B') return r.origBox === '是' ? '签收后→销售退货单' : '待业务确认';
+    if (r.repair === '否' || (r.origBox === '否' && r.otherSku === '否')) return '报废，无入库单';
+    if (r.otherSku === '是') return '其他入库单（物流）';
+    if (r.origBox === '是' || r.repair === '是') return 'WMS预报→签收→销售退货单';
+    return '待配置处置';
+  }
+
+  function renderTable() {
+    var tb = document.getElementById('tbody');
+    tb.innerHTML = rows.map(function (r) {
+      var disabled = r.type === 'A-2';
+      var sel = function (field, val) {
+        if (disabled) return '<select class="cell-sel" disabled><option>—</option></select>';
+        return '<select class="cell-sel" data-line="' + r.line + '" data-field="' + field + '">' +
+          YES_NO.filter(function (x) { return x !== '—' || disabled; }).map(function (o) {
+            return '<option' + (o === val ? ' selected' : '') + '>' + o + '</option>';
+          }).join('') + '</select>';
+      };
+      var tagClass = r.type === 'A-1' ? 'tag-a1' : r.type === 'A-2' ? 'tag-a2' : 'tag-b';
+      return '<tr class="' + (r.warn ? 'row-warn' : '') + '" data-line="' + r.line + '">' +
+        '<td><input type="checkbox" checked></td>' +
+        '<td>' + r.line + '</td>' +
+        '<td>' + r.msku + '</td>' +
+        '<td>' + r.sku + '</td>' +
+        '<td class="num-r">' + r.qty + '</td>' +
+        '<td class="num-r">' + r.price.toFixed(2) + '</td>' +
+        '<td class="num-r">' + (r.fee ? r.fee.toFixed(2) : '0.00') + '</td>' +
+        '<td class="num-r">' + amount(r) + '</td>' +
+        '<td><span class="tag ' + tagClass + '">' + r.type + '</span></td>' +
+        '<td>' + sel('repair', r.repair) + '</td>' +
+        '<td>' + sel('origBox', r.origBox) + '</td>' +
+        '<td>' + sel('otherSku', r.otherSku) + '</td>' +
+        '<td><span class="tag tag-action">' + suggestAction(r) + '</span></td>' +
+        '<td><span class="tag tag-status">' + r.status + '</span></td>' +
+        '</tr>';
+    }).join('');
+    document.getElementById('row-count').textContent = rows.length;
+    bindRowSelects();
+  }
+
+  function bindRowSelects() {
+    document.querySelectorAll('#tbody select.cell-sel').forEach(function (el) {
+      el.addEventListener('change', function () {
+        var line = +el.dataset.line;
+        var field = el.dataset.field;
+        var r = rows.find(function (x) { return x.line === line; });
+        if (!r) return;
+        r[field] = el.value;
+        if (field === 'origBox' && el.value === '是') r.otherSku = '否';
+        if (field === 'otherSku' && el.value === '是') r.origBox = '否';
+        renderTable();
+      });
+    });
+  }
+
+  /* 可清除下拉 */
+  document.querySelectorAll('.ctl-wrap select.ctl').forEach(function (sel) {
+    var clear = sel.parentElement.querySelector('.ctl-clear');
+    function sync() {
+      if (!clear) return;
+      clear.hidden = !sel.value;
+    }
+    sel.addEventListener('change', sync);
+    if (clear) clear.addEventListener('click', function () {
+      sel.value = '';
+      sel.dispatchEvent(new Event('change'));
+    });
+    sync();
+  });
+
+  function toast(msg) {
+    var t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    setTimeout(function () { t.classList.remove('show'); }, 2800);
+  }
+
+  /* 导入向导 */
+  var step = 1;
+  var importType = 'A-1';
+
+  document.querySelectorAll('.type-card').forEach(function (card) {
+    card.addEventListener('click', function () {
+      document.querySelectorAll('.type-card').forEach(function (c) { c.classList.remove('selected'); });
+      card.classList.add('selected');
+      importType = card.dataset.type;
+    });
+  });
+
+  document.getElementById('file-input').addEventListener('change', function (e) {
+    var f = e.target.files[0];
+    document.getElementById('file-name').textContent = f ? f.name : '未选择文件';
+  });
+
+  function setStep(n) {
+    step = n;
+    document.querySelectorAll('.step').forEach(function (s) {
+      var sn = +s.dataset.step;
+      s.classList.remove('active', 'done');
+      if (sn < n) s.classList.add('done');
+      if (sn === n) s.classList.add('active');
+    });
+    document.getElementById('panel-step1').hidden = n !== 1;
+    document.getElementById('panel-step2').hidden = n !== 2;
+    document.getElementById('panel-step3').hidden = n !== 3;
+    document.getElementById('btn-modal-prev').hidden = n === 1;
+    document.getElementById('btn-modal-next').textContent = n === 3 ? '确认生成批次' : '下一步';
+  }
+
+  function mockParseRows() {
+    if (importType === 'A-2') {
+      return [
+        { msku: 'WM-NEW-001', qty: 15, price: 52, fee: 78, repair: '—', origBox: '—', otherSku: '—' },
+        { msku: 'WM-NEW-002', qty: 10, price: 48, fee: 48, repair: '—', origBox: '—', otherSku: '—' }
+      ];
+    }
+    if (importType === 'B') {
+      return [{ msku: 'SAM-NEW-100', qty: 500, price: 28, fee: 0, repair: '—', origBox: '是', otherSku: '—' }];
+    }
+    return [
+      { msku: 'COSTCO-RMA-88', qty: 6, price: 95, fee: 0, repair: '是', origBox: '是', otherSku: '否' },
+      { msku: 'COSTCO-RMA-99', qty: 4, price: 88, fee: 0, repair: '是', origBox: '否', otherSku: '是' },
+      { msku: 'PN-未映射', qty: 2, price: 110, fee: 0, repair: '否', origBox: '否', otherSku: '否', warn: true }
+    ];
+  }
+
+  function openImport() {
+    step = 1;
+    importType = 'A-1';
+    document.querySelectorAll('.type-card').forEach(function (c) {
+      c.classList.toggle('selected', c.dataset.type === 'A-1');
+    });
+    setStep(1);
+    document.getElementById('modal-import').classList.add('open');
+  }
+
+  document.getElementById('btn-import').addEventListener('click', openImport);
+  document.getElementById('btn-modal-cancel').addEventListener('click', function () {
+    document.getElementById('modal-import').classList.remove('open');
+  });
+
+  document.getElementById('btn-modal-prev').addEventListener('click', function () {
+    if (step > 1) setStep(step - 1);
+  });
+
+  document.getElementById('btn-modal-next').addEventListener('click', function () {
+    if (step === 1) {
+      var parsed = mockParseRows();
+      document.getElementById('parse-count').textContent = parsed.length;
+      document.getElementById('preview-tbody').innerHTML = parsed.map(function (p, i) {
+        var yn = function (v) {
+          return '<select class="cell-sel" style="width:64px"><option' + (v === '是' ? ' selected' : '') + '>是</option><option' + (v === '否' ? ' selected' : '') + '>否</option></select>';
+        };
+        var dash = '<span style="color:#999">—</span>';
+        return '<tr' + (p.warn ? ' class="row-warn"' : '') + '>' +
+          '<td>' + p.msku + '</td><td>' + p.qty + '</td><td>' + p.price + '</td><td>' + p.fee + '</td>' +
+          '<td class="num-r">' + (p.qty * p.price + p.fee).toFixed(2) + '</td>' +
+          '<td>' + (importType === 'A-1' ? yn(p.repair) : dash) + '</td>' +
+          '<td>' + (importType !== 'A-2' ? yn(p.origBox) : dash) + '</td>' +
+          '<td>' + (importType === 'A-1' ? yn(p.otherSku) : dash) + '</td></tr>';
+      }).join('');
+      setStep(2);
+      return;
+    }
+    if (step === 2) {
+      var parsed = mockParseRows();
+      document.getElementById('confirm-count').textContent = parsed.length;
+      document.getElementById('new-batch-id').textContent = 'RT-' + Date.now().toString().slice(-8);
+      var sum = document.getElementById('confirm-summary');
+      sum.innerHTML = '';
+      if (importType === 'A-1') {
+        sum.innerHTML += '<li>有货行将标记为「待预报」→ 猫头鹰 WMS 创建入库单</li>';
+        sum.innerHTML += '<li>返修原 SKU 行 → 待财务「销售退货单」</li>';
+        sum.innerHTML += '<li>拆其他 SKU 行 → 待物流「其他入库单」</li>';
+      } else if (importType === 'A-2') {
+        sum.innerHTML += '<li>无实物，全部进入「回款扣款核对」待办</li>';
+      } else {
+        sum.innerHTML += '<li>默认原箱上架，签收完成后生成销售退货单任务</li>';
+      }
+      setStep(3);
+      return;
+    }
+    document.getElementById('modal-import').classList.remove('open');
+    toast('已生成退货批次（原型演示）');
+  });
+
+  document.getElementById('btn-forecast').addEventListener('click', function () {
+    toast('已提交 2 行至猫头鹰 WMS 入库预报（原型）');
+  });
+
+  document.getElementById('btn-query').addEventListener('click', function () { toast('已按筛选条件刷新列表'); });
+  document.getElementById('btn-reset').addEventListener('click', function () {
+    ['f-ka', 'f-type', 'f-status'].forEach(function (id) {
+      var el = document.getElementById(id);
+      el.value = '';
+      el.dispatchEvent(new Event('change'));
+    });
+    document.getElementById('f-msku').value = '';
+  });
+
+  renderTable();
+})();
+</script>
+</body>
+</html>
