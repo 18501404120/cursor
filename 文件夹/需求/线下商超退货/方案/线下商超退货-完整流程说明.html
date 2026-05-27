@@ -231,6 +231,12 @@
     .scope-out { background: #f1f5f9; border: 1px solid var(--line); }
     .scope-in h5, .scope-out h5 { margin: 0 0 8px; font-size: 13px; }
     .scope-in ul, .scope-out ul { margin: 0; padding-left: 1.2em; }
+    .fork-box { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 12px 0; }
+    @media (max-width: 640px) { .fork-box { grid-template-columns: 1fr; } }
+    .fork-card { padding: 12px; border-radius: 10px; font-size: 12px; border: 2px solid; }
+    .fork-card.f1 { border-color: #7dd3fc; background: var(--a1-soft); }
+    .fork-card.f2 { border-color: #38bdf8; background: #e0f2fe; }
+    .fork-card h5 { margin: 0 0 8px; font-size: 13px; }
   </style>
 </head>
 <body>
@@ -239,7 +245,7 @@
       <a href="../../index.html">← 需求原型总目录</a>
       · <a href="线下商超退货-完整流程梳理.md">Markdown 版</a>
       · 信息来源：会议1（全渠道管报 · 商超线下退货专题）
-      · v1.0 · 2026-05-26
+      · v1.1 · 2026-05-26
     </p>
     <h1>线下商超退货 · 完整流程说明</h1>
     <p class="sub">图文并茂业务方案页 · 可直接浏览器预览 · 供产品 / 财务 / 物流 / 管报对齐认知</p>
@@ -278,7 +284,7 @@
                 <div class="tree-leaf" style="border-color:#7dd3fc">
                   <strong style="color:var(--a1)">A-1 退款 + 退货</strong>
                   实物回海外仓 · 典型：Costco 高价值品（屋檐灯）
-                  <span class="tag">损坏为主 → 报废/返修/拆配件</span>
+                  <span class="tag">报废无单；返修可入库见下方制单</span>
                 </div>
                 <div class="tree-leaf" style="border-color:#2dd4bf">
                   <strong style="color:var(--a2)">A-2 仅退款</strong>
@@ -308,6 +314,21 @@ flowchart LR
   Start --> B1["B 批量滞销 Costco山姆"]
           </pre>
         </div>
+
+        <p class="lead" style="margin-top:16px">A-1 签收后 · 返修能正常使用时入库制单</p>
+        <div class="fork-box">
+          <div class="fork-card f1">
+            <h5 style="color:var(--a1)">① 按原 SKU 入库</h5>
+            返修后能按<strong>原 SKU</strong>入库<br>
+            物流邮件同步财务 → 手工建 <strong>销售退货单</strong>
+          </div>
+          <div class="fork-card f2">
+            <h5 style="color:var(--a1)">② 拆成其他 SKU 入库</h5>
+            返修后需拆成<strong>其他 SKU</strong>（如配件）<br>
+            物流建 <strong>其他入库单</strong>
+          </div>
+        </div>
+        <p class="muted" style="margin:0">无法返修正常使用 → <strong>报废</strong>，一般无 ERP 入库单。流程协作与 B 类「签收→邮件→制单」相近，但属 C 端 RMA 场景。</p>
       </div>
     </section>
 
@@ -334,7 +355,7 @@ flowchart LR
           <div class="role-card">
             <div class="icon">📊</div>
             <h4>财务</h4>
-            <p>核对扣款；录入回款明细；建销售退货单（B 类）；季度对账；协作上架</p>
+            <p>核对扣款；A-1 返修可入库时建销售退货单/其他入库单；B 类销售退货单；季度对账</p>
           </div>
           <div class="role-card">
             <div class="icon">📦</div>
@@ -396,20 +417,33 @@ flowchart LR
                 <div class="sl-row">
                   <div class="sl-cell sl-empty"></div>
                   <div class="sl-cell sl-empty"></div>
-                  <div class="sl-cell"><div class="sl-step warn"><span class="num">5</span>签收（多为损坏品）→ 报废 / 返修 / 拆配件</div></div>
-                  <div class="sl-cell"><div class="sl-step"><span class="num">6</span>核对扣款 → 货款中抵扣（非单独打款）</div></div>
+                  <div class="sl-cell"><div class="sl-step warn"><span class="num">5</span>签收 → 判定：报废 / 返修可入库</div></div>
+                  <div class="sl-cell sl-empty"></div>
+                </div>
+                <div class="sl-row">
+                  <div class="sl-cell sl-empty"></div>
+                  <div class="sl-cell sl-empty"></div>
+                  <div class="sl-cell"><div class="sl-step good"><span class="num">6a</span>原 SKU：邮件通知财务</div></div>
+                  <div class="sl-cell"><div class="sl-step highlight"><span class="num">7a</span>手工建<strong>销售退货单</strong></div></div>
+                </div>
+                <div class="sl-row">
+                  <div class="sl-cell sl-empty"></div>
+                  <div class="sl-cell sl-empty"></div>
+                  <div class="sl-cell"><div class="sl-step good"><span class="num">6b</span>其他 SKU：物流建<strong>其他入库单</strong></div></div>
+                  <div class="sl-cell"><div class="sl-step"><span class="num">7b</span>核对入库与扣款</div></div>
                 </div>
                 <div class="sl-row">
                   <div class="sl-cell sl-empty"></div>
                   <div class="sl-cell sl-empty"></div>
                   <div class="sl-cell sl-empty"></div>
-                  <div class="sl-cell"><div class="sl-step"><span class="num">7</span>季度与客户对账单核实</div></div>
+                  <div class="sl-cell"><div class="sl-step"><span class="num">8</span>核对扣款 → 货款抵扣；季度对账</div></div>
                 </div>
               </div>
             </div>
           </div>
           <ul class="points">
-            <li>实物退<strong>加州猫头鹰海外仓</strong>；目前<strong>无规范 ERP 销售退货单</strong>，物流有操作但 ERP 无单据</li>
+            <li>实物退<strong>猫头鹰海外仓</strong>等；签收后若<strong>报废</strong>一般无 ERP 入库单</li>
+            <li><strong>返修能正常使用</strong>时有入库单据：原 SKU → <strong>销售退货单</strong>；拆其他 SKU → <strong>其他入库单</strong>（物流邮件协同财务）</li>
             <li>若 KA 在本地门店消化 C 端退货，<strong>不会挂到供应商</strong>，流程不启动</li>
             <li>扣款在<strong>应付货款中直接扣除</strong>，一般不单独向客户打款</li>
           </ul>
@@ -530,10 +564,11 @@ flowchart LR
               <tr><td><strong>货物状态</strong></td><td>损坏为主</td><td>—</td><td><strong>全新未拆箱</strong></td></tr>
               <tr><td><strong>信息入口</strong></td><td>KA 对账系统</td><td>KA 导出 + Excel</td><td>邮件预告总量</td></tr>
               <tr><td><strong>物流协作</strong></td><td>钉钉 / 邮件</td><td>—</td><td>邮件 + WMS 建单</td></tr>
-              <tr><td><strong>ERP 入库单</strong></td><td class="no">❌ 无规范单据</td><td class="no">❌ 无</td><td class="yes">✅ 销售退货单</td></tr>
-              <tr><td><strong>财务核对</strong></td><td>金额 + 凭证</td><td>主要核金额</td><td>MA 金额 + 入库数量</td></tr>
+              <tr><td><strong>销售退货单</strong></td><td>返修可入库时 ✅</td><td class="no">❌ 无</td><td class="yes">✅</td></tr>
+              <tr><td><strong>其他入库单</strong></td><td>拆其他 SKU 时 ✅</td><td>—</td><td class="no">❌ 无</td></tr>
+              <tr><td><strong>财务核对</strong></td><td>金额 + 凭证；返修核入库</td><td>主要核金额</td><td>MA 金额 + 入库数量</td></tr>
               <tr><td><strong>扣款方式</strong></td><td>货款抵扣</td><td>货款抵扣</td><td>货款抵扣（MA 陆续）</td></tr>
-              <tr><td><strong>能否再售</strong></td><td class="no">❌ 报废/返修</td><td>—</td><td class="yes">✅ 上架再售</td></tr>
+              <tr><td><strong>能否再售</strong></td><td>返修可入库则可售；报废 ❌</td><td>—</td><td class="yes">✅ 上架再售</td></tr>
             </tbody>
           </table>
         </div>
@@ -595,7 +630,7 @@ flowchart LR
             <tbody>
               <tr><td>账 / 扣款登记</td><td>钉钉 Excel</td><td>钉钉 Excel</td><td>销售部 Excel</td></tr>
               <tr><td>货 / 物流</td><td>钉钉 / 邮件</td><td>—</td><td>邮件 + WMS</td></tr>
-              <tr><td>财务入账</td><td>回款明细（金额）</td><td>回款明细（金额）</td><td>销售退货单 + 回款</td></tr>
+              <tr><td>财务入账</td><td>回款明细；返修时销售退货单/其他入库</td><td>回款明细（金额）</td><td>销售退货单 + 回款</td></tr>
               <tr><td>对账</td><td colspan="3" style="text-align:center">季度与客户对账单核对</td></tr>
             </tbody>
           </table>
@@ -610,7 +645,7 @@ flowchart LR
         <div class="gap-grid">
           <div class="gap-card"><h5>销量未扣退货</h5><p>管报按「卖出」统计，线下退货未体现 → 收入、RMA 率偏高</p></div>
           <div class="gap-card"><h5>扣款无 SKU 明细</h5><p>ERP 回款明细一行一个金额，无法按 SKU 做毛利分析</p></div>
-          <div class="gap-card"><h5>A-1 无入库单</h5><p>实物回仓未规范进 ERP，库存与退货数量不可见</p></div>
+          <div class="gap-card"><h5>A-1 制单分流</h5><p>报废无单；返修入库靠邮件，销售退货单/其他入库单与 RMA 扣款关联靠人工</p></div>
           <div class="gap-card"><h5>海外仓未对接</h5><p>猫头鹰等 WMS 独立建单，签收进度无法自动同步</p></div>
           <div class="gap-card"><h5>扣款与入库不同步</h5><p>B 类 MA 陆续、入库集中，同一批退货跨月难关联</p></div>
           <div class="gap-card"><h5>批量退货无标签</h5><p>B 类也进 MA，常规 RMA 指标被批量退货拉高</p></div>
