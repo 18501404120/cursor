@@ -81,7 +81,7 @@
       overflow: hidden; margin-top: 12px;
     }
     .table-scroll { overflow: auto; max-height: calc(100vh - 320px); }
-    table.data { width: 100%; border-collapse: collapse; font-size: 12px; min-width: 1280px; }
+    table.data { width: 100%; border-collapse: collapse; font-size: 12px; min-width: 1080px; }
     table.data th, table.data td {
       border: 1px solid var(--line); padding: 8px 10px; text-align: left;
       vertical-align: middle;
@@ -105,6 +105,9 @@
     select.cell-sel {
       width: 72px; height: 28px; font-size: 12px;
       border: 1px solid var(--border); border-radius: 4px;
+    }
+    select.cell-handle {
+      min-width: 118px; max-width: 140px; width: auto;
     }
     select.cell-sel:disabled { background: #f5f5f5; color: #999; }
     .num-r { text-align: right; font-variant-numeric: tabular-nums; }
@@ -182,11 +185,11 @@
 
   <div class="page-hd">
     <h1>线下商超退货 · 退货单管理</h1>
-    <p>导入客户对账单或原始凭证 → 选择退货类型（A-1 / A-2 / B）→ 自动解析 MSKU、数量、手续费、退款金额 → 行级配置处置方式 → 生成后续 WMS / ERP 建议动作</p>
+    <p>导入客户对账单或原始凭证 → 选择退货类型（A-1 / A-2 / B）→ 自动解析 MSKU、数量、手续费、退款金额 → 行级选择<strong>处理方式</strong> → 生成后续 WMS / ERP 建议动作</p>
   </div>
 
   <div class="solution-banner">
-    <strong>方案要点：</strong>统一替代钉钉 Excel 重复登记；A-1 先「猫头鹰入库预报」再签收；返修原 SKU → 销售退货单，拆其他 SKU → 其他入库单；A-2 仅扣款核对；B 类原箱上架 → 签收后销售退货单。
+    <strong>方案要点：</strong>行级<strong>处理方式</strong>单字段（返修上架 / 原箱上架 / 拆其他 SKU 上架 / 报废）；A-1 先 WMS 预报再签收；A-2 仅扣款核对。
     详见 <a href="线下商超退货-退货单管理-解决方案.md">解决方案文档</a>。
   </div>
 
@@ -268,9 +271,7 @@
               <th class="num-r">手续费</th>
               <th class="num-r">退款金额</th>
               <th>退货类型</th>
-              <th>是否返修上架</th>
-              <th>是否原箱上架</th>
-              <th>是否拆其他 SKU 上架</th>
+              <th>处理方式</th>
               <th>建议 ERP 动作</th>
               <th>行状态</th>
             </tr>
@@ -306,7 +307,7 @@
           <div class="type-cards" id="type-cards">
             <div class="type-card selected" data-type="A-1">
               <h4>A-1 退款 + 退货</h4>
-              <p>实物回猫头鹰仓；需配置返修/原箱/拆 SKU</p>
+              <p>实物回猫头鹰仓；需选处理方式</p>
             </div>
             <div class="type-card" data-type="A-2">
               <h4>A-2 仅退款</h4>
@@ -328,13 +329,13 @@
         </div>
       </div>
       <div id="panel-step2" hidden>
-        <p style="margin:0 0 10px;color:var(--muted);font-size:12px">已解析 <strong id="parse-count">0</strong> 行，可修改处置下拉；映射失败行标黄。</p>
+        <p style="margin:0 0 10px;color:var(--muted);font-size:12px">已解析 <strong id="parse-count">0</strong> 行，可修改<strong>处理方式</strong>；映射失败行标黄。</p>
         <div style="overflow:auto;max-height:280px;border:1px solid var(--line);border-radius:6px">
-          <table class="data" style="min-width:900px">
+          <table class="data" style="min-width:720px">
             <thead>
               <tr>
                 <th>MSKU</th><th>数量</th><th>单价</th><th>手续费</th><th>退款金额</th>
-                <th>返修上架</th><th>原箱上架</th><th>拆其他 SKU</th>
+                <th>处理方式</th>
               </tr>
             </thead>
             <tbody id="preview-tbody"></tbody>
@@ -358,20 +359,19 @@
 
 <script>
 (function () {
-  var YES_NO = ['—', '是', '否'];
-  var batchType = 'A-1';
+  var HANDLE_MODES = ['返修上架', '原箱上架', '拆其他 SKU 上架', '报废'];
 
   var rows = [
     { line: 1, msku: 'B07XXXX-01', sku: 'H70501', qty: 12, price: 89.99, fee: 0, type: 'A-1',
-      repair: '是', origBox: '否', otherSku: '否', status: '待确认' },
+      handleMode: '返修上架', status: '待确认' },
     { line: 2, msku: 'B07YYYY-02', sku: 'H70502', qty: 8, price: 79.50, fee: 0, type: 'A-1',
-      repair: '是', origBox: '否', otherSku: '是', status: '待确认' },
+      handleMode: '拆其他 SKU 上架', status: '待确认' },
     { line: 3, msku: 'PN-屋檐灯-黑', sku: '（待映射）', qty: 5, price: 120, fee: 0, type: 'A-1',
-      repair: '否', origBox: '否', otherSku: '否', status: '待确认', warn: true },
+      handleMode: '报废', status: '待确认', warn: true },
     { line: 4, msku: 'WM-ITEM-9912', sku: 'H61234', qty: 20, price: 45, fee: 90, type: 'A-2',
-      repair: '—', origBox: '—', otherSku: '—', status: '已确认' },
+      handleMode: null, status: '已确认' },
     { line: 5, msku: 'SAM-BULK-01', sku: 'H61200', qty: 200, price: 32.5, fee: 0, type: 'B',
-      repair: '—', origBox: '是', otherSku: '—', status: '待预报' }
+      handleMode: '原箱上架', status: '待预报' }
   ];
 
   function amount(r) {
@@ -380,24 +380,29 @@
 
   function suggestAction(r) {
     if (r.type === 'A-2') return '回款扣款核对';
-    if (r.type === 'B') return r.origBox === '是' ? '签收后→销售退货单' : '待业务确认';
-    if (r.repair === '否' || (r.origBox === '否' && r.otherSku === '否')) return '报废，无入库单';
-    if (r.otherSku === '是') return '其他入库单（物流）';
-    if (r.origBox === '是' || r.repair === '是') return 'WMS预报→签收→销售退货单';
-    return '待配置处置';
+    var m = r.handleMode;
+    if (!m || m === '—') return '待配置处理方式';
+    if (m === '报废') return '报废，无入库单';
+    if (m === '拆其他 SKU 上架') return '其他入库单（物流）';
+    if (r.type === 'B' && m === '原箱上架') return '签收后→销售退货单';
+    if (m === '返修上架' || m === '原箱上架') return 'WMS预报→签收→销售退货单';
+    return '待配置处理方式';
+  }
+
+  function handleSelectHtml(r) {
+    if (r.type === 'A-2') {
+      return '<select class="cell-sel cell-handle" disabled><option>—</option></select>';
+    }
+    var cur = r.handleMode || HANDLE_MODES[0];
+    return '<select class="cell-sel cell-handle" data-line="' + r.line + '">' +
+      HANDLE_MODES.map(function (o) {
+        return '<option' + (o === cur ? ' selected' : '') + '>' + o + '</option>';
+      }).join('') + '</select>';
   }
 
   function renderTable() {
     var tb = document.getElementById('tbody');
     tb.innerHTML = rows.map(function (r) {
-      var disabled = r.type === 'A-2';
-      var sel = function (field, val) {
-        if (disabled) return '<select class="cell-sel" disabled><option>—</option></select>';
-        return '<select class="cell-sel" data-line="' + r.line + '" data-field="' + field + '">' +
-          YES_NO.filter(function (x) { return x !== '—' || disabled; }).map(function (o) {
-            return '<option' + (o === val ? ' selected' : '') + '>' + o + '</option>';
-          }).join('') + '</select>';
-      };
       var tagClass = r.type === 'A-1' ? 'tag-a1' : r.type === 'A-2' ? 'tag-a2' : 'tag-b';
       return '<tr class="' + (r.warn ? 'row-warn' : '') + '" data-line="' + r.line + '">' +
         '<td><input type="checkbox" checked></td>' +
@@ -409,9 +414,7 @@
         '<td class="num-r">' + (r.fee ? r.fee.toFixed(2) : '0.00') + '</td>' +
         '<td class="num-r">' + amount(r) + '</td>' +
         '<td><span class="tag ' + tagClass + '">' + r.type + '</span></td>' +
-        '<td>' + sel('repair', r.repair) + '</td>' +
-        '<td>' + sel('origBox', r.origBox) + '</td>' +
-        '<td>' + sel('otherSku', r.otherSku) + '</td>' +
+        '<td>' + handleSelectHtml(r) + '</td>' +
         '<td><span class="tag tag-action">' + suggestAction(r) + '</span></td>' +
         '<td><span class="tag tag-status">' + r.status + '</span></td>' +
         '</tr>';
@@ -421,15 +424,12 @@
   }
 
   function bindRowSelects() {
-    document.querySelectorAll('#tbody select.cell-sel').forEach(function (el) {
+    document.querySelectorAll('#tbody select.cell-handle').forEach(function (el) {
       el.addEventListener('change', function () {
         var line = +el.dataset.line;
-        var field = el.dataset.field;
         var r = rows.find(function (x) { return x.line === line; });
         if (!r) return;
-        r[field] = el.value;
-        if (field === 'origBox' && el.value === '是') r.otherSku = '否';
-        if (field === 'otherSku' && el.value === '是') r.origBox = '否';
+        r.handleMode = el.value;
         renderTable();
       });
     });
@@ -492,18 +492,27 @@
   function mockParseRows() {
     if (importType === 'A-2') {
       return [
-        { msku: 'WM-NEW-001', qty: 15, price: 52, fee: 78, repair: '—', origBox: '—', otherSku: '—' },
-        { msku: 'WM-NEW-002', qty: 10, price: 48, fee: 48, repair: '—', origBox: '—', otherSku: '—' }
+        { msku: 'WM-NEW-001', qty: 15, price: 52, fee: 78, handleMode: null },
+        { msku: 'WM-NEW-002', qty: 10, price: 48, fee: 48, handleMode: null }
       ];
     }
     if (importType === 'B') {
-      return [{ msku: 'SAM-NEW-100', qty: 500, price: 28, fee: 0, repair: '—', origBox: '是', otherSku: '—' }];
+      return [{ msku: 'SAM-NEW-100', qty: 500, price: 28, fee: 0, handleMode: '原箱上架' }];
     }
     return [
-      { msku: 'COSTCO-RMA-88', qty: 6, price: 95, fee: 0, repair: '是', origBox: '是', otherSku: '否' },
-      { msku: 'COSTCO-RMA-99', qty: 4, price: 88, fee: 0, repair: '是', origBox: '否', otherSku: '是' },
-      { msku: 'PN-未映射', qty: 2, price: 110, fee: 0, repair: '否', origBox: '否', otherSku: '否', warn: true }
+      { msku: 'COSTCO-RMA-88', qty: 6, price: 95, fee: 0, handleMode: '返修上架' },
+      { msku: 'COSTCO-RMA-99', qty: 4, price: 88, fee: 0, handleMode: '拆其他 SKU 上架' },
+      { msku: 'PN-未映射', qty: 2, price: 110, fee: 0, handleMode: '报废', warn: true }
     ];
+  }
+
+  function previewHandleSelect(val) {
+    if (importType === 'A-2') return '<span style="color:#999">—</span>';
+    var cur = val || '返修上架';
+    return '<select class="cell-sel cell-handle">' +
+      HANDLE_MODES.map(function (o) {
+        return '<option' + (o === cur ? ' selected' : '') + '>' + o + '</option>';
+      }).join('') + '</select>';
   }
 
   function openImport() {
@@ -529,17 +538,11 @@
     if (step === 1) {
       var parsed = mockParseRows();
       document.getElementById('parse-count').textContent = parsed.length;
-      document.getElementById('preview-tbody').innerHTML = parsed.map(function (p, i) {
-        var yn = function (v) {
-          return '<select class="cell-sel" style="width:64px"><option' + (v === '是' ? ' selected' : '') + '>是</option><option' + (v === '否' ? ' selected' : '') + '>否</option></select>';
-        };
-        var dash = '<span style="color:#999">—</span>';
+      document.getElementById('preview-tbody').innerHTML = parsed.map(function (p) {
         return '<tr' + (p.warn ? ' class="row-warn"' : '') + '>' +
           '<td>' + p.msku + '</td><td>' + p.qty + '</td><td>' + p.price + '</td><td>' + p.fee + '</td>' +
           '<td class="num-r">' + (p.qty * p.price + p.fee).toFixed(2) + '</td>' +
-          '<td>' + (importType === 'A-1' ? yn(p.repair) : dash) + '</td>' +
-          '<td>' + (importType !== 'A-2' ? yn(p.origBox) : dash) + '</td>' +
-          '<td>' + (importType === 'A-1' ? yn(p.otherSku) : dash) + '</td></tr>';
+          '<td>' + previewHandleSelect(p.handleMode) + '</td></tr>';
       }).join('');
       setStep(2);
       return;
@@ -551,13 +554,14 @@
       var sum = document.getElementById('confirm-summary');
       sum.innerHTML = '';
       if (importType === 'A-1') {
-        sum.innerHTML += '<li>有货行将标记为「待预报」→ 猫头鹰 WMS 创建入库单</li>';
-        sum.innerHTML += '<li>返修原 SKU 行 → 待财务「销售退货单」</li>';
-        sum.innerHTML += '<li>拆其他 SKU 行 → 待物流「其他入库单」</li>';
+        sum.innerHTML += '<li>非「报废」行 → 待预报（猫头鹰 WMS 入库单）</li>';
+        sum.innerHTML += '<li>「返修上架 / 原箱上架」→ 签收后待财务「销售退货单」</li>';
+        sum.innerHTML += '<li>「拆其他 SKU 上架」→ 待物流「其他入库单」</li>';
+        sum.innerHTML += '<li>「报废」→ 无 ERP 入库单</li>';
       } else if (importType === 'A-2') {
-        sum.innerHTML += '<li>无实物，全部进入「回款扣款核对」待办</li>';
+        sum.innerHTML += '<li>无实物，无处理方式；全部进入「回款扣款核对」</li>';
       } else {
-        sum.innerHTML += '<li>默认原箱上架，签收完成后生成销售退货单任务</li>';
+        sum.innerHTML += '<li>默认「原箱上架」，签收完成后生成销售退货单任务</li>';
       }
       setStep(3);
       return;
