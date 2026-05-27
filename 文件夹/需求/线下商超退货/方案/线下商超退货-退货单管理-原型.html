@@ -110,6 +110,17 @@
       min-width: 118px; max-width: 140px; width: auto;
     }
     select.cell-sel:disabled { background: #f5f5f5; color: #999; }
+    input.cell-inp, select.cell-msku {
+      height: 28px; padding: 0 6px; font-size: 12px;
+      border: 1px solid var(--border); border-radius: 4px;
+      background: #fff; width: 100%; min-width: 72px;
+    }
+    input.cell-inp:focus, select.cell-msku:focus {
+      border-color: var(--brand); outline: none; box-shadow: 0 0 0 2px rgba(22,119,255,.12);
+    }
+    input.cell-inp.num { text-align: right; width: 64px; min-width: 64px; }
+    select.cell-msku { min-width: 100px; max-width: 120px; }
+    td.col-cust { min-width: 108px; }
     .num-r { text-align: right; font-variant-numeric: tabular-nums; }
     .link { color: var(--brand); cursor: pointer; text-decoration: none; }
     .link:hover { text-decoration: underline; }
@@ -206,7 +217,7 @@
 
   <div class="page-hd">
     <h1>线下商超退货 · 退货单管理</h1>
-    <p>导入客户对账单或原始凭证 → 选择退货类型（A-1 / A-2 / B）→ 自动解析 MSKU、数量、手续费、退款金额 → 行级选择<strong>处理方式</strong> → 生成后续 WMS / ERP 建议动作</p>
+    <p>导入客户对账单或原始凭证 → 自动解析<strong>客户产品编码</strong>、<strong>MSKU</strong>、数量、单价、手续费单价 → 行级编辑与<strong>处理方式</strong> → 操作栏状态流转</p>
   </div>
 
   <div class="solution-banner">
@@ -258,6 +269,10 @@
         <input type="text" class="ctl-text" id="f-batch" placeholder="如 RT-20260526" style="width:120px">
       </div>
       <div class="f-item">
+        <label>客户产品编码</label>
+        <input type="text" class="ctl-text" id="f-cust" placeholder="模糊搜索">
+      </div>
+      <div class="f-item">
         <label>MSKU</label>
         <input type="text" class="ctl-text" id="f-msku" placeholder="模糊搜索">
       </div>
@@ -284,11 +299,11 @@
               <th>行号</th>
               <th>退货批次</th>
               <th>客户</th>
+              <th>客户产品编码</th>
               <th>MSKU</th>
-              <th>生产 SKU</th>
               <th class="num-r">数量</th>
               <th class="num-r">单价</th>
-              <th class="num-r">手续费</th>
+              <th class="num-r">手续费单价</th>
               <th class="num-r">退款金额</th>
               <th>退货类型</th>
               <th>处理方式</th>
@@ -355,7 +370,7 @@
           <table class="data" style="min-width:720px">
             <thead>
               <tr>
-                <th>MSKU</th><th>数量</th><th>单价</th><th>手续费</th><th>退款金额</th>
+                <th>客户产品编码</th><th>MSKU</th><th>数量</th><th>单价</th><th>手续费单价</th><th>退款金额</th>
                 <th>处理方式</th>
               </tr>
             </thead>
@@ -395,27 +410,33 @@
   };
   var FLOW_A2 = ['已财务核对'];
 
+  var MSKU_CATALOG = [
+    'H70501', 'H70502', 'H70503', 'H70504', 'H61201', 'H61202', 'H61203',
+    'H61234', 'H61235', 'H61236', 'H61237', 'H61238', 'H61239',
+    'H61200', 'H61205', 'H61206', 'H61207', 'H61208', 'H61209'
+  ];
+
   var allRows = [
-    { line: 1, batch: 'RT-20260526-001', ka: 'Costco', msku: 'B07XXXX-01', sku: 'H70501', qty: 12, price: 89.99, fee: 0, type: 'A-1', handleMode: '返修上架', flowStep: 0, status: '待确认' },
-    { line: 2, batch: 'RT-20260526-001', ka: 'Costco', msku: 'B07YYYY-02', sku: 'H70502', qty: 8, price: 79.50, fee: 0, type: 'A-1', handleMode: '拆其他 SKU 上架', flowStep: 1, status: '待确认' },
-    { line: 3, batch: 'RT-20260526-001', ka: 'Costco', msku: 'PN-屋檐灯-黑', sku: '（待映射）', qty: 5, price: 120, fee: 0, type: 'A-1', handleMode: '报废', flowStep: 0, status: '待确认', warn: true },
-    { line: 4, batch: 'RT-20260526-001', ka: 'Costco', msku: 'B08ZZZZ-03', sku: 'H70503', qty: 15, price: 65.00, fee: 0, type: 'A-1', handleMode: '返修上架', flowStep: 1, status: '待预报' },
-    { line: 5, batch: 'RT-20260526-001', ka: 'Costco', msku: 'B08AAAA-04', sku: 'H70504', qty: 6, price: 99.00, fee: 0, type: 'A-1', handleMode: '原箱上架', flowStep: 2, status: '已签收' },
-    { line: 6, batch: 'RT-20260526-001', ka: 'Costco', msku: 'PN-灯带-白', sku: 'H61201', qty: 10, price: 45.50, fee: 0, type: 'A-1', handleMode: '返修上架', flowStep: 0, status: '待确认' },
-    { line: 7, batch: 'RT-20260526-001', ka: 'Costco', msku: 'B09BBBB-05', sku: 'H61202', qty: 4, price: 128.00, fee: 0, type: 'A-1', handleMode: '报废', flowStep: 1, status: '已确认' },
-    { line: 8, batch: 'RT-20260526-001', ka: 'Costco', msku: 'B09CCCC-06', sku: 'H61203', qty: 20, price: 38.00, fee: 0, type: 'A-1', handleMode: '拆其他 SKU 上架', flowStep: 0, status: '待预报' },
-    { line: 9, batch: 'RT-20260525-002', ka: '沃尔玛', msku: 'WM-ITEM-9912', sku: 'H61234', qty: 20, price: 45, fee: 90, type: 'A-2', handleMode: null, flowStep: 1, status: '已确认' },
-    { line: 10, batch: 'RT-20260525-002', ka: '沃尔玛', msku: 'WM-ITEM-9913', sku: 'H61235', qty: 35, price: 52, fee: 182, type: 'A-2', handleMode: null, flowStep: 0, status: '已确认' },
-    { line: 11, batch: 'RT-20260525-002', ka: '沃尔玛', msku: 'WM-ITEM-9914', sku: 'H61236', qty: 12, price: 48, fee: 57.6, type: 'A-2', handleMode: null, flowStep: 0, status: '待确认' },
-    { line: 12, batch: 'RT-20260525-002', ka: '沃尔玛', msku: 'WM-ITEM-9915', sku: 'H61237', qty: 8, price: 61, fee: 48.8, type: 'A-2', handleMode: null, flowStep: 1, status: '已确认' },
-    { line: 13, batch: 'RT-20260525-002', ka: '沃尔玛', msku: 'WM-ITEM-9916', sku: 'H61238', qty: 50, price: 29.9, fee: 149.5, type: 'A-2', handleMode: null, flowStep: 0, status: '已确认' },
-    { line: 14, batch: 'RT-20260525-002', ka: '沃尔玛', msku: 'WM-ITEM-9917', sku: 'H61239', qty: 16, price: 55, fee: 88, type: 'A-2', handleMode: null, flowStep: 0, status: '待确认' },
-    { line: 15, batch: 'RT-20260524-003', ka: '山姆', msku: 'SAM-BULK-01', sku: 'H61200', qty: 200, price: 32.5, fee: 0, type: 'B', handleMode: '原箱上架', flowStep: 0, status: '待预报' },
-    { line: 16, batch: 'RT-20260524-003', ka: '山姆', msku: 'SAM-BULK-02', sku: 'H61205', qty: 150, price: 28.0, fee: 0, type: 'B', handleMode: '原箱上架', flowStep: 1, status: '待预报' },
-    { line: 17, batch: 'RT-20260524-003', ka: '山姆', msku: 'SAM-BULK-03', sku: 'H61206', qty: 80, price: 41.5, fee: 0, type: 'B', handleMode: '原箱上架', flowStep: 3, status: '已签收' },
-    { line: 18, batch: 'RT-20260524-003', ka: '山姆', msku: 'SAM-BULK-04', sku: 'H61207', qty: 120, price: 36.0, fee: 0, type: 'B', handleMode: '原箱上架', flowStep: 4, status: '已核销' },
-    { line: 19, batch: 'RT-20260524-003', ka: '山姆', msku: 'SAM-BULK-05', sku: 'H61208', qty: 60, price: 55.0, fee: 0, type: 'B', handleMode: '原箱上架', flowStep: 0, status: '待确认' },
-    { line: 20, batch: 'RT-20260524-003', ka: '山姆', msku: 'SAM-BULK-06', sku: 'H61209', qty: 100, price: 22.5, fee: 0, type: 'B', handleMode: '原箱上架', flowStep: 2, status: '待预报' }
+    { line: 1, batch: 'RT-20260526-001', ka: 'Costco', custCode: 'B07XXXX-01', msku: 'H70501', qty: 12, price: 89.99, feeUnit: 0, type: 'A-1', handleMode: '返修上架', flowStep: 0, status: '待确认' },
+    { line: 2, batch: 'RT-20260526-001', ka: 'Costco', custCode: 'B07YYYY-02', msku: 'H70502', qty: 8, price: 79.50, feeUnit: 0, type: 'A-1', handleMode: '拆其他 SKU 上架', flowStep: 1, status: '待确认' },
+    { line: 3, batch: 'RT-20260526-001', ka: 'Costco', custCode: 'PN-屋檐灯-黑', msku: '', qty: 5, price: 120, feeUnit: 0, type: 'A-1', handleMode: '报废', flowStep: 0, status: '待确认', warn: true },
+    { line: 4, batch: 'RT-20260526-001', ka: 'Costco', custCode: 'B08ZZZZ-03', msku: 'H70503', qty: 15, price: 65.00, feeUnit: 0, type: 'A-1', handleMode: '返修上架', flowStep: 1, status: '待预报' },
+    { line: 5, batch: 'RT-20260526-001', ka: 'Costco', custCode: 'B08AAAA-04', msku: 'H70504', qty: 6, price: 99.00, feeUnit: 0, type: 'A-1', handleMode: '原箱上架', flowStep: 2, status: '已签收' },
+    { line: 6, batch: 'RT-20260526-001', ka: 'Costco', custCode: 'PN-灯带-白', msku: 'H61201', qty: 10, price: 45.50, feeUnit: 0, type: 'A-1', handleMode: '返修上架', flowStep: 0, status: '待确认' },
+    { line: 7, batch: 'RT-20260526-001', ka: 'Costco', custCode: 'B09BBBB-05', msku: 'H61202', qty: 4, price: 128.00, feeUnit: 0, type: 'A-1', handleMode: '报废', flowStep: 2, status: '已核销' },
+    { line: 8, batch: 'RT-20260526-001', ka: 'Costco', custCode: 'B09CCCC-06', msku: 'H61203', qty: 20, price: 38.00, feeUnit: 0, type: 'A-1', handleMode: '拆其他 SKU 上架', flowStep: 0, status: '待预报' },
+    { line: 9, batch: 'RT-20260525-002', ka: '沃尔玛', custCode: 'WM-ITEM-9912', msku: 'H61234', qty: 20, price: 45, feeUnit: 4.5, type: 'A-2', handleMode: null, flowStep: 1, status: '已确认' },
+    { line: 10, batch: 'RT-20260525-002', ka: '沃尔玛', custCode: 'WM-ITEM-9913', msku: 'H61235', qty: 35, price: 52, feeUnit: 5.2, type: 'A-2', handleMode: null, flowStep: 0, status: '已确认' },
+    { line: 11, batch: 'RT-20260525-002', ka: '沃尔玛', custCode: 'WM-ITEM-9914', msku: 'H61236', qty: 12, price: 48, feeUnit: 4.8, type: 'A-2', handleMode: null, flowStep: 0, status: '待确认' },
+    { line: 12, batch: 'RT-20260525-002', ka: '沃尔玛', custCode: 'WM-ITEM-9915', msku: 'H61237', qty: 8, price: 61, feeUnit: 6.1, type: 'A-2', handleMode: null, flowStep: 1, status: '已确认' },
+    { line: 13, batch: 'RT-20260525-002', ka: '沃尔玛', custCode: 'WM-ITEM-9916', msku: 'H61238', qty: 50, price: 29.9, feeUnit: 2.99, type: 'A-2', handleMode: null, flowStep: 0, status: '已确认' },
+    { line: 14, batch: 'RT-20260525-002', ka: '沃尔玛', custCode: 'WM-ITEM-9917', msku: 'H61239', qty: 16, price: 55, feeUnit: 5.5, type: 'A-2', handleMode: null, flowStep: 0, status: '待确认' },
+    { line: 15, batch: 'RT-20260524-003', ka: '山姆', custCode: 'SAM-BULK-01', msku: 'H61200', qty: 200, price: 32.5, feeUnit: 0, type: 'B', handleMode: '原箱上架', flowStep: 0, status: '待预报' },
+    { line: 16, batch: 'RT-20260524-003', ka: '山姆', custCode: 'SAM-BULK-02', msku: 'H61205', qty: 150, price: 28.0, feeUnit: 0, type: 'B', handleMode: '原箱上架', flowStep: 1, status: '待预报' },
+    { line: 17, batch: 'RT-20260524-003', ka: '山姆', custCode: 'SAM-BULK-03', msku: 'H61206', qty: 80, price: 41.5, feeUnit: 0, type: 'B', handleMode: '原箱上架', flowStep: 3, status: '已签收' },
+    { line: 18, batch: 'RT-20260524-003', ka: '山姆', custCode: 'SAM-BULK-04', msku: 'H61207', qty: 120, price: 36.0, feeUnit: 0, type: 'B', handleMode: '原箱上架', flowStep: 4, status: '已核销' },
+    { line: 19, batch: 'RT-20260524-003', ka: '山姆', custCode: 'SAM-BULK-05', msku: 'H61208', qty: 60, price: 55.0, feeUnit: 0, type: 'B', handleMode: '原箱上架', flowStep: 0, status: '待确认' },
+    { line: 20, batch: 'RT-20260524-003', ka: '山姆', custCode: 'SAM-BULK-06', msku: 'H61209', qty: 100, price: 22.5, feeUnit: 0, type: 'B', handleMode: '原箱上架', flowStep: 2, status: '待预报' }
   ];
 
   var rows = allRows.slice();
@@ -475,7 +496,29 @@
   }
 
   function amount(r) {
-    return (r.qty * r.price + (r.fee || 0)).toFixed(2);
+    var q = r.qty || 0;
+    return (q * r.price + q * (r.feeUnit || 0)).toFixed(2);
+  }
+
+  function fmtNum(v) {
+    var n = Number(v);
+    return isNaN(n) ? '0.00' : n.toFixed(2);
+  }
+
+  function mskuSelectHtml(r) {
+    var cur = r.msku || '';
+    var opts = ['<option value="">请选择 MSKU</option>'];
+    if (cur && MSKU_CATALOG.indexOf(cur) === -1) {
+      opts.push('<option value="' + cur + '" selected>' + cur + '</option>');
+    }
+    MSKU_CATALOG.forEach(function (m) {
+      opts.push('<option value="' + m + '"' + (m === cur ? ' selected' : '') + '>' + m + '</option>');
+    });
+    return '<select class="cell-msku" data-line="' + r.line + '" data-field="msku">' + opts.join('') + '</select>';
+  }
+
+  function editableNumHtml(r, field, val) {
+    return '<input type="number" step="any" min="0" class="cell-inp num" data-line="' + r.line + '" data-field="' + field + '" value="' + val + '">';
   }
 
   function suggestAction(r) {
@@ -522,11 +565,11 @@
         '<td>' + r.line + '</td>' +
         '<td class="col-batch"><a class="link" href="#">' + r.batch + '</a></td>' +
         '<td>' + r.ka + '</td>' +
-        '<td>' + r.msku + '</td>' +
-        '<td>' + r.sku + '</td>' +
-        '<td class="num-r">' + r.qty + '</td>' +
-        '<td class="num-r">' + r.price.toFixed(2) + '</td>' +
-        '<td class="num-r">' + (r.fee ? r.fee.toFixed(2) : '0.00') + '</td>' +
+        '<td class="col-cust">' + r.custCode + '</td>' +
+        '<td>' + mskuSelectHtml(r) + '</td>' +
+        '<td class="num-r">' + editableNumHtml(r, 'qty', r.qty) + '</td>' +
+        '<td class="num-r">' + editableNumHtml(r, 'price', r.price) + '</td>' +
+        '<td class="num-r">' + editableNumHtml(r, 'feeUnit', r.feeUnit || 0) + '</td>' +
         '<td class="num-r">' + amount(r) + '</td>' +
         '<td><span class="tag ' + tagClass(r.type) + '">' + typeLabel(r.type) + '</span></td>' +
         '<td>' + handleSelectHtml(r) + '</td>' +
@@ -538,6 +581,29 @@
     updateSummary();
     bindRowSelects();
     bindOpButtons();
+    bindEditableCells();
+  }
+
+  function bindEditableCells() {
+    document.querySelectorAll('#tbody .cell-msku').forEach(function (el) {
+      el.addEventListener('change', function () {
+        var r = allRows.find(function (x) { return x.line === +el.dataset.line; });
+        if (!r) return;
+        r.msku = el.value;
+        r.warn = !r.msku;
+        renderTable();
+      });
+    });
+    document.querySelectorAll('#tbody input.cell-inp').forEach(function (el) {
+      el.addEventListener('change', function () {
+        var r = allRows.find(function (x) { return x.line === +el.dataset.line; });
+        if (!r) return;
+        var v = el.dataset.field === 'qty' ? parseInt(el.value, 10) : parseFloat(el.value);
+        if (isNaN(v) || v < 0) v = 0;
+        r[el.dataset.field] = v;
+        renderTable();
+      });
+    });
   }
 
   function bindOpButtons() {
@@ -553,13 +619,15 @@
     var type = document.getElementById('f-type').value;
     var status = document.getElementById('f-status').value;
     var batch = document.getElementById('f-batch').value.trim().toLowerCase();
+    var cust = document.getElementById('f-cust').value.trim().toLowerCase();
     var msku = document.getElementById('f-msku').value.trim().toLowerCase();
     rows = allRows.filter(function (r) {
       if (ka && r.ka !== ka) return false;
       if (type && r.type !== type) return false;
       if (status && r.status !== status) return false;
       if (batch && r.batch.toLowerCase().indexOf(batch) === -1) return false;
-      if (msku && r.msku.toLowerCase().indexOf(msku) === -1) return false;
+      if (cust && r.custCode.toLowerCase().indexOf(cust) === -1) return false;
+      if (msku && (!r.msku || r.msku.toLowerCase().indexOf(msku) === -1)) return false;
       return true;
     });
     renderTable();
@@ -636,18 +704,22 @@
   function mockParseRows() {
     if (importType === 'A-2') {
       return [
-        { msku: 'WM-NEW-001', qty: 15, price: 52, fee: 78, handleMode: null },
-        { msku: 'WM-NEW-002', qty: 10, price: 48, fee: 48, handleMode: null }
+        { custCode: 'WM-NEW-001', msku: 'H61234', qty: 15, price: 52, feeUnit: 5.2, handleMode: null },
+        { custCode: 'WM-NEW-002', msku: 'H61235', qty: 10, price: 48, feeUnit: 4.8, handleMode: null }
       ];
     }
     if (importType === 'B') {
-      return [{ msku: 'SAM-NEW-100', qty: 500, price: 28, fee: 0, handleMode: '原箱上架' }];
+      return [{ custCode: 'SAM-NEW-100', msku: 'H61200', qty: 500, price: 28, feeUnit: 0, handleMode: '原箱上架' }];
     }
     return [
-      { msku: 'COSTCO-RMA-88', qty: 6, price: 95, fee: 0, handleMode: '返修上架' },
-      { msku: 'COSTCO-RMA-99', qty: 4, price: 88, fee: 0, handleMode: '拆其他 SKU 上架' },
-      { msku: 'PN-未映射', qty: 2, price: 110, fee: 0, handleMode: '报废', warn: true }
+      { custCode: 'COSTCO-RMA-88', msku: 'H70501', qty: 6, price: 95, feeUnit: 0, handleMode: '返修上架' },
+      { custCode: 'COSTCO-RMA-99', msku: 'H70502', qty: 4, price: 88, feeUnit: 0, handleMode: '拆其他 SKU 上架' },
+      { custCode: 'PN-未映射', msku: '', qty: 2, price: 110, feeUnit: 0, handleMode: '报废', warn: true }
     ];
+  }
+
+  function previewAmount(p) {
+    return (p.qty * p.price + p.qty * (p.feeUnit || 0)).toFixed(2);
   }
 
   function previewHandleSelect(val) {
@@ -683,9 +755,16 @@
       var parsed = mockParseRows();
       document.getElementById('parse-count').textContent = parsed.length;
       document.getElementById('preview-tbody').innerHTML = parsed.map(function (p) {
+        var mskuOpts = MSKU_CATALOG.slice(0, 5).map(function (m) {
+          return '<option' + (m === p.msku ? ' selected' : '') + '>' + m + '</option>';
+        }).join('');
         return '<tr' + (p.warn ? ' class="row-warn"' : '') + '>' +
-          '<td>' + p.msku + '</td><td>' + p.qty + '</td><td>' + p.price + '</td><td>' + p.fee + '</td>' +
-          '<td class="num-r">' + (p.qty * p.price + p.fee).toFixed(2) + '</td>' +
+          '<td>' + p.custCode + '</td>' +
+          '<td><select class="cell-msku"><option value="">请选择</option>' + mskuOpts + '</select></td>' +
+          '<td><input class="cell-inp num" value="' + p.qty + '"></td>' +
+          '<td><input class="cell-inp num" value="' + p.price + '"></td>' +
+          '<td><input class="cell-inp num" value="' + (p.feeUnit || 0) + '"></td>' +
+          '<td class="num-r">' + previewAmount(p) + '</td>' +
           '<td>' + previewHandleSelect(p.handleMode) + '</td></tr>';
       }).join('');
       setStep(2);
@@ -729,6 +808,7 @@
       el.dispatchEvent(new Event('change'));
     });
     document.getElementById('f-batch').value = '';
+    document.getElementById('f-cust').value = '';
     document.getElementById('f-msku').value = '';
     rows = allRows.slice();
     renderTable();
