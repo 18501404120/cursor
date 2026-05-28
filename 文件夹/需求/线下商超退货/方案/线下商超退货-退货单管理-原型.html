@@ -182,6 +182,16 @@
     .btn-op:hover { background: #bae0ff; }
     td.col-op { white-space: nowrap; }
     td.col-pending { white-space: nowrap; }
+    .batch-ops {
+      display: inline-flex; align-items: center; gap: 10px;
+      margin-left: 12px; padding: 4px 12px;
+      background: #f0f9ff; border: 1px solid #91caff; border-radius: 8px;
+      font-size: 12px;
+    }
+    .batch-ops[hidden] { display: none; }
+    .batch-hint { color: var(--muted); max-width: 360px; line-height: 1.45; }
+    .batch-hint.warn { color: var(--warn); }
+    #btn-batch-go:disabled { opacity: 0.55; cursor: not-allowed; }
 
     /* Modal */
     .modal-mask {
@@ -387,6 +397,10 @@
     <button type="button" class="btn btn-primary" id="btn-import">导入对账单 / 凭证</button>
     <button type="button" class="btn btn-ghost" id="btn-forecast">批量提交物流预报</button>
     <button type="button" class="btn btn-ghost">导出</button>
+    <div class="batch-ops" id="batch-bar" hidden>
+      <span class="batch-hint" id="batch-hint">已选 0 行</span>
+      <button type="button" class="btn btn-primary" id="btn-batch-go" disabled title="">批量操作</button>
+    </div>
     <span style="margin-left:auto;color:var(--muted);font-size:12px">共 <strong id="row-count">20</strong> 行明细</span>
   </div>
 
@@ -397,7 +411,7 @@
         <table class="data" id="detail-table">
           <thead>
             <tr>
-              <th style="width:32px"><input type="checkbox" id="chk-all" checked></th>
+              <th style="width:32px"><input type="checkbox" id="chk-all" title="全选当前列表"></th>
               <th>行号</th>
               <th>退货批次</th>
               <th>客户</th>
@@ -605,6 +619,8 @@
   });
 
   var rows = allRows.slice();
+  /** 勾选行号（跨筛选保留；仅对当前可见行批量） */
+  var selectedLines = new Set();
 
   function typeLabel(type) { return TYPE_LABELS[type] || type; }
 
@@ -759,24 +775,136 @@
     return '<div class="op-cell">' + html + '</div>';
   }
 
-  function advanceFlow(line) {
+  function advanceFlow(line, opts) {
+    opts = opts || {};
     var r = allRows.find(function (x) { return x.line === line; });
-    if (!r) return;
+    if (!r) return false;
     var steps = getFlowSteps(r);
-    if ((r.flowStep || 0) >= steps.length) return;
+    if ((r.flowStep || 0) >= steps.length) return false;
     var label = steps[r.flowStep || 0];
     var doneRole = STEP_ROLES[label];
     r.flowStep = (r.flowStep || 0) + 1;
     completeNotificationsForStep(r, label);
     syncStatusFromFlow(r);
     var pending = getPendingAction(r);
-    if (pending) {
+    if (!opts.silent) {
+      if (pending) {
+        pushNotification(r, pending.action, pending.role);
+        toast('「' + doneRole + '」已完成「' + label + '」→ 已通知「' + pending.role + '」操作「' + pending.action + '」');
+      } else {
+        toast('行 ' + line + '：全部操作已完成，流程结束');
+      }
+      renderTable();
+    } else if (pending) {
       pushNotification(r, pending.action, pending.role);
-      toast('「' + doneRole + '」已完成「' + label + '」→ 已通知「' + pending.role + '」操作「' + pending.action + '」');
-    } else {
-      toast('行 ' + line + '：全部操作已完成，流程结束');
     }
+    return true;
+  }
+
+  function getSelectedRows() {
+    return rows.filter(function (r) { return selectedLines.has(r.line); });
+  }
+
+  function analyzeBatchSelection() {
+    var sel = getSelectedRows();
+    if (!sel.length) {
+      return { ok: false, reason: '请先勾选需要批量操作的行' };
+    }
+    var actions = [];
+    var statuses = [];
+    var blocked = [];
+    sel.forEach(function (r) {
+      var p = getPendingAction(r);
+      if (!p) blocked.push('行' + r.line + '（已完成）');
+      else actions.push(p.action);
+      statuses.push(r.status);
+    });
+    if (blocked.length) {
+      return { ok: false, reason: '含不可操作行：' + blocked.slice(0, 3).join('、') + (blocked.length > 3 ? '…' : '') };
+    }
+    var actionSet = actions.filter(function (a, i, arr) { return arr.indexOf(a) === i; });
+    if (actionSet.length > 1) {
+      return {
+        ok: false,
+        reason: '下一操作不一致（' + actionSet.join(' / ') + '），请仅勾选相同待办操作的行'
+      };
+    }
+    var statusSet = statuses.filter(function (s, i, arr) { return arr.indexOf(s) === i; });
+    if (statusSet.length > 1) {
+      return {
+        ok: false,
+        reason: '行状态不一致（' + statusSet.join(' / ') + '），仅相同行状态可批量操作'
+      };
+    }
+    return { ok: true, action: actionSet[0], status: statusSet[0], count: sel.length };
+  }
+
+  function updateBatchBar() {
+    var bar = document.getElementById('batch-bar');
+    var btn = document.getElementById('btn-batch-go');
+    var hint = document.getElementById('batch-hint');
+    var sel = getSelectedRows();
+    if (!sel.length) {
+      bar.hidden = true;
+      btn.disabled = true;
+      btn.title = '';
+      return;
+    }
+    bar.hidden = false;
+    var info = analyzeBatchSelection();
+    hint.classList.toggle('warn', !info.ok);
+    if (info.ok) {
+      hint.textContent = '已选 ' + info.count + ' 行 · 行状态「' + info.status + '」· 可批量「' + info.action + '」';
+      btn.disabled = false;
+      btn.textContent = '批量「' + info.action + '」';
+      btn.title = '对所选 ' + info.count + ' 行执行「' + info.action + '」';
+    } else {
+      hint.textContent = '已选 ' + sel.length + ' 行 · ' + info.reason;
+      btn.disabled = true;
+      btn.textContent = '批量操作';
+      btn.title = info.reason;
+    }
+  }
+
+  function syncChkAll() {
+    var chkAll = document.getElementById('chk-all');
+    var boxes = document.querySelectorAll('#tbody .row-chk');
+    if (!boxes.length) {
+      chkAll.checked = false;
+      chkAll.indeterminate = false;
+      return;
+    }
+    var n = 0;
+    boxes.forEach(function (b) { if (b.checked) n++; });
+    chkAll.checked = n === boxes.length;
+    chkAll.indeterminate = n > 0 && n < boxes.length;
+  }
+
+  function bindRowCheckboxes() {
+    document.querySelectorAll('#tbody .row-chk').forEach(function (cb) {
+      cb.addEventListener('change', function () {
+        var line = +cb.dataset.line;
+        if (cb.checked) selectedLines.add(line);
+        else selectedLines.delete(line);
+        syncChkAll();
+        updateBatchBar();
+      });
+    });
+  }
+
+  function runBatchAdvance() {
+    var info = analyzeBatchSelection();
+    if (!info.ok) {
+      toast(info.reason);
+      return;
+    }
+    var sel = getSelectedRows().slice();
+    var done = 0;
+    sel.forEach(function (r) {
+      if (advanceFlow(r.line, { silent: true })) done++;
+    });
     renderTable();
+    toast('已批量完成「' + info.action + '」共 ' + done + ' 行（行状态：' + info.status + '）');
   }
 
   function amount(r) {
@@ -871,7 +999,8 @@
     var tb = document.getElementById('tbody');
     tb.innerHTML = rows.map(function (r) {
       return '<tr class="' + (r.warn ? 'row-warn' : '') + '" data-line="' + r.line + '">' +
-        '<td><input type="checkbox" checked></td>' +
+        '<td><input type="checkbox" class="row-chk" data-line="' + r.line + '"' +
+          (selectedLines.has(r.line) ? ' checked' : '') + '></td>' +
         '<td>' + r.line + '</td>' +
         '<td class="col-batch"><a class="link" href="#">' + r.batch + '</a></td>' +
         '<td>' + r.ka + '</td>' +
@@ -896,6 +1025,9 @@
     bindOpButtons();
     bindEditableCells();
     bindMonthPickers();
+    bindRowCheckboxes();
+    syncChkAll();
+    updateBatchBar();
   }
 
   function bindEditableCells() {
@@ -1122,8 +1254,27 @@
     notifyAfterImport(batchId, cnt);
   });
 
+  document.getElementById('chk-all').addEventListener('change', function () {
+    var on = this.checked;
+    this.indeterminate = false;
+    document.querySelectorAll('#tbody .row-chk').forEach(function (cb) {
+      cb.checked = on;
+      var line = +cb.dataset.line;
+      if (on) selectedLines.add(line);
+      else selectedLines.delete(line);
+    });
+    updateBatchBar();
+  });
+
+  document.getElementById('btn-batch-go').addEventListener('click', runBatchAdvance);
+
   document.getElementById('btn-forecast').addEventListener('click', function () {
-    toast('已提交 2 行至猫头鹰 WMS 入库预报（原型）');
+    var info = analyzeBatchSelection();
+    if (info.ok && info.action === '已WMS预报') {
+      runBatchAdvance();
+      return;
+    }
+    toast('请勾选行状态一致且待办均为「已WMS预报」的行后批量提交（或使用行内/批量操作栏）');
   });
 
   document.getElementById('btn-query').addEventListener('click', function () {
