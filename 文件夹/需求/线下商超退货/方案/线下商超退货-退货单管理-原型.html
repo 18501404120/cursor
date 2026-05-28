@@ -131,6 +131,19 @@
     }
     input.cell-inp.num { text-align: right; width: 64px; min-width: 64px; }
     select.cell-msku { min-width: 100px; max-width: 120px; }
+    select.cell-currency {
+      width: 68px; min-width: 68px; height: 28px; padding: 0 4px;
+      font-size: 12px; border: 1px solid var(--border); border-radius: 4px;
+      background: #fff;
+    }
+    select.cell-currency:focus {
+      border-color: var(--brand); outline: none; box-shadow: 0 0 0 2px rgba(22,119,255,.12);
+    }
+    td.col-currency { white-space: nowrap; }
+    td.col-month { min-width: 172px; padding: 4px 6px; }
+    td.col-month .mrp-wrap { width: 172px; max-width: 172px; }
+    td.col-month .mrp-trigger { height: 28px; font-size: 12px; padding: 0 6px; }
+    td.col-month .mrp-text { font-size: 12px; }
     td.col-cust { min-width: 108px; }
     .num-r { text-align: right; font-variant-numeric: tabular-nums; }
     .link { color: var(--brand); cursor: pointer; text-decoration: none; }
@@ -388,6 +401,8 @@
               <th class="num-r">单价</th>
               <th class="num-r">手续费单价</th>
               <th class="num-r">退款金额</th>
+              <th>币种</th>
+              <th>退货月份范围</th>
               <th>退货类型</th>
               <th>处理方式</th>
               <th>操作</th>
@@ -477,6 +492,7 @@
 
 <div class="toast" id="toast"></div>
 
+<script src="../../../规范/assets/month-range-picker.js"></script>
 <script>
 (function () {
   var HANDLE_MODES = ['返修上架', '原箱上架', '拆其他 SKU 上架', '报废'];
@@ -513,6 +529,38 @@
     'H61200', 'H61205', 'H61206', 'H61207', 'H61208', 'H61209'
   ];
 
+  /** MSKU 主销国家 → 默认币种（来自销售主数据，原型 mock） */
+  var MSKU_META = {
+    H70501: { country: 'US', currency: 'USD' },
+    H70502: { country: 'US', currency: 'USD' },
+    H70503: { country: 'US', currency: 'USD' },
+    H70504: { country: 'US', currency: 'USD' },
+    H61201: { country: 'US', currency: 'USD' },
+    H61202: { country: 'US', currency: 'USD' },
+    H61203: { country: 'US', currency: 'USD' },
+    H61234: { country: 'US', currency: 'USD' },
+    H61235: { country: 'CA', currency: 'CAD' },
+    H61236: { country: 'MX', currency: 'MXN' },
+    H61237: { country: 'US', currency: 'USD' },
+    H61238: { country: 'US', currency: 'USD' },
+    H61239: { country: 'US', currency: 'USD' },
+    H61200: { country: 'US', currency: 'USD' },
+    H61205: { country: 'US', currency: 'USD' },
+    H61206: { country: 'US', currency: 'USD' },
+    H61207: { country: 'US', currency: 'USD' },
+    H61208: { country: 'US', currency: 'USD' },
+    H61209: { country: 'US', currency: 'USD' }
+  };
+
+  var CURRENCIES = ['USD', 'CAD', 'EUR', 'GBP', 'CNY', 'MXN', 'JPY'];
+  var KA_CURRENCY = { Costco: 'USD', '沃尔玛': 'USD', '山姆': 'USD' };
+
+  function currencyFromMsku(r) {
+    if (r.msku && MSKU_META[r.msku]) return MSKU_META[r.msku].currency;
+    if (KA_CURRENCY[r.ka]) return KA_CURRENCY[r.ka];
+    return 'USD';
+  }
+
   var allRows = [
     { line: 1, batch: 'RT-20260526-001', ka: 'Costco', custCode: 'B07XXXX-01', msku: 'H70501', qty: 12, price: 89.99, feeUnit: 0, type: 'A-1', handleMode: '返修上架', flowStep: 0, status: '待确认' },
     { line: 2, batch: 'RT-20260526-001', ka: 'Costco', custCode: 'B07YYYY-02', msku: 'H70502', qty: 8, price: 79.50, feeUnit: 0, type: 'A-1', handleMode: '拆其他 SKU 上架', flowStep: 1, status: '待确认' },
@@ -535,6 +583,20 @@
     { line: 19, batch: 'RT-20260524-003', ka: '山姆', custCode: 'SAM-BULK-05', msku: 'H61208', qty: 60, price: 55.0, feeUnit: 0, type: 'B', handleMode: '原箱上架', flowStep: 0, status: '待确认' },
     { line: 20, batch: 'RT-20260524-003', ka: '山姆', custCode: 'SAM-BULK-06', msku: 'H61209', qty: 100, price: 22.5, feeUnit: 0, type: 'B', handleMode: '原箱上架', flowStep: 2, status: '待预报' }
   ];
+
+  var MONTH_SAMPLES = [
+    ['2026-01', '2026-01'],
+    ['2026-02', '2026-03'],
+    ['2025-12', '2026-01'],
+    ['2026-03', '2026-03']
+  ];
+  allRows.forEach(function (r, idx) {
+    var mp = MONTH_SAMPLES[idx % MONTH_SAMPLES.length];
+    if (!r.monthStart) r.monthStart = mp[0];
+    if (!r.monthEnd) r.monthEnd = mp[1];
+    if (!r.currency) r.currency = currencyFromMsku(r);
+    r.currencyManual = !!r.currencyManual;
+  });
 
   var rows = allRows.slice();
 
@@ -732,6 +794,37 @@
     return '<input type="number" step="any" min="0" class="cell-inp num" data-line="' + r.line + '" data-field="' + field + '" value="' + val + '">';
   }
 
+  function currencySelectHtml(r) {
+    var cur = r.currency || currencyFromMsku(r);
+    var opts = CURRENCIES.map(function (c) {
+      return '<option value="' + c + '"' + (c === cur ? ' selected' : '') + '>' + c + '</option>';
+    });
+    return '<select class="cell-currency" data-line="' + r.line + '" title="根据 MSKU 主销国家自动带出，可手动修改">' +
+      opts.join('') + '</select>';
+  }
+
+  function monthRangeHostHtml(r) {
+    return '<div class="month-range-host" id="month-host-' + r.line + '" data-line="' + r.line + '"></div>';
+  }
+
+  function bindMonthPickers() {
+    if (typeof MonthRangePicker === 'undefined') return;
+    rows.forEach(function (r) {
+      var host = document.getElementById('month-host-' + r.line);
+      if (!host) return;
+      MonthRangePicker.mount(host, {
+        start: r.monthStart || '',
+        end: r.monthEnd || '',
+        placeholder: '请选择月份范围',
+        useBodyPortal: true,
+        onChange: function (v) {
+          r.monthStart = v.start || '';
+          r.monthEnd = v.end || '';
+        }
+      });
+    });
+  }
+
   function suggestAction(r) {
     if (r.type === 'A-2') return '回款扣款核对';
     var m = r.handleMode;
@@ -782,6 +875,8 @@
         '<td class="num-r">' + editableNumHtml(r, 'price', r.price) + '</td>' +
         '<td class="num-r">' + editableNumHtml(r, 'feeUnit', r.feeUnit || 0) + '</td>' +
         '<td class="num-r">' + amount(r) + '</td>' +
+        '<td class="col-currency">' + currencySelectHtml(r) + '</td>' +
+        '<td class="col-month">' + monthRangeHostHtml(r) + '</td>' +
         '<td><span class="tag ' + tagClass(r.type) + '">' + typeLabel(r.type) + '</span></td>' +
         '<td>' + handleSelectHtml(r) + '</td>' +
         '<td class="col-op">' + operationCellHtml(r) + '</td>' +
@@ -794,6 +889,7 @@
     bindRowSelects();
     bindOpButtons();
     bindEditableCells();
+    bindMonthPickers();
   }
 
   function bindEditableCells() {
@@ -803,7 +899,16 @@
         if (!r) return;
         r.msku = el.value;
         r.warn = !r.msku;
+        if (!r.currencyManual) r.currency = currencyFromMsku(r);
         renderTable();
+      });
+    });
+    document.querySelectorAll('#tbody select.cell-currency').forEach(function (el) {
+      el.addEventListener('change', function () {
+        var r = allRows.find(function (x) { return x.line === +el.dataset.line; });
+        if (!r) return;
+        r.currency = el.value;
+        r.currencyManual = true;
       });
     });
     document.querySelectorAll('#tbody input.cell-inp').forEach(function (el) {
