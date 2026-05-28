@@ -420,6 +420,31 @@
       color: #334155;
     }
     .seg button.active { background: var(--brand); color: #fff; }
+    .seg-toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 12px 20px;
+    }
+    .new-product-chk {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 13px;
+      color: #475569;
+      cursor: pointer;
+      user-select: none;
+      white-space: nowrap;
+    }
+    .new-product-chk input[type="checkbox"] {
+      width: 14px;
+      height: 14px;
+      margin: 0;
+      accent-color: var(--brand);
+      cursor: pointer;
+    }
+    .tag-new { color: #0369a1; font-weight: 600; }
+    .tag-old { color: #64748b; }
     .tag-wrap { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; min-height: 28px; }
     .tag {
       display: inline-flex;
@@ -829,8 +854,8 @@
             <tr><td>③</td><td>行内操作</td><td>点生效/失效/删除/明细</td><td>按状态机执行迁移；明细展示分摊结果与纳入口径</td><td>非法状态不执行操作</td><td>待生效→已生效；待生效/已生效→失效；仅失效可删除</td></tr>
             <tr><td>④</td><td>批量操作区</td><td>勾选多行后点批量生效/失效/删除</td><td>整批校验通过才执行；执行后整批刷新</td><td>混入不允许状态时整批拦截，不做部分成功</td><td>规则与单行操作完全一致</td></tr>
             <tr><td>⑤</td><td>新增导入费用弹窗</td><td>填写费用与范围，点预览/确认写入</td><td>先预览分摊，再写入一条新批次；新批次状态为待生效</td><td>缺必填范围（店铺/MSKU）时禁止确认</td><td>写入后列表可见新批次且状态=待生效</td></tr>
-            <tr><td>⑥</td><td>分摊规则摘要与预览</td><td>点预览分摊</td><td>按交集口径生成分摊明细：店铺范围×MSKU范围×可选零售商</td><td>交集为空时提示无法分摊</td><td>预览总额与补充金额一致，结构可追溯</td></tr>
-            <tr><td>⑦</td><td>导入入口与模板说明</td><td>下载模板、模拟导入</td><td>导入生成新批次，默认待生效</td><td>模板字段不合规时应拦截（正式环境）</td><td>导入与手工新增的状态规则一致</td></tr>
+            <tr><td>⑥</td><td>分摊规则摘要与预览</td><td>点预览分摊</td><td>店铺×商品范围×可选零售商；勾选「是否新品」时再与新品 MSKU 取交</td><td>交集为空或仅新品无命中时提示</td><td>预览总额与补充金额一致；明细含是否新品列</td></tr>
+            <tr><td>⑦</td><td>导入入口与模板说明</td><td>下载模板、模拟导入</td><td>模版含渠道范围/商品范围/是否新品等列；导入生成待生效批次</td><td>枚举或基础数据不匹配时应拦截（正式环境）</td><td>导入与手工新增的状态规则一致</td></tr>
             <tr><td>⑧</td><td>分摊明细弹窗</td><td>点“明细”</td><td>展示该批次按MSKU分摊、权重占比、归属月分摊、日均额</td><td>批次不存在或被删除时不可查看</td><td>“纳入管报计算”仅在已生效时为是</td></tr>
           </tbody>
         </table>
@@ -1017,6 +1042,7 @@
                 <tr>
                   <th>店铺</th>
                   <th>MSKU</th>
+                  <th>是否新品</th>
                   <th>零售商</th>
                   <th class="num">权重月营收</th>
                   <th class="num">权重占比</th>
@@ -1116,13 +1142,20 @@
           <div class="panel">
             <div class="panel-hd">第二类：MSKU 范围 <span class="badge">必填</span></div>
             <div class="panel-bd" style="max-height:none;">
-              <div class="seg" id="mskuModeSeg">
-                <button type="button" data-mode="all" class="active">全场景</button>
-                <button type="button" data-mode="scene">按场景（多选）</button>
-                <button type="button" data-mode="category">按品类（多选）</button>
-                <button type="button" data-mode="sku">按 SKU</button>
-                <button type="button" data-mode="msku">按 MSKU</button>
+              <div class="seg-toolbar">
+                <div class="seg" id="mskuModeSeg">
+                  <button type="button" data-mode="all" class="active">全场景</button>
+                  <button type="button" data-mode="scene">按场景（多选）</button>
+                  <button type="button" data-mode="category">按品类（多选）</button>
+                  <button type="button" data-mode="sku">按 SKU</button>
+                  <button type="button" data-mode="msku">按 MSKU</button>
+                </div>
+                <label class="new-product-chk" id="newProductOnlyWrap" title="勾选后仅主数据标记为「新品」的 MSKU 参与交集与分摊">
+                  <input type="checkbox" id="newProductOnly" />
+                  <span>是否新品</span>
+                </label>
               </div>
+              <p class="hint" id="newProductHint" style="display:none;margin-top:8px;">已勾选：分摊对象<strong>仅包含新品 MSKU</strong>（与店铺范围、商品范围、可选零售商取交集后再按营收权重分摊）。</p>
 
               <div id="mskuPaneScene" class="filter-strip" style="margin-top:12px;display:none;">
                 <div class="strip-title">场景（多选下拉；首行「全部」）</div>
@@ -1203,6 +1236,7 @@
                     <tr>
                       <th>店铺</th>
                       <th>MSKU</th>
+                      <th>是否新品</th>
                       <th>零售商</th>
                       <th class="num">权重月营收</th>
                       <th class="num">权重占比</th>
@@ -1229,7 +1263,7 @@
       </div>
       <div class="dialog-bd">
         <div class="import-body">
-          <p>请先下载导入模版，按列填写后上传。模版为精简列，与弹窗中「店铺范围说明 / MSKU 范围说明」同一套枚举口径。</p>
+          <p>请先下载导入模版，按列填写后上传。模版列与弹窗中「渠道范围 / 商品范围」分段及「是否新品」口径一致；渠道、场景等取值须与《渠道店铺》《场景品类》基础数据一致。</p>
           <p style="font-size:13px;color:#475569;margin:10px 0 0;">正式环境解析成功后，每条导入会生成<strong>待生效</strong>批次；需经「生效」后才纳入管报计算（与「新增导入费用」一致）。</p>
           <div class="import-actions" style="margin-top:12px;">
             <button type="button" class="btn primary" id="btnDownloadTpl">下载导入模版（CSV）</button>
@@ -1264,8 +1298,11 @@
                 <tr><td>费用项</td><td>是</td><td>与管报费用项一致。</td></tr>
                 <tr><td>归属月范围</td><td>是</td><td>YYYY-MM - YYYY-MM；单月可写同一月。</td></tr>
                 <tr><td>补充金额</td><td>是</td><td>数字。</td></tr>
-                <tr><td>店铺范围说明</td><td>是</td><td>一段文本：类型（全渠道/按渠道/按店铺）+ 分号分隔的取值（渠道名或店铺名，与基础数据一致）。</td></tr>
-                <tr><td>MSKU范围说明</td><td>是</td><td>一段文本：类型（全场景/按场景/按品类/按SKU/按MSKU）+ 分号分隔取值（场景名、品类编码、SKU、MSKU 等与界面一致）。</td></tr>
+                <tr><td>渠道范围</td><td>是</td><td>下拉枚举，与弹窗第一类分段一致：<strong>全渠道</strong>、<strong>按渠道</strong>、<strong>按店铺</strong>。选「全渠道」时「渠道详细信息」可留空。</td></tr>
+                <tr><td>渠道详细信息</td><td>条件</td><td>按渠道：填渠道名，多个用英文分号 <code>;</code> 分隔（如 <code>Govee;独立站</code>，与 channel_name 一致）。按店铺：填店铺名（如 <code>Govee_US;Goveelife_DE</code>）。</td></tr>
+                <tr><td>商品范围</td><td>是</td><td>下拉枚举，与弹窗第二类分段一致：<strong>全场景</strong>、<strong>按场景</strong>、<strong>按品类</strong>、<strong>按 SKU</strong>、<strong>按 MSKU</strong>。</td></tr>
+                <tr><td>商品详细信息</td><td>条件</td><td>按场景：场景名（如 <code>户外;居家</code>）。按品类：场景/品类编码组合。按 SKU / 按 MSKU：对应编码，分号分隔。全场景可留空。</td></tr>
+                <tr><td>是否新品</td><td>否</td><td>填 <strong>是</strong> / <strong>否</strong>；空视为否。为「是」时仅对主数据标记为新品的 MSKU 参与分摊。</td></tr>
                 <tr><td>零售商</td><td>否</td><td>分号分隔；空表示不按零售商收窄。</td></tr>
                 <tr><td>备注</td><td>否</td><td>可选。</td></tr>
               </tbody>
@@ -1273,8 +1310,8 @@
           </div>
           <p style="font-weight:700;margin:14px 0 6px;font-size:13px;">填写要求</p>
           <ol class="req-list">
-            <li>店铺范围说明、MSKU 范围说明中的选项值须与界面基础数据保持一致。</li>
-            <li>系统解析两列文本后取交集，按上月营收占比分摊并按归属月自然日拆至天。</li>
+            <li>「渠道范围」「商品范围」须为模版规定的枚举值；「渠道详细信息」「商品详细信息」中的名称/编码须与基础数据 / 主数据一致。</li>
+            <li>系统解析渠道与商品范围后取交集；勾选「是否新品」为是时，再与新品 MSKU 集合取交。按上月营收占比分摊，并按归属月自然日拆至天。</li>
             <li>金额勿用公式；失败行单独错误文件返回。</li>
           </ol>
         </div>
@@ -1289,12 +1326,42 @@
     const SCENE_CAT_URL = "../../../../规范/基础数据/场景品类基础数据_v1.json";
 
     const FALLBACK_CHANNELS = [
-      { channel_name: "Govee", stores: ["Govee_US", "Govee_DE"] },
-      { channel_name: "独立站", stores: ["独立站-US", "独立站-EU"] }
+      { channel_name: "Govee", stores: ["Govee_US", "Govee_DE", "Govee_UK", "Govee_JP"] },
+      { channel_name: "Govee EU", stores: ["Govee_DE_1", "Govee_UK_1", "Govee_FR_1"] },
+      { channel_name: "GoveeLife", stores: ["Goveelife_US", "Goveelife_DE", "Goveelife_UK"] },
+      { channel_name: "独立站", stores: ["独立站-US", "独立站-EU", "独立站-UK"] },
+      { channel_name: "TTS", stores: ["TTS-US"] }
     ];
     const FALLBACK_SCENES = [
-      { scene_name: "居家", categories: [{ category_code: "1006", category_name: "落地灯" }] },
-      { scene_name: "户外", categories: [{ category_code: "3005", category_name: "庭院灯" }] }
+      {
+        scene_name: "居家",
+        scene_code: "1",
+        categories: [
+          { category_code: "1006", category_name: "落地灯" },
+          { category_code: "1010", category_name: "灯带" }
+        ]
+      },
+      {
+        scene_name: "户外",
+        scene_code: "3",
+        categories: [
+          { category_code: "3005", category_name: "庭院灯" },
+          { category_code: "3002", category_name: "户外灯带" }
+        ]
+      },
+      {
+        scene_name: "观影",
+        scene_code: "2",
+        categories: [{ category_code: "2003", category_name: "TV灯带" }]
+      }
+    ];
+
+    /** 分摊预览 / 明细示意行（与渠道店铺、MSKU 主数据命名一致） */
+    const DEMO_MSKU_PREVIEW_ROWS = [
+      { store: "Govee_US", msku: "H6011001+Govee+US", sku: "H6011001", isNewProduct: true, retailer: "—", rev: 182000 },
+      { store: "Govee_US", msku: "H6159001+Govee+US", sku: "H6159001", isNewProduct: false, retailer: "—", rev: 121400 },
+      { store: "Govee_DE", msku: "H6011002+Govee+DE", sku: "H6011002", isNewProduct: true, retailer: "—", rev: 98400 },
+      { store: "独立站-US", msku: "H6198001+独立站+US", sku: "H6198001", isNewProduct: false, retailer: "—", rev: 76000 }
     ];
 
     const RETAILER_NAMES = ["Best Buy", "Target", "MediaMarkt", "Yodobashi"];
@@ -1306,6 +1373,7 @@
       shopTags: [],
       mskuMode: "all",
       mskuTags: [],
+      newProductOnly: false,
       retailerTags: [],
       /** @type {{ id: string, fee: string, month: string, amt: number, shop: string, retailerSummary: string, mskuScopeSummary: string, status: string, op: string, at: string }[]} */
       historyRows: [],
@@ -1619,8 +1687,12 @@
       }
     }
 
+    function formatNewProductLabel(isNew) {
+      return isNew ? "是" : "否";
+    }
+
     function buildSkuPool() {
-      const set = new Set(["H6011001", "H6011002", "H6159001", "H6198001", "H6201001"]);
+      const set = new Set(["H6011001", "H6011002", "H6159001", "H6198001", "H6201001", "H605B001"]);
       state.scenes.forEach((sc) => {
         (sc.categories || []).forEach((c) => {
           set.add(`SKU-${c.category_code}`);
@@ -1631,14 +1703,17 @@
 
     function buildMskuPool() {
       const arr = [];
+      const skuSamples = ["H6011001", "H6011002", "H6159001", "H6198001"];
       state.channels.forEach((ch) => {
-        (ch.stores || []).slice(0, 4).forEach(() => {
-          arr.push(`H6011001+${ch.channel_name}+US`);
-          arr.push(`H6159001+${ch.channel_name}+US`);
+        (ch.stores || []).slice(0, 3).forEach((store) => {
+          skuSamples.forEach((sku) => {
+            const region = /_([A-Z]{2})$/.exec(store)?.[1] || "US";
+            arr.push(`${sku}+${ch.channel_name}+${region}`);
+          });
         });
       });
       if (!arr.length) {
-        arr.push("H6011001+Govee+US", "H6159001+独立站+US");
+        arr.push("H6011001+Govee+US", "H6159001+独立站+US", "H6198001+独立站+US");
       }
       return [...new Set(arr)].slice(0, 120);
     }
@@ -1705,7 +1780,8 @@
       if (!el) return;
       el.innerHTML = `
         <strong>费用项：</strong>${fee}；<strong>归属月范围：</strong>${label || "—"}；<strong>补充总额：</strong>${amt.toLocaleString("zh-CN", { minimumFractionDigits: 2 })} 元。<br>
-        <strong>S₁ 店铺：</strong>见第一类；<strong>S₂ MSKU：</strong>见第二类；<strong>交集</strong> S = S₁ ∩ S₂ ${state.retailerTags.length ? "∩ 零售商" : ""}。<br>
+        <strong>S₁ 店铺：</strong>见第一类；<strong>S₂ MSKU：</strong>见第二类；<strong>交集</strong> S = S₁ ∩ S₂ ${state.retailerTags.length ? "∩ 零售商" : ""}${state.newProductOnly ? " ∩ <strong>新品 MSKU</strong>" : ""}。<br>
+        <strong>是否新品：</strong>${state.newProductOnly ? "是（仅新品参与分摊）" : "否（不按新品收窄）"}。<br>
         <strong>权重月：</strong>${weight} 各 MSKU 在 S 内营收占比（按范围起始月上月）。<br>
         <strong>按日：</strong>${daysHint}。<br>
         <strong>零售商：</strong>${r}
@@ -1713,15 +1789,30 @@
     }
 
     function mockPreviewRows() {
-      const rows = [
-        { store: "Govee_US", msku: "H6011001+Govee+US", retailer: "—", rev: 182000 },
-        { store: "Govee_US", msku: "H6159001+Govee+US", retailer: "—", rev: 121400 },
-        { store: "Govee_DE", msku: "H6011002+Govee+DE", retailer: "—", rev: 98400 }
-      ];
+      let rows = DEMO_MSKU_PREVIEW_ROWS.map((r) => ({ ...r }));
+      if (state.newProductOnly) rows = rows.filter((r) => r.isNewProduct);
       if (state.retailerTags.length) {
         rows.forEach((r, i) => { r.retailer = state.retailerTags[i % state.retailerTags.length]; });
       }
       return rows;
+    }
+
+    function renderPreviewRowHtml(r, totalRev, amt, days) {
+      const w = totalRev ? r.rev / totalRev : 0;
+      const alloc = amt * w;
+      const daily = days ? alloc / days : 0;
+      const np = formatNewProductLabel(!!r.isNewProduct);
+      const npCls = r.isNewProduct ? "tag-new" : "tag-old";
+      return `<tr>
+          <td>${escHtml(r.store)}</td>
+          <td>${escHtml(r.msku)}</td>
+          <td><span class="${npCls}">${np}</span></td>
+          <td>${escHtml(r.retailer)}</td>
+          <td class="num">${r.rev.toLocaleString("zh-CN")}</td>
+          <td class="num">${(w * 100).toFixed(2)}%</td>
+          <td class="num">${alloc.toFixed(2)}</td>
+          <td class="num">${daily.toFixed(4)}</td>
+        </tr>`;
     }
 
     function escHtml(s) {
@@ -1737,16 +1828,16 @@
         shopSummary: "渠道:Govee",
         retailerSummary: "（未选）",
         mskuSummary: "场景:户外;居家",
-        shopScopeDetail: "类型：按渠道；取值：Govee（与渠道店铺基础数据 channel_name 一致）。\n店铺交集：Govee_US、Govee_DE、独立站-US（示意，正式为解析结果集）。",
-        mskuScopeDetail: "类型：按场景；取值：户外、居家。\nMSKU 交集：权重月内归属上述场景且落在店铺交集内的 MSKU。",
+        newProductOnly: true,
+        shopScopeDetail: "渠道范围：按渠道；渠道详细信息：Govee（与渠道店铺基础数据 channel_name 一致）。\n店铺交集：Govee_US、Govee_DE 等（示意）。",
+        mskuScopeDetail: "商品范围：按场景；商品详细信息：户外;居家。\nMSKU 交集：权重月内归属上述场景且落在店铺交集内的 MSKU；是否新品=是，仅保留新品。",
         retailers: "（导入未选零售商，不按零售商收窄）",
         st: "已生效",
         op: "zhangsan",
         at: "2026-04-02 10:20",
         rawRows: [
-          { store: "Govee_US", msku: "H6011001+Govee+US", retailer: "—", rev: 182000 },
-          { store: "Govee_US", msku: "H6159001+Govee+US", retailer: "—", rev: 121400 },
-          { store: "Govee_DE", msku: "H6011002+Govee+DE", retailer: "—", rev: 98400 }
+          { store: "Govee_US", msku: "H6011001+Govee+US", isNewProduct: true, retailer: "—", rev: 182000 },
+          { store: "Govee_DE", msku: "H6011002+Govee+DE", isNewProduct: true, retailer: "—", rev: 98400 }
         ]
       },
       "IMP-202603-018": {
@@ -1756,15 +1847,16 @@
         shopSummary: "全渠道",
         retailerSummary: "（未选）",
         mskuSummary: "全场景",
-        shopScopeDetail: "类型：全渠道；即所有渠道下全部店铺参与交集。",
-        mskuScopeDetail: "类型：全场景；即所有场景下 MSKU 参与交集。",
+        newProductOnly: false,
+        shopScopeDetail: "渠道范围：全渠道；渠道详细信息：（空）。",
+        mskuScopeDetail: "商品范围：全场景；商品详细信息：（空）。",
         retailers: "（未选）",
         st: "已生效",
         op: "lisi",
         at: "2026-03-28 16:05",
         rawRows: [
-          { store: "Govee_US", msku: "H6011001+Govee+US", retailer: "—", rev: 210000 },
-          { store: "独立站-US", msku: "H6198001+独立站+US", retailer: "—", rev: 126000 }
+          { store: "Govee_US", msku: "H6011001+Govee+US", isNewProduct: true, retailer: "—", rev: 210000 },
+          { store: "独立站-US", msku: "H6198001+独立站+US", isNewProduct: false, retailer: "—", rev: 126000 }
         ]
       },
       "IMP-202603-017": {
@@ -1774,17 +1866,18 @@
         shopSummary: "店铺:Govee_US;Govee_DE",
         retailerSummary: "Best Buy；Target",
         mskuSummary: "SKU:H601*",
-        shopScopeDetail: "类型：按店铺；取值：Govee_US、Govee_DE（与基础数据 store 一致）。",
-        mskuScopeDetail: "类型：按 SKU 模糊；关键词 H601*；与管报 SKU 解析规则一致后得到 MSKU 集合。",
+        newProductOnly: false,
+        shopScopeDetail: "渠道范围：按店铺；渠道详细信息：Govee_US;Govee_DE（与基础数据 store 一致）。",
+        mskuScopeDetail: "商品范围：按 SKU；商品详细信息：H601*（模糊匹配后得到 MSKU 集合）。",
         retailers: "Best Buy；Target（示意：导入两行零售商后取交）",
         st: "待生效",
         op: "wangwu",
         at: "2026-03-15 09:12",
         rawRows: [
-          { store: "Govee_US", msku: "H6011001+Govee+US", retailer: "Best Buy", rev: 95000 },
-          { store: "Govee_US", msku: "H6011002+Govee+US", retailer: "Target", rev: 72000 },
-          { store: "Govee_DE", msku: "H6011001+Govee+DE", retailer: "Best Buy", rev: 61000 },
-          { store: "Govee_DE", msku: "H6011002+Govee+DE", retailer: "Target", rev: 48000 }
+          { store: "Govee_US", msku: "H6011001+Govee+US", isNewProduct: true, retailer: "Best Buy", rev: 95000 },
+          { store: "Govee_US", msku: "H6011002+Govee+US", isNewProduct: true, retailer: "Target", rev: 72000 },
+          { store: "Govee_DE", msku: "H6011001+Govee+DE", isNewProduct: true, retailer: "Best Buy", rev: 61000 },
+          { store: "Govee_DE", msku: "H6011002+Govee+DE", isNewProduct: true, retailer: "Target", rev: 48000 }
         ]
       },
       "IMP-202602-099": {
@@ -1794,14 +1887,15 @@
         shopSummary: "全渠道",
         retailerSummary: "（未选）",
         mskuSummary: "全场景",
-        shopScopeDetail: "类型：全渠道。",
-        mskuScopeDetail: "类型：全场景。",
+        newProductOnly: false,
+        shopScopeDetail: "渠道范围：全渠道。",
+        mskuScopeDetail: "商品范围：全场景。",
         retailers: "（未选）",
         st: "失效",
         op: "zhao",
         at: "2026-02-01 09:00",
         rawRows: [
-          { store: "Govee_US", msku: "H6011001+Govee+US", retailer: "—", rev: 100000 }
+          { store: "Govee_US", msku: "H6011001+Govee+US", isNewProduct: true, retailer: "—", rev: 100000 }
         ]
       }
     };
@@ -1834,11 +1928,12 @@
           <strong>权重月：</strong>${escHtml(wm)}（范围起始月上月的管报营收口径）　<strong>按日拆分：</strong>${days}<br>
           <strong>状态：</strong>${escHtml(rowLive ? rowLive.status : d.st)}　<strong>操作人：</strong>${escHtml(d.op)}　<strong>创建时间：</strong>${escHtml(d.at)}<br>
           <strong>纳入管报计算：</strong>${(rowLive && rowLive.status === "已生效") || (!rowLive && d.st === "已生效") ? "是（仅已生效批次参与）" : "否"}<br>
-          <strong>店铺范围（列表摘要）：</strong>${escHtml(d.shopSummary)}<br>
-          <strong>店铺范围（解析说明）：</strong><span style="white-space:pre-wrap;">${escHtml(d.shopScopeDetail)}</span><br>
+          <strong>渠道范围（列表摘要）：</strong>${escHtml(d.shopSummary)}<br>
+          <strong>渠道范围（解析说明）：</strong><span style="white-space:pre-wrap;">${escHtml(d.shopScopeDetail)}</span><br>
           <strong>零售商范围（列表摘要）：</strong>${escHtml(d.retailerSummary || "—")}<br>
-          <strong>MSKU 范围（列表摘要）：</strong>${escHtml(d.mskuSummary)}<br>
-          <strong>MSKU 范围（解析说明）：</strong><span style="white-space:pre-wrap;">${escHtml(d.mskuScopeDetail)}</span><br>
+          <strong>商品范围（列表摘要）：</strong>${escHtml(d.mskuSummary)}<br>
+          <strong>商品范围（解析说明）：</strong><span style="white-space:pre-wrap;">${escHtml(d.mskuScopeDetail)}</span><br>
+          <strong>是否新品：</strong>${escHtml(d.newProductOnly ? "是" : "否")}<br>
           <strong>零售商：</strong>${escHtml(d.retailers)}
         </div>
       `;
@@ -1846,6 +1941,7 @@
         <tr>
           <td>${escHtml(r.store)}</td>
           <td>${escHtml(r.msku)}</td>
+          <td><span class="${r.isNewProduct ? "tag-new" : "tag-old"}">${formatNewProductLabel(!!r.isNewProduct)}</span></td>
           <td>${escHtml(r.retailer)}</td>
           <td class="num">${r.rev.toLocaleString("zh-CN")}</td>
           <td class="num">${(r.w * 100).toFixed(2)}%</td>
@@ -1957,15 +2053,29 @@
 
     function downloadImportTemplate() {
       const bom = "\ufeff";
-      const headers = ["费用项", "归属月范围YYYY-MM", "补充金额", "店铺范围说明", "MSKU范围说明", "零售商", "备注"];
+      const headers = [
+        "费用项",
+        "归属月范围",
+        "补充金额",
+        "渠道范围",
+        "渠道详细信息",
+        "商品范围",
+        "商品详细信息",
+        "是否新品",
+        "零售商",
+        "备注"
+      ];
       const sample = [
         "广告费",
-        "2026-04",
+        "2026-04 - 2026-04",
         "10000",
-        "按渠道;Govee;独立站",
-        "按场景;户外;居家",
+        "按渠道",
+        "Govee;独立站",
+        "按场景",
+        "户外;居家",
+        "是",
         "",
-        "示例：店铺/MSKU 范围说明为类型与取值分号拼接"
+        "示例：渠道/商品范围为枚举；详细信息与弹窗、基础数据一致"
       ];
       const csv = bom + headers.join(",") + "\n" + sample.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(",") + "\n";
       const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
@@ -2012,9 +2122,9 @@
         fee: "品牌营销费",
         month: "2026-05",
         amt: 1500,
-        shop: "渠道:Govee（CSV 模拟）",
+        shop: "按渠道:Govee;独立站（CSV）",
         retailerSummary: "（未选）",
-        mskuScopeSummary: "按场景;户外（CSV 模拟）",
+        mskuScopeSummary: "按场景:户外;居家（CSV）",
         status: "待生效",
         op: "（导入任务）",
         at
@@ -2023,17 +2133,18 @@
         fee: "品牌营销费",
         month: "2026-05",
         amt: 1500,
-        shopSummary: "渠道:Govee（CSV 模拟）",
+        shopSummary: "按渠道:Govee;独立站（CSV）",
         retailerSummary: "（未选）",
-        mskuSummary: "按场景;户外（CSV 模拟）",
-        shopScopeDetail: "模拟导入解析结果。",
-        mskuScopeDetail: "模拟导入解析结果。",
+        mskuSummary: "按场景:户外;居家（CSV）",
+        newProductOnly: true,
+        shopScopeDetail: "渠道范围：按渠道；渠道详细信息：Govee;独立站（与 channel_name 一致）。",
+        mskuScopeDetail: "商品范围：按场景；商品详细信息：户外;居家。是否新品=是。",
         retailers: "（未选）",
         st: "待生效",
         op: "（导入任务）",
         at,
         rawRows: [
-          { store: "Govee_US", msku: "H6011001+Govee+US", retailer: "—", rev: 200000 }
+          { store: "Govee_US", msku: "H6011001+Govee+US", isNewProduct: true, retailer: "—", rev: 200000 }
         ]
       };
       closeOverlay("overlayImport");
@@ -2168,6 +2279,16 @@
       state.msf.ch?.refreshOptions();
       state.msf.ch?.clear();
       renderShopUi();
+      updateRuleText();
+    });
+
+    document.getElementById("newProductOnly").addEventListener("change", (e) => {
+      state.newProductOnly = e.target.checked;
+      const hint = document.getElementById("newProductHint");
+      if (hint) hint.style.display = state.newProductOnly ? "block" : "none";
+      document.getElementById("btnConfirmImport").disabled = true;
+      document.getElementById("previewWrap").style.display = "none";
+      document.getElementById("summaryCards").style.display = "none";
       updateRuleText();
     });
 
@@ -2380,25 +2501,23 @@
         return;
       }
       const rows = mockPreviewRows();
+      if (!rows.length) {
+        alert(
+          state.newProductOnly
+            ? "当前范围与「仅新品」条件下无 MSKU 可分摊，请放宽范围或取消「是否新品」。"
+            : "当前范围交集为空，无法预览分摊。"
+        );
+        return;
+      }
       const totalRev = rows.reduce((s, r) => s + r.rev, 0);
-      document.getElementById("previewBody").innerHTML = rows.map((r) => {
-        const w = totalRev ? r.rev / totalRev : 0;
-        const alloc = amt * w;
-        const daily = alloc / days;
-        return `<tr>
-          <td>${r.store}</td>
-          <td>${r.msku}</td>
-          <td>${r.retailer}</td>
-          <td class="num">${r.rev.toLocaleString("zh-CN")}</td>
-          <td class="num">${(w * 100).toFixed(2)}%</td>
-          <td class="num">${alloc.toFixed(2)}</td>
-          <td class="num">${daily.toFixed(4)}</td>
-        </tr>`;
-      }).join("");
+      const dayDiv = typeof days === "number" && days > 0 ? days : daysInMonth(start);
+      document.getElementById("previewBody").innerHTML = rows
+        .map((r) => renderPreviewRowHtml(r, totalRev, amt, dayDiv))
+        .join("");
       document.getElementById("previewWrap").style.display = "block";
       document.getElementById("summaryCards").style.display = "grid";
       document.getElementById("summaryCards").innerHTML = `
-        <div class="sum-card"><div class="k">MSKU 数（模拟）</div><div class="v">${rows.length}</div></div>
+        <div class="sum-card"><div class="k">MSKU 数（模拟）</div><div class="v">${rows.length}${state.newProductOnly ? " · 仅新品" : ""}</div></div>
         <div class="sum-card"><div class="k">归属月范围</div><div class="v" style="font-size:12px;">${belong}</div></div>
         <div class="sum-card"><div class="k">按日拆分</div><div class="v" style="font-size:12px;">${days}</div></div>
         <div class="sum-card"><div class="k">总额</div><div class="v">${amt.toFixed(2)}</div></div>
@@ -2445,8 +2564,9 @@
         shopSummary: shopCol,
         retailerSummary,
         mskuSummary: mskuScopeSummary,
-        shopScopeDetail: "由弹窗第一类店铺范围生成（原型摘要见上）。",
-        mskuScopeDetail: "由弹窗第二类 MSKU 范围生成（原型摘要见上）。",
+        shopScopeDetail: "由弹窗第一类渠道/店铺范围生成（原型摘要见上）。",
+        mskuScopeDetail: "由弹窗第二类商品/MSKU 范围生成（原型摘要见上）。",
+        newProductOnly: state.newProductOnly,
         retailers: state.retailerTags.length ? state.retailerTags.join("；") : "（导入未选零售商）",
         st: "待生效",
         op: "（原型用户）",
@@ -2506,7 +2626,7 @@
           amt: 10000,
           shop: "渠道:Govee",
           retailerSummary: "（未选）",
-          mskuScopeSummary: "按场景后交集 3 个 MSKU（如 H6011001+Govee+US、H6159001+Govee+US、H6011002+Govee+DE）",
+          mskuScopeSummary: "按场景:户外;居家 · 仅新品 · 2 MSKU",
           status: "已生效",
           op: "zhangsan",
           at: "2026-04-02 10:20"
@@ -2642,7 +2762,7 @@
       "id": "preview-button",
       "selector": "#btnPreview",
       "title": "预览分摊",
-      "body": "按当前范围和规则先生成分摊预览。系统先取店铺范围、MSKU范围、可选零售商范围的交集，再按月营收权重分摊金额，预览成功后才能确认写入。"
+      "body": "按当前范围和规则先生成分摊预览。系统取渠道/店铺与商品范围交集，可选零售商与「是否新品」收窄后，按上月营收权重分摊；预览表含是否新品列。"
     },
     {
       "id": "confirm-import",
@@ -2689,8 +2809,14 @@
     {
       "id": "create-msku-range",
       "selector": "#mskuModeSeg",
-      "title": "MSKU范围",
-      "body": "用于确定费用适用的MSKU集合，与店铺范围交集后生成分摊对象。示例：若店铺范围命中 3 家店、MSKU范围命中 4 个 MSKU，则系统会对交集内可售组合继续计算分摊。"
+      "title": "商品范围",
+      "body": "用于确定费用适用的 MSKU/商品集合，与渠道/店铺范围交集后生成分摊对象。示例：店铺命中 3 家、商品范围命中 4 个 MSKU，则对交集内组合按营收权重分摊。"
+    },
+    {
+      "id": "create-new-product",
+      "selector": "#newProductOnlyWrap",
+      "title": "是否新品",
+      "body": "位于「按 MSKU」分段右侧。勾选后仅主数据标记为新品的 MSKU 参与交集与分摊；导入模版对应列填「是」/「否」。"
     },
     {
       "id": "create-retailer-range",
@@ -2793,8 +2919,14 @@
     {
       "id": "tip-create-msku-mode",
       "selector": "#mskuModeSeg",
-      "title": "MSKU范围模式",
-      "body": "支持全场景、按场景、按品类、按SKU、按MSKU。取值来源于商品主数据与MSKU映射，越精细的模式，分摊对象越聚焦。"
+      "title": "商品范围模式",
+      "body": "支持全场景、按场景、按品类、按SKU、按MSKU。取值来源于场景品类基础数据与 MSKU 映射；导入模版「商品范围」「商品详细信息」与此一致。"
+    },
+    {
+      "id": "tip-new-product-only",
+      "selector": "#newProductOnlyWrap",
+      "title": "是否新品",
+      "body": "勾选后分摊对象默认仅包含新品 MSKU（与渠道、商品范围取交）。导入填「是」时规则相同；空或「否」表示不限制。"
     },
     {
       "id": "tip-preview-balance",
@@ -2806,7 +2938,7 @@
       "id": "tip-rule-summary",
       "selector": "#ruleText",
       "title": "分摊逻辑",
-      "body": "系统先取店铺范围、MSKU范围、可选零售商范围的交集，再按交集内对象的上月营收占比进行分摊。例如 A 占比 60%、B 占比 40%，总额 10000，则分别分摊 6000 和 4000。"
+      "body": "系统先取渠道/店铺范围与商品范围的交集，可选零售商与「是否新品」进一步收窄，再按上月营收占比分摊。勾选仅新品时，非新品 MSKU 不参与计算。"
     },
     {
       "id": "tip-history-detail",
