@@ -6,15 +6,17 @@
   <title>业务费用导入管理 · 系统原型</title>
   <style>
     :root {
+      --page-bg: #f0f2f5;
       --bg: #f5f7fa;
       --surface: #ffffff;
       --text: #1e293b;
       --muted: #64748b;
       --line: #f0f0f0;
+      --panel-line: #e8e8e8;
       --brand: #1677ff;
       --brand-focus: #1677ff;
       --brand-soft: #e6f4ff;
-      --shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+      --shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
       --radius: 8px;
       --label: #595959;
       --border-input: #d9d9d9;
@@ -24,7 +26,7 @@
     body {
       margin: 0;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
-      background: #fff;
+      background: var(--page-bg);
       color: var(--text);
       font-size: 13px;
       display: flex;
@@ -53,23 +55,63 @@
       max-width: none;
       margin: 0;
       padding: 0;
-      background: #fff;
+      background: transparent;
     }
     .page-hd {
       flex-shrink: 0;
       background: #fff;
-      border-bottom: 1px solid var(--line);
+      border-bottom: 1px solid var(--panel-line);
       padding: 14px 20px 16px;
     }
     .page-hd h1 { margin: 0 0 6px; font-size: 18px; font-weight: 700; }
     .sub { color: var(--muted); font-size: 12px; line-height: 1.55; margin: 0; }
 
+    .page-body {
+      flex: 1;
+      min-height: 0;
+      overflow: auto;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    /* 与《经营分析明细》一致的卡片容器 */
+    .panel {
+      background: var(--surface);
+      border: 1px solid var(--panel-line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+    .panel.panel--filter-stack {
+      flex-shrink: 0;
+      overflow: visible;
+      position: relative;
+      z-index: 40;
+    }
+    .panel.panel--table {
+      flex: 1;
+      min-height: 280px;
+      display: flex;
+      flex-direction: column;
+    }
+    .panel-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--line);
+      background: linear-gradient(180deg, #fafafa 0%, #fff 100%);
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .panel-title { font-size: 14px; font-weight: 700; }
+    .panel-sub { font-size: 12px; color: var(--muted); margin-top: 2px; }
+
     /* 《列表页顶部筛选区》+《产品信息筛选区》 */
     .filter-panel {
-      flex-shrink: 0;
-      background: #fff;
-      padding: 14px 20px 16px;
-      border-bottom: 1px solid var(--line);
+      padding: 12px 16px 14px;
     }
     .filter-grid {
       display: flex;
@@ -126,7 +168,8 @@
     }
     .ctl-clear:hover { color: rgba(0, 0, 0, 0.45); }
     .ctl-clear[hidden] { display: none; }
-    #qMonthRangeMount .mrp-trigger {
+    #qMonthRangeMount .mrp-trigger,
+    #createMonthRangeMount .mrp-trigger {
       min-width: 168px;
       max-width: 180px;
       height: 32px;
@@ -186,27 +229,13 @@
     }
     .btn-query:hover { background: #4096ff; border-color: #4096ff; }
 
-    /* 列表区：与筛选区同屏贯通 */
-    .list-card {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      min-height: 0;
-      margin: 0;
-      background: #fff;
-      border: none;
-      border-radius: 0;
-      overflow: hidden;
-    }
     .list-hd {
       display: flex;
       flex-wrap: wrap;
       align-items: center;
       justify-content: space-between;
       gap: 10px 16px;
-      padding: 12px 16px;
-      border-bottom: 1px solid var(--line);
-      background: #fafbfc;
+      width: 100%;
     }
     .list-title { margin: 0; font-size: 14px; font-weight: 700; color: var(--text); }
     .list-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
@@ -609,12 +638,11 @@
     }
     .page-logic-panel {
       flex-shrink: 0;
-      background: #fafbfc;
-      border: none;
-      border-bottom: 1px solid var(--line);
-      border-radius: 0;
+      background: var(--surface);
+      border: 1px solid var(--panel-line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
       margin: 0;
-      box-shadow: none;
     }
     .page-logic-panel[hidden] {
       display: none !important;
@@ -731,7 +759,15 @@
       <p class="sub">维护补充导入的业务费用批次；仅<strong>已生效</strong>批次纳入管报计算。新建/导入默认为<strong>待生效</strong>，需人工生效后参与分摊。</p>
     </header>
 
-    <section class="filter-panel" aria-label="历史记录筛选">
+    <div class="page-body">
+    <section class="panel panel--filter-stack" aria-label="历史记录筛选">
+      <div class="panel-head">
+        <div>
+          <div class="panel-title">历史记录筛选</div>
+          <div class="panel-sub">筛选后点击「查询」刷新下方列表</div>
+        </div>
+      </div>
+      <div class="filter-panel">
       <div class="filter-grid">
         <div class="f-item">
           <label>归属月范围</label>
@@ -764,6 +800,7 @@
         <div class="f-item f-search">
           <button type="button" class="btn-query" id="btnQuery">查询</button>
         </div>
+      </div>
       </div>
     </section>
 
@@ -926,8 +963,8 @@
       </div>
     </div>
 
-    <section class="list-card">
-      <div class="list-hd">
+    <section class="panel panel--table">
+      <div class="panel-head list-hd">
         <h2 class="list-title">历史导入费用</h2>
         <div class="list-actions">
           <button type="button" class="btn primary" id="btnOpenCreate">新增导入费用</button>
@@ -945,7 +982,7 @@
               <th class="col-check"><input type="checkbox" id="histSelectAll" title="全选当前列表" aria-label="全选"></th>
               <th>导入批次号</th>
               <th>费用项</th>
-              <th>归属月</th>
+              <th>归属月范围</th>
               <th class="num">补充金额</th>
               <th>店铺范围摘要</th>
               <th>零售商范围摘要</th>
@@ -960,6 +997,7 @@
         </table>
       </div>
     </section>
+    </div>
   </div>
 
   <!-- 历史记录：分摊明细 -->
@@ -1011,7 +1049,7 @@
           </p>
 
           <div class="panel">
-            <div class="panel-hd">费用与归属月</div>
+            <div class="panel-hd">费用与归属月范围</div>
             <div class="panel-bd" style="max-height:none;">
               <div class="row">
                 <div class="field">
@@ -1026,9 +1064,9 @@
                   </select>
                 </div>
                 <div class="field">
-                  <label><span class="req">*</span>归属月</label>
-                  <input type="month" id="belongMonth" value="2026-04">
-                  <div class="hint">权重月 = 归属月上月。归属月内按自然日拆到天。</div>
+                  <label><span class="req">*</span>归属月范围</label>
+                  <div id="createMonthRangeMount"></div>
+                  <div class="hint">展示为 YYYY-MM - YYYY-MM。权重月按范围起始月的上月；范围内各月按自然日拆到天。</div>
                 </div>
                 <div class="field">
                   <label><span class="req">*</span>补充金额</label>
@@ -1224,7 +1262,7 @@
               </thead>
               <tbody>
                 <tr><td>费用项</td><td>是</td><td>与管报费用项一致。</td></tr>
-                <tr><td>归属月</td><td>是</td><td>YYYY-MM。</td></tr>
+                <tr><td>归属月范围</td><td>是</td><td>YYYY-MM - YYYY-MM；单月可写同一月。</td></tr>
                 <tr><td>补充金额</td><td>是</td><td>数字。</td></tr>
                 <tr><td>店铺范围说明</td><td>是</td><td>一段文本：类型（全渠道/按渠道/按店铺）+ 分号分隔的取值（渠道名或店铺名，与基础数据一致）。</td></tr>
                 <tr><td>MSKU范围说明</td><td>是</td><td>一段文本：类型（全场景/按场景/按品类/按SKU/按MSKU）+ 分号分隔取值（场景名、品类编码、SKU、MSKU 等与界面一致）。</td></tr>
@@ -1274,8 +1312,41 @@
       historyNextSeq: 100,
       /** 多选下拉（《多选下拉筛选-全局UI规范》） */
       msf: {},
-      qMonthRange: null
+      qMonthRange: null,
+      createMonthRange: null
     };
+
+    function formatMonthRangeLabel(start, end) {
+      if (!start) return "";
+      const e = end || start;
+      if (e === start) return start;
+      return `${start} - ${e}`;
+    }
+
+    function parseMonthRangeLabel(s) {
+      if (!s || typeof s !== "string") return { start: "", end: "" };
+      const t = s.trim();
+      if (t.includes(" - ")) {
+        const parts = t.split(" - ").map((x) => x.trim());
+        return { start: parts[0] || "", end: parts[1] || parts[0] || "" };
+      }
+      return { start: t, end: t };
+    }
+
+    function getCreateMonthRange() {
+      if (!state.createMonthRange) return { start: "", end: "", label: "" };
+      const r = state.createMonthRange.get();
+      const start = r.start || "";
+      const end = r.end || r.start || "";
+      return { start, end, label: formatMonthRangeLabel(start, end) };
+    }
+
+    function monthRangesOverlap(aStart, aEnd, bStart, bEnd) {
+      if (!aStart || !bStart) return true;
+      const ae = aEnd || aStart;
+      const be = bEnd || bStart;
+      return aStart <= be && ae >= bStart;
+    }
 
     function syncClearableSelect(sel) {
       if (!sel) return;
@@ -1617,9 +1688,14 @@
     }
 
     function updateRuleText() {
-      const belong = document.getElementById("belongMonth").value;
-      const weight = prevMonthYm(belong);
-      const days = daysInMonth(belong);
+      const { start, end, label } = getCreateMonthRange();
+      const weight = start ? prevMonthYm(start) : "—";
+      const daysHint =
+        start && end && end !== start
+          ? `范围 ${label}（各月按自然日拆分）`
+          : start
+            ? `归属月 ${daysInMonth(start)} 天，均摊至天 × MSKU`
+            : "—";
       const amt = Number(document.getElementById("totalAmount").value) || 0;
       const fee = document.getElementById("feeType").value;
       const r = state.retailerTags.length
@@ -1628,10 +1704,10 @@
       const el = document.getElementById("ruleText");
       if (!el) return;
       el.innerHTML = `
-        <strong>费用项：</strong>${fee}；<strong>归属月：</strong>${belong}；<strong>补充总额：</strong>${amt.toLocaleString("zh-CN", { minimumFractionDigits: 2 })} 元。<br>
+        <strong>费用项：</strong>${fee}；<strong>归属月范围：</strong>${label || "—"}；<strong>补充总额：</strong>${amt.toLocaleString("zh-CN", { minimumFractionDigits: 2 })} 元。<br>
         <strong>S₁ 店铺：</strong>见第一类；<strong>S₂ MSKU：</strong>见第二类；<strong>交集</strong> S = S₁ ∩ S₂ ${state.retailerTags.length ? "∩ 零售商" : ""}。<br>
-        <strong>权重月：</strong>${weight} 各 MSKU 在 S 内营收占比。<br>
-        <strong>按日：</strong>归属月 ${days} 天，均摊至天 × MSKU。<br>
+        <strong>权重月：</strong>${weight} 各 MSKU 在 S 内营收占比（按范围起始月上月）。<br>
+        <strong>按日：</strong>${daysHint}。<br>
         <strong>零售商：</strong>${r}
       `;
     }
@@ -1738,8 +1814,12 @@
       }
       const rowLive = state.historyRows.find((r) => r.id === batchId);
       if (rowLive) d.st = rowLive.status;
-      const wm = prevMonthYm(d.month);
-      const days = daysInMonth(d.month);
+      const rowRange = parseMonthRangeLabel(d.month);
+      const wm = prevMonthYm(rowRange.start);
+      const days =
+        rowRange.start && rowRange.end && rowRange.end !== rowRange.start
+          ? `范围 ${d.month}（各月自然日）`
+          : daysInMonth(rowRange.start || d.month);
       const tot = d.rawRows.reduce((s, r) => s + r.rev, 0);
       const rows = d.rawRows.map((r) => {
         const w = tot ? r.rev / tot : 0;
@@ -1750,8 +1830,8 @@
       document.getElementById("historyDetailMeta").innerHTML = `
         <div style="line-height:1.75;font-size:13px;color:#78350f;">
           <strong>导入批次号：</strong>${escHtml(batchId)}<br>
-          <strong>费用项：</strong>${escHtml(d.fee)}　<strong>归属月：</strong>${escHtml(d.month)}　<strong>补充金额：</strong>${d.amt.toLocaleString("zh-CN", { minimumFractionDigits: 2 })} 元<br>
-          <strong>权重月：</strong>${escHtml(wm)}（归属月上月的管报营收口径）　<strong>归属月天数：</strong>${days} 天（按自然日拆日均）<br>
+          <strong>费用项：</strong>${escHtml(d.fee)}　<strong>归属月范围：</strong>${escHtml(d.month)}　<strong>补充金额：</strong>${d.amt.toLocaleString("zh-CN", { minimumFractionDigits: 2 })} 元<br>
+          <strong>权重月：</strong>${escHtml(wm)}（范围起始月上月的管报营收口径）　<strong>按日拆分：</strong>${days}<br>
           <strong>状态：</strong>${escHtml(rowLive ? rowLive.status : d.st)}　<strong>操作人：</strong>${escHtml(d.op)}　<strong>创建时间：</strong>${escHtml(d.at)}<br>
           <strong>纳入管报计算：</strong>${(rowLive && rowLive.status === "已生效") || (!rowLive && d.st === "已生效") ? "是（仅已生效批次参与）" : "否"}<br>
           <strong>店铺范围（列表摘要）：</strong>${escHtml(d.shopSummary)}<br>
@@ -1802,8 +1882,10 @@
       return state.historyRows.filter((r) => {
         if (stF && r.status !== stF) return false;
         if (feeF && r.fee !== feeF) return false;
-        if (monthFrom && r.month < monthFrom) return false;
-        if (monthTo && r.month > monthTo) return false;
+        const rowM = parseMonthRangeLabel(r.month);
+        if (monthFrom || monthTo) {
+          if (!monthRangesOverlap(rowM.start, rowM.end, monthFrom, monthTo)) return false;
+        }
         return true;
       });
     }
@@ -1875,7 +1957,7 @@
 
     function downloadImportTemplate() {
       const bom = "\ufeff";
-      const headers = ["费用项", "归属月YYYY-MM", "补充金额", "店铺范围说明", "MSKU范围说明", "零售商", "备注"];
+      const headers = ["费用项", "归属月范围YYYY-MM", "补充金额", "店铺范围说明", "MSKU范围说明", "零售商", "备注"];
       const sample = [
         "广告费",
         "2026-04",
@@ -2265,9 +2347,14 @@
     });
 
     document.getElementById("btnPreview").addEventListener("click", () => {
-      const belong = document.getElementById("belongMonth").value;
+      const { start, end } = getCreateMonthRange();
+      const belong = formatMonthRangeLabel(start, end);
       const amt = Number(document.getElementById("totalAmount").value) || 0;
-      const days = daysInMonth(belong);
+      const days = start ? (end && end !== start ? `范围 ${belong}` : daysInMonth(start)) : 0;
+      if (!start) {
+        alert("请填写归属月范围。");
+        return;
+      }
       if (state.shopMode === "channel" && !state.shopTags.length) {
         alert("第一类：请通过「将已选渠道加入清单」至少加入一个渠道。");
         return;
@@ -2312,18 +2399,19 @@
       document.getElementById("summaryCards").style.display = "grid";
       document.getElementById("summaryCards").innerHTML = `
         <div class="sum-card"><div class="k">MSKU 数（模拟）</div><div class="v">${rows.length}</div></div>
-        <div class="sum-card"><div class="k">归属月天数</div><div class="v">${days}</div></div>
+        <div class="sum-card"><div class="k">归属月范围</div><div class="v" style="font-size:12px;">${belong}</div></div>
+        <div class="sum-card"><div class="k">按日拆分</div><div class="v" style="font-size:12px;">${days}</div></div>
         <div class="sum-card"><div class="k">总额</div><div class="v">${amt.toFixed(2)}</div></div>
       `;
       document.getElementById("btnConfirmImport").disabled = false;
     });
 
     document.getElementById("btnConfirmImport").addEventListener("click", () => {
-      const belong = document.getElementById("belongMonth").value;
+      const { start, end, label: belong } = getCreateMonthRange();
       const amt = Number(document.getElementById("totalAmount").value) || 0;
       const fee = document.getElementById("feeType").value;
-      if (!belong || !fee || !amt) {
-        alert("请填写归属月、费用项与补充金额，并先完成预览。");
+      if (!start || !fee || !amt) {
+        alert("请填写归属月范围、费用项与补充金额，并先完成预览。");
         return;
       }
       const id = nextBatchId();
@@ -2373,7 +2461,7 @@
       alert("原型：导出预览明细。");
     });
 
-    ["belongMonth", "totalAmount", "feeType"].forEach((id) => {
+    ["totalAmount", "feeType"].forEach((id) => {
       const n = document.getElementById(id);
       if (!n) return;
       n.addEventListener("input", updateRuleText);
@@ -2396,6 +2484,12 @@
           end: "2026-06",
           useBodyPortal: true
         });
+        state.createMonthRange = MonthRangePicker.mount(document.getElementById("createMonthRangeMount"), {
+          start: "2026-04",
+          end: "2026-04",
+          useBodyPortal: true,
+          onChange: updateRuleText
+        });
       }
 
       wireClearableSelects();
@@ -2408,7 +2502,7 @@
         {
           id: "IMP-202604-001",
           fee: "广告费",
-          month: "2026-04",
+          month: "2026-01 - 2026-04",
           amt: 10000,
           shop: "渠道:Govee",
           retailerSummary: "（未选）",
@@ -2576,9 +2670,9 @@
     },
     {
       "id": "create-belong-month",
-      "selector": "#belongMonth",
-      "title": "归属月",
-      "body": "决定费用进入哪个月份的管报口径，并作为分摊统计归属时间。示例：归属月选 2026-04，则该费用汇总到 4 月，并按 4 月自然日拆分日均额。"
+      "selector": "#createMonthRangeMount",
+      "title": "归属月范围",
+      "body": "决定费用进入哪几个月份的管报口径。示例：选 2026-01 - 2026-03，则分摊覆盖该区间内各自然月；权重月按范围起始月的上月计算。"
     },
     {
       "id": "create-total-amount",
@@ -2651,8 +2745,8 @@
     {
       "id": "tip-belong-month",
       "selector": "#qMonthRangeMount",
-      "title": "归属月",
-      "body": "费用归属到哪个会计月份。取值来源于新增或导入时填写的归属月，分摊结果按该月份汇总，并按该月自然日拆分日均额。"
+      "title": "归属月范围",
+      "body": "费用归属到哪些会计月份（起止月）。取值来源于新增或导入时填写的归属月范围，分摊结果按范围内各月汇总，并按各月自然日拆分日均额。"
     },
     {
       "id": "tip-status",
@@ -2686,9 +2780,9 @@
     },
     {
       "id": "tip-create-month",
-      "selector": "#belongMonth",
-      "title": "归属月口径",
-      "body": "归属月是费用统计口径月份，日均额按该月自然日进行拆分。示例：4 月有 30 天，若某对象 4 月分摊额为 300，则日均额为 10。"
+      "selector": "#createMonthRangeMount",
+      "title": "归属月范围口径",
+      "body": "归属月范围是费用统计口径的起止月份。跨月时各月按自然日拆分日均额；权重月按范围起始月的上月。"
     },
     {
       "id": "tip-create-shop-mode",
