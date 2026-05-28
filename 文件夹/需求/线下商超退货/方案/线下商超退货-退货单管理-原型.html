@@ -182,7 +182,14 @@
     .btn-op:hover { background: #bae0ff; }
     td.col-op { white-space: nowrap; }
     td.col-pending { white-space: nowrap; }
-    #btn-batch-go:disabled { opacity: 0.45; cursor: not-allowed; }
+    .batch-btn-group {
+      display: inline-flex; flex-wrap: wrap; gap: 6px; align-items: center;
+      margin-left: 4px; max-width: calc(100% - 280px);
+    }
+    .batch-btn-group .btn-batch-action {
+      height: 32px; padding: 0 10px; font-size: 12px; white-space: nowrap;
+    }
+    .batch-btn-group .btn-batch-action:disabled { opacity: 0.45; cursor: not-allowed; }
 
     /* Modal */
     .modal-mask {
@@ -386,7 +393,7 @@
 
   <div class="toolbar">
     <button type="button" class="btn btn-primary" id="btn-import">导入对账单 / 凭证</button>
-    <button type="button" class="btn btn-ghost" id="btn-batch-go" disabled title="请先勾选需要批量操作的行">批量操作</button>
+    <div class="batch-btn-group" id="batch-btn-group" aria-label="批量流程操作"></div>
     <span style="margin-left:auto;color:var(--muted);font-size:12px">共 <strong id="row-count">20</strong> 行明细</span>
   </div>
 
@@ -524,6 +531,9 @@
     '已建其他入库单': '物流',
     '已财务核对': '财务'
   };
+
+  /** 工具栏批量按钮（与行内流程步骤一致，按顺序展示） */
+  var BATCH_ACTIONS = ['已确认', '已WMS预报', '已上架', '推金蝶退货单', '已建其他入库单', '已财务核对'];
 
   var notifications = [];
   var notifySeq = 0;
@@ -791,10 +801,10 @@
     return rows.filter(function (r) { return selectedLines.has(r.line); });
   }
 
-  function analyzeBatchSelection() {
+  function analyzeBatchSelectionForAction(expectedAction) {
     var sel = getSelectedRows();
     if (!sel.length) {
-      return { ok: false, reason: '请先勾选需要批量操作的行' };
+      return { ok: false, reason: '请先勾选需要批量「' + expectedAction + '」的行' };
     }
     var actions = [];
     var statuses = [];
@@ -812,7 +822,13 @@
     if (actionSet.length > 1) {
       return {
         ok: false,
-        reason: '下一操作不一致（' + actionSet.join(' / ') + '），请仅勾选相同待办操作的行'
+        reason: '下一操作不一致（' + actionSet.join(' / ') + '），请仅勾选待办相同的行'
+      };
+    }
+    if (actionSet[0] !== expectedAction) {
+      return {
+        ok: false,
+        reason: '所选行待办为「' + actionSet[0] + '」，不是「' + expectedAction + '」'
       };
     }
     var statusSet = statuses.filter(function (s, i, arr) { return arr.indexOf(s) === i; });
@@ -822,22 +838,37 @@
         reason: '行状态不一致（' + statusSet.join(' / ') + '），仅相同行状态可批量操作'
       };
     }
-    return { ok: true, action: actionSet[0], status: statusSet[0], count: sel.length };
+    return { ok: true, action: expectedAction, status: statusSet[0], count: sel.length };
   }
 
-  function updateBatchBtn() {
-    var btn = document.getElementById('btn-batch-go');
+  function updateBatchBtns() {
     var n = getSelectedRows().length;
-    btn.disabled = n === 0;
-    btn.textContent = '批量操作';
-    if (n === 0) {
-      btn.title = '请先勾选需要批量操作的行';
-      return;
-    }
-    var info = analyzeBatchSelection();
-    btn.title = info.ok
-      ? '对 ' + info.count + ' 行批量执行「' + info.action + '」（行状态：' + info.status + '）'
-      : '已选 ' + n + ' 行；点击时将校验行状态与下一待办是否一致';
+    document.querySelectorAll('#batch-btn-group .btn-batch-action').forEach(function (btn) {
+      var action = btn.dataset.action;
+      if (!n) {
+        btn.disabled = true;
+        btn.title = '请先勾选需要批量「' + action + '」的行';
+        return;
+      }
+      var info = analyzeBatchSelectionForAction(action);
+      btn.disabled = !info.ok;
+      btn.title = info.ok
+        ? '对 ' + info.count + ' 行执行「' + action + '」（行状态：' + info.status + '）'
+        : info.reason;
+    });
+  }
+
+  function initBatchButtons() {
+    var group = document.getElementById('batch-btn-group');
+    group.innerHTML = BATCH_ACTIONS.map(function (action) {
+      return '<button type="button" class="btn btn-ghost btn-batch-action" data-action="' + action +
+        '" disabled title="请先勾选需要批量「' + action + '」的行">批量' + action + '</button>';
+    }).join('');
+    group.querySelectorAll('.btn-batch-action').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        runBatchAdvanceForAction(btn.dataset.action);
+      });
+    });
   }
 
   function syncChkAll() {
@@ -861,13 +892,13 @@
         if (cb.checked) selectedLines.add(line);
         else selectedLines.delete(line);
         syncChkAll();
-        updateBatchBtn();
+        updateBatchBtns();
       });
     });
   }
 
-  function runBatchAdvance() {
-    var info = analyzeBatchSelection();
+  function runBatchAdvanceForAction(action) {
+    var info = analyzeBatchSelectionForAction(action);
     if (!info.ok) {
       toast(info.reason);
       return;
@@ -878,7 +909,7 @@
       if (advanceFlow(r.line, { silent: true })) done++;
     });
     renderTable();
-    toast('已批量完成「' + info.action + '」共 ' + done + ' 行（行状态：' + info.status + '）');
+    toast('已批量完成「' + action + '」共 ' + done + ' 行（行状态：' + info.status + '）');
   }
 
   function amount(r) {
@@ -1001,7 +1032,7 @@
     bindMonthPickers();
     bindRowCheckboxes();
     syncChkAll();
-    updateBatchBtn();
+    updateBatchBtns();
   }
 
   function bindEditableCells() {
@@ -1237,10 +1268,10 @@
       if (on) selectedLines.add(line);
       else selectedLines.delete(line);
     });
-    updateBatchBtn();
+    updateBatchBtns();
   });
 
-  document.getElementById('btn-batch-go').addEventListener('click', runBatchAdvance);
+  initBatchButtons();
 
   document.getElementById('btn-query').addEventListener('click', function () {
     applyFilter();
