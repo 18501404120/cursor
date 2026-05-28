@@ -182,16 +182,7 @@
     .btn-op:hover { background: #bae0ff; }
     td.col-op { white-space: nowrap; }
     td.col-pending { white-space: nowrap; }
-    .batch-ops {
-      display: inline-flex; align-items: center; gap: 10px;
-      margin-left: 12px; padding: 4px 12px;
-      background: #f0f9ff; border: 1px solid #91caff; border-radius: 8px;
-      font-size: 12px;
-    }
-    .batch-ops[hidden] { display: none; }
-    .batch-hint { color: var(--muted); max-width: 360px; line-height: 1.45; }
-    .batch-hint.warn { color: var(--warn); }
-    #btn-batch-go:disabled { opacity: 0.55; cursor: not-allowed; }
+    #btn-batch-go:disabled { opacity: 0.45; cursor: not-allowed; }
 
     /* Modal */
     .modal-mask {
@@ -395,12 +386,7 @@
 
   <div class="toolbar">
     <button type="button" class="btn btn-primary" id="btn-import">导入对账单 / 凭证</button>
-    <button type="button" class="btn btn-ghost" id="btn-forecast">批量提交物流预报</button>
-    <button type="button" class="btn btn-ghost">导出</button>
-    <div class="batch-ops" id="batch-bar" hidden>
-      <span class="batch-hint" id="batch-hint">已选 0 行</span>
-      <button type="button" class="btn btn-primary" id="btn-batch-go" disabled title="">批量操作</button>
-    </div>
+    <button type="button" class="btn btn-ghost" id="btn-batch-go" disabled title="请先勾选需要批量操作的行">批量操作</button>
     <span style="margin-left:auto;color:var(--muted);font-size:12px">共 <strong id="row-count">20</strong> 行明细</span>
   </div>
 
@@ -839,31 +825,19 @@
     return { ok: true, action: actionSet[0], status: statusSet[0], count: sel.length };
   }
 
-  function updateBatchBar() {
-    var bar = document.getElementById('batch-bar');
+  function updateBatchBtn() {
     var btn = document.getElementById('btn-batch-go');
-    var hint = document.getElementById('batch-hint');
-    var sel = getSelectedRows();
-    if (!sel.length) {
-      bar.hidden = true;
-      btn.disabled = true;
-      btn.title = '';
+    var n = getSelectedRows().length;
+    btn.disabled = n === 0;
+    btn.textContent = '批量操作';
+    if (n === 0) {
+      btn.title = '请先勾选需要批量操作的行';
       return;
     }
-    bar.hidden = false;
     var info = analyzeBatchSelection();
-    hint.classList.toggle('warn', !info.ok);
-    if (info.ok) {
-      hint.textContent = '已选 ' + info.count + ' 行 · 行状态「' + info.status + '」· 可批量「' + info.action + '」';
-      btn.disabled = false;
-      btn.textContent = '批量「' + info.action + '」';
-      btn.title = '对所选 ' + info.count + ' 行执行「' + info.action + '」';
-    } else {
-      hint.textContent = '已选 ' + sel.length + ' 行 · ' + info.reason;
-      btn.disabled = true;
-      btn.textContent = '批量操作';
-      btn.title = info.reason;
-    }
+    btn.title = info.ok
+      ? '对 ' + info.count + ' 行批量执行「' + info.action + '」（行状态：' + info.status + '）'
+      : '已选 ' + n + ' 行；点击时将校验行状态与下一待办是否一致';
   }
 
   function syncChkAll() {
@@ -887,7 +861,7 @@
         if (cb.checked) selectedLines.add(line);
         else selectedLines.delete(line);
         syncChkAll();
-        updateBatchBar();
+        updateBatchBtn();
       });
     });
   }
@@ -1027,7 +1001,7 @@
     bindMonthPickers();
     bindRowCheckboxes();
     syncChkAll();
-    updateBatchBar();
+    updateBatchBtn();
   }
 
   function bindEditableCells() {
@@ -1263,19 +1237,10 @@
       if (on) selectedLines.add(line);
       else selectedLines.delete(line);
     });
-    updateBatchBar();
+    updateBatchBtn();
   });
 
   document.getElementById('btn-batch-go').addEventListener('click', runBatchAdvance);
-
-  document.getElementById('btn-forecast').addEventListener('click', function () {
-    var info = analyzeBatchSelection();
-    if (info.ok && info.action === '已WMS预报') {
-      runBatchAdvance();
-      return;
-    }
-    toast('请勾选行状态一致且待办均为「已WMS预报」的行后批量提交（或使用行内/批量操作栏）');
-  });
 
   document.getElementById('btn-query').addEventListener('click', function () {
     applyFilter();
