@@ -326,6 +326,10 @@
       color: var(--brand);
       font-weight: 600;
     }
+    .sc-cat-item.is-checked .lbl {
+      color: var(--brand);
+      font-weight: 600;
+    }
     .sc-cat-item .arrow {
       margin-left: auto;
       color: var(--text-sec);
@@ -1641,6 +1645,32 @@
     return r && r.region_name ? String(r.region_name) : (String(code || "").trim() || "—");
   }
 
+  function getCountryByCode(code) {
+    var c = String(code || "").trim();
+    if (!c) return null;
+    var all = allCountriesDistinct();
+    for (var i = 0; i < all.length; i++) {
+      if (all[i].country_code === c) return all[i];
+    }
+    return null;
+  }
+
+  function countryDisplayName(code) {
+    var row = getCountryByCode(code);
+    return row && row.country_name ? String(row.country_name) : (String(code || "").trim() || "—");
+  }
+
+  function formatGeoCodesDisplay(codes, nameFn) {
+    return (codes || [])
+      .map(function (x) {
+        return nameFn(x);
+      })
+      .filter(function (x) {
+        return x && x !== "—";
+      })
+      .join("、");
+  }
+
   function findMockMskuRow(msku) {
     var k = String(msku || "").trim();
     if (!k) return null;
@@ -1922,7 +1952,7 @@
     var rc = (regionCodes || []).map(String).filter(Boolean);
     if (!rc.length) {
       return allCountriesDistinct().map(function (c) {
-        return { value: c.country_code, label: c.country_name + "（" + c.country_code + "）" };
+        return { value: c.country_code, label: c.country_name };
       });
     }
     var seen = {};
@@ -1931,7 +1961,7 @@
       (countriesForRegionCode(code) || []).forEach(function (c) {
         if (!c.country_code || seen[c.country_code]) return;
         seen[c.country_code] = true;
-        out.push({ value: c.country_code, label: c.country_name + "（" + c.country_code + "）" });
+        out.push({ value: c.country_code, label: c.country_name });
       });
     });
     return out;
@@ -2325,7 +2355,44 @@
   }
 
   function hasLeaf(sceneName, catName) {
+    if (filterLeafKeys.indexOf(ACT_ALL_SCENES) >= 0) return true;
+    if (filterLeafKeys.indexOf(leafKey(sceneName, "")) >= 0) return true;
     return filterLeafKeys.indexOf(leafKey(sceneName, catName)) >= 0;
+  }
+
+  function filterHasSceneAllCats(sceneName) {
+    return filterLeafKeys.indexOf(leafKey(sceneName, "")) >= 0;
+  }
+
+  function removeFilterLeavesForScene(sceneName) {
+    filterLeafKeys = filterLeafKeys.filter(function (L) {
+      if (L === ACT_ALL_SCENES) return false;
+      return String(L.split("\t")[0] || "").trim() !== sceneName;
+    });
+  }
+
+  function formatFilterScCatSummary() {
+    if (!filterLeafKeys.length) return "场景品类";
+    if (filterLeafKeys.indexOf(ACT_ALL_SCENES) >= 0) return "全场景 · 全品类";
+    return filterLeafKeys
+      .map(function (k) {
+        if (k === ACT_ALL_SCENES) return "全场景 · 全品类";
+        var p = k.split("\t");
+        var s = String(p[0] || "").trim();
+        var c = String(p[1] != null ? p[1] : "").trim();
+        if (!c) return s + " · 全品类";
+        return s + " / " + c;
+      })
+      .join("、");
+  }
+
+  function firstScenarioFromFilterLeaves() {
+    for (var i = 0; i < filterLeafKeys.length; i++) {
+      if (filterLeafKeys[i] === ACT_ALL_SCENES) continue;
+      var s = String(filterLeafKeys[i].split("\t")[0] || "").trim();
+      if (s) return s;
+    }
+    return "";
   }
 
   function countSelectedInScene(node) {
@@ -2338,6 +2405,8 @@
   }
 
   function sceneCheckboxState(node) {
+    if (filterLeafKeys.indexOf(ACT_ALL_SCENES) >= 0) return { checked: true, indeterminate: false };
+    if (filterHasSceneAllCats(node.scenario)) return { checked: true, indeterminate: false };
     var n = countSelectedInScene(node);
     var len = node.categories.length;
     if (n === 0) return { checked: false, indeterminate: false };
@@ -2348,8 +2417,7 @@
   function updateScCatTrigger() {
     var trig = document.getElementById("fltScCatTrigger");
     if (!trig) return;
-    if (!filterLeafKeys.length) trig.textContent = "场景品类";
-    else trig.textContent = "已选 " + filterLeafKeys.length + " 项";
+    trig.textContent = formatFilterScCatSummary();
   }
 
   function scCatPopIsOpen() {
@@ -2365,22 +2433,41 @@
   }
 
   function setLeavesForScene(node, checked) {
-    node.categories.forEach(function (cat) {
-      var k = leafKey(node.scenario, cat);
-      var ix = filterLeafKeys.indexOf(k);
-      if (checked && ix < 0) filterLeafKeys.push(k);
-      if (!checked && ix >= 0) filterLeafKeys.splice(ix, 1);
-    });
+    removeFilterLeavesForScene(node.scenario);
+    if (checked) filterLeafKeys.push(leafKey(node.scenario, ""));
     updateScCatTrigger();
     renderPlans();
     refreshScCatColumnsIfOpen();
   }
 
   function toggleLeaf(sceneName, catName, checked) {
+    filterLeafKeys = filterLeafKeys.filter(function (L) {
+      return L !== ACT_ALL_SCENES;
+    });
+    var ixAll = filterLeafKeys.indexOf(leafKey(sceneName, ""));
+    if (ixAll >= 0) filterLeafKeys.splice(ixAll, 1);
     var k = leafKey(sceneName, catName);
     var ix = filterLeafKeys.indexOf(k);
     if (checked && ix < 0) filterLeafKeys.push(k);
     if (!checked && ix >= 0) filterLeafKeys.splice(ix, 1);
+    updateScCatTrigger();
+    renderPlans();
+    refreshScCatColumnsIfOpen();
+  }
+
+  function toggleFilterSceneAllCats(node, checked) {
+    removeFilterLeavesForScene(node.scenario);
+    if (checked) filterLeafKeys.push(leafKey(node.scenario, ""));
+    filterLeafKeys = filterLeafKeys.filter(function (L) {
+      return L !== ACT_ALL_SCENES;
+    });
+    updateScCatTrigger();
+    renderPlans();
+    refreshScCatColumnsIfOpen();
+  }
+
+  function setFilterAllScenes() {
+    filterLeafKeys = [ACT_ALL_SCENES];
     updateScCatTrigger();
     renderPlans();
     refreshScCatColumnsIfOpen();
@@ -2780,8 +2867,32 @@
 
   function planRowSceneCheckboxState(node, tr) {
     var leaves = readPlanRowEditsFromTr(tr).leaves;
+    if (leaves.indexOf(ACT_ALL_SCENES) >= 0) return { checked: true, indeterminate: false };
     var k = leafKey(node.scenario, "");
-    return { checked: leaves.indexOf(k) >= 0, indeterminate: false };
+    if (leaves.indexOf(k) >= 0) return { checked: true, indeterminate: false };
+    var n = 0;
+    var len = node.categories.length;
+    for (var i = 0; i < len; i++) {
+      if (leaves.indexOf(leafKey(node.scenario, node.categories[i])) >= 0) n++;
+    }
+    if (n === 0) return { checked: false, indeterminate: false };
+    if (len > 0 && n === len) return { checked: true, indeterminate: false };
+    return { checked: false, indeterminate: true };
+  }
+
+  function planRowLeafChecked(leaves, scenario, cat) {
+    if (leaves.indexOf(ACT_ALL_SCENES) >= 0) return true;
+    if (leaves.indexOf(leafKey(scenario, "")) >= 0) return true;
+    return leaves.indexOf(leafKey(scenario, cat)) >= 0;
+  }
+
+  function firstScenarioFromPlanLeaves(leaves) {
+    for (var i = 0; i < (leaves || []).length; i++) {
+      if (leaves[i] === ACT_ALL_SCENES) continue;
+      var s = String(leaves[i].split("\t")[0] || "").trim();
+      if (s) return s;
+    }
+    return "";
   }
 
   function applyPlanRowSceneCheckbox(node, tr, id, checked) {
@@ -2953,7 +3064,7 @@
     var node = treeNodeByScenario(planRowPanelScenario);
     if (!node) return;
     var rowScene = document.createElement("div");
-    rowScene.className = "sc-cat-item sc-cat-meta-row";
+    rowScene.className = "sc-cat-item sc-cat-meta-row" + (o.leaves.indexOf(leafKey(node.scenario, "")) >= 0 ? " is-checked" : "");
     var cbS = document.createElement("input");
     cbS.type = "checkbox";
     cbS.checked = o.leaves.indexOf(leafKey(node.scenario, "")) >= 0;
@@ -2975,14 +3086,12 @@
     rowScene.appendChild(lblS);
     el.appendChild(rowScene);
     node.categories.forEach(function (cat) {
+      var checked = planRowLeafChecked(o.leaves, node.scenario, cat);
       var div = document.createElement("div");
-      div.className = "sc-cat-item";
-      div.style.display = "flex";
-      div.style.alignItems = "center";
-      div.style.gap = "6px";
+      div.className = "sc-cat-item" + (checked ? " is-checked" : "");
       var cb = document.createElement("input");
       cb.type = "checkbox";
-      cb.checked = o.leaves.indexOf(leafKey(node.scenario, cat)) >= 0;
+      cb.checked = checked;
       cb.addEventListener("click", function (e) {
         e.stopPropagation();
       });
@@ -3012,15 +3121,19 @@
       planRowPanelScenario = NEW_PRODUCT_SCENE;
     } else {
       var scenario = o.scenario;
-      var node = treeNodeByScenario(scenario);
-      if (node && node.scenario) planRowPanelScenario = scenario;
+      var node0 = treeNodeByScenario(scenario);
+      if (node0 && node0.scenario) planRowPanelScenario = scenario;
       else {
+        var fromLeaves = firstScenarioFromPlanLeaves(o.leaves);
+        if (fromLeaves) planRowPanelScenario = fromLeaves;
+        else {
         var firstNon = SCENARIO_CATEGORY_TREE.find(function (n) {
           return n.scenario !== "未分类";
         });
         planRowPanelScenario = firstNon
           ? firstNon.scenario
           : (SCENARIO_CATEGORY_TREE[0] && SCENARIO_CATEGORY_TREE[0].scenario) || "";
+        }
       }
     }
     var host = document.getElementById("planScCatPopHost");
@@ -3213,12 +3326,62 @@
     el.innerHTML = "";
     var node = treeNodeByScenario(panelActiveScenario);
     if (!node) return;
+    var clrTop = document.createElement("div");
+    clrTop.className = "sc-cat-item sc-cat-meta-row";
+    clrTop.style.cssText = "display:flex;align-items:center;flex-wrap:wrap;gap:8px;padding:6px 10px;";
+    var btnClrTop = document.createElement("button");
+    btnClrTop.type = "button";
+    btnClrTop.className = "link";
+    btnClrTop.style.cssText = "font-size:12px;padding:0;";
+    btnClrTop.textContent = "清空场景品类";
+    btnClrTop.addEventListener("click", function (e) {
+      e.stopPropagation();
+      filterLeafKeys.length = 0;
+      updateScCatTrigger();
+      renderPlans();
+      refreshScCatColumnsIfOpen();
+    });
+    clrTop.appendChild(btnClrTop);
+    var btnAllSc = document.createElement("button");
+    btnAllSc.type = "button";
+    btnAllSc.className = "link";
+    btnAllSc.style.cssText = "font-size:12px;padding:0;";
+    btnAllSc.textContent = "全场景（全市场）";
+    btnAllSc.addEventListener("click", function (e) {
+      e.stopPropagation();
+      setFilterAllScenes();
+    });
+    clrTop.appendChild(btnAllSc);
+    el.appendChild(clrTop);
+    var rowScene = document.createElement("div");
+    rowScene.className = "sc-cat-item sc-cat-meta-row" + (filterHasSceneAllCats(node.scenario) ? " is-checked" : "");
+    var cbS = document.createElement("input");
+    cbS.type = "checkbox";
+    cbS.checked = filterHasSceneAllCats(node.scenario);
+    cbS.addEventListener("click", function (e) {
+      e.stopPropagation();
+    });
+    cbS.addEventListener("change", function () {
+      toggleFilterSceneAllCats(node, cbS.checked);
+    });
+    var lblS = document.createElement("span");
+    lblS.className = "lbl";
+    lblS.textContent = "本场景维度（全品类）";
+    lblS.addEventListener("click", function (e) {
+      e.stopPropagation();
+      cbS.checked = !cbS.checked;
+      cbS.dispatchEvent(new Event("change"));
+    });
+    rowScene.appendChild(cbS);
+    rowScene.appendChild(lblS);
+    el.appendChild(rowScene);
     node.categories.forEach(function (cat) {
+      var checked = hasLeaf(node.scenario, cat);
       var div = document.createElement("div");
-      div.className = "sc-cat-item";
+      div.className = "sc-cat-item" + (checked ? " is-checked" : "");
       var cb = document.createElement("input");
       cb.type = "checkbox";
-      cb.checked = hasLeaf(node.scenario, cat);
+      cb.checked = checked;
       cb.addEventListener("click", function (e) {
         e.stopPropagation();
       });
@@ -3248,7 +3411,9 @@
     pop.hidden = false;
     wrap.classList.add("open");
     document.getElementById("fltScCatTrigger").setAttribute("aria-expanded", "true");
-    if (!panelActiveScenario && SCENARIO_CATEGORY_TREE.length) {
+    var picked = firstScenarioFromFilterLeaves();
+    if (picked) panelActiveScenario = picked;
+    else if (!panelActiveScenario && SCENARIO_CATEGORY_TREE.length) {
       var firstNon = SCENARIO_CATEGORY_TREE.find(function (n) {
         return n.scenario !== "未分类";
       });

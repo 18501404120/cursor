@@ -463,9 +463,17 @@
     heading.textContent = title;
     node.appendChild(heading);
 
-    Object.entries(guide || {}).forEach(([key, value]) => {
-      node.appendChild(section(key, value));
-    });
+    const savedCustom = state.guides && state.guides[editableKey];
+    if (savedCustom) {
+      const pre = document.createElement("pre");
+      pre.className = "pa-guide-pre";
+      pre.textContent = savedCustom;
+      node.appendChild(pre);
+    } else {
+      Object.entries(guide || {}).forEach(([key, value]) => {
+        node.appendChild(section(key, value));
+      });
+    }
     if (flow && flow.nodes && flow.nodes.length) {
       const flowTitle = document.createElement("div");
       flowTitle.className = "pa-section-title";
@@ -557,13 +565,9 @@
 
     const body = document.createElement("div");
     body.className = "pa-modal-body";
-    const savedDev = state.guides && state.guides.dev;
-    const savedUser = state.guides && state.guides.user;
-    const devGuide = savedDev ? {"自定义说明": savedDev} : ((config.pageGuide && config.pageGuide.dev) || {});
-    const userGuide = savedUser ? {"自定义说明": savedUser} : ((config.pageGuide && config.pageGuide.user) || {});
     body.append(
-      panel("开发测试专用", devGuide, config.statusFlow, "dev", config, state),
-      panel("终端用户手册", userGuide, null, "user", config, state)
+      panel("开发测试专用", (config.pageGuide && config.pageGuide.dev) || {}, config.statusFlow, "dev", config, state),
+      panel("终端用户手册", (config.pageGuide && config.pageGuide.user) || {}, null, "user", config, state)
     );
 
     modal.append(head, body);

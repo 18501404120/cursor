@@ -386,6 +386,11 @@
     document.addEventListener("click", onDocClick);
 
     updateTriggerLabel();
+    if (selected.size > 0) {
+      loadOptionsIfNeeded(function () {
+        updateTriggerLabel();
+      });
+    }
 
     var api = {
       getValues: function () {
@@ -393,8 +398,10 @@
       },
       setValues: function (vals) {
         selected = new Set((vals || []).map(String));
-        if (loaded) renderList();
-        updateTriggerLabel();
+        loadOptionsIfNeeded(function () {
+          if (loaded) renderList();
+          updateTriggerLabel();
+        });
       },
       clear: function () {
         selected.clear();
