@@ -8,6 +8,9 @@
   const PORTAL_REPOSITION_KEY = "__prototypeAnnotationPortalReposition";
   const PORTAL_ENTRIES = [];
   let outsideCloseBound = false;
+  let pickModeActive = false;
+  let pickHighlightEl = null;
+  let pickHandlers = null;
 
   function clone(value) {
     return JSON.parse(JSON.stringify(value || {}));
@@ -35,6 +38,7 @@
   }
 
   function removeOld() {
+    exitPickMode();
     const oldObserver = window[OBSERVER_STORE_KEY];
     if (oldObserver && oldObserver.disconnect) oldObserver.disconnect();
     window[OBSERVER_STORE_KEY] = null;
@@ -74,11 +78,237 @@
     if (outsideCloseBound) return;
     outsideCloseBound = true;
     document.addEventListener("click", (event) => {
+      if (pickModeActive) return;
       if (event.target.closest(".pa-popover")) return;
       if (event.target.closest(".pa-dot")) return;
       if (event.target.closest(".pa-tip-icon")) return;
       closePopovers();
     });
+  }
+
+  function isPaInternal(node) {
+    if (!node || node.nodeType !== 1) return true;
+    if (node.closest(`[${ROOT_ATTR}]`)) return true;
+    if (node.closest(".pa-toolbar")) return true;
+    const tag = (node.tagName || "").toUpperCase();
+    return tag === "HTML" || tag === "BODY" || tag === "SCRIPT" || tag === "STYLE";
+  }
+
+  function generateUserId() {
+    return "user-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 6);
+  }
+
+  function escapeAttr(value) {
+    return String(value).replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+  }
+
+  function generateSelector(el) {
+    if (!el || el.nodeType !== 1) return null;
+    if (el.id && !/^\d/.test(el.id)) {
+      try {
+        return `#${CSS.escape(el.id)}`;
+      } catch (_e) {
+        return `#${el.id.replace(/([ !"#$%&'()*+,./:;<=>?@[\\\]^`{|}~])/g, "\\$1")}`;
+      }
+    }
+    const selfKey = el.getAttribute("data-pa-key");
+    if (selfKey) return `[data-pa-key="${escapeAttr(selfKey)}"]`;
+    let node = el.parentElement;
+    for (let depth = 0; depth < 4 && node; depth += 1) {
+      if (node.id && !/^\d/.test(node.id)) {
+        try {
+          return `#${CSS.escape(node.id)}`;
+        } catch (_e) {
+          return `#${node.id}`;
+        }
+      }
+      const key = node.getAttribute("data-pa-key");
+      if (key) return `[data-pa-key="${escapeAttr(key)}"]`;
+      node = node.parentElement;
+    }
+    const autoKey = "pa-pick-" + Date.now().toString(36);
+    el.setAttribute("data-pa-key", autoKey);
+    return `[data-pa-key="${escapeAttr(autoKey)}"]`;
+  }
+
+  function clearPickHighlight() {
+    if (pickHighlightEl) {
+      pickHighlightEl.classList.remove("pa-pick-highlight");
+      pickHighlightEl = null;
+    }
+  }
+
+  function exitPickMode() {
+    pickModeActive = false;
+    document.body.classList.remove("pa-pick-mode");
+    clearPickHighlight();
+    if (pickHandlers) {
+      document.removeEventListener("mousemove", pickHandlers.move, true);
+      document.removeEventListener("click", pickHandlers.click, true);
+      document.removeEventListener("keydown", pickHandlers.key, true);
+      pickHandlers = null;
+    }
+    document.querySelectorAll(".pa-add-button").forEach((btn) => {
+      btn.classList.remove("is-active");
+      btn.textContent = "添加标注";
+    });
+  }
+
+  function openAddFormPopover(config, state, target, selector, onDone) {
+    closePopovers();
+    const popover = document.createElement("div");
+    popover.className = "pa-root pa-popover pa-add-form";
+    popover.setAttribute(ROOT_ATTR, "popover");
+    document.body.appendChild(popover);
+    placePopover(popover, target);
+    popover.addEventListener("click", (event) => event.stopPropagation());
+
+    const head = document.createElement("div");
+    head.className = "pa-pop-head";
+    const titleEl = document.createElement("div");
+    titleEl.className = "pa-pop-title";
+    titleEl.textContent = "新增标注";
+    head.appendChild(titleEl);
+    popover.appendChild(head);
+
+    const typeLabel = document.createElement("div");
+    typeLabel.className = "pa-field-label";
+    typeLabel.textContent = "类型";
+    const typeRow = document.createElement("div");
+    typeRow.className = "pa-type-row";
+    const radioAnno = document.createElement("label");
+    const inputAnno = document.createElement("input");
+    inputAnno.type = "radio";
+    inputAnno.name = "pa-add-type";
+    inputAnno.value = "annotation";
+    inputAnno.checked = true;
+    radioAnno.append(inputAnno, document.createTextNode("红点（开发/测试）"));
+    const radioTip = document.createElement("label");
+    const inputTip = document.createElement("input");
+    inputTip.type = "radio";
+    inputTip.name = "pa-add-type";
+    inputTip.value = "fieldTip";
+    radioTip.append(inputTip, document.createTextNode("蓝 i（用户字段）"));
+    typeRow.append(radioAnno, radioTip);
+    popover.append(typeLabel, typeRow);
+
+    const titleFieldLabel = document.createElement("label");
+    titleFieldLabel.className = "pa-field-label";
+    titleFieldLabel.textContent = "标题";
+    const titleInput = document.createElement("input");
+    titleInput.type = "text";
+    titleInput.className = "pa-title-input";
+    titleInput.placeholder = "例如：日期范围筛选逻辑";
+    popover.append(titleFieldLabel, titleInput);
+
+    const bodyLabel = document.createElement("label");
+    bodyLabel.className = "pa-field-label";
+    bodyLabel.textContent = "说明正文";
+    const editor = document.createElement("textarea");
+    editor.className = "pa-editor";
+    editor.placeholder = "1. 第一条说明\n2. 第二条说明";
+    popover.append(bodyLabel, editor);
+
+    const hint = document.createElement("div");
+    hint.className = "pa-selector-hint";
+    hint.textContent = "绑定元素：" + selector;
+    popover.appendChild(hint);
+
+    const actions = document.createElement("div");
+    actions.className = "pa-actions";
+    const cancel = button("取消");
+    const save = button("保存", "pa-action-primary");
+    actions.append(cancel, save);
+    popover.appendChild(actions);
+
+    cancel.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      closePopovers();
+      if (onDone) onDone(false);
+    });
+    save.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      const title = titleInput.value.trim();
+      const body = editor.value.trim();
+      if (!title) {
+        window.alert("请填写标题。");
+        return;
+      }
+      if (!body) {
+        window.alert("请填写说明正文。");
+        return;
+      }
+      const kind = inputTip.checked ? "fieldTip" : "annotation";
+      const id = generateUserId();
+      state.userAdded = state.userAdded || { annotations: [], fieldTips: [] };
+      const item = { id: id, selector: selector, title: title, body: body };
+      if (kind === "fieldTip") {
+        const tag = (target.tagName || "").toUpperCase();
+        if (tag === "TH") item.inlineAnchor = undefined;
+        else if (tag === "LABEL") item.inlineAnchor = undefined;
+        state.userAdded.fieldTips.push(item);
+      } else {
+        state.userAdded.annotations.push(item);
+      }
+      saveState(config, state);
+      closePopovers();
+      scheduleRender(config, state);
+      if (onDone) onDone(true);
+    });
+  }
+
+  function enterPickMode(config, state) {
+    if (pickModeActive) {
+      exitPickMode();
+      return;
+    }
+    closePopovers();
+    pickModeActive = true;
+    document.body.classList.add("pa-pick-mode");
+    document.querySelectorAll(".pa-add-button").forEach((btn) => {
+      btn.classList.add("is-active");
+      btn.textContent = "取消添加";
+    });
+
+    const move = (event) => {
+      if (!pickModeActive) return;
+      const el = document.elementFromPoint(event.clientX, event.clientY);
+      if (!el || isPaInternal(el)) {
+        clearPickHighlight();
+        return;
+      }
+      if (pickHighlightEl !== el) {
+        clearPickHighlight();
+        pickHighlightEl = el;
+        el.classList.add("pa-pick-highlight");
+      }
+    };
+
+    const click = (event) => {
+      if (!pickModeActive) return;
+      if (event.target.closest(".pa-toolbar") || event.target.closest(".pa-popover")) return;
+      const el = document.elementFromPoint(event.clientX, event.clientY);
+      if (!el || isPaInternal(el)) return;
+      event.preventDefault();
+      event.stopPropagation();
+      const selector = generateSelector(el);
+      if (!selector) return;
+      exitPickMode();
+      openAddFormPopover(config, state, el, selector, (saved) => {
+        if (!saved) enterPickMode(config, state);
+      });
+    };
+
+    const key = (event) => {
+      if (event.key === "Escape") exitPickMode();
+    };
+
+    pickHandlers = { move: move, click: click, key: key };
+    document.addEventListener("mousemove", move, true);
+    document.addEventListener("click", click, true);
+    document.addEventListener("keydown", key, true);
   }
 
   function button(label, className) {
@@ -136,7 +366,7 @@
     }
   }
 
-  function editablePopover(config, state, key, title, body, anchor, badgeLabel) {
+  function editablePopover(config, state, key, title, body, anchor, badgeLabel, meta) {
     closePopovers();
     const popover = document.createElement("div");
     popover.className = "pa-root pa-popover";
@@ -241,11 +471,21 @@
       confirmRemove.addEventListener("click", (event) => {
         event.preventDefault();
         event.stopPropagation();
-        state.hidden = state.hidden || {};
-        state.hidden[key] = true;
+        if (meta && meta.isUser && meta.listKey && meta.itemId) {
+          state.userAdded = state.userAdded || { annotations: [], fieldTips: [] };
+          const list = state.userAdded[meta.listKey] || [];
+          state.userAdded[meta.listKey] = list.filter((x) => x.id !== meta.itemId);
+          if (!state.userAdded.annotations.length && !state.userAdded.fieldTips.length) {
+            delete state.userAdded;
+          }
+        } else {
+          state.hidden = state.hidden || {};
+          state.hidden[key] = true;
+        }
         saveState(config, state);
         if (anchor && anchor.remove) anchor.remove();
         closePopovers();
+        scheduleRender(config, state);
       });
     }
 
@@ -373,10 +613,10 @@
     return true;
   }
 
-  function addAnnotation(config, state, item, index) {
+  function addAnnotation(config, state, item, index, isUser) {
     const target = resolve(item.selector);
     if (!target) return;
-    const key = `annotation:${item.id || index}`;
+    const key = isUser ? `userAnnotation:${item.id}` : `annotation:${item.id || index}`;
     if (state.hidden && state.hidden[key]) return;
     if (document.querySelector(`[data-pa-item-key="${key}"]`)) return;
     const saved = state.edits && state.edits[key];
@@ -387,16 +627,17 @@
     dot.textContent = String(index + 1);
     dot.title = item.title || "说明";
     if (!attachAnnotationPortal(dot, target)) return;
+    const meta = isUser ? { isUser: true, listKey: "annotations", itemId: item.id } : null;
     dot.addEventListener("click", (event) => {
       event.stopPropagation();
-      editablePopover(config, state, key, item.title || "说明", saved || item.body || "", dot, dot.textContent);
+      editablePopover(config, state, key, item.title || "说明", saved || item.body || "", dot, dot.textContent, meta);
     });
   }
 
-  function addFieldTip(config, state, item, index) {
+  function addFieldTip(config, state, item, index, isUser) {
     const target = resolveFieldTipTarget(item);
     if (!target) return;
-    const key = `fieldTip:${item.id || index}`;
+    const key = isUser ? `userFieldTip:${item.id}` : `fieldTip:${item.id || index}`;
     if (state.hidden && state.hidden[key]) return;
     if (document.querySelector(`[data-pa-item-key="${key}"]`)) return;
     const saved = state.edits && state.edits[key];
@@ -407,9 +648,10 @@
     icon.textContent = "i";
     icon.title = item.title || "字段释义";
     if (!attachFieldTipInline(icon, target, item)) return;
+    const meta = isUser ? { isUser: true, listKey: "fieldTips", itemId: item.id } : null;
     icon.addEventListener("click", (event) => {
       event.stopPropagation();
-      editablePopover(config, state, key, item.title || "字段释义", saved || item.body || "", icon, icon.textContent);
+      editablePopover(config, state, key, item.title || "字段释义", saved || item.body || "", icon, icon.textContent, meta);
     });
   }
 
@@ -577,8 +819,15 @@
   }
 
   function renderAll(config, state) {
-    (config.annotations || []).forEach((item, index) => addAnnotation(config, state, item, index));
-    (config.fieldTips || []).forEach((item, index) => addFieldTip(config, state, item, index));
+    const baseAnno = config.annotations || [];
+    const userAnno = (state.userAdded && state.userAdded.annotations) || [];
+    baseAnno.forEach((item, index) => addAnnotation(config, state, item, index, false));
+    userAnno.forEach((item, index) => addAnnotation(config, state, item, baseAnno.length + index, true));
+
+    const baseTips = config.fieldTips || [];
+    const userTips = (state.userAdded && state.userAdded.fieldTips) || [];
+    baseTips.forEach((item, index) => addFieldTip(config, state, item, index, false));
+    userTips.forEach((item, index) => addFieldTip(config, state, item, index, true));
   }
 
   function scheduleRender(config, state) {
@@ -607,16 +856,26 @@
   function mount(input) {
     const config = clone(input);
     removeOld();
+    exitPickMode();
     const state = loadState(config);
+    if (!state.userAdded) state.userAdded = { annotations: [], fieldTips: [] };
     const root = document.createElement("div");
-    root.className = "pa-root";
+    root.className = "pa-root pa-toolbar";
     root.setAttribute(ROOT_ATTR, "root");
     const pageButton = document.createElement("button");
     pageButton.type = "button";
     pageButton.className = "pa-page-button";
     pageButton.textContent = "查看页面说明";
     pageButton.addEventListener("click", () => openModal(config, state));
-    root.appendChild(pageButton);
+    const addButton = document.createElement("button");
+    addButton.type = "button";
+    addButton.className = "pa-add-button";
+    addButton.textContent = "添加标注";
+    addButton.addEventListener("click", (event) => {
+      event.stopPropagation();
+      enterPickMode(config, state);
+    });
+    root.append(pageButton, addButton);
     document.body.appendChild(root);
 
     renderAll(config, state);
