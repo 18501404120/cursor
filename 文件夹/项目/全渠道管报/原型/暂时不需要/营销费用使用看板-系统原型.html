@@ -612,6 +612,9 @@
     .subitem-readonly-wrap th, .subitem-readonly-wrap td { padding: 6px 8px; border: 1px solid var(--line); }
     .subitem-readonly-wrap th { background: #f7f9fc; font-weight: 600; }
     .subitem-readonly-wrap td.num { text-align: right; }
+    .subitem-period-cell { min-width: 240px; }
+    .subitem-period-cell .drp-wrap { width: 100%; }
+    .subitem-period-cell .drp-trigger { min-width: 220px; width: 100%; }
     #tblUsagePlanMirror tr.split-row-total td { font-weight: 600; background: #fafafa; }
     #tblUsagePlanMirror th:nth-child(9),
     #tblUsagePlanMirror td:nth-child(9) {
@@ -1073,9 +1076,9 @@
   </div>
 
   <div class="modal-mask" id="subItemMask" role="dialog" aria-modal="true" aria-labelledby="subItemTitle">
-    <div class="modal" id="subItemBox" style="max-width:860px;">
+    <div class="modal" id="subItemBox" style="max-width:920px;">
       <div class="modal-hd">
-        <h2 class="modal-title" id="subItemTitle">实际费用子项登记（按规划月份）</h2>
+        <h2 class="modal-title" id="subItemTitle">实际费用子项登记</h2>
         <div class="modal-hd-actions">
           <button type="button" class="modal-close" id="subItemClose" aria-label="关闭">×</button>
         </div>
@@ -1086,7 +1089,7 @@
           <table>
             <thead>
               <tr>
-                <th>规划月份</th>
+                <th class="subitem-period-cell">收益期间</th>
                 <th>项目类型</th>
                 <th class="num">子项规划费用（USD）</th>
                 <th class="num">子项实际费用（USD）</th>
@@ -1113,6 +1116,7 @@
   <script type="application/json" id="regionCountrySchemaEmbed">{"version":"1.0","source":"用户提供系统截图","note":"后续区域/国家筛选按本文件提供；国家下拉需与区域联动。","regions":[{"region_code":"NA","region_name":"北美区","countries":[{"country_code":"US","country_name":"美国"},{"country_code":"CA","country_name":"加拿大"},{"country_code":"MX","country_name":"墨西哥"}]},{"region_code":"EU","region_name":"欧洲区","countries":[{"country_code":"GB","country_name":"英国"},{"country_code":"DE","country_name":"德国"},{"country_code":"FR","country_name":"法国"},{"country_code":"IT","country_name":"意大利"},{"country_code":"ES","country_name":"西班牙"},{"country_code":"SE","country_name":"瑞典"},{"country_code":"NO","country_name":"挪威"},{"country_code":"FI","country_name":"芬兰"},{"country_code":"DK","country_name":"丹麦"},{"country_code":"PL","country_name":"波兰"},{"country_code":"CZ","country_name":"捷克"},{"country_code":"HU","country_name":"匈牙利"}]},{"region_code":"APAC","region_name":"亚太区","countries":[{"country_code":"CN","country_name":"中国"},{"country_code":"JP","country_name":"日本"},{"country_code":"KR","country_name":"韩国"},{"country_code":"SG","country_name":"新加坡"},{"country_code":"MY","country_name":"马来西亚"},{"country_code":"TH","country_name":"泰国"},{"country_code":"VN","country_name":"越南"},{"country_code":"PH","country_name":"菲律宾"},{"country_code":"ID","country_name":"印尼"},{"country_code":"AU","country_name":"澳大利亚"},{"country_code":"NZ","country_name":"新西兰"}]},{"region_code":"LATAM","region_name":"拉美区","countries":[{"country_code":"BR","country_name":"巴西"},{"country_code":"CL","country_name":"智利"},{"country_code":"CO","country_name":"哥伦比亚"}]},{"region_code":"MENA","region_name":"中东及非洲区","countries":[{"country_code":"AE","country_name":"阿联酋"},{"country_code":"SA","country_name":"沙特"},{"country_code":"ZA","country_name":"南非"},{"country_code":"NG","country_name":"尼日利亚"}]},{"region_code":"SA","region_name":"南亚区","countries":[{"country_code":"IN","country_name":"印度"},{"country_code":"PK","country_name":"巴基斯坦"},{"country_code":"BD","country_name":"孟加拉国"}]}]}</script>
 
   <script src="../../../../规范/assets/month-range-picker.js"></script>
+  <script src="../../../../规范/assets/date-range-picker.js"></script>
   <script src="../../../../规范/assets/multi-select-filter.js"></script>
 
   <script>
@@ -1161,11 +1165,12 @@
   var currentFilter = { monthStart: "", monthEnd: "" };
   var _fltGeoMsf = { region: null, country: null, channel: null, store: null };
   var FILTER_STORE_CODES = [];
-  /** 规划行 id → 子项列表（按规划月份登记） */
+  /** 规划行 id → 子项列表（按收益期间登记） */
   var USAGE_SUBITEM_KEY = "marketing_expense_usage_plan_subitems_v1";
   var PROJECT_TYPE_OPTIONS = ["PR", "KOL", "SNS", "Paid", "Creative", "BD", "其他"];
   var subItemEditingPlanId = "";
   var subItemEditingRows = [];
+  var subItemPeriodPickers = [];
   /** 与规划页同一套示例主数据（MSKU 池） */
   var MOCK_MSKU_UNIVERSE = [];
 
@@ -1284,16 +1289,98 @@
     }
   }
 
+  function lastDayOfYm(ym) {
+    var m = String(ym || "").trim().match(/^(\d{4})-(\d{2})$/);
+    if (!m) return "";
+    var y = parseInt(m[1], 10);
+    var mo = parseInt(m[2], 10);
+    return y + "-" + pad2(mo) + "-" + pad2(new Date(y, mo, 0).getDate());
+  }
+
+  function ymToPeriod(ym) {
+    var y = String(ym || "").trim();
+    if (!y) return { start: "", end: "" };
+    return { start: y + "-01", end: lastDayOfYm(y) };
+  }
+
+  function planRowDefaultPeriod(p) {
+    var pr = getPlanMonthRangePair(p || {});
+    return {
+      start: pr.start ? pr.start + "-01" : "",
+      end: pr.end ? lastDayOfYm(pr.end) : ""
+    };
+  }
+
+  function normalizeSubItemRow(r, fallbackPeriod) {
+    var fb = fallbackPeriod || { start: "", end: "" };
+    var ps = String((r && r.periodStart) || "").trim();
+    var pe = String((r && r.periodEnd) || "").trim();
+    if (!ps || !pe) {
+      var legacy = String((r && r.month) || "").trim();
+      if (legacy) {
+        var leg = ymToPeriod(legacy);
+        ps = leg.start;
+        pe = leg.end;
+      }
+    }
+    if (!ps && fb.start) ps = fb.start;
+    if (!pe && fb.end) pe = fb.end;
+    return {
+      periodStart: ps,
+      periodEnd: pe,
+      projectType: String((r && r.projectType) || "").trim(),
+      planFee: Number((r && r.planFee) || 0) || 0,
+      actualFee: Number((r && r.actualFee) || 0) || 0
+    };
+  }
+
+  function formatRevenuePeriodDisplay(r) {
+    var ps = String((r && r.periodStart) || "").trim();
+    var pe = String((r && r.periodEnd) || "").trim();
+    if (ps && pe) return ps + " 至 " + pe;
+    return "—";
+  }
+
+  function filterMonthRangeAsDates() {
+    if (!currentFilter.monthStart || !currentFilter.monthEnd) return null;
+    return {
+      start: currentFilter.monthStart + "-01",
+      end: lastDayOfYm(currentFilter.monthEnd)
+    };
+  }
+
+  function revenuePeriodOverlapsFilter(r) {
+    var fr = filterMonthRangeAsDates();
+    if (!fr) return true;
+    var ps = String((r && r.periodStart) || "").trim();
+    var pe = String((r && r.periodEnd) || "").trim();
+    if (!ps || !pe) return false;
+    return ps <= fr.end && pe >= fr.start;
+  }
+
+  function destroySubItemPeriodPickers() {
+    subItemPeriodPickers.forEach(function (p) {
+      try {
+        if (p && p.destroy) p.destroy();
+      } catch (e) {}
+    });
+    subItemPeriodPickers = [];
+  }
+
   function saveUsageSubItems(o) {
     try {
       localStorage.setItem(USAGE_SUBITEM_KEY, JSON.stringify(o || { byPlanId: {} }));
     } catch (e) {}
   }
 
-  function getSubItemsForPlan(planId) {
+  function getSubItemsForPlan(planId, fallbackPeriod) {
     var m = loadUsageSubItems().byPlanId || {};
     var arr = m[String(planId)];
-    return Array.isArray(arr) ? arr : [];
+    if (!Array.isArray(arr)) return [];
+    var fb = fallbackPeriod || { start: "", end: "" };
+    return arr.map(function (r) {
+      return normalizeSubItemRow(r, fb);
+    });
   }
 
   function saveSubItemsForPlan(planId, rows) {
@@ -1301,14 +1388,17 @@
     o.byPlanId = o.byPlanId || {};
     if (!planId) return;
     var clean = (Array.isArray(rows) ? rows : []).map(function (r) {
-      return {
-        month: String(r.month || "").trim(),
-        projectType: String(r.projectType || "").trim(),
-        planFee: Number(r.planFee) || 0,
-        actualFee: Number(r.actualFee) || 0
-      };
+      return normalizeSubItemRow(r);
     }).filter(function (r) {
-      return !!r.month && (r.planFee !== 0 || r.actualFee !== 0 || !!r.projectType);
+      return !!r.periodStart && !!r.periodEnd && (r.planFee !== 0 || r.actualFee !== 0 || !!r.projectType);
+    }).map(function (r) {
+      return {
+        periodStart: r.periodStart,
+        periodEnd: r.periodEnd,
+        projectType: r.projectType,
+        planFee: r.planFee,
+        actualFee: r.actualFee
+      };
     });
     if (!clean.length) delete o.byPlanId[String(planId)];
     else o.byPlanId[String(planId)] = clean;
@@ -1710,10 +1800,8 @@
   function subItemsForPlanInCurrentFilter(planId) {
     var rows = getSubItemsForPlan(planId);
     var wantType = projectTypeFilterValue();
-    var monthMap = monthRangeSetMap();
     return rows.filter(function (r) {
-      var m = String((r && r.month) || "").trim();
-      if (monthMap && !monthMap[m]) return false;
+      if (!revenuePeriodOverlapsFilter(r)) return false;
       if (wantType && String((r && r.projectType) || "").trim() !== wantType) return false;
       return true;
     });
@@ -4177,9 +4265,9 @@
     function subitemsReadonlyHtml(pid) {
       var rows = subItemsForPlanInCurrentFilter(pid);
       if (!rows.length) return '<div class="hint">暂无已登记子项</div>';
-      var h = '<div class="subitem-readonly-wrap"><table><thead><tr><th>规划月份</th><th>项目类型</th><th class="num">子项规划费用（USD）</th><th class="num">子项实际费用（USD）</th></tr></thead><tbody>';
+      var h = '<div class="subitem-readonly-wrap"><table><thead><tr><th>收益期间</th><th>项目类型</th><th class="num">子项规划费用（USD）</th><th class="num">子项实际费用（USD）</th></tr></thead><tbody>';
       rows.forEach(function (r) {
-        h += '<tr><td>' + escapeHtml(String(r.month || "")) + '</td><td>' + escapeHtml(String(r.projectType || "")) + '</td><td class="num">' + formatUsd(Number(r.planFee) || 0) + '</td><td class="num">' + formatUsd(Number(r.actualFee) || 0) + "</td></tr>";
+        h += '<tr><td>' + escapeHtml(formatRevenuePeriodDisplay(r)) + '</td><td>' + escapeHtml(String(r.projectType || "")) + '</td><td class="num">' + formatUsd(Number(r.planFee) || 0) + '</td><td class="num">' + formatUsd(Number(r.actualFee) || 0) + "</td></tr>";
       });
       h += "</tbody></table></div>";
       return h;
@@ -4259,33 +4347,17 @@
     renderSplit();
   }
 
-  function planMonthsForRow(p) {
-    var pr = getPlanMonthRangePair(p || {});
-    return enumerateYmMonths(pr.start, pr.end);
-  }
-
-  function monthSelectHtml(current, months) {
-    var opts = months.map(function (m) {
-      return '<option value="' + escapeHtml(m) + '"' + (m === current ? " selected" : "") + ">" + escapeHtml(m) + "</option>";
-    }).join("");
-    return '<select class="js-sub-month">' + opts + "</select>";
-  }
-
-  function typeSelectHtml(current) {
-    return '<select class="js-sub-type">' + PROJECT_TYPE_OPTIONS.map(function (t) {
-      return '<option value="' + escapeHtml(t) + '"' + (t === current ? " selected" : "") + ">" + escapeHtml(t) + "</option>";
-    }).join("") + "</select>";
-  }
-
   function renderSubItemRows() {
+    destroySubItemPeriodPickers();
     var tb = document.getElementById("subItemBody");
     if (!tb) return;
     var plans = tablePlans();
     var p = plans.find(function (x) { return x.id === subItemEditingPlanId; }) || filteredPlansForKpi().find(function (x) { return x.id === subItemEditingPlanId; });
-    var months = planMonthsForRow(p);
+    var defaultPeriod = planRowDefaultPeriod(p);
     if (!subItemEditingRows.length) {
       subItemEditingRows.push({
-        month: months[0] || "",
+        periodStart: defaultPeriod.start,
+        periodEnd: defaultPeriod.end,
         projectType: PROJECT_TYPE_OPTIONS[0],
         planFee: 0,
         actualFee: 0
@@ -4293,16 +4365,39 @@
     }
     tb.innerHTML = "";
     subItemEditingRows.forEach(function (r, idx) {
-      if (!r.month) r.month = months[0] || "";
+      var nr = normalizeSubItemRow(r, defaultPeriod);
+      r.periodStart = nr.periodStart;
+      r.periodEnd = nr.periodEnd;
+      r.projectType = nr.projectType;
+      r.planFee = nr.planFee;
+      r.actualFee = nr.actualFee;
+      delete r.month;
       var tr = document.createElement("tr");
       tr.innerHTML =
-        "<td>" + monthSelectHtml(String(r.month || months[0] || ""), months) + "</td>" +
+        '<td class="subitem-period-cell"><div class="js-sub-period-host"></div></td>' +
         "<td>" + typeSelectHtml(String(r.projectType || PROJECT_TYPE_OPTIONS[0])) + "</td>" +
         '<td class="num"><input type="number" class="input-actual-num js-sub-plan" min="0" step="1" value="' + String(Number(r.planFee) || 0) + '" /></td>' +
         '<td class="num"><input type="number" class="input-actual-num js-sub-actual" min="0" step="1" value="' + String(Number(r.actualFee) || 0) + '" /></td>' +
         '<td><button type="button" class="link danger js-sub-del">删除</button></td>';
       tb.appendChild(tr);
-      tr.querySelector(".js-sub-month").addEventListener("change", function () { r.month = this.value; });
+      var host = tr.querySelector(".js-sub-period-host");
+      if (window.DateRangePicker && host) {
+        var picker = DateRangePicker.mount(host, {
+          start: r.periodStart,
+          end: r.periodEnd,
+          compact: true,
+          zIndex: 500,
+          useBodyPortal: true,
+          placeholder: "请选择收益期间",
+          onChange: function (s, e) {
+            r.periodStart = s;
+            r.periodEnd = e;
+          }
+        });
+        subItemPeriodPickers.push(picker);
+      } else if (host) {
+        host.innerHTML = '<span class="hint" style="font-size:11px;color:#f87171">日期范围控件未加载</span>';
+      }
       tr.querySelector(".js-sub-type").addEventListener("change", function () { r.projectType = this.value; });
       tr.querySelector(".js-sub-plan").addEventListener("input", function () { r.planFee = Number(this.value) || 0; });
       tr.querySelector(".js-sub-actual").addEventListener("input", function () { r.actualFee = Number(this.value) || 0; });
@@ -4313,12 +4408,19 @@
     });
   }
 
+  function typeSelectHtml(current) {
+    return '<select class="js-sub-type">' + PROJECT_TYPE_OPTIONS.map(function (t) {
+      return '<option value="' + escapeHtml(t) + '"' + (t === current ? " selected" : "") + ">" + escapeHtml(t) + "</option>";
+    }).join("") + "</select>";
+  }
+
   function openSubItemModal(planId) {
     var plans = tablePlans();
     var p = plans.find(function (x) { return x.id === planId; }) || filteredPlansForKpi().find(function (x) { return x.id === planId; });
     if (!p) return;
     subItemEditingPlanId = planId;
-    subItemEditingRows = JSON.parse(JSON.stringify(getSubItemsForPlan(planId)));
+    var defaultPeriod = planRowDefaultPeriod(p);
+    subItemEditingRows = JSON.parse(JSON.stringify(getSubItemsForPlan(planId, defaultPeriod)));
     var info = document.getElementById("subItemPlanInfo");
     if (info) {
       var pr = getPlanMonthRangePair(p);
@@ -4329,6 +4431,7 @@
   }
 
   function closeSubItemModal() {
+    destroySubItemPeriodPickers();
     document.getElementById("subItemMask").classList.remove("show");
     subItemEditingPlanId = "";
     subItemEditingRows = [];
@@ -4533,8 +4636,12 @@
   document.getElementById("subItemClose").addEventListener("click", closeSubItemModal);
   document.getElementById("subItemCancel").addEventListener("click", closeSubItemModal);
   document.getElementById("subItemAdd").addEventListener("click", function () {
+    var plans = tablePlans();
+    var p = plans.find(function (x) { return x.id === subItemEditingPlanId; }) || filteredPlansForKpi().find(function (x) { return x.id === subItemEditingPlanId; });
+    var dp = planRowDefaultPeriod(p);
     subItemEditingRows.push({
-      month: "",
+      periodStart: dp.start,
+      periodEnd: dp.end,
       projectType: PROJECT_TYPE_OPTIONS[0],
       planFee: 0,
       actualFee: 0
@@ -4542,6 +4649,13 @@
     renderSubItemRows();
   });
   document.getElementById("subItemSave").addEventListener("click", function () {
+    subItemPeriodPickers.forEach(function (p, i) {
+      if (p && p.get && subItemEditingRows[i]) {
+        var v = p.get();
+        subItemEditingRows[i].periodStart = v.start || "";
+        subItemEditingRows[i].periodEnd = v.end || "";
+      }
+    });
     saveSubItemsForPlan(subItemEditingPlanId, subItemEditingRows);
     closeSubItemModal();
     renderKpis();
@@ -4639,12 +4753,14 @@
 
 
 
+
+
 <!-- prototype-annotation:start -->
 <link rel="stylesheet" href="prototype-annotation/prototype-annotation.css">
 <script id="prototype-annotation-config" type="application/json">
 {
   "pageId": "marketing-expense-usage-board",
-  "version": "2026-05-20T12:00:00+08:00",
+  "version": "2026-05-20T14:00:00+08:00",
   "pageTitle": "营销费用使用看板",
   "annotations": [
     {
@@ -4681,7 +4797,7 @@
       "id": "act-list",
       "selector": "#actsTableWrap",
       "title": "规划行列表",
-      "body": "规划行列表逻辑：\n1. 展示来自营销费用规划页的已保存行，含规划月份范围、范围维度与规划预算。\n2. 「子项登记」按规划月份维护项目类型、子项规划费用与子项实际费用。\n3. 展开行可查看已登记子项明细，实际合计参与下方 KPI 与分摊实际费用列。"
+      "body": "规划行列表逻辑：\n1. 展示来自营销费用规划页的已保存行，含规划月份范围、范围维度与规划预算。\n2. 「子项登记」按收益期间（日期范围）维护项目类型、子项规划费用与子项实际费用。\n3. 展开行可查看已登记子项明细，实际合计参与下方 KPI 与分摊实际费用列。"
     },
     {
       "id": "kpi-row",
@@ -4711,13 +4827,13 @@
       "id": "subitem-modal",
       "selector": "#subItemBox",
       "title": "子项登记弹窗",
-      "body": "子项登记弹窗逻辑：\n1. 按规划月份逐行登记项目类型、子项规划费用与子项实际费用。\n2. 同一规划行多个月可有多条子项，保存后汇总进规划行实际合计。\n3. 弹窗打开时自动挂载标注；项目类型枚举与管报费用分类对齐（原型为示例值）。"
+      "body": "子项登记弹窗逻辑：\n1. 按收益期间（YYYY-MM-DD 至 YYYY-MM-DD 日期范围）逐行登记项目类型、子项规划费用与子项实际费用。\n2. 同一规划行可登记多条子项，保存后汇总进规划行实际合计。\n3. 弹窗打开时自动挂载标注；项目类型枚举与管报费用分类对齐（原型为示例值）。"
     },
     {
       "id": "subitem-add",
       "selector": "#subItemAdd",
       "title": "新增子项行",
-      "body": "新增子项逻辑：\n1. 在弹窗表格中增加一行，选择规划月份并填写费用。\n2. 子项规划费用可与规划分摊对照；子项实际费用为执行后登记值。\n3. 保存子项后关闭弹窗并刷新列表与 KPI。"
+      "body": "新增子项逻辑：\n1. 在弹窗表格中增加一行，选择收益期间（日期范围）并填写费用。\n2. 子项规划费用可与规划分摊对照；子项实际费用为执行后登记值。\n3. 保存子项后关闭弹窗并刷新列表与 KPI。"
     }
   ],
   "fieldTips": [
@@ -4731,7 +4847,7 @@
       "id": "tip-subitem-col",
       "selector": "#actsTableWrap thead th:nth-child(11)",
       "title": "子项登记",
-      "body": "入口为按规划月份登记实际发生的费用子项。子项实际费用合计驱动 KPI「规划行实际合计」与底部分摊实际费用列。"
+      "body": "入口为按收益期间登记实际发生的费用子项。子项实际费用合计驱动 KPI「规划行实际合计」与底部分摊实际费用列。"
     },
     {
       "id": "tip-time-progress",
@@ -4767,7 +4883,7 @@
       "关联上下游": "上游：营销费用规划页、场景品类/渠道店铺/销售基础信息主数据。下游：管报费用分析、营销费用执行复盘（正式系统）。"
     },
     "user": {
-      "标准操作流程": "第一步，选择年度、场景品类、月份范围等后点击搜索。第二步，在规划行列表找到目标行，点击子项登记，按规划月份填写项目类型与子项规划/实际费用并保存。第三步，查看 KPI 卡片与进度条，判断实际消耗是否快于规划进度。第四步，在底部分摊表核对各店铺 MSKU 的规划分摊与实际分摊。第五步，需要看单月时可点击里程碑月份钻取。",
+      "标准操作流程": "第一步，选择年度、场景品类、月份范围等后点击搜索。第二步，在规划行列表找到目标行，点击子项登记，按收益期间填写项目类型与子项规划/实际费用并保存。第三步，查看 KPI 卡片与进度条，判断实际消耗是否快于规划进度。第四步，在底部分摊表核对各店铺 MSKU 的规划分摊与实际分摊。第五步，需要看单月时可点击里程碑月份钻取。",
       "关键按钮与场景": "搜索刷新全页。子项登记维护实际费用明细。新增子项行用于同月多笔费用。取消月份筛选用于退出钻取。底表用于规划与实际对照分析。",
       "使用注意事项": "须先在规划页保存规划，本页才有数据。子项实际费用可后补登记。KPI 差异仅作进度参考，不等同财务结账。筛选缩小范围后 KPI 为可见集合口径。"
     }
