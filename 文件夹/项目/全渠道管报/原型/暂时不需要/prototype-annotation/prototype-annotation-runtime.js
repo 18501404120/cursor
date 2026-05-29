@@ -7,10 +7,109 @@
   const RENDER_TIMER_KEY = "__prototypeAnnotationRenderTimer";
   const PORTAL_REPOSITION_KEY = "__prototypeAnnotationPortalReposition";
   const PORTAL_ENTRIES = [];
+  /** 对外 Pages 只读、作者 IP / 本地 / ?paEdit= 可编；见 Skill §Git Pages 编辑权限 */
+  const PA_POLICY_DEFAULT = {
+    viewOnlyHostnames: ["18501404120.github.io"],
+    allowIps: ["113.110.230.127", "220.232.134.241"],
+    editToken: "",
+    allowLocalhost: true,
+    allowOtherHosts: true
+  };
   let outsideCloseBound = false;
   let pickModeActive = false;
   let pickHighlightEl = null;
   let pickHandlers = null;
+  let paCanEdit = true;
+
+  function mergeEditPolicy(config) {
+    const fromConfig = (config && config.editPolicy) || {};
+    return {
+      viewOnlyHostnames:
+        fromConfig.viewOnlyHostnames != null
+          ? fromConfig.viewOnlyHostnames
+          : PA_POLICY_DEFAULT.viewOnlyHostnames,
+      allowIps: fromConfig.allowIps != null ? fromConfig.allowIps : PA_POLICY_DEFAULT.allowIps,
+      editToken: fromConfig.editToken != null ? fromConfig.editToken : PA_POLICY_DEFAULT.editToken,
+      allowLocalhost:
+        fromConfig.allowLocalhost != null ? fromConfig.allowLocalhost : PA_POLICY_DEFAULT.allowLocalhost,
+      allowOtherHosts:
+        fromConfig.allowOtherHosts != null ? fromConfig.allowOtherHosts : PA_POLICY_DEFAULT.allowOtherHosts
+    };
+  }
+
+  function editTokenFromUrl() {
+    try {
+      return new URLSearchParams(location.search).get("paEdit") || "";
+    } catch (_error) {
+      return "";
+    }
+  }
+
+  async function fetchPublicIp() {
+    const sources = [
+      async () => {
+        const res = await fetch("https://api64.ipify.org?format=json", { cache: "no-store" });
+        if (!res.ok) throw new Error("ipify64");
+        const data = await res.json();
+        return data && data.ip ? String(data.ip) : "";
+      },
+      async () => {
+        const res = await fetch("https://ipinfo.io/json", { cache: "no-store" });
+        if (!res.ok) throw new Error("ipinfo");
+        const data = await res.json();
+        return data && data.ip ? String(data.ip) : "";
+      },
+      async () => {
+        const res = await fetch("https://ifconfig.me/ip", { cache: "no-store" });
+        if (!res.ok) throw new Error("ifconfig");
+        const text = (await res.text()).trim();
+        return /^\d{1,3}(\.\d{1,3}){3}$/.test(text) ? text : "";
+      },
+      async () => {
+        const res = await fetch("https://icanhazip.com", { cache: "no-store" });
+        if (!res.ok) throw new Error("icanhazip");
+        const text = (await res.text()).trim();
+        return /^\d{1,3}(\.\d{1,3}){3}$/.test(text) ? text : "";
+      }
+    ];
+    let lastError = null;
+    for (let i = 0; i < sources.length; i += 1) {
+      try {
+        const ip = await sources[i]();
+        if (ip) return ip;
+      } catch (error) {
+        lastError = error;
+      }
+    }
+    throw lastError || new Error("no-ip-source");
+  }
+
+  async function resolveCanEdit(config) {
+    const policy = mergeEditPolicy(config);
+    const host = location.hostname || "";
+
+    if (policy.allowLocalhost && (host === "localhost" || host === "127.0.0.1")) {
+      return true;
+    }
+    if (policy.editToken && editTokenFromUrl() === policy.editToken) {
+      return true;
+    }
+    const isViewOnlyHost = (policy.viewOnlyHostnames || []).some(
+      (name) => name && (host === name || host.endsWith("." + name))
+    );
+    if (!isViewOnlyHost) {
+      return policy.allowOtherHosts !== false;
+    }
+    if (!policy.allowIps || !policy.allowIps.length) {
+      return false;
+    }
+    try {
+      const ip = await fetchPublicIp();
+      return policy.allowIps.includes(ip);
+    } catch (_error) {
+      return false;
+    }
+  }
 
   function clone(value) {
     return JSON.parse(JSON.stringify(value || {}));
@@ -102,8 +201,40 @@
     return String(value).replace(/\\/g, "\\\\").replace(/"/g, '\\"');
   }
 
+  function normalizePickTarget(el) {
+    if (!el || el.nodeType !== 1) return null;
+    if (isPaInternal(el)) return null;
+
+    const th = el.closest("th");
+    if (th && !isPaInternal(th)) return th;
+
+    const td = el.closest("td");
+    if (td && !isPaInternal(td)) return td;
+
+    const label = el.closest("label");
+    if (label && !isPaInternal(label)) return label;
+
+    const interactive = el.closest(
+      "button, select, textarea, input, a.btn, .btn, .sc-cat-trigger, .mrp-trigger, .ctl-host, [role='button']"
+    );
+    if (interactive && !interactive.closest(".pa-toolbar")) return interactive;
+
+    const filterItem = el.closest(".f, .f-item, .filter-field");
+    if (filterItem) {
+      const withId = filterItem.querySelector("[id]");
+      if (withId && withId.id) return withId;
+      const ctl = filterItem.querySelector("select, .sc-cat-wrap, .sku-group, button");
+      if (ctl) return ctl;
+    }
+
+    return el;
+  }
+
   function generateSelector(el) {
     if (!el || el.nodeType !== 1) return null;
+    el = normalizePickTarget(el);
+    if (!el) return null;
+
     if (el.id && !/^\d/.test(el.id)) {
       try {
         return `#${CSS.escape(el.id)}`;
@@ -113,8 +244,31 @@
     }
     const selfKey = el.getAttribute("data-pa-key");
     if (selfKey) return `[data-pa-key="${escapeAttr(selfKey)}"]`;
+
+    const tag = (el.tagName || "").toUpperCase();
+    if (tag === "TH" || tag === "TD") {
+      const table = el.closest("table");
+      const row = el.parentElement;
+      if (table && table.id && row) {
+        const idx = Array.from(row.children).indexOf(el) + 1;
+        if (idx > 0) {
+          const section = el.closest("thead") ? "thead" : "tbody";
+          try {
+            return `#${CSS.escape(table.id)} ${section} tr > ${tag.toLowerCase()}:nth-child(${idx})`;
+          } catch (_e) {
+            return `#${table.id} ${section} tr > ${tag.toLowerCase()}:nth-child(${idx})`;
+          }
+        }
+      }
+    }
+
     let node = el.parentElement;
-    for (let depth = 0; depth < 4 && node; depth += 1) {
+    for (let depth = 0; depth < 6 && node; depth += 1) {
+      const nt = (node.tagName || "").toUpperCase();
+      if (nt === "TABLE" || nt === "THEAD" || nt === "TBODY" || nt === "TR") {
+        node = node.parentElement;
+        continue;
+      }
       if (node.id && !/^\d/.test(node.id)) {
         try {
           return `#${CSS.escape(node.id)}`;
@@ -126,9 +280,39 @@
       if (key) return `[data-pa-key="${escapeAttr(key)}"]`;
       node = node.parentElement;
     }
-    const autoKey = "pa-pick-" + Date.now().toString(36);
+
+    let autoKey = "pa-pick-" + Date.now().toString(36);
+    if (tag === "TH" || tag === "TD") {
+      const label = el.textContent.trim().replace(/\s+/g, " ").slice(0, 24);
+      if (label) {
+        autoKey = "pa-col-" + label.replace(/[^\u4e00-\u9fa5a-zA-Z0-9_-]/g, "");
+      }
+    }
     el.setAttribute("data-pa-key", autoKey);
     return `[data-pa-key="${escapeAttr(autoKey)}"]`;
+  }
+
+  function resolveAnnotationTarget(item) {
+    const target = resolve(item.selector);
+    if (!target) return null;
+    const tag = (target.tagName || "").toUpperCase();
+    if (tag === "TH" || tag === "TD") return target;
+    if (target.classList && target.classList.contains("th-inner")) {
+      return target.closest("th") || target;
+    }
+    return target;
+  }
+
+  function pickTargetFromEvent(event) {
+    const raw = document.elementFromPoint(event.clientX, event.clientY);
+    return normalizePickTarget(raw);
+  }
+
+  function highlightPickTarget(el) {
+    clearPickHighlight();
+    if (!el) return;
+    pickHighlightEl = el;
+    el.classList.add("pa-pick-highlight");
   }
 
   function clearPickHighlight() {
@@ -150,7 +334,7 @@
     }
     document.querySelectorAll(".pa-add-button").forEach((btn) => {
       btn.classList.remove("is-active");
-      btn.textContent = "添加标注";
+      btn.textContent = "新增标注";
     });
   }
 
@@ -260,6 +444,7 @@
   }
 
   function enterPickMode(config, state) {
+    if (!paCanEdit) return;
     if (pickModeActive) {
       exitPickMode();
       return;
@@ -269,28 +454,19 @@
     document.body.classList.add("pa-pick-mode");
     document.querySelectorAll(".pa-add-button").forEach((btn) => {
       btn.classList.add("is-active");
-      btn.textContent = "取消添加";
+      btn.textContent = "取消新增";
     });
 
     const move = (event) => {
       if (!pickModeActive) return;
-      const el = document.elementFromPoint(event.clientX, event.clientY);
-      if (!el || isPaInternal(el)) {
-        clearPickHighlight();
-        return;
-      }
-      if (pickHighlightEl !== el) {
-        clearPickHighlight();
-        pickHighlightEl = el;
-        el.classList.add("pa-pick-highlight");
-      }
+      highlightPickTarget(pickTargetFromEvent(event));
     };
 
     const click = (event) => {
       if (!pickModeActive) return;
       if (event.target.closest(".pa-toolbar") || event.target.closest(".pa-popover")) return;
-      const el = document.elementFromPoint(event.clientX, event.clientY);
-      if (!el || isPaInternal(el)) return;
+      const el = pickTargetFromEvent(event);
+      if (!el) return;
       event.preventDefault();
       event.stopPropagation();
       const selector = generateSelector(el);
@@ -399,22 +575,25 @@
       fillBody(bodyEl, content);
       const actions = document.createElement("div");
       actions.className = "pa-actions";
-      const edit = button("编辑");
-      const remove = button("删除");
       const close = button("关闭", "pa-action-primary");
-      actions.append(edit, remove, close);
+      if (paCanEdit) {
+        const edit = button("编辑");
+        const remove = button("删除");
+        actions.append(edit, remove, close);
+        edit.addEventListener("click", (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          renderEdit(content);
+        });
+        remove.addEventListener("click", (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          renderDeleteConfirm(content);
+        });
+      } else {
+        actions.append(close);
+      }
       popover.append(bodyEl, actions);
-
-      edit.addEventListener("click", (event) => {
-        event.preventDefault();
-        event.stopPropagation();
-        renderEdit(content);
-      });
-      remove.addEventListener("click", (event) => {
-        event.preventDefault();
-        event.stopPropagation();
-        renderDeleteConfirm(content);
-      });
       close.addEventListener("click", (event) => {
         event.preventDefault();
         event.stopPropagation();
@@ -614,7 +793,7 @@
   }
 
   function addAnnotation(config, state, item, index, isUser) {
-    const target = resolve(item.selector);
+    const target = resolveAnnotationTarget(item);
     if (!target) return;
     const key = isUser ? `userAnnotation:${item.id}` : `annotation:${item.id || index}`;
     if (state.hidden && state.hidden[key]) return;
@@ -726,45 +905,47 @@
 
     const actions = document.createElement("div");
     actions.className = "pa-actions";
-    const edit = button("编辑说明");
-    const remove = button("删除自定义");
-    if (!(state.guides && state.guides[editableKey])) remove.disabled = true;
-    actions.append(edit, remove);
-    node.appendChild(actions);
+    if (paCanEdit) {
+      const edit = button("编辑说明");
+      const remove = button("删除自定义");
+      if (!(state.guides && state.guides[editableKey])) remove.disabled = true;
+      actions.append(edit, remove);
+      node.appendChild(actions);
 
-    edit.addEventListener("click", () => {
-      const current = state.guides && state.guides[editableKey]
-        ? state.guides[editableKey]
-        : JSON.stringify(guide || {}, null, 2);
-      node.innerHTML = "";
-      const editor = document.createElement("textarea");
-      editor.className = "pa-editor";
-      editor.style.minHeight = "360px";
-      editor.value = current;
-      const save = button("保存", "pa-action-primary");
-      const cancel = button("取消");
-      const editorActions = document.createElement("div");
-      editorActions.className = "pa-actions";
-      editorActions.append(cancel, save);
-      node.append(editor, editorActions);
-      cancel.addEventListener("click", () => openModal(config, state));
-      save.addEventListener("click", () => {
-        state.guides = state.guides || {};
-        state.guides[editableKey] = editor.value;
+      edit.addEventListener("click", () => {
+        const current = state.guides && state.guides[editableKey]
+          ? state.guides[editableKey]
+          : JSON.stringify(guide || {}, null, 2);
+        node.innerHTML = "";
+        const editor = document.createElement("textarea");
+        editor.className = "pa-editor";
+        editor.style.minHeight = "360px";
+        editor.value = current;
+        const save = button("保存", "pa-action-primary");
+        const cancel = button("取消");
+        const editorActions = document.createElement("div");
+        editorActions.className = "pa-actions";
+        editorActions.append(cancel, save);
+        node.append(editor, editorActions);
+        cancel.addEventListener("click", () => openModal(config, state));
+        save.addEventListener("click", () => {
+          state.guides = state.guides || {};
+          state.guides[editableKey] = editor.value;
+          saveState(config, state);
+          openModal(config, state);
+        });
+      });
+
+      remove.addEventListener("click", () => {
+        if (!(state.guides && state.guides[editableKey])) return;
+        const confirmed = window.confirm("删除后将恢复默认页面说明，确认删除吗？");
+        if (!confirmed) return;
+        delete state.guides[editableKey];
+        if (!Object.keys(state.guides).length) delete state.guides;
         saveState(config, state);
         openModal(config, state);
       });
-    });
-
-    remove.addEventListener("click", () => {
-      if (!(state.guides && state.guides[editableKey])) return;
-      const confirmed = window.confirm("删除后将恢复默认页面说明，确认删除吗？");
-      if (!confirmed) return;
-      delete state.guides[editableKey];
-      if (!Object.keys(state.guides).length) delete state.guides;
-      saveState(config, state);
-      openModal(config, state);
-    });
+    }
 
     return node;
   }
@@ -853,29 +1034,34 @@
     window[OBSERVER_STORE_KEY] = observer;
   }
 
-  function mount(input) {
+  async function mount(input) {
     const config = clone(input);
     removeOld();
     exitPickMode();
+    paCanEdit = await resolveCanEdit(config);
     const state = loadState(config);
     if (!state.userAdded) state.userAdded = { annotations: [], fieldTips: [] };
     const root = document.createElement("div");
-    root.className = "pa-root pa-toolbar";
+    root.className = "pa-root pa-toolbar" + (paCanEdit ? "" : " pa-toolbar-readonly");
     root.setAttribute(ROOT_ATTR, "root");
     const pageButton = document.createElement("button");
     pageButton.type = "button";
     pageButton.className = "pa-page-button";
     pageButton.textContent = "查看页面说明";
     pageButton.addEventListener("click", () => openModal(config, state));
-    const addButton = document.createElement("button");
-    addButton.type = "button";
-    addButton.className = "pa-add-button";
-    addButton.textContent = "添加标注";
-    addButton.addEventListener("click", (event) => {
-      event.stopPropagation();
-      enterPickMode(config, state);
-    });
-    root.append(pageButton, addButton);
+    if (paCanEdit) {
+      const addButton = document.createElement("button");
+      addButton.type = "button";
+      addButton.className = "pa-add-button";
+      addButton.textContent = "新增标注";
+      addButton.addEventListener("click", (event) => {
+        event.stopPropagation();
+        enterPickMode(config, state);
+      });
+      root.append(pageButton, addButton);
+    } else {
+      root.append(pageButton);
+    }
     document.body.appendChild(root);
 
     renderAll(config, state);
@@ -883,17 +1069,17 @@
     bindDynamicObserver(config, state);
   }
 
-  function mountFromScript() {
+  async function mountFromScript() {
     const script = document.getElementById("prototype-annotation-config");
     if (!script) return;
     try {
-      mount(JSON.parse(script.textContent));
+      await mount(JSON.parse(script.textContent));
     } catch (error) {
       console.error("Prototype annotation config is invalid.", error);
     }
   }
 
-  window.PrototypeAnnotation = { mount, mountFromScript };
+  window.PrototypeAnnotation = { mount, mountFromScript, resolveCanEdit };
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", mountFromScript);
   } else {
