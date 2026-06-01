@@ -150,6 +150,7 @@
     td.col-month .mrp-ico-cal { left: 7px; width: 14px; height: 14px; opacity: .65; }
     td.col-month .mrp-ico-clear { right: 4px; width: 20px; height: 20px; font-size: 13px; }
     td.col-month .mrp-text { font-size: 12px; }
+    td.col-doc input.cell-inp { width: 108px; min-width: 96px; max-width: 140px; }
     .num-r { text-align: right; font-variant-numeric: tabular-nums; }
     .link { color: var(--brand); cursor: pointer; text-decoration: none; }
     .link:hover { text-decoration: underline; }
@@ -449,6 +450,14 @@
         <input type="text" class="ctl-text" id="f-batch" placeholder="如 RT-20260526" style="width:120px">
       </div>
       <div class="f-item">
+        <label>订单/PO</label>
+        <input type="text" class="ctl-text" id="f-order-po" placeholder="模糊搜索" style="width:120px">
+      </div>
+      <div class="f-item">
+        <label>invoice/PI</label>
+        <input type="text" class="ctl-text" id="f-invoice-pi" placeholder="模糊搜索" style="width:120px">
+      </div>
+      <div class="f-item">
         <label>MSKU</label>
         <input type="text" class="ctl-text" id="f-msku" placeholder="模糊搜索">
       </div>
@@ -475,6 +484,8 @@
               <th>退货批次</th>
               <th>销售组织</th>
               <th>客户</th>
+              <th>订单/PO</th>
+              <th>invoice/PI</th>
               <th>店铺<span class="req">*</span></th>
               <th>Sales<span class="req">*</span></th>
               <th>物流<span class="req">*</span></th>
@@ -553,13 +564,14 @@
         </div>
       </div>
       <div id="panel-step2" hidden>
-        <p style="margin:0 0 10px;color:var(--muted);font-size:12px">已解析 <strong id="parse-count">0</strong> 行；<strong>店铺 / Sales / 物流 / 财务</strong> 来自 Excel，可在此修改（均必填）；映射失败行标黄。</p>
+        <p style="margin:0 0 10px;color:var(--muted);font-size:12px">已解析 <strong id="parse-count">0</strong> 行；<strong>店铺 / Sales / 物流 / 财务 / 订单/PO / invoice/PI</strong> 来自 Excel，人员列必填；映射失败行标黄。</p>
         <div style="overflow:auto;max-height:280px;border:1px solid var(--line);border-radius:6px">
-          <table class="data" style="min-width:1100px">
+          <table class="data" style="min-width:1280px">
             <thead>
               <tr>
                 <th>店铺<span class="req">*</span></th><th>Sales<span class="req">*</span></th>
                 <th>物流<span class="req">*</span></th><th>财务<span class="req">*</span></th>
+                <th>订单/PO</th><th>invoice/PI</th>
                 <th>MSKU</th><th>数量</th><th>单价</th><th>手续费单价</th><th>退款金额</th>
                 <th>处理方式</th>
               </tr>
@@ -730,10 +742,10 @@
       '# 退货对账导入文件（原型预览）\n' +
       '批次号: ' + batchId + '\n' +
       '客户 KA: ' + ka + '\n' +
-      '列: 店铺, Sales, 物流, 财务, MSKU, 数量, 单价, 手续费单价, …\n' +
+      '列: 店铺, Sales, 物流, 财务, 订单/PO, invoice/PI, MSKU, 数量, 单价, …\n' +
       '---\n' +
-      'Govee_US, 王晓雨, 刘仓储, 孙会计, H70501, 12, 89.99, 0\n' +
-      'Govee_US, 陈思远, 周预报, 钱核对, H70502, 8, 79.50, 0\n' +
+      'Govee_US, 王晓雨, 刘仓储, 孙会计, PO-COS-2026-001, INV-COS-260526-01, H70501, 12, 89.99, 0\n' +
+      'Govee_US, 陈思远, 周预报, 钱核对, PO-COS-2026-002, INV-COS-260526-02, H70502, 8, 79.50, 0\n' +
       '...\n'
     );
   }
@@ -898,6 +910,31 @@
       '" data-prev-field="' + field + '" value="' + escapeAttr(val) + '" placeholder="必填">';
   }
 
+  function docTextHtml(r, field, placeholder) {
+    return '<input type="text" class="cell-inp" data-line="' + r.line + '" data-field="' + field +
+      '" value="' + escapeAttr(r[field] || '') + '" placeholder="' + escapeAttr(placeholder || '') +
+      '" title="来自 Excel，可修改">';
+  }
+
+  function previewDocInput(val, field, placeholder) {
+    return '<input type="text" class="cell-inp" data-prev-field="' + field + '" value="' +
+      escapeAttr(val || '') + '" placeholder="' + escapeAttr(placeholder || '') + '">';
+  }
+
+  var DOC_SAMPLES = {
+    Costco: { orderPo: ['PO-COS-2026-001', 'PO-COS-2026-002', 'PO-COS-2026-003'], invoicePi: ['INV-COS-260526-01', 'INV-COS-260526-02', 'INV-COS-260526-03'] },
+    '沃尔玛': { orderPo: ['WM-PO-9912', 'WM-PO-9913', 'WM-PO-9914'], invoicePi: ['PI-WM-260525-01', 'PI-WM-260525-02', 'PI-WM-260525-03'] },
+    '山姆': { orderPo: ['SAM-PO-BULK-01', 'SAM-PO-BULK-02', 'SAM-PO-BULK-03'], invoicePi: ['PI-SAM-260524-01', 'PI-SAM-260524-02', 'PI-SAM-260524-03'] }
+  };
+
+  function mockDocFields(ka, idx) {
+    var pool = DOC_SAMPLES[ka] || DOC_SAMPLES.Costco;
+    return {
+      orderPo: pool.orderPo[idx % pool.orderPo.length],
+      invoicePi: pool.invoicePi[idx % pool.invoicePi.length]
+    };
+  }
+
   seedBatchFiles();
   initSalesOrgSelects();
   applySalesOrgToRows();
@@ -909,6 +946,11 @@
     if (!r.monthEnd) r.monthEnd = mp[1];
     if (!r.currency) r.currency = currencyFromMsku(r);
     r.currencyManual = !!r.currencyManual;
+    if (!r.orderPo || !r.invoicePi) {
+      var doc = mockDocFields(r.ka, idx);
+      if (!r.orderPo) r.orderPo = doc.orderPo;
+      if (!r.invoicePi) r.invoicePi = doc.invoicePi;
+    }
   });
 
   var rows = allRows.slice();
@@ -1047,6 +1089,8 @@
         salesPerson: p.salesPerson,
         logisticsPerson: p.logisticsPerson,
         financePerson: p.financePerson,
+        orderPo: p.orderPo || '',
+        invoicePi: p.invoicePi || '',
         msku: p.msku,
         qty: p.qty,
         price: p.price,
@@ -1426,6 +1470,8 @@
         '<td class="col-batch">' + batchLinkHtml(r) + '</td>' +
         '<td class="col-sales-org" title="' + (r.salesOrg || '') + '">' + (r.salesOrg || '—') + '</td>' +
         '<td>' + r.ka + '</td>' +
+        '<td class="col-doc">' + docTextHtml(r, 'orderPo', '订单/PO') + '</td>' +
+        '<td class="col-doc">' + docTextHtml(r, 'invoicePi', 'invoice/PI') + '</td>' +
         '<td class="col-shop">' + personInputHtml(r, 'shop') + '</td>' +
         '<td>' + personInputHtml(r, 'salesPerson') + '</td>' +
         '<td>' + personInputHtml(r, 'logisticsPerson') + '</td>' +
@@ -1487,6 +1533,10 @@
           renderTable();
           return;
         }
+        if (field === 'orderPo' || field === 'invoicePi') {
+          r[field] = el.value.trim();
+          return;
+        }
         var v = field === 'qty' ? parseInt(el.value, 10) : parseFloat(el.value);
         if (isNaN(v) || v < 0) v = 0;
         r[field] = v;
@@ -1509,6 +1559,8 @@
     var status = document.getElementById('f-status').value;
     var salesOrg = document.getElementById('f-sales-org').value;
     var batch = document.getElementById('f-batch').value.trim().toLowerCase();
+    var orderPo = document.getElementById('f-order-po').value.trim().toLowerCase();
+    var invoicePi = document.getElementById('f-invoice-pi').value.trim().toLowerCase();
     var msku = document.getElementById('f-msku').value.trim().toLowerCase();
     var shop = document.getElementById('f-shop').value;
     var salesPerson = document.getElementById('f-sales-person').value;
@@ -1524,6 +1576,8 @@
       if (type && r.type !== type) return false;
       if (status && r.status !== status) return false;
       if (batch && r.batch.toLowerCase().indexOf(batch) === -1) return false;
+      if (orderPo && (!r.orderPo || r.orderPo.toLowerCase().indexOf(orderPo) === -1)) return false;
+      if (invoicePi && (!r.invoicePi || r.invoicePi.toLowerCase().indexOf(invoicePi) === -1)) return false;
       if (msku && (!r.msku || r.msku.toLowerCase().indexOf(msku) === -1)) return false;
       return true;
     });
@@ -1610,6 +1664,9 @@
     p.salesPerson = p.salesPerson || a.salesPerson;
     p.logisticsPerson = p.logisticsPerson || a.logisticsPerson;
     p.financePerson = p.financePerson || a.financePerson;
+    var doc = mockDocFields(ka, idx);
+    if (!p.orderPo) p.orderPo = doc.orderPo;
+    if (!p.invoicePi) p.invoicePi = doc.invoicePi;
     return p;
   }
 
@@ -1636,7 +1693,7 @@
     importPreviewRows.forEach(function (p, i) {
       var tr = trs[i];
       if (!tr) return;
-      ['shop', 'salesPerson', 'logisticsPerson', 'financePerson'].forEach(function (field) {
+      ['shop', 'salesPerson', 'logisticsPerson', 'financePerson', 'orderPo', 'invoicePi'].forEach(function (field) {
         var inp = tr.querySelector('[data-prev-field="' + field + '"]');
         if (inp) p[field] = inp.value.trim();
       });
@@ -1661,6 +1718,8 @@
         '<td>' + previewPersonInput(p.salesPerson, 'salesPerson') + '</td>' +
         '<td>' + previewPersonInput(p.logisticsPerson, 'logisticsPerson') + '</td>' +
         '<td>' + previewPersonInput(p.financePerson, 'financePerson') + '</td>' +
+        '<td>' + previewDocInput(p.orderPo, 'orderPo', '订单/PO') + '</td>' +
+        '<td>' + previewDocInput(p.invoicePi, 'invoicePi', 'invoice/PI') + '</td>' +
         '<td><select class="cell-msku"><option value="">请选择</option>' + mskuOpts + '</select></td>' +
         '<td><input class="cell-inp num" value="' + p.qty + '"></td>' +
         '<td><input class="cell-inp num" value="' + p.price + '"></td>' +
@@ -1819,6 +1878,8 @@
       el.dispatchEvent(new Event('change'));
     });
     document.getElementById('f-batch').value = '';
+    document.getElementById('f-order-po').value = '';
+    document.getElementById('f-invoice-pi').value = '';
     document.getElementById('f-msku').value = '';
     rows = allRows.slice();
     renderTable();
