@@ -42,7 +42,14 @@
       ".msf-row.msf-hidden{display:none;}" +
       ".msf-row input{flex-shrink:0;}" +
       ".msf-empty{padding:12px;color:#64748b;font-size:12px;text-align:center;}" +
-      ".msf-loading{padding:12px;color:#64748b;font-size:12px;text-align:center;}";
+      ".msf-loading{padding:12px;color:#64748b;font-size:12px;text-align:center;}" +
+      ".msf-root.msf-tags-mode .msf-trigger{min-height:32px;height:auto;align-items:flex-start;padding-top:5px;padding-bottom:5px;}" +
+      ".msf-tags-wrap{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px;min-height:0;}" +
+      ".msf-tags-wrap:empty{display:none;}" +
+      ".msf-tag{display:inline-flex;align-items:center;gap:2px;max-width:100%;padding:2px 6px;border-radius:4px;background:#f0f5ff;border:1px solid #d6e4ff;color:#1e3a8a;font-size:12px;line-height:1.4;}" +
+      ".msf-tag-text{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:180px;}" +
+      ".msf-tag-rm{flex-shrink:0;border:none;background:transparent;color:#64748b;cursor:pointer;font-size:14px;line-height:1;padding:0 2px;}" +
+      ".msf-tag-rm:hover{color:#b91c1c;}";
     document.head.appendChild(st);
   }
 
@@ -64,6 +71,8 @@
     var getOptions = options.getOptions || function () { return []; };
     var onChange = typeof options.onChange === "function" ? options.onChange : function () {};
     var useBodyPortal = options.useBodyPortal !== false;
+    var summaryMode = options.summaryMode === "tags" ? "tags" : "inline";
+    var tagMaxLen = options.tagMaxLen != null ? options.tagMaxLen : 28;
 
     var loaded = false;
     var loading = false;
@@ -74,8 +83,15 @@
     var floatInterval = null;
 
     root.classList.add("msf-root");
+    if (summaryMode === "tags") root.classList.add("msf-tags-mode");
     root.innerHTML = "";
     root.style.position = "relative";
+
+    var tagsWrap = null;
+    if (summaryMode === "tags") {
+      tagsWrap = document.createElement("div");
+      tagsWrap.className = "msf-tags-wrap";
+    }
 
     var trigger = document.createElement("button");
     trigger.type = "button";
@@ -111,6 +127,7 @@
     panel.appendChild(searchWrap);
     panel.appendChild(list);
     root.appendChild(trigger);
+    if (tagsWrap) root.appendChild(tagsWrap);
     root.appendChild(panel);
 
     function labelByValue(v) {
@@ -118,13 +135,54 @@
       return row ? row.label : v;
     }
 
+    function truncateTagLabel(lbl) {
+      var s = String(lbl || "");
+      if (s.length <= tagMaxLen) return s;
+      return s.slice(0, tagMaxLen - 1) + "…";
+    }
+
+    function renderTags() {
+      if (!tagsWrap) return;
+      tagsWrap.innerHTML = "";
+      Array.from(selected).forEach(function (v) {
+        var full = labelByValue(v);
+        var tag = document.createElement("span");
+        tag.className = "msf-tag";
+        tag.title = full;
+        var txt = document.createElement("span");
+        txt.className = "msf-tag-text";
+        txt.textContent = truncateTagLabel(full);
+        var rm = document.createElement("button");
+        rm.type = "button";
+        rm.className = "msf-tag-rm";
+        rm.setAttribute("aria-label", "移除 " + full);
+        rm.textContent = "×";
+        rm.addEventListener("click", function (e) {
+          e.stopPropagation();
+          selected.delete(String(v));
+          syncMasterCheckbox(list.querySelector(".msf-master input"));
+          updateTriggerLabel();
+          onChange(api.getValues());
+        });
+        tag.appendChild(txt);
+        tag.appendChild(rm);
+        tagsWrap.appendChild(tag);
+      });
+    }
+
     function updateTriggerLabel() {
       if (!selected.size) {
         textSpan.textContent = placeholder;
         textSpan.classList.add("msf-ph");
+        if (tagsWrap) renderTags();
         return;
       }
       textSpan.classList.remove("msf-ph");
+      if (summaryMode === "tags") {
+        textSpan.textContent = "已选 " + selected.size + " 项";
+        renderTags();
+        return;
+      }
       var arr = Array.from(selected);
       if (arr.length <= 2) {
         textSpan.textContent = arr.map(labelByValue).join("、");

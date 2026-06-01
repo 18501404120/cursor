@@ -559,6 +559,42 @@
     }
     .dialog.sm { max-width: 480px; }
     .dialog.wide { max-width: 800px; max-height: 88vh; }
+    .dialog.xl {
+      max-width: min(1280px, 98vw);
+      max-height: 94vh;
+    }
+    #overlayCreate .scope-flat-grid--fee {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+    #overlayCreate .scope-flat-grid--channel {
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+    }
+    #overlayCreate .scope-flat-grid--product {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+    @media (min-width: 1100px) {
+      #overlayCreate .scope-flat-grid--product {
+        grid-template-columns: repeat(6, minmax(0, 1fr));
+      }
+    }
+    #overlayCreate .msf-root,
+    #overlayCreate .msf-host {
+      min-width: 0;
+      max-width: 100%;
+      width: 100%;
+    }
+    #overlayCreate .msf-trigger {
+      min-width: 0;
+      max-width: 100%;
+      width: 100%;
+    }
+    #overlayCreate .scope-flat-col {
+      min-width: 0;
+    }
+    #overlayCreate #createDateRangeMount .drp-trigger {
+      min-width: 100%;
+      max-width: 100%;
+    }
     .dialog-hd {
       padding: 14px 18px;
       border-bottom: 1px solid var(--line);
@@ -1103,7 +1139,7 @@
 
   <!-- 新增导入费用弹窗 -->
   <div class="overlay" id="overlayCreate" aria-hidden="true">
-    <div class="dialog" role="dialog" aria-labelledby="dlgCreateTitle">
+    <div class="dialog xl" role="dialog" aria-labelledby="dlgCreateTitle">
       <div class="dialog-hd">
         <h2 id="dlgCreateTitle">新增导入费用</h2>
         <button type="button" class="dialog-close" id="closeCreate" aria-label="关闭">×</button>
@@ -1119,7 +1155,7 @@
           <div class="panel">
             <div class="panel-hd">费用信息 <span class="badge">与模版第 1 段一致</span></div>
             <div class="panel-bd" style="max-height:none;">
-              <div class="scope-flat-grid">
+              <div class="scope-flat-grid scope-flat-grid--fee">
                 <div class="scope-flat-col field">
                   <label for="feeType"><span class="req">*</span>费用项</label>
                   <select id="feeType">
@@ -1159,7 +1195,7 @@
             <div class="panel-hd">渠道范围 <span class="badge">模版列 · 多列可同时填</span></div>
             <div class="panel-bd" style="max-height:none;">
               <p class="hint" style="margin:0 0 12px;">五列分别对应模版「区域 / 国家 / 渠道 / 店铺 / 零售商」。列内多选用英文逗号等价的多选；<strong>列与列之间取交集</strong>。五列均不选表示渠道侧不额外收窄。</p>
-              <div class="scope-flat-grid">
+              <div class="scope-flat-grid scope-flat-grid--channel">
                 <div class="scope-flat-col">
                   <label for="msfCreateRegion">区域</label>
                   <div id="msfCreateRegion"></div>
@@ -1193,7 +1229,7 @@
             <div class="panel-hd">产品范围 <span class="badge">模版列 · 多列可同时填</span></div>
             <div class="panel-bd" style="max-height:none;">
               <p class="hint" style="margin:0 0 12px;">六列对应模版「场景 / 品类 / MODEL / SKU / MSKU / 是否新品」。列间取交集；均不选且「是否新品」为「不限制」时表示产品侧不额外收窄。</p>
-              <div class="scope-flat-grid">
+              <div class="scope-flat-grid scope-flat-grid--product">
                 <div class="scope-flat-col">
                   <label for="msfCreateScene">场景</label>
                   <div id="msfCreateScene"></div>
@@ -1814,7 +1850,14 @@
       const mk = (id, opts) => {
         const el = document.getElementById(id);
         if (!el) return null;
-        return MultiSelectFilter.mount(el, { zIndex: z, onChange: onScopeChange, ...opts });
+        return MultiSelectFilter.mount(el, {
+          zIndex: z,
+          onChange: onScopeChange,
+          summaryMode: "tags",
+          tagMaxLen: 24,
+          useBodyPortal: true,
+          ...opts
+        });
       };
       state.msf.region = mk("msfCreateRegion", {
         placeholder: "区域（可多选，可留空）",
@@ -2639,7 +2682,7 @@
 <script id="prototype-annotation-config" type="application/json">
 {
   "pageId": "reporting-supplement-fee-import-allocation",
-  "version": "2026-05-11T18:50:00+08:00",
+  "version": "2026-05-19T20:00:00+08:00",
   "pageTitle": "业务费用导入管理",
   "annotations": [
     {
@@ -2859,30 +2902,6 @@
       "selector": "#historyTable thead th:nth-child(6)",
       "title": "币种",
       "body": "与导入模版「币种」列一致，来自批次写入时的币种字段。"
-    },
-    {
-      "id": "tip-create-month",
-      "selector": "#createDateRangeMount",
-      "title": "归属范围口径",
-      "body": "归属范围是费用统计口径的起止日期。跨日时按自然日拆分；权重月按起始日所在月的上月。"
-    },
-    {
-      "id": "tip-create-channel-region",
-      "selector": "#msfCreateRegion",
-      "title": "区域",
-      "body": "模版「区域」列；多选，与同一行其它渠道列取交。"
-    },
-    {
-      "id": "tip-create-product-scene",
-      "selector": "#msfCreateScene",
-      "title": "场景",
-      "body": "模版「场景」列；可与品类、MODEL 等列同时填写。"
-    },
-    {
-      "id": "tip-new-product-only",
-      "selector": "#productNewFlag",
-      "title": "是否新品",
-      "body": "模版「是否新品」列：不限制=留空；是=仅新品；否=模版显式填否（原型不按非新品收窄，正式环境以实现为准）。"
     },
     {
       "id": "tip-preview-balance",
