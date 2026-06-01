@@ -190,6 +190,22 @@
       height: 32px; padding: 0 10px; font-size: 12px; white-space: nowrap;
     }
     .batch-btn-group .btn-batch-action:disabled { opacity: 0.45; cursor: not-allowed; }
+    .batch-edit-wrap {
+      display: inline-flex; align-items: center; gap: 6px; margin-left: 8px;
+      padding-left: 10px; border-left: 1px solid var(--line); flex-shrink: 0;
+    }
+    .batch-edit-wrap label { font-size: 12px; color: var(--muted); white-space: nowrap; }
+    .batch-edit-wrap select.ctl {
+      min-width: 148px; max-width: 180px; height: 32px; font-size: 12px;
+    }
+    .batch-edit-wrap #btn-batch-edit-apply { height: 32px; font-size: 12px; white-space: nowrap; }
+    .batch-edit-wrap select.ctl:disabled,
+    .batch-edit-wrap #btn-batch-edit-apply:disabled { opacity: 0.45; cursor: not-allowed; }
+    .batch-edit-summary {
+      margin: 0 0 12px; padding: 10px 12px; background: #f8fafc;
+      border: 1px solid var(--line); border-radius: 8px; font-size: 12px; line-height: 1.6;
+    }
+    .batch-edit-summary strong { color: var(--brand); }
 
     /* Modal */
     .modal-mask {
@@ -469,6 +485,18 @@
   <div class="toolbar">
     <button type="button" class="btn btn-primary" id="btn-import">导入对账单 / 凭证</button>
     <div class="batch-btn-group" id="batch-btn-group" aria-label="批量流程操作"></div>
+    <div class="batch-edit-wrap" aria-label="批量修改字段">
+      <label for="batch-edit-field">批量修改</label>
+      <select class="ctl" id="batch-edit-field" disabled title="请先勾选明细行">
+        <option value="">请选择修改项</option>
+        <option value="currency">批量修改币种</option>
+        <option value="salesPerson">批量修改 Sales</option>
+        <option value="logisticsPerson">批量修改物流</option>
+        <option value="financePerson">批量修改财务</option>
+        <option value="handleMode">批量修改处理方式</option>
+      </select>
+      <button type="button" class="btn btn-ghost" id="btn-batch-edit-apply" disabled title="请先勾选行并选择修改项">确定修改</button>
+    </div>
     <span style="margin-left:auto;color:var(--muted);font-size:12px">共 <strong id="row-count">20</strong> 行明细</span>
   </div>
 
@@ -612,6 +640,24 @@
   </div>
 </div>
 
+<!-- 批量修改字段 -->
+<div class="modal-mask" id="modal-batch-edit" role="dialog" aria-labelledby="batch-edit-title">
+  <div class="modal" style="max-width:480px">
+    <div class="modal-hd" id="batch-edit-title">批量修改</div>
+    <div class="modal-bd">
+      <div class="batch-edit-summary" id="batch-edit-summary"></div>
+      <div class="form-row" style="margin-bottom:0">
+        <label id="batch-edit-value-label">修改为</label>
+        <div id="batch-edit-value-wrap"></div>
+      </div>
+    </div>
+    <div class="modal-ft">
+      <button type="button" class="btn btn-ghost" id="btn-batch-edit-cancel">取消</button>
+      <button type="button" class="btn btn-primary" id="btn-batch-edit-confirm">确认修改</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script src="../../../规范/assets/month-range-picker.js"></script>
@@ -643,6 +689,16 @@
 
   /** 工具栏批量按钮（与行内流程步骤一致，按顺序展示） */
   var BATCH_ACTIONS = ['已确认', '已WMS预报', '已上架', '推金蝶退货单', '已建其他入库单', '已财务核对'];
+
+  var BATCH_EDIT_META = {
+    currency: { label: '币种', field: 'currency', valueLabel: '目标币种' },
+    salesPerson: { label: 'Sales', field: 'salesPerson', valueLabel: 'Sales 姓名' },
+    logisticsPerson: { label: '物流', field: 'logisticsPerson', valueLabel: '物流 姓名' },
+    financePerson: { label: '财务', field: 'financePerson', valueLabel: '财务 姓名' },
+    handleMode: { label: '处理方式', field: 'handleMode', valueLabel: '处理方式' }
+  };
+
+  var pendingBatchEditField = '';
 
   var SALES_ORGS = [
     '深圳市千岩科技有限公司',
@@ -1077,6 +1133,19 @@
     });
   }
 
+  function refreshNotificationsForRows(rows) {
+    rows.forEach(function (r) {
+      notifications.forEach(function (n) {
+        if (n.line === r.line && n.status === 'pending') {
+          var assignee = getAssigneeForAction(r, n.action);
+          n.assignee = assignee;
+          n.text = '批次 ' + r.batch + ' · 行 ' + r.line + '（' + (r.msku || '—') + '）请「' + n.action + '」→ 通知 ' + assignee;
+        }
+      });
+    });
+    renderNotifyPanel();
+  }
+
   function notifyAfterImport(batchId, count, salesOrg, ka, parsedRows) {
     var parsed = parsedRows || mockParseRows();
     parsed.forEach(function (p) {
@@ -1237,6 +1306,132 @@
         ? '对 ' + info.count + ' 行执行「' + action + '」（行状态：' + info.status + '）'
         : info.reason;
     });
+    updateBatchEditControls();
+  }
+
+  function updateBatchEditControls() {
+    var n = getSelectedRows().length;
+    var fieldSel = document.getElementById('batch-edit-field');
+    var applyBtn = document.getElementById('btn-batch-edit-apply');
+    fieldSel.disabled = !n;
+    fieldSel.title = n ? '选择要批量修改的字段' : '请先勾选明细行';
+    if (!n) {
+      fieldSel.value = '';
+      applyBtn.disabled = true;
+      applyBtn.title = '请先勾选行并选择修改项';
+      return;
+    }
+    applyBtn.disabled = !fieldSel.value;
+    applyBtn.title = fieldSel.value
+      ? '对 ' + n + ' 行批量修改「' + (BATCH_EDIT_META[fieldSel.value] || {}).label + '」'
+      : '请先选择修改项';
+  }
+
+  function getBatchEditTargetRows(fieldKey) {
+    var sel = getSelectedRows();
+    if (fieldKey === 'handleMode') {
+      return sel.filter(function (r) { return r.type !== 'A-2'; });
+    }
+    return sel;
+  }
+
+  function buildBatchEditValueInput(fieldKey) {
+    var wrap = document.getElementById('batch-edit-value-wrap');
+    if (fieldKey === 'currency') {
+      wrap.innerHTML = '<select class="ctl wide" id="batch-edit-value">' +
+        CURRENCIES.map(function (c) {
+          return '<option value="' + c + '">' + c + '</option>';
+        }).join('') + '</select>';
+      return;
+    }
+    if (fieldKey === 'handleMode') {
+      wrap.innerHTML = '<select class="ctl wide" id="batch-edit-value">' +
+        HANDLE_MODES.map(function (m) {
+          return '<option value="' + m + '">' + m + '</option>';
+        }).join('') + '</select>';
+      return;
+    }
+    var poolKey = fieldKey === 'salesPerson' ? 'sales'
+      : fieldKey === 'logisticsPerson' ? 'logistics' : 'finance';
+    var list = PERSON_POOL[poolKey] || [];
+    wrap.innerHTML = '<select class="ctl wide" id="batch-edit-value">' +
+      list.map(function (n) {
+        return '<option value="' + escapeAttr(n) + '">' + n + '</option>';
+      }).join('') + '</select>';
+  }
+
+  function openBatchEditModal(fieldKey) {
+    var meta = BATCH_EDIT_META[fieldKey];
+    if (!meta) return;
+    var targets = getBatchEditTargetRows(fieldKey);
+    if (!targets.length) {
+      if (fieldKey === 'handleMode') {
+        toast('所选行均为 A-2（仅退款），不支持修改处理方式');
+      } else {
+        toast('请先勾选需要修改的行');
+      }
+      return;
+    }
+    pendingBatchEditField = fieldKey;
+    document.getElementById('batch-edit-title').textContent = '批量修改 · ' + meta.label;
+    var skipped = getSelectedRows().length - targets.length;
+    var summary = '将对 <strong>' + targets.length + '</strong> 行批量修改「' + meta.label + '」。';
+    if (skipped > 0) {
+      summary += ' <span style="color:#b45309">（已跳过 ' + skipped + ' 行 A-2，不支持修改处理方式）</span>';
+    }
+    document.getElementById('batch-edit-summary').innerHTML = summary;
+    document.getElementById('batch-edit-value-label').textContent = meta.valueLabel;
+    buildBatchEditValueInput(fieldKey);
+    document.getElementById('modal-batch-edit').classList.add('open');
+  }
+
+  function closeBatchEditModal() {
+    document.getElementById('modal-batch-edit').classList.remove('open');
+    pendingBatchEditField = '';
+  }
+
+  function applyBatchEdit() {
+    var fieldKey = pendingBatchEditField;
+    var meta = BATCH_EDIT_META[fieldKey];
+    if (!meta) return;
+    var valEl = document.getElementById('batch-edit-value');
+    if (!valEl) return;
+    var newVal = valEl.value;
+    if (!String(newVal).trim()) {
+      toast('请选择或填写修改值');
+      return;
+    }
+    var targets = getBatchEditTargetRows(fieldKey);
+    if (!targets.length) {
+      toast('没有可修改的行');
+      closeBatchEditModal();
+      return;
+    }
+    var field = meta.field;
+    var needPersonRefresh = field === 'salesPerson' || field === 'logisticsPerson' || field === 'financePerson';
+    targets.forEach(function (r) {
+      if (field === 'currency') {
+        r.currency = newVal;
+        r.currencyManual = true;
+      } else if (field === 'handleMode') {
+        r.handleMode = newVal;
+        r.flowStep = 0;
+        syncStatusFromFlow(r);
+        notifications = notifications.filter(function (n) { return n.line !== r.line; });
+        var p = getPendingAction(r);
+        if (p) pushNotification(r, p.action);
+      } else {
+        r[field] = newVal;
+      }
+    });
+    if (needPersonRefresh) {
+      initPersonFilterSelects();
+      initViewerSelect();
+      refreshNotificationsForRows(targets);
+    }
+    closeBatchEditModal();
+    renderTable();
+    toast('已批量修改「' + meta.label + '」为「' + newVal + '」，共 ' + targets.length + ' 行');
   }
 
   function initBatchButtons() {
@@ -1866,6 +2061,25 @@
   });
 
   initBatchButtons();
+
+  document.getElementById('batch-edit-field').addEventListener('change', updateBatchEditControls);
+  document.getElementById('btn-batch-edit-apply').addEventListener('click', function () {
+    var fieldKey = document.getElementById('batch-edit-field').value;
+    if (!fieldKey) {
+      toast('请先选择要修改的项');
+      return;
+    }
+    if (!getSelectedRows().length) {
+      toast('请先勾选需要修改的行');
+      return;
+    }
+    openBatchEditModal(fieldKey);
+  });
+  document.getElementById('btn-batch-edit-cancel').addEventListener('click', closeBatchEditModal);
+  document.getElementById('btn-batch-edit-confirm').addEventListener('click', applyBatchEdit);
+  document.getElementById('modal-batch-edit').addEventListener('click', function (e) {
+    if (e.target === document.getElementById('modal-batch-edit')) closeBatchEditModal();
+  });
 
   document.getElementById('btn-query').addEventListener('click', function () {
     applyFilter();
