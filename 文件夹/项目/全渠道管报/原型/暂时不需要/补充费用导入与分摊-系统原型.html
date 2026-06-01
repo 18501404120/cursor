@@ -168,11 +168,12 @@
     }
     .ctl-clear:hover { color: rgba(0, 0, 0, 0.45); }
     .ctl-clear[hidden] { display: none; }
-    #qMonthRangeMount .mrp-trigger,
-    #createMonthRangeMount .mrp-trigger {
-      min-width: 168px;
-      max-width: 180px;
+    #qDateRangeMount .drp-trigger,
+    #createDateRangeMount .drp-trigger {
+      min-width: 240px;
+      max-width: 280px;
       height: 32px;
+      font-size: 13px;
     }
     .msf-host { min-width: 160px; max-width: 200px; }
     .msf-host .msf-trigger {
@@ -401,6 +402,28 @@
     .field { min-width: 180px; flex: 1; }
     .field label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 6px; }
     .field label .req { color: #b91c1c; margin-right: 2px; }
+    .scope-flat-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 14px 16px;
+      align-items: start;
+    }
+    .scope-flat-col > label {
+      display: block;
+      font-size: 12px;
+      color: var(--label);
+      margin-bottom: 6px;
+    }
+    .scope-flat-col .msf-host,
+    .scope-flat-col [class*="msf"] {
+      max-width: 100%;
+    }
+    .scope-flat-col .hint-col {
+      font-size: 11px;
+      color: #94a3b8;
+      margin-top: 4px;
+      line-height: 1.45;
+    }
     .field select, .field input[type="number"], .field input[type="month"] {
       width: 100%;
       max-width: 300px;
@@ -560,7 +583,26 @@
     .dialog-bd { padding: 0; overflow: hidden; display: flex; flex-direction: column; flex: 1; min-height: 0; }
     .dialog-scroll { padding: 16px 18px 20px; overflow-y: auto; flex: 1; }
     .import-body { padding: 18px 20px 22px; font-size: 13px; line-height: 1.7; color: #334155; }
+    .import-body a { color: var(--brand); }
+    .import-body a:hover { text-decoration: underline; }
+    .import-tpl-doc {
+      margin-top: 12px;
+      padding: 10px 12px;
+      background: #f8fafc;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      font-size: 13px;
+    }
+    .import-upload {
+      margin-top: 14px;
+      padding: 12px;
+      border: 1px dashed var(--border-input);
+      border-radius: 6px;
+      background: #fafafa;
+    }
+    .import-upload label { display: block; font-size: 12px; color: var(--label); margin-bottom: 6px; }
     .import-actions { display: flex; flex-direction: column; gap: 12px; margin-top: 14px; }
+    .tpl-group-hd th { background: #e6f4ff; color: #0f2f63; font-weight: 700; text-align: center; }
     .tpl-table { margin-top: 14px; font-size: 12px; }
     .tpl-table th, .tpl-table td { border: 1px solid var(--line); padding: 8px; vertical-align: top; }
     .tpl-table th { background: #f8fafc; }
@@ -795,8 +837,8 @@
       <div class="filter-panel">
       <div class="filter-grid">
         <div class="f-item">
-          <label>归属月范围</label>
-          <div id="qMonthRangeMount"></div>
+          <label>归属范围</label>
+          <div id="qDateRangeMount"></div>
         </div>
         <div class="f-item">
           <label>费用项</label>
@@ -853,10 +895,10 @@
             <tr><td>②</td><td>历史导入费用列表</td><td>查看行信息、勾选行</td><td>展示批次号、范围摘要、状态与可用操作；支持按筛选结果全选</td><td>全选只作用当前筛选结果，不跨页/不跨筛选</td><td>表头全选与行勾选状态一致</td></tr>
             <tr><td>③</td><td>行内操作</td><td>点生效/失效/删除/明细</td><td>按状态机执行迁移；明细展示分摊结果与纳入口径</td><td>非法状态不执行操作</td><td>待生效→已生效；待生效/已生效→失效；仅失效可删除</td></tr>
             <tr><td>④</td><td>批量操作区</td><td>勾选多行后点批量生效/失效/删除</td><td>整批校验通过才执行；执行后整批刷新</td><td>混入不允许状态时整批拦截，不做部分成功</td><td>规则与单行操作完全一致</td></tr>
-            <tr><td>⑤</td><td>新增导入费用弹窗</td><td>填写费用与范围，点预览/确认写入</td><td>先预览分摊，再写入一条新批次；新批次状态为待生效</td><td>缺必填范围（店铺/MSKU）时禁止确认</td><td>写入后列表可见新批次且状态=待生效</td></tr>
-            <tr><td>⑥</td><td>分摊规则摘要与预览</td><td>点预览分摊</td><td>店铺×商品范围×可选零售商；勾选「是否新品」时再与新品 MSKU 取交</td><td>交集为空或仅新品无命中时提示</td><td>预览总额与补充金额一致；明细含是否新品列</td></tr>
-            <tr><td>⑦</td><td>导入入口与模板说明</td><td>下载模板、模拟导入</td><td>模版含渠道范围/商品范围/是否新品等列；导入生成待生效批次</td><td>枚举或基础数据不匹配时应拦截（正式环境）</td><td>导入与手工新增的状态规则一致</td></tr>
-            <tr><td>⑧</td><td>分摊明细弹窗</td><td>点“明细”</td><td>展示该批次按MSKU分摊、权重占比、归属月分摊、日均额</td><td>批次不存在或被删除时不可查看</td><td>“纳入管报计算”仅在已生效时为是</td></tr>
+            <tr><td>⑤</td><td>新增导入费用弹窗</td><td>按 Excel 平铺列填写，点预览/确认写入</td><td>渠道五列、产品六列可同时填；先预览再写入待生效批次</td><td>缺费用项/归属范围/金额时禁止预览</td><td>预览口径块与导入模版列一致</td></tr>
+            <tr><td>⑥</td><td>分摊规则摘要与预览</td><td>点预览分摊</td><td>渠道范围五列×产品范围六列取交；勾选「是否新品」时再收窄</td><td>交集为空或仅新品无命中时提示</td><td>预览展示与导入模版一致的口径块；总额与金额一致</td></tr>
+            <tr><td>⑦</td><td>导入入口与模板说明</td><td>打开钉钉模版、下载 CSV、上传文件或模拟导入</td><td>模版含费用项/归属范围/金额/币种及渠道、产品分列；多选用英文逗号分隔；字典取值见钉钉「数据字典」页</td><td>字典项或主数据不匹配时应拦截（正式环境）</td><td>导入与手工新增的状态规则一致</td></tr>
+            <tr><td>⑧</td><td>分摊明细弹窗</td><td>点“明细”</td><td>展示模版口径 + 按 MSKU 分摊、权重占比、归属范围内分摊、日均</td><td>批次不存在或被删除时不可查看</td><td>“纳入管报计算”仅在已生效时为是</td></tr>
           </tbody>
         </table>
 
@@ -869,7 +911,7 @@
 
         <h3 class="doc-h">二、本页在做什么</h3>
         <ul class="doc-ul">
-          <li><strong>筛选</strong>：按归属月、费用项、<strong>状态</strong>等刷新历史列表（原型中部分条件为示意）。</li>
+          <li><strong>筛选</strong>：按归属范围（日期）、费用项、<strong>状态</strong>等刷新历史列表（原型中部分条件为示意）。</li>
           <li><strong>行操作</strong>：生效 / 失效 / 删除 / 明细；<strong>批量</strong>：批量生效、批量失效、批量删除（均带状态校验）。</li>
           <li><strong>新增 / 导入</strong>：写入的新批次默认<strong>待生效</strong>，需人工「生效」后才参与管报。</li>
         </ul>
@@ -959,7 +1001,7 @@
         <h3 class="doc-h">八、弹窗入口</h3>
         <ul class="doc-ul">
           <li><strong>新增导入费用</strong>：配置后预览 → 确认写入 → 新增一条<strong>待生效</strong>批次及明细占位。</li>
-          <li><strong>导入</strong>：模版下载与说明；正式环境解析后批量待生效；原型可用「模拟：生成一条待生效批次」。</li>
+          <li><strong>导入</strong>：按钉钉《业务费用导入模版》填写（含数据字典页）；下载 CSV 或打开在线模版后上传；正式环境解析后批量待生效；原型可用「模拟：生成一条待生效批次」。</li>
         </ul>
 
         <h3 class="doc-h">九、测试建议（验收清单）</h3>
@@ -1007,11 +1049,11 @@
               <th class="col-check"><input type="checkbox" id="histSelectAll" title="全选当前列表" aria-label="全选"></th>
               <th>导入批次号</th>
               <th>费用项</th>
-              <th>归属月范围</th>
-              <th class="num">补充金额</th>
-              <th>店铺范围摘要</th>
-              <th>零售商范围摘要</th>
-              <th>MSKU范围摘要</th>
+              <th>归属范围</th>
+              <th class="num">金额</th>
+              <th>币种</th>
+              <th>渠道范围摘要</th>
+              <th>产品范围摘要</th>
               <th>状态</th>
               <th>操作人</th>
               <th>创建时间</th>
@@ -1035,7 +1077,7 @@
       <div class="dialog-bd">
         <div class="dialog-scroll">
           <div id="historyDetailMeta" class="logic-box" style="margin-bottom:14px;"></div>
-          <div style="font-weight:800;font-size:13px;color:#0f2f63;margin-bottom:8px;">按 MSKU 分摊明细（权重月营收 → 归属月分摊 → 日均）</div>
+          <div style="font-weight:800;font-size:13px;color:#0f2f63;margin-bottom:8px;">按 MSKU 分摊明细（权重月营收 → 按日分摊，仅按自然日拆分）</div>
           <div class="table-wrap" style="max-height:min(52vh,480px);">
             <table>
               <thead>
@@ -1046,8 +1088,8 @@
                   <th>零售商</th>
                   <th class="num">权重月营收</th>
                   <th class="num">权重占比</th>
-                  <th class="num">归属月分摊额</th>
-                  <th class="num">日均额</th>
+                  <th class="num">按日分摊合计</th>
+                  <th class="num">单日分摊额</th>
                 </tr>
               </thead>
               <tbody id="historyDetailBody"></tbody>
@@ -1069,154 +1111,122 @@
       <div class="dialog-bd">
         <div class="dialog-scroll">
           <p class="spec-note">
-            数据：渠道店铺基础数据、场景品类基础数据。
-            渠道、店铺、场景、品类、零售商、MSKU（弹窗内）均使用<strong>多选下拉筛选</strong>：默认不加载选项，点击展开后再加载；面板内支持搜索、多选；默认含首行「全部」（按 SKU / 按 MSKU 弹窗内<strong>不提供</strong>「全部」）。
-            按品类时场景为<strong>单选</strong>（含「全部」），品类为多选。若本地直接打开页面导致基础数据未加载，则使用页面内置备用数据。
+            录入布局与导入 Excel 模版<strong>列对列一致</strong>：费用信息 4 列 + 渠道范围 5 列 + 产品范围 6 列，可同时填写多列，系统按列取交。
+            各列使用<strong>多选下拉</strong>（点击展开后加载；可搜索）；区域/国家/渠道/店铺/场景/品类/零售商支持「全部」；SKU、MSKU、MODEL 不提供「全部」。
+            <strong>分摊口径：仅按日</strong>——归属范围内总金额先按 MSKU 权重拆到各行，再均摊到每一自然日（不做按月汇总展示）。
           </p>
 
           <div class="panel">
-            <div class="panel-hd">费用与归属月范围</div>
+            <div class="panel-hd">费用信息 <span class="badge">与模版第 1 段一致</span></div>
             <div class="panel-bd" style="max-height:none;">
-              <div class="row">
-                <div class="field">
-                  <label><span class="req">*</span>费用项</label>
+              <div class="scope-flat-grid">
+                <div class="scope-flat-col field">
+                  <label for="feeType"><span class="req">*</span>费用项</label>
                   <select id="feeType">
                     <option value="广告费">广告费</option>
-                    <option value="品牌营销费">品牌营销费</option>
+                    <option value="品牌营销费" selected>品牌营销费</option>
                     <option value="推广费">推广费</option>
                     <option value="样品费">样品费</option>
                     <option value="运杂费">运杂费</option>
                     <option value="其他补充费用">其他补充费用</option>
                   </select>
                 </div>
-                <div class="field">
-                  <label><span class="req">*</span>归属月范围</label>
-                  <div id="createMonthRangeMount"></div>
-                  <div class="hint">展示为 YYYY-MM - YYYY-MM。权重月按范围起始月的上月；范围内各月按自然日拆到天。</div>
+                <div class="scope-flat-col field">
+                  <label><span class="req">*</span>归属范围</label>
+                  <div id="createDateRangeMount"></div>
+                  <p class="hint-col">存盘 <code>YYYYMMDD-YYYYMMDD</code>；控件展示 YYYY-MM-DD 至 YYYY-MM-DD</p>
                 </div>
-                <div class="field">
-                  <label><span class="req">*</span>补充金额</label>
+                <div class="scope-flat-col field">
+                  <label for="totalAmount"><span class="req">*</span>金额</label>
                   <input type="number" id="totalAmount" value="10000" min="0" step="0.01">
                 </div>
+                <div class="scope-flat-col field">
+                  <label for="feeCurrency"><span class="req">*</span>币种</label>
+                  <select id="feeCurrency" aria-label="币种">
+                    <option value="CNY">CNY</option>
+                    <option value="USD" selected>USD</option>
+                    <option value="EUR">EUR</option>
+                    <option value="GBP">GBP</option>
+                    <option value="JPY">JPY</option>
+                    <option value="CAD">CAD</option>
+                  </select>
+                </div>
               </div>
             </div>
           </div>
 
           <div class="panel">
-            <div class="panel-hd">第一类：店铺范围 <span class="badge">必填</span></div>
+            <div class="panel-hd">渠道范围 <span class="badge">模版列 · 多列可同时填</span></div>
             <div class="panel-bd" style="max-height:none;">
-              <div class="seg" id="shopModeSeg">
-                <button type="button" data-mode="all" class="active">全渠道</button>
-                <button type="button" data-mode="channel">按渠道（多选）</button>
-                <button type="button" data-mode="store">按店铺（多选）</button>
-              </div>
-              <div id="shopPaneChannel" class="filter-strip" style="margin-top:12px;display:none;">
-                <div class="strip-title">渠道（多选下拉：点击展开后加载；可搜索；首行「全部」）</div>
-                <div class="native-multi-wrap" style="max-width:100%;">
+              <p class="hint" style="margin:0 0 12px;">五列分别对应模版「区域 / 国家 / 渠道 / 店铺 / 零售商」。列内多选用英文逗号等价的多选；<strong>列与列之间取交集</strong>。五列均不选表示渠道侧不额外收窄。</p>
+              <div class="scope-flat-grid">
+                <div class="scope-flat-col">
+                  <label for="msfCreateRegion">区域</label>
+                  <div id="msfCreateRegion"></div>
+                  <p class="hint-col">字典「区域」</p>
+                </div>
+                <div class="scope-flat-col">
+                  <label for="msfCreateCountry">国家</label>
+                  <div id="msfCreateCountry"></div>
+                  <p class="hint-col">如 美国 (US)</p>
+                </div>
+                <div class="scope-flat-col">
                   <label for="msfCreateChannel">渠道</label>
-                  <div id="msfCreateChannel" style="max-width:420px;"></div>
-                  <button type="button" class="btn secondary" style="margin-top:8px;" id="mAddChannelSel">将已选渠道加入清单</button>
+                  <div id="msfCreateChannel"></div>
+                  <p class="hint-col">渠道店铺基础数据</p>
                 </div>
-                <div class="hint">展开下拉后勾选多项，再点加入；「全部」作用于当前搜索可见项。</div>
-              </div>
-              <div id="shopPaneStore" class="filter-strip" style="margin-top:12px;display:none;">
-                <div class="strip-title">渠道单选 + 店铺多选（可搜索）；仅「加入当前店铺」</div>
-                <div class="filter-row" style="border-bottom:none;padding-bottom:0;">
-                  <div class="filter-item">
-                    <span class="filter-label">渠道</span>
-                    <select id="mChannel" aria-label="渠道"></select>
-                  </div>
+                <div class="scope-flat-col">
+                  <label for="msfCreateStore">店铺</label>
+                  <div id="msfCreateStore"></div>
+                  <p class="hint-col">如 Govee_US</p>
                 </div>
-                <div class="native-multi-wrap" style="margin-top:10px;max-width:100%;">
-                  <label for="msfCreateStore">店铺（多选下拉）</label>
-                  <div id="msfCreateStore" style="max-width:420px;"></div>
-                  <div class="hint" style="margin-top:6px;">首行「全部」作用于当前搜索可见店铺。先选渠道：具体渠道下若未勾选任何店铺再点加入，仍为该渠道全部店铺。</div>
-                  <button type="button" class="btn secondary" style="margin-top:8px;" id="mAddStore">加入当前店铺</button>
+                <div class="scope-flat-col">
+                  <label for="msfCreateRetailer">零售商</label>
+                  <div id="msfCreateRetailer"></div>
+                  <p class="hint-col">不选则不按零售商收窄</p>
                 </div>
               </div>
-              <div class="hint">当前：<span id="shopSummary">全渠道</span></div>
-              <div class="tag-wrap" id="shopTags"></div>
             </div>
           </div>
 
           <div class="panel">
-            <div class="panel-hd">第二类：MSKU 范围 <span class="badge">必填</span></div>
+            <div class="panel-hd">产品范围 <span class="badge">模版列 · 多列可同时填</span></div>
             <div class="panel-bd" style="max-height:none;">
-              <div class="seg-toolbar">
-                <div class="seg" id="mskuModeSeg">
-                  <button type="button" data-mode="all" class="active">全场景</button>
-                  <button type="button" data-mode="scene">按场景（多选）</button>
-                  <button type="button" data-mode="category">按品类（多选）</button>
-                  <button type="button" data-mode="sku">按 SKU</button>
-                  <button type="button" data-mode="msku">按 MSKU</button>
-                </div>
-                <label class="new-product-chk" id="newProductOnlyWrap" title="勾选后仅主数据标记为「新品」的 MSKU 参与交集与分摊">
-                  <input type="checkbox" id="newProductOnly" />
-                  <span>是否新品</span>
-                </label>
-              </div>
-              <p class="hint" id="newProductHint" style="display:none;margin-top:8px;">已勾选：分摊对象<strong>仅包含新品 MSKU</strong>（与店铺范围、商品范围、可选零售商取交集后再按营收权重分摊）。</p>
-
-              <div id="mskuPaneScene" class="filter-strip" style="margin-top:12px;display:none;">
-                <div class="strip-title">场景（多选下拉；首行「全部」）</div>
-                <div class="native-multi-wrap" style="max-width:100%;">
+              <p class="hint" style="margin:0 0 12px;">六列对应模版「场景 / 品类 / MODEL / SKU / MSKU / 是否新品」。列间取交集；均不选且「是否新品」为「不限制」时表示产品侧不额外收窄。</p>
+              <div class="scope-flat-grid">
+                <div class="scope-flat-col">
                   <label for="msfCreateScene">场景</label>
-                  <div id="msfCreateScene" style="max-width:420px;"></div>
-                  <button type="button" class="btn secondary" style="margin-top:8px;" id="mAddSceneSel">将已选场景加入清单</button>
+                  <div id="msfCreateScene"></div>
                 </div>
-                <div class="hint">加入后下方标签展示已选场景名。</div>
-              </div>
-
-              <div id="mskuPaneCategory" class="filter-strip" style="margin-top:12px;display:none;">
-                <div class="strip-title">场景单选（含「全部」）+ 品类多选勾选；点「加入当前品类」：未勾选具体品类时加入当前场景下全部品类，有勾选则只加入勾选品类</div>
-                <div class="filter-row" style="border-bottom:none;padding-bottom:0;margin-top:4px;">
-                  <div class="filter-item" style="flex-wrap:wrap;">
-                    <span class="filter-label">场景</span>
-                    <select id="mCatSceneSel" aria-label="场景单选" style="min-width:200px;"></select>
-                  </div>
-                </div>
-                <div class="native-multi-wrap" style="margin-top:12px;">
+                <div class="scope-flat-col">
                   <label for="msfCreateCategory">品类</label>
-                  <div id="msfCreateCategory" style="max-width:420px;"></div>
-                  <button type="button" class="btn secondary" style="margin-top:8px;" id="mAddCurrentCategory">加入当前品类</button>
+                  <div id="msfCreateCategory"></div>
+                  <p class="hint-col">场景/品类路径</p>
                 </div>
-              </div>
-
-              <div id="mskuPaneSku" class="filter-strip" style="margin-top:12px;display:none;">
-                <div class="strip-title">SKU（多选下拉；无「全部」）</div>
-                <div class="native-multi-wrap">
+                <div class="scope-flat-col">
+                  <label for="msfCreateModel">MODEL</label>
+                  <div id="msfCreateModel"></div>
+                  <p class="hint-col">SPU 前 5 位</p>
+                </div>
+                <div class="scope-flat-col">
                   <label for="msfCreateSku">SKU</label>
-                  <div id="msfCreateSku" style="max-width:420px;"></div>
-                  <button type="button" class="btn secondary" style="margin-top:8px;" id="mAddSkuSel">将已选 SKU 加入清单</button>
+                  <div id="msfCreateSku"></div>
+                  <p class="hint-col">8 位生产 SKU</p>
                 </div>
-                <div class="hint">加入后下方标签逐条展示已选 SKU。</div>
-              </div>
-
-              <div id="mskuPaneMsku" class="filter-strip" style="margin-top:12px;display:none;">
-                <div class="strip-title">MSKU（多选下拉；无「全部」）</div>
-                <div class="native-multi-wrap">
+                <div class="scope-flat-col">
                   <label for="msfCreateMsku">MSKU</label>
-                  <div id="msfCreateMsku" style="max-width:420px;"></div>
-                  <button type="button" class="btn secondary" style="margin-top:8px;" id="mAddMskuSel">将已选 MSKU 加入清单</button>
+                  <div id="msfCreateMsku"></div>
                 </div>
-                <div class="hint">加入后下方标签逐条展示已选 MSKU。</div>
+                <div class="scope-flat-col field">
+                  <label for="productNewFlag">是否新品</label>
+                  <select id="productNewFlag" aria-label="是否新品">
+                    <option value="">不限制（模版留空）</option>
+                    <option value="是">是</option>
+                    <option value="否">否</option>
+                  </select>
+                  <p class="hint-col">选「是」仅新品 MSKU 参与</p>
+                </div>
               </div>
-
-              <div class="hint">与第一类取交集；各模式下列表项须与基础数据 / 主数据一致。</div>
-              <div class="tag-wrap" id="mskuTags"></div>
-            </div>
-          </div>
-
-          <div class="panel">
-            <div class="panel-hd">第三类：零售商 <span class="badge opt">非必填</span></div>
-            <div class="panel-bd" style="max-height:none;">
-              <div class="native-multi-wrap" style="max-width:100%;">
-                <label for="msfCreateRetailer">零售商（多选下拉；首行「全部」）</label>
-                <div id="msfCreateRetailer" style="max-width:420px;"></div>
-                <button type="button" class="btn secondary" style="margin-top:8px;" id="addRetailer">将已选零售商加入清单</button>
-              </div>
-              <div class="hint" style="margin-top:8px;">勾选后点加入；已选见下方标签。不选则分摊规则中不按零售商收窄。</div>
-              <div class="tag-wrap" id="retailerTags"></div>
             </div>
           </div>
 
@@ -1229,6 +1239,7 @@
                 <button type="button" class="btn secondary" id="btnConfirmImport" disabled>确认写入</button>
                 <button type="button" class="btn secondary" id="btnExport">导出预览明细</button>
               </div>
+              <div id="previewScopeMeta" class="logic-box" style="display:none;margin-top:12px;font-size:12px;"></div>
               <div class="summary" id="summaryCards" style="display:none;"></div>
               <div class="table-wrap" id="previewWrap" style="display:none;margin-top:10px;">
                 <table>
@@ -1240,8 +1251,8 @@
                       <th>零售商</th>
                       <th class="num">权重月营收</th>
                       <th class="num">权重占比</th>
-                      <th class="num">归属月分摊</th>
-                      <th class="num">日均</th>
+                      <th class="num">按日分摊合计</th>
+                      <th class="num">单日分摊额</th>
                     </tr>
                   </thead>
                   <tbody id="previewBody"></tbody>
@@ -1263,12 +1274,22 @@
       </div>
       <div class="dialog-bd">
         <div class="import-body">
-          <p>请先下载导入模版，按列填写后上传。模版列与弹窗中「渠道范围 / 商品范围」分段及「是否新品」口径一致；渠道、场景等取值须与《渠道店铺》《场景品类》基础数据一致。</p>
-          <p style="font-size:13px;color:#475569;margin:10px 0 0;">正式环境解析成功后，每条导入会生成<strong>待生效</strong>批次；需经「生效」后才纳入管报计算（与「新增导入费用」一致）。</p>
-          <div class="import-actions" style="margin-top:12px;">
-            <button type="button" class="btn primary" id="btnDownloadTpl">下载导入模版（CSV）</button>
-            <button type="button" class="btn-link" id="btnOpenTplPreview">查看模版预览与填写要求</button>
-            <button type="button" class="btn secondary" id="btnSimulateImport">模拟：生成一条待生效批次</button>
+          <p>请使用标准<strong>业务费用导入模版</strong>填写后上传。模版分三部分：<strong>费用信息</strong>（费用项、归属范围、金额、币种）、<strong>渠道范围</strong>（区域/国家/渠道/店铺/零售商）、<strong>产品范围</strong>（场景/品类/MODEL/SKU/MSKU/是否新品）。同一列内多个选项用<strong>英文逗号</strong>分隔。</p>
+          <p style="font-size:13px;color:#475569;margin:10px 0 0;">费用项、币种、区域、国家、渠道、店铺、零售商、场景、品类等取值须与模版附带的<strong>数据字典</strong>一致；店铺、品类等亦与系统主数据校验。解析成功后每条记录生成<strong>待生效</strong>批次，需人工「生效」后才纳入管报（与「新增导入费用」一致）。</p>
+          <div class="import-tpl-doc">
+            <strong>在线模版与数据字典：</strong>
+            <a href="https://alidocs.dingtalk.com/i/nodes/r1R7q3QmWe7doAGOuZavPQnXJxkXOEP2" target="_blank" rel="noopener noreferrer" id="importTplDocLink">打开钉钉文档 · 业务费用导入模版</a>
+            <span style="color:#64748b;font-size:12px;display:block;margin-top:4px;">含「导入模版」示例行与「数据字典」各列合法取值；正式环境以此版本为准。</span>
+          </div>
+          <div class="import-upload">
+            <label for="importFileInput">上传已填写的模版文件（原型示意）</label>
+            <input type="file" id="importFileInput" accept=".xlsx,.xls,.csv" disabled title="原型：正式环境启用上传解析" />
+            <p style="margin:8px 0 0;font-size:12px;color:#94a3b8;">正式环境支持 Excel / CSV；校验失败时返回错误明细文件。</p>
+          </div>
+          <div class="import-actions">
+            <button type="button" class="btn primary" id="btnDownloadTpl">下载导入模版（CSV，列结构与钉钉一致）</button>
+            <button type="button" class="btn-link" id="btnOpenTplPreview">查看列说明与填写要求</button>
+            <button type="button" class="btn secondary" id="btnSimulateImport">模拟：按模版示例生成一条待生效批次</button>
           </div>
         </div>
       </div>
@@ -1284,35 +1305,44 @@
       </div>
       <div class="dialog-bd">
         <div class="dialog-scroll">
-          <p style="margin-top:0;font-size:13px;color:#475569;">以下为模版列结构与填写约束说明（原型）；正式环境以数据模块发布说明为准。</p>
+          <p style="margin-top:0;font-size:13px;color:#475569;">列结构与钉钉《业务费用导入模版》一致；各列合法取值见同文档「数据字典」页。
+            <a href="https://alidocs.dingtalk.com/i/nodes/r1R7q3QmWe7doAGOuZavPQnXJxkXOEP2" target="_blank" rel="noopener noreferrer">打开在线模版</a>
+          </p>
           <div class="table-wrap tpl-table" style="max-height:none;">
             <table>
               <thead>
                 <tr>
+                  <th>分组</th>
                   <th>列名</th>
                   <th>必填</th>
                   <th>说明</th>
                 </tr>
               </thead>
               <tbody>
-                <tr><td>费用项</td><td>是</td><td>与管报费用项一致。</td></tr>
-                <tr><td>归属月范围</td><td>是</td><td>YYYY-MM - YYYY-MM；单月可写同一月。</td></tr>
-                <tr><td>补充金额</td><td>是</td><td>数字。</td></tr>
-                <tr><td>渠道范围</td><td>是</td><td>下拉枚举，与弹窗第一类分段一致：<strong>全渠道</strong>、<strong>按渠道</strong>、<strong>按店铺</strong>。选「全渠道」时「渠道详细信息」可留空。</td></tr>
-                <tr><td>渠道详细信息</td><td>条件</td><td>按渠道：填渠道名，多个用英文分号 <code>;</code> 分隔（如 <code>Govee;独立站</code>，与 channel_name 一致）。按店铺：填店铺名（如 <code>Govee_US;Goveelife_DE</code>）。</td></tr>
-                <tr><td>商品范围</td><td>是</td><td>下拉枚举，与弹窗第二类分段一致：<strong>全场景</strong>、<strong>按场景</strong>、<strong>按品类</strong>、<strong>按 SKU</strong>、<strong>按 MSKU</strong>。</td></tr>
-                <tr><td>商品详细信息</td><td>条件</td><td>按场景：场景名（如 <code>户外;居家</code>）。按品类：场景/品类编码组合。按 SKU / 按 MSKU：对应编码，分号分隔。全场景可留空。</td></tr>
-                <tr><td>是否新品</td><td>否</td><td>填 <strong>是</strong> / <strong>否</strong>；空视为否。为「是」时仅对主数据标记为新品的 MSKU 参与分摊。</td></tr>
-                <tr><td>零售商</td><td>否</td><td>分号分隔；空表示不按零售商收窄。</td></tr>
-                <tr><td>备注</td><td>否</td><td>可选。</td></tr>
+                <tr><td rowspan="4">费用信息</td><td>费用项</td><td>是</td><td>数据字典「费用项」，如品牌营销费。</td></tr>
+                <tr><td>归属范围</td><td>是</td><td><code>YYYYMMDD-YYYYMMDD</code>（示例 20260401-20260525）；系统换算为归属月参与分摊。</td></tr>
+                <tr><td>金额</td><td>是</td><td>正数，勿用公式。</td></tr>
+                <tr><td>币种</td><td>是</td><td>数据字典「币种」三字码，如 USD。</td></tr>
+                <tr><td rowspan="5">渠道范围</td><td>区域</td><td>否</td><td>字典「区域」；多选英文逗号，如西欧区,北欧区,东欧区。</td></tr>
+                <tr><td>国家</td><td>否</td><td>字典「国家」，如美国 (US),德国 (DE)；与区域等取交。</td></tr>
+                <tr><td>渠道</td><td>否</td><td>字典「渠道」，如亚马逊、shopify。</td></tr>
+                <tr><td>店铺</td><td>否</td><td>字典「店铺」，如 Govee_US；GoveeLife 为 Goveelife_XX。</td></tr>
+                <tr><td>零售商</td><td>否</td><td>字典「零售商」；空表示不按零售商收窄。</td></tr>
+                <tr><td rowspan="6">产品范围</td><td>场景</td><td>否</td><td>字典「场景」；多选英文逗号。</td></tr>
+                <tr><td>品类</td><td>否</td><td>字典「品类」（多为场景/品类路径）。</td></tr>
+                <tr><td>MODEL</td><td>否</td><td>主数据 MODEL（与 SPU 前 5 位一致）。</td></tr>
+                <tr><td>SKU</td><td>否</td><td>8 位生产 SKU。</td></tr>
+                <tr><td>MSKU</td><td>否</td><td>精确 MSKU。</td></tr>
+                <tr><td>是否新品</td><td>否</td><td>「是」/「否」；空视为否；为「是」时仅新品 MSKU 参与分摊。</td></tr>
               </tbody>
             </table>
           </div>
           <p style="font-weight:700;margin:14px 0 6px;font-size:13px;">填写要求</p>
           <ol class="req-list">
-            <li>「渠道范围」「商品范围」须为模版规定的枚举值；「渠道详细信息」「商品详细信息」中的名称/编码须与基础数据 / 主数据一致。</li>
-            <li>系统解析渠道与商品范围后取交集；勾选「是否新品」为是时，再与新品 MSKU 集合取交。按上月营收占比分摊，并按归属月自然日拆至天。</li>
-            <li>金额勿用公式；失败行单独错误文件返回。</li>
+            <li>费用项、币种及渠道/产品各列取值须与钉钉模版「数据字典」页一致；店铺、SKU、MSKU 等与系统主数据二次校验。</li>
+            <li>同一单元格内多个选项仅用<strong>英文逗号</strong>分隔，勿用分号或中文逗号。</li>
+            <li>系统按渠道范围与产品范围分别取交后，再与「是否新品」取交；按权重月营收占比分摊金额，<strong>仅按归属范围内每一自然日</strong>均摊（不按会计月汇总展示）。</li>
+            <li>解析失败行写入错误文件回传；成功行生成待生效批次。</li>
           </ol>
         </div>
       </div>
@@ -1320,8 +1350,9 @@
   </div>
 
   <script src="../../../../规范/assets/multi-select-filter.js"></script>
-  <script src="../../../../规范/assets/month-range-picker.js"></script>
+  <script src="../../../../规范/assets/date-range-picker.js"></script>
   <script>
+    const IMPORT_TEMPLATE_DOC_URL = "https://alidocs.dingtalk.com/i/nodes/r1R7q3QmWe7doAGOuZavPQnXJxkXOEP2";
     const CHANNEL_STORE_URL = "../../../../规范/基础数据/渠道店铺基础数据_v1.json";
     const SCENE_CAT_URL = "../../../../规范/基础数据/场景品类基础数据_v1.json";
 
@@ -1366,54 +1397,251 @@
 
     const RETAILER_NAMES = ["Best Buy", "Target", "MediaMarkt", "Yodobashi"];
 
+    /** 与导入模版「数据字典」页一致（原型静态） */
+    const DICT_REGIONS = [
+      "北美区", "西欧区", "北欧区", "东欧区", "东南亚", "大洋洲", "拉美区", "中东及非洲区", "南亚区"
+    ];
+    const DICT_COUNTRIES = [
+      "美国 (US)", "德国 (DE)", "英国 (UK)", "日本 (JP)", "加拿大 (CA)", "法国 (FR)",
+      "意大利 (IT)", "西班牙 (ES)", "新加坡 (SG)", "澳大利亚 (AU)", "荷兰 (NL)", "瑞典 (SE)"
+    ];
+    const DICT_MODELS = ["H6011", "H6159", "H6198", "H6201", "H605B"];
+
     const state = {
       channels: [],
       scenes: [],
-      shopMode: "all",
-      shopTags: [],
-      mskuMode: "all",
-      mskuTags: [],
       newProductOnly: false,
-      retailerTags: [],
-      /** @type {{ id: string, fee: string, month: string, amt: number, shop: string, retailerSummary: string, mskuScopeSummary: string, status: string, op: string, at: string }[]} */
+      /** @type {{ id: string, fee: string, belongRange: string, currency: string, amt: number, channelSummary: string, productSummary: string, status: string, op: string, at: string }[]} */
       historyRows: [],
       historyNextSeq: 100,
-      /** 多选下拉（《多选下拉筛选-全局UI规范》） */
       msf: {},
-      qMonthRange: null,
-      createMonthRange: null
+      qDateRange: null,
+      createDateRange: null
     };
 
-    function formatMonthRangeLabel(start, end) {
+    function parseYmdDate(s) {
+      if (!s || typeof s !== "string") return null;
+      const p = s.trim().split("-");
+      if (p.length !== 3) return null;
+      const y = +p[0], mo = +p[1], da = +p[2];
+      const d = new Date(y, mo - 1, da);
+      if (d.getFullYear() !== y || d.getMonth() !== mo - 1 || d.getDate() !== da) return null;
+      return d;
+    }
+
+    function ymdCompact(s) {
+      return (s || "").replace(/-/g, "");
+    }
+
+    function formatDateRangeDisplay(start, end) {
       if (!start) return "";
       const e = end || start;
       if (e === start) return start;
-      return `${start} - ${e}`;
+      return `${start} 至 ${e}`;
     }
 
-    function parseMonthRangeLabel(s) {
-      if (!s || typeof s !== "string") return { start: "", end: "" };
+    function formatDateRangeCompact(start, end) {
+      if (!start) return "";
+      const e = end || start;
+      if (ymdCompact(e) === ymdCompact(start)) return ymdCompact(start);
+      return `${ymdCompact(start)}-${ymdCompact(e)}`;
+    }
+
+    function parseBelongRangeLabel(s) {
+      if (!s || typeof s !== "string") return { start: "", end: "", compact: "" };
       const t = s.trim();
+      if (/^\d{8}-\d{8}$/.test(t)) {
+        const [a, b] = t.split("-");
+        const start = `${a.slice(0, 4)}-${a.slice(4, 6)}-${a.slice(6, 8)}`;
+        const end = `${b.slice(0, 4)}-${b.slice(4, 6)}-${b.slice(6, 8)}`;
+        return { start, end, compact: t };
+      }
+      if (t.includes("至")) {
+        const parts = t.split("至").map((x) => x.trim());
+        const start = parts[0] || "";
+        const end = parts[1] || start;
+        return { start, end, compact: formatDateRangeCompact(start, end) };
+      }
       if (t.includes(" - ")) {
         const parts = t.split(" - ").map((x) => x.trim());
-        return { start: parts[0] || "", end: parts[1] || parts[0] || "" };
+        const start = parts[0] || "";
+        const end = parts[1] || start;
+        return { start, end, compact: formatDateRangeCompact(start, end) };
       }
-      return { start: t, end: t };
+      if (/^\d{4}-\d{2}-\d{2}$/.test(t)) {
+        return { start: t, end: t, compact: ymdCompact(t) };
+      }
+      return { start: "", end: "", compact: t };
     }
 
-    function getCreateMonthRange() {
-      if (!state.createMonthRange) return { start: "", end: "", label: "" };
-      const r = state.createMonthRange.get();
+    function getCreateDateRange() {
+      if (!state.createDateRange) return { start: "", end: "", label: "", compact: "" };
+      const r = state.createDateRange.get();
       const start = r.start || "";
       const end = r.end || r.start || "";
-      return { start, end, label: formatMonthRangeLabel(start, end) };
+      return {
+        start,
+        end,
+        label: formatDateRangeDisplay(start, end),
+        compact: formatDateRangeCompact(start, end)
+      };
     }
 
-    function monthRangesOverlap(aStart, aEnd, bStart, bEnd) {
+    function daysInDateRange(start, end) {
+      const d1 = parseYmdDate(start);
+      const d2 = parseYmdDate(end || start);
+      if (!d1 || !d2) return 0;
+      const ms = Math.abs(d2 - d1);
+      return Math.floor(ms / 86400000) + 1;
+    }
+
+    function dateRangesOverlap(aStart, aEnd, bStart, bEnd) {
       if (!aStart || !bStart) return true;
       const ae = aEnd || aStart;
       const be = bEnd || bStart;
       return aStart <= be && ae >= bStart;
+    }
+
+    function joinScopeCell(arr) {
+      if (!arr || !arr.length) return "（空）";
+      return arr.join(", ");
+    }
+
+    function collectChannelScopeFromUi() {
+      return {
+        regions: state.msf.region?.getValues() || [],
+        countries: state.msf.country?.getValues() || [],
+        channels: state.msf.ch?.getValues() || [],
+        stores: state.msf.store?.getValues() || [],
+        retailers: state.msf.retailer?.getValues() || []
+      };
+    }
+
+    function collectProductScopeFromUi() {
+      const catKeys = state.msf.cat?.getValues() || [];
+      return {
+        scenes: state.msf.scene?.getValues() || [],
+        categories: catKeys.map((k) => catOptionKeyToLabel(k)),
+        models: state.msf.model?.getValues() || [],
+        skus: state.msf.sku?.getValues() || [],
+        mskus: state.msf.msku?.getValues() || []
+      };
+    }
+
+    function syncNewProductState() {
+      const v = document.getElementById("productNewFlag")?.value ?? "";
+      state.newProductOnly = v === "是";
+    }
+
+    function getProductNewFlagLabel() {
+      const v = document.getElementById("productNewFlag")?.value ?? "";
+      if (v === "是" || v === "否") return v;
+      return "（空）";
+    }
+
+    function resetCreatePreview() {
+      document.getElementById("btnConfirmImport").disabled = true;
+      const pw = document.getElementById("previewWrap");
+      const sc = document.getElementById("summaryCards");
+      const psm = document.getElementById("previewScopeMeta");
+      if (pw) pw.style.display = "none";
+      if (sc) sc.style.display = "none";
+      if (psm) psm.style.display = "none";
+    }
+
+    function buildAllCategoryOptions() {
+      const seen = new Set();
+      const opts = [];
+      state.scenes.forEach((sc) => {
+        (sc.categories || []).forEach((c) => {
+          const key = `${sc.scene_name}|${c.category_code}`;
+          if (seen.has(key)) return;
+          seen.add(key);
+          opts.push({
+            value: key,
+            label: `${sc.scene_name} / ${c.category_code} ${c.category_name}`
+          });
+        });
+      });
+      return opts;
+    }
+
+    function buildAllStoreOptions() {
+      const seen = new Set();
+      const opts = [];
+      state.channels.forEach((c) => {
+        (c.stores || []).forEach((s) => {
+          if (seen.has(s)) return;
+          seen.add(s);
+          opts.push({ value: s, label: s });
+        });
+      });
+      return opts;
+    }
+
+    function buildChannelScopeSummaryFromObj(ch) {
+      if (!ch.regions?.length && !ch.countries?.length && !ch.channels?.length && !ch.stores?.length && !ch.retailers?.length) {
+        return "全渠道（各列空）";
+      }
+      const parts = [];
+      if (ch.regions?.length) parts.push(`区域:${ch.regions.join(",")}`);
+      if (ch.countries?.length) parts.push(`国家:${ch.countries.join(",")}`);
+      if (ch.channels?.length) parts.push(`渠道:${ch.channels.join(",")}`);
+      if (ch.stores?.length) parts.push(`店铺:${ch.stores.join(",")}`);
+      if (ch.retailers?.length) parts.push(`零售商:${ch.retailers.join(",")}`);
+      return parts.join("；");
+    }
+
+    function buildChannelScopeSummary(ch) {
+      return buildChannelScopeSummaryFromObj(ch);
+    }
+
+    function buildProductScopeSummaryFromObj(ps, newProductOnly, newProductFlag) {
+      const flag = newProductFlag != null ? newProductFlag : newProductOnly ? "是" : "（空）";
+      if (!ps.scenes?.length && !ps.categories?.length && !ps.models?.length && !ps.skus?.length && !ps.mskus?.length && flag === "（空）") {
+        return "全产品（各列空）";
+      }
+      const parts = [];
+      if (ps.scenes?.length) parts.push(`场景:${ps.scenes.join(",")}`);
+      if (ps.categories?.length) parts.push(`品类:${ps.categories.join(",")}`);
+      if (ps.models?.length) parts.push(`MODEL:${ps.models.join(",")}`);
+      if (ps.skus?.length) parts.push(`SKU:${ps.skus.join(",")}`);
+      if (ps.mskus?.length) parts.push(`MSKU:${ps.mskus.join(",")}`);
+      if (flag === "是" || flag === "否") parts.push(`是否新品:${flag}`);
+      return parts.join("；");
+    }
+
+    function buildProductScopeSummary(ps) {
+      syncNewProductState();
+      const flag = getProductNewFlagLabel();
+      return buildProductScopeSummaryFromObj(ps, flag === "是", flag);
+    }
+
+    function renderTemplateScopeMetaHtml(opts) {
+      const ch = opts.channelScope || {};
+      const ps = opts.productScope || {};
+      const np = opts.newProductFlag != null
+        ? opts.newProductFlag
+        : opts.newProductOnly
+          ? "是"
+          : "（空）";
+      return `
+        <strong>费用项：</strong>${escHtml(opts.fee || "—")}　
+        <strong>归属范围：</strong>${escHtml(opts.belongRange || "—")}　
+        <strong>金额：</strong>${opts.amt != null ? Number(opts.amt).toLocaleString("zh-CN", { minimumFractionDigits: 2 }) : "—"}　
+        <strong>币种：</strong>${escHtml(opts.currency || "—")}<br>
+        <strong>渠道范围 · 区域：</strong>${escHtml(joinScopeCell(ch.regions))}　
+        <strong>国家：</strong>${escHtml(joinScopeCell(ch.countries))}　
+        <strong>渠道：</strong>${escHtml(joinScopeCell(ch.channels))}　
+        <strong>店铺：</strong>${escHtml(joinScopeCell(ch.stores))}　
+        <strong>零售商：</strong>${escHtml(joinScopeCell(ch.retailers))}<br>
+        <strong>产品范围 · 场景：</strong>${escHtml(joinScopeCell(ps.scenes))}　
+        <strong>品类：</strong>${escHtml(joinScopeCell(ps.categories))}　
+        <strong>MODEL：</strong>${escHtml(joinScopeCell(ps.models))}　
+        <strong>SKU：</strong>${escHtml(joinScopeCell(ps.skus))}　
+        <strong>MSKU：</strong>${escHtml(joinScopeCell(ps.mskus))}　
+        <strong>是否新品：</strong>${escHtml(np)}
+      `;
     }
 
     function syncClearableSelect(sel) {
@@ -1579,61 +1807,49 @@
       }
       state.msf._mounted = true;
       const z = 560;
+      const onScopeChange = () => {
+        resetCreatePreview();
+        updateRuleText();
+      };
       const mk = (id, opts) => {
         const el = document.getElementById(id);
         if (!el) return null;
-        return MultiSelectFilter.mount(el, { zIndex: z, ...opts });
+        return MultiSelectFilter.mount(el, { zIndex: z, onChange: onScopeChange, ...opts });
       };
+      state.msf.region = mk("msfCreateRegion", {
+        placeholder: "区域（可多选，可留空）",
+        showSelectAll: true,
+        getOptions: () => DICT_REGIONS.map((n) => ({ value: n, label: n }))
+      });
+      state.msf.country = mk("msfCreateCountry", {
+        placeholder: "国家（可多选，可留空）",
+        showSelectAll: true,
+        getOptions: () => DICT_COUNTRIES.map((n) => ({ value: n, label: n }))
+      });
       state.msf.ch = mk("msfCreateChannel", {
-        placeholder: "点击选择渠道（可多选）",
+        placeholder: "渠道（可多选，可留空）",
         showSelectAll: true,
         getOptions: () => state.channels.map((c) => ({ value: c.channel_name, label: c.channel_name }))
       });
       state.msf.store = mk("msfCreateStore", {
-        placeholder: "点击选择店铺（可多选）",
+        placeholder: "店铺（可多选，可留空）",
         showSelectAll: true,
-        getOptions: () => {
-          const ch = document.getElementById("mChannel")?.value || "";
-          const opts = [];
-          if (!ch) {
-            const seen = new Set();
-            state.channels.forEach((c) => {
-              (c.stores || []).forEach((s) => {
-                if (seen.has(s)) return;
-                seen.add(s);
-                opts.push({ value: s, label: s });
-              });
-            });
-            return opts;
-          }
-          const row = state.channels.find((c) => c.channel_name === ch);
-          return (row && row.stores ? row.stores : []).map((s) => ({ value: s, label: s }));
-        }
+        getOptions: () => buildAllStoreOptions()
       });
       state.msf.scene = mk("msfCreateScene", {
-        placeholder: "点击选择场景（可多选）",
+        placeholder: "场景（可多选，可留空）",
         showSelectAll: true,
         getOptions: () => state.scenes.map((sc) => ({ value: sc.scene_name, label: sc.scene_name }))
       });
       state.msf.cat = mk("msfCreateCategory", {
-        placeholder: "点击选择品类（可多选）",
+        placeholder: "品类（可多选，可留空）",
         showSelectAll: true,
-        getOptions: () => {
-          const sceneVal = document.getElementById("mCatSceneSel")?.value ?? "";
-          const sceneNames = sceneVal ? [sceneVal] : state.scenes.map((s) => s.scene_name);
-          const seen = new Set();
-          const opts = [];
-          sceneNames.forEach((sn) => {
-            const sc = state.scenes.find((s) => s.scene_name === sn);
-            (sc && sc.categories ? sc.categories : []).forEach((c) => {
-              const key = `${sn}|${c.category_code}`;
-              if (seen.has(key)) return;
-              seen.add(key);
-              opts.push({ value: key, label: `${sn} / ${c.category_code} ${c.category_name}` });
-            });
-          });
-          return opts;
-        }
+        getOptions: () => buildAllCategoryOptions()
+      });
+      state.msf.model = mk("msfCreateModel", {
+        placeholder: "点击选择 MODEL（可多选，无「全部」）",
+        showSelectAll: false,
+        getOptions: () => DICT_MODELS.map((m) => ({ value: m, label: m }))
       });
       state.msf.sku = mk("msfCreateSku", {
         placeholder: "点击选择 SKU（可多选，无「全部」）",
@@ -1650,41 +1866,6 @@
         showSelectAll: true,
         getOptions: () => RETAILER_NAMES.map((n) => ({ value: n, label: n }))
       });
-    }
-
-    function rebuildCatSceneSelect() {
-      const sel = document.getElementById("mCatSceneSel");
-      if (!sel) return;
-      sel.innerHTML = "";
-      const o0 = document.createElement("option");
-      o0.value = "";
-      o0.textContent = "全部";
-      sel.appendChild(o0);
-      state.scenes.forEach((sc) => {
-        const o = document.createElement("option");
-        o.value = sc.scene_name;
-        o.textContent = sc.scene_name;
-        sel.appendChild(o);
-      });
-    }
-
-    function renderShopUi() {
-      const paneCh = document.getElementById("shopPaneChannel");
-      const paneSt = document.getElementById("shopPaneStore");
-      if (!paneCh || !paneSt) return;
-      if (state.shopMode === "all") {
-        paneCh.style.display = "none";
-        paneSt.style.display = "none";
-        document.getElementById("shopSummary").textContent = "全渠道（所有渠道的全部店铺）";
-        return;
-      }
-      paneCh.style.display = state.shopMode === "channel" ? "block" : "none";
-      paneSt.style.display = state.shopMode === "store" ? "block" : "none";
-      if (state.shopMode === "channel") {
-        document.getElementById("shopSummary").textContent = "渠道（复选列表）：" + (state.shopTags.length ? state.shopTags.join("、") : "（勾选渠道后点「将已选渠道加入清单」）");
-      } else {
-        document.getElementById("shopSummary").textContent = "店铺（清单）：" + (state.shopTags.length ? state.shopTags.join("、") : "（勾选店铺或依赖「未勾选=全店」规则后点「加入当前店铺」）");
-      }
     }
 
     function formatNewProductLabel(isNew) {
@@ -1718,81 +1899,41 @@
       return [...new Set(arr)].slice(0, 120);
     }
 
-    function renderMskuUi() {
-      ["mskuPaneScene", "mskuPaneCategory", "mskuPaneSku", "mskuPaneMsku"].forEach((id) => {
-        const n = document.getElementById(id);
-        if (n) n.style.display = "none";
-      });
-      if (state.mskuMode === "all") return;
-      const map = { scene: "mskuPaneScene", category: "mskuPaneCategory", sku: "mskuPaneSku", msku: "mskuPaneMsku" };
-      const el = document.getElementById(map[state.mskuMode]);
-      if (el) el.style.display = "block";
-    }
-
-    function renderTags(containerId, tags, onRemove) {
-      const el = document.getElementById(containerId);
-      el.innerHTML = tags.map((t, i) => `
-        <span class="tag">${String(t).replace(/</g, "&lt;")}<button type="button" data-i="${i}" aria-label="移除">×</button></span>
-      `).join("");
-      el.querySelectorAll("button").forEach((btn) => {
-        btn.addEventListener("click", () => onRemove(Number(btn.dataset.i)));
-      });
-    }
-
-    function wireShopTags() {
-      renderTags("shopTags", state.shopTags, (i) => {
-        state.shopTags.splice(i, 1);
-        wireShopTags();
-        renderShopUi();
-        updateRuleText();
-      });
-    }
-    function wireMskuTags() {
-      renderTags("mskuTags", state.mskuTags, (i) => {
-        state.mskuTags.splice(i, 1);
-        wireMskuTags();
-        updateRuleText();
-      });
-    }
-    function wireRetailerTags() {
-      renderTags("retailerTags", state.retailerTags, (i) => {
-        state.retailerTags.splice(i, 1);
-        wireRetailerTags();
-        updateRuleText();
-      });
-    }
-
     function updateRuleText() {
-      const { start, end, label } = getCreateMonthRange();
-      const weight = start ? prevMonthYm(start) : "—";
-      const daysHint =
-        start && end && end !== start
-          ? `范围 ${label}（各月按自然日拆分）`
-          : start
-            ? `归属月 ${daysInMonth(start)} 天，均摊至天 × MSKU`
-            : "—";
+      syncNewProductState();
+      const { start, end, label, compact } = getCreateDateRange();
+      const weight = start ? prevMonthYm(start.slice(0, 7)) : "—";
+      const dayCount = start ? daysInDateRange(start, end) : 0;
       const amt = Number(document.getElementById("totalAmount").value) || 0;
       const fee = document.getElementById("feeType").value;
-      const r = state.retailerTags.length
-        ? `再 ∩ {零售商: ${state.retailerTags.join("、")}}`
-        : "（未选零售商）";
+      const currency = document.getElementById("feeCurrency")?.value || "CNY";
+      const ch = collectChannelScopeFromUi();
+      const ps = collectProductScopeFromUi();
       const el = document.getElementById("ruleText");
       if (!el) return;
       el.innerHTML = `
-        <strong>费用项：</strong>${fee}；<strong>归属月范围：</strong>${label || "—"}；<strong>补充总额：</strong>${amt.toLocaleString("zh-CN", { minimumFractionDigits: 2 })} 元。<br>
-        <strong>S₁ 店铺：</strong>见第一类；<strong>S₂ MSKU：</strong>见第二类；<strong>交集</strong> S = S₁ ∩ S₂ ${state.retailerTags.length ? "∩ 零售商" : ""}${state.newProductOnly ? " ∩ <strong>新品 MSKU</strong>" : ""}。<br>
-        <strong>是否新品：</strong>${state.newProductOnly ? "是（仅新品参与分摊）" : "否（不按新品收窄）"}。<br>
-        <strong>权重月：</strong>${weight} 各 MSKU 在 S 内营收占比（按范围起始月上月）。<br>
-        <strong>按日：</strong>${daysHint}。<br>
-        <strong>零售商：</strong>${r}
+        ${renderTemplateScopeMetaHtml({
+          fee,
+          belongRange: compact || label,
+          amt,
+          currency,
+          channelScope: ch,
+          productScope: ps,
+          newProductFlag: getProductNewFlagLabel()
+        })}<br>
+        <strong>交集：</strong>渠道五列、产品六列分别取交后得到分摊对象集合。<br>
+        <strong>权重：</strong>按权重月 ${weight}（归属范围起始日所在月的上月）各 MSKU 营收占比，将<strong>金额</strong>分摊至各行。<br>
+        <strong>按日（唯一口径）：</strong>归属范围 ${compact || label || "—"} 共 ${dayCount || "—"} 个自然日；每行「按日分摊合计」= 该行权重分摊额，「单日分摊额」= 按日分摊合计 ÷ 天数（<strong>不按会计月汇总</strong>）。
       `;
     }
 
     function mockPreviewRows() {
+      const ch = collectChannelScopeFromUi();
       let rows = DEMO_MSKU_PREVIEW_ROWS.map((r) => ({ ...r }));
+      syncNewProductState();
       if (state.newProductOnly) rows = rows.filter((r) => r.isNewProduct);
-      if (state.retailerTags.length) {
-        rows.forEach((r, i) => { r.retailer = state.retailerTags[i % state.retailerTags.length]; });
+      if (ch.retailers.length) {
+        rows.forEach((r, i) => { r.retailer = ch.retailers[i % ch.retailers.length]; });
       }
       return rows;
     }
@@ -1823,15 +1964,18 @@
     const HISTORY_DETAIL_BY_ID = {
       "IMP-202604-001": {
         fee: "广告费",
-        month: "2026-04",
+        belongRange: "20260401-20260430",
+        currency: "USD",
         amt: 10000,
-        shopSummary: "渠道:Govee",
-        retailerSummary: "（未选）",
-        mskuSummary: "场景:户外;居家",
+        channelScope: {
+          regions: [],
+          countries: [],
+          channels: ["Govee"],
+          stores: [],
+          retailers: []
+        },
+        productScope: { scenes: ["户外", "居家"], categories: [], models: [], skus: [], mskus: [] },
         newProductOnly: true,
-        shopScopeDetail: "渠道范围：按渠道；渠道详细信息：Govee（与渠道店铺基础数据 channel_name 一致）。\n店铺交集：Govee_US、Govee_DE 等（示意）。",
-        mskuScopeDetail: "商品范围：按场景；商品详细信息：户外;居家。\nMSKU 交集：权重月内归属上述场景且落在店铺交集内的 MSKU；是否新品=是，仅保留新品。",
-        retailers: "（导入未选零售商，不按零售商收窄）",
         st: "已生效",
         op: "zhangsan",
         at: "2026-04-02 10:20",
@@ -1842,15 +1986,12 @@
       },
       "IMP-202603-018": {
         fee: "推广费",
-        month: "2026-03",
+        belongRange: "20260301-20260331",
+        currency: "CNY",
         amt: 3200,
-        shopSummary: "全渠道",
-        retailerSummary: "（未选）",
-        mskuSummary: "全场景",
+        channelScope: { regions: [], countries: [], channels: [], stores: [], retailers: [] },
+        productScope: { scenes: [], categories: [], models: [], skus: [], mskus: [] },
         newProductOnly: false,
-        shopScopeDetail: "渠道范围：全渠道；渠道详细信息：（空）。",
-        mskuScopeDetail: "商品范围：全场景；商品详细信息：（空）。",
-        retailers: "（未选）",
         st: "已生效",
         op: "lisi",
         at: "2026-03-28 16:05",
@@ -1861,15 +2002,18 @@
       },
       "IMP-202603-017": {
         fee: "广告费",
-        month: "2026-03",
+        belongRange: "20260310-20260320",
+        currency: "USD",
         amt: 8000,
-        shopSummary: "店铺:Govee_US;Govee_DE",
-        retailerSummary: "Best Buy；Target",
-        mskuSummary: "SKU:H601*",
+        channelScope: {
+          regions: [],
+          countries: [],
+          channels: [],
+          stores: ["Govee_US", "Govee_DE"],
+          retailers: ["Best Buy", "Target"]
+        },
+        productScope: { scenes: [], categories: [], models: [], skus: ["H6011001", "H6011002"], mskus: [] },
         newProductOnly: false,
-        shopScopeDetail: "渠道范围：按店铺；渠道详细信息：Govee_US;Govee_DE（与基础数据 store 一致）。",
-        mskuScopeDetail: "商品范围：按 SKU；商品详细信息：H601*（模糊匹配后得到 MSKU 集合）。",
-        retailers: "Best Buy；Target（示意：导入两行零售商后取交）",
         st: "待生效",
         op: "wangwu",
         at: "2026-03-15 09:12",
@@ -1882,15 +2026,12 @@
       },
       "IMP-202602-099": {
         fee: "样品费",
-        month: "2026-02",
+        belongRange: "20260201-20260228",
+        currency: "CNY",
         amt: 500,
-        shopSummary: "全渠道",
-        retailerSummary: "（未选）",
-        mskuSummary: "全场景",
+        channelScope: { regions: [], countries: [], channels: [], stores: [], retailers: [] },
+        productScope: { scenes: [], categories: [], models: [], skus: [], mskus: [] },
         newProductOnly: false,
-        shopScopeDetail: "渠道范围：全渠道。",
-        mskuScopeDetail: "商品范围：全场景。",
-        retailers: "（未选）",
         st: "失效",
         op: "zhao",
         at: "2026-02-01 09:00",
@@ -1908,33 +2049,33 @@
       }
       const rowLive = state.historyRows.find((r) => r.id === batchId);
       if (rowLive) d.st = rowLive.status;
-      const rowRange = parseMonthRangeLabel(d.month);
-      const wm = prevMonthYm(rowRange.start);
-      const days =
-        rowRange.start && rowRange.end && rowRange.end !== rowRange.start
-          ? `范围 ${d.month}（各月自然日）`
-          : daysInMonth(rowRange.start || d.month);
+      const rowRange = parseBelongRangeLabel(d.belongRange || d.month || "");
+      const wm = rowRange.start ? prevMonthYm(rowRange.start.slice(0, 7)) : "—";
+      const dayCount = rowRange.start ? daysInDateRange(rowRange.start, rowRange.end) : 1;
       const tot = d.rawRows.reduce((s, r) => s + r.rev, 0);
       const rows = d.rawRows.map((r) => {
         const w = tot ? r.rev / tot : 0;
         const alloc = d.amt * w;
-        return { ...r, w, alloc, daily: alloc / days };
+        return { ...r, w, alloc, daily: dayCount ? alloc / dayCount : 0 };
       });
+      const ch = d.channelScope || {};
+      const ps = d.productScope || {};
       document.getElementById("dlgHistTitle").textContent = `分摊明细 · ${batchId}`;
       document.getElementById("historyDetailMeta").innerHTML = `
         <div style="line-height:1.75;font-size:13px;color:#78350f;">
           <strong>导入批次号：</strong>${escHtml(batchId)}<br>
-          <strong>费用项：</strong>${escHtml(d.fee)}　<strong>归属月范围：</strong>${escHtml(d.month)}　<strong>补充金额：</strong>${d.amt.toLocaleString("zh-CN", { minimumFractionDigits: 2 })} 元<br>
-          <strong>权重月：</strong>${escHtml(wm)}（范围起始月上月的管报营收口径）　<strong>按日拆分：</strong>${days}<br>
+          ${renderTemplateScopeMetaHtml({
+            fee: d.fee,
+            belongRange: d.belongRange || d.month,
+            amt: d.amt,
+            currency: d.currency || "—",
+            channelScope: ch,
+            productScope: ps,
+            newProductFlag: d.newProductOnly ? "是" : "（空）"
+          })}<br>
+          <strong>权重月：</strong>${escHtml(wm)}（归属范围起始日所在月的上月）　<strong>按日口径：</strong>共 ${dayCount} 自然日，仅按日分摊（不按会计月汇总）<br>
           <strong>状态：</strong>${escHtml(rowLive ? rowLive.status : d.st)}　<strong>操作人：</strong>${escHtml(d.op)}　<strong>创建时间：</strong>${escHtml(d.at)}<br>
-          <strong>纳入管报计算：</strong>${(rowLive && rowLive.status === "已生效") || (!rowLive && d.st === "已生效") ? "是（仅已生效批次参与）" : "否"}<br>
-          <strong>渠道范围（列表摘要）：</strong>${escHtml(d.shopSummary)}<br>
-          <strong>渠道范围（解析说明）：</strong><span style="white-space:pre-wrap;">${escHtml(d.shopScopeDetail)}</span><br>
-          <strong>零售商范围（列表摘要）：</strong>${escHtml(d.retailerSummary || "—")}<br>
-          <strong>商品范围（列表摘要）：</strong>${escHtml(d.mskuSummary)}<br>
-          <strong>商品范围（解析说明）：</strong><span style="white-space:pre-wrap;">${escHtml(d.mskuScopeDetail)}</span><br>
-          <strong>是否新品：</strong>${escHtml(d.newProductOnly ? "是" : "否")}<br>
-          <strong>零售商：</strong>${escHtml(d.retailers)}
+          <strong>纳入管报计算：</strong>${(rowLive && rowLive.status === "已生效") || (!rowLive && d.st === "已生效") ? "是（仅已生效批次参与）" : "否"}
         </div>
       `;
       document.getElementById("historyDetailBody").innerHTML = rows.map((r) => `
@@ -1968,19 +2109,19 @@
     function getFilteredHistoryRows() {
       const stF = document.getElementById("qStatus")?.value ?? "";
       const feeF = document.getElementById("qFeeType")?.value ?? "";
-      let monthFrom = "";
-      let monthTo = "";
-      if (state.qMonthRange) {
-        const r = state.qMonthRange.get();
-        monthFrom = r.start || "";
-        monthTo = r.end || "";
+      let dateFrom = "";
+      let dateTo = "";
+      if (state.qDateRange) {
+        const r = state.qDateRange.get();
+        dateFrom = r.start || "";
+        dateTo = r.end || "";
       }
       return state.historyRows.filter((r) => {
         if (stF && r.status !== stF) return false;
         if (feeF && r.fee !== feeF) return false;
-        const rowM = parseMonthRangeLabel(r.month);
-        if (monthFrom || monthTo) {
-          if (!monthRangesOverlap(rowM.start, rowM.end, monthFrom, monthTo)) return false;
+        const rowR = parseBelongRangeLabel(r.belongRange || r.month || "");
+        if (dateFrom || dateTo) {
+          if (!dateRangesOverlap(rowR.start, rowR.end, dateFrom, dateTo)) return false;
         }
         return true;
       });
@@ -2038,11 +2179,11 @@
           <td class="col-check"><input type="checkbox" class="hist-row-cb" data-id="${String(r.id).replace(/"/g, "")}" aria-label="选择该行"></td>
           <td>${escHtml(r.id)}</td>
           <td>${escHtml(r.fee)}</td>
-          <td>${escHtml(r.month)}</td>
+          <td>${escHtml(r.belongRange || r.month || "")}</td>
           <td class="num">${r.amt.toLocaleString("zh-CN")}</td>
-          <td>${escHtml(r.shop)}</td>
-          <td>${escHtml(r.retailerSummary)}</td>
-          <td>${escHtml(r.mskuScopeSummary)}</td>
+          <td>${escHtml(r.currency || "—")}</td>
+          <td>${escHtml(r.channelSummary || r.shop || "")}</td>
+          <td>${escHtml(r.productSummary || r.mskuScopeSummary || "")}</td>
           <td><span class="${statusClass(r.status)}">${escHtml(r.status)}</span></td>
           <td>${escHtml(r.op)}</td>
           <td>${escHtml(r.at)}</td>
@@ -2055,27 +2196,37 @@
       const bom = "\ufeff";
       const headers = [
         "费用项",
-        "归属月范围",
-        "补充金额",
-        "渠道范围",
-        "渠道详细信息",
-        "商品范围",
-        "商品详细信息",
-        "是否新品",
+        "归属范围",
+        "金额",
+        "币种",
+        "区域",
+        "国家",
+        "渠道",
+        "店铺",
         "零售商",
-        "备注"
+        "场景",
+        "品类",
+        "MODEL",
+        "SKU",
+        "MSKU",
+        "是否新品"
       ];
       const sample = [
-        "广告费",
-        "2026-04 - 2026-04",
+        "品牌营销费",
+        "20260401-20260525",
         "10000",
-        "按渠道",
-        "Govee;独立站",
-        "按场景",
-        "户外;居家",
-        "是",
+        "USD",
+        "西欧区,北欧区,东欧区",
+        "美国 (US),德国 (DE),英国 (UK)",
         "",
-        "示例：渠道/商品范围为枚举；详细信息与弹窗、基础数据一致"
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        ""
       ];
       const csv = bom + headers.join(",") + "\n" + sample.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(",") + "\n";
       const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
@@ -2117,39 +2268,45 @@
     document.getElementById("btnSimulateImport").addEventListener("click", () => {
       const id = nextBatchId();
       const at = formatNow();
+      const channelScope = {
+        regions: ["西欧区", "北欧区", "东欧区"],
+        countries: ["美国 (US)", "德国 (DE)", "英国 (UK)"],
+        channels: [],
+        stores: [],
+        retailers: []
+      };
+      const productScope = { scenes: [], categories: [], models: [], skus: [], mskus: [] };
       state.historyRows.unshift({
         id,
         fee: "品牌营销费",
-        month: "2026-05",
-        amt: 1500,
-        shop: "按渠道:Govee;独立站（CSV）",
-        retailerSummary: "（未选）",
-        mskuScopeSummary: "按场景:户外;居家（CSV）",
+        belongRange: "20260401-20260525",
+        currency: "USD",
+        amt: 10000,
+        channelSummary: buildChannelScopeSummaryFromObj(channelScope),
+        productSummary: buildProductScopeSummaryFromObj(productScope, false),
         status: "待生效",
         op: "（导入任务）",
         at
       });
       HISTORY_DETAIL_BY_ID[id] = {
         fee: "品牌营销费",
-        month: "2026-05",
-        amt: 1500,
-        shopSummary: "按渠道:Govee;独立站（CSV）",
-        retailerSummary: "（未选）",
-        mskuSummary: "按场景:户外;居家（CSV）",
-        newProductOnly: true,
-        shopScopeDetail: "渠道范围：按渠道；渠道详细信息：Govee;独立站（与 channel_name 一致）。",
-        mskuScopeDetail: "商品范围：按场景；商品详细信息：户外;居家。是否新品=是。",
-        retailers: "（未选）",
+        belongRange: "20260401-20260525",
+        currency: "USD",
+        amt: 10000,
+        channelScope,
+        productScope,
+        newProductOnly: false,
         st: "待生效",
         op: "（导入任务）",
         at,
         rawRows: [
-          { store: "Govee_US", msku: "H6011001+Govee+US", isNewProduct: true, retailer: "—", rev: 200000 }
+          { store: "Govee_DE", msku: "H6011002+Govee+DE", isNewProduct: false, retailer: "—", rev: 98400 },
+          { store: "Govee_UK", msku: "H6159001+Govee+UK", isNewProduct: false, retailer: "—", rev: 76200 }
         ]
       };
       closeOverlay("overlayImport");
       renderHistory();
-      alert(`原型：模拟导入已生成待生效批次 ${id}。`);
+      alert(`原型：已按模版示例行模拟导入，生成待生效批次 ${id}。`);
     });
     document.getElementById("btnOpenTplPreview").addEventListener("click", () => {
       closeOverlay("overlayImport");
@@ -2268,236 +2425,23 @@
       if (e.target.id === "overlayHistoryDetail") closeOverlay("overlayHistoryDetail");
     });
 
-    document.getElementById("shopModeSeg").addEventListener("click", (e) => {
-      const btn = e.target.closest("button[data-mode]");
-      if (!btn) return;
-      setSeg(document.getElementById("shopModeSeg"), "shopMode", btn.dataset.mode);
-      state.shopTags = [];
-      wireShopTags();
-      state.msf.store?.refreshOptions();
-      state.msf.store?.clear();
-      state.msf.ch?.refreshOptions();
-      state.msf.ch?.clear();
-      renderShopUi();
-      updateRuleText();
-    });
-
-    document.getElementById("newProductOnly").addEventListener("change", (e) => {
-      state.newProductOnly = e.target.checked;
-      const hint = document.getElementById("newProductHint");
-      if (hint) hint.style.display = state.newProductOnly ? "block" : "none";
-      document.getElementById("btnConfirmImport").disabled = true;
-      document.getElementById("previewWrap").style.display = "none";
-      document.getElementById("summaryCards").style.display = "none";
-      updateRuleText();
-    });
-
-    document.getElementById("mskuModeSeg").addEventListener("click", (e) => {
-      const btn = e.target.closest("button[data-mode]");
-      if (!btn) return;
-      setSeg(document.getElementById("mskuModeSeg"), "mskuMode", btn.dataset.mode);
-      state.mskuTags = [];
-      wireMskuTags();
-      renderMskuUi();
-      if (state.mskuMode === "category") {
-        rebuildCatSceneSelect();
-        state.msf.cat?.refreshOptions();
-        state.msf.cat?.clear();
-      }
-      if (state.mskuMode === "scene") {
-        state.msf.scene?.clear();
-      }
-      updateRuleText();
-    });
-
-    document.getElementById("mAddChannelSel").addEventListener("click", () => {
-      if (state.shopMode !== "channel") return;
-      const vals = state.msf.ch ? state.msf.ch.getValues() : [];
-      if (!vals.length) {
-        alert("请勾选至少一个渠道（可用首行「全部」一键勾选），再点击「将已选渠道加入清单」。");
-        return;
-      }
-      vals.forEach((name) => {
-        if (!state.shopTags.includes(name)) state.shopTags.push(name);
-      });
-      wireShopTags();
-      renderShopUi();
-      updateRuleText();
-    });
-
-    document.getElementById("mChannel").addEventListener("change", () => {
-      state.msf.store?.refreshOptions();
-      state.msf.store?.clear();
-    });
-
-    document.getElementById("mAddStore").addEventListener("click", () => {
-      if (state.shopMode !== "store") return;
-      const ch = document.getElementById("mChannel").value;
-      const picked = state.msf.store ? state.msf.store.getValues() : [];
-      if (!ch) {
-        if (!picked.length) {
-          alert("渠道为「全部」时，请勾选至少一个店铺（可用首行「全部」一键勾选）再加入。");
-          return;
-        }
-        picked.forEach((s) => {
-          if (!state.shopTags.includes(s)) state.shopTags.push(s);
-        });
-        wireShopTags();
-        renderShopUi();
-        updateRuleText();
-        return;
-      }
-      const row = state.channels.find((c) => c.channel_name === ch);
-      const allStores = row && row.stores ? [...row.stores] : [];
-      if (!picked.length) {
-        if (!allStores.length) {
-          alert("当前渠道下无店铺数据。");
-          return;
-        }
-        allStores.forEach((s) => {
-          if (!state.shopTags.includes(s)) state.shopTags.push(s);
-        });
-      } else {
-        picked.forEach((s) => {
-          if (!state.shopTags.includes(s)) state.shopTags.push(s);
-        });
-      }
-      wireShopTags();
-      renderShopUi();
-      updateRuleText();
-    });
-
-    document.getElementById("mAddSceneSel").addEventListener("click", () => {
-      const vals = state.msf.scene ? state.msf.scene.getValues() : [];
-      if (!vals.length) {
-        alert("请勾选至少一个场景（可用首行「全部」），再点击「将已选场景加入清单」。");
-        return;
-      }
-      vals.forEach((sn) => {
-        const token = "场景:" + sn;
-        if (!state.mskuTags.includes(token)) state.mskuTags.push(token);
-      });
-      wireMskuTags();
-      updateRuleText();
-    });
-
-    document.getElementById("mCatSceneSel").addEventListener("change", () => {
-      state.msf.cat?.refreshOptions();
-      state.msf.cat?.clear();
-    });
-
-    document.getElementById("mAddCurrentCategory").addEventListener("click", () => {
-      const sceneVal = document.getElementById("mCatSceneSel").value;
-      const catVals = state.msf.cat ? state.msf.cat.getValues() : [];
-
-      if (catVals.length) {
-        catVals.forEach((key) => {
-          const label = catOptionKeyToLabel(key);
-          const token = "品类:" + label;
-          if (!state.mskuTags.includes(token)) state.mskuTags.push(token);
-        });
-        wireMskuTags();
-        updateRuleText();
-        return;
-      }
-      if (sceneVal) {
-        const sc = state.scenes.find((s) => s.scene_name === sceneVal);
-        (sc && sc.categories ? sc.categories : []).forEach((c) => {
-          const label = `${sceneVal} / ${c.category_code} ${c.category_name}`;
-          const token = "品类:" + label;
-          if (!state.mskuTags.includes(token)) state.mskuTags.push(token);
-        });
-        wireMskuTags();
-        updateRuleText();
-        return;
-      }
-      state.scenes.forEach((sc) => {
-        const sn = sc.scene_name;
-        (sc.categories || []).forEach((c) => {
-          const label = `${sn} / ${c.category_code} ${c.category_name}`;
-          const token = "品类:" + label;
-          if (!state.mskuTags.includes(token)) state.mskuTags.push(token);
-        });
-      });
-      if (!state.mskuTags.some((t) => t.startsWith("品类:"))) {
-        alert("品类列表为空，请检查场景品类基础数据。");
-        return;
-      }
-      wireMskuTags();
-      updateRuleText();
-    });
-
-    document.getElementById("mAddSkuSel").addEventListener("click", () => {
-      const vals = state.msf.sku ? state.msf.sku.getValues() : [];
-      if (!vals.length) {
-        alert("请勾选至少一个 SKU，再点击加入清单。");
-        return;
-      }
-      vals.forEach((v) => {
-        const token = `SKU：${v}`;
-        if (!state.mskuTags.includes(token)) state.mskuTags.push(token);
-      });
-      wireMskuTags();
-      updateRuleText();
-    });
-
-    document.getElementById("mAddMskuSel").addEventListener("click", () => {
-      const vals = state.msf.msku ? state.msf.msku.getValues() : [];
-      if (!vals.length) {
-        alert("请勾选至少一个 MSKU，再点击加入清单。");
-        return;
-      }
-      vals.forEach((v) => {
-        const token = `MSKU：${v}`;
-        if (!state.mskuTags.includes(token)) state.mskuTags.push(token);
-      });
-      wireMskuTags();
-      updateRuleText();
-    });
-    document.getElementById("addRetailer").addEventListener("click", () => {
-      const vals = state.msf.retailer ? state.msf.retailer.getValues() : [];
-      if (!vals.length) {
-        alert("请勾选至少一个零售商（可用首行「全部」一键勾选），再点击「将已选零售商加入清单」。");
-        return;
-      }
-      vals.forEach((v) => {
-        if (!state.retailerTags.includes(v)) state.retailerTags.push(v);
-      });
-      wireRetailerTags();
+    document.getElementById("productNewFlag").addEventListener("change", () => {
+      resetCreatePreview();
       updateRuleText();
     });
 
     document.getElementById("btnPreview").addEventListener("click", () => {
-      const { start, end } = getCreateMonthRange();
-      const belong = formatMonthRangeLabel(start, end);
+      const { start, end, compact, label } = getCreateDateRange();
       const amt = Number(document.getElementById("totalAmount").value) || 0;
-      const days = start ? (end && end !== start ? `范围 ${belong}` : daysInMonth(start)) : 0;
+      const currency = document.getElementById("feeCurrency")?.value || "CNY";
+      const fee = document.getElementById("feeType").value;
+      const dayCount = start ? daysInDateRange(start, end) : 0;
       if (!start) {
-        alert("请填写归属月范围。");
+        alert("请填写归属范围（起止日期）。");
         return;
       }
-      if (state.shopMode === "channel" && !state.shopTags.length) {
-        alert("第一类：请通过「将已选渠道加入清单」至少加入一个渠道。");
-        return;
-      }
-      if (state.shopMode === "store" && !state.shopTags.length) {
-        alert("第一类：请至少加入一个店铺。");
-        return;
-      }
-      if (state.mskuMode === "scene" && !state.mskuTags.some((t) => t.startsWith("场景:"))) {
-        alert("第二类：按场景时请至少加入一个场景。");
-        return;
-      }
-      if (state.mskuMode === "category" && !state.mskuTags.some((t) => t.startsWith("品类:"))) {
-        alert("第二类：按品类时请从列表多选并加入至少一个品类。");
-        return;
-      }
-      if (state.mskuMode === "sku" && !state.mskuTags.some((t) => /^SKU[：:]/.test(t))) {
-        alert("第二类：按 SKU 时请多选并点击加入清单，至少一条 SKU。");
-        return;
-      }
-      if (state.mskuMode === "msku" && !state.mskuTags.some((t) => /^MSKU[：:]/.test(t))) {
-        alert("第二类：按 MSKU 时请多选并点击加入清单，至少一条 MSKU。");
+      if (!amt) {
+        alert("请填写金额。");
         return;
       }
       const rows = mockPreviewRows();
@@ -2509,65 +2453,69 @@
         );
         return;
       }
+      const ch = collectChannelScopeFromUi();
+      const ps = collectProductScopeFromUi();
       const totalRev = rows.reduce((s, r) => s + r.rev, 0);
-      const dayDiv = typeof days === "number" && days > 0 ? days : daysInMonth(start);
+      document.getElementById("previewScopeMeta").style.display = "block";
+      document.getElementById("previewScopeMeta").innerHTML = renderTemplateScopeMetaHtml({
+        fee,
+        belongRange: compact || label,
+        amt,
+        currency,
+        channelScope: ch,
+        productScope: ps,
+        newProductFlag: getProductNewFlagLabel()
+      });
       document.getElementById("previewBody").innerHTML = rows
-        .map((r) => renderPreviewRowHtml(r, totalRev, amt, dayDiv))
+        .map((r) => renderPreviewRowHtml(r, totalRev, amt, dayCount))
         .join("");
       document.getElementById("previewWrap").style.display = "block";
       document.getElementById("summaryCards").style.display = "grid";
       document.getElementById("summaryCards").innerHTML = `
         <div class="sum-card"><div class="k">MSKU 数（模拟）</div><div class="v">${rows.length}${state.newProductOnly ? " · 仅新品" : ""}</div></div>
-        <div class="sum-card"><div class="k">归属月范围</div><div class="v" style="font-size:12px;">${belong}</div></div>
-        <div class="sum-card"><div class="k">按日拆分</div><div class="v" style="font-size:12px;">${days}</div></div>
-        <div class="sum-card"><div class="k">总额</div><div class="v">${amt.toFixed(2)}</div></div>
+        <div class="sum-card"><div class="k">归属范围</div><div class="v" style="font-size:12px;">${compact || label}</div></div>
+        <div class="sum-card"><div class="k">自然日数</div><div class="v" style="font-size:12px;">${dayCount} 天（仅按日摊）</div></div>
+        <div class="sum-card"><div class="k">金额</div><div class="v">${amt.toFixed(2)} ${currency}</div></div>
       `;
       document.getElementById("btnConfirmImport").disabled = false;
     });
 
     document.getElementById("btnConfirmImport").addEventListener("click", () => {
-      const { start, end, label: belong } = getCreateMonthRange();
+      const { start, end, compact, label } = getCreateDateRange();
       const amt = Number(document.getElementById("totalAmount").value) || 0;
       const fee = document.getElementById("feeType").value;
+      const currency = document.getElementById("feeCurrency")?.value || "CNY";
       if (!start || !fee || !amt) {
-        alert("请填写归属月范围、费用项与补充金额，并先完成预览。");
+        alert("请填写归属范围、费用项、金额与币种，并先完成预览。");
         return;
       }
       const id = nextBatchId();
-      const shopText = (document.getElementById("shopSummary")?.textContent || "全渠道").trim();
-      const shopCol = shopText.length > 80 ? `${shopText.slice(0, 80)}…` : shopText;
-      const retailerSummary = state.retailerTags.length ? state.retailerTags.join("；") : "（未选）";
-      let mskuScopeSummary = "全场景";
-      if (state.mskuMode !== "all") {
-        mskuScopeSummary = state.mskuTags.length
-          ? state.mskuTags.slice(0, 8).join("；") + (state.mskuTags.length > 8 ? "…" : "")
-          : `按「${state.mskuMode}」配置（清单为空，请检查）`;
-      }
+      const ch = collectChannelScopeFromUi();
+      const ps = collectProductScopeFromUi();
+      const channelSummary = buildChannelScopeSummary(ch);
+      const productSummary = buildProductScopeSummary(ps);
       const rawRows = mockPreviewRows();
       const at = formatNow();
       state.historyRows.unshift({
         id,
         fee,
-        month: belong,
+        belongRange: compact || formatDateRangeCompact(start, end),
+        currency,
         amt,
-        shop: shopCol,
-        retailerSummary,
-        mskuScopeSummary,
+        channelSummary,
+        productSummary,
         status: "待生效",
         op: "（原型用户）",
         at
       });
       HISTORY_DETAIL_BY_ID[id] = {
         fee,
-        month: belong,
+        belongRange: compact || label,
+        currency,
         amt,
-        shopSummary: shopCol,
-        retailerSummary,
-        mskuSummary: mskuScopeSummary,
-        shopScopeDetail: "由弹窗第一类渠道/店铺范围生成（原型摘要见上）。",
-        mskuScopeDetail: "由弹窗第二类商品/MSKU 范围生成（原型摘要见上）。",
+        channelScope: ch,
+        productScope: ps,
         newProductOnly: state.newProductOnly,
-        retailers: state.retailerTags.length ? state.retailerTags.join("；") : "（导入未选零售商）",
         st: "待生效",
         op: "（原型用户）",
         at,
@@ -2581,7 +2529,7 @@
       alert("原型：导出预览明细。");
     });
 
-    ["totalAmount", "feeType"].forEach((id) => {
+    ["totalAmount", "feeType", "feeCurrency"].forEach((id) => {
       const n = document.getElementById(id);
       if (!n) return;
       n.addEventListener("input", updateRuleText);
@@ -2598,35 +2546,36 @@
       state.channels = cs.channels || FALLBACK_CHANNELS;
       state.scenes = sc.scenes || FALLBACK_SCENES;
 
-      if (window.MonthRangePicker) {
-        state.qMonthRange = MonthRangePicker.mount(document.getElementById("qMonthRangeMount"), {
-          start: "2026-01",
-          end: "2026-06",
+      if (window.DateRangePicker) {
+        state.qDateRange = DateRangePicker.mount(document.getElementById("qDateRangeMount"), {
+          start: "2026-01-01",
+          end: "2026-06-30",
           useBodyPortal: true
         });
-        state.createMonthRange = MonthRangePicker.mount(document.getElementById("createMonthRangeMount"), {
-          start: "2026-04",
-          end: "2026-04",
+        state.createDateRange = DateRangePicker.mount(document.getElementById("createDateRangeMount"), {
+          start: "2026-04-01",
+          end: "2026-05-25",
           useBodyPortal: true,
-          onChange: updateRuleText
+          onChange: () => {
+            resetCreatePreview();
+            updateRuleText();
+          }
         });
       }
 
       wireClearableSelects();
 
-      fillChannelSelect(document.getElementById("mChannel"), true);
-      rebuildCatSceneSelect();
       mountAllSupplementMsf();
 
       state.historyRows = [
         {
           id: "IMP-202604-001",
           fee: "广告费",
-          month: "2026-01 - 2026-04",
+          belongRange: "20260401-20260430",
+          currency: "USD",
           amt: 10000,
-          shop: "渠道:Govee",
-          retailerSummary: "（未选）",
-          mskuScopeSummary: "按场景:户外;居家 · 仅新品 · 2 MSKU",
+          channelSummary: buildChannelScopeSummaryFromObj(HISTORY_DETAIL_BY_ID["IMP-202604-001"].channelScope),
+          productSummary: buildProductScopeSummaryFromObj(HISTORY_DETAIL_BY_ID["IMP-202604-001"].productScope, true, "是"),
           status: "已生效",
           op: "zhangsan",
           at: "2026-04-02 10:20"
@@ -2634,11 +2583,11 @@
         {
           id: "IMP-202603-018",
           fee: "推广费",
-          month: "2026-03",
+          belongRange: "20260301-20260331",
+          currency: "CNY",
           amt: 3200,
-          shop: "全渠道",
-          retailerSummary: "（未选）",
-          mskuScopeSummary: "全场景下交集 2 个 MSKU（H6011001+Govee+US、H6198001+独立站+US）",
+          channelSummary: "全渠道（各列空）",
+          productSummary: "全产品（各列空）",
           status: "已生效",
           op: "lisi",
           at: "2026-03-28 16:05"
@@ -2646,11 +2595,11 @@
         {
           id: "IMP-202603-017",
           fee: "广告费",
-          month: "2026-03",
+          belongRange: "20260310-20260320",
+          currency: "USD",
           amt: 8000,
-          shop: "店铺:Govee_US;Govee_DE",
-          retailerSummary: "Best Buy；Target",
-          mskuScopeSummary: "按 SKU 模糊 H601* → 命中 4 个 MSKU（含 Govee_US / Govee_DE）",
+          channelSummary: buildChannelScopeSummaryFromObj(HISTORY_DETAIL_BY_ID["IMP-202603-017"].channelScope),
+          productSummary: buildProductScopeSummaryFromObj(HISTORY_DETAIL_BY_ID["IMP-202603-017"].productScope, false),
           status: "待生效",
           op: "wangwu",
           at: "2026-03-15 09:12"
@@ -2658,11 +2607,11 @@
         {
           id: "IMP-202602-099",
           fee: "样品费",
-          month: "2026-02",
+          belongRange: "20260201-20260228",
+          currency: "CNY",
           amt: 500,
-          shop: "全渠道",
-          retailerSummary: "（未选）",
-          mskuScopeSummary: "全场景",
+          channelSummary: "全渠道（各列空）",
+          productSummary: "全产品（各列空）",
           status: "失效",
           op: "zhao",
           at: "2026-02-01 09:00"
@@ -2671,11 +2620,6 @@
       state.historyNextSeq = 100;
 
       renderHistory();
-      renderShopUi();
-      renderMskuUi();
-      wireShopTags();
-      wireMskuTags();
-      wireRetailerTags();
       updateRuleText();
     })();
   </script>
@@ -2700,9 +2644,9 @@
   "annotations": [
     {
       "id": "filter-belong-month",
-      "selector": "#qMonthRangeMount",
-      "title": "归属月范围",
-      "body": "用于限定批次归属月份范围（起止月）。列表中的归属月取自新增或导入时填写的归属月，而不是创建时间。示例：4 月导入、5 月生效的批次，归属月仍显示 4 月。"
+      "selector": "#qDateRangeMount",
+      "title": "归属范围",
+      "body": "按起止日期筛选历史批次。列表中的归属范围取自新增或导入时填写的日期段（YYYYMMDD-YYYYMMDD），与创建时间无关。"
     },
     {
       "id": "filter-fee-type",
@@ -2726,13 +2670,13 @@
       "id": "create-button",
       "selector": "#btnOpenCreate",
       "title": "新增导入费用",
-      "body": "进入新增弹窗录入待导入业务费用并预览分摊。确认写入后只生成待生效批次，不会立刻进入管报，需后续人工生效。"
+      "body": "打开与 Excel 模版列对列一致的新增弹窗：费用四列 + 渠道五列 + 产品六列平铺录入，预览后写入待生效批次。"
     },
     {
       "id": "import-button",
       "selector": "#btnOpenImport",
       "title": "批量导入",
-      "body": "通过模板批量写入费用批次。导入后默认待生效，需人工生效后才进入管报。"
+      "body": "按钉钉业务费用导入模版批量写入：费用项、归属范围(YYYYMMDD-YYYYMMDD)、金额、币种及渠道/产品分列。导入后默认待生效，需人工生效后才进入管报。"
     },
     {
       "id": "batch-actions",
@@ -2774,7 +2718,7 @@
       "id": "detail-dialog",
       "selector": "#overlayHistoryDetail",
       "title": "分摊明细",
-      "body": "用于查看单个批次按店铺与MSKU的分摊明细，并核对是否纳入管报计算。金额、权重、归属月分摊额和日均额都应能从这里追溯。"
+      "body": "展示与导入模版一致的费用/渠道/产品口径块，以及按 MSKU 的分摊表。可核对金额、权重、归属范围内分摊额和日均额。"
     },
     {
       "id": "create-dialog",
@@ -2789,46 +2733,52 @@
       "body": "定义本次费用的业务类别，影响后续管报分类汇总。字段值来自页面预置的费用项枚举，不允许自由输入。"
     },
     {
-      "id": "create-belong-month",
-      "selector": "#createMonthRangeMount",
-      "title": "归属月范围",
-      "body": "决定费用进入哪几个月份的管报口径。示例：选 2026-01 - 2026-03，则分摊覆盖该区间内各自然月；权重月按范围起始月的上月计算。"
+      "id": "create-belong-range",
+      "selector": "#createDateRangeMount",
+      "title": "归属范围",
+      "body": "与导入模版「归属范围」列一致（YYYYMMDD-YYYYMMDD）。跨日时按自然日拆分；权重月按起始日所在月的上月。"
     },
     {
       "id": "create-total-amount",
       "selector": "#totalAmount",
-      "title": "补充金额",
-      "body": "本次待分摊总额。数值来源于手工录入或导入文件，预览分摊结果合计需与该金额一致，否则不能作为正确结果验收。"
+      "title": "金额",
+      "body": "与导入模版「金额」列一致。预览分摊结果合计需与该金额一致。"
     },
     {
-      "id": "create-shop-range",
-      "selector": "#shopModeSeg",
-      "title": "店铺范围",
-      "body": "用于确定费用适用店铺集合，直接影响分摊明细的覆盖面。可按全渠道、按渠道、按店铺逐步收窄，取值来源是当前渠道和店铺主数据。"
+      "id": "create-currency",
+      "selector": "#feeCurrency",
+      "title": "币种",
+      "body": "与导入模版「币种」列一致，取值须符合钉钉数据字典。"
     },
     {
-      "id": "create-msku-range",
-      "selector": "#mskuModeSeg",
-      "title": "商品范围",
-      "body": "用于确定费用适用的 MSKU/商品集合，与渠道/店铺范围交集后生成分摊对象。示例：店铺命中 3 家、商品范围命中 4 个 MSKU，则对交集内组合按营收权重分摊。"
+      "id": "create-channel-flat",
+      "selector": "#msfCreateRegion",
+      "title": "渠道范围（平铺列）",
+      "body": "与 Excel 模版五列一致：区域、国家、渠道、店铺、零售商可同时多选；列间取交，均可留空。"
+    },
+    {
+      "id": "create-product-flat",
+      "selector": "#msfCreateScene",
+      "title": "产品范围（平铺列）",
+      "body": "与 Excel 模版六列一致：场景、品类、MODEL、SKU、MSKU、是否新品可同时填写；列间取交。"
     },
     {
       "id": "create-new-product",
-      "selector": "#newProductOnlyWrap",
+      "selector": "#productNewFlag",
       "title": "是否新品",
-      "body": "位于「按 MSKU」分段右侧。勾选后仅主数据标记为新品的 MSKU 参与交集与分摊；导入模版对应列填「是」/「否」。"
+      "body": "与模版「是否新品」列一致：不限制（留空）、是、否。"
     },
     {
-      "id": "create-retailer-range",
+      "id": "create-retailer-col",
       "selector": "#msfCreateRetailer",
-      "title": "零售商收窄",
-      "body": "可选维度，用于进一步收窄分摊范围。不选表示不按零售商限制；选定后仅对命中零售商的记录继续参与分摊。"
+      "title": "零售商",
+      "body": "模版「零售商」列，属渠道范围第五列；不选表示不按零售商收窄。"
     },
     {
       "id": "create-preview",
       "selector": "#btnPreview",
       "title": "预览分摊",
-      "body": "先验证规则与结果，成功后才允许确认写入。预览逻辑是先取范围交集，再按上月营收权重分摊补充金额。"
+      "body": "先验证规则与结果，成功后才允许确认写入。预览区上方展示与导入模版一致的口径块，下方为 MSKU 分摊表。"
     },
     {
       "id": "create-confirm",
@@ -2840,19 +2790,25 @@
       "id": "create-rule-summary",
       "selector": "#ruleText",
       "title": "分摊规则摘要",
-      "body": "实时展示当前范围与分摊口径，便于确认计算逻辑是否正确。示例：店铺 3 家、MSKU 4 个、零售商未收窄，则系统先找交集，再按每个对象的月营收占比分摊总金额。"
+      "body": "实时展示与导入模版一致的费用/渠道/产品口径及交集、权重月、按日拆分规则。"
     },
     {
       "id": "import-dialog",
       "selector": "#dlgImportTitle",
       "title": "批量导入弹窗",
-      "body": "用于通过模板批量写入业务费用导入批次。导入成功后生成待生效批次，后续仍需人工生效。"
+      "body": "按钉钉《业务费用导入模版》批量写入费用批次：费用信息 + 渠道范围五列 + 产品范围六列；多选用英文逗号。弹窗内可打开在线模版与数据字典。导入成功为待生效，需人工生效。"
+    },
+    {
+      "id": "import-tpl-doc-link",
+      "selector": "#importTplDocLink",
+      "title": "在线模版与数据字典",
+      "body": "打开钉钉文档，含导入示例行与各列合法取值（费用项、币种、区域、国家、渠道、店铺、零售商、场景、品类等）。正式环境以此为准校验。"
     },
     {
       "id": "download-template",
       "selector": "#btnDownloadTpl",
       "title": "下载导入模板",
-      "body": "下载标准模板用于批量导入。模板中的枚举口径需与页面弹窗中的范围口径保持一致。"
+      "body": "下载与钉钉模版列结构一致的 CSV（费用项、归属范围、金额、币种及渠道/产品分列）。填写时对照文档「数据字典」页取值。"
     },
     {
       "id": "simulate-import",
@@ -2864,15 +2820,15 @@
       "id": "history-detail-meta",
       "selector": "#historyDetailMeta",
       "title": "批次明细口径",
-      "body": "这里展示批次号、归属月、状态、操作人等关键元信息，用于核对列表记录与明细明细是否一致。"
+      "body": "展示与导入模版一致的口径块，以及批次号、状态、操作人、纳入管报计算等元信息。"
     }
   ],
   "fieldTips": [
     {
       "id": "tip-belong-month",
-      "selector": "#qMonthRangeMount",
-      "title": "归属月范围",
-      "body": "费用归属到哪些会计月份（起止月）。取值来源于新增或导入时填写的归属月范围，分摊结果按范围内各月汇总，并按各月自然日拆分日均额。"
+      "selector": "#qDateRangeMount",
+      "title": "归属范围",
+      "body": "费用归属的起止日期。分摊结果仅按自然日拆分展示，不按会计月汇总。"
     },
     {
       "id": "tip-status",
@@ -2883,81 +2839,81 @@
     {
       "id": "tip-total-amount",
       "selector": "#totalAmount",
-      "title": "补充金额",
-      "body": "本次待分摊总金额。来源于手工录入或导入值，预览后所有分摊行金额合计应与该金额保持一致，例如录入 10000，所有预览行合计也必须是 10000。"
+      "title": "金额",
+      "body": "本次待分摊总金额（含币种）。预览后所有分摊行合计应与金额一致。"
     },
     {
       "id": "tip-shop-scope",
-      "selector": "#historyTable thead th:nth-child(6)",
-      "title": "店铺范围摘要",
-      "body": "展示该批次适用的店铺集合。值来源于新增或导入时保存的店铺范围，范围越窄，可参与分摊的对象越少。"
+      "selector": "#historyTable thead th:nth-child(7)",
+      "title": "渠道范围摘要",
+      "body": "列表摘要：区域/国家/渠道/店铺/零售商各列取值，与导入模版渠道范围五列一致。"
     },
     {
       "id": "tip-msku-scope",
       "selector": "#historyTable thead th:nth-child(8)",
-      "title": "MSKU范围摘要",
-      "body": "展示该批次适用的MSKU集合。值来源于新增或导入时保存的MSKU条件，系统按该范围与店铺范围交集生成明细。"
+      "title": "产品范围摘要",
+      "body": "列表摘要：场景/品类/MODEL/SKU/MSKU/是否新品，与导入模版产品范围六列一致。"
     },
     {
-      "id": "tip-retailer-scope",
-      "selector": "#historyTable thead th:nth-child(7)",
-      "title": "零售商范围摘要",
-      "body": "可选收窄维度。不选时表示不按零售商限制，按店铺与MSKU范围分摊；选定后只保留命中零售商的数据继续计算。"
+      "id": "tip-currency-col",
+      "selector": "#historyTable thead th:nth-child(6)",
+      "title": "币种",
+      "body": "与导入模版「币种」列一致，来自批次写入时的币种字段。"
     },
     {
       "id": "tip-create-month",
-      "selector": "#createMonthRangeMount",
-      "title": "归属月范围口径",
-      "body": "归属月范围是费用统计口径的起止月份。跨月时各月按自然日拆分日均额；权重月按范围起始月的上月。"
+      "selector": "#createDateRangeMount",
+      "title": "归属范围口径",
+      "body": "归属范围是费用统计口径的起止日期。跨日时按自然日拆分；权重月按起始日所在月的上月。"
     },
     {
-      "id": "tip-create-shop-mode",
-      "selector": "#shopModeSeg",
-      "title": "店铺范围模式",
-      "body": "支持全渠道、按渠道、按店铺。取值来源于渠道和店铺主数据，模式越具体，后续命中的分摊对象越少。"
+      "id": "tip-create-channel-region",
+      "selector": "#msfCreateRegion",
+      "title": "区域",
+      "body": "模版「区域」列；多选，与同一行其它渠道列取交。"
     },
     {
-      "id": "tip-create-msku-mode",
-      "selector": "#mskuModeSeg",
-      "title": "商品范围模式",
-      "body": "支持全场景、按场景、按品类、按SKU、按MSKU。取值来源于场景品类基础数据与 MSKU 映射；导入模版「商品范围」「商品详细信息」与此一致。"
+      "id": "tip-create-product-scene",
+      "selector": "#msfCreateScene",
+      "title": "场景",
+      "body": "模版「场景」列；可与品类、MODEL 等列同时填写。"
     },
     {
       "id": "tip-new-product-only",
-      "selector": "#newProductOnlyWrap",
+      "selector": "#productNewFlag",
       "title": "是否新品",
-      "body": "勾选后分摊对象默认仅包含新品 MSKU（与渠道、商品范围取交）。导入填「是」时规则相同；空或「否」表示不限制。"
+      "body": "模版「是否新品」列：不限制=留空；是=仅新品；否=模版显式填否（原型不按非新品收窄，正式环境以实现为准）。"
     },
     {
       "id": "tip-preview-balance",
       "selector": "#summaryCards",
       "title": "预览校验",
-      "body": "预览时需重点核对分摊总额与补充金额是否一致，再执行确认写入。若录入金额是 10000，预览所有分摊行合计也应为 10000。"
+      "body": "预览时需重点核对分摊总额与金额是否一致，再执行确认写入。"
     },
     {
       "id": "tip-rule-summary",
       "selector": "#ruleText",
       "title": "分摊逻辑",
-      "body": "系统先取渠道/店铺范围与商品范围的交集，可选零售商与「是否新品」进一步收窄，再按上月营收占比分摊。勾选仅新品时，非新品 MSKU 不参与计算。"
+      "body": "系统先取渠道范围五列与产品范围六列的交集，再按上月营收占比分摊。勾选仅新品时，非新品 MSKU 不参与计算。"
     },
     {
       "id": "tip-history-detail",
       "selector": "#historyDetailMeta",
       "title": "明细取值来源",
-      "body": "明细中的状态、归属月、店铺与MSKU范围都来自批次写入时保存的快照，便于后续复核和追溯。"
+      "body": "明细中的模版口径字段与分摊表均来自批次写入时保存的快照，便于后续复核和追溯。"
     }
   ],
   "pageGuide": {
     "dev": {
       "页面整体定位": "该页面用于管理业务费用导入批次的录入、导入、状态流转和分摊核对，归属全渠道管报费用管理模块。核心价值是确保只有业务确认后的批次进入管报计算，保证费用口径可控、可追溯、可复核。",
-      "页面核心业务逻辑": "数据来源于手工新增和模板导入形成的费用批次。新增或导入仅写入待生效批次；生效后批次纳入业务费用导入结果池并参与MSKU分摊；失效后批次退出计算口径。分摊逻辑是先取店铺、MSKU、可选零售商的交集，再按上月营收占比分摊费用。示例：两个对象营收占比 6:4，总额 10000，则分摊 6000 和 4000。",
+      "页面核心业务逻辑": "数据来源于手工新增和模版导入形成的费用批次。归属范围为日期段（YYYYMMDD-YYYYMMDD）。分摊逻辑是渠道范围五列与产品范围六列分别取交，再按上月营收占比分摊金额。生效后纳入管报结果池；失效后退出计算。",
       "关键规则说明": "筛选区用于限制当前展示与批量处理范围；状态是最核心规则字段。按钮权限遵循状态机：待生效可生效/失效，已生效可失效，失效可删除。新增弹窗必须先预览分摊再确认写入，缺少关键范围时禁止确认。导入弹窗生成的批次与手工新增保持同一状态规则。",
       "关联上下游": "上游是费用录入与导入来源、渠道主数据、店铺主数据、商品与MSKU映射、营收权重数据；下游是全渠道管报费用汇总与分摊展示。该页输出的生效批次直接影响后续管报费用口径，弹窗和明细页都属于同一业务闭环。"
     },
     "user": {
-      "标准操作流程": "第一步，先选归属月、费用项、状态并点击查询。第二步，查看历史列表状态与范围摘要，必要时勾选多条做批量操作。第三步，需要新增时点击新增导入费用，填写费用项、归属月、补充金额和适用范围；需要批量录入时进入导入弹窗下载模板并导入。第四步，点击预览分摊，确认结果无误后点击确认写入。第五步，在历史列表把新批次生效后，再进入管报计算。第六步，必要时打开明细弹窗核对分摊结果和纳入口径。",
-      "关键按钮与场景": "查询用于刷新当前筛选结果。新增导入费用用于单次新增录入。导入用于模板批量写入。预览分摊用于先看规则是否正确。确认写入用于生成待生效批次。批量生效、失效、删除用于集中处理状态。明细用于核对单批次的范围、权重和分摊金额。",
-      "使用注意事项": "新增或导入后的批次默认待生效，不会自动进入管报。批量操作前先确认勾选行状态是否一致，避免整批拦截。删除只允许失效批次。预览分摊总额应与补充金额一致，不一致时先调整范围再写入。导入弹窗和新增弹窗虽然入口不同，但生成的批次状态和后续处理逻辑完全一致。"
+      "标准操作流程": "第一步，先选归属范围（日期）、费用项、状态并点击查询。第二步，查看历史列表的渠道/产品范围摘要，必要时批量操作。第三步，新增时填写费用项、归属范围、金额、币种及渠道/产品范围；批量录入用钉钉模版。第四步，手工新增先预览分摊再确认写入。第五步，生效批次后进入管报。第六步，打开明细核对模版口径与分摊表。",
+      "关键按钮与场景": "查询用于刷新当前筛选结果。新增导入费用用于单次新增录入。导入用于按钉钉模版批量写入（含在线文档链接）。预览分摊用于先看规则是否正确。确认写入用于生成待生效批次。批量生效、失效、删除用于集中处理状态。明细用于核对单批次的范围、权重和分摊金额。",
+      "使用注意事项": "新增或导入后默认待生效。预览总额须与金额一致。导入模版多选仅用英文逗号；费用项、币种、区域等须与钉钉数据字典一致。手工新增与导入的明细/预览均展示相同模版口径字段。"
     }
   },
   "statusFlow": {
