@@ -318,6 +318,10 @@
       margin: 0; font-size: 12px; color: var(--muted); line-height: 1.6;
     }
     select.ctl.wide { min-width: 280px; max-width: 420px; }
+    input.cell-person { min-width: 72px; max-width: 96px; width: 88px; }
+    input.cell-person.cell-req-missing { border-color: #ff4d4f; background: #fff2f0; }
+    th .req { color: var(--danger); font-weight: 400; }
+    td.col-shop input.cell-person { min-width: 88px; width: 96px; }
   </style>
 </head>
 <body>
@@ -325,11 +329,9 @@
   <header class="topbar">
     <span class="logo">ERP · 全渠道管报</span>
     <div class="topbar-right">
-      <label style="font-size:12px;color:#91caff">当前角色</label>
-      <select class="role-sel" id="current-role" title="切换角色视角，筛选待办通知">
-        <option value="商务">商务</option>
-        <option value="物流">物流</option>
-        <option value="财务">财务</option>
+      <label style="font-size:12px;color:#91caff">当前待办人</label>
+      <select class="role-sel" id="current-viewer" title="切换待办接收人，筛选本人相关通知" style="min-width:120px;max-width:160px">
+        <option value="">全部（演示）</option>
       </select>
       <button type="button" class="notify-btn" id="btn-toggle-notify" title="待办通知">
         🔔 待办 <span class="badge" id="notify-badge">0</span>
@@ -347,14 +349,14 @@
   </div>
 
   <div class="solution-banner">
-    <strong>方案要点：</strong>导入后按操作步骤<strong>通知对应角色</strong>（商务/物流/财务）来本页操作；当前步骤完成后自动通知下一角色，直至全流程结束。
+    <strong>方案要点：</strong>Excel 导入带出<strong>店铺、Sales、物流、财务</strong>（必填，页面可改）；待办<strong>通知给对应填写人</strong>，切换顶部「当前待办人」查看；流程步骤仍按商务/物流/财务分工。
     行级<strong>处理方式</strong>决定操作链；详见 <a href="线下商超退货-退货单管理-解决方案.md">解决方案文档</a>。
   </div>
 
   <div class="notify-panel" id="notify-panel">
     <div class="notify-panel-hd">
-      <span>待办通知 · 按角色推送</span>
-      <span id="notify-hint">切换顶部「当前角色」查看各角色待办；点击通知定位到对应行</span>
+      <span>待办通知 · 按填写人推送</span>
+      <span id="notify-hint">切换顶部「当前待办人」查看本人待办；点击通知定位到对应行</span>
     </div>
     <div class="notify-list" id="notify-list"></div>
   </div>
@@ -408,6 +410,42 @@
         </div>
       </div>
       <div class="f-item">
+        <label>店铺</label>
+        <div class="ctl-wrap">
+          <select class="ctl" id="f-shop" style="min-width:100px;max-width:140px">
+            <option value="">全部</option>
+          </select>
+          <button type="button" class="ctl-clear" hidden data-for="f-shop">×</button>
+        </div>
+      </div>
+      <div class="f-item">
+        <label>Sales</label>
+        <div class="ctl-wrap">
+          <select class="ctl" id="f-sales-person" style="min-width:88px;max-width:120px">
+            <option value="">全部</option>
+          </select>
+          <button type="button" class="ctl-clear" hidden data-for="f-sales-person">×</button>
+        </div>
+      </div>
+      <div class="f-item">
+        <label>物流</label>
+        <div class="ctl-wrap">
+          <select class="ctl" id="f-logistics-person" style="min-width:88px;max-width:120px">
+            <option value="">全部</option>
+          </select>
+          <button type="button" class="ctl-clear" hidden data-for="f-logistics-person">×</button>
+        </div>
+      </div>
+      <div class="f-item">
+        <label>财务</label>
+        <div class="ctl-wrap">
+          <select class="ctl" id="f-finance-person" style="min-width:88px;max-width:120px">
+            <option value="">全部</option>
+          </select>
+          <button type="button" class="ctl-clear" hidden data-for="f-finance-person">×</button>
+        </div>
+      </div>
+      <div class="f-item">
         <label>退货批次</label>
         <input type="text" class="ctl-text" id="f-batch" placeholder="如 RT-20260526" style="width:120px">
       </div>
@@ -442,6 +480,10 @@
               <th>退货批次</th>
               <th>销售组织</th>
               <th>客户</th>
+              <th>店铺<span class="req">*</span></th>
+              <th>Sales<span class="req">*</span></th>
+              <th>物流<span class="req">*</span></th>
+              <th>财务<span class="req">*</span></th>
               <th>客户产品编码</th>
               <th>MSKU</th>
               <th class="num-r">数量</th>
@@ -517,12 +559,14 @@
         </div>
       </div>
       <div id="panel-step2" hidden>
-        <p style="margin:0 0 10px;color:var(--muted);font-size:12px">已解析 <strong id="parse-count">0</strong> 行，可修改<strong>处理方式</strong>；映射失败行标黄。</p>
+        <p style="margin:0 0 10px;color:var(--muted);font-size:12px">已解析 <strong id="parse-count">0</strong> 行；<strong>店铺 / Sales / 物流 / 财务</strong> 来自 Excel，可在此修改（均必填）；映射失败行标黄。</p>
         <div style="overflow:auto;max-height:280px;border:1px solid var(--line);border-radius:6px">
-          <table class="data" style="min-width:720px">
+          <table class="data" style="min-width:1100px">
             <thead>
               <tr>
-                <th>客户产品编码</th><th>MSKU</th><th>数量</th><th>单价</th><th>手续费单价</th><th>退款金额</th>
+                <th>客户产品编码</th><th>店铺<span class="req">*</span></th><th>Sales<span class="req">*</span></th>
+                <th>物流<span class="req">*</span></th><th>财务<span class="req">*</span></th>
+                <th>MSKU</th><th>数量</th><th>单价</th><th>手续费单价</th><th>退款金额</th>
                 <th>处理方式</th>
               </tr>
             </thead>
@@ -610,7 +654,15 @@
 
   var notifications = [];
   var notifySeq = 0;
-  var currentRole = '商务';
+  var currentViewer = '';
+  var importPreviewRows = [];
+
+  var PERSON_POOL = {
+    sales: ['王晓雨', '陈思远', '赵一帆', '林商务'],
+    logistics: ['刘仓储', '周预报', '吴物流', '郑入库'],
+    finance: ['孙会计', '钱核对', '郑金蝶', '冯财务']
+  };
+  var SHOP_BY_KA = { Costco: 'Govee_US', '沃尔玛': 'Goveelife_CA', '山姆': 'Govee_US' };
 
   var MSKU_CATALOG = [
     'H70501', 'H70502', 'H70503', 'H70504', 'H61201', 'H61202', 'H61203',
@@ -746,9 +798,116 @@
     });
   }
 
+  function mockExcelAssignees(ka, idx) {
+    var pool = PERSON_POOL;
+    return {
+      shop: SHOP_BY_KA[ka] || 'Govee_US',
+      salesPerson: pool.sales[idx % pool.sales.length],
+      logisticsPerson: pool.logistics[idx % pool.logistics.length],
+      financePerson: pool.finance[idx % pool.finance.length]
+    };
+  }
+
+  function applyAssigneesToRows() {
+    allRows.forEach(function (r, idx) {
+      if (!r.shop || !r.salesPerson) {
+        var a = mockExcelAssignees(r.ka, idx);
+        if (!r.shop) r.shop = a.shop;
+        if (!r.salesPerson) r.salesPerson = a.salesPerson;
+        if (!r.logisticsPerson) r.logisticsPerson = a.logisticsPerson;
+        if (!r.financePerson) r.financePerson = a.financePerson;
+      }
+    });
+  }
+
+  function escapeAttr(s) {
+    return String(s || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+  }
+
+  function validateRowAssignees(r) {
+    var missing = [];
+    if (!r.shop || !String(r.shop).trim()) missing.push('店铺');
+    if (!r.salesPerson || !String(r.salesPerson).trim()) missing.push('Sales');
+    if (!r.logisticsPerson || !String(r.logisticsPerson).trim()) missing.push('物流');
+    if (!r.financePerson || !String(r.financePerson).trim()) missing.push('财务');
+    return missing;
+  }
+
+  function getAssigneeForAction(r, action) {
+    if (action === '已确认') return String(r.salesPerson || '').trim();
+    if (action === '已WMS预报' || action === '已上架' || action === '已建其他入库单') {
+      return String(r.logisticsPerson || '').trim();
+    }
+    if (action === '推金蝶退货单' || action === '已财务核对') {
+      return String(r.financePerson || '').trim();
+    }
+    return String(r.salesPerson || '').trim();
+  }
+
+  function collectUniqueFieldValues(field) {
+    var set = {};
+    allRows.forEach(function (r) {
+      var v = (r[field] || '').trim();
+      if (v) set[v] = true;
+    });
+    return Object.keys(set).sort();
+  }
+
+  function fillFilterSelect(id, values) {
+    var sel = document.getElementById(id);
+    var cur = sel.value;
+    sel.innerHTML = '<option value="">全部</option>' + values.map(function (v) {
+      return '<option value="' + escapeAttr(v) + '">' + v + '</option>';
+    }).join('');
+    if (cur && values.indexOf(cur) !== -1) sel.value = cur;
+  }
+
+  function initPersonFilterSelects() {
+    fillFilterSelect('f-shop', collectUniqueFieldValues('shop'));
+    fillFilterSelect('f-sales-person', collectUniqueFieldValues('salesPerson'));
+    fillFilterSelect('f-logistics-person', collectUniqueFieldValues('logisticsPerson'));
+    fillFilterSelect('f-finance-person', collectUniqueFieldValues('financePerson'));
+  }
+
+  function initViewerSelect() {
+    var names = {};
+    allRows.forEach(function (r) {
+      [r.salesPerson, r.logisticsPerson, r.financePerson].forEach(function (n) {
+        n = (n || '').trim();
+        if (n) names[n] = true;
+      });
+    });
+    var list = Object.keys(names).sort();
+    var sel = document.getElementById('current-viewer');
+    var cur = sel.value;
+    sel.innerHTML = '<option value="">全部（演示）</option>' + list.map(function (n) {
+      return '<option value="' + escapeAttr(n) + '">' + n + '</option>';
+    }).join('');
+    if (cur && (cur === '' || names[cur])) sel.value = cur;
+    else if (list.length) {
+      currentViewer = list[0];
+      sel.value = list[0];
+    }
+  }
+
+  function personInputHtml(r, field) {
+    var val = r[field] || '';
+    var empty = !String(val).trim();
+    return '<input type="text" class="cell-inp cell-person' + (empty ? ' cell-req-missing' : '') +
+      '" data-line="' + r.line + '" data-field="' + field + '" value="' + escapeAttr(val) +
+      '" placeholder="必填" title="必填，来自 Excel 可修改">';
+  }
+
+  function previewPersonInput(val, field) {
+    var empty = !String(val || '').trim();
+    return '<input type="text" class="cell-inp cell-person' + (empty ? ' cell-req-missing' : '') +
+      '" data-prev-field="' + field + '" value="' + escapeAttr(val) + '" placeholder="必填">';
+  }
+
   seedBatchFiles();
   initSalesOrgSelects();
   applySalesOrgToRows();
+  applyAssigneesToRows();
 
   allRows.forEach(function (r, idx) {
     var mp = MONTH_SAMPLES[idx % MONTH_SAMPLES.length];
@@ -802,15 +961,21 @@
     return 'biz';
   }
 
-  function pushNotification(r, action, role) {
+  function pushNotification(r, action) {
+    var missing = validateRowAssignees(r);
+    if (missing.length) return;
+    var role = STEP_ROLES[action] || '—';
+    var assignee = getAssigneeForAction(r, action);
+    if (!assignee) return;
     notifySeq += 1;
     notifications.unshift({
       id: notifySeq,
       line: r.line,
       batch: r.batch,
       role: role,
+      assignee: assignee,
       action: action,
-      text: '批次 ' + r.batch + ' · 行 ' + r.line + '（' + (r.msku || r.custCode) + '）请操作「' + action + '」',
+      text: '批次 ' + r.batch + ' · 行 ' + r.line + '（' + (r.msku || r.custCode) + '）请「' + action + '」→ 通知 ' + assignee,
       status: 'pending',
       time: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
     });
@@ -827,25 +992,29 @@
   }
 
   function renderNotifyPanel() {
-    var role = currentRole;
-    var pending = notifications.filter(function (n) { return n.status === 'pending' && n.role === role; });
+    var viewer = currentViewer;
+    var pending = notifications.filter(function (n) {
+      return n.status === 'pending' && (!viewer || n.assignee === viewer);
+    });
     var list = document.getElementById('notify-list');
     var badge = document.getElementById('notify-badge');
     badge.textContent = pending.length;
     badge.style.display = pending.length ? 'block' : 'none';
 
     var shown = notifications.filter(function (n) {
-      return n.role === role && (n.status === 'pending' || n.status === 'done');
+      if (viewer && n.assignee !== viewer) return false;
+      return n.status === 'pending' || n.status === 'done';
     }).slice(0, 12);
 
     if (!shown.length) {
-      list.innerHTML = '<div style="padding:14px;color:var(--muted);font-size:12px">「' + role + '」暂无待办通知</div>';
+      list.innerHTML = '<div style="padding:14px;color:var(--muted);font-size:12px">「' +
+        (viewer || '全部') + '」暂无待办通知</div>';
       return;
     }
 
     list.innerHTML = shown.map(function (n) {
       return '<div class="notify-item' + (n.status === 'done' ? ' done' : '') + '" data-line="' + n.line + '">' +
-        '<span class="notify-role ' + roleClass(n.role) + '">' + n.role + '</span>' +
+        '<span class="notify-role ' + roleClass(n.role) + '">' + (n.assignee || n.role) + '</span>' +
         '<div class="notify-body">' + n.text + (n.status === 'done' ? ' <em>（已完成）</em>' : '') + '</div>' +
         '<span class="notify-time">' + n.time + '</span></div>';
     }).join('');
@@ -868,18 +1037,22 @@
     notifySeq = 0;
     allRows.forEach(function (r) {
       var p = getPendingAction(r);
-      if (p) pushNotification(r, p.action, p.role);
+      if (p) pushNotification(r, p.action);
     });
   }
 
-  function notifyAfterImport(batchId, count, salesOrg, ka) {
-    var parsed = mockParseRows();
-    parsed.forEach(function (p, i) {
+  function notifyAfterImport(batchId, count, salesOrg, ka, parsedRows) {
+    var parsed = parsedRows || mockParseRows();
+    parsed.forEach(function (p) {
       var row = {
         line: allRows.length + 1,
         batch: batchId,
         ka: ka || document.getElementById('imp-ka').value,
         salesOrg: salesOrg,
+        shop: p.shop,
+        salesPerson: p.salesPerson,
+        logisticsPerson: p.logisticsPerson,
+        financePerson: p.financePerson,
         custCode: p.custCode,
         msku: p.msku,
         qty: p.qty,
@@ -898,17 +1071,24 @@
       row.currency = currencyFromMsku(row);
       allRows.push(row);
       var pending = getPendingAction(row);
-      if (pending) pushNotification(row, pending.action, pending.role);
+      if (pending) pushNotification(row, pending.action);
     });
     rows = allRows.slice();
+    initPersonFilterSelects();
+    initViewerSelect();
     renderTable();
-    toast('批次 ' + batchId + ' 已生成 ' + count + ' 行，附件已归档，可点击批次号预览/下载');
+    toast('批次 ' + batchId + ' 已生成 ' + count + ' 行，待办已通知对应填写人');
   }
 
   function pendingRoleHtml(r) {
     var p = getPendingAction(r);
     if (!p) return '<span style="color:#999">—</span>';
-    return '<span class="tag-role ' + roleClass(p.role) + '">' + p.role + '</span>' +
+    var who = getAssigneeForAction(r, p.action);
+    var missing = validateRowAssignees(r);
+    if (missing.length) {
+      return '<span style="font-size:11px;color:#b91c1c">缺：' + missing.join('、') + '</span>';
+    }
+    return '<span class="tag-role ' + roleClass(p.role) + '">' + who + '</span>' +
       '<span style="font-size:11px;color:var(--muted)">' + p.action + '</span>';
   }
 
@@ -933,24 +1113,30 @@
     opts = opts || {};
     var r = allRows.find(function (x) { return x.line === line; });
     if (!r) return false;
+    var missing = validateRowAssignees(r);
+    if (missing.length) {
+      if (!opts.silent) toast('行 ' + line + ' 请先填写必填项：' + missing.join('、'));
+      return false;
+    }
     var steps = getFlowSteps(r);
     if ((r.flowStep || 0) >= steps.length) return false;
     var label = steps[r.flowStep || 0];
-    var doneRole = STEP_ROLES[label];
+    var doneAssignee = getAssigneeForAction(r, label);
     r.flowStep = (r.flowStep || 0) + 1;
     completeNotificationsForStep(r, label);
     syncStatusFromFlow(r);
     var pending = getPendingAction(r);
     if (!opts.silent) {
       if (pending) {
-        pushNotification(r, pending.action, pending.role);
-        toast('「' + doneRole + '」已完成「' + label + '」→ 已通知「' + pending.role + '」操作「' + pending.action + '」');
+        pushNotification(r, pending.action);
+        var nextWho = getAssigneeForAction(r, pending.action);
+        toast('「' + doneAssignee + '」已完成「' + label + '」→ 已通知「' + nextWho + '」处理「' + pending.action + '」');
       } else {
         toast('行 ' + line + '：全部操作已完成，流程结束');
       }
       renderTable();
     } else if (pending) {
-      pushNotification(r, pending.action, pending.role);
+      pushNotification(r, pending.action);
     }
     return true;
   }
@@ -1062,6 +1248,13 @@
       return;
     }
     var sel = getSelectedRows().slice();
+    for (var i = 0; i < sel.length; i++) {
+      var miss = validateRowAssignees(sel[i]);
+      if (miss.length) {
+        toast('行 ' + sel[i].line + ' 缺少必填项：' + miss.join('、'));
+        return;
+      }
+    }
     var done = 0;
     sel.forEach(function (r) {
       if (advanceFlow(r.line, { silent: true })) done++;
@@ -1240,6 +1433,10 @@
         '<td class="col-batch">' + batchLinkHtml(r) + '</td>' +
         '<td class="col-sales-org" title="' + (r.salesOrg || '') + '">' + (r.salesOrg || '—') + '</td>' +
         '<td>' + r.ka + '</td>' +
+        '<td class="col-shop">' + personInputHtml(r, 'shop') + '</td>' +
+        '<td>' + personInputHtml(r, 'salesPerson') + '</td>' +
+        '<td>' + personInputHtml(r, 'logisticsPerson') + '</td>' +
+        '<td>' + personInputHtml(r, 'financePerson') + '</td>' +
         '<td class="col-cust">' + r.custCode + '</td>' +
         '<td>' + mskuSelectHtml(r) + '</td>' +
         '<td class="num-r">' + editableNumHtml(r, 'qty', r.qty) + '</td>' +
@@ -1290,9 +1487,17 @@
       el.addEventListener('change', function () {
         var r = allRows.find(function (x) { return x.line === +el.dataset.line; });
         if (!r) return;
-        var v = el.dataset.field === 'qty' ? parseInt(el.value, 10) : parseFloat(el.value);
+        var field = el.dataset.field;
+        if (field === 'shop' || field === 'salesPerson' || field === 'logisticsPerson' || field === 'financePerson') {
+          r[field] = el.value.trim();
+          initPersonFilterSelects();
+          initViewerSelect();
+          renderTable();
+          return;
+        }
+        var v = field === 'qty' ? parseInt(el.value, 10) : parseFloat(el.value);
         if (isNaN(v) || v < 0) v = 0;
-        r[el.dataset.field] = v;
+        r[field] = v;
         renderTable();
       });
     });
@@ -1314,8 +1519,16 @@
     var batch = document.getElementById('f-batch').value.trim().toLowerCase();
     var cust = document.getElementById('f-cust').value.trim().toLowerCase();
     var msku = document.getElementById('f-msku').value.trim().toLowerCase();
+    var shop = document.getElementById('f-shop').value;
+    var salesPerson = document.getElementById('f-sales-person').value;
+    var logisticsPerson = document.getElementById('f-logistics-person').value;
+    var financePerson = document.getElementById('f-finance-person').value;
     rows = allRows.filter(function (r) {
       if (salesOrg && r.salesOrg !== salesOrg) return false;
+      if (shop && r.shop !== shop) return false;
+      if (salesPerson && r.salesPerson !== salesPerson) return false;
+      if (logisticsPerson && r.logisticsPerson !== logisticsPerson) return false;
+      if (financePerson && r.financePerson !== financePerson) return false;
       if (ka && r.ka !== ka) return false;
       if (type && r.type !== type) return false;
       if (status && r.status !== status) return false;
@@ -1338,7 +1551,7 @@
         syncStatusFromFlow(r);
         notifications = notifications.filter(function (n) { return n.line !== r.line; });
         var p = getPendingAction(r);
-        if (p) pushNotification(r, p.action, p.role);
+        if (p) pushNotification(r, p.action);
         renderTable();
       });
     });
@@ -1401,21 +1614,71 @@
     document.getElementById('btn-modal-next').textContent = n === 3 ? '确认生成批次' : '下一步';
   }
 
+  function enrichParseRow(p, ka, idx) {
+    var a = mockExcelAssignees(ka, idx);
+    p.shop = p.shop || a.shop;
+    p.salesPerson = p.salesPerson || a.salesPerson;
+    p.logisticsPerson = p.logisticsPerson || a.logisticsPerson;
+    p.financePerson = p.financePerson || a.financePerson;
+    return p;
+  }
+
   function mockParseRows() {
+    var ka = document.getElementById('imp-ka').value;
     if (importType === 'A-2') {
       return [
-        { custCode: 'WM-NEW-001', msku: 'H61234', qty: 15, price: 52, feeUnit: 5.2, handleMode: null },
-        { custCode: 'WM-NEW-002', msku: 'H61235', qty: 10, price: 48, feeUnit: 4.8, handleMode: null }
+        enrichParseRow({ custCode: 'WM-NEW-001', msku: 'H61234', qty: 15, price: 52, feeUnit: 5.2, handleMode: null }, ka, 0),
+        enrichParseRow({ custCode: 'WM-NEW-002', msku: 'H61235', qty: 10, price: 48, feeUnit: 4.8, handleMode: null }, ka, 1)
       ];
     }
     if (importType === 'B') {
-      return [{ custCode: 'SAM-NEW-100', msku: 'H61200', qty: 500, price: 28, feeUnit: 0, handleMode: '原箱上架' }];
+      return [enrichParseRow({ custCode: 'SAM-NEW-100', msku: 'H61200', qty: 500, price: 28, feeUnit: 0, handleMode: '原箱上架' }, ka, 0)];
     }
     return [
-      { custCode: 'COSTCO-RMA-88', msku: 'H70501', qty: 6, price: 95, feeUnit: 0, handleMode: '返修上架' },
-      { custCode: 'COSTCO-RMA-99', msku: 'H70502', qty: 4, price: 88, feeUnit: 0, handleMode: '拆其他 SKU 上架' },
-      { custCode: 'PN-未映射', msku: '', qty: 2, price: 110, feeUnit: 0, handleMode: '报废', warn: true }
+      enrichParseRow({ custCode: 'COSTCO-RMA-88', msku: 'H70501', qty: 6, price: 95, feeUnit: 0, handleMode: '返修上架' }, ka, 0),
+      enrichParseRow({ custCode: 'COSTCO-RMA-99', msku: 'H70502', qty: 4, price: 88, feeUnit: 0, handleMode: '拆其他 SKU 上架' }, ka, 1),
+      enrichParseRow({ custCode: 'PN-未映射', msku: '', qty: 2, price: 110, feeUnit: 0, handleMode: '报废', warn: true }, ka, 2)
     ];
+  }
+
+  function readPreviewRowsFromDom() {
+    var trs = document.querySelectorAll('#preview-tbody tr');
+    importPreviewRows.forEach(function (p, i) {
+      var tr = trs[i];
+      if (!tr) return;
+      ['shop', 'salesPerson', 'logisticsPerson', 'financePerson'].forEach(function (field) {
+        var inp = tr.querySelector('[data-prev-field="' + field + '"]');
+        if (inp) p[field] = inp.value.trim();
+      });
+    });
+  }
+
+  function validatePreviewRows(rows) {
+    for (var i = 0; i < rows.length; i++) {
+      var miss = validateRowAssignees(rows[i]);
+      if (miss.length) return '第 ' + (i + 1) + ' 行缺少：' + miss.join('、');
+    }
+    return null;
+  }
+
+  function renderImportPreview() {
+    document.getElementById('preview-tbody').innerHTML = importPreviewRows.map(function (p, i) {
+      var mskuOpts = MSKU_CATALOG.slice(0, 5).map(function (m) {
+        return '<option' + (m === p.msku ? ' selected' : '') + '>' + m + '</option>';
+      }).join('');
+      return '<tr' + (p.warn ? ' class="row-warn"' : '') + '>' +
+        '<td>' + p.custCode + '</td>' +
+        '<td>' + previewPersonInput(p.shop, 'shop') + '</td>' +
+        '<td>' + previewPersonInput(p.salesPerson, 'salesPerson') + '</td>' +
+        '<td>' + previewPersonInput(p.logisticsPerson, 'logisticsPerson') + '</td>' +
+        '<td>' + previewPersonInput(p.financePerson, 'financePerson') + '</td>' +
+        '<td><select class="cell-msku"><option value="">请选择</option>' + mskuOpts + '</select></td>' +
+        '<td><input class="cell-inp num" value="' + p.qty + '"></td>' +
+        '<td><input class="cell-inp num" value="' + p.price + '"></td>' +
+        '<td><input class="cell-inp num" value="' + (p.feeUnit || 0) + '"></td>' +
+        '<td class="num-r">' + previewAmount(p) + '</td>' +
+        '<td>' + previewHandleSelect(p.handleMode) + '</td></tr>';
+    }).join('');
   }
 
   function previewAmount(p) {
@@ -1465,26 +1728,20 @@
         toast('请先上传对账单或原始凭证文件');
         return;
       }
-      var parsed = mockParseRows();
-      document.getElementById('parse-count').textContent = parsed.length;
-      document.getElementById('preview-tbody').innerHTML = parsed.map(function (p) {
-        var mskuOpts = MSKU_CATALOG.slice(0, 5).map(function (m) {
-          return '<option' + (m === p.msku ? ' selected' : '') + '>' + m + '</option>';
-        }).join('');
-        return '<tr' + (p.warn ? ' class="row-warn"' : '') + '>' +
-          '<td>' + p.custCode + '</td>' +
-          '<td><select class="cell-msku"><option value="">请选择</option>' + mskuOpts + '</select></td>' +
-          '<td><input class="cell-inp num" value="' + p.qty + '"></td>' +
-          '<td><input class="cell-inp num" value="' + p.price + '"></td>' +
-          '<td><input class="cell-inp num" value="' + (p.feeUnit || 0) + '"></td>' +
-          '<td class="num-r">' + previewAmount(p) + '</td>' +
-          '<td>' + previewHandleSelect(p.handleMode) + '</td></tr>';
-      }).join('');
+      importPreviewRows = mockParseRows();
+      document.getElementById('parse-count').textContent = importPreviewRows.length;
+      renderImportPreview();
       setStep(2);
       return;
     }
     if (step === 2) {
-      var parsed = mockParseRows();
+      readPreviewRowsFromDom();
+      var err = validatePreviewRows(importPreviewRows);
+      if (err) {
+        toast(err);
+        return;
+      }
+      var parsed = importPreviewRows.slice();
       var salesOrg = document.getElementById('imp-sales-org').value;
       var ka = document.getElementById('imp-ka').value;
       document.getElementById('confirm-count').textContent = parsed.length;
@@ -1505,8 +1762,14 @@
       } else {
         sum.innerHTML += '<li>默认「原箱上架」，签收完成后生成销售退货单任务</li>';
       }
-      sum.innerHTML += '<li><strong>导入后将按首步操作通知对应角色</strong>（商务/物流/财务），完成后链式通知下一角色</li>';
+      sum.innerHTML += '<li><strong>待办将通知给 Sales / 物流 / 财务 列填写的人员</strong>（按当前步骤对应）</li>';
       setStep(3);
+      return;
+    }
+    readPreviewRowsFromDom();
+    var finalErr = validatePreviewRows(importPreviewRows);
+    if (finalErr) {
+      toast(finalErr);
       return;
     }
     document.getElementById('modal-import').classList.remove('open');
@@ -1525,7 +1788,7 @@
       sizeLabel: f ? formatFileSize(f.size) : '—',
       previewText: mockBatchPreviewText(batchId, ka)
     });
-    notifyAfterImport(batchId, cnt, salesOrg, ka);
+    notifyAfterImport(batchId, cnt, salesOrg, ka, importPreviewRows.slice());
     importPendingFile = null;
   });
 
@@ -1561,7 +1824,7 @@
     toast('已按筛选条件刷新，共 ' + rows.length + ' 行');
   });
   document.getElementById('btn-reset').addEventListener('click', function () {
-    ['f-sales-org', 'f-ka', 'f-type', 'f-status'].forEach(function (id) {
+    ['f-sales-org', 'f-shop', 'f-sales-person', 'f-logistics-person', 'f-finance-person', 'f-ka', 'f-type', 'f-status'].forEach(function (id) {
       var el = document.getElementById(id);
       el.value = '';
       el.dispatchEvent(new Event('change'));
@@ -1574,12 +1837,14 @@
     toast('已重置筛选');
   });
 
-  document.getElementById('current-role').addEventListener('change', function (e) {
-    currentRole = e.target.value;
+  document.getElementById('current-viewer').addEventListener('change', function (e) {
+    currentViewer = e.target.value;
     renderNotifyPanel();
   });
 
   seedNotificationsFromRows();
+  initPersonFilterSelects();
+  initViewerSelect();
   renderTable();
 })();
 </script>
