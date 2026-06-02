@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>谷仓共享库存设置 · ERP 原型（对照）</title>
+  <style>
+    :root {
+      --brand: #1677ff; --gc: #0d9488; --gc-soft: #ccfbf1;
+      --border: #d9d9d9; --line: #f0f0f0;
+      --text: #1e293b; --muted: #64748b; --label: #595959;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+      font-size: 13px; color: var(--text); background: #f5f7fa;
+    }
+    .topbar {
+      background: #001529; color: #fff; padding: 0 20px; height: 48px;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .topbar a { color: #91caff; font-size: 12px; text-decoration: none; margin-left: 14px; }
+    .breadcrumb { background: #fff; padding: 10px 20px; border-bottom: 1px solid var(--line); font-size: 12px; color: var(--muted); }
+    .breadcrumb a { color: var(--brand); text-decoration: none; }
+    .page-hd { background: #fff; padding: 14px 20px; border-bottom: 1px solid var(--line); }
+    .page-hd h1 { margin: 0 0 6px; font-size: 18px; }
+    .page-hd p { margin: 0; font-size: 12px; color: var(--muted); line-height: 1.6; }
+    .mode-tag {
+      display: inline-block; margin-top: 10px; padding: 6px 12px;
+      background: var(--gc-soft); border: 1px solid #5eead4; border-radius: 8px;
+      font-size: 12px; font-weight: 700; color: var(--gc);
+    }
+    .compare-banner {
+      margin: 12px 20px; padding: 12px 14px; background: #eff6ff;
+      border: 1px solid #93c5fd; border-radius: 8px; font-size: 12px; line-height: 1.65;
+    }
+    .compare-banner a { color: var(--brand); font-weight: 600; }
+    .filter-panel { background: #fff; padding: 14px 20px; border-bottom: 1px solid var(--line); }
+    .filter-grid { display: flex; flex-wrap: wrap; gap: 12px 16px; align-items: center; }
+    .f-item { display: flex; align-items: center; gap: 8px; }
+    .f-item label { color: var(--label); white-space: nowrap; }
+    select.ctl, input.ctl-text {
+      height: 32px; border: 1px solid var(--border); border-radius: 6px; padding: 0 10px; font-size: 13px;
+    }
+    input.ctl-text { width: 120px; }
+    .btn {
+      height: 32px; padding: 0 14px; border-radius: 6px; font-size: 13px; cursor: pointer;
+      border: 1px solid var(--border); background: #fff;
+    }
+    .btn-primary { background: var(--brand); color: #fff; border-color: var(--brand); }
+    .btn-gc { background: var(--gc); color: #fff; border-color: var(--gc); }
+    .toolbar { padding: 12px 20px; background: #fff; border-bottom: 1px solid var(--line); display: flex; gap: 8px; }
+    .main { padding: 12px 20px 24px; }
+    .table-wrap { background: #fff; border: 1px solid var(--line); border-radius: 8px; }
+    .table-scroll { overflow: auto; max-height: 420px; }
+    table.data { width: 100%; border-collapse: collapse; font-size: 12px; }
+    table.data th, table.data td { border: 1px solid var(--line); padding: 8px 10px; text-align: center; }
+    table.data thead th {
+      position: sticky; top: 0; z-index: 2; background: #fafafa;
+      box-shadow: 0 1px 0 var(--line);
+    }
+    .tag-gc { background: var(--gc-soft); color: var(--gc); padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+    .diff-table { margin-top: 16px; font-size: 12px; }
+    .diff-table th, .diff-table td { border: 1px solid var(--line); padding: 8px; text-align: left; }
+    .diff-table th { background: #f8fafc; }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <span style="font-weight:700">智岩科技 ERP · 原型（对照页）</span>
+    <nav>
+      <a href="index.html">原型目录</a>
+      <a href="WFS共享库存设置-原型.html">→ WFS 仓共享设置</a>
+    </nav>
+  </header>
+
+  <div class="breadcrumb">
+    <a href="index.html">商超3P</a> / 库存管理 / <strong>谷仓共享库存设置</strong>
+  </div>
+
+  <div class="page-hd">
+    <h1>谷仓共享库存设置</h1>
+    <p>墨刀原型的既有模块形态：总量 = <strong>谷仓库存</strong>；配置共享比例 + 安全库存；当前可售低于安全时触发虚拟借货。与 WFS 版<strong>界面类似、数据源不同</strong>。</p>
+    <span class="mode-tag">共享模式：谷仓</span>
+  </div>
+
+  <div class="compare-banner">
+    <strong>与 WFS 互斥：</strong>同一 SKU 只能二选一。
+    商超 3P 新能力请使用 <a href="WFS共享库存设置-原型.html">WFS 仓共享库存设置</a>（WFS 实查、10 分钟拉单锁定、三店 WM/BBY/Lowes）。
+  </div>
+
+  <section class="filter-panel">
+    <div class="filter-grid">
+      <div class="f-item"><label>8 位 SKU</label><input type="text" class="ctl-text" value="H61991A1"></div>
+      <div class="f-item">
+        <label>店铺</label>
+        <select class="ctl"><option>全部</option><option>WM 3P-US</option><option>BBY 3P-US</option></select>
+      </div>
+      <button type="button" class="btn btn-primary">查询</button>
+    </div>
+  </section>
+
+  <div class="toolbar">
+    <button type="button" class="btn btn-gc">+ 新增配置</button>
+    <button type="button" class="btn">执行虚拟配平</button>
+  </div>
+
+  <div class="main">
+    <div class="table-wrap">
+      <div class="table-scroll">
+        <table class="data">
+          <thead>
+            <tr><th>8 位 SKU</th><th>共享模式</th><th>店铺</th><th>共享比例</th><th>安全库存</th><th>启用</th><th>操作</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>H61991A1</td><td><span class="tag-gc">谷仓</span></td><td>WM 3P-US</td><td>50%</td><td>20</td><td>启用</td><td>编辑</td></tr>
+            <tr><td>H61991A1</td><td><span class="tag-gc">谷仓</span></td><td>BBY 3P-US</td><td>50%</td><td>20</td><td>启用</td><td>编辑</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <table class="diff-table" style="width:100%;border-collapse:collapse;margin-top:20px">
+      <thead>
+        <tr><th>对比项</th><th>谷仓共享（本页）</th><th>WFS 仓共享</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>实物总量</td><td>谷仓库存</td><td>WFS 接口实查</td></tr>
+        <tr><td>参与店</td><td>按业务配置</td><td>WM / BBY / Lowes 3P-US</td></tr>
+        <tr><td>触发条件（示例）</td><td>当前可售 &lt; 安全库存</td><td>当前可售 &lt; 安全库存 + 本批销量锁定</td></tr>
+        <tr><td>10 分钟拉单</td><td>—</td><td>待拉单预占 + 本批销量锁定</td></tr>
+        <tr><td>与另一方</td><td colspan="2" style="text-align:center">同一 SKU <strong>不可同时启用</strong></td></tr>
+      </tbody>
+    </table>
+  </div>
+</body>
+</html>
