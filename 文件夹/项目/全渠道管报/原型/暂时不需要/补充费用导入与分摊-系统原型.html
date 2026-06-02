@@ -1232,7 +1232,7 @@
           <div class="panel">
             <div class="panel-hd">产品范围 <span class="badge">模版列 · 多列可同时填</span></div>
             <div class="panel-bd" style="max-height:none;">
-              <p class="hint" style="margin:0 0 12px;">六列对应模版「场景 / 品类 / MODEL / SKU / MSKU / 是否新品」。列间取交集；均不选且「是否新品」为「不限制」时表示产品侧不额外收窄。</p>
+              <p class="hint" style="margin:0 0 12px;">六列对应模版「场景 / 品类 / MODEL / SKU / MSKU / 是否新品」。列间取交集；其它列均不选且「是否新品」为「否」时表示产品侧不额外收窄。</p>
               <div class="scope-flat-grid scope-flat-grid--product">
                 <div class="scope-flat-col">
                   <label for="msfCreateScene">场景</label>
@@ -1260,11 +1260,10 @@
                 <div class="scope-flat-col field">
                   <label for="productNewFlag">是否新品</label>
                   <select id="productNewFlag" aria-label="是否新品">
-                    <option value="">不限制（模版留空）</option>
+                    <option value="否" selected>否</option>
                     <option value="是">是</option>
-                    <option value="否">否</option>
                   </select>
-                  <p class="hint-col">选「是」仅新品 MSKU 参与</p>
+                  <p class="hint-col">选「是」仅新品 MSKU 参与；选「否」不按新品收窄</p>
                 </div>
               </div>
             </div>
@@ -1575,8 +1574,7 @@
 
     function getProductNewFlagLabel() {
       const v = document.getElementById("productNewFlag")?.value ?? "";
-      if (v === "是" || v === "否") return v;
-      return "（空）";
+      return v === "是" ? "是" : "否";
     }
 
     function resetCreatePreview() {
@@ -1637,8 +1635,8 @@
     }
 
     function buildProductScopeSummaryFromObj(ps, newProductOnly, newProductFlag) {
-      const flag = newProductFlag != null ? newProductFlag : newProductOnly ? "是" : "（空）";
-      if (!ps.scenes?.length && !ps.categories?.length && !ps.models?.length && !ps.skus?.length && !ps.mskus?.length && flag === "（空）") {
+      const flag = newProductFlag != null ? newProductFlag : newProductOnly ? "是" : "否";
+      if (!ps.scenes?.length && !ps.categories?.length && !ps.models?.length && !ps.skus?.length && !ps.mskus?.length && flag === "否") {
         return "全产品（各列空）";
       }
       const parts = [];
@@ -1664,7 +1662,7 @@
         ? opts.newProductFlag
         : opts.newProductOnly
           ? "是"
-          : "（空）";
+          : "否";
       return `
         <strong>费用项：</strong>${escHtml(opts.fee || "—")}　
         <strong>归属范围：</strong>${escHtml(opts.belongRange || "—")}　
@@ -2118,7 +2116,7 @@
             currency: d.currency || "—",
             channelScope: ch,
             productScope: ps,
-            newProductFlag: d.newProductOnly ? "是" : "（空）"
+            newProductFlag: d.newProductOnly ? "是" : "否"
           })}<br>
           <strong>权重月：</strong>${escHtml(wm)}（归属范围起始日所在月的上月）　<strong>按日口径：</strong>共 ${dayCount} 自然日，仅按日分摊（不按会计月汇总）<br>
           <strong>状态：</strong>${escHtml(rowLive ? rowLive.status : d.st)}　<strong>操作人：</strong>${escHtml(d.op)}　<strong>创建时间：</strong>${escHtml(d.at)}<br>
@@ -2686,7 +2684,7 @@
 <script id="prototype-annotation-config" type="application/json">
 {
   "pageId": "reporting-supplement-fee-import-allocation",
-  "version": "2026-05-19T21:30:00+08:00",
+  "version": "2026-05-19T22:00:00+08:00",
   "pageTitle": "业务费用导入管理",
   "annotations": [
     {
@@ -2813,7 +2811,7 @@
       "id": "create-new-product",
       "selector": "#productNewFlag",
       "title": "是否新品",
-      "body": "与模版「是否新品」列一致：不限制（留空）、是、否。"
+      "body": "仅「是」「否」两档：选「是」仅新品 MSKU 参与分摊；选「否」不按新品收窄（模版留空视同否）。"
     },
     {
       "id": "create-retailer-col",
