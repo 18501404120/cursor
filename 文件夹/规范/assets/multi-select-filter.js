@@ -25,7 +25,7 @@
     st.id = STYLE_ID;
     st.textContent =
       ".msf-root{position:relative;display:inline-block;vertical-align:middle;min-width:200px;max-width:100%;font-size:13px;}" +
-      ".msf-trigger{display:flex;align-items:center;justify-content:space-between;gap:8px;width:100%;min-height:32px;padding:4px 28px 4px 10px;border:1px solid #d9d9d9;border-radius:6px;background:#fff;cursor:pointer;text-align:left;color:#0f172a;box-sizing:border-box;}" +
+      ".msf-trigger{position:relative;display:flex;align-items:center;justify-content:space-between;gap:8px;width:100%;min-height:32px;height:32px;padding:4px 28px 4px 10px;border:1px solid #d9d9d9;border-radius:6px;background:#fff;cursor:pointer;text-align:left;color:#0f172a;box-sizing:border-box;}" +
       ".msf-trigger:hover{border-color:#1677ff;}" +
       ".msf-trigger.msf-open{border-color:#1677ff;box-shadow:0 0 0 2px rgba(22,119,255,.12);}" +
       ".msf-trigger .msf-trigger-text{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}" +
@@ -43,8 +43,8 @@
       ".msf-row input{flex-shrink:0;}" +
       ".msf-empty{padding:12px;color:#64748b;font-size:12px;text-align:center;}" +
       ".msf-loading{padding:12px;color:#64748b;font-size:12px;text-align:center;}" +
-      ".msf-root.msf-tags-mode .msf-trigger{min-height:32px;height:auto;align-items:flex-start;padding-top:5px;padding-bottom:5px;}" +
-      ".msf-tags-wrap{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px;min-height:0;}" +
+      ".msf-root.msf-tags-mode{align-self:flex-start;}" +
+      ".msf-tags-wrap{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px;max-height:72px;overflow-y:auto;min-height:0;}" +
       ".msf-tags-wrap:empty{display:none;}" +
       ".msf-tag{display:inline-flex;align-items:center;gap:2px;max-width:100%;padding:2px 6px;border-radius:4px;background:#f0f5ff;border:1px solid #d6e4ff;color:#1e3a8a;font-size:12px;line-height:1.4;}" +
       ".msf-tag-text{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:180px;}" +
@@ -170,17 +170,25 @@
       });
     }
 
+    function repositionPanelIfOpen() {
+      if (open && useBodyPortal && panel.parentNode === document.body) {
+        positionFloatedPanel();
+      }
+    }
+
     function updateTriggerLabel() {
       if (!selected.size) {
         textSpan.textContent = placeholder;
         textSpan.classList.add("msf-ph");
         if (tagsWrap) renderTags();
+        repositionPanelIfOpen();
         return;
       }
       textSpan.classList.remove("msf-ph");
       if (summaryMode === "tags") {
         textSpan.textContent = "已选 " + selected.size + " 项";
         renderTags();
+        repositionPanelIfOpen();
         return;
       }
       var arr = Array.from(selected);
