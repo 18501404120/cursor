@@ -369,6 +369,13 @@
         </div>
 
         <div id="sourcePanel" class="source-panel hidden">
+          <div class="form-field full">
+            <label for="caliberScope"><span class="req">*</span> 口径范围</label>
+            <select id="caliberScope">
+              <option value="channelCountry">渠道+国家</option>
+              <option value="channelCountryRetailer">渠道+国家+零售商</option>
+            </select>
+          </div>
           <div class="source-block" data-panel="fixedAmount">
             <div class="form-field">
               <label><span class="req">*</span> 月固定金额</label>
@@ -384,10 +391,8 @@
             </div>
             <div class="form-field">
               <label>适用周期</label>
-              <select id="fixedPeriod">
+              <select id="fixedPeriod" disabled>
                 <option>每月</option>
-                <option>一次性</option>
-                <option>季度均摊</option>
               </select>
             </div>
           </div>
@@ -402,13 +407,6 @@
                 <option>当月实际营收</option>
                 <option>当月销售额</option>
                 <option>当月销量</option>
-              </select>
-            </div>
-            <div class="form-field">
-              <label>计算方式</label>
-              <select id="rateCalc">
-                <option>基数 × 比例</option>
-                <option>基数 × 比例后四舍五入</option>
               </select>
             </div>
           </div>
@@ -428,10 +426,6 @@
                 <option>历史费用 / 历史销售额</option>
                 <option>历史费用 / 历史销量</option>
               </select>
-            </div>
-            <div class="form-field">
-              <label>封顶比例（%）</label>
-              <input id="histCap" type="number" step="0.01" placeholder="可不填">
             </div>
           </div>
         </div>
@@ -468,14 +462,18 @@
     F001: '平台佣金',
     F016: '品牌联合投放'
   };
+  var CALIBER_LABEL = {
+    channelCountry: '渠道+国家',
+    channelCountryRetailer: '渠道+国家+零售商'
+  };
 
   var rows = [
-    { id: 'R001', feeCode: 'F006', sourceType: 'historyRate', channels: ['亚马逊'], summary: '近 12 月 · 历史费用/历史营收', status: '启用', maintainer: 'GTM-李四 · 2026-06-05', fixedAmount: null, fixedRate: null },
-    { id: 'R002', feeCode: 'F006', sourceType: 'historyRate', channels: ['独立站'], summary: '近 6 月 · 历史费用/历史营收', status: '启用', maintainer: 'GTM-李四 · 2026-06-04', fixedAmount: null, fixedRate: null },
-    { id: 'R003', feeCode: 'F007', sourceType: 'fixedAmount', channels: ['独立站'], summary: '¥85,000 / 月', status: '启用', maintainer: 'GTM-李四 · 2026-06-05', fixedAmount: 85000, fixedRate: null },
-    { id: 'R004', feeCode: 'F009', sourceType: 'fixedRate', channels: ['线下商超'], summary: '8.5% × 当月实际营收', status: '启用', maintainer: 'GTM-王五 · 2026-06-04', fixedAmount: null, fixedRate: 8.5 },
+    { id: 'R001', feeCode: 'F006', sourceType: 'historyRate', caliberScope: 'channelCountry', channels: ['亚马逊'], summary: '近 12 月 · 历史费用/历史营收 · 渠道+国家', status: '启用', maintainer: 'GTM-李四 · 2026-06-05', fixedAmount: null, fixedRate: null },
+    { id: 'R002', feeCode: 'F006', sourceType: 'historyRate', caliberScope: 'channelCountryRetailer', channels: ['独立站'], summary: '近 6 月 · 历史费用/历史营收 · 渠道+国家+零售商', status: '启用', maintainer: 'GTM-李四 · 2026-06-04', fixedAmount: null, fixedRate: null },
+    { id: 'R003', feeCode: 'F007', sourceType: 'fixedAmount', caliberScope: 'channelCountry', channels: ['独立站'], summary: '¥85,000 / 月 · 渠道+国家', status: '启用', maintainer: 'GTM-李四 · 2026-06-05', fixedAmount: 85000, fixedRate: null },
+    { id: 'R004', feeCode: 'F009', sourceType: 'fixedRate', caliberScope: 'channelCountry', channels: ['线下商超'], summary: '8.5% × 当月实际营收 · 渠道+国家', status: '启用', maintainer: 'GTM-王五 · 2026-06-04', fixedAmount: null, fixedRate: 8.5 },
     { id: 'R005', feeCode: 'F001', sourceType: 'auto', channels: ['亚马逊'], summary: '—', status: '启用', maintainer: '系统同步 · 2026-06-03', fixedAmount: null, fixedRate: null },
-    { id: 'R006', feeCode: 'F016', sourceType: 'fixedAmount', channels: ['分销'], summary: '¥445,000 / 月', status: '停用', maintainer: 'GTM-李四 · 2026-05-28', fixedAmount: 445000, fixedRate: null }
+    { id: 'R006', feeCode: 'F016', sourceType: 'fixedAmount', caliberScope: 'channelCountryRetailer', channels: ['分销'], summary: '¥445,000 / 月 · 渠道+国家+零售商', status: '停用', maintainer: 'GTM-李四 · 2026-05-28', fixedAmount: 445000, fixedRate: null }
   ];
 
   var editingId = null;
@@ -656,6 +654,7 @@
       document.getElementById('sourceType').value = 'auto';
       document.getElementById('enabled').value = '启用';
       document.getElementById('remark').value = '';
+      document.getElementById('caliberScope').value = 'channelCountry';
     } else {
       var row = rows.find(function (r) { return r.id === id; });
       if (!row) return;
@@ -665,6 +664,7 @@
       document.getElementById('remark').value = row.remark || '';
       if (row.fixedAmount) document.getElementById('fixedAmount').value = row.fixedAmount;
       if (row.fixedRate) document.getElementById('fixedRate').value = row.fixedRate;
+      document.getElementById('caliberScope').value = row.caliberScope || 'channelCountry';
       (row.channels || []).forEach(function (ch) { selectedChannels.add(ch); });
     }
 
@@ -700,12 +700,14 @@
     }
 
     var summary = '—';
+    var caliberScope = document.getElementById('caliberScope').value;
+    var caliberText = CALIBER_LABEL[caliberScope] || caliberScope;
     if (sourceType === 'fixedAmount') {
-      summary = '¥' + Number(document.getElementById('fixedAmount').value).toLocaleString() + ' / 月';
+      summary = '¥' + Number(document.getElementById('fixedAmount').value).toLocaleString() + ' / 月 · ' + caliberText;
     } else if (sourceType === 'fixedRate') {
-      summary = document.getElementById('fixedRate').value + '% × ' + document.getElementById('rateBase').value;
+      summary = document.getElementById('fixedRate').value + '% × ' + document.getElementById('rateBase').value + ' · ' + caliberText;
     } else if (sourceType === 'historyRate') {
-      summary = document.getElementById('histWindow').value + ' · ' + document.getElementById('histBase').value;
+      summary = document.getElementById('histWindow').value + ' · ' + document.getElementById('histBase').value + ' · ' + caliberText;
     }
 
     if (editingId) {
@@ -717,6 +719,7 @@
         row.status = status;
         row.summary = summary;
         row.maintainer = 'GTM-李四 · 2026-06-05';
+        row.caliberScope = ['fixedAmount', 'fixedRate', 'historyRate'].indexOf(sourceType) >= 0 ? caliberScope : null;
         row.fixedAmount = sourceType === 'fixedAmount' ? Number(document.getElementById('fixedAmount').value) : null;
         row.fixedRate = sourceType === 'fixedRate' ? Number(document.getElementById('fixedRate').value) : null;
       }
@@ -729,6 +732,7 @@
         summary: summary,
         status: status,
         maintainer: 'GTM-李四 · 2026-06-05',
+        caliberScope: ['fixedAmount', 'fixedRate', 'historyRate'].indexOf(sourceType) >= 0 ? caliberScope : null,
         fixedAmount: sourceType === 'fixedAmount' ? Number(document.getElementById('fixedAmount').value) : null,
         fixedRate: sourceType === 'fixedRate' ? Number(document.getElementById('fixedRate').value) : null
       });
