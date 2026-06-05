@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>BP 管理</title>
   <link rel="stylesheet" href="bp-mgmt-common.css">
+  <link rel="stylesheet" href="../../../../规范/assets/import-modal-kit.css">
   <style>
     .page { padding: 0; background: #fff; }
     .page-inner { padding: 12px 16px 16px; }
@@ -55,10 +56,8 @@
     .bp-table .col-cat { width: 88px; }
     .bp-table .col-dept { width: 72px; }
     .bp-table .col-sku { width: 88px; }
-    .bp-table .col-sales { width: 72px; color: #1677ff; }
-    .bp-table .col-tag { width: 88px; }
-    .bp-table .col-year { width: 108px; background: #fafafa; }
-    .bp-table .col-month { width: 108px; }
+    .bp-table .col-sales { width: 96px; }
+    .bp-table .col-month { width: 72px; }
     .bp-table .col-remark { width: 56px; text-align: center; }
     .bp-table .col-status { width: 64px; text-align: center; }
     .bp-table .col-op {
@@ -68,19 +67,9 @@
     }
     .bp-table thead .col-op { z-index: 3; background: #fafafa; }
 
-    /* 堆叠指标格 — 对齐图二 */
-    .metric-stack { padding: 4px 6px; line-height: 1.45; font-size: 11px; }
-    .metric-stack .row {
-      display: flex; align-items: center; justify-content: space-between; gap: 4px;
-      padding: 1px 0; border-bottom: 1px dashed #f0f0f0;
-    }
-    .metric-stack .row:last-child { border-bottom: none; }
-    .metric-stack .lbl { color: #999; flex-shrink: 0; font-size: 10px; }
-    .metric-stack .val { font-weight: 600; text-align: right; flex: 1; font-variant-numeric: tabular-nums; }
-    .metric-stack .val .arr { font-size: 10px; margin-left: 2px; }
-    .metric-stack .val .arr.up { color: #ff4d4f; }
-    .metric-stack .val .arr.down { color: #52c41a; }
-
+    /* 堆叠指标格：全年带标签，月份仅数字 */
+    .bp-table .col-tag { width: 88px; }
+    .bp-table .col-year { width: 108px; background: #fafafa; }
     .status-draft { color: #ff4d4f; font-size: 12px; }
     .status-done { color: #52c41a; font-size: 12px; }
     .remark-icon { color: #1677ff; cursor: pointer; font-size: 14px; }
@@ -154,7 +143,7 @@
         <div class="action-bar">
           <div class="left">
             <button type="button" class="btn btn-primary" id="btnNotify">通知填报</button>
-            <button type="button" class="btn">导入</button>
+            <button type="button" class="btn btn-primary" id="btnImport">导入</button>
             <button type="button" class="btn">导出</button>
             <button type="button" class="btn btn-danger">批量删除</button>
             <button type="button" class="btn">批量提交</button>
@@ -266,19 +255,27 @@
   </div>
 </div>
 
+<div id="salesPopGlobal" class="sales-pop" hidden>
+  <div class="pop-title">选择 Sales（可多选）</div>
+  <div id="salesPopOptions"></div>
+  <div class="pop-ft"><button type="button" class="btn btn-primary" id="salesPopOk" style="height:26px;padding:0 10px;font-size:12px">确定</button></div>
+</div>
+
 <div class="modal-mask" id="toastModal" style="align-items:flex-start;padding-top:80px;">
   <div class="modal" style="width:400px;"><div class="modal-bd" id="toastMsg" style="text-align:center;padding:24px;font-size:14px;"></div></div>
 </div>
 
+<script src="../../../../规范/assets/import-modal-kit.js"></script>
 <script>
 (function () {
+  var ALL_SALES = ['张三', '李四', '王五', '赵六', '钱七', '孙八'];
   var rows = [
-    { region: '北美', store: 'Offline-CA', cat: '灯带', dept: '灯带', sku: 'H612F001', sales: '张三', tag: '2025 新品', rev: 480000, vol: 12000, gp: 96000, status: 'draft', submitted: false },
-    { region: '西欧', store: 'Goveelife_UK', cat: '灯带', dept: '灯带', sku: 'H6074002', sales: '李四', tag: '2025 新品', rev: 340000, vol: 8500, gp: 68000, status: 'draft', submitted: false },
-    { region: '北美', store: 'Govee_US', cat: '户外', dept: '户外', sku: 'H705001', sales: '王五', tag: '—', rev: 192000, vol: 3200, gp: 48000, status: 'done', submitted: true },
-    { region: '西欧', store: 'APP商城-UK', cat: '智能家居', dept: 'App', sku: 'B517001', sales: '赵六', tag: '—', rev: 168000, vol: 5600, gp: 42000, status: 'done', submitted: true },
-    { region: '北美', store: 'Govee_US', cat: '灯带', dept: '灯带', sku: 'H61B001', sales: '张三', tag: '—', rev: 248000, vol: 6200, gp: 49600, status: 'draft', submitted: false },
-    { region: '西欧', store: 'Govee_DE', cat: '灯带', dept: '灯带', sku: 'H61A003', sales: '赵六', tag: '2025 新品', rev: 312000, vol: 7800, gp: 62400, status: 'done', submitted: true }
+    { region: '北美', store: 'Offline-CA', cat: '灯带', dept: '灯带', sku: 'H612F001', sales: ['张三'], tag: '2025 新品', rev: 480000, vol: 12000, gp: 96000, status: 'draft', submitted: false },
+    { region: '西欧', store: 'Goveelife_UK', cat: '灯带', dept: '灯带', sku: 'H6074002', sales: ['李四', '王五'], tag: '2025 新品', rev: 340000, vol: 8500, gp: 68000, status: 'draft', submitted: false },
+    { region: '北美', store: 'Govee_US', cat: '户外', dept: '户外', sku: 'H705001', sales: ['王五'], tag: '—', rev: 192000, vol: 3200, gp: 48000, status: 'done', submitted: true },
+    { region: '西欧', store: 'APP商城-UK', cat: '智能家居', dept: 'App', sku: 'B517001', sales: ['赵六'], tag: '—', rev: 168000, vol: 5600, gp: 42000, status: 'done', submitted: true },
+    { region: '北美', store: 'Govee_US', cat: '灯带', dept: '灯带', sku: 'H61B001', sales: ['张三'], tag: '—', rev: 248000, vol: 6200, gp: 49600, status: 'draft', submitted: false },
+    { region: '西欧', store: 'Govee_DE', cat: '灯带', dept: '灯带', sku: 'H61A003', sales: ['赵六', '钱七'], tag: '2025 新品', rev: 312000, vol: 7800, gp: 62400, status: 'done', submitted: true }
   ];
 
   var salesProgress = [
@@ -296,30 +293,85 @@
       return '<div class="row"><span class="lbl">' + lbl + '</span><span class="val">' + val.toLocaleString() + arr + '</span></div>';
     }
     return '<div class="metric-stack">' +
-      line('销售额', rev, arrows.rev) +
-      line('销量', vol, arrows.vol) +
-      line('毛利', gp, arrows.gp) +
-      '</div>';
+      line('销售额', rev, arrows.rev) + line('销量', vol, arrows.vol) + line('毛利', gp, arrows.gp) + '</div>';
   }
 
-  function monthStack(base, f) {
-    return metricStack(
-      Math.round(base.rev * f),
-      Math.round(base.vol * f),
-      Math.round(base.gp * f),
+  function monthCompact(rev, vol, gp, arrows) {
+    arrows = arrows || { rev: 'up', vol: 'up', gp: 'down' };
+    function line(val, dir) {
+      var arr = dir === 'up' ? '<span class="arr up">↑</span>' : '<span class="arr down">↓</span>';
+      return '<div class="row-compact"><span class="val">' + val.toLocaleString() + arr + '</span></div>';
+    }
+    return '<div class="metric-stack metric-stack--compact">' +
+      line(rev, arrows.rev) + line(vol, arrows.vol) + line(gp, arrows.gp) + '</div>';
+  }
+
+  function monthCell(base, f) {
+    return monthCompact(
+      Math.round(base.rev * f), Math.round(base.vol * f), Math.round(base.gp * f),
       { rev: f > 0.08 ? 'up' : 'down', vol: f > 0.08 ? 'up' : 'down', gp: 'down' }
     );
   }
+
+  function salesText(arr) {
+    return arr && arr.length ? arr.join('、') : '';
+  }
+
+  function renderSalesCell(salesArr) {
+    var txt = salesText(salesArr);
+    return '<div class="sales-cell" tabindex="0">' +
+      (txt ? '<span class="sales-text">' + txt + '</span>' : '<span class="sales-placeholder">请选择</span>') +
+      '</div>';
+  }
+
+  var activeSalesCell = null;
+  var salesPop = document.getElementById('salesPopGlobal');
+  var salesPopOptions = document.getElementById('salesPopOptions');
+
+  function openSalesPop(cell, current) {
+    activeSalesCell = cell;
+    salesPopOptions.innerHTML = ALL_SALES.map(function (name) {
+      var checked = current.indexOf(name) >= 0 ? ' checked' : '';
+      return '<label><input type="checkbox" value="' + name + '"' + checked + '> ' + name + '</label>';
+    }).join('');
+    var rect = cell.getBoundingClientRect();
+    salesPop.hidden = false;
+    salesPop.classList.add('open');
+    salesPop.style.top = (rect.bottom + 4) + 'px';
+    salesPop.style.left = rect.left + 'px';
+  }
+
+  function closeSalesPop() {
+    salesPop.classList.remove('open');
+    salesPop.hidden = true;
+    activeSalesCell = null;
+  }
+
+  document.getElementById('salesPopOk').onclick = function () {
+    if (!activeSalesCell) return;
+    var picked = [];
+    salesPopOptions.querySelectorAll('input:checked').forEach(function (cb) { picked.push(cb.value); });
+    var tr = activeSalesCell.closest('tr');
+    tr.dataset.sales = picked.join(',');
+    activeSalesCell.innerHTML = picked.length
+      ? '<span class="sales-text">' + picked.join('、') + '</span>'
+      : '<span class="sales-placeholder">请选择</span>';
+    closeSalesPop();
+  };
+
+  document.addEventListener('click', function (e) {
+    if (!e.target.closest('.sales-cell') && !e.target.closest('#salesPopGlobal')) closeSalesPop();
+  });
 
   var factors = [1, 0.08, 0.09, 0.085, 0.09, 0.088, 0.092, 0.087, 0.091, 0.089, 0.093, 0.086, 0.09];
 
   var tbody = document.getElementById('bpBody');
   rows.forEach(function (row) {
     var tr = document.createElement('tr');
-    tr.dataset.sales = row.sales;
+    tr.dataset.sales = row.sales.join(',');
     tr.dataset.submitted = row.submitted ? '1' : '0';
     var months = '';
-    for (var i = 1; i <= 12; i++) months += '<td class="col-month">' + monthStack(row, factors[i]) + '</td>';
+    for (var i = 1; i <= 12; i++) months += '<td class="col-month">' + monthCell(row, factors[i]) + '</td>';
     tr.innerHTML =
       '<td class="col-check"><input type="checkbox" class="row-check"></td>' +
       '<td class="col-fix col-region">' + row.region + '</td>' +
@@ -327,18 +379,22 @@
       '<td class="col-fix col-cat">' + row.cat + '</td>' +
       '<td class="col-fix col-dept">' + row.dept + '</td>' +
       '<td class="col-fix col-sku mono">' + row.sku + '</td>' +
-      '<td class="col-fix col-sales">' + row.sales + '</td>' +
+      '<td class="col-fix col-sales">' + renderSalesCell(row.sales) + '</td>' +
       '<td class="col-fix col-tag">' + row.tag + '</td>' +
       '<td class="col-year">' + metricStack(row.rev, row.vol, row.gp) + '</td>' +
       months +
       '<td class="col-fix col-remark"><span class="remark-icon" title="编辑备注">✎</span></td>' +
-      '<td class="col-fix col-status"><span class="' + (row.status === 'draft' ? 'status-draft">草稿' : 'status-done">已提交') + '</span></td>' +
+      '<td class="col-fix col-status"><span class="' + (row.status === 'draft' ? 'status-draft">草稿' : 'status-done">已提报') + '</span></td>' +
       '<td class="col-op">' +
-        '<button type="button" class="btn-link btn-notify-one" data-sales="' + row.sales + '" data-sku="' + row.sku + '">通知</button>' +
+        '<button type="button" class="btn-link btn-notify-one" data-sales="' + salesText(row.sales) + '" data-sku="' + row.sku + '">通知</button>' +
         '<button type="button" class="btn-link">删除</button>' +
         '<button type="button" class="btn-link">提交</button>' +
         '<button type="button" class="btn-link">日志</button></td>';
     tbody.appendChild(tr);
+    tr.querySelector('.sales-cell').addEventListener('click', function (e) {
+      e.stopPropagation();
+      openSalesPop(this, row.sales.slice());
+    });
   });
 
   var pb = document.getElementById('progressBody');
@@ -413,8 +469,37 @@
   document.getElementById('fSales').addEventListener('change', function () {
     var val = this.value;
     document.querySelectorAll('#bpBody tr').forEach(function (tr) {
-      tr.style.display = !val || tr.dataset.sales === val ? '' : 'none';
+      if (!val) { tr.style.display = ''; return; }
+      tr.style.display = tr.dataset.sales.split(',').indexOf(val) >= 0 ? '' : 'none';
     });
+  });
+
+  ImportModalKit.mount({
+    trigger: '#btnImport',
+    title: '导入 BP 数据',
+    templateFileName: 'BP填报导入模版.csv',
+    introHtml: '<p>请使用标准 <strong>BP 填报导入模版</strong> 填写后上传。模版含：<strong>主键信息</strong>（年份、区域、渠道、SKU）、<strong>Sales</strong>（可多选，英文逗号分隔）、<strong>全年与 1–12 月</strong> 销量/销售额/毛利。</p><p>导入后更新列表对应 SKU 行；已提报行是否覆盖由导入模式决定。校验失败时将返回错误明细文件。</p>',
+    columns: [
+      { group: '主键', name: '年份', required: true, desc: '如 2025' },
+      { group: '主键', name: '区域', required: true, desc: '与系统主数据一致' },
+      { group: '主键', name: '渠道', required: true, desc: '店铺名，如 Govee_US' },
+      { group: '主键', name: 'SKU', required: true, desc: '8 位生产 SKU' },
+      { group: '人员', name: 'Sales', required: false, desc: '负责人姓名，多人用英文逗号分隔' },
+      { group: '全年', name: '全年销量/销售额/毛利', required: true, desc: 'USD，可为 0 不可空' },
+      { group: '1–12 月', name: 'N月销量/销售额/毛利', required: true, desc: '列名如 1月销量、1月销售额、1月毛利' }
+    ],
+    requirements: [
+      'SKU、渠道须与系统主数据一致；Sales 取值须与组织架构人员列表一致。',
+      '同一单元格多个 Sales 仅用英文逗号分隔。',
+      '每月三项指标可为 0，不可留空；币种统一 USD。',
+      '解析失败行写入错误文件；成功行写入或更新 BP 列表。'
+    ],
+    downloadCsvRows: [
+      ['年份', '区域', '渠道', 'SKU', 'Sales', '全年销量', '全年销售额', '全年毛利', '1月销量', '1月销售额', '1月毛利'],
+      ['2025', '北美', 'Govee_US', 'H612F001', '张三,李四', '12000', '480000', '96000', '1000', '40000', '8000']
+    ],
+    demoSuccessRows: 6,
+    autoCloseMs: 1500
   });
 
   document.querySelectorAll('[data-close]').forEach(function (btn) {

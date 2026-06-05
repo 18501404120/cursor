@@ -3,17 +3,28 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>渠道 BP 填报</title>
+  <title>我的 BP 提报</title>
   <link rel="stylesheet" href="bp-mgmt-common.css">
+  <link rel="stylesheet" href="../../../../规范/assets/import-modal-kit.css">
   <style>
     .fill-view { display: none; }
     .fill-view.active { display: block; }
     .task-list-view.hidden { display: none; }
     .deadline-warn { color: var(--orange); font-weight: 600; }
-    .reject-box {
-      margin: 0 16px 12px; padding: 10px 14px; border-radius: 6px;
-      background: var(--red-soft); border: 1px solid #ffa39e; font-size: 12px; line-height: 1.6;
-    }
+    .table-scroll-wrap { border: 1px solid #e8e8e8; border-radius: 4px; max-height: calc(100vh - 320px); overflow: auto; }
+    .fill-table { min-width: 2400px; width: 100%; border-collapse: separate; border-spacing: 0; table-layout: fixed; font-size: 12px; }
+    .fill-table th, .fill-table td { border: 1px solid #e8e8e8; padding: 0; vertical-align: middle; }
+    .fill-table thead th { position: sticky; top: 0; z-index: 2; background: #fafafa; font-weight: 600; text-align: center; padding: 8px 6px; box-shadow: 0 1px 0 #e8e8e8; }
+    .fill-table .col-fix { padding: 6px 8px; background: #fff; white-space: nowrap; }
+    .fill-table .col-year { width: 108px; background: #fafafa; }
+    .fill-table .col-month { width: 72px; }
+    .fill-table .col-year-h { background: #fafafa; }
+    .fill-table .year-inputs { padding: 4px 6px; }
+    .fill-table .year-inputs .row { display: flex; align-items: center; justify-content: space-between; gap: 4px; margin-bottom: 2px; font-size: 10px; }
+    .fill-table .year-inputs .row label { color: #999; flex-shrink: 0; }
+    .fill-table .month-inputs { padding: 3px 4px; display: flex; flex-direction: column; gap: 2px; }
+    .fill-table .month-inputs input { width: 100%; height: 22px; border: 1px solid #d9d9d9; border-radius: 3px; padding: 0 4px; font-size: 11px; text-align: right; }
+    .fill-table .year-inputs input { width: 72px; height: 22px; border: 1px solid #d9d9d9; border-radius: 3px; padding: 0 4px; font-size: 11px; text-align: right; }
   </style>
 </head>
 <body>
@@ -29,57 +40,50 @@
       <div class="title">GTM 经营管理系统</div>
       <nav class="nav-links">
         <a href="BP管理总览.html">BP 管理</a>
-        <a href="BP分发任务.html">分发任务</a>
-        <a href="渠道BP填报.html" class="active">我的填报</a>
+        <a href="渠道BP填报.html" class="active">我的提报</a>
       </nav>
     </header>
     <div class="page">
-      <p class="breadcrumb"><a href="index.html">BP 管理</a> / 我的填报</p>
+      <p class="breadcrumb"><a href="index.html">BP 管理</a> / 我的提报</p>
 
-      <!-- 任务列表 -->
       <div class="task-list-view" id="taskListView">
         <div class="panel">
           <div class="panel-head">
             <div>
-              <div class="panel-title">我的 BP 填报任务</div>
-              <div class="panel-sub">仅展示分配给当前账号的店铺任务包</div>
+              <div class="panel-title">我的 BP 提报任务</div>
+              <div class="panel-sub">展示通知到当前账号的 SKU 提报任务</div>
             </div>
           </div>
           <div class="task-cards" id="taskCards"></div>
         </div>
       </div>
 
-      <!-- 填报页 -->
       <div class="fill-view" id="fillView">
         <div class="panel">
           <div class="panel-head">
             <div>
-              <div class="panel-title" id="fillTitle">填报 · BP-DIST-2025-0042</div>
+              <div class="panel-title" id="fillTitle">提报 · BP-DIST-2025-0048</div>
               <div class="panel-sub">
-                店铺 <strong id="fillStore">Govee_US</strong> ·
-                BP 版本 2025 年度 BP v3 ·
-                截止 <span id="fillDeadline" class="deadline-warn">2025-07-15</span> ·
-                <span class="tag tag-pending" id="fillStatus">填报中</span>
+                店铺 <strong id="fillStore">Govee_MX</strong> · BP 版本 2025 年度 BP ·
+                截止 <span id="fillDeadline" class="deadline-warn">2025-07-20</span> ·
+                <span class="tag tag-pending" id="fillStatus">待提报</span>
               </div>
             </div>
             <div class="toolbar">
               <button type="button" class="btn" id="btnBack">← 返回任务列表</button>
-              <button type="button" class="btn">下载模板</button>
-              <button type="button" class="btn" id="btnImport">导入 Excel</button>
+              <button type="button" class="btn" id="btnDownloadTpl">下载模版</button>
+              <button type="button" class="btn" id="btnImport">导入</button>
               <button type="button" class="btn">保存草稿</button>
-              <button type="button" class="btn btn-primary" id="btnSubmit">提交审核</button>
+              <button type="button" class="btn btn-primary" id="btnSubmit">提交提报</button>
             </div>
           </div>
-          <div class="reject-box" id="rejectBox" hidden>
-            <strong>驳回原因：</strong><span id="rejectText"></span>
-          </div>
-          <div class="hint-bar">
-            请填写任务内全部 SKU 的 12 个月销量、销售额、毛利（可为 0，不可留空）。支持在线改数或导入模板；导入仅更新本任务范围内的 SKU。
+          <div class="hint-bar" style="margin:0 16px 12px">
+            请填写全部 SKU 的 12 个月销量、销售额、毛利（可为 0，不可留空）。支持在线改数或按模版导入；提交后直接汇总至 BP 管理列表，无审核环节。
           </div>
           <div class="filter-panel">
             <div class="filter-grid">
-              <div class="f-item"><label>SKU</label><input class="ctl" placeholder="请输入SKU" id="filterSku"></div>
-              <div class="f-item"><label>model</label><select class="ctl"><option value="">全部</option><option>H61A</option></select></div>
+              <div class="f-item"><label>SKU</label><input class="ctl" placeholder="请输入SKU"></div>
+              <div class="f-item"><label>model</label><select class="ctl"><option value="">全部</option></select></div>
               <div class="f-item"><label>场景品类</label><select class="ctl wide"><option value="">全部</option><option>灯带</option></select></div>
               <button type="button" class="btn btn-primary">筛选</button>
             </div>
@@ -91,24 +95,17 @@
             <div class="panel-sub">已填 <strong id="filledCount">2</strong> / <strong id="totalCount">3</strong> SKU · 进度 <span id="fillPct">67%</span></div>
           </div>
           <div class="table-scroll-wrap">
-            <table class="biz-table" id="fillTable" style="min-width:1800px;">
+            <table class="fill-table" id="fillTable">
               <thead>
                 <tr>
-                  <th rowspan="2" class="is-sticky-left" style="left:0;min-width:100px">SKU</th>
-                  <th rowspan="2" style="min-width:80px">场景品类</th>
-                  <th rowspan="2" style="min-width:88px">GTM 标签</th>
-                  <th colspan="3">全年合计</th>
-                  <th colspan="3">1 月</th>
-                  <th colspan="3">2 月</th>
-                  <th colspan="3">3 月</th>
-                  <th colspan="3">4 月</th>
-                </tr>
-                <tr>
-                  <th>销量</th><th>销售额</th><th>毛利</th>
-                  <th>销量</th><th>销售额</th><th>毛利</th>
-                  <th>销量</th><th>销售额</th><th>毛利</th>
-                  <th>销量</th><th>销售额</th><th>毛利</th>
-                  <th>销量</th><th>销售额</th><th>毛利</th>
+                  <th class="col-fix" style="width:88px">SKU</th>
+                  <th class="col-fix" style="width:80px">场景品类</th>
+                  <th class="col-fix" style="width:88px">GTM 标签</th>
+                  <th class="col-year col-year-h">全年合计</th>
+                  <th class="col-month">1月</th><th class="col-month">2月</th><th class="col-month">3月</th>
+                  <th class="col-month">4月</th><th class="col-month">5月</th><th class="col-month">6月</th>
+                  <th class="col-month">7月</th><th class="col-month">8月</th><th class="col-month">9月</th>
+                  <th class="col-month">10月</th><th class="col-month">11月</th><th class="col-month">12月</th>
                 </tr>
               </thead>
               <tbody id="fillBody"></tbody>
@@ -120,37 +117,13 @@
   </div>
 </div>
 
-<input type="file" id="fileInput" accept=".xlsx,.xls" hidden>
-
-<div class="modal-mask" id="importModal">
-  <div class="modal">
-    <div class="modal-hd">
-      <h2>导入 BP 数据</h2>
-      <div class="modal-hd-actions"><button type="button" class="modal-close" data-close="importModal">×</button></div>
-    </div>
-    <div class="modal-bd">
-      <div class="form-field"><label>导入模式</label>
-        <select id="importMode"><option value="overwrite">覆盖已有数据</option><option value="fill">仅填空项</option></select>
-      </div>
-      <p style="font-size:12px;color:var(--text-sec);margin:12px 0">已选择文件：<span id="fileName">—</span></p>
-      <div class="hint-bar" id="importResult" hidden></div>
-    </div>
-    <div class="modal-ft">
-      <button type="button" class="btn" data-close="importModal">取消</button>
-      <button type="button" class="btn btn-primary" id="btnDoImport">确认导入</button>
-    </div>
-  </div>
-</div>
-
 <div class="modal-mask" id="submitModal">
   <div class="modal">
     <div class="modal-hd">
-      <h2>提交审核</h2>
+      <h2>提交提报</h2>
       <div class="modal-hd-actions"><button type="button" class="modal-close" data-close="submitModal">×</button></div>
     </div>
-    <div class="modal-bd">
-      <p id="submitCheckMsg">正在校验…</p>
-    </div>
+    <div class="modal-bd"><p id="submitCheckMsg">正在校验…</p></div>
     <div class="modal-ft">
       <button type="button" class="btn" data-close="submitModal">取消</button>
       <button type="button" class="btn btn-primary" id="btnConfirmSubmit">确认提交</button>
@@ -158,15 +131,14 @@
   </div>
 </div>
 
+<script src="../../../../规范/assets/import-modal-kit.js"></script>
 <script>
 (function () {
   var myTasks = [
-    { id: 'BP-DIST-2025-0042', store: 'Govee_US', skus: 156, filled: 156, deadline: '2025-07-15', status: '填报中', rejected: false, rejectReason: '' },
-    { id: 'BP-DIST-2025-0047', store: 'Govee_CA', skus: 92, filled: 40, deadline: '2025-07-15', status: '已驳回', rejected: true, rejectReason: '4 月销售额与销量不匹配，请核对 H61A001、H61B001 两行后重新提交。' },
-    { id: 'BP-DIST-2025-0048', store: 'Govee_MX', skus: 64, filled: 0, deadline: '2025-07-20', status: '待填报', rejected: false, rejectReason: '' }
+    { id: 'BP-DIST-2025-0042', store: 'Govee_US', skus: 156, filled: 156, deadline: '2025-07-15', status: '提报中' },
+    { id: 'BP-DIST-2025-0048', store: 'Govee_MX', skus: 64, filled: 0, deadline: '2025-07-20', status: '待提报' }
   ];
-
-  var statusTag = { '待填报': 'tag-draft', '填报中': 'tag-pending', '已提交': 'tag-submitted', '已驳回': 'tag-rejected', '已通过': 'tag-approved' };
+  var statusTag = { '待提报': 'tag-draft', '提报中': 'tag-pending', '已提报': 'tag-submitted' };
 
   var cardsEl = document.getElementById('taskCards');
   myTasks.forEach(function (t) {
@@ -178,10 +150,8 @@
       '<div class="meta">任务 ' + t.id + '<br>SKU ' + t.skus + ' 个 · 截止 ' + t.deadline + '<br>' +
       '<span class="tag ' + (statusTag[t.status] || '') + '">' + t.status + '</span></div>' +
       '<div style="margin-top:10px"><div class="progress-bar"><i style="width:' + pct + '%"></i></div></div>' +
-      '<div class="actions">' +
-      '<button type="button" class="btn btn-primary btn-open" data-id="' + t.id + '">' +
-      (t.status === '待填报' ? '开始填报' : (t.status === '已驳回' ? '修改并重提' : '继续填报')) +
-      '</button></div>';
+      '<div class="actions"><button type="button" class="btn btn-primary btn-open" data-id="' + t.id + '">' +
+      (t.status === '待提报' ? '开始提报' : '继续提报') + '</button></div>';
     cardsEl.appendChild(card);
   });
 
@@ -191,44 +161,42 @@
     { sku: 'H61B001', cat: '灯带', tag: '—', vol: '', rev: '', gp: '' }
   ];
 
+  function monthInputs(row) {
+    var f = 0.08;
+    var v = row.vol ? Math.round(row.vol * f) : '';
+    var html = '<div class="month-inputs">';
+    html += '<input type="text" placeholder="—" ' + (v ? 'value="' + v + '"' : '') + ' title="销量">';
+    html += '<input type="text" placeholder="—" ' + (v ? 'value="' + (v * 40) + '"' : '') + ' title="销售额">';
+    html += '<input type="text" placeholder="—" ' + (v ? 'value="' + (v * 8) + '"' : '') + ' title="毛利">';
+    return html + '</div>';
+  }
+
   function renderFillTable() {
     var body = document.getElementById('fillBody');
     body.innerHTML = '';
-    sampleSkus.forEach(function (row, idx) {
+    sampleSkus.forEach(function (row) {
       var tr = document.createElement('tr');
-      var editable = row.vol === '' ? '' : 'value="' + row.vol + '"';
-      function monthInputs(prefix) {
-        var v = row.vol ? Math.round(row.vol * 0.08) : '';
-        return '<td class="num"><input class="editable-input" ' + (v ? 'value="' + v + '"' : 'placeholder="—"') + '></td>' +
-          '<td class="num"><input class="editable-input" ' + (v ? 'value="' + (v*40) + '"' : 'placeholder="—"') + '></td>' +
-          '<td class="num"><input class="editable-input" ' + (v ? 'value="' + (v*8) + '"' : 'placeholder="—"') + '></td>';
-      }
+      var months = '';
+      for (var i = 0; i < 12; i++) months += '<td class="col-month">' + monthInputs(row) + '</td>';
       tr.innerHTML =
-        '<td class="is-sticky-left mono">' + row.sku + '</td><td>' + row.cat + '</td><td>' + row.tag + '</td>' +
-        '<td class="num"><input class="editable-input" style="width:80px" ' + editable + ' placeholder="—"></td>' +
-        '<td class="num"><input class="editable-input" style="width:88px" ' + (row.rev ? 'value="'+row.rev+'"' : 'placeholder="—"') + '></td>' +
-        '<td class="num"><input class="editable-input" style="width:80px" ' + (row.gp ? 'value="'+row.gp+'"' : 'placeholder="—"') + '></td>' +
-        monthInputs() + monthInputs() + monthInputs() + monthInputs();
+        '<td class="col-fix mono">' + row.sku + '</td><td class="col-fix">' + row.cat + '</td><td class="col-fix">' + row.tag + '</td>' +
+        '<td class="col-year"><div class="year-inputs">' +
+          '<div class="row"><label>销量</label><input type="text" ' + (row.vol ? 'value="'+row.vol+'"' : 'placeholder="—"') + '></div>' +
+          '<div class="row"><label>销售额</label><input type="text" ' + (row.rev ? 'value="'+row.rev+'"' : 'placeholder="—"') + '></div>' +
+          '<div class="row"><label>毛利</label><input type="text" ' + (row.gp ? 'value="'+row.gp+'"' : 'placeholder="—"') + '></div></div></td>' +
+        months;
       body.appendChild(tr);
     });
   }
 
-  var currentTask = null;
   document.querySelectorAll('.btn-open').forEach(function (btn) {
     btn.onclick = function () {
-      currentTask = myTasks.find(function (t) { return t.id === btn.dataset.id; });
-      document.getElementById('fillTitle').textContent = '填报 · ' + currentTask.id;
-      document.getElementById('fillStore').textContent = currentTask.store;
-      document.getElementById('fillDeadline').textContent = currentTask.deadline;
-      document.getElementById('fillStatus').textContent = currentTask.status;
-      document.getElementById('fillStatus').className = 'tag ' + (statusTag[currentTask.status] || '');
-      document.getElementById('filledCount').textContent = currentTask.filled > 3 ? currentTask.filled : 2;
-      document.getElementById('totalCount').textContent = currentTask.skus > 3 ? 3 : currentTask.skus;
-      var rb = document.getElementById('rejectBox');
-      if (currentTask.rejected) {
-        rb.hidden = false;
-        document.getElementById('rejectText').textContent = currentTask.rejectReason;
-      } else { rb.hidden = true; }
+      var t = myTasks.find(function (x) { return x.id === btn.dataset.id; });
+      document.getElementById('fillTitle').textContent = '提报 · ' + t.id;
+      document.getElementById('fillStore').textContent = t.store;
+      document.getElementById('fillDeadline').textContent = t.deadline;
+      document.getElementById('fillStatus').textContent = t.status;
+      document.getElementById('fillStatus').className = 'tag ' + (statusTag[t.status] || '');
       renderFillTable();
       document.getElementById('taskListView').classList.add('hidden');
       document.getElementById('fillView').classList.add('active');
@@ -240,36 +208,50 @@
     document.getElementById('taskListView').classList.remove('hidden');
   };
 
-  document.getElementById('btnImport').onclick = function () { document.getElementById('fileInput').click(); };
-  document.getElementById('fileInput').onchange = function () {
-    if (this.files[0]) {
-      document.getElementById('fileName').textContent = this.files[0].name;
-      document.getElementById('importModal').classList.add('open');
-    }
-  };
-  document.getElementById('btnDoImport').onclick = function () {
-    document.getElementById('importResult').hidden = false;
-    document.getElementById('importResult').textContent = '导入完成：成功 2 行，失败 0 行。';
-    setTimeout(function () { document.getElementById('importModal').classList.remove('open'); }, 1200);
-  };
-
   document.getElementById('btnSubmit').onclick = function () {
     var empty = sampleSkus.some(function (s) { return s.vol === ''; });
     document.getElementById('submitCheckMsg').innerHTML = empty
       ? '校验未通过：<strong>H61B001</strong> 全年销量未填写，请补全后提交。'
-      : '校验通过：共 3 个 SKU，12 个月指标已完整。确认提交后将进入管理员审核。';
+      : '校验通过：共 3 个 SKU，12 个月指标已完整。确认后将直接汇总至 BP 管理列表。';
     document.getElementById('btnConfirmSubmit').disabled = empty;
     document.getElementById('submitModal').classList.add('open');
   };
   document.getElementById('btnConfirmSubmit').onclick = function () {
     document.getElementById('submitModal').classList.remove('open');
-    alert('已提交审核，请等待预算管理员处理');
+    alert('已提交提报，数据已汇总至 BP 管理');
     document.getElementById('btnBack').click();
   };
 
   document.querySelectorAll('[data-close]').forEach(function (btn) {
     btn.onclick = function () { document.getElementById(btn.dataset.close).classList.remove('open'); };
   });
+
+  var importConfig = {
+    trigger: '#btnImport',
+    title: '导入 BP 提报数据',
+    templateFileName: 'BP提报导入模版.csv',
+    introHtml: '<p>请下载 <strong>BP 提报导入模版</strong>，仅填写当前任务范围内的 SKU。模版列与在线表格一致：全年合计带列名说明，1–12 月列为销量/销售额/毛利三组数字（自上而下对应）。</p><p>导入成功后更新当前任务草稿；<strong>提交提报</strong>后写入 BP 管理列表，无审核环节。</p>',
+    columns: [
+      { group: '主键', name: 'SKU', required: true, desc: '须属于当前提报任务' },
+      { group: '全年', name: '全年销量/销售额/毛利', required: true, desc: 'USD' },
+      { group: '1–12 月', name: 'N月销量/销售额/毛利', required: true, desc: '与列表行顺序一致：上销量、中销售额、下毛利' }
+    ],
+    requirements: [
+      '仅可导入本任务已分配的 SKU，其他 SKU 行将报错。',
+      '每月三项可为 0，不可留空。',
+      '导入后为草稿，须点击「提交提报」才汇总至 BP 管理。'
+    ],
+    downloadCsvRows: [
+      ['SKU', '全年销量', '全年销售额', '全年毛利', '1月销量', '1月销售额', '1月毛利'],
+      ['H61A001', '12000', '480000', '96000', '1000', '40000', '8000']
+    ],
+    demoSuccessRows: 2,
+    autoCloseMs: 1500
+  };
+  ImportModalKit.mount(importConfig);
+  document.getElementById('btnDownloadTpl').onclick = function () {
+    ImportModalKit.downloadCsv(importConfig.templateFileName, importConfig.downloadCsvRows);
+  };
 })();
 </script>
 </body>
