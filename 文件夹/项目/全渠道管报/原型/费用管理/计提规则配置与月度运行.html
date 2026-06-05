@@ -202,6 +202,27 @@
       font-size: 13px;
       line-height: 1.6;
     }
+    .rule-tip {
+      grid-column: 1 / -1;
+      padding: 12px 14px;
+      border: 1px solid #e5e7eb;
+      border-radius: 4px;
+      background: #f9fafb;
+      color: #374151;
+      font-size: 12px;
+      line-height: 1.65;
+    }
+    .rule-tip strong { color: #111827; }
+    .rule-tip .formula {
+      margin-top: 8px;
+      padding: 8px 10px;
+      background: #fff;
+      border: 1px dashed #d1d5db;
+      border-radius: 4px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 11px;
+      color: #4b5563;
+    }
     .section-title {
       grid-column: 1 / -1;
       font-size: 13px;
@@ -258,7 +279,8 @@
                 <option>自动取数</option>
                 <option>固定金额</option>
                 <option>固定比例</option>
-                <option>历史比例</option>
+                <option>历史滚动占比</option>
+                <option>同期占比预估</option>
               </select>
             </div>
             <div class="f-item">
@@ -339,7 +361,8 @@
             <option value="auto">自动取数</option>
             <option value="fixedAmount">固定金额</option>
             <option value="fixedRate">固定比例</option>
-            <option value="historyRate">历史比例</option>
+            <option value="rollingRate">历史滚动占比</option>
+            <option value="yoyMonthRate">同期占比预估</option>
           </select>
         </div>
         <div class="form-field">
@@ -373,7 +396,9 @@
             <label for="caliberScope"><span class="req">*</span> 口径范围</label>
             <select id="caliberScope">
               <option value="channelCountry">渠道+国家</option>
+              <option value="channelCountryScene">渠道+国家+场景</option>
               <option value="channelCountryRetailer">渠道+国家+零售商</option>
+              <option value="channelCountrySceneRetailer">渠道+国家+场景+零售商</option>
             </select>
           </div>
           <div class="source-block" data-panel="fixedAmount">
@@ -406,11 +431,14 @@
               <select id="rateBase">
                 <option>当月实际营收</option>
                 <option>当月销售额</option>
-                <option>当月销量</option>
               </select>
             </div>
           </div>
-          <div class="source-block" data-panel="historyRate">
+          <div class="source-block" data-panel="rollingRate">
+            <div class="rule-tip">
+              <strong>历史滚动占比</strong>：在选定历史窗口内，按口径范围汇总后计算「历史费用 ÷ 历史基数」的<strong>滚动平均占比</strong>，再乘以当月基数得出本月费用。
+              <div class="formula">本月费用 = 当月比例基数 × AVG(历史各月费用 ÷ 历史各月基数)</div>
+            </div>
             <div class="form-field">
               <label><span class="req">*</span> 历史窗口</label>
               <select id="histWindow">
@@ -420,11 +448,36 @@
               </select>
             </div>
             <div class="form-field">
-              <label><span class="req">*</span> 历史口径</label>
+              <label><span class="req">*</span> 比例基数</label>
               <select id="histBase">
-                <option>历史费用 / 历史营收</option>
-                <option>历史费用 / 历史销售额</option>
-                <option>历史费用 / 历史销量</option>
+                <option>当月实际营收</option>
+                <option>当月销售额</option>
+              </select>
+            </div>
+          </div>
+          <div class="source-block" data-panel="yoyMonthRate">
+            <div class="rule-tip">
+              <strong>同期占比预估</strong>：统计过去 12 个月各月的「费用 ÷ 比例基数」占比序列；<strong>本月预估占比 = 去年同期同月占比</strong>（同比月对齐，保留季节性）。
+              <div class="formula">本月预估占比 = 去年同月费用 ÷ 去年同月基数；本月费用 = 当月比例基数 × 本月预估占比</div>
+            </div>
+            <div class="form-field">
+              <label><span class="req">*</span> 比例基数</label>
+              <select id="yoyRateBase">
+                <option>当月实际营收</option>
+                <option>当月销售额</option>
+              </select>
+            </div>
+            <div class="form-field">
+              <label>历史参考窗口</label>
+              <select id="yoyWindow" disabled title="固定为近 12 个月，用于校验同比月数据完整性">
+                <option>近 12 个月</option>
+              </select>
+            </div>
+            <div class="form-field">
+              <label>缺数处理</label>
+              <select id="yoyFallback">
+                <option>取近12个月同月均值</option>
+                <option>标注未就绪</option>
               </select>
             </div>
           </div>
@@ -452,7 +505,8 @@
     auto: '自动取数',
     fixedAmount: '固定金额',
     fixedRate: '固定比例',
-    historyRate: '历史比例'
+    rollingRate: '历史滚动占比',
+    yoyMonthRate: '同期占比预估'
   };
   var FEE_LABEL = {
     F006: '退货运费',
@@ -464,14 +518,17 @@
   };
   var CALIBER_LABEL = {
     channelCountry: '渠道+国家',
-    channelCountryRetailer: '渠道+国家+零售商'
+    channelCountryScene: '渠道+国家+场景',
+    channelCountryRetailer: '渠道+国家+零售商',
+    channelCountrySceneRetailer: '渠道+国家+场景+零售商'
   };
+  var RULE_TYPES = ['fixedAmount', 'fixedRate', 'rollingRate', 'yoyMonthRate'];
 
   var rows = [
-    { id: 'R001', feeCode: 'F006', sourceType: 'historyRate', caliberScope: 'channelCountry', channels: ['亚马逊'], summary: '近 12 月 · 历史费用/历史营收 · 渠道+国家', status: '启用', maintainer: 'GTM-李四 · 2026-06-05', fixedAmount: null, fixedRate: null },
-    { id: 'R002', feeCode: 'F006', sourceType: 'historyRate', caliberScope: 'channelCountryRetailer', channels: ['独立站'], summary: '近 6 月 · 历史费用/历史营收 · 渠道+国家+零售商', status: '启用', maintainer: 'GTM-李四 · 2026-06-04', fixedAmount: null, fixedRate: null },
+    { id: 'R001', feeCode: 'F006', sourceType: 'rollingRate', caliberScope: 'channelCountry', channels: ['亚马逊'], summary: '近 12 月滚动 · 当月实际营收 · 渠道+国家', status: '启用', maintainer: 'GTM-李四 · 2026-06-05', fixedAmount: null, fixedRate: null, histWindow: '近 12 个月', histBase: '当月实际营收' },
+    { id: 'R002', feeCode: 'F006', sourceType: 'yoyMonthRate', caliberScope: 'channelCountryScene', channels: ['独立站'], summary: '同比月占比 · 当月实际营收 · 渠道+国家+场景', status: '启用', maintainer: 'GTM-李四 · 2026-06-04', fixedAmount: null, fixedRate: null, yoyRateBase: '当月实际营收', yoyFallback: '取近12个月同月均值' },
     { id: 'R003', feeCode: 'F007', sourceType: 'fixedAmount', caliberScope: 'channelCountry', channels: ['独立站'], summary: '¥85,000 / 月 · 渠道+国家', status: '启用', maintainer: 'GTM-李四 · 2026-06-05', fixedAmount: 85000, fixedRate: null },
-    { id: 'R004', feeCode: 'F009', sourceType: 'fixedRate', caliberScope: 'channelCountry', channels: ['线下商超'], summary: '8.5% × 当月实际营收 · 渠道+国家', status: '启用', maintainer: 'GTM-王五 · 2026-06-04', fixedAmount: null, fixedRate: 8.5 },
+    { id: 'R004', feeCode: 'F009', sourceType: 'fixedRate', caliberScope: 'channelCountrySceneRetailer', channels: ['线下商超'], summary: '8.5% × 当月实际营收 · 渠道+国家+场景+零售商', status: '启用', maintainer: 'GTM-王五 · 2026-06-04', fixedAmount: null, fixedRate: 8.5 },
     { id: 'R005', feeCode: 'F001', sourceType: 'auto', channels: ['亚马逊'], summary: '—', status: '启用', maintainer: '系统同步 · 2026-06-03', fixedAmount: null, fixedRate: null },
     { id: 'R006', feeCode: 'F016', sourceType: 'fixedAmount', caliberScope: 'channelCountryRetailer', channels: ['分销'], summary: '¥445,000 / 月 · 渠道+国家+零售商', status: '停用', maintainer: 'GTM-李四 · 2026-05-28', fixedAmount: 445000, fixedRate: null }
   ];
@@ -482,7 +539,10 @@
   if (chDrop.parentNode !== document.body) document.body.appendChild(chDrop);
 
   function feeName(code) { return FEE_LABEL[code] || code; }
-  function sourceName(type) { return SOURCE_LABEL[type] || type; }
+  function sourceName(type) {
+    if (type === 'historyRate') return '历史滚动占比';
+    return SOURCE_LABEL[type] || type;
+  }
   function channelsText(chs) { return (chs || []).join('、') || '—'; }
 
   function getOccupied(feeCode, excludeId) {
@@ -659,12 +719,16 @@
       var row = rows.find(function (r) { return r.id === id; });
       if (!row) return;
       document.getElementById('feeItem').value = row.feeCode;
-      document.getElementById('sourceType').value = row.sourceType;
+      document.getElementById('sourceType').value = row.sourceType === 'historyRate' ? 'rollingRate' : row.sourceType;
       document.getElementById('enabled').value = row.status;
       document.getElementById('remark').value = row.remark || '';
       if (row.fixedAmount) document.getElementById('fixedAmount').value = row.fixedAmount;
       if (row.fixedRate) document.getElementById('fixedRate').value = row.fixedRate;
       document.getElementById('caliberScope').value = row.caliberScope || 'channelCountry';
+      if (row.yoyRateBase) document.getElementById('yoyRateBase').value = row.yoyRateBase;
+      if (row.yoyFallback) document.getElementById('yoyFallback').value = row.yoyFallback;
+      if (row.histBase) document.getElementById('histBase').value = row.histBase;
+      if (row.histWindow) document.getElementById('histWindow').value = row.histWindow;
       (row.channels || []).forEach(function (ch) { selectedChannels.add(ch); });
     }
 
@@ -706,8 +770,10 @@
       summary = '¥' + Number(document.getElementById('fixedAmount').value).toLocaleString() + ' / 月 · ' + caliberText;
     } else if (sourceType === 'fixedRate') {
       summary = document.getElementById('fixedRate').value + '% × ' + document.getElementById('rateBase').value + ' · ' + caliberText;
-    } else if (sourceType === 'historyRate') {
-      summary = document.getElementById('histWindow').value + ' · ' + document.getElementById('histBase').value + ' · ' + caliberText;
+    } else if (sourceType === 'rollingRate') {
+      summary = document.getElementById('histWindow').value + ' 滚动 · ' + document.getElementById('histBase').value + ' · ' + caliberText;
+    } else if (sourceType === 'yoyMonthRate') {
+      summary = '同比月占比 · ' + document.getElementById('yoyRateBase').value + ' · ' + caliberText;
     }
 
     if (editingId) {
@@ -719,9 +785,13 @@
         row.status = status;
         row.summary = summary;
         row.maintainer = 'GTM-李四 · 2026-06-05';
-        row.caliberScope = ['fixedAmount', 'fixedRate', 'historyRate'].indexOf(sourceType) >= 0 ? caliberScope : null;
+        row.caliberScope = RULE_TYPES.indexOf(sourceType) >= 0 ? caliberScope : null;
         row.fixedAmount = sourceType === 'fixedAmount' ? Number(document.getElementById('fixedAmount').value) : null;
         row.fixedRate = sourceType === 'fixedRate' ? Number(document.getElementById('fixedRate').value) : null;
+        row.histWindow = sourceType === 'rollingRate' ? document.getElementById('histWindow').value : null;
+        row.histBase = sourceType === 'rollingRate' ? document.getElementById('histBase').value : null;
+        row.yoyRateBase = sourceType === 'yoyMonthRate' ? document.getElementById('yoyRateBase').value : null;
+        row.yoyFallback = sourceType === 'yoyMonthRate' ? document.getElementById('yoyFallback').value : null;
       }
     } else {
       rows.unshift({
@@ -732,9 +802,13 @@
         summary: summary,
         status: status,
         maintainer: 'GTM-李四 · 2026-06-05',
-        caliberScope: ['fixedAmount', 'fixedRate', 'historyRate'].indexOf(sourceType) >= 0 ? caliberScope : null,
+        caliberScope: RULE_TYPES.indexOf(sourceType) >= 0 ? caliberScope : null,
         fixedAmount: sourceType === 'fixedAmount' ? Number(document.getElementById('fixedAmount').value) : null,
-        fixedRate: sourceType === 'fixedRate' ? Number(document.getElementById('fixedRate').value) : null
+        fixedRate: sourceType === 'fixedRate' ? Number(document.getElementById('fixedRate').value) : null,
+        histWindow: sourceType === 'rollingRate' ? document.getElementById('histWindow').value : null,
+        histBase: sourceType === 'rollingRate' ? document.getElementById('histBase').value : null,
+        yoyRateBase: sourceType === 'yoyMonthRate' ? document.getElementById('yoyRateBase').value : null,
+        yoyFallback: sourceType === 'yoyMonthRate' ? document.getElementById('yoyFallback').value : null
       });
     }
 
