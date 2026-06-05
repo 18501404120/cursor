@@ -3,8 +3,67 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>BP 管理总览</title>
+  <title>BP 管理</title>
   <link rel="stylesheet" href="bp-mgmt-common.css">
+  <style>
+    /* 对齐现网：顶栏 Tab、三卡 KPI、工具栏单行 */
+    .page { padding: 12px 16px 16px; }
+    .top-tabs {
+      display: flex; gap: 0; margin-bottom: 12px; background: #fff;
+      border: 1px solid #e8e8e8; border-radius: 6px; overflow: hidden;
+    }
+    .top-tabs a {
+      padding: 10px 20px; font-size: 13px; color: var(--text);
+      text-decoration: none; border-right: 1px solid #f0f0f0;
+    }
+    .top-tabs a:last-child { border-right: none; }
+    .top-tabs a.active { color: var(--blue); font-weight: 600; background: #fafafa; }
+
+    .filter-panel { padding: 10px 14px 12px; }
+    .stat-row { grid-template-columns: repeat(3, 1fr); padding: 12px 14px 14px; gap: 10px; }
+    .stat-card { padding: 12px 14px; }
+    .stat-card .value { font-size: 24px; }
+
+    .channel-bar {
+      display: flex; align-items: center; justify-content: space-between; gap: 12px;
+      padding: 8px 14px; border-top: 1px solid #f0f0f0; background: #fafcff;
+      font-size: 12px; color: var(--text-sec);
+    }
+    .channel-bar strong { color: var(--text); }
+    .channel-bar .mini-progress {
+      flex: 1; max-width: 200px; height: 6px; background: #e8e8e8; border-radius: 999px; overflow: hidden;
+    }
+    .channel-bar .mini-progress i { display: block; height: 100%; background: var(--blue); width: 68%; }
+
+    .panel-head { padding: 10px 14px; }
+    .toolbar { flex-wrap: nowrap; }
+    .toolbar .btn-primary-notify {
+      background: var(--blue); border-color: var(--blue); color: #fff; font-weight: 600;
+    }
+    .toolbar .btn-primary-notify:hover { background: #4096ff; color: #fff; }
+    .toolbar-divider { width: 1px; height: 20px; background: #e8e8e8; margin: 0 4px; }
+
+    .table-scroll-wrap { max-height: calc(100vh - 300px); }
+
+    /* 月格：与现网一致的三行堆叠 */
+    .month-cell { padding: 6px 8px !important; vertical-align: top !important; }
+    .month-cell .tri { gap: 1px; }
+    .month-cell .tri span { font-size: 11px; }
+    .year-total { background: #fafafa; }
+
+    /* 渠道进度抽屉 */
+    .progress-drawer-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .progress-drawer-table th, .progress-drawer-table td {
+      border: 1px solid var(--grid); padding: 8px 10px; text-align: left;
+    }
+    .progress-drawer-table th { background: #fafafa; font-weight: 600; }
+    .progress-drawer-table .num { text-align: right; }
+
+    .notify-preview {
+      margin-top: 12px; padding: 10px 12px; background: #fafafa;
+      border: 1px solid #f0f0f0; border-radius: 6px; font-size: 12px; line-height: 1.7;
+    }
+  </style>
 </head>
 <body>
 <div class="layout">
@@ -21,23 +80,26 @@
         <a href="#">GTM 看板</a>
         <a href="#">授权</a>
         <a href="BP管理总览.html" class="active">BP 管理</a>
-        <a href="BP分发任务.html">分发任务</a>
-        <a href="渠道BP填报.html">我的填报</a>
       </nav>
     </header>
     <div class="page">
-      <p class="breadcrumb"><a href="index.html">BP 管理</a> / 总览</p>
+      <div class="top-tabs">
+        <a href="#">GTM 看板</a>
+        <a href="#">授权</a>
+        <a href="BP管理总览.html" class="active">BP 管理</a>
+      </div>
 
+      <!-- 筛选区：与现网字段一致 -->
       <div class="panel panel--filter">
         <div class="filter-panel">
           <div class="filter-grid">
             <div class="f-item">
               <label>年份</label>
-              <div class="ctl-wrap has-val"><select class="ctl"><option>2025</option><option>2024</option></select></div>
+              <select class="ctl"><option>2025</option><option>2024</option></select>
             </div>
             <div class="f-item">
               <label>区域</label>
-              <div class="ctl-wrap"><select class="ctl"><option value="">全部</option><option>北美</option><option>西欧</option></select><button type="button" class="ctl-clear" aria-label="清除">×</button></div>
+              <div class="ctl-wrap"><select class="ctl" id="fRegion"><option value="">全部</option><option>北美</option><option>西欧</option></select><button type="button" class="ctl-clear">×</button></div>
             </div>
             <div class="f-item">
               <label>国家</label>
@@ -45,7 +107,7 @@
             </div>
             <div class="f-item">
               <label>渠道/店铺</label>
-              <div class="ctl-wrap"><select class="ctl wide"><option value="">全部</option><option>Govee_US</option><option>Govee_UK</option><option>Offline-CA</option></select><button type="button" class="ctl-clear">×</button></div>
+              <div class="ctl-wrap"><select class="ctl wide" id="fStore"><option value="">全部</option><option>Govee_US</option><option>Govee_UK</option><option>Offline-CA</option><option>APP-UK</option></select><button type="button" class="ctl-clear">×</button></div>
             </div>
             <div class="f-item">
               <label>销售人员</label>
@@ -65,20 +127,16 @@
             </div>
             <div class="f-item">
               <label>model</label>
-              <div class="ctl-wrap"><select class="ctl"><option value="">请选择</option></select></div>
+              <select class="ctl"><option value="">请选择</option></select>
             </div>
             <div class="f-item">
               <label>SKU</label>
-              <select class="ctl" style="width:68px;padding:0 6px"><option>模糊</option><option>精确</option></select>
-              <input class="ctl" style="width:112px" placeholder="请输入SKU">
+              <select class="ctl" style="width:68px;padding:0 6px;min-width:68px;max-width:68px"><option>模糊</option><option>精确</option></select>
+              <input class="ctl" style="width:112px;min-width:112px;max-width:112px" placeholder="请输入SKU">
             </div>
             <div class="f-item">
               <label>GTM 标签</label>
               <div class="ctl-wrap"><select class="ctl"><option value="">全部</option><option>2025 新品</option></select><button type="button" class="ctl-clear">×</button></div>
-            </div>
-            <div class="f-item">
-              <label>数据来源</label>
-              <div class="ctl-wrap"><select class="ctl wide" id="filterSource"><option value="">全部</option><option>总部导入</option><option>渠道填报</option><option>历史预填</option></select><button type="button" class="ctl-clear">×</button></div>
             </div>
             <div class="f-item">
               <label>状态</label>
@@ -87,9 +145,8 @@
             <button type="button" class="btn btn-primary">搜索</button>
           </div>
         </div>
-      </div>
 
-      <div class="panel">
+        <!-- KPI：与现网一致的三卡 -->
         <div class="stat-row">
           <div class="stat-card">
             <div class="label">计划总销售额（USD）</div>
@@ -106,59 +163,57 @@
             <div class="value">180,782,571</div>
             <div class="yoy up">↑ 25.18% 同比</div>
           </div>
-          <div class="stat-card highlight">
-            <div class="label">渠道填报完成率</div>
-            <div class="value">68%</div>
-            <div class="yoy">12 / 18 店铺已完成</div>
-          </div>
-          <div class="stat-card highlight">
-            <div class="label">待审核任务</div>
-            <div class="value">5</div>
-            <div class="yoy"><a href="BP分发任务.html" class="btn-link">前往审核 →</a></div>
-          </div>
+        </div>
+
+        <!-- 渠道填报：轻量进度条，不打断主流程 -->
+        <div class="channel-bar">
+          <span>渠道填报进度：<strong>12 / 18</strong> 店铺已提交 · 待审核 <strong>5</strong></span>
+          <div class="mini-progress" title="68%"><i></i></div>
+          <span>68%</span>
+          <button type="button" class="btn-link" id="btnShowProgress">查看明细</button>
         </div>
       </div>
 
+      <!-- BP 明细表 -->
       <div class="panel panel--table">
         <div class="panel-head">
-          <div>
-            <div class="panel-title">BP 明细</div>
-            <div class="panel-sub">币种统一为 USD · 支持总部导入与渠道填报汇总</div>
-          </div>
-          <div class="toolbar">
-            <button type="button" class="btn">导入</button>
-            <button type="button" class="btn">导出</button>
-            <button type="button" class="btn btn-danger">批量删除</button>
-            <button type="button" class="btn">批量提交</button>
-            <button type="button" class="btn">批量变更</button>
-            <a href="BP分发任务.html" class="btn btn-primary">创建分发任务</a>
-            <a href="BP分发任务.html" class="btn">分发任务中心</a>
-            <button type="button" class="btn">生成 BP 数据</button>
+          <div class="toolbar" style="width:100%;justify-content:space-between">
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+              <button type="button" class="btn btn-primary-notify" id="btnNotify">通知渠道填报</button>
+              <span class="toolbar-divider"></span>
+              <button type="button" class="btn">导入</button>
+              <button type="button" class="btn">导出</button>
+              <button type="button" class="btn btn-danger">批量删除</button>
+              <button type="button" class="btn">批量提交</button>
+              <button type="button" class="btn">批量变更</button>
+              <button type="button" class="btn">生成 BP 数据</button>
+            </div>
             <span class="toolbar-note">币种统一为 USD</span>
           </div>
-        </div>
-        <div class="hint-bar">
-          新增「数据来源」列区分总部导入与渠道填报；点击「关联任务」可跳转分发任务详情。宽表请左右滑动查看各月数据。
         </div>
         <div class="table-scroll-wrap">
           <table class="biz-table" id="bpTable">
             <thead>
               <tr>
-                <th rowspan="2" class="is-sticky-left" style="left:0;min-width:72px">区域</th>
-                <th rowspan="2" class="is-sticky-left" style="left:72px;min-width:100px">店铺</th>
-                <th rowspan="2" style="min-width:100px">场景品类</th>
-                <th rowspan="2" style="min-width:80px">部门</th>
-                <th rowspan="2" style="min-width:100px">SKU</th>
+                <th rowspan="2" style="min-width:64px">区域</th>
+                <th rowspan="2" style="min-width:96px">店铺</th>
+                <th rowspan="2" style="min-width:88px">场景品类</th>
+                <th rowspan="2" style="min-width:72px">部门</th>
+                <th rowspan="2" style="min-width:88px">SKU</th>
                 <th rowspan="2" style="min-width:88px">GTM 标签</th>
-                <th rowspan="2" style="min-width:88px">数据来源</th>
-                <th rowspan="2" style="min-width:120px">关联任务</th>
-                <th colspan="3" style="min-width:240px">全年合计</th>
-                <th colspan="3" style="min-width:264px">1 月</th>
-                <th colspan="3" style="min-width:264px">2 月</th>
-                <th colspan="3" style="min-width:264px">3 月</th>
-                <th rowspan="2" class="is-sticky-right" style="min-width:140px">操作</th>
+                <th colspan="3" class="year-total">全年合计</th>
+                <th colspan="3">1 月</th>
+                <th colspan="3">2 月</th>
+                <th colspan="3">3 月</th>
+                <th colspan="3">4 月</th>
+                <th colspan="3">5 月</th>
+                <th colspan="3">6 月</th>
+                <th rowspan="2" class="is-sticky-right" style="min-width:120px">操作</th>
               </tr>
               <tr>
+                <th class="year-total">销量</th><th class="year-total">销售额</th><th class="year-total">毛利</th>
+                <th>销量</th><th>销售额</th><th>毛利</th>
+                <th>销量</th><th>销售额</th><th>毛利</th>
                 <th>销量</th><th>销售额</th><th>毛利</th>
                 <th>销量</th><th>销售额</th><th>毛利</th>
                 <th>销量</th><th>销售额</th><th>毛利</th>
@@ -173,47 +228,126 @@
   </div>
 </div>
 
+<!-- 一键通知渠道 -->
+<div class="modal-mask" id="notifyModal">
+  <div class="modal">
+    <div class="modal-hd">
+      <h2>通知渠道填报</h2>
+      <div class="modal-hd-actions"><button type="button" class="modal-close" data-close="notifyModal" aria-label="关闭">×</button></div>
+    </div>
+    <div class="modal-bd">
+      <p style="margin:0 0 14px;font-size:13px;color:var(--text-sec);line-height:1.6">
+        系统将向所选店铺的负责人发送填报通知。渠道可在「我的 BP 填报」中在线填写或导入 Excel，提交后自动汇总至本页。
+      </p>
+      <div class="form-grid">
+        <div class="form-field"><label><span class="req">*</span> BP 版本</label><select><option>2025 年度 BP</option></select></div>
+        <div class="form-field"><label><span class="req">*</span> 截止日期</label><input type="date" value="2025-07-15"></div>
+        <div class="form-field full">
+          <label><span class="req">*</span> 通知范围</label>
+          <select id="notifyScope">
+            <option value="filter">按当前筛选条件（4 个店铺）</option>
+            <option value="pending">仅未提交店铺（6 个）</option>
+            <option value="all">全部店铺（18 个）</option>
+          </select>
+        </div>
+        <div class="form-field full">
+          <label>通知说明</label>
+          <textarea placeholder="例：请在本月底前完成 2025 年度 BP 填报，支持在线填写或下载模板导入。">请在本月底前完成 2025 年度 BP 填报，支持在线填写或下载模板导入。</textarea>
+        </div>
+      </div>
+      <div class="notify-preview" id="notifyPreview">
+        将通知 <strong>4</strong> 个店铺负责人：Govee_US（张三）、Govee_UK（李四）、Offline-CA（钱七）、APP-UK（孙八）
+      </div>
+    </div>
+    <div class="modal-ft">
+      <button type="button" class="btn" data-close="notifyModal">取消</button>
+      <button type="button" class="btn btn-primary" id="btnConfirmNotify">确认发送</button>
+    </div>
+  </div>
+</div>
+
+<!-- 渠道填报进度抽屉 -->
+<div class="drawer-mask" id="progressDrawer">
+  <div class="drawer">
+    <div class="drawer-hd">
+      <h2>渠道填报进度</h2>
+      <div class="modal-hd-actions"><button type="button" class="modal-close" data-close="progressDrawer">×</button></div>
+    </div>
+    <div class="drawer-bd">
+      <div style="display:flex;gap:8px;margin-bottom:14px">
+        <button type="button" class="btn btn-primary" id="btnNotifyFromDrawer">通知未提交店铺</button>
+        <a href="渠道BP填报.html" class="btn" style="text-decoration:none;display:inline-flex;align-items:center">预览渠道填报页</a>
+      </div>
+      <table class="progress-drawer-table">
+        <thead>
+          <tr><th>店铺</th><th>负责人</th><th>SKU 数</th><th>进度</th><th>状态</th><th>最近更新</th></tr>
+        </thead>
+        <tbody id="progressBody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div class="modal-mask" id="toastModal" style="align-items:flex-start;padding-top:80px;">
+  <div class="modal" style="width:380px;">
+    <div class="modal-bd" id="toastMsg" style="text-align:center;padding:24px;font-size:14px;"></div>
+  </div>
+</div>
+
 <script>
 (function () {
   var rows = [
-    { region: '北美', store: 'Govee_US', cat: '灯带', dept: 'Govee', sku: 'H61A001', tag: '2025 新品', source: '渠道填报', task: 'BP-DIST-2025-0042', vol: 12000, rev: 480000, gp: 96000 },
-    { region: '西欧', store: 'Govee_UK', cat: '灯带', dept: 'Govee', sku: 'H61A002', tag: '2025 新品', source: '渠道填报', task: 'BP-DIST-2025-0043', vol: 8500, rev: 340000, gp: 68000 },
-    { region: '北美', store: 'Offline-CA', cat: '户外', dept: 'Offline', sku: 'H705001', tag: '—', source: '总部导入', task: '—', vol: 3200, rev: 192000, gp: 48000 },
-    { region: '西欧', store: 'APP-UK', cat: '智能家居', dept: 'App', sku: 'B517001', tag: '—', source: '历史预填', task: 'BP-DIST-2025-0044', vol: 5600, rev: 168000, gp: 42000 }
+    { region: '北美', store: 'Govee_US', cat: '灯带', dept: 'Govee', sku: 'H61A001', tag: '2025 新品', vol: 12000, rev: 480000, gp: 96000 },
+    { region: '西欧', store: 'Govee_UK', cat: '灯带', dept: 'Govee', sku: 'H61A002', tag: '2025 新品', vol: 8500, rev: 340000, gp: 68000 },
+    { region: '北美', store: 'Offline-CA', cat: '户外', dept: 'Offline', sku: 'H705001', tag: '—', vol: 3200, rev: 192000, gp: 48000 },
+    { region: '西欧', store: 'APP-UK', cat: '智能家居', dept: 'App', sku: 'B517001', tag: '—', vol: 5600, rev: 168000, gp: 42000 },
+    { region: '北美', store: 'Govee_US', cat: '灯带', dept: 'Govee', sku: 'H61B001', tag: '—', vol: 6200, rev: 248000, gp: 49600 },
+    { region: '西欧', store: 'Govee_DE', cat: '灯带', dept: 'Govee', sku: 'H61A003', tag: '2025 新品', vol: 7800, rev: 312000, gp: 62400 }
   ];
 
-  var sourceTag = {
-    '总部导入': 'tag-import',
-    '渠道填报': 'tag-channel',
-    '历史预填': 'tag-prefill'
+  var storeProgress = [
+    { store: 'Govee_US', owner: '张三', skus: 156, pct: 100, status: '已提交', updated: '2025-06-04' },
+    { store: 'Govee_UK', owner: '李四', skus: 128, pct: 76, status: '填报中', updated: '2025-06-03' },
+    { store: 'Govee_DE', owner: '赵六', skus: 112, pct: 100, status: '已通过', updated: '2025-06-01' },
+    { store: 'Offline-CA', owner: '钱七', skus: 116, pct: 39, status: '未提交', updated: '—' },
+    { store: 'APP-UK', owner: '孙八', skus: 88, pct: 100, status: '已提交', updated: '2025-06-04' },
+    { store: 'Govee_CA', owner: '周九', skus: 92, pct: 0, status: '未提交', updated: '—' }
+  ];
+
+  var statusTag = {
+    '未提交': 'tag-draft', '填报中': 'tag-pending', '已提交': 'tag-submitted',
+    '已通过': 'tag-approved', '已驳回': 'tag-rejected'
   };
 
-  function monthCell(base, factor) {
+  function monthCell(base, factor, yoyUp) {
     var v = Math.round(base * factor);
     var r = Math.round(v * 40);
     var g = Math.round(r * 0.22);
-    var arrow = factor > 0.9 ? '<span class="yoy-arrow up">↑</span>' : '<span class="yoy-arrow down">↓</span>';
+    var arrow = yoyUp ? '<span class="yoy-arrow up">↑</span>' : '<span class="yoy-arrow down">↓</span>';
     return '<td class="month-cell"><div class="tri">' +
       '<span><em>销量</em><b>' + v.toLocaleString() + arrow + '</b></span>' +
-      '<span><em>额</em><b>' + r.toLocaleString() + '</b></span>' +
+      '<span><em>销售额</em><b>' + r.toLocaleString() + '</b></span>' +
       '<span><em>毛利</em><b>' + g.toLocaleString() + '</b></span></div></td>';
+  }
+
+  function monthCols(row) {
+    var factors = [0.07, 0.08, 0.09, 0.08, 0.09, 0.10];
+    var html = '';
+    for (var i = 0; i < 6; i++) html += monthCell(row.vol, factors[i], i % 2 === 0);
+    return html;
   }
 
   var tbody = document.getElementById('bpBody');
   rows.forEach(function (row) {
     var tr = document.createElement('tr');
-    tr.dataset.source = row.source;
+    tr.dataset.store = row.store;
     tr.innerHTML =
-      '<td class="is-sticky-left" style="left:0">' + row.region + '</td>' +
-      '<td class="is-sticky-left" style="left:72px">' + row.store + '</td>' +
-      '<td>' + row.cat + '</td><td>' + row.dept + '</td>' +
+      '<td>' + row.region + '</td><td>' + row.store + '</td><td>' + row.cat + '</td><td>' + row.dept + '</td>' +
       '<td class="mono">' + row.sku + '</td><td>' + row.tag + '</td>' +
-      '<td><span class="tag ' + (sourceTag[row.source] || '') + '">' + row.source + '</span></td>' +
-      '<td>' + (row.task === '—' ? '—' : '<a href="BP分发任务.html" class="btn-link">' + row.task + '</a>') + '</td>' +
-      '<td class="num">' + row.vol.toLocaleString() + '</td>' +
-      '<td class="num">' + row.rev.toLocaleString() + '</td>' +
-      '<td class="num">' + row.gp.toLocaleString() + '</td>' +
-      monthCell(row.vol, 0.08) + monthCell(row.vol, 0.09) + monthCell(row.vol, 0.10) +
+      '<td class="num year-total">' + row.vol.toLocaleString() + '</td>' +
+      '<td class="num year-total">' + row.rev.toLocaleString() + '</td>' +
+      '<td class="num year-total">' + row.gp.toLocaleString() + '</td>' +
+      monthCols(row) +
       '<td class="is-sticky-right">' +
         '<button type="button" class="btn-link">删除</button>' +
         '<button type="button" class="btn-link">提交</button>' +
@@ -221,22 +355,57 @@
     tbody.appendChild(tr);
   });
 
-  document.getElementById('filterSource').addEventListener('change', function () {
-    var val = this.value;
-    tbody.querySelectorAll('tr').forEach(function (tr) {
-      tr.style.display = !val || tr.dataset.source === val ? '' : 'none';
-    });
+  var pb = document.getElementById('progressBody');
+  storeProgress.forEach(function (s) {
+    var tr = document.createElement('tr');
+    tr.innerHTML =
+      '<td>' + s.store + '</td><td>' + s.owner + '</td><td class="num">' + s.skus + '</td>' +
+      '<td><div style="display:flex;align-items:center;gap:6px"><div class="progress-bar" style="width:80px"><i style="width:' + s.pct + '%"></i></div>' + s.pct + '%</div></td>' +
+      '<td><span class="tag ' + (statusTag[s.status] || '') + '">' + s.status + '</span></td>' +
+      '<td>' + s.updated + '</td>';
+    pb.appendChild(tr);
+  });
+
+  function openModal(id) { document.getElementById(id).classList.add('open'); }
+  function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+  function showToast(msg) {
+    document.getElementById('toastMsg').textContent = msg;
+    openModal('toastModal');
+    setTimeout(function () { closeModal('toastModal'); }, 2200);
+  }
+
+  document.getElementById('btnNotify').onclick = function () { openModal('notifyModal'); };
+  document.getElementById('btnShowProgress').onclick = function () { openModal('progressDrawer'); };
+  document.getElementById('btnNotifyFromDrawer').onclick = function () {
+    closeModal('progressDrawer');
+    document.getElementById('notifyScope').value = 'pending';
+    openModal('notifyModal');
+  };
+  document.getElementById('btnConfirmNotify').onclick = function () {
+    closeModal('notifyModal');
+    showToast('已通知 4 个店铺负责人，渠道可在系统中填报或导入');
+  };
+
+  document.querySelectorAll('[data-close]').forEach(function (btn) {
+    btn.onclick = function () { closeModal(btn.dataset.close); };
+  });
+
+  document.getElementById('notifyScope').addEventListener('change', function () {
+    var map = {
+      filter: '将通知 <strong>4</strong> 个店铺负责人：Govee_US（张三）、Govee_UK（李四）、Offline-CA（钱七）、APP-UK（孙八）',
+      pending: '将通知 <strong>6</strong> 个未提交店铺负责人',
+      all: '将通知 <strong>18</strong> 个店铺负责人'
+    };
+    document.getElementById('notifyPreview').innerHTML = map[this.value] || map.filter;
   });
 
   document.querySelectorAll('.ctl-wrap').forEach(function (wrap) {
     var sel = wrap.querySelector('select');
     var btn = wrap.querySelector('.ctl-clear');
     if (!sel || !btn) return;
-    function sync() {
-      wrap.classList.toggle('has-val', !!sel.value);
-    }
+    function sync() { wrap.classList.toggle('has-val', !!sel.value); }
     sel.addEventListener('change', sync);
-    btn.addEventListener('click', function () { sel.value = ''; sync(); sel.dispatchEvent(new Event('change')); });
+    btn.addEventListener('click', function () { sel.value = ''; sync(); });
     sync();
   });
 })();
