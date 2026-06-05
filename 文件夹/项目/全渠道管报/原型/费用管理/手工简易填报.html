@@ -44,8 +44,7 @@
     }
     .f-item { display: flex; align-items: center; gap: 8px; }
     .f-item > label { color: #374151; font-size: 12px; white-space: nowrap; }
-    .f-item select,
-    .f-item input {
+    .f-item select {
       height: 32px;
       min-width: 120px;
       border: 1px solid #d1d5db;
@@ -53,6 +52,10 @@
       padding: 0 9px;
       font-size: 13px;
       background: #fff;
+    }
+    #filterMonthHost .mrp-trigger {
+      min-width: 168px;
+      max-width: 180px;
     }
     .field {
       display: flex;
@@ -170,6 +173,37 @@
     .data-table td,
     .data-table th { border-color: #e5e7eb; }
     .toolbar-line { display: flex; gap: 8px; align-items: center; }
+    .upload-box {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      min-height: 32px;
+    }
+    .upload-name {
+      font-size: 13px;
+      color: #374151;
+      max-width: 220px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .upload-name.empty { color: #9ca3af; }
+    .attach-cell .op-link { margin-right: 4px; }
+    .preview-box {
+      min-height: 320px;
+      border: 1px dashed #d1d5db;
+      border-radius: 6px;
+      background: #f9fafb;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      text-align: center;
+      color: #6b7280;
+      font-size: 13px;
+      line-height: 1.6;
+    }
     @media (max-width: 900px) {
       #entryModal .form-grid,
       .hit-box { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -210,8 +244,8 @@
               </select>
             </div>
             <div class="f-item">
-              <label for="filterMonth">会计月份</label>
-              <input id="filterMonth" type="month">
+              <label>月份范围</label>
+              <div id="filterMonthHost"></div>
             </div>
             <div class="f-item">
               <label for="filterRegion">区域</label>
@@ -263,6 +297,7 @@
                 <th>适用范围</th>
                 <th>命中 SKU</th>
                 <th class="num">金额</th>
+                <th>附件</th>
                 <th>状态</th>
                 <th>操作</th>
               </tr>
@@ -354,8 +389,13 @@
           </select>
         </div>
         <div class="field">
-          <label>附件编号</label>
-          <input id="attachmentNo" placeholder="如合同/账单编号">
+          <label>上传附件</label>
+          <div class="upload-box">
+            <input type="file" id="attachmentFile" accept=".pdf,.png,.jpg,.jpeg,.xlsx,.doc,.docx" hidden>
+            <button type="button" class="btn" id="btnPickFile">选择文件</button>
+            <span id="attachmentName" class="upload-name empty">未选择文件</span>
+            <button type="button" class="op-link" id="btnClearFile" style="display:none;">清除</button>
+          </div>
         </div>
         <div class="field full">
           <label>备注</label>
@@ -392,6 +432,25 @@
   </div>
 </div>
 
+<div class="modal-mask" id="previewModal" role="dialog" aria-modal="true" aria-labelledby="previewModalTitle">
+  <div class="modal" style="width:min(640px,96vw);">
+    <div class="modal-hd">
+      <h2 id="previewModalTitle">附件预览</h2>
+      <div class="modal-hd-actions">
+        <button type="button" class="modal-close" id="previewModalClose" aria-label="关闭">×</button>
+      </div>
+    </div>
+    <div class="modal-bd">
+      <div class="preview-box" id="previewBox"></div>
+    </div>
+    <div class="modal-ft">
+      <button type="button" class="btn" id="previewModalCancel">关闭</button>
+      <button type="button" class="btn btn-primary" id="previewDownload">下载附件</button>
+    </div>
+  </div>
+</div>
+
+<script src="../../../规范/assets/month-range-picker.js"></script>
 <script>
 (function () {
   var countryMap = {
@@ -407,13 +466,16 @@
     { sku: 'C3100U001', name: '安防摄像头', country: 'UK', channel: '独立站', scene: '安防', category: '摄像头', revenue: 510000 }
   ];
   var records = [
-    { id: 'MN-202605-012', fee: '内容制作费', month: '2026-05', scope: '北美 / US / 亚马逊 / 居家 / 香薰', sku: 'H6199A001', amount: 86000, status: '已确认', region: 'NA', country: 'US', channel: '亚马逊', scene: '居家', category: '香薰', currency: 'CNY' },
-    { id: 'MN-202605-018', fee: '其它平台杂费', month: '2026-05', scope: '欧洲 / DE / 亚马逊 / 照明 / 灯带', sku: 'H6110D001', amount: 12800, status: '已确认', region: 'EU', country: 'DE', channel: '亚马逊', scene: '照明', category: '灯带', currency: 'CNY' },
-    { id: 'MN-202605-013', fee: '展会物料费', month: '2026-05', scope: '北美 / US / 线下商超 / 居家 / 全部品类', sku: 'B6008A001', amount: 45000, status: '草稿', region: 'NA', country: 'US', channel: '线下商超', scene: '居家', category: '', currency: 'CNY' }
+    { id: 'MN-202605-012', fee: '内容制作费', month: '2026-05', scope: '北美 / US / 亚马逊 / 居家 / 香薰', sku: 'H6199A001', amount: 86000, status: '已确认', region: 'NA', country: 'US', channel: '亚马逊', scene: '居家', category: '香薰', currency: 'CNY', attachment: { name: '内容制作合同.pdf', url: '' } },
+    { id: 'MN-202605-018', fee: '其它平台杂费', month: '2026-05', scope: '欧洲 / DE / 亚马逊 / 照明 / 灯带', sku: 'H6110D001', amount: 12800, status: '已确认', region: 'EU', country: 'DE', channel: '亚马逊', scene: '照明', category: '灯带', currency: 'CNY', attachment: { name: '平台账单截图.png', url: '' } },
+    { id: 'MN-202605-013', fee: '展会物料费', month: '2026-05', scope: '北美 / US / 线下商超 / 居家 / 全部品类', sku: 'B6008A001', amount: 45000, status: '草稿', region: 'NA', country: 'US', channel: '线下商超', scene: '居家', category: '', currency: 'CNY', attachment: null }
   ];
   var seq = 21;
   var editingId = null;
   var latestHit = null;
+  var currentAttachment = null;
+  var previewTarget = null;
+  var monthRangePicker = null;
 
   function regionLabel(code) {
     return { NA: '北美', EU: '欧洲', APAC: '亚太' }[code] || code;
@@ -421,6 +483,92 @@
 
   function formatAmount(n) {
     return Number(n || 0).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+
+  function monthInRange(monthStr, start, end) {
+    if (!start && !end) return true;
+    if (start && !end) return monthStr >= start;
+    if (!start && end) return monthStr <= end;
+    return monthStr >= start && monthStr <= end;
+  }
+
+  function renderAttachmentField(att) {
+    currentAttachment = att || null;
+    var nameEl = document.getElementById('attachmentName');
+    var clearBtn = document.getElementById('btnClearFile');
+    if (currentAttachment && currentAttachment.name) {
+      nameEl.textContent = currentAttachment.name;
+      nameEl.classList.remove('empty');
+      clearBtn.style.display = '';
+    } else {
+      nameEl.textContent = '未选择文件';
+      nameEl.classList.add('empty');
+      clearBtn.style.display = 'none';
+    }
+    document.getElementById('attachmentFile').value = '';
+  }
+
+  function initMonthRangePicker() {
+    var host = document.getElementById('filterMonthHost');
+    if (typeof MonthRangePicker === 'undefined') {
+      host.textContent = '未加载 month-range-picker.js';
+      return;
+    }
+    monthRangePicker = MonthRangePicker.mount(host, {
+      start: '2026-01',
+      end: '2026-06',
+      placeholder: '请选择月份范围',
+      zIndex: 400,
+      useBodyPortal: true
+    });
+  }
+
+  function getFilterMonthRange() {
+    if (!monthRangePicker || typeof monthRangePicker.get !== 'function') {
+      return { start: '', end: '' };
+    }
+    return monthRangePicker.get();
+  }
+
+  function attachmentCell(r) {
+    if (!r.attachment || !r.attachment.name) {
+      return '<span style="color:#9ca3af;">—</span>';
+    }
+    return '<div class="attach-cell"><span style="font-size:12px;color:#374151;">' + r.attachment.name + '</span><div style="margin-top:4px;">' +
+      '<button class="op-link" data-id="' + r.id + '" data-act="preview">预览</button>' +
+      '<button class="op-link" data-id="' + r.id + '" data-act="download">下载</button></div></div>';
+  }
+
+  function openPreview(row) {
+    if (!row || !row.attachment || !row.attachment.name) return;
+    previewTarget = row;
+    document.getElementById('previewModalTitle').textContent = '附件预览 · ' + row.attachment.name;
+    var ext = row.attachment.name.split('.').pop().toLowerCase();
+    var box = document.getElementById('previewBox');
+    if (row.attachment.url && (ext === 'png' || ext === 'jpg' || ext === 'jpeg')) {
+      box.innerHTML = '<img src="' + row.attachment.url + '" alt="' + row.attachment.name + '" style="max-width:100%;max-height:420px;border-radius:4px;">';
+    } else {
+      box.innerHTML = '<div><strong style="color:#111827;display:block;margin-bottom:8px;">' + row.attachment.name + '</strong>原型环境暂不支持在线渲染该格式，请点击「下载附件」获取原文件。<br><span style="font-size:12px;color:#9ca3af;">支持 PDF / 图片 / Office 等常见格式上传。</span></div>';
+    }
+    document.getElementById('previewModal').classList.add('open');
+  }
+
+  function closePreview() {
+    document.getElementById('previewModal').classList.remove('open');
+    previewTarget = null;
+    document.getElementById('previewBox').innerHTML = '';
+  }
+
+  function downloadAttachment(row) {
+    if (!row || !row.attachment || !row.attachment.name) return;
+    if (row.attachment.url) {
+      var a = document.createElement('a');
+      a.href = row.attachment.url;
+      a.download = row.attachment.name;
+      a.click();
+      return;
+    }
+    alert('开始下载：' + row.attachment.name + '（原型示意）');
   }
 
   function renderCountries(selected) {
@@ -484,13 +632,13 @@
 
   function filteredRecords() {
     var fee = document.getElementById('filterFee').value;
-    var month = document.getElementById('filterMonth').value;
+    var range = getFilterMonthRange();
     var region = document.getElementById('filterRegion').value;
     var channel = document.getElementById('filterChannel').value;
     var status = document.getElementById('filterStatus').value;
     return records.filter(function (r) {
       if (fee && r.fee !== fee) return false;
-      if (month && r.month !== month) return false;
+      if (!monthInRange(r.month, range.start, range.end)) return false;
       if (region && r.scope.indexOf(region) < 0) return false;
       if (channel && r.scope.indexOf(channel) < 0) return false;
       if (status && r.status !== status) return false;
@@ -512,8 +660,8 @@
       } else {
         ops = '—';
       }
-      return '<tr><td class="mono">' + r.id + '</td><td>' + r.fee + '</td><td>' + r.month + '</td><td>' + r.scope + '</td><td class="mono">' + r.sku + '</td><td class="num">' + formatAmount(r.amount) + '</td><td><span class="status-dot ' + cls + '">' + r.status + '</span></td><td>' + ops + '</td></tr>';
-    }).join('') || '<tr><td colspan="8" style="text-align:center;color:#6b7280;padding:24px;">暂无数据</td></tr>';
+      return '<tr><td class="mono">' + r.id + '</td><td>' + r.fee + '</td><td>' + r.month + '</td><td>' + r.scope + '</td><td class="mono">' + r.sku + '</td><td class="num">' + formatAmount(r.amount) + '</td><td>' + attachmentCell(r) + '</td><td><span class="status-dot ' + cls + '">' + r.status + '</span></td><td>' + ops + '</td></tr>';
+    }).join('') || '<tr><td colspan="9" style="text-align:center;color:#6b7280;padding:24px;">暂无数据</td></tr>';
   }
 
   function setFeeItemByText(text) {
@@ -542,7 +690,7 @@
       document.getElementById('channel').value = row.channel || '亚马逊';
       document.getElementById('scene').value = row.scene || '居家';
       document.getElementById('category').value = row.category || '';
-      document.getElementById('attachmentNo').value = row.attachmentNo || '';
+      renderAttachmentField(row.attachment);
       document.getElementById('remark').value = row.remark || '';
       if (row.sku) {
         latestHit = skuPool.find(function (s) { return s.sku === row.sku; }) || { sku: row.sku, name: '—' };
@@ -562,7 +710,7 @@
       document.getElementById('channel').selectedIndex = 0;
       document.getElementById('scene').selectedIndex = 0;
       document.getElementById('category').value = '';
-      document.getElementById('attachmentNo').value = '';
+      renderAttachmentField(null);
       document.getElementById('remark').value = '';
     }
     document.getElementById('entryModal').classList.add('open');
@@ -596,7 +744,7 @@
       scene: d.scene,
       category: d.category,
       currency: d.currency,
-      attachmentNo: document.getElementById('attachmentNo').value,
+      attachment: currentAttachment,
       remark: document.getElementById('remark').value
     };
   }
@@ -632,7 +780,33 @@
   document.getElementById('btnDraft').addEventListener('click', function () { saveRecord('草稿'); });
   document.getElementById('btnConfirm').addEventListener('click', function () { saveRecord('已确认'); });
   document.getElementById('btnImport').addEventListener('click', function () {
-    alert('模板字段：费用项、月份、金额、币种、区域、国家、渠道、场景、品类（非必填）、备注。导入后系统逐行命中最高营收 SKU。');
+    alert('模板字段：费用项、月份、金额、币种、区域、国家、渠道、场景、品类（非必填）、备注；附件请逐行上传。导入后系统逐行命中最高营收 SKU。');
+  });
+  document.getElementById('btnPickFile').addEventListener('click', function () {
+    document.getElementById('attachmentFile').click();
+  });
+  document.getElementById('attachmentFile').addEventListener('change', function () {
+    var file = this.files && this.files[0];
+    if (!file) return;
+    currentAttachment = {
+      name: file.name,
+      url: URL.createObjectURL(file)
+    };
+    renderAttachmentField(currentAttachment);
+  });
+  document.getElementById('btnClearFile').addEventListener('click', function () {
+    if (currentAttachment && currentAttachment.url) {
+      try { URL.revokeObjectURL(currentAttachment.url); } catch (e) { /* noop */ }
+    }
+    renderAttachmentField(null);
+  });
+  document.getElementById('previewModalClose').addEventListener('click', closePreview);
+  document.getElementById('previewModalCancel').addEventListener('click', closePreview);
+  document.getElementById('previewModal').addEventListener('click', function (e) {
+    if (e.target.id === 'previewModal') closePreview();
+  });
+  document.getElementById('previewDownload').addEventListener('click', function () {
+    if (previewTarget) downloadAttachment(previewTarget);
   });
   document.getElementById('btnSearch').addEventListener('click', renderRecords);
   document.getElementById('recordBody').addEventListener('click', function (e) {
@@ -642,8 +816,11 @@
     if (e.target.dataset.act === 'edit') openModal(row.id);
     if (e.target.dataset.act === 'confirm') { row.status = '已确认'; renderRecords(); }
     if (e.target.dataset.act === 'void') { row.status = '已作废'; renderRecords(); }
+    if (e.target.dataset.act === 'preview') openPreview(row);
+    if (e.target.dataset.act === 'download') downloadAttachment(row);
   });
 
+  initMonthRangePicker();
   renderCountries();
   renderRecords();
 })();
