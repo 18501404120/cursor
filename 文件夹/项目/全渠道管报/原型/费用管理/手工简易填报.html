@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>手工费用填报</title>
+  <link rel="stylesheet" href="fee-mgmt-common.css">
+  <style>
+    :root {
+      --jd-blue: #2f6bff;
+      --jd-blue-dark: #1f55d8;
+      --jd-red: #e1251b;
+      --jd-bg: #f5f7fb;
+      --jd-border: #e5e7eb;
+      --jd-sub: #6b7280;
+    }
+    body {
+      background: var(--jd-bg);
+    }
+    .header {
+      background: #1f3a8a;
+    }
+    .page {
+      padding: 14px 16px 20px;
+    }
+    .jd-card {
+      background: #fff;
+      border: 1px solid var(--jd-border);
+      border-radius: 6px;
+      margin-bottom: 12px;
+      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+    }
+    .jd-card-hd {
+      min-height: 44px;
+      padding: 0 16px;
+      border-bottom: 1px solid #eef0f5;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: #fbfcff;
+      gap: 12px;
+    }
+    .jd-card-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: #111827;
+    }
+    .jd-card-sub {
+      margin-left: 8px;
+      color: var(--jd-sub);
+      font-size: 12px;
+      font-weight: 400;
+    }
+    .jd-card-bd {
+      padding: 16px;
+    }
+    .filter-grid.jd {
+      gap: 12px 16px;
+    }
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .field label {
+      color: #374151;
+      font-size: 12px;
+    }
+    .field .req {
+      color: var(--jd-red);
+      margin-right: 2px;
+    }
+    .field input,
+    .field select,
+    .field textarea {
+      height: 32px;
+      border: 1px solid #d1d5db;
+      border-radius: 4px;
+      padding: 0 9px;
+      font-size: 13px;
+      background: #fff;
+    }
+    .field textarea {
+      height: 70px;
+      padding: 8px 9px;
+      resize: vertical;
+    }
+    .field input:focus,
+    .field select:focus,
+    .field textarea:focus {
+      outline: none;
+      border-color: var(--jd-blue);
+      box-shadow: 0 0 0 2px rgba(47, 107, 255, 0.12);
+    }
+    .form-grid.jd {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 14px 18px;
+    }
+    .form-grid.jd .full {
+      grid-column: 1 / -1;
+    }
+    .btn-primary {
+      background: var(--jd-blue);
+      border-color: var(--jd-blue);
+    }
+    .btn-primary:hover {
+      background: var(--jd-blue-dark);
+      border-color: var(--jd-blue-dark);
+    }
+    .hint {
+      margin: 0 0 12px;
+      padding: 9px 12px;
+      border: 1px solid #bfdbfe;
+      border-radius: 4px;
+      background: #eff6ff;
+      color: #1d4ed8;
+      font-size: 12px;
+      line-height: 1.6;
+    }
+    .hit-box {
+      border: 1px solid #c7d2fe;
+      background: #eef2ff;
+      border-radius: 6px;
+      padding: 12px;
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+      margin-top: 14px;
+    }
+    .hit-item span {
+      display: block;
+      color: #64748b;
+      font-size: 12px;
+      margin-bottom: 4px;
+    }
+    .hit-item strong {
+      display: block;
+      color: #1e3a8a;
+      font-size: 14px;
+    }
+    .status-dot {
+      display: inline-flex;
+      align-items: center;
+      height: 22px;
+      padding: 0 8px;
+      border-radius: 999px;
+      font-size: 12px;
+      background: #ecfdf3;
+      color: #067647;
+      border: 1px solid #abefc6;
+    }
+    .status-dot.draft {
+      background: #f9fafb;
+      color: #475467;
+      border-color: #d0d5dd;
+    }
+    .status-dot.void {
+      background: #fef3f2;
+      color: #b42318;
+      border-color: #fecdca;
+    }
+    .op-link {
+      border: none;
+      background: transparent;
+      color: var(--jd-blue);
+      cursor: pointer;
+      padding: 0 4px;
+      font-size: 13px;
+    }
+    .data-table th {
+      background: #f9fafb;
+      color: #374151;
+      font-weight: 600;
+    }
+    .data-table td,
+    .data-table th {
+      border-color: #e5e7eb;
+    }
+    @media (max-width: 1100px) {
+      .form-grid.jd,
+      .hit-box {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+  </style>
+</head>
+<body>
+<div class="layout">
+  <aside class="sider">
+    <div class="sider-logo" aria-hidden="true"></div>
+    <a class="sider-item active" href="index.html">费用</a>
+    <a class="sider-item" href="../经营分析明细.html">管报</a>
+  </aside>
+  <main class="main">
+    <header class="header">
+      <div class="title">手工费用填报</div>
+      <nav class="nav-links">
+        <a href="index.html">目录</a>
+        <a href="计提规则配置与月度运行.html">费用来源</a>
+        <a class="active" href="手工简易填报.html">手工填报</a>
+      </nav>
+    </header>
+
+    <div class="page">
+      <div class="breadcrumb"><a href="index.html">费用管理</a> / 手工费用填报</div>
+
+      <section class="jd-card">
+        <div class="jd-card-hd">
+          <div>
+            <span class="jd-card-title">手工费用填报</span>
+            <span class="jd-card-sub">用于补录无法自动取数的费用</span>
+          </div>
+          <div class="toolbar">
+            <button class="btn" type="button" id="btnImport">模板导入</button>
+            <button class="btn btn-primary" type="button" id="btnReset">新增一笔</button>
+          </div>
+        </div>
+        <div class="jd-card-bd">
+          <p class="hint">
+            国家会随区域联动；品类非必填。提交前点击「预览命中 SKU」，系统会在区域、国家、渠道、场景、品类范围内找营收最高的 SKU，并把该笔费用挂到该 SKU。
+          </p>
+
+          <div class="form-grid jd">
+            <div class="field">
+              <label><span class="req">*</span>费用项</label>
+              <select id="feeItem">
+                <option value="F012">内容制作费</option>
+                <option value="F013">展会物料费</option>
+                <option value="F018">其它平台杂费</option>
+                <option value="F020">渠道临时推广费</option>
+              </select>
+            </div>
+            <div class="field">
+              <label><span class="req">*</span>会计月份</label>
+              <input id="month" type="month" value="2026-05">
+            </div>
+            <div class="field">
+              <label><span class="req">*</span>金额</label>
+              <input id="amount" type="number" value="86000" step="0.01">
+            </div>
+            <div class="field">
+              <label><span class="req">*</span>币种</label>
+              <select id="currency">
+                <option>CNY</option>
+                <option>USD</option>
+                <option>EUR</option>
+              </select>
+            </div>
+
+            <div class="field">
+              <label><span class="req">*</span>区域</label>
+              <select id="region">
+                <option value="NA">北美</option>
+                <option value="EU">欧洲</option>
+                <option value="APAC">亚太</option>
+              </select>
+            </div>
+            <div class="field">
+              <label><span class="req">*</span>国家</label>
+              <select id="country"></select>
+            </div>
+            <div class="field">
+              <label><span class="req">*</span>渠道</label>
+              <select id="channel">
+                <option>亚马逊</option>
+                <option>独立站</option>
+                <option>线下商超</option>
+                <option>分销</option>
+              </select>
+            </div>
+            <div class="field">
+              <label><span class="req">*</span>场景</label>
+              <select id="scene">
+                <option>居家</option>
+                <option>户外</option>
+                <option>照明</option>
+                <option>安防</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>品类（非必填）</label>
+              <select id="category">
+                <option value="">全部品类</option>
+                <option>香薰</option>
+                <option>灯带</option>
+                <option>摄像头</option>
+                <option>庭院灯</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>附件编号</label>
+              <input id="attachmentNo" placeholder="如合同/账单编号">
+            </div>
+            <div class="field full">
+              <label>备注</label>
+              <textarea id="remark" placeholder="补充费用背景、适用活动或特殊说明"></textarea>
+            </div>
+          </div>
+
+          <div class="hit-box" id="hitBox">
+            <div class="hit-item">
+              <span>命中 SKU</span>
+              <strong id="hitSku">待预览</strong>
+            </div>
+            <div class="hit-item">
+              <span>SKU 说明</span>
+              <strong id="hitName">—</strong>
+            </div>
+            <div class="hit-item">
+              <span>匹配范围</span>
+              <strong id="hitScope">—</strong>
+            </div>
+            <div class="hit-item">
+              <span>费用挂账金额</span>
+              <strong id="hitAmount">—</strong>
+            </div>
+          </div>
+
+          <div class="toolbar" style="justify-content:flex-end;margin-top:14px;">
+            <button class="btn" type="button" id="btnPreview">预览命中 SKU</button>
+            <button class="btn" type="button" id="btnDraft">保存草稿</button>
+            <button class="btn btn-primary" type="button" id="btnConfirm">确认提交</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="jd-card">
+        <div class="jd-card-hd">
+          <div>
+            <span class="jd-card-title">填报记录</span>
+            <span class="jd-card-sub">已确认记录进入费用计算，费用挂到命中的最高营收 SKU</span>
+          </div>
+          <div class="toolbar">
+            <label class="field" style="display:flex;flex-direction:row;align-items:center;gap:8px;">
+              <span>状态</span>
+              <select id="statusFilter" style="height:30px;border:1px solid #d1d5db;border-radius:4px;">
+                <option value="">全部</option>
+                <option>草稿</option>
+                <option>已确认</option>
+                <option>已作废</option>
+              </select>
+            </label>
+            <button class="btn" type="button" id="btnSearch">查询</button>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>批次号</th>
+                <th>费用项</th>
+                <th>月份</th>
+                <th>适用范围</th>
+                <th>命中 SKU</th>
+                <th class="num">金额</th>
+                <th>状态</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody id="recordBody"></tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+  </main>
+</div>
+
+<script>
+(function () {
+  var countryMap = {
+    NA: ['US', 'CA'],
+    EU: ['DE', 'UK', 'FR', 'ES', 'IT'],
+    APAC: ['JP', 'AU', 'SG']
+  };
+  var skuPool = [
+    { sku: 'H6199A001', name: '香薰机 Pro', country: 'US', channel: '亚马逊', scene: '居家', category: '香薰', revenue: 1280000 },
+    { sku: 'H7050A001', name: '户外灯带', country: 'US', channel: '独立站', scene: '户外', category: '灯带', revenue: 980000 },
+    { sku: 'B6008A001', name: '商超香薰套装', country: 'US', channel: '线下商超', scene: '居家', category: '香薰', revenue: 760000 },
+    { sku: 'H6110D001', name: '德国灯带基础款', country: 'DE', channel: '亚马逊', scene: '照明', category: '灯带', revenue: 690000 },
+    { sku: 'C3100U001', name: '安防摄像头', country: 'UK', channel: '独立站', scene: '安防', category: '摄像头', revenue: 510000 }
+  ];
+  var records = [
+    { id: 'MN-202605-012', fee: '内容制作费', month: '2026-05', scope: '北美 / US / 亚马逊 / 居家 / 香薰', sku: 'H6199A001', amount: 86000, status: '已确认' },
+    { id: 'MN-202605-018', fee: '其它平台杂费', month: '2026-05', scope: '欧洲 / DE / 亚马逊 / 照明 / 灯带', sku: 'H6110D001', amount: 12800, status: '已确认' },
+    { id: 'MN-202605-013', fee: '展会物料费', month: '2026-05', scope: '北美 / US / 线下商超 / 居家 / 全部品类', sku: 'B6008A001', amount: 45000, status: '草稿' }
+  ];
+  var seq = 21;
+  var latestHit = null;
+
+  function renderCountries() {
+    var region = document.getElementById('region').value;
+    document.getElementById('country').innerHTML = countryMap[region].map(function (c) {
+      return '<option>' + c + '</option>';
+    }).join('');
+  }
+
+  function regionLabel(code) {
+    return { NA: '北美', EU: '欧洲', APAC: '亚太' }[code] || code;
+  }
+
+  function formatAmount(n) {
+    return Number(n || 0).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+
+  function formData() {
+    return {
+      fee: document.getElementById('feeItem').selectedOptions[0].text,
+      month: document.getElementById('month').value,
+      amount: Number(document.getElementById('amount').value || 0),
+      currency: document.getElementById('currency').value,
+      region: document.getElementById('region').value,
+      country: document.getElementById('country').value,
+      channel: document.getElementById('channel').value,
+      scene: document.getElementById('scene').value,
+      category: document.getElementById('category').value
+    };
+  }
+
+  function validate(d) {
+    if (!d.amount || d.amount <= 0) {
+      alert('请填写有效金额');
+      return false;
+    }
+    if (!d.country || !d.channel || !d.scene) {
+      alert('请补齐区域、国家、渠道、场景');
+      return false;
+    }
+    return true;
+  }
+
+  function hitSku() {
+    var d = formData();
+    if (!validate(d)) return null;
+    var matched = skuPool.filter(function (s) {
+      return s.country === d.country &&
+        s.channel === d.channel &&
+        s.scene === d.scene &&
+        (!d.category || s.category === d.category);
+    }).sort(function (a, b) { return b.revenue - a.revenue; });
+    latestHit = matched[0] || null;
+    document.getElementById('hitSku').textContent = latestHit ? latestHit.sku : '未命中';
+    document.getElementById('hitName').textContent = latestHit ? latestHit.name : '当前范围内没有可用 SKU';
+    document.getElementById('hitScope').textContent = regionLabel(d.region) + ' / ' + d.country + ' / ' + d.channel + ' / ' + d.scene + ' / ' + (d.category || '全部品类');
+    document.getElementById('hitAmount').textContent = d.currency + ' ' + formatAmount(d.amount);
+    return latestHit;
+  }
+
+  function renderRecords() {
+    var status = document.getElementById('statusFilter').value;
+    var list = records.filter(function (r) { return !status || r.status === status; });
+    document.getElementById('recordBody').innerHTML = list.map(function (r) {
+      var cls = r.status === '草稿' ? 'draft' : r.status === '已作废' ? 'void' : '';
+      var ops = r.status === '草稿'
+        ? '<button class="op-link" data-id="' + r.id + '" data-act="confirm">确认</button><button class="op-link" data-id="' + r.id + '" data-act="void">作废</button>'
+        : r.status === '已确认'
+          ? '<button class="op-link" data-id="' + r.id + '" data-act="void">作废</button>'
+          : '—';
+      return '<tr><td class="mono">' + r.id + '</td><td>' + r.fee + '</td><td>' + r.month + '</td><td>' + r.scope + '</td><td class="mono">' + r.sku + '</td><td class="num">' + formatAmount(r.amount) + '</td><td><span class="status-dot ' + cls + '">' + r.status + '</span></td><td>' + ops + '</td></tr>';
+    }).join('') || '<tr><td colspan="8" style="text-align:center;color:#6b7280;padding:24px;">暂无数据</td></tr>';
+  }
+
+  function saveRecord(status) {
+    var d = formData();
+    if (!validate(d)) return;
+    var hit = latestHit || hitSku();
+    if (!hit) {
+      alert('当前范围未命中 SKU，请调整国家、渠道、场景或品类后再提交。');
+      return;
+    }
+    records.unshift({
+      id: 'MN-' + d.month.replace('-', '') + '-' + String(seq++).padStart(3, '0'),
+      fee: d.fee,
+      month: d.month,
+      scope: regionLabel(d.region) + ' / ' + d.country + ' / ' + d.channel + ' / ' + d.scene + ' / ' + (d.category || '全部品类'),
+      sku: hit.sku,
+      amount: d.amount,
+      status: status
+    });
+    renderRecords();
+    alert(status === '草稿' ? '已保存草稿' : '已确认提交，费用将挂到命中 SKU：' + hit.sku);
+  }
+
+  document.getElementById('region').addEventListener('change', function () {
+    renderCountries();
+    latestHit = null;
+  });
+  ['country', 'channel', 'scene', 'category'].forEach(function (id) {
+    document.getElementById(id).addEventListener('change', function () { latestHit = null; });
+  });
+  document.getElementById('btnPreview').addEventListener('click', hitSku);
+  document.getElementById('btnDraft').addEventListener('click', function () { saveRecord('草稿'); });
+  document.getElementById('btnConfirm').addEventListener('click', function () { saveRecord('已确认'); });
+  document.getElementById('btnReset').addEventListener('click', function () {
+    document.getElementById('amount').value = '';
+    document.getElementById('remark').value = '';
+    latestHit = null;
+    document.getElementById('hitSku').textContent = '待预览';
+    document.getElementById('hitName').textContent = '—';
+    document.getElementById('hitScope').textContent = '—';
+    document.getElementById('hitAmount').textContent = '—';
+  });
+  document.getElementById('btnImport').addEventListener('click', function () {
+    alert('模板字段：费用项、月份、金额、币种、区域、国家、渠道、场景、品类（非必填）、备注。导入后系统逐行命中最高营收 SKU。');
+  });
+  document.getElementById('btnSearch').addEventListener('click', renderRecords);
+  document.getElementById('recordBody').addEventListener('click', function (e) {
+    if (!e.target.dataset.id) return;
+    var row = records.find(function (r) { return r.id === e.target.dataset.id; });
+    if (!row) return;
+    if (e.target.dataset.act === 'confirm') row.status = '已确认';
+    if (e.target.dataset.act === 'void') row.status = '已作废';
+    renderRecords();
+  });
+
+  renderCountries();
+  renderRecords();
+})();
+</script>
+</body>
+</html>
