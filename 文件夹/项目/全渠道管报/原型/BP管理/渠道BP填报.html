@@ -135,10 +135,10 @@
 <script>
 (function () {
   var myTasks = [
-    { id: 'BP-DIST-2025-0042', store: 'Govee_US', skus: 156, filled: 156, deadline: '2025-07-15', status: '提报中' },
-    { id: 'BP-DIST-2025-0048', store: 'Govee_MX', skus: 64, filled: 0, deadline: '2025-07-20', status: '待提报' }
+    { id: 'BP-DIST-2025-0042', store: 'Govee_US', skus: 156, filled: 120, deadline: '2025-07-15', status: '草稿' },
+    { id: 'BP-DIST-2025-0048', store: 'Govee_MX', skus: 64, filled: 0, deadline: '2025-07-20', status: '待填写' }
   ];
-  var statusTag = { '待提报': 'tag-draft', '提报中': 'tag-pending', '已提报': 'tag-submitted' };
+  var statusTag = { '待填写': 'tag-pending-fill', '草稿': 'tag-draft', '定版': 'tag-finalized' };
 
   var cardsEl = document.getElementById('taskCards');
   myTasks.forEach(function (t) {
@@ -151,7 +151,7 @@
       '<span class="tag ' + (statusTag[t.status] || '') + '">' + t.status + '</span></div>' +
       '<div style="margin-top:10px"><div class="progress-bar"><i style="width:' + pct + '%"></i></div></div>' +
       '<div class="actions"><button type="button" class="btn btn-primary btn-open" data-id="' + t.id + '">' +
-      (t.status === '待提报' ? '开始提报' : '继续提报') + '</button></div>';
+      (t.status === '待填写' ? '开始填写' : (t.status === '定版' ? '查看' : '继续填写')) + '</button></div>';
     cardsEl.appendChild(card);
   });
 
@@ -212,13 +212,13 @@
     var empty = sampleSkus.some(function (s) { return s.vol === ''; });
     document.getElementById('submitCheckMsg').innerHTML = empty
       ? '校验未通过：<strong>H61B001</strong> 全年销量未填写，请补全后提交。'
-      : '校验通过：共 3 个 SKU，12 个月指标已完整。确认后将直接汇总至 BP 管理列表。';
+      : '校验通过：共 3 个 SKU 指标已完整。确认提交后状态将变为「定版」并汇总至 BP 管理。';
     document.getElementById('btnConfirmSubmit').disabled = empty;
     document.getElementById('submitModal').classList.add('open');
   };
   document.getElementById('btnConfirmSubmit').onclick = function () {
     document.getElementById('submitModal').classList.remove('open');
-    alert('已提交提报，数据已汇总至 BP 管理');
+    alert('已提交提报，状态更新为定版');
     document.getElementById('btnBack').click();
   };
 
@@ -230,7 +230,7 @@
     trigger: '#btnImport',
     title: '导入 BP 提报数据',
     templateFileName: 'BP提报导入模版.csv',
-    introHtml: '<p>请下载 <strong>BP 提报导入模版</strong>，仅填写当前任务范围内的 SKU。模版列与在线表格一致：全年合计带列名说明，1–12 月列为销量/销售额/毛利三组数字（自上而下对应）。</p><p>导入成功后更新当前任务草稿；<strong>提交提报</strong>后写入 BP 管理列表，无审核环节。</p>',
+    introHtml: '<p>请下载 <strong>BP 提报导入模版</strong> 填写。导入成功后当前 SKU 状态为「草稿」，须再点击「提交提报」变为「定版」。</p>',
     columns: [
       { group: '主键', name: 'SKU', required: true, desc: '须属于当前提报任务' },
       { group: '全年', name: '全年销量/销售额/毛利', required: true, desc: 'USD' },
@@ -239,7 +239,7 @@
     requirements: [
       '仅可导入本任务已分配的 SKU，其他 SKU 行将报错。',
       '每月三项可为 0，不可留空。',
-      '导入后为草稿，须点击「提交提报」才汇总至 BP 管理。'
+      '导入后为「草稿」，须点击「提交提报」变为「定版」。'
     ],
     downloadCsvRows: [
       ['SKU', '全年销量', '全年销售额', '全年毛利', '1月销量', '1月销售额', '1月毛利'],

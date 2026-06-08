@@ -120,7 +120,7 @@
             <div class="f-item"><label>model</label><select class="ctl"><option value="">请选择</option></select></div>
             <div class="f-item"><label>SKU</label><input class="ctl" style="width:100px;min-width:100px" placeholder="请输入"></div>
             <div class="f-item"><label>GTM 标签</label><div class="ctl-wrap"><select class="ctl"><option value="">全部</option><option>2025 新品</option></select><button type="button" class="ctl-clear">×</button></div></div>
-            <div class="f-item"><label>状态</label><div class="ctl-wrap"><select class="ctl"><option value="">全部</option><option>草稿</option><option>已提交</option></select><button type="button" class="ctl-clear">×</button></div></div>
+            <div class="f-item"><label>状态</label><div class="ctl-wrap"><select class="ctl" id="fStatus"><option value="">全部</option><option value="pending">待填写</option><option value="draft">草稿</option><option value="finalized">定版</option></select><button type="button" class="ctl-clear">×</button></div></div>
             <button type="button" class="btn btn-primary">搜索</button>
           </div>
         </div>
@@ -133,7 +133,7 @@
             <div class="stat-card"><div class="label">计划总毛利（USD）</div><div class="value">180,782,571</div><div class="yoy up">↑ 25.18% 同比</div></div>
           </div>
           <div class="fill-bar">
-            <span>填报进度：<strong>186 / 268</strong> SKU 已提交</span>
+            <span>填报进度：<strong>186 / 268</strong> SKU 已定版</span>
             <div class="bar"><i></i></div><span>69%</span>
             <button type="button" class="btn-link" id="btnShowProgress">按 Sales 查看</button>
           </div>
@@ -148,9 +148,9 @@
             <button type="button" class="btn btn-danger">批量删除</button>
             <button type="button" class="btn">批量提交</button>
             <button type="button" class="btn">批量变更</button>
-            <button type="button" class="btn">生成 BP 数据</button>
+            <button type="button" class="btn" id="btnGenBp">生成 BP 数据</button>
           </div>
-          <span class="action-note">币种统一为 USD</span>
+          <span class="action-note">币种统一为 USD · 状态：生成→待填写 → 填写→草稿 → 提交→定版 · 定版可变更回草稿</span>
         </div>
 
         <!-- 表格：图二结构 -->
@@ -201,7 +201,7 @@
     </div>
     <div class="modal-bd">
       <p style="margin:0 0 12px;font-size:13px;color:#666;line-height:1.6">
-        按每条 SKU 的 <strong>Sales 负责人</strong> 发送填报通知。负责人可在系统中在线填写或导入 Excel，提交后汇总至本列表。
+        按每条 SKU 的 <strong>Sales 负责人</strong> 发送填报通知。负责人填写后状态为「草稿」，提交后为「定版」。
       </p>
       <div class="form-grid">
         <div class="form-field"><label><span class="req">*</span> BP 版本</label><select><option>2025 年度 BP</option></select></div>
@@ -211,8 +211,7 @@
           <select id="notifyScope">
             <option value="selected">已勾选 SKU（0 条，请先勾选列表）</option>
             <option value="filter" selected>按当前筛选结果（6 条 SKU）</option>
-            <option value="pending">仅未提交 SKU（3 条）</option>
-            <option value="sales">按 Sales 筛选（当前：全部）</option>
+            <option value="pending">仅待填写 SKU（2 条）</option>
           </select>
         </div>
         <div class="form-field full">
@@ -244,11 +243,11 @@
     </div>
     <div class="drawer-bd">
       <div style="display:flex;gap:8px;margin-bottom:12px">
-        <button type="button" class="btn btn-primary" id="btnNotifyPending">通知未提交 SKU</button>
+        <button type="button" class="btn btn-primary" id="btnNotifyPending">通知待填写 SKU</button>
         <a href="渠道BP填报.html" class="btn" style="text-decoration:none;display:inline-flex;align-items:center">预览渠道填报页</a>
       </div>
       <table class="progress-drawer-table">
-        <thead><tr><th>Sales</th><th>负责 SKU</th><th>已提交</th><th>进度</th><th>状态</th></tr></thead>
+        <thead><tr><th>Sales</th><th>负责 SKU</th><th>已定版</th><th>进度</th><th>状态</th></tr></thead>
         <tbody id="progressBody"></tbody>
       </table>
     </div>
@@ -269,13 +268,19 @@
 <script>
 (function () {
   var ALL_SALES = ['张三', '李四', '王五', '赵六', '钱七', '孙八'];
+  var STATUS = {
+    pending: { label: '待填写', cls: 'status-pending' },
+    draft: { label: '草稿', cls: 'status-draft' },
+    finalized: { label: '定版', cls: 'status-finalized' }
+  };
+
   var rows = [
-    { region: '北美', store: 'Offline-CA', cat: '灯带', dept: '灯带', sku: 'H612F001', sales: ['张三'], tag: '2025 新品', rev: 480000, vol: 12000, gp: 96000, status: 'draft', submitted: false },
-    { region: '西欧', store: 'Goveelife_UK', cat: '灯带', dept: '灯带', sku: 'H6074002', sales: ['李四', '王五'], tag: '2025 新品', rev: 340000, vol: 8500, gp: 68000, status: 'draft', submitted: false },
-    { region: '北美', store: 'Govee_US', cat: '户外', dept: '户外', sku: 'H705001', sales: ['王五'], tag: '—', rev: 192000, vol: 3200, gp: 48000, status: 'done', submitted: true },
-    { region: '西欧', store: 'APP商城-UK', cat: '智能家居', dept: 'App', sku: 'B517001', sales: ['赵六'], tag: '—', rev: 168000, vol: 5600, gp: 42000, status: 'done', submitted: true },
-    { region: '北美', store: 'Govee_US', cat: '灯带', dept: '灯带', sku: 'H61B001', sales: ['张三'], tag: '—', rev: 248000, vol: 6200, gp: 49600, status: 'draft', submitted: false },
-    { region: '西欧', store: 'Govee_DE', cat: '灯带', dept: '灯带', sku: 'H61A003', sales: ['赵六', '钱七'], tag: '2025 新品', rev: 312000, vol: 7800, gp: 62400, status: 'done', submitted: true }
+    { region: '北美', store: 'Offline-CA', cat: '灯带', dept: '灯带', sku: 'H612F001', sales: ['张三'], tag: '2025 新品', rev: 480000, vol: 12000, gp: 96000, status: 'pending' },
+    { region: '西欧', store: 'Goveelife_UK', cat: '灯带', dept: '灯带', sku: 'H6074002', sales: ['李四', '王五'], tag: '2025 新品', rev: 340000, vol: 8500, gp: 68000, status: 'draft' },
+    { region: '北美', store: 'Govee_US', cat: '户外', dept: '户外', sku: 'H705001', sales: ['王五'], tag: '—', rev: 192000, vol: 3200, gp: 48000, status: 'finalized' },
+    { region: '西欧', store: 'APP商城-UK', cat: '智能家居', dept: 'App', sku: 'B517001', sales: ['赵六'], tag: '—', rev: 168000, vol: 5600, gp: 42000, status: 'finalized' },
+    { region: '北美', store: 'Govee_US', cat: '灯带', dept: '灯带', sku: 'H61B001', sales: ['张三'], tag: '—', rev: 248000, vol: 6200, gp: 49600, status: 'draft' },
+    { region: '西欧', store: 'Govee_DE', cat: '灯带', dept: '灯带', sku: 'H61A003', sales: ['赵六', '钱七'], tag: '2025 新品', rev: 312000, vol: 7800, gp: 62400, status: 'pending' }
   ];
 
   var salesProgress = [
@@ -315,6 +320,63 @@
 
   function salesText(arr) {
     return arr && arr.length ? arr.join('、') : '';
+  }
+
+  function renderStatus(status) {
+    var s = STATUS[status] || STATUS.pending;
+    return '<span class="' + s.cls + '">' + s.label + '</span>';
+  }
+
+  function renderOps(row) {
+    var sku = row.sku;
+    var sales = salesText(row.sales);
+    var html = '<button type="button" class="btn-link btn-notify-one" data-sales="' + sales + '" data-sku="' + sku + '">通知</button>';
+    if (row.status === 'finalized') {
+      html += '<button type="button" class="btn-link btn-change-row">变更</button>';
+    } else {
+      html += '<button type="button" class="btn-link btn-del-row">删除</button>';
+      if (row.status === 'draft') {
+        html += '<button type="button" class="btn-link btn-submit-row">提交</button>';
+      }
+    }
+    html += '<button type="button" class="btn-link">日志</button>';
+    return html;
+  }
+
+  function setRowStatus(tr, status) {
+    tr.dataset.status = status;
+    tr.querySelector('.col-status').innerHTML = renderStatus(status);
+    var sku = tr.querySelector('.col-sku').textContent;
+    var row = rows.find(function (r) { return r.sku === sku; });
+    if (row) row.status = status;
+    tr.querySelector('.col-op').innerHTML = renderOps(row || { sku: sku, sales: tr.dataset.sales.split(',').filter(Boolean), status: status });
+    bindRowOps(tr);
+  }
+
+  function bindRowOps(tr) {
+    var btnChange = tr.querySelector('.btn-change-row');
+    if (btnChange) {
+      btnChange.onclick = function () {
+        if (confirm('确认变更？变更后状态将回到「草稿」，可重新编辑并提交。')) {
+          setRowStatus(tr, 'draft');
+          showToast('已变更为草稿，可重新编辑');
+        }
+      };
+    }
+    var btnSubmit = tr.querySelector('.btn-submit-row');
+    if (btnSubmit) {
+      btnSubmit.onclick = function () {
+        setRowStatus(tr, 'finalized');
+        showToast('已提交，状态更新为定版');
+      };
+    }
+    tr.querySelectorAll('.btn-notify-one').forEach(function (btn) {
+      btn.onclick = function () {
+        document.getElementById('notifyPreview').innerHTML =
+          '将通知 Sales <strong>' + btn.dataset.sales + '</strong>，SKU：<strong>' + btn.dataset.sku + '</strong>';
+        openModal('notifyModal');
+      };
+    });
   }
 
   function renderSalesCell(salesArr) {
@@ -369,7 +431,7 @@
   rows.forEach(function (row) {
     var tr = document.createElement('tr');
     tr.dataset.sales = row.sales.join(',');
-    tr.dataset.submitted = row.submitted ? '1' : '0';
+    tr.dataset.status = row.status;
     var months = '';
     for (var i = 1; i <= 12; i++) months += '<td class="col-month">' + monthCell(row, factors[i]) + '</td>';
     tr.innerHTML =
@@ -384,13 +446,10 @@
       '<td class="col-year">' + metricStack(row.rev, row.vol, row.gp) + '</td>' +
       months +
       '<td class="col-fix col-remark"><span class="remark-icon" title="编辑备注">✎</span></td>' +
-      '<td class="col-fix col-status"><span class="' + (row.status === 'draft' ? 'status-draft">草稿' : 'status-done">已提报') + '</span></td>' +
-      '<td class="col-op">' +
-        '<button type="button" class="btn-link btn-notify-one" data-sales="' + salesText(row.sales) + '" data-sku="' + row.sku + '">通知</button>' +
-        '<button type="button" class="btn-link">删除</button>' +
-        '<button type="button" class="btn-link">提交</button>' +
-        '<button type="button" class="btn-link">日志</button></td>';
+      '<td class="col-fix col-status">' + renderStatus(row.status) + '</td>' +
+      '<td class="col-op">' + renderOps(row) + '</td>';
     tbody.appendChild(tr);
+    bindRowOps(tr);
     tr.querySelector('.sales-cell').addEventListener('click', function (e) {
       e.stopPropagation();
       openSalesPop(this, row.sales.slice());
@@ -422,7 +481,6 @@
 
   function updateNotifyPreview() {
     var scope = document.getElementById('notifyScope').value;
-    var salesFilter = document.getElementById('fSales').value;
     var checked = getCheckedCount();
     var opt = document.querySelector('#notifyScope option[value="selected"]');
     opt.textContent = '已勾选 SKU（' + checked + ' 条' + (checked ? '' : '，请先勾选列表') + '）';
@@ -430,11 +488,14 @@
     var previews = {
       selected: checked ? '将通知已勾选的 <strong>' + checked + '</strong> 条 SKU 对应 Sales 负责人' : '请先在列表中勾选需要通知的 SKU',
       filter: '将通知 <strong>4</strong> 位 Sales 负责人，共 <strong>6</strong> 条 SKU：<br>· 张三（2 SKU）· 李四（1 SKU）· 王五（1 SKU）· 赵六（2 SKU）',
-      pending: '将通知 <strong>3</strong> 位 Sales 负责人，共 <strong>3</strong> 条未提交 SKU：<br>· 张三（2 SKU）· 李四（1 SKU）',
-      sales: salesFilter ? '将通知 Sales <strong>' + salesFilter + '</strong> 负责的全部 SKU' : '请先在筛选区选择 Sales，或选择其他通知范围'
+      pending: '将通知 <strong>2</strong> 位 Sales 负责人，共 <strong>2</strong> 条待填写 SKU：<br>· 张三（H612F001、H61B001 待填写）· 赵六/钱七（H61A003 待填写）'
     };
     document.getElementById('notifyPreview').innerHTML = previews[scope] || previews.filter;
   }
+
+  document.getElementById('btnGenBp').onclick = function () {
+    showToast('已生成 BP 数据，SKU 状态为「待填写」');
+  };
 
   document.getElementById('btnNotify').onclick = function () { updateNotifyPreview(); openModal('notifyModal'); };
   document.getElementById('btnShowProgress').onclick = function () { openModal('progressDrawer'); };
@@ -449,14 +510,6 @@
     showToast('已按 SKU 负责人发送通知，Sales 可在系统中填报或导入');
   };
 
-  document.querySelectorAll('.btn-notify-one').forEach(function (btn) {
-    btn.onclick = function () {
-      document.getElementById('notifyPreview').innerHTML =
-        '将通知 Sales <strong>' + btn.dataset.sales + '</strong>，SKU：<strong>' + btn.dataset.sku + '</strong>';
-      openModal('notifyModal');
-    };
-  });
-
   document.getElementById('notifyScope').addEventListener('change', updateNotifyPreview);
   document.getElementById('checkAll').addEventListener('change', function () {
     document.querySelectorAll('.row-check').forEach(function (cb) { cb.checked = this.checked; }.bind(this));
@@ -464,6 +517,13 @@
   });
   document.getElementById('bpBody').addEventListener('change', function (e) {
     if (e.target.classList.contains('row-check')) updateNotifyPreview();
+  });
+
+  document.getElementById('fStatus').addEventListener('change', function () {
+    var val = this.value;
+    document.querySelectorAll('#bpBody tr').forEach(function (tr) {
+      tr.style.display = !val || tr.dataset.status === val ? '' : 'none';
+    });
   });
 
   document.getElementById('fSales').addEventListener('change', function () {
@@ -478,7 +538,7 @@
     trigger: '#btnImport',
     title: '导入 BP 数据',
     templateFileName: 'BP填报导入模版.csv',
-    introHtml: '<p>请使用标准 <strong>BP 填报导入模版</strong> 填写后上传。模版含：<strong>主键信息</strong>（年份、区域、渠道、SKU）、<strong>Sales</strong>（可多选，英文逗号分隔）、<strong>全年与 1–12 月</strong> 销量/销售额/毛利。</p><p>导入后更新列表对应 SKU 行；已提报行是否覆盖由导入模式决定。校验失败时将返回错误明细文件。</p>',
+    introHtml: '<p>请使用标准 <strong>BP 填报导入模版</strong> 填写后上传。导入成功后 SKU 状态更新为「草稿」；须再点击「提交」方变为「定版」。定版行导入是否覆盖由导入模式决定。</p>',
     columns: [
       { group: '主键', name: '年份', required: true, desc: '如 2025' },
       { group: '主键', name: '区域', required: true, desc: '与系统主数据一致' },
