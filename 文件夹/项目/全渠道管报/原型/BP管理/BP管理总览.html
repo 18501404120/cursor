@@ -145,7 +145,7 @@
             <button type="button" class="btn btn-primary" id="btnNotify">通知填报</button>
             <button type="button" class="btn btn-primary" id="btnImport">导入</button>
             <button type="button" class="btn">导出</button>
-            <button type="button" class="btn btn-danger">批量删除</button>
+            <button type="button" class="btn btn-danger" id="btnBatchDel">批量删除</button>
             <button type="button" class="btn">批量提交</button>
             <button type="button" class="btn">批量变更</button>
             <button type="button" class="btn" id="btnGenBp">生成 BP 数据</button>
@@ -283,6 +283,57 @@
     { region: '西欧', store: 'Govee_DE', cat: '灯带', dept: '灯带', sku: 'H61A003', sales: ['赵六', '钱七'], tag: '2025 新品', rev: '', vol: '', gp: '', status: 'pending' }
   ];
 
+  var SYNC_KEY = 'bp_mgmt_channel_sync';
+
+  function inferRegion(store) {
+    if (/US|CA|MX|Offline-CA|Offline-US|APP商城-US|TTS-US/.test(store)) return '北美';
+    if (/UK|DE|FR|NL|EU|IE|IT|ES|BE|PL|SE|AE|SA|SG|TR|JP|AU/.test(store)) return '西欧';
+    return '其他';
+  }
+
+  function mergeChannelSync() {
+    try {
+      var raw = localStorage.getItem(SYNC_KEY);
+      if (!raw) return;
+      var payload = JSON.parse(raw);
+      (payload.submissions || []).forEach(function (sub) {
+        (sub.rows || []).forEach(function (cr) {
+          var st = sub.status === 'finalized' ? 'finalized' : 'draft';
+          var existing = rows.find(function (r) { return r.store === cr.store && r.sku === cr.sku; });
+          if (existing) {
+            existing.sales = (cr.sales || []).slice();
+            existing.cat = cr.cat || existing.cat;
+            existing.tag = cr.tag || existing.tag;
+            if (cr.vol !== '' && cr.vol != null) { existing.vol = Number(cr.vol) || cr.vol; existing.rev = Number(cr.rev) || cr.rev; existing.gp = Number(cr.gp) || cr.gp; }
+            existing.status = st;
+          } else {
+            rows.push({
+              region: inferRegion(cr.store),
+              store: cr.store,
+              cat: cr.cat || '—',
+              dept: cr.cat || '—',
+              sku: cr.sku,
+              sales: (cr.sales || ['张三']).slice(),
+              tag: cr.tag || '—',
+              rev: cr.rev === '' ? '' : (Number(cr.rev) || 0),
+              vol: cr.vol === '' ? '' : (Number(cr.vol) || 0),
+              gp: cr.gp === '' ? '' : (Number(cr.gp) || 0),
+              status: st
+            });
+          }
+        });
+      });
+    } catch (e) { /* ignore */ }
+  }
+
+  mergeChannelSync();
+
+  function findRowByTr(tr) {
+    var sku = tr.querySelector('.col-sku').textContent;
+    var store = tr.querySelector('.col-store').textContent;
+    return rows.find(function (r) { return r.sku === sku && r.store === store; });
+  }
+
   var salesProgress = [
     { sales: '张三', total: 48, done: 32, status: '填报中' },
     { sales: '李四', total: 36, done: 20, status: '填报中' },
@@ -361,10 +412,9 @@
   function setRowStatus(tr, status) {
     tr.dataset.status = status;
     tr.querySelector('.col-status').innerHTML = renderStatus(status);
-    var sku = tr.querySelector('.col-sku').textContent;
-    var row = rows.find(function (r) { return r.sku === sku; });
+    var row = findRowByTr(tr);
     if (row) row.status = status;
-    tr.querySelector('.col-op').innerHTML = renderOps(row || { sku: sku, sales: tr.dataset.sales.split(',').filter(Boolean), status: status });
+    tr.querySelector('.col-op').innerHTML = renderOps(row || { sku: tr.querySelector('.col-sku').textContent, sales: tr.dataset.sales.split(',').filter(Boolean), status: status });
     bindRowOps(tr);
   }
 
@@ -383,6 +433,19 @@
       btnSubmit.onclick = function () {
         setRowStatus(tr, 'finalized');
         showToast('已提交，状态更新为定版');
+      };
+    }
+    var btnDel = tr.querySelector('.btn-del-row');
+    if (btnDel) {
+      btnDel.onclick = function () {
+        var row = findRowByTr(tr);
+        if (confirm('确认删除 ' + (row ? row.store + ' / ' + row.sku : '该行') + '？')) {
+          var idx = rows.indexOf(row);
+          if (idx >= 0) rows.splice(idx, 1);
+          tr.remove();
+          updateNotifyPreview();
+          showToast('已删除');
+        }
       };
     }
     tr.querySelectorAll('.btn-notify-one').forEach(function (btn) {
@@ -430,6 +493,8 @@
     salesPopOptions.querySelectorAll('input:checked').forEach(function (cb) { picked.push(cb.value); });
     var tr = activeSalesCell.closest('tr');
     tr.dataset.sales = picked.join(',');
+    var row = findRowByTr(tr);
+    if (row) row.sales = picked.slice();
     activeSalesCell.innerHTML = picked.length
       ? '<span class="sales-text">' + picked.join('、') + '</span>'
       : '<span class="sales-placeholder">请选择</span>';
@@ -443,33 +508,42 @@
   var factors = [1, 0.08, 0.09, 0.085, 0.09, 0.088, 0.092, 0.087, 0.091, 0.089, 0.093, 0.086, 0.09];
 
   var tbody = document.getElementById('bpBody');
-  rows.forEach(function (row) {
-    var tr = document.createElement('tr');
-    tr.dataset.sales = row.sales.join(',');
-    tr.dataset.status = row.status;
-    var months = '';
-    for (var i = 1; i <= 12; i++) months += '<td class="col-month">' + monthCell(row, factors[i]) + '</td>';
-    tr.innerHTML =
-      '<td class="col-check"><input type="checkbox" class="row-check"></td>' +
-      '<td class="col-fix col-region">' + row.region + '</td>' +
-      '<td class="col-fix col-store">' + row.store + '</td>' +
-      '<td class="col-fix col-cat">' + row.cat + '</td>' +
-      '<td class="col-fix col-dept">' + row.dept + '</td>' +
-      '<td class="col-fix col-sku mono">' + row.sku + '</td>' +
-      '<td class="col-fix col-sales">' + renderSalesCell(row.sales) + '</td>' +
-      '<td class="col-fix col-tag">' + row.tag + '</td>' +
-      '<td class="col-year">' + metricStack(row.rev, row.vol, row.gp) + '</td>' +
-      months +
-      '<td class="col-fix col-remark"><span class="remark-icon" title="编辑备注">✎</span></td>' +
-      '<td class="col-fix col-status">' + renderStatus(row.status) + '</td>' +
-      '<td class="col-op">' + renderOps(row) + '</td>';
-    tbody.appendChild(tr);
-    bindRowOps(tr);
-    tr.querySelector('.sales-cell').addEventListener('click', function (e) {
-      e.stopPropagation();
-      openSalesPop(this, row.sales.slice());
+
+  function renderBpTable() {
+    tbody.innerHTML = '';
+    rows.forEach(function (row) {
+      var tr = document.createElement('tr');
+      tr.dataset.sales = row.sales.join(',');
+      tr.dataset.status = row.status;
+      tr.dataset.store = row.store;
+      tr.dataset.sku = row.sku;
+      var months = '';
+      for (var i = 1; i <= 12; i++) months += '<td class="col-month">' + monthCell(row, factors[i]) + '</td>';
+      tr.innerHTML =
+        '<td class="col-check"><input type="checkbox" class="row-check"></td>' +
+        '<td class="col-fix col-region">' + row.region + '</td>' +
+        '<td class="col-fix col-store">' + row.store + '</td>' +
+        '<td class="col-fix col-cat">' + row.cat + '</td>' +
+        '<td class="col-fix col-dept">' + row.dept + '</td>' +
+        '<td class="col-fix col-sku mono">' + row.sku + '</td>' +
+        '<td class="col-fix col-sales">' + renderSalesCell(row.sales) + '</td>' +
+        '<td class="col-fix col-tag">' + row.tag + '</td>' +
+        '<td class="col-year">' + metricStack(row.rev, row.vol, row.gp) + '</td>' +
+        months +
+        '<td class="col-fix col-remark"><span class="remark-icon" title="编辑备注">✎</span></td>' +
+        '<td class="col-fix col-status">' + renderStatus(row.status) + '</td>' +
+        '<td class="col-op">' + renderOps(row) + '</td>';
+      tbody.appendChild(tr);
+      bindRowOps(tr);
+      tr.querySelector('.sales-cell').addEventListener('click', function (e) {
+        e.stopPropagation();
+        openSalesPop(this, row.sales.slice());
+      });
     });
-  });
+    updateNotifyPreview();
+  }
+
+  renderBpTable();
 
   var pb = document.getElementById('progressBody');
   salesProgress.forEach(function (s) {
@@ -510,6 +584,20 @@
 
   document.getElementById('btnGenBp').onclick = function () {
     showToast('已生成 BP 数据，SKU 状态为「待填写」');
+  };
+
+  document.getElementById('btnBatchDel').onclick = function () {
+    var checked = Array.prototype.slice.call(document.querySelectorAll('#bpBody .row-check:checked'));
+    if (!checked.length) { showToast('请先勾选需要删除的 SKU'); return; }
+    if (!confirm('确认删除已选 ' + checked.length + ' 条 SKU？')) return;
+    checked.forEach(function (cb) {
+      var tr = cb.closest('tr');
+      var row = findRowByTr(tr);
+      var idx = rows.indexOf(row);
+      if (idx >= 0) rows.splice(idx, 1);
+    });
+    renderBpTable();
+    showToast('已批量删除 ' + checked.length + ' 条');
   };
 
   document.getElementById('btnNotify').onclick = function () { updateNotifyPreview(); openModal('notifyModal'); };

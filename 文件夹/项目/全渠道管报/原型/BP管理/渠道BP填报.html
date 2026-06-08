@@ -12,7 +12,10 @@
     .task-list-view.hidden { display: none; }
     .deadline-warn { color: var(--orange); font-weight: 600; }
     .table-scroll-wrap { border: 1px solid #e8e8e8; border-radius: 4px; max-height: calc(100vh - 320px); overflow: auto; }
-    .fill-table { min-width: 2480px; width: 100%; border-collapse: separate; border-spacing: 0; table-layout: fixed; font-size: 12px; }
+    .fill-table { min-width: 2620px; width: 100%; border-collapse: separate; border-spacing: 0; table-layout: fixed; font-size: 12px; }
+    .fill-table .col-check { width: 36px; text-align: center; padding: 6px 4px; }
+    .fill-table .col-store { width: 100px; }
+    .fill-table .col-sales { width: 80px; color: rgba(0,0,0,0.88); }
     .fill-table th, .fill-table td { border: 1px solid #e8e8e8; padding: 0; vertical-align: middle; }
     .fill-table thead th { position: sticky; top: 0; z-index: 2; background: #fafafa; font-weight: 600; text-align: center; padding: 8px 6px; box-shadow: 0 1px 0 #e8e8e8; }
     .fill-table .col-fix { padding: 6px 8px; background: #fff; white-space: nowrap; }
@@ -99,6 +102,7 @@
           <div class="panel-head">
             <div class="panel-head-tools">
               <span class="panel-sub">已填 <strong id="filledCount">0</strong> / <strong id="totalCount">0</strong> SKU · 进度 <span id="fillPct">0%</span></span>
+              <button type="button" class="btn btn-danger" id="btnBatchDel" disabled>批量删除</button>
               <button type="button" class="btn btn-primary" id="btnAddSku">新增 SKU</button>
             </div>
           </div>
@@ -106,8 +110,11 @@
             <table class="fill-table" id="fillTable">
               <thead>
                 <tr>
+                  <th class="col-check"><input type="checkbox" id="checkAllRows" title="全选"></th>
+                  <th class="col-fix col-store">店铺</th>
                   <th class="col-fix" style="width:88px">SKU</th>
                   <th class="col-fix" style="width:80px">场景品类</th>
+                  <th class="col-fix col-sales">Sales</th>
                   <th class="col-fix" style="width:88px">GTM 标签</th>
                   <th class="col-year col-year-h">全年合计</th>
                   <th class="col-month">1月</th><th class="col-month">2月</th><th class="col-month">3月</th>
@@ -135,10 +142,45 @@
       <div class="modal-hd-actions"><button type="button" class="modal-close" data-close="addSkuModal">×</button></div>
     </div>
     <div class="modal-bd">
+      <p style="margin:0 0 14px;font-size:12px;color:#666;line-height:1.6">
+        店铺、SKU 下拉对齐《列表页顶部筛选区》与渠道店铺主数据；GTM 标签与《新品标签基础数据》一致。选定 SKU 后，<strong>该 SKU + 店铺</strong> 的 Sales 归属当前登录人，提交后反填至 BP 管理。
+      </p>
       <div class="form-grid">
-        <div class="form-field full"><label><span class="req">*</span> SKU</label><input type="text" id="newSku" placeholder="8 位生产 SKU"></div>
-        <div class="form-field"><label>场景品类</label><input type="text" id="newCat" placeholder="如 灯带"></div>
-        <div class="form-field"><label>GTM 标签</label><input type="text" id="newTag" placeholder="可选"></div>
+        <div class="form-field">
+          <label><span class="req">*</span> 店铺</label>
+          <div class="ctl-wrap" id="newStoreWrap">
+            <select class="ctl wide" id="newStore" style="min-width:100%;max-width:none;height:32px">
+              <option value="">请选择</option>
+            </select>
+            <button type="button" class="ctl-clear" id="newStoreClear" hidden>×</button>
+          </div>
+        </div>
+        <div class="form-field">
+          <label><span class="req">*</span> GTM 标签</label>
+          <div class="ctl-wrap" id="newTagWrap">
+            <select class="ctl wide" id="newTag" style="min-width:100%;max-width:none;height:32px">
+              <option value="">请选择</option>
+            </select>
+            <button type="button" class="ctl-clear" id="newTagClear" hidden>×</button>
+          </div>
+        </div>
+        <div class="form-field full">
+          <label><span class="req">*</span> SKU</label>
+          <div class="ctl-wrap" id="newSkuWrap">
+            <select class="ctl wide" id="newSku" style="min-width:100%;max-width:none;height:32px" disabled>
+              <option value="">请先选择店铺</option>
+            </select>
+            <button type="button" class="ctl-clear" id="newSkuClear" hidden>×</button>
+          </div>
+        </div>
+        <div class="form-field full">
+          <label>场景品类</label>
+          <input type="text" id="newCatPreview" readonly placeholder="选择 SKU 后自动带出" style="background:#fafafa">
+        </div>
+        <div class="form-field full">
+          <label>Sales</label>
+          <input type="text" id="newSalesPreview" readonly style="background:#fafafa;color:#1677ff;font-weight:600">
+        </div>
       </div>
     </div>
     <div class="modal-ft">
@@ -163,8 +205,13 @@
 </div>
 
 <script src="../../../../规范/assets/import-modal-kit.js"></script>
+<script type="application/json" id="embedChannelStores">{"channels":[{"channel_name":"Govee","stores":["Govee_US","Govee_MX","Govee_UK","Govee_DE"]},{"channel_name":"Offline","stores":["Offline-CA","Offline-US"]},{"channel_name":"APP商城","stores":["APP商城-US","APP商城-UK"]}]}</script>
+<script type="application/json" id="embedNewTags">{"new_product_tags":[{"tag_code":"NP2025","tag_name":"2025年新品"},{"tag_code":"NP2024","tag_name":"2024年新品"},{"tag_code":"NP2026","tag_name":"2026年新品"}]}</script>
+<script type="application/json" id="embedSalesSubset">{"records":[{"sku":"H61A001","model":"H61A0","店铺名称":"Govee_US","场景":"居家","品类":"灯带"},{"sku":"H61A002","model":"H61A0","店铺名称":"Govee_US","场景":"居家","品类":"灯带"},{"sku":"H61B001","model":"H61B0","店铺名称":"Govee_US","场景":"居家","品类":"灯带"},{"sku":"H6093011","model":"H6093","店铺名称":"Govee_US","场景":"居家","品类":"星空灯"},{"sku":"H6076113","model":"H6076","店铺名称":"Govee_US","场景":"居家","品类":"落地灯"},{"sku":"H1310111","model":"H1310","店铺名称":"Govee_US","场景":"居家","品类":"风扇灯"},{"sku":"B5040101","model":"B5040","店铺名称":"Govee_US","场景":"传感器及控制","品类":"漏水报警器"},{"sku":"H61C001","model":"H61C0","店铺名称":"Govee_MX","场景":"居家","品类":"灯带"},{"sku":"H617E3D1","model":"H617E","店铺名称":"Govee_MX","场景":"居家","品类":"灯带"}]}</script>
 <script>
 (function () {
+  var CURRENT_SALES = '张三';
+  var SYNC_KEY = 'bp_mgmt_channel_sync';
   var statusTag = { '待填写': 'tag-pending-fill', '草稿': 'tag-draft', '定版': 'tag-finalized' };
 
   var myTasks = [
@@ -174,21 +221,66 @@
 
   var taskSkuData = {
     'BP-DIST-2025-0042': [
-      { sku: 'H61A001', cat: '灯带', tag: '2025 新品', vol: 12000, rev: 480000, gp: 96000 },
-      { sku: 'H61A002', cat: '灯带', tag: '2025 新品', vol: 8500, rev: 340000, gp: 68000 },
-      { sku: 'H61B001', cat: '灯带', tag: '—', vol: '', rev: '', gp: '' }
+      { store: 'Govee_US', sku: 'H61A001', cat: '灯带', scene: '居家', tag: '2025年新品', sales: [CURRENT_SALES], vol: 12000, rev: 480000, gp: 96000 },
+      { store: 'Govee_US', sku: 'H61A002', cat: '灯带', scene: '居家', tag: '2025年新品', sales: [CURRENT_SALES], vol: 8500, rev: 340000, gp: 68000 },
+      { store: 'Govee_US', sku: 'H61B001', cat: '灯带', scene: '居家', tag: '—', sales: [CURRENT_SALES], vol: '', rev: '', gp: '' }
     ],
     'BP-DIST-2025-0048': []
   };
 
+  var masterStores = [];
+  var masterTags = [];
+  var salesRecords = [];
   var currentTask = null;
   var currentRows = [];
   var readOnly = false;
 
+  function parseEmbed(id) {
+    var el = document.getElementById(id);
+    return el ? JSON.parse(el.textContent) : null;
+  }
+
+  function loadMasterData() {
+    var bases = ['../../../../规范/基础数据/', '../../../../../规范/基础数据/'];
+    function tryFetch(path) {
+      var i = 0;
+      function next() {
+        if (i >= bases.length) return Promise.reject();
+        return fetch(bases[i++] + path).then(function (r) { return r.ok ? r.json() : next(); }).catch(next);
+      }
+      return next();
+    }
+    return Promise.all([
+      tryFetch('渠道店铺基础数据_v1.json').catch(function () { return parseEmbed('embedChannelStores'); }),
+      tryFetch('新品标签基础数据_v1.json').catch(function () { return parseEmbed('embedNewTags'); }),
+      tryFetch('销售基础信息_原型子集_v1.json').catch(function () { return parseEmbed('embedSalesSubset'); })
+    ]).then(function (res) {
+      var ch = res[0];
+      masterStores = (ch && ch.channels ? ch.channels : []).reduce(function (acc, c) {
+        return acc.concat(c.stores || []);
+      }, []);
+      masterTags = (res[1] && res[1].new_product_tags) ? res[1].new_product_tags : [];
+      salesRecords = (res[2] && res[2].records) ? res[2].records : [];
+      initAddSkuSelects();
+    });
+  }
+
+  function salesText(arr) {
+    return arr && arr.length ? arr.join('、') : '—';
+  }
+
   function cloneRows(rows) {
     return rows.map(function (r) {
-      return { sku: r.sku, cat: r.cat, tag: r.tag, vol: r.vol, rev: r.rev, gp: r.gp };
+      return {
+        store: r.store, sku: r.sku, cat: r.cat, scene: r.scene || '',
+        tag: r.tag, sales: (r.sales || [CURRENT_SALES]).slice(),
+        vol: r.vol, rev: r.rev, gp: r.gp
+      };
     });
+  }
+
+  function rowKey(row) {
+    return row.store + '\0' + row.sku;
   }
 
   function isRowFilled(row) {
@@ -203,6 +295,28 @@
     document.getElementById('totalCount').textContent = total;
     document.getElementById('fillPct').textContent = pct + '%';
     document.getElementById('emptyTip').hidden = total > 0;
+    updateBatchDelState();
+  }
+
+  function getCheckedIdxs() {
+    var idxs = [];
+    document.querySelectorAll('#fillBody .row-check:checked').forEach(function (cb) {
+      idxs.push(parseInt(cb.closest('tr').dataset.idx, 10));
+    });
+    return idxs.sort(function (a, b) { return b - a; });
+  }
+
+  function updateBatchDelState() {
+    var n = document.querySelectorAll('#fillBody .row-check:checked').length;
+    var btn = document.getElementById('btnBatchDel');
+    btn.disabled = readOnly || n === 0;
+    btn.textContent = n ? '批量删除（' + n + '）' : '批量删除';
+    var all = document.querySelectorAll('#fillBody .row-check');
+    var checkAll = document.getElementById('checkAllRows');
+    if (checkAll) {
+      checkAll.checked = all.length > 0 && n === all.length;
+      checkAll.indeterminate = n > 0 && n < all.length;
+    }
   }
 
   function monthInputs(row) {
@@ -226,8 +340,11 @@
       var months = '';
       for (var i = 0; i < 12; i++) months += '<td class="col-month">' + monthInputs(row) + '</td>';
       tr.innerHTML =
+        '<td class="col-check">' + (readOnly ? '' : '<input type="checkbox" class="row-check">') + '</td>' +
+        '<td class="col-fix">' + row.store + '</td>' +
         '<td class="col-fix mono">' + row.sku + '</td>' +
-        '<td class="col-fix">' + row.cat + '</td>' +
+        '<td class="col-fix">' + (row.cat || '—') + '</td>' +
+        '<td class="col-fix col-sales">' + salesText(row.sales) + '</td>' +
         '<td class="col-fix">' + row.tag + '</td>' +
         '<td class="col-year"><div class="year-inputs">' +
           '<div class="row"><label>销量</label><input type="text" class="inp-vol"' + dis + ' ' + (row.vol !== '' && row.vol != null ? 'value="'+row.vol+'"' : 'placeholder="—"') + '></div>' +
@@ -246,17 +363,120 @@
           }
           updateProgress();
         });
+        tr.querySelector('.row-check').addEventListener('change', updateBatchDelState);
         tr.querySelector('.btn-del-row').onclick = function () {
-          if (confirm('确认删除 SKU ' + row.sku + '？')) {
+          if (confirm('确认删除 ' + row.store + ' / ' + row.sku + '？')) {
             currentRows.splice(idx, 1);
-            if (currentTask) taskSkuData[currentTask.id] = cloneRows(currentRows);
+            persistTaskRows();
             renderFillTable();
-            updateProgress();
           }
         };
       }
     });
     updateProgress();
+  }
+
+  function persistTaskRows() {
+    if (currentTask) taskSkuData[currentTask.id] = cloneRows(currentRows);
+  }
+
+  function bindClearableSelect(sel, wrap, clearBtn) {
+    if (!sel || !wrap) return;
+    function sync() {
+      var has = !!sel.value;
+      wrap.classList.toggle('has-val', has);
+      if (clearBtn) clearBtn.hidden = !has;
+    }
+    sel.addEventListener('change', sync);
+    if (clearBtn) {
+      clearBtn.addEventListener('click', function () {
+        sel.value = '';
+        sync();
+        sel.dispatchEvent(new Event('change', { bubbles: true }));
+      });
+    }
+    sync();
+  }
+
+  function initAddSkuSelects() {
+    var storeSel = document.getElementById('newStore');
+    storeSel.innerHTML = '<option value="">请选择</option>' +
+      masterStores.map(function (s) { return '<option value="' + s + '">' + s + '</option>'; }).join('');
+
+    var tagSel = document.getElementById('newTag');
+    tagSel.innerHTML = '<option value="">请选择</option>' +
+      masterTags.map(function (t) { return '<option value="' + t.tag_name + '">' + t.tag_name + '</option>'; }).join('');
+
+    bindClearableSelect(storeSel, document.getElementById('newStoreWrap'), document.getElementById('newStoreClear'));
+    bindClearableSelect(tagSel, document.getElementById('newTagWrap'), document.getElementById('newTagClear'));
+    bindClearableSelect(document.getElementById('newSku'), document.getElementById('newSkuWrap'), document.getElementById('newSkuClear'));
+
+    document.getElementById('newSalesPreview').value = CURRENT_SALES + '（当前账号）';
+  }
+
+  function populateSkuOptions(store) {
+    var skuSel = document.getElementById('newSku');
+    document.getElementById('newCatPreview').value = '';
+    if (!store) {
+      skuSel.innerHTML = '<option value="">请先选择店铺</option>';
+      skuSel.disabled = true;
+      return;
+    }
+    var seen = {};
+    var list = salesRecords.filter(function (r) { return r['店铺名称'] === store; });
+    var opts = list.filter(function (r) {
+      if (seen[r.sku]) return false;
+      seen[r.sku] = true;
+      return true;
+    });
+    skuSel.disabled = false;
+    skuSel.innerHTML = '<option value="">请选择</option>' +
+      opts.map(function (r) {
+        return '<option value="' + r.sku + '" data-cat="' + (r['品类'] || '') + '" data-scene="' + (r['场景'] || '') + '">' + r.sku + '</option>';
+      }).join('');
+    if (!opts.length) {
+      skuSel.innerHTML = '<option value="">该店铺暂无 SKU 主数据</option>';
+      skuSel.disabled = true;
+    }
+  }
+
+  document.getElementById('newStore').addEventListener('change', function () {
+    populateSkuOptions(this.value);
+  });
+
+  document.getElementById('newSku').addEventListener('change', function () {
+    var opt = this.options[this.selectedIndex];
+    document.getElementById('newCatPreview').value = opt && opt.dataset.cat ? opt.dataset.cat : '';
+  });
+
+  function resetAddSkuModal() {
+    ['newStore', 'newTag', 'newSku'].forEach(function (id) {
+      var el = document.getElementById(id);
+      el.value = '';
+      el.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+    document.getElementById('newCatPreview').value = '';
+    populateSkuOptions('');
+    if (currentTask && currentTask.store) {
+      document.getElementById('newStore').value = currentTask.store;
+      document.getElementById('newStore').dispatchEvent(new Event('change', { bubbles: true }));
+    }
+  }
+
+  function syncToBpMgmt(status) {
+    var payload = { submissions: [] };
+    try {
+      var raw = localStorage.getItem(SYNC_KEY);
+      if (raw) payload = JSON.parse(raw);
+    } catch (e) { /* ignore */ }
+    if (!payload.submissions) payload.submissions = [];
+    payload.submissions.push({
+      taskId: currentTask.id,
+      submittedAt: new Date().toISOString(),
+      status: status || 'finalized',
+      rows: cloneRows(currentRows)
+    });
+    localStorage.setItem(SYNC_KEY, JSON.stringify(payload));
   }
 
   function openTask(taskId) {
@@ -271,14 +491,16 @@
     document.getElementById('fillStatus').className = 'tag ' + (statusTag[currentTask.status] || '');
 
     document.getElementById('btnAddSku').style.display = readOnly ? 'none' : '';
+    document.getElementById('btnBatchDel').style.display = readOnly ? 'none' : '';
     document.getElementById('btnImport').disabled = readOnly;
     document.getElementById('btnSaveDraft').disabled = readOnly;
     document.getElementById('btnSubmit').disabled = readOnly;
+    document.getElementById('checkAllRows').disabled = readOnly;
 
     if (currentTask.status === '待填写') {
-      document.getElementById('fillHint').innerHTML = '当前为「待填写」，数据为空。请<strong>新增 SKU</strong> 或导入模版后开始填写；保存后为「草稿」，提交后为「定版」。';
+      document.getElementById('fillHint').innerHTML = '当前为「待填写」，数据为空。请<strong>新增 SKU</strong>（店铺 / GTM 标签 / SKU 下拉）或导入模版；Sales 随 SKU+店铺 归属当前账号，提交后反填 BP 管理。';
     } else {
-      document.getElementById('fillHint').innerHTML = '请填写全部 SKU 的 12 个月指标（可为 0，不可留空）。保存后为「草稿」，<strong>提交提报</strong> 后变为「定版」。可新增或删除 SKU 行。';
+      document.getElementById('fillHint').innerHTML = '请填写全部 SKU 的 12 个月指标（可为 0，不可留空）。保存后为「草稿」，<strong>提交提报</strong> 后变为「定版」并汇总至 BP 管理（含 Sales）。支持批量删除。';
     }
 
     renderFillTable();
@@ -312,24 +534,45 @@
     document.getElementById('taskListView').classList.remove('hidden');
   };
 
+  document.getElementById('checkAllRows').addEventListener('change', function () {
+    document.querySelectorAll('#fillBody .row-check').forEach(function (cb) { cb.checked = this.checked; }.bind(this));
+    updateBatchDelState();
+  });
+
+  document.getElementById('btnBatchDel').onclick = function () {
+    var idxs = getCheckedIdxs();
+    if (!idxs.length) return;
+    if (!confirm('确认删除已选 ' + idxs.length + ' 条 SKU？')) return;
+    idxs.forEach(function (i) { currentRows.splice(i, 1); });
+    persistTaskRows();
+    renderFillTable();
+  };
+
   document.getElementById('btnAddSku').onclick = function () {
-    document.getElementById('newSku').value = '';
-    document.getElementById('newCat').value = '';
-    document.getElementById('newTag').value = '';
+    resetAddSkuModal();
     document.getElementById('addSkuModal').classList.add('open');
   };
 
   document.getElementById('btnConfirmAddSku').onclick = function () {
-    var sku = document.getElementById('newSku').value.trim();
-    if (!sku) { alert('请输入 SKU'); return; }
-    if (currentRows.some(function (r) { return r.sku === sku; })) { alert('SKU 已存在'); return; }
-    currentRows.push({
-      sku: sku,
-      cat: document.getElementById('newCat').value.trim() || '—',
-      tag: document.getElementById('newTag').value.trim() || '—',
+    var store = document.getElementById('newStore').value;
+    var sku = document.getElementById('newSku').value;
+    var tag = document.getElementById('newTag').value;
+    if (!store) { alert('请选择店铺'); return; }
+    if (!tag) { alert('请选择 GTM 标签'); return; }
+    if (!sku) { alert('请选择 SKU'); return; }
+    var newRow = {
+      store: store, sku: sku,
+      cat: document.getElementById('newCatPreview').value || '—',
+      scene: (document.getElementById('newSku').selectedOptions[0].dataset.scene) || '',
+      tag: tag,
+      sales: [CURRENT_SALES],
       vol: '', rev: '', gp: ''
-    });
-    if (currentTask) taskSkuData[currentTask.id] = cloneRows(currentRows);
+    };
+    if (currentRows.some(function (r) { return rowKey(r) === rowKey(newRow); })) {
+      alert('该店铺下 SKU 已存在'); return;
+    }
+    currentRows.push(newRow);
+    persistTaskRows();
     document.getElementById('addSkuModal').classList.remove('open');
     renderFillTable();
   };
@@ -340,8 +583,9 @@
       document.getElementById('fillStatus').textContent = '草稿';
       document.getElementById('fillStatus').className = 'tag tag-draft';
     }
-    if (currentTask) taskSkuData[currentTask.id] = cloneRows(currentRows);
-    alert('草稿已保存');
+    persistTaskRows();
+    syncToBpMgmt('draft');
+    alert('草稿已保存，Sales 已写入本地同步队列（演示）');
   };
 
   document.getElementById('btnSubmit').onclick = function () {
@@ -353,8 +597,8 @@
     }
     var emptyRow = currentRows.find(function (s) { return !isRowFilled(s); });
     document.getElementById('submitCheckMsg').innerHTML = emptyRow
-      ? '校验未通过：<strong>' + emptyRow.sku + '</strong> 全年销量未填写，请补全后提交。'
-      : '校验通过：共 ' + currentRows.length + ' 个 SKU 指标已完整。确认提交后状态将变为「定版」并汇总至 BP 管理。';
+      ? '校验未通过：<strong>' + emptyRow.store + ' / ' + emptyRow.sku + '</strong> 全年销量未填写，请补全后提交。'
+      : '校验通过：共 ' + currentRows.length + ' 个 SKU 指标已完整。确认提交后状态将变为「定版」，Sales（' + CURRENT_SALES + '）将反填至 BP 管理。';
     document.getElementById('btnConfirmSubmit').disabled = !!emptyRow;
     document.getElementById('submitModal').classList.add('open');
   };
@@ -362,7 +606,9 @@
   document.getElementById('btnConfirmSubmit').onclick = function () {
     document.getElementById('submitModal').classList.remove('open');
     if (currentTask) currentTask.status = '定版';
-    alert('已提交提报，状态更新为定版');
+    persistTaskRows();
+    syncToBpMgmt('finalized');
+    alert('已提交提报，Sales 与指标已同步至 BP 管理（请打开 BP 管理总览查看）');
     document.getElementById('btnBack').click();
   };
 
@@ -376,18 +622,18 @@
     templateFileName: 'BP提报导入模版.csv',
     introHtml: '<p>请下载 <strong>BP 提报导入模版</strong> 填写。导入成功后 SKU 行写入列表，状态变为「草稿」，须再点击「提交提报」变为「定版」。</p>',
     columns: [
-      { group: '主键', name: 'SKU', required: true, desc: '须属于当前提报任务' },
+      { group: '主键', name: '店铺+SKU', required: true, desc: '店铺与 SKU 须属于主数据' },
       { group: '全年', name: '全年销量/销售额/毛利', required: true, desc: 'USD' },
       { group: '1–12 月', name: 'N月销量/销售额/毛利', required: true, desc: '与列表行顺序一致：上销量、中销售额、下毛利' }
     ],
     requirements: [
       '可新增 SKU 行后导入，或导入后追加/覆盖列表。',
-      '每月三项可为 0，不可留空。',
+      'Sales 按当前账号自动归属，提交后反填 BP 管理。',
       '导入后为「草稿」，须点击「提交提报」变为「定版」。'
     ],
     downloadCsvRows: [
-      ['SKU', '场景品类', 'GTM标签', '全年销量', '全年销售额', '全年毛利'],
-      ['H61A001', '灯带', '2025 新品', '12000', '480000', '96000']
+      ['店铺', 'SKU', 'GTM标签', '全年销量', '全年销售额', '全年毛利'],
+      ['Govee_US', 'H61A001', '2025年新品', '12000', '480000', '96000']
     ],
     demoSuccessRows: 2,
     autoCloseMs: 1500,
@@ -398,8 +644,9 @@
         document.getElementById('fillStatus').textContent = '草稿';
         document.getElementById('fillStatus').className = 'tag tag-draft';
       }
-      currentRows.push({ sku: 'H61C001', cat: '灯带', tag: '2025 新品', vol: 5000, rev: 200000, gp: 40000 });
-      if (currentTask) taskSkuData[currentTask.id] = cloneRows(currentRows);
+      var store = currentTask ? currentTask.store : 'Govee_US';
+      currentRows.push({ store: store, sku: 'H61C001', cat: '灯带', scene: '居家', tag: '2025年新品', sales: [CURRENT_SALES], vol: 5000, rev: 200000, gp: 40000 });
+      persistTaskRows();
       renderFillTable();
       resultEl.textContent = '导入完成：成功 1 行，失败 0 行。';
       resultEl.hidden = false;
@@ -410,6 +657,8 @@
   document.getElementById('btnDownloadTpl').onclick = function () {
     ImportModalKit.downloadCsv(importConfig.templateFileName, importConfig.downloadCsvRows);
   };
+
+  loadMasterData();
 })();
 </script>
 </body>
