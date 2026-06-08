@@ -275,12 +275,12 @@
   };
 
   var rows = [
-    { region: '北美', store: 'Offline-CA', cat: '灯带', dept: '灯带', sku: 'H612F001', sales: ['张三'], tag: '2025 新品', rev: 480000, vol: 12000, gp: 96000, status: 'pending' },
+    { region: '北美', store: 'Offline-CA', cat: '灯带', dept: '灯带', sku: 'H612F001', sales: ['张三'], tag: '2025 新品', rev: '', vol: '', gp: '', status: 'pending' },
     { region: '西欧', store: 'Goveelife_UK', cat: '灯带', dept: '灯带', sku: 'H6074002', sales: ['李四', '王五'], tag: '2025 新品', rev: 340000, vol: 8500, gp: 68000, status: 'draft' },
     { region: '北美', store: 'Govee_US', cat: '户外', dept: '户外', sku: 'H705001', sales: ['王五'], tag: '—', rev: 192000, vol: 3200, gp: 48000, status: 'finalized' },
     { region: '西欧', store: 'APP商城-UK', cat: '智能家居', dept: 'App', sku: 'B517001', sales: ['赵六'], tag: '—', rev: 168000, vol: 5600, gp: 42000, status: 'finalized' },
     { region: '北美', store: 'Govee_US', cat: '灯带', dept: '灯带', sku: 'H61B001', sales: ['张三'], tag: '—', rev: 248000, vol: 6200, gp: 49600, status: 'draft' },
-    { region: '西欧', store: 'Govee_DE', cat: '灯带', dept: '灯带', sku: 'H61A003', sales: ['赵六', '钱七'], tag: '2025 新品', rev: 312000, vol: 7800, gp: 62400, status: 'pending' }
+    { region: '西欧', store: 'Govee_DE', cat: '灯带', dept: '灯带', sku: 'H61A003', sales: ['赵六', '钱七'], tag: '2025 新品', rev: '', vol: '', gp: '', status: 'pending' }
   ];
 
   var salesProgress = [
@@ -291,7 +291,16 @@
     { sales: '钱七', total: 24, done: 0, status: '未开始' }
   ];
 
+  function isEmptyRow(row) {
+    return row.vol === '' || row.vol == null;
+  }
+
   function metricStack(rev, vol, gp, arrows) {
+    if (rev === '' || rev == null) {
+      return '<div class="metric-stack"><div class="row"><span class="lbl">销售额</span><span class="val" style="color:#bfbfbf">—</span></div>' +
+        '<div class="row"><span class="lbl">销量</span><span class="val" style="color:#bfbfbf">—</span></div>' +
+        '<div class="row"><span class="lbl">毛利</span><span class="val" style="color:#bfbfbf">—</span></div></div>';
+    }
     arrows = arrows || { rev: 'up', vol: 'up', gp: 'down' };
     function line(lbl, val, dir) {
       var arr = dir === 'up' ? '<span class="arr up">↑</span>' : '<span class="arr down">↓</span>';
@@ -312,6 +321,12 @@
   }
 
   function monthCell(base, f) {
+    if (isEmptyRow(base)) {
+      return '<div class="metric-stack metric-stack--compact">' +
+        '<div class="row-compact"><span class="val" style="color:#bfbfbf">—</span></div>' +
+        '<div class="row-compact"><span class="val" style="color:#bfbfbf">—</span></div>' +
+        '<div class="row-compact"><span class="val" style="color:#bfbfbf">—</span></div></div>';
+    }
     return monthCompact(
       Math.round(base.rev * f), Math.round(base.vol * f), Math.round(base.gp * f),
       { rev: f > 0.08 ? 'up' : 'down', vol: f > 0.08 ? 'up' : 'down', gp: 'down' }

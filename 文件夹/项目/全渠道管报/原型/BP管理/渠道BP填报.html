@@ -12,19 +12,24 @@
     .task-list-view.hidden { display: none; }
     .deadline-warn { color: var(--orange); font-weight: 600; }
     .table-scroll-wrap { border: 1px solid #e8e8e8; border-radius: 4px; max-height: calc(100vh - 320px); overflow: auto; }
-    .fill-table { min-width: 2400px; width: 100%; border-collapse: separate; border-spacing: 0; table-layout: fixed; font-size: 12px; }
+    .fill-table { min-width: 2480px; width: 100%; border-collapse: separate; border-spacing: 0; table-layout: fixed; font-size: 12px; }
     .fill-table th, .fill-table td { border: 1px solid #e8e8e8; padding: 0; vertical-align: middle; }
     .fill-table thead th { position: sticky; top: 0; z-index: 2; background: #fafafa; font-weight: 600; text-align: center; padding: 8px 6px; box-shadow: 0 1px 0 #e8e8e8; }
     .fill-table .col-fix { padding: 6px 8px; background: #fff; white-space: nowrap; }
     .fill-table .col-year { width: 108px; background: #fafafa; }
     .fill-table .col-month { width: 72px; }
     .fill-table .col-year-h { background: #fafafa; }
+    .fill-table .col-op { width: 64px; text-align: center; position: sticky; right: 0; background: #fff; box-shadow: -4px 0 6px -4px rgba(0,0,0,0.08); z-index: 1; }
+    .fill-table thead .col-op { z-index: 3; background: #fafafa; }
     .fill-table .year-inputs { padding: 4px 6px; }
     .fill-table .year-inputs .row { display: flex; align-items: center; justify-content: space-between; gap: 4px; margin-bottom: 2px; font-size: 10px; }
     .fill-table .year-inputs .row label { color: #999; flex-shrink: 0; }
     .fill-table .month-inputs { padding: 3px 4px; display: flex; flex-direction: column; gap: 2px; }
     .fill-table .month-inputs input { width: 100%; height: 22px; border: 1px solid #d9d9d9; border-radius: 3px; padding: 0 4px; font-size: 11px; text-align: right; }
     .fill-table .year-inputs input { width: 72px; height: 22px; border: 1px solid #d9d9d9; border-radius: 3px; padding: 0 4px; font-size: 11px; text-align: right; }
+    .fill-table input:disabled { background: #f5f5f5; color: #999; }
+    .empty-tip { padding: 32px; text-align: center; color: #999; font-size: 13px; }
+    .panel-head-tools { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
   </style>
 </head>
 <body>
@@ -62,27 +67,27 @@
         <div class="panel">
           <div class="panel-head">
             <div>
-              <div class="panel-title" id="fillTitle">提报 · BP-DIST-2025-0048</div>
+              <div class="panel-title" id="fillTitle">提报 · BP-DIST-2025-0042</div>
               <div class="panel-sub">
-                店铺 <strong id="fillStore">Govee_MX</strong> · BP 版本 2025 年度 BP ·
-                截止 <span id="fillDeadline" class="deadline-warn">2025-07-20</span> ·
-                <span class="tag tag-pending" id="fillStatus">待提报</span>
+                店铺 <strong id="fillStore">Govee_US</strong> · BP 版本 2025 年度 BP ·
+                截止 <span id="fillDeadline" class="deadline-warn">2025-07-15</span> ·
+                <span class="tag tag-draft" id="fillStatus">草稿</span>
               </div>
             </div>
             <div class="toolbar">
               <button type="button" class="btn" id="btnBack">← 返回任务列表</button>
               <button type="button" class="btn" id="btnDownloadTpl">下载模版</button>
               <button type="button" class="btn" id="btnImport">导入</button>
-              <button type="button" class="btn">保存草稿</button>
+              <button type="button" class="btn" id="btnSaveDraft">保存草稿</button>
               <button type="button" class="btn btn-primary" id="btnSubmit">提交提报</button>
             </div>
           </div>
-          <div class="hint-bar" style="margin:0 16px 12px">
-            请填写全部 SKU 的 12 个月指标（可为 0，不可留空）。保存后为「草稿」，<strong>提交提报</strong> 后变为「定版」并汇总至 BP 管理。
+          <div class="hint-bar" style="margin:0 16px 12px" id="fillHint">
+            请填写全部 SKU 的 12 个月指标（可为 0，不可留空）。保存后为「草稿」，<strong>提交提报</strong> 后变为「定版」。可新增或删除 SKU 行。
           </div>
           <div class="filter-panel">
             <div class="filter-grid">
-              <div class="f-item"><label>SKU</label><input class="ctl" placeholder="请输入SKU"></div>
+              <div class="f-item"><label>SKU</label><input class="ctl" id="filterSku" placeholder="请输入SKU"></div>
               <div class="f-item"><label>model</label><select class="ctl"><option value="">全部</option></select></div>
               <div class="f-item"><label>场景品类</label><select class="ctl wide"><option value="">全部</option><option>灯带</option></select></div>
               <button type="button" class="btn btn-primary">筛选</button>
@@ -92,7 +97,10 @@
 
         <div class="panel panel--table">
           <div class="panel-head">
-            <div class="panel-sub">已填 <strong id="filledCount">2</strong> / <strong id="totalCount">3</strong> SKU · 进度 <span id="fillPct">67%</span></div>
+            <div class="panel-head-tools">
+              <span class="panel-sub">已填 <strong id="filledCount">0</strong> / <strong id="totalCount">0</strong> SKU · 进度 <span id="fillPct">0%</span></span>
+              <button type="button" class="btn btn-primary" id="btnAddSku">新增 SKU</button>
+            </div>
           </div>
           <div class="table-scroll-wrap">
             <table class="fill-table" id="fillTable">
@@ -106,13 +114,36 @@
                   <th class="col-month">4月</th><th class="col-month">5月</th><th class="col-month">6月</th>
                   <th class="col-month">7月</th><th class="col-month">8月</th><th class="col-month">9月</th>
                   <th class="col-month">10月</th><th class="col-month">11月</th><th class="col-month">12月</th>
+                  <th class="col-op">操作</th>
                 </tr>
               </thead>
               <tbody id="fillBody"></tbody>
             </table>
+            <div class="empty-tip" id="emptyTip" hidden>暂无 SKU 数据，请点击「新增 SKU」或「导入」添加</div>
           </div>
         </div>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- 新增 SKU -->
+<div class="modal-mask" id="addSkuModal">
+  <div class="modal">
+    <div class="modal-hd">
+      <h2>新增 SKU</h2>
+      <div class="modal-hd-actions"><button type="button" class="modal-close" data-close="addSkuModal">×</button></div>
+    </div>
+    <div class="modal-bd">
+      <div class="form-grid">
+        <div class="form-field full"><label><span class="req">*</span> SKU</label><input type="text" id="newSku" placeholder="8 位生产 SKU"></div>
+        <div class="form-field"><label>场景品类</label><input type="text" id="newCat" placeholder="如 灯带"></div>
+        <div class="form-field"><label>GTM 标签</label><input type="text" id="newTag" placeholder="可选"></div>
+      </div>
+    </div>
+    <div class="modal-ft">
+      <button type="button" class="btn" data-close="addSkuModal">取消</button>
+      <button type="button" class="btn btn-primary" id="btnConfirmAddSku">确定</button>
     </div>
   </div>
 </div>
@@ -134,20 +165,137 @@
 <script src="../../../../规范/assets/import-modal-kit.js"></script>
 <script>
 (function () {
-  var myTasks = [
-    { id: 'BP-DIST-2025-0042', store: 'Govee_US', skus: 156, filled: 120, deadline: '2025-07-15', status: '草稿' },
-    { id: 'BP-DIST-2025-0048', store: 'Govee_MX', skus: 64, filled: 0, deadline: '2025-07-20', status: '待填写' }
-  ];
   var statusTag = { '待填写': 'tag-pending-fill', '草稿': 'tag-draft', '定版': 'tag-finalized' };
+
+  var myTasks = [
+    { id: 'BP-DIST-2025-0042', store: 'Govee_US', deadline: '2025-07-15', status: '草稿' },
+    { id: 'BP-DIST-2025-0048', store: 'Govee_MX', deadline: '2025-07-20', status: '待填写' }
+  ];
+
+  var taskSkuData = {
+    'BP-DIST-2025-0042': [
+      { sku: 'H61A001', cat: '灯带', tag: '2025 新品', vol: 12000, rev: 480000, gp: 96000 },
+      { sku: 'H61A002', cat: '灯带', tag: '2025 新品', vol: 8500, rev: 340000, gp: 68000 },
+      { sku: 'H61B001', cat: '灯带', tag: '—', vol: '', rev: '', gp: '' }
+    ],
+    'BP-DIST-2025-0048': []
+  };
+
+  var currentTask = null;
+  var currentRows = [];
+  var readOnly = false;
+
+  function cloneRows(rows) {
+    return rows.map(function (r) {
+      return { sku: r.sku, cat: r.cat, tag: r.tag, vol: r.vol, rev: r.rev, gp: r.gp };
+    });
+  }
+
+  function isRowFilled(row) {
+    return row.vol !== '' && row.vol !== null && row.vol !== undefined;
+  }
+
+  function updateProgress() {
+    var total = currentRows.length;
+    var filled = currentRows.filter(isRowFilled).length;
+    var pct = total ? Math.round(filled / total * 100) : 0;
+    document.getElementById('filledCount').textContent = filled;
+    document.getElementById('totalCount').textContent = total;
+    document.getElementById('fillPct').textContent = pct + '%';
+    document.getElementById('emptyTip').hidden = total > 0;
+  }
+
+  function monthInputs(row) {
+    var f = row.vol ? 0.08 : 0;
+    var v = row.vol ? Math.round(row.vol * f) : '';
+    var dis = readOnly ? ' disabled' : '';
+    var html = '<div class="month-inputs">';
+    html += '<input type="text" placeholder="—"' + dis + (v ? ' value="' + v + '"' : '') + ' title="销量">';
+    html += '<input type="text" placeholder="—"' + dis + (v ? ' value="' + (v * 40) + '"' : '') + ' title="销售额">';
+    html += '<input type="text" placeholder="—"' + dis + (v ? ' value="' + (v * 8) + '"' : '') + ' title="毛利">';
+    return html + '</div>';
+  }
+
+  function renderFillTable() {
+    var body = document.getElementById('fillBody');
+    body.innerHTML = '';
+    var dis = readOnly ? ' disabled' : '';
+    currentRows.forEach(function (row, idx) {
+      var tr = document.createElement('tr');
+      tr.dataset.idx = idx;
+      var months = '';
+      for (var i = 0; i < 12; i++) months += '<td class="col-month">' + monthInputs(row) + '</td>';
+      tr.innerHTML =
+        '<td class="col-fix mono">' + row.sku + '</td>' +
+        '<td class="col-fix">' + row.cat + '</td>' +
+        '<td class="col-fix">' + row.tag + '</td>' +
+        '<td class="col-year"><div class="year-inputs">' +
+          '<div class="row"><label>销量</label><input type="text" class="inp-vol"' + dis + ' ' + (row.vol !== '' && row.vol != null ? 'value="'+row.vol+'"' : 'placeholder="—"') + '></div>' +
+          '<div class="row"><label>销售额</label><input type="text" class="inp-rev"' + dis + ' ' + (row.rev !== '' && row.rev != null ? 'value="'+row.rev+'"' : 'placeholder="—"') + '></div>' +
+          '<div class="row"><label>毛利</label><input type="text" class="inp-gp"' + dis + ' ' + (row.gp !== '' && row.gp != null ? 'value="'+row.gp+'"' : 'placeholder="—"') + '></div></div></td>' +
+        months +
+        '<td class="col-op">' + (readOnly ? '—' : '<button type="button" class="btn-link btn-del-row">删除</button>') + '</td>';
+      body.appendChild(tr);
+      if (!readOnly) {
+        tr.querySelector('.inp-vol').addEventListener('input', function () {
+          row.vol = this.value;
+          if (currentTask && currentTask.status === '待填写' && this.value) {
+            currentTask.status = '草稿';
+            document.getElementById('fillStatus').textContent = '草稿';
+            document.getElementById('fillStatus').className = 'tag tag-draft';
+          }
+          updateProgress();
+        });
+        tr.querySelector('.btn-del-row').onclick = function () {
+          if (confirm('确认删除 SKU ' + row.sku + '？')) {
+            currentRows.splice(idx, 1);
+            if (currentTask) taskSkuData[currentTask.id] = cloneRows(currentRows);
+            renderFillTable();
+            updateProgress();
+          }
+        };
+      }
+    });
+    updateProgress();
+  }
+
+  function openTask(taskId) {
+    currentTask = myTasks.find(function (x) { return x.id === taskId; });
+    currentRows = cloneRows(taskSkuData[taskId] || []);
+    readOnly = currentTask.status === '定版';
+
+    document.getElementById('fillTitle').textContent = '提报 · ' + currentTask.id;
+    document.getElementById('fillStore').textContent = currentTask.store;
+    document.getElementById('fillDeadline').textContent = currentTask.deadline;
+    document.getElementById('fillStatus').textContent = currentTask.status;
+    document.getElementById('fillStatus').className = 'tag ' + (statusTag[currentTask.status] || '');
+
+    document.getElementById('btnAddSku').style.display = readOnly ? 'none' : '';
+    document.getElementById('btnImport').disabled = readOnly;
+    document.getElementById('btnSaveDraft').disabled = readOnly;
+    document.getElementById('btnSubmit').disabled = readOnly;
+
+    if (currentTask.status === '待填写') {
+      document.getElementById('fillHint').innerHTML = '当前为「待填写」，数据为空。请<strong>新增 SKU</strong> 或导入模版后开始填写；保存后为「草稿」，提交后为「定版」。';
+    } else {
+      document.getElementById('fillHint').innerHTML = '请填写全部 SKU 的 12 个月指标（可为 0，不可留空）。保存后为「草稿」，<strong>提交提报</strong> 后变为「定版」。可新增或删除 SKU 行。';
+    }
+
+    renderFillTable();
+    document.getElementById('taskListView').classList.add('hidden');
+    document.getElementById('fillView').classList.add('active');
+  }
 
   var cardsEl = document.getElementById('taskCards');
   myTasks.forEach(function (t) {
-    var pct = t.skus ? Math.round(t.filled / t.skus * 100) : 0;
+    var rows = taskSkuData[t.id] || [];
+    var filled = rows.filter(isRowFilled).length;
+    var pct = rows.length ? Math.round(filled / rows.length * 100) : 0;
     var card = document.createElement('div');
     card.className = 'task-card';
     card.innerHTML =
       '<h3>' + t.store + '</h3>' +
-      '<div class="meta">任务 ' + t.id + '<br>SKU ' + t.skus + ' 个 · 截止 ' + t.deadline + '<br>' +
+      '<div class="meta">任务 ' + t.id + '<br>SKU ' + rows.length + ' 个 · 截止 ' + t.deadline + '<br>' +
       '<span class="tag ' + (statusTag[t.status] || '') + '">' + t.status + '</span></div>' +
       '<div style="margin-top:10px"><div class="progress-bar"><i style="width:' + pct + '%"></i></div></div>' +
       '<div class="actions"><button type="button" class="btn btn-primary btn-open" data-id="' + t.id + '">' +
@@ -155,52 +303,8 @@
     cardsEl.appendChild(card);
   });
 
-  var sampleSkus = [
-    { sku: 'H61A001', cat: '灯带', tag: '2025 新品', vol: 12000, rev: 480000, gp: 96000 },
-    { sku: 'H61A002', cat: '灯带', tag: '2025 新品', vol: 8500, rev: 340000, gp: 68000 },
-    { sku: 'H61B001', cat: '灯带', tag: '—', vol: '', rev: '', gp: '' }
-  ];
-
-  function monthInputs(row) {
-    var f = 0.08;
-    var v = row.vol ? Math.round(row.vol * f) : '';
-    var html = '<div class="month-inputs">';
-    html += '<input type="text" placeholder="—" ' + (v ? 'value="' + v + '"' : '') + ' title="销量">';
-    html += '<input type="text" placeholder="—" ' + (v ? 'value="' + (v * 40) + '"' : '') + ' title="销售额">';
-    html += '<input type="text" placeholder="—" ' + (v ? 'value="' + (v * 8) + '"' : '') + ' title="毛利">';
-    return html + '</div>';
-  }
-
-  function renderFillTable() {
-    var body = document.getElementById('fillBody');
-    body.innerHTML = '';
-    sampleSkus.forEach(function (row) {
-      var tr = document.createElement('tr');
-      var months = '';
-      for (var i = 0; i < 12; i++) months += '<td class="col-month">' + monthInputs(row) + '</td>';
-      tr.innerHTML =
-        '<td class="col-fix mono">' + row.sku + '</td><td class="col-fix">' + row.cat + '</td><td class="col-fix">' + row.tag + '</td>' +
-        '<td class="col-year"><div class="year-inputs">' +
-          '<div class="row"><label>销量</label><input type="text" ' + (row.vol ? 'value="'+row.vol+'"' : 'placeholder="—"') + '></div>' +
-          '<div class="row"><label>销售额</label><input type="text" ' + (row.rev ? 'value="'+row.rev+'"' : 'placeholder="—"') + '></div>' +
-          '<div class="row"><label>毛利</label><input type="text" ' + (row.gp ? 'value="'+row.gp+'"' : 'placeholder="—"') + '></div></div></td>' +
-        months;
-      body.appendChild(tr);
-    });
-  }
-
   document.querySelectorAll('.btn-open').forEach(function (btn) {
-    btn.onclick = function () {
-      var t = myTasks.find(function (x) { return x.id === btn.dataset.id; });
-      document.getElementById('fillTitle').textContent = '提报 · ' + t.id;
-      document.getElementById('fillStore').textContent = t.store;
-      document.getElementById('fillDeadline').textContent = t.deadline;
-      document.getElementById('fillStatus').textContent = t.status;
-      document.getElementById('fillStatus').className = 'tag ' + (statusTag[t.status] || '');
-      renderFillTable();
-      document.getElementById('taskListView').classList.add('hidden');
-      document.getElementById('fillView').classList.add('active');
-    };
+    btn.onclick = function () { openTask(btn.dataset.id); };
   });
 
   document.getElementById('btnBack').onclick = function () {
@@ -208,16 +312,56 @@
     document.getElementById('taskListView').classList.remove('hidden');
   };
 
+  document.getElementById('btnAddSku').onclick = function () {
+    document.getElementById('newSku').value = '';
+    document.getElementById('newCat').value = '';
+    document.getElementById('newTag').value = '';
+    document.getElementById('addSkuModal').classList.add('open');
+  };
+
+  document.getElementById('btnConfirmAddSku').onclick = function () {
+    var sku = document.getElementById('newSku').value.trim();
+    if (!sku) { alert('请输入 SKU'); return; }
+    if (currentRows.some(function (r) { return r.sku === sku; })) { alert('SKU 已存在'); return; }
+    currentRows.push({
+      sku: sku,
+      cat: document.getElementById('newCat').value.trim() || '—',
+      tag: document.getElementById('newTag').value.trim() || '—',
+      vol: '', rev: '', gp: ''
+    });
+    if (currentTask) taskSkuData[currentTask.id] = cloneRows(currentRows);
+    document.getElementById('addSkuModal').classList.remove('open');
+    renderFillTable();
+  };
+
+  document.getElementById('btnSaveDraft').onclick = function () {
+    if (currentTask && currentTask.status === '待填写' && currentRows.length) {
+      currentTask.status = '草稿';
+      document.getElementById('fillStatus').textContent = '草稿';
+      document.getElementById('fillStatus').className = 'tag tag-draft';
+    }
+    if (currentTask) taskSkuData[currentTask.id] = cloneRows(currentRows);
+    alert('草稿已保存');
+  };
+
   document.getElementById('btnSubmit').onclick = function () {
-    var empty = sampleSkus.some(function (s) { return s.vol === ''; });
-    document.getElementById('submitCheckMsg').innerHTML = empty
-      ? '校验未通过：<strong>H61B001</strong> 全年销量未填写，请补全后提交。'
-      : '校验通过：共 3 个 SKU 指标已完整。确认提交后状态将变为「定版」并汇总至 BP 管理。';
-    document.getElementById('btnConfirmSubmit').disabled = empty;
+    if (!currentRows.length) {
+      document.getElementById('submitCheckMsg').innerHTML = '校验未通过：请先新增或导入 SKU 数据。';
+      document.getElementById('btnConfirmSubmit').disabled = true;
+      document.getElementById('submitModal').classList.add('open');
+      return;
+    }
+    var emptyRow = currentRows.find(function (s) { return !isRowFilled(s); });
+    document.getElementById('submitCheckMsg').innerHTML = emptyRow
+      ? '校验未通过：<strong>' + emptyRow.sku + '</strong> 全年销量未填写，请补全后提交。'
+      : '校验通过：共 ' + currentRows.length + ' 个 SKU 指标已完整。确认提交后状态将变为「定版」并汇总至 BP 管理。';
+    document.getElementById('btnConfirmSubmit').disabled = !!emptyRow;
     document.getElementById('submitModal').classList.add('open');
   };
+
   document.getElementById('btnConfirmSubmit').onclick = function () {
     document.getElementById('submitModal').classList.remove('open');
+    if (currentTask) currentTask.status = '定版';
     alert('已提交提报，状态更新为定版');
     document.getElementById('btnBack').click();
   };
@@ -230,23 +374,37 @@
     trigger: '#btnImport',
     title: '导入 BP 提报数据',
     templateFileName: 'BP提报导入模版.csv',
-    introHtml: '<p>请下载 <strong>BP 提报导入模版</strong> 填写。导入成功后当前 SKU 状态为「草稿」，须再点击「提交提报」变为「定版」。</p>',
+    introHtml: '<p>请下载 <strong>BP 提报导入模版</strong> 填写。导入成功后 SKU 行写入列表，状态变为「草稿」，须再点击「提交提报」变为「定版」。</p>',
     columns: [
       { group: '主键', name: 'SKU', required: true, desc: '须属于当前提报任务' },
       { group: '全年', name: '全年销量/销售额/毛利', required: true, desc: 'USD' },
       { group: '1–12 月', name: 'N月销量/销售额/毛利', required: true, desc: '与列表行顺序一致：上销量、中销售额、下毛利' }
     ],
     requirements: [
-      '仅可导入本任务已分配的 SKU，其他 SKU 行将报错。',
+      '可新增 SKU 行后导入，或导入后追加/覆盖列表。',
       '每月三项可为 0，不可留空。',
       '导入后为「草稿」，须点击「提交提报」变为「定版」。'
     ],
     downloadCsvRows: [
-      ['SKU', '全年销量', '全年销售额', '全年毛利', '1月销量', '1月销售额', '1月毛利'],
-      ['H61A001', '12000', '480000', '96000', '1000', '40000', '8000']
+      ['SKU', '场景品类', 'GTM标签', '全年销量', '全年销售额', '全年毛利'],
+      ['H61A001', '灯带', '2025 新品', '12000', '480000', '96000']
     ],
     demoSuccessRows: 2,
-    autoCloseMs: 1500
+    autoCloseMs: 1500,
+    onConfirm: function (file, resultEl) {
+      if (!file) { resultEl.textContent = '请先选择已填写的模版文件。'; resultEl.hidden = false; return; }
+      if (currentTask) {
+        currentTask.status = '草稿';
+        document.getElementById('fillStatus').textContent = '草稿';
+        document.getElementById('fillStatus').className = 'tag tag-draft';
+      }
+      currentRows.push({ sku: 'H61C001', cat: '灯带', tag: '2025 新品', vol: 5000, rev: 200000, gp: 40000 });
+      if (currentTask) taskSkuData[currentTask.id] = cloneRows(currentRows);
+      renderFillTable();
+      resultEl.textContent = '导入完成：成功 1 行，失败 0 行。';
+      resultEl.hidden = false;
+      setTimeout(function () { document.querySelector('.modal-mask.open') && document.querySelector('.modal-mask.open').classList.remove('open'); }, 1500);
+    }
   };
   ImportModalKit.mount(importConfig);
   document.getElementById('btnDownloadTpl').onclick = function () {
