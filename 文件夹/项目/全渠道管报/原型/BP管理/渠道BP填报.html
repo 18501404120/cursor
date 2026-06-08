@@ -59,7 +59,7 @@
           <div class="panel-head">
             <div>
               <div class="panel-title">我的 BP 提报任务</div>
-              <div class="panel-sub">展示通知到当前账号的 SKU 提报任务</div>
+              <div class="panel-sub">展示通知到当前账号（<strong id="currentAccount">张三</strong>）的 SKU 提报任务 · 仅<strong>通知人</strong>可见</div>
             </div>
           </div>
           <div class="task-cards" id="taskCards"></div>
@@ -103,6 +103,7 @@
             <div class="panel-head-tools">
               <span class="panel-sub">已填 <strong id="filledCount">0</strong> / <strong id="totalCount">0</strong> SKU · 进度 <span id="fillPct">0%</span></span>
               <button type="button" class="btn btn-danger" id="btnBatchDel" disabled>批量删除</button>
+              <button type="button" class="btn" id="btnNotifyForward">通知提报</button>
               <button type="button" class="btn btn-primary" id="btnAddSku">新增 SKU</button>
             </div>
           </div>
@@ -190,6 +191,26 @@
   </div>
 </div>
 
+<div class="modal-mask" id="forwardNotifyModal">
+  <div class="modal" style="width:min(420px,96vw)">
+    <div class="modal-hd">
+      <h2>通知提报 · 转发</h2>
+      <div class="modal-hd-actions"><button type="button" class="modal-close" data-close="forwardNotifyModal">×</button></div>
+    </div>
+    <div class="modal-bd">
+      <p style="margin:0 0 10px;font-size:12px;color:#666;line-height:1.6">
+        将所选 SKU 的<strong>通知人</strong>转给以下人员（唯一）。转发后<strong>仅新通知人</strong>可在渠道侧看到，并从您的列表中移除。
+      </p>
+      <p style="margin:0 0 10px;font-size:12px;color:#1677ff" id="forwardScopeHint">转发范围：当前任务全部 SKU</p>
+      <div id="forwardPersonOptions"></div>
+    </div>
+    <div class="modal-ft">
+      <button type="button" class="btn" data-close="forwardNotifyModal">取消</button>
+      <button type="button" class="btn btn-primary" id="btnConfirmForwardNotify">确认转发</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-mask" id="submitModal">
   <div class="modal">
     <div class="modal-hd">
@@ -212,21 +233,12 @@
 (function () {
   var CURRENT_SALES = '张三';
   var SYNC_KEY = 'bp_mgmt_channel_sync';
+  var NOTIFY_QUEUE_KEY = 'bp_notify_queue';
+  var ALL_SALES = ['张三', '李四', '王五', '赵六', '钱七', '孙八'];
   var statusTag = { '待填写': 'tag-pending-fill', '草稿': 'tag-draft', '定版': 'tag-finalized' };
 
-  var myTasks = [
-    { id: 'BP-DIST-2025-0042', store: 'Govee_US', deadline: '2025-07-15', status: '草稿' },
-    { id: 'BP-DIST-2025-0048', store: 'Govee_MX', deadline: '2025-07-20', status: '待填写' }
-  ];
-
-  var taskSkuData = {
-    'BP-DIST-2025-0042': [
-      { store: 'Govee_US', sku: 'H61A001', cat: '灯带', scene: '居家', tag: '2025年新品', sales: [CURRENT_SALES], vol: 12000, rev: 480000, gp: 96000 },
-      { store: 'Govee_US', sku: 'H61A002', cat: '灯带', scene: '居家', tag: '2025年新品', sales: [CURRENT_SALES], vol: 8500, rev: 340000, gp: 68000 },
-      { store: 'Govee_US', sku: 'H61B001', cat: '灯带', scene: '居家', tag: '—', sales: [CURRENT_SALES], vol: '', rev: '', gp: '' }
-    ],
-    'BP-DIST-2025-0048': []
-  };
+  var myTasks = [];
+  var taskSkuData = {};
 
   var masterStores = [];
   var masterTags = [];
@@ -239,6 +251,139 @@
     var el = document.getElementById(id);
     return el ? JSON.parse(el.textContent) : null;
   }
+
+  function rowQueueKey(year, store, sku, rowType) {
+    return [year || '2025', store, sku, rowType || 'normal'].join('|');
+  }
+
+  function loadNotifyQueue() {
+    try {
+      var raw = localStorage.getItem(NOTIFY_QUEUE_KEY);
+      return raw ? JSON.parse(raw) : { items: [] };
+    } catch (e) { return { items: [] }; }
+  }
+
+  function saveNotifyQueue(q) {
+    localStorage.setItem(NOTIFY_QUEUE_KEY, JSON.stringify(q));
+  }
+
+  function makeTaskId(year, store) {
+    return 'BP-DIST-' + year + '-' + (store || 'PRE').replace(/[^\w]/g, '').slice(0, 12);
+  }
+
+  function seedNotifyQueueIfEmpty() {
+    var q = loadNotifyQueue();
+    if (q.items && q.items.length) return;
+    var year = '2025';
+    var seeds = [
+      {
+        store: 'Govee_US', sku: 'H61A001', status: '草稿',
+        row: { store: 'Govee_US', sku: 'H61A001', cat: '灯带', scene: '居家', tag: '2025年新品', sales: [CURRENT_SALES], vol: 12000, rev: 480000, gp: 96000 }
+      },
+      {
+        store: 'Govee_US', sku: 'H61A002', status: '草稿',
+        row: { store: 'Govee_US', sku: 'H61A002', cat: '灯带', scene: '居家', tag: '2025年新品', sales: [CURRENT_SALES], vol: 8500, rev: 340000, gp: 68000 }
+      },
+      {
+        store: 'Govee_US', sku: 'H61B001', status: '草稿',
+        row: { store: 'Govee_US', sku: 'H61B001', cat: '灯带', scene: '居家', tag: '—', sales: [CURRENT_SALES], vol: '', rev: '', gp: '' }
+      },
+      {
+        store: 'Govee_MX', sku: 'H61C001', status: '待填写',
+        row: { store: 'Govee_MX', sku: 'H61C001', cat: '灯带', scene: '居家', tag: '2025年新品', sales: [CURRENT_SALES], vol: '', rev: '', gp: '' }
+      }
+    ];
+    q.items = seeds.map(function (s) {
+      var deadline = s.store === 'Govee_MX' ? '2025-07-20' : '2025-07-15';
+      return {
+        key: rowQueueKey(year, s.store, s.sku, 'normal'),
+        year: year,
+        store: s.store,
+        sku: s.sku,
+        rowType: 'normal',
+        notifyee: CURRENT_SALES,
+        deadline: deadline,
+        taskId: makeTaskId(year, s.store),
+        status: s.status,
+        row: Object.assign({}, s.row)
+      };
+    });
+    saveNotifyQueue(q);
+  }
+
+  function aggregateTaskStatus(items) {
+    if (!items.length) return '待填写';
+    if (items.every(function (it) { return it.status === '定版'; })) return '定版';
+    if (items.some(function (it) { return it.status === '草稿'; })) return '草稿';
+    return items[0].status || '待填写';
+  }
+
+  function rebuildMyTasksFromQueue() {
+    var q = loadNotifyQueue();
+    var mine = (q.items || []).filter(function (it) { return it.notifyee === CURRENT_SALES; });
+    var byTask = {};
+    mine.forEach(function (it) {
+      var tid = it.taskId || makeTaskId(it.year, it.store);
+      if (!byTask[tid]) {
+        byTask[tid] = {
+          id: tid,
+          store: it.store,
+          year: it.year || '2025',
+          deadline: it.deadline || '2025-07-15',
+          status: it.status || '待填写',
+          items: []
+        };
+      }
+      byTask[tid].items.push(it);
+      if (it.deadline && (!byTask[tid].deadline || it.deadline < byTask[tid].deadline)) {
+        byTask[tid].deadline = it.deadline;
+      }
+    });
+    myTasks = Object.keys(byTask).map(function (k) {
+      var t = byTask[k];
+      t.status = aggregateTaskStatus(t.items);
+      return t;
+    });
+    taskSkuData = {};
+    myTasks.forEach(function (t) {
+      taskSkuData[t.id] = t.items.map(function (it) {
+        var r = Object.assign({}, it.row || {});
+        r._queueKey = it.key;
+        r._year = it.year;
+        return r;
+      });
+    });
+  }
+
+  function refreshTaskCards() {
+    rebuildMyTasksFromQueue();
+    var cardsEl = document.getElementById('taskCards');
+    cardsEl.innerHTML = '';
+    if (!myTasks.length) {
+      cardsEl.innerHTML = '<div class="empty-tip" style="padding:24px">暂无通知到您的提报任务</div>';
+      return;
+    }
+    myTasks.forEach(function (t) {
+      var rows = taskSkuData[t.id] || [];
+      var filled = rows.filter(isRowFilled).length;
+      var pct = rows.length ? Math.round(filled / rows.length * 100) : 0;
+      var card = document.createElement('div');
+      card.className = 'task-card';
+      card.innerHTML =
+        '<h3>' + t.store + '</h3>' +
+        '<div class="meta">任务 ' + t.id + '<br>SKU ' + rows.length + ' 个 · 截止 ' + t.deadline + '<br>' +
+        '<span class="tag ' + (statusTag[t.status] || '') + '">' + t.status + '</span></div>' +
+        '<div style="margin-top:10px"><div class="progress-bar"><i style="width:' + pct + '%"></i></div></div>' +
+        '<div class="actions"><button type="button" class="btn btn-primary btn-open" data-id="' + t.id + '">' +
+        (t.status === '待填写' ? '开始填写' : (t.status === '定版' ? '查看' : '继续填写')) + '</button></div>';
+      cardsEl.appendChild(card);
+    });
+    document.querySelectorAll('.btn-open').forEach(function (btn) {
+      btn.onclick = function () { openTask(btn.dataset.id); };
+    });
+  }
+
+  document.getElementById('currentAccount').textContent = CURRENT_SALES;
 
   function loadMasterData() {
     var bases = ['../../../../规范/基础数据/', '../../../../../规范/基础数据/'];
@@ -274,7 +419,9 @@
       return {
         store: r.store, sku: r.sku, cat: r.cat, scene: r.scene || '',
         tag: r.tag, sales: (r.sales || [CURRENT_SALES]).slice(),
-        vol: r.vol, rev: r.rev, gp: r.gp
+        vol: r.vol, rev: r.rev, gp: r.gp,
+        _queueKey: r._queueKey,
+        _year: r._year
       };
     });
   }
@@ -366,6 +513,10 @@
         tr.querySelector('.row-check').addEventListener('change', updateBatchDelState);
         tr.querySelector('.btn-del-row').onclick = function () {
           if (confirm('确认删除 ' + row.store + ' / ' + row.sku + '？')) {
+            var key = row._queueKey || rowQueueKey(currentTask.year || '2025', row.store, row.sku, 'normal');
+            var q = loadNotifyQueue();
+            q.items = (q.items || []).filter(function (it) { return it.key !== key; });
+            saveNotifyQueue(q);
             currentRows.splice(idx, 1);
             persistTaskRows();
             renderFillTable();
@@ -377,7 +528,73 @@
   }
 
   function persistTaskRows() {
-    if (currentTask) taskSkuData[currentTask.id] = cloneRows(currentRows);
+    if (!currentTask) return;
+    taskSkuData[currentTask.id] = cloneRows(currentRows);
+    var q = loadNotifyQueue();
+    if (!q.items) q.items = [];
+    currentRows.forEach(function (row) {
+      var key = row._queueKey || rowQueueKey(currentTask.year || '2025', row.store, row.sku, 'normal');
+      var idx = q.items.findIndex(function (it) { return it.key === key; });
+      if (idx < 0) {
+        q.items.push({
+          key: key,
+          year: currentTask.year || '2025',
+          store: row.store,
+          sku: row.sku,
+          rowType: 'normal',
+          notifyee: CURRENT_SALES,
+          deadline: currentTask.deadline,
+          taskId: currentTask.id,
+          status: currentTask.status,
+          row: {
+            store: row.store, sku: row.sku, cat: row.cat, scene: row.scene || '',
+            tag: row.tag, sales: (row.sales || [CURRENT_SALES]).slice(),
+            vol: row.vol, rev: row.rev, gp: row.gp
+          }
+        });
+        idx = q.items.length - 1;
+      }
+      q.items[idx].row = {
+        store: row.store, sku: row.sku, cat: row.cat, scene: row.scene || '',
+        tag: row.tag, sales: (row.sales || [CURRENT_SALES]).slice(),
+        vol: row.vol, rev: row.rev, gp: row.gp
+      };
+      q.items[idx].status = currentTask.status;
+      q.items[idx].notifyee = CURRENT_SALES;
+    });
+    saveNotifyQueue(q);
+  }
+
+  function getForwardScopeRows() {
+    var idxs = getCheckedIdxs();
+    if (idxs.length) return idxs.map(function (i) { return currentRows[i]; });
+    return currentRows.slice();
+  }
+
+  function forwardRowsToPerson(rows, person) {
+    if (!rows.length || !person) return;
+    var q = loadNotifyQueue();
+    var keys = {};
+    rows.forEach(function (row) {
+      var key = row._queueKey || rowQueueKey(currentTask.year || '2025', row.store, row.sku, 'normal');
+      keys[key] = true;
+      var idx = q.items.findIndex(function (it) { return it.key === key; });
+      if (idx >= 0) {
+        q.items[idx].notifyee = person;
+        q.items[idx].row = {
+          store: row.store, sku: row.sku, cat: row.cat, scene: row.scene || '',
+          tag: row.tag, sales: (row.sales || [CURRENT_SALES]).slice(),
+          vol: row.vol, rev: row.rev, gp: row.gp
+        };
+      }
+    });
+    saveNotifyQueue(q);
+    currentRows = currentRows.filter(function (row) {
+      var key = row._queueKey || rowQueueKey(currentTask.year || '2025', row.store, row.sku, 'normal');
+      return !keys[key];
+    });
+    persistTaskRows();
+    renderFillTable();
   }
 
   function bindClearableSelect(sel, wrap, clearBtn) {
@@ -492,6 +709,7 @@
 
     document.getElementById('btnAddSku').style.display = readOnly ? 'none' : '';
     document.getElementById('btnBatchDel').style.display = readOnly ? 'none' : '';
+    document.getElementById('btnNotifyForward').style.display = readOnly ? 'none' : '';
     document.getElementById('btnImport').disabled = readOnly;
     document.getElementById('btnSaveDraft').disabled = readOnly;
     document.getElementById('btnSubmit').disabled = readOnly;
@@ -508,30 +726,39 @@
     document.getElementById('fillView').classList.add('active');
   }
 
-  var cardsEl = document.getElementById('taskCards');
-  myTasks.forEach(function (t) {
-    var rows = taskSkuData[t.id] || [];
-    var filled = rows.filter(isRowFilled).length;
-    var pct = rows.length ? Math.round(filled / rows.length * 100) : 0;
-    var card = document.createElement('div');
-    card.className = 'task-card';
-    card.innerHTML =
-      '<h3>' + t.store + '</h3>' +
-      '<div class="meta">任务 ' + t.id + '<br>SKU ' + rows.length + ' 个 · 截止 ' + t.deadline + '<br>' +
-      '<span class="tag ' + (statusTag[t.status] || '') + '">' + t.status + '</span></div>' +
-      '<div style="margin-top:10px"><div class="progress-bar"><i style="width:' + pct + '%"></i></div></div>' +
-      '<div class="actions"><button type="button" class="btn btn-primary btn-open" data-id="' + t.id + '">' +
-      (t.status === '待填写' ? '开始填写' : (t.status === '定版' ? '查看' : '继续填写')) + '</button></div>';
-    cardsEl.appendChild(card);
-  });
-
-  document.querySelectorAll('.btn-open').forEach(function (btn) {
-    btn.onclick = function () { openTask(btn.dataset.id); };
-  });
-
   document.getElementById('btnBack').onclick = function () {
+    persistTaskRows();
     document.getElementById('fillView').classList.remove('active');
     document.getElementById('taskListView').classList.remove('hidden');
+    refreshTaskCards();
+  };
+
+  document.getElementById('btnNotifyForward').onclick = function () {
+    if (!currentRows.length) { alert('当前任务无 SKU 可转发'); return; }
+    var scope = getForwardScopeRows();
+    var checked = document.querySelectorAll('#fillBody .row-check:checked').length;
+    document.getElementById('forwardScopeHint').textContent = checked
+      ? '转发范围：已勾选 ' + scope.length + ' 条 SKU'
+      : '转发范围：当前任务全部 ' + scope.length + ' 条 SKU（未勾选时默认全选）';
+    document.getElementById('forwardPersonOptions').innerHTML = ALL_SALES.filter(function (n) { return n !== CURRENT_SALES; }).map(function (name) {
+      return '<label style="display:flex;gap:6px;padding:4px 0;font-size:13px"><input type="radio" name="forwardNotifyPick" value="' + name + '"> ' + name + '</label>';
+    }).join('');
+    document.getElementById('forwardNotifyModal').classList.add('open');
+  };
+
+  document.getElementById('btnConfirmForwardNotify').onclick = function () {
+    var picked = document.querySelector('input[name=forwardNotifyPick]:checked');
+    if (!picked) { alert('请选择转发对象'); return; }
+    var scope = getForwardScopeRows();
+    if (!scope.length) { alert('无 SKU 可转发'); return; }
+    forwardRowsToPerson(scope, picked.value);
+    document.getElementById('forwardNotifyModal').classList.remove('open');
+    if (!currentRows.length) {
+      alert('已全部转发给 ' + picked.value + '，任务已从您的列表移除');
+      document.getElementById('btnBack').click();
+    } else {
+      alert('已转发 ' + scope.length + ' 条 SKU 给 ' + picked.value + '，已从您的列表移除');
+    }
   };
 
   document.getElementById('checkAllRows').addEventListener('change', function () {
@@ -543,6 +770,13 @@
     var idxs = getCheckedIdxs();
     if (!idxs.length) return;
     if (!confirm('确认删除已选 ' + idxs.length + ' 条 SKU？')) return;
+    var keys = idxs.map(function (i) {
+      var row = currentRows[i];
+      return row._queueKey || rowQueueKey(currentTask.year || '2025', row.store, row.sku, 'normal');
+    });
+    var q = loadNotifyQueue();
+    q.items = (q.items || []).filter(function (it) { return keys.indexOf(it.key) < 0; });
+    saveNotifyQueue(q);
     idxs.forEach(function (i) { currentRows.splice(i, 1); });
     persistTaskRows();
     renderFillTable();
@@ -657,6 +891,9 @@
   document.getElementById('btnDownloadTpl').onclick = function () {
     ImportModalKit.downloadCsv(importConfig.templateFileName, importConfig.downloadCsvRows);
   };
+
+  seedNotifyQueueIfEmpty();
+  refreshTaskCards();
 
   loadMasterData();
 })();

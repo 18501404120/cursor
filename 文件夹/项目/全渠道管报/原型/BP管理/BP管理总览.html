@@ -57,6 +57,7 @@
     .bp-table .col-dept { width: 72px; }
     .bp-table .col-sku { width: 88px; }
     .bp-table .col-sales { width: 96px; }
+    .bp-table .col-notifyee { width: 72px; }
     .bp-table .col-month { width: 72px; }
     .bp-table .col-remark { width: 56px; text-align: center; }
     .bp-table .col-status { width: 64px; text-align: center; }
@@ -151,7 +152,7 @@
         <!-- 工具栏 -->
         <div class="action-bar">
           <div class="left">
-            <button type="button" class="btn btn-primary" id="btnNotify">通知填报</button>
+            <button type="button" class="btn btn-primary" id="btnNotify">通知提报</button>
             <button type="button" class="btn btn-primary" id="btnImport">导入</button>
             <button type="button" class="btn" id="btnExport">导出</button>
             <button type="button" class="btn btn-danger" id="btnBatchDel">批量删除</button>
@@ -174,6 +175,7 @@
                 <th class="col-dept">部门</th>
                 <th class="col-sku">SKU</th>
                 <th class="col-sales">Sales</th>
+                <th class="col-notifyee">通知人</th>
                 <th class="col-tag">GTM 标签</th>
                 <th class="col-year">全年合计</th>
                 <th class="col-month">1 月</th>
@@ -201,40 +203,51 @@
   </div>
 </div>
 
-<!-- 通知：按 SKU 的 Sales 负责人 -->
+<!-- 通知提报 -->
 <div class="modal-mask" id="notifyModal">
   <div class="modal modal-lg">
     <div class="modal-hd">
-      <h2>通知填报</h2>
+      <h2>通知提报</h2>
       <div class="modal-hd-actions"><button type="button" class="modal-close" data-close="notifyModal" aria-label="关闭">×</button></div>
     </div>
     <div class="modal-bd">
       <p style="margin:0 0 12px;font-size:13px;color:#666;line-height:1.6">
-        按每条 SKU 的 <strong>Sales 负责人</strong> 发送填报通知。负责人填写后状态为「草稿」，提交后为「定版」。
+        通知给 SKU 的 <strong>通知人</strong>（唯一）。渠道侧<strong>仅通知人</strong>可见对应数据；负责人将状态改为「草稿」即视为回传。
       </p>
       <div class="form-grid">
-        <div class="form-field"><label><span class="req">*</span> BP 版本</label><select><option>2025 年度 BP</option></select></div>
-        <div class="form-field"><label><span class="req">*</span> 截止日期</label><input type="date" value="2025-07-15"></div>
+        <div class="form-field"><label><span class="req">*</span> BP 版本</label><select id="notifyBpVer"><option>2025 年度 BP</option></select></div>
+        <div class="form-field"><label><span class="req">*</span> 截止日期</label><input type="date" id="notifyDeadline" value="2025-07-15"></div>
         <div class="form-field full">
           <label><span class="req">*</span> 通知范围</label>
           <select id="notifyScope">
             <option value="selected">已勾选 SKU（0 条，请先勾选列表）</option>
-            <option value="filter" selected>按当前筛选结果（6 条 SKU）</option>
-            <option value="pending">仅待填写 SKU（2 条）</option>
+            <option value="filter" selected>按当前筛选结果</option>
+            <option value="pending">仅待填写 SKU</option>
+          </select>
+        </div>
+        <div class="form-field full">
+          <label><span class="req">*</span> 通知人规则</label>
+          <div style="display:flex;flex-direction:column;gap:8px;font-size:13px">
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+              <input type="radio" name="notifyPersonMode" value="default" checked> 默认：各行取 <strong>Sales 第一位</strong> 为通知人
+            </label>
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+              <input type="radio" name="notifyPersonMode" value="assign"> 指定通知人：<strong>仅被指定人</strong>可在渠道侧看到数据
+            </label>
+          </div>
+        </div>
+        <div class="form-field full" id="notifyAssignWrap" hidden>
+          <label><span class="req">*</span> 指定通知人</label>
+          <select id="notifyAssignPerson" class="ctl" style="width:100%;max-width:200px;height:32px">
+            <option value="">请选择</option>
           </select>
         </div>
         <div class="form-field full">
           <label>通知说明</label>
-          <textarea>请在本月底前完成所负责 SKU 的 BP 填报，支持在线填写或下载模板导入。</textarea>
+          <textarea id="notifyRemark">请在本月底前完成所负责 SKU 的 BP 提报，支持在线填写或下载模板导入。</textarea>
         </div>
       </div>
-      <div class="notify-preview" id="notifyPreview">
-        将通知 <strong>4</strong> 位 Sales 负责人，共 <strong>6</strong> 条 SKU：<br>
-        · 张三（2 SKU：H61A001、H61B001）<br>
-        · 李四（1 SKU：H61A002）<br>
-        · 王五（1 SKU：H705001）<br>
-        · 赵六（2 SKU：B517001、H61A003）
-      </div>
+      <div class="notify-preview" id="notifyPreview"></div>
     </div>
     <div class="modal-ft">
       <button type="button" class="btn" data-close="notifyModal">取消</button>
@@ -315,11 +328,11 @@
 <div class="modal-mask" id="forwardModal">
   <div class="modal" style="width:min(420px,96vw)">
     <div class="modal-hd">
-      <h2>转发通知</h2>
+      <h2>转发通知人</h2>
       <div class="modal-hd-actions"><button type="button" class="modal-close" data-close="forwardModal">×</button></div>
     </div>
     <div class="modal-bd">
-      <p style="margin:0 0 10px;font-size:12px;color:#666">主负责人仍为第一位 Sales；勾选额外转发对象：</p>
+      <p style="margin:0 0 10px;font-size:12px;color:#666">将本条数据的<strong>通知人</strong>转给以下人员（唯一）；转发后仅新通知人可在渠道侧看到。</p>
       <div id="forwardSalesOptions"></div>
     </div>
     <div class="modal-ft">
@@ -327,6 +340,12 @@
       <button type="button" class="btn btn-primary" id="btnConfirmForward">确认转发</button>
     </div>
   </div>
+</div>
+
+<div id="notifyeePopGlobal" class="sales-pop" hidden>
+  <div class="pop-title">指定通知人（唯一）</div>
+  <div id="notifyeePopOptions"></div>
+  <div class="pop-ft"><button type="button" class="btn btn-primary" id="notifyeePopOk" style="height:26px;padding:0 10px;font-size:12px">确定</button></div>
 </div>
 
 <div class="modal-mask" id="toastModal" style="align-items:flex-start;padding-top:80px;">
@@ -358,6 +377,60 @@
   ];
 
   var SYNC_KEY = 'bp_mgmt_channel_sync';
+  var NOTIFY_QUEUE_KEY = 'bp_notify_queue';
+
+  function defaultNotifyee(row) {
+    var s = (row.sales || []).filter(function (x) { return x && x !== '—'; });
+    return s.length ? s[0] : '—';
+  }
+
+  function rowQueueKey(row) {
+    return [row.year, row.store, row.sku, row.rowType || 'normal'].join('|');
+  }
+
+  function loadNotifyQueue() {
+    try {
+      var raw = localStorage.getItem(NOTIFY_QUEUE_KEY);
+      return raw ? JSON.parse(raw) : { items: [] };
+    } catch (e) { return { items: [] }; }
+  }
+
+  function saveNotifyQueue(q) {
+    localStorage.setItem(NOTIFY_QUEUE_KEY, JSON.stringify(q));
+  }
+
+  function upsertNotifyQueueItem(row, deadline) {
+    var q = loadNotifyQueue();
+    if (!q.items) q.items = [];
+    var key = rowQueueKey(row);
+    var idx = q.items.findIndex(function (it) { return it.key === key; });
+    var item = {
+      key: key,
+      year: row.year,
+      store: row.store,
+      sku: row.sku,
+      rowType: row.rowType || 'normal',
+      notifyee: row.notifyee,
+      deadline: deadline || '2025-07-15',
+      taskId: 'BP-DIST-' + row.year + '-' + (row.store || 'PRE').replace(/[^\w]/g, '').slice(0, 8),
+      status: row.status === 'pending' ? '待填写' : (row.status === 'finalized' ? '定版' : '草稿'),
+      row: {
+        store: row.store, sku: row.sku, cat: row.cat, tag: row.tag,
+        sales: (row.sales || []).slice(), vol: row.vol, rev: row.rev, gp: row.gp
+      }
+    };
+    if (idx >= 0) q.items[idx] = Object.assign(q.items[idx], item);
+    else q.items.push(item);
+    saveNotifyQueue(q);
+  }
+
+  function initRowNotifyee(row) {
+    if (!row.notifyee) row.notifyee = defaultNotifyee(row);
+    if (!row.notifyMode) row.notifyMode = 'default';
+    return row;
+  }
+
+  rows.forEach(initRowNotifyee);
 
   function inferRegion(store) {
     if (/US|CA|MX|Offline-CA|Offline-US|APP商城-US|TTS-US/.test(store)) return '北美';
@@ -383,7 +456,7 @@
             if (cr.vol !== '' && cr.vol != null) { existing.vol = Number(cr.vol) || cr.vol; existing.rev = Number(cr.rev) || cr.rev; existing.gp = Number(cr.gp) || cr.gp; }
             existing.status = st;
           } else {
-            rows.push({
+            rows.push(initRowNotifyee({
               year: sub.year || '2025',
               rowType: 'normal',
               region: inferRegion(cr.store),
@@ -397,7 +470,7 @@
               vol: cr.vol === '' ? '' : (Number(cr.vol) || 0),
               gp: cr.gp === '' ? '' : (Number(cr.gp) || 0),
               status: st
-            });
+            }));
           }
         });
       });
@@ -405,6 +478,19 @@
   }
 
   mergeChannelSync();
+
+  function mergeNotifyeeFromQueue() {
+    var q = loadNotifyQueue();
+    (q.items || []).forEach(function (it) {
+      if (!it.notifyee) return;
+      var row = rows.find(function (r) { return rowQueueKey(r) === it.key; });
+      if (row) {
+        row.notifyee = it.notifyee;
+        if (it.notifyee !== defaultNotifyee(row)) row.notifyMode = 'assigned';
+      }
+    });
+  }
+  mergeNotifyeeFromQueue();
 
   function findRowByTr(tr) {
     var sku = tr.dataset.sku;
@@ -510,6 +596,8 @@
         dept: '—',
         sku: sku,
         sales: info.sales.length ? info.sales : ['—'],
+        notifyee: info.sales.length ? info.sales[0] : '—',
+        notifyMode: 'default',
         tag: '—',
         rev: '', vol: '', gp: '',
         status: 'pending'
@@ -527,6 +615,8 @@
         dept: g.cat || '—',
         sku: g.sku,
         sales: mergeSalesLists(g.salesLists),
+        notifyee: mergeSalesLists(g.salesLists)[0] || '—',
+        notifyMode: 'default',
         tag: pickEarliestTag(g.tags),
         rev: '', vol: '', gp: '',
         status: 'pending'
@@ -564,7 +654,7 @@
   }
 
   function exportBpCsv() {
-    var header = ['年份', '区域', '渠道', 'SKU', 'Sales', 'GTM标签', '行类型', '全年销量', '全年销售额', '全年毛利'];
+    var header = ['年份', '区域', '渠道', 'SKU', 'Sales', '通知人', 'GTM标签', '行类型', '全年销量', '全年销售额', '全年毛利'];
     var lines = [header.join(',')];
     sortedRowsForDisplay().forEach(function (r) {
       var store = r.rowType === 'prelaunch' ? '' : r.store;
@@ -572,6 +662,7 @@
       lines.push([
         r.year, region, store, r.sku,
         (r.sales || []).filter(function (s) { return s !== '—'; }).join(','),
+        r.notifyee || defaultNotifyee(r),
         r.tag === '—' ? '' : r.tag,
         r.rowType === 'prelaunch' ? '新品待上市' : '常规',
         '', '', ''
@@ -649,10 +740,16 @@
     return '<span class="' + s.cls + '">' + s.label + '</span>';
   }
 
+  function renderNotifyeeCell(notifyee) {
+    return '<div class="sales-cell notifyee-cell" tabindex="0">' +
+      (notifyee && notifyee !== '—' ? '<span class="sales-text">' + notifyee + '</span>' : '<span class="sales-placeholder">—</span>') +
+      '</div>';
+  }
+
   function renderOps(row) {
     var sku = row.sku;
-    var primarySales = row.sales && row.sales[0] ? row.sales[0] : '—';
-    var html = '<button type="button" class="btn-link btn-notify-one" data-primary="' + primarySales + '" data-sku="' + sku + '">通知</button>';
+    var ne = row.notifyee || defaultNotifyee(row);
+    var html = '<button type="button" class="btn-link btn-notify-one" data-notifyee="' + ne + '" data-sku="' + sku + '">通知</button>';
     html += '<button type="button" class="btn-link btn-forward-row">转发</button>';
     if (row.rowType === 'prelaunch') {
       html += '<button type="button" class="btn-link btn-prefill-row">产品预填</button>';
@@ -711,11 +808,11 @@
     tr.querySelectorAll('.btn-notify-one').forEach(function (btn) {
       btn.onclick = function () {
         var row = findRowByTr(tr);
-        var primary = btn.dataset.primary;
+        var ne = btn.dataset.notifyee;
         var skuId = btn.dataset.sku;
         var tip = row && row.rowType === 'prelaunch'
-          ? '将通知主负责人 <strong>' + primary + '</strong>（SKU 级预 BP · ' + skuId + '）'
-          : '将通知主负责人 <strong>' + primary + '</strong>，SKU：<strong>' + skuId + '</strong>（店铺：' + tr.dataset.store + '）';
+          ? '将通知 <strong>' + ne + '</strong>（SKU 级预 BP · ' + skuId + '）'
+          : '将通知 <strong>' + ne + '</strong>，SKU：<strong>' + skuId + '</strong>（' + tr.dataset.store + '）';
         document.getElementById('notifyPreview').innerHTML = tip;
         openModal('notifyModal');
       };
@@ -724,10 +821,9 @@
     if (btnForward) {
       btnForward.onclick = function () {
         forwardTargetRow = findRowByTr(tr);
-        var current = forwardTargetRow ? forwardTargetRow.sales.slice() : [];
         document.getElementById('forwardSalesOptions').innerHTML = ALL_SALES.map(function (name) {
-          var checked = current.indexOf(name) >= 0 ? ' checked' : '';
-          return '<label style="display:flex;gap:6px;padding:4px 0;font-size:13px"><input type="checkbox" value="' + name + '"' + checked + '> ' + name + '</label>';
+          var checked = forwardTargetRow && forwardTargetRow.notifyee === name ? ' checked' : '';
+          return '<label style="display:flex;gap:6px;padding:4px 0;font-size:13px"><input type="radio" name="forwardPick" value="' + name + '"' + checked + '> ' + name + '</label>';
         }).join('');
         openModal('forwardModal');
       };
@@ -777,7 +873,14 @@
     var tr = activeSalesCell.closest('tr');
     tr.dataset.sales = picked.join(',');
     var row = findRowByTr(tr);
-    if (row) row.sales = picked.slice();
+    if (row) {
+      row.sales = picked.slice();
+      if (row.notifyMode === 'default') {
+        row.notifyee = defaultNotifyee(row);
+        var neCell = tr.querySelector('.notifyee-cell');
+        if (neCell) neCell.innerHTML = '<span class="sales-text">' + row.notifyee + '</span>';
+      }
+    }
     activeSalesCell.innerHTML = picked.length
       ? '<span class="sales-text">' + picked.join('、') + '</span>'
       : '<span class="sales-placeholder">请选择</span>';
@@ -786,7 +889,107 @@
 
   document.addEventListener('click', function (e) {
     if (!e.target.closest('.sales-cell') && !e.target.closest('#salesPopGlobal')) closeSalesPop();
+    if (!e.target.closest('.notifyee-cell') && !e.target.closest('#notifyeePopGlobal')) closeNotifyeePop();
   });
+
+  var activeNotifyeeCell = null;
+  var notifyeePop = document.getElementById('notifyeePopGlobal');
+  var notifyeePopOptions = document.getElementById('notifyeePopOptions');
+
+  function openNotifyeePop(cell, current) {
+    activeNotifyeeCell = cell;
+    notifyeePopOptions.innerHTML = ALL_SALES.map(function (name) {
+      var checked = current === name ? ' checked' : '';
+      return '<label><input type="radio" name="notifyeePick" value="' + name + '"' + checked + '> ' + name + '</label>';
+    }).join('');
+    var rect = cell.getBoundingClientRect();
+    notifyeePop.hidden = false;
+    notifyeePop.classList.add('open');
+    notifyeePop.style.top = (rect.bottom + 4) + 'px';
+    notifyeePop.style.left = rect.left + 'px';
+  }
+
+  function closeNotifyeePop() {
+    notifyeePop.classList.remove('open');
+    notifyeePop.hidden = true;
+    activeNotifyeeCell = null;
+  }
+
+  document.getElementById('notifyeePopOk').onclick = function () {
+    if (!activeNotifyeeCell) return;
+    var picked = notifyeePopOptions.querySelector('input[name=notifyeePick]:checked');
+    if (!picked) { showToast('请选择通知人'); return; }
+    var tr = activeNotifyeeCell.closest('tr');
+    var row = findRowByTr(tr);
+    if (row) {
+      row.notifyee = picked.value;
+      row.notifyMode = 'assigned';
+    }
+    activeNotifyeeCell.innerHTML = '<span class="sales-text">' + picked.value + '</span>';
+    closeNotifyeePop();
+  };
+
+  ALL_SALES.forEach(function (name) {
+    var opt = document.createElement('option');
+    opt.value = name; opt.textContent = name;
+    document.getElementById('notifyAssignPerson').appendChild(opt);
+  });
+
+  document.querySelectorAll('input[name=notifyPersonMode]').forEach(function (r) {
+    r.addEventListener('change', function () {
+      document.getElementById('notifyAssignWrap').hidden = this.value !== 'assign';
+      updateNotifyPreview();
+    });
+  });
+
+  function getVisibleRows() {
+    return sortedRowsForDisplay().filter(function (row) {
+      var tr = tbody.querySelector('tr[data-sku="' + row.sku + '"][data-store="' + row.store + '"]');
+      return !tr || tr.style.display !== 'none';
+    });
+  }
+
+  function getNotifyScopeRows(scope) {
+    if (scope === 'selected') {
+      var picked = [];
+      document.querySelectorAll('#bpBody .row-check:checked').forEach(function (cb) {
+        var row = findRowByTr(cb.closest('tr'));
+        if (row) picked.push(row);
+      });
+      return picked;
+    }
+    if (scope === 'pending') return rows.filter(function (r) { return r.status === 'pending'; });
+    return getVisibleRows();
+  }
+
+  function updateNotifyPreview() {
+    var scope = document.getElementById('notifyScope').value;
+    var checked = getCheckedCount();
+    var opt = document.querySelector('#notifyScope option[value="selected"]');
+    opt.textContent = '已勾选 SKU（' + checked + ' 条' + (checked ? '' : '，请先勾选列表') + '）';
+    var pendingN = rows.filter(function (r) { return r.status === 'pending'; }).length;
+    var pendingOpt = document.querySelector('#notifyScope option[value="pending"]');
+    if (pendingOpt) pendingOpt.textContent = '仅待填写 SKU（' + pendingN + ' 条）';
+
+    var list = getNotifyScopeRows(scope);
+    var mode = document.querySelector('input[name=notifyPersonMode]:checked').value;
+    var groups = {};
+    list.forEach(function (row) {
+      var ne = mode === 'assign'
+        ? (document.getElementById('notifyAssignPerson').value || '（未选择）')
+        : defaultNotifyee(row);
+      if (!groups[ne]) groups[ne] = [];
+      groups[ne].push(row.sku + (row.rowType === 'prelaunch' ? '' : '@' + row.store));
+    });
+    var html = list.length
+      ? '将通知 <strong>' + Object.keys(groups).length + '</strong> 位通知人，共 <strong>' + list.length + '</strong> 条 SKU：<br>'
+      : '当前范围内无 SKU';
+    Object.keys(groups).forEach(function (ne) {
+      html += '· ' + ne + '（' + groups[ne].slice(0, 3).join('、') + (groups[ne].length > 3 ? '…' : '') + '）<br>';
+    });
+    if (mode === 'assign') html += '<span style="color:#d46b08">指定模式下，仅被指定通知人可在渠道侧看到数据。</span>';
+    document.getElementById('notifyPreview').innerHTML = html;
+  }
 
   var factors = [1, 0.08, 0.09, 0.085, 0.09, 0.088, 0.092, 0.087, 0.091, 0.089, 0.093, 0.086, 0.09];
 
@@ -813,6 +1016,7 @@
         '<td class="col-fix col-dept">' + (row.dept || '—') + '</td>' +
         '<td class="col-fix col-sku mono">' + row.sku + '</td>' +
         '<td class="col-fix col-sales">' + renderSalesCell(row.sales) + '</td>' +
+        '<td class="col-fix col-notifyee">' + renderNotifyeeCell(row.notifyee || defaultNotifyee(row)) + '</td>' +
         '<td class="col-fix col-tag">' + row.tag + '</td>' +
         '<td class="col-year">' + metricStack(row.rev, row.vol, row.gp) + '</td>' +
         months +
@@ -824,6 +1028,11 @@
       tr.querySelector('.sales-cell').addEventListener('click', function (e) {
         e.stopPropagation();
         openSalesPop(this, row.sales.slice());
+      });
+      var neCell = tr.querySelector('.notifyee-cell');
+      if (neCell) neCell.addEventListener('click', function (e) {
+        e.stopPropagation();
+        openNotifyeePop(this, row.notifyee || defaultNotifyee(row));
       });
     });
     updateNotifyPreview();
@@ -852,20 +1061,6 @@
 
   function getCheckedCount() {
     return document.querySelectorAll('.row-check:checked').length;
-  }
-
-  function updateNotifyPreview() {
-    var scope = document.getElementById('notifyScope').value;
-    var checked = getCheckedCount();
-    var opt = document.querySelector('#notifyScope option[value="selected"]');
-    opt.textContent = '已勾选 SKU（' + checked + ' 条' + (checked ? '' : '，请先勾选列表') + '）';
-
-    var previews = {
-      selected: checked ? '将通知已勾选的 <strong>' + checked + '</strong> 条 SKU 对应 Sales 负责人' : '请先在列表中勾选需要通知的 SKU',
-      filter: '将通知 <strong>4</strong> 位 Sales 负责人，共 <strong>6</strong> 条 SKU：<br>· 张三（2 SKU）· 李四（1 SKU）· 王五（1 SKU）· 赵六（2 SKU）',
-      pending: '将通知 <strong>2</strong> 位 Sales 负责人，共 <strong>2</strong> 条待填写 SKU：<br>· 张三（H612F001、H61B001 待填写）· 赵六/钱七（H61A003 待填写）'
-    };
-    document.getElementById('notifyPreview').innerHTML = previews[scope] || previews.filter;
   }
 
   document.getElementById('btnGenBp').onclick = function () {
@@ -901,16 +1096,15 @@
 
   document.getElementById('btnConfirmForward').onclick = function () {
     if (!forwardTargetRow) return;
-    var picked = [];
-    document.querySelectorAll('#forwardSalesOptions input:checked').forEach(function (cb) { picked.push(cb.value); });
-    if (!picked.length) { showToast('请至少选择一位转发对象'); return; }
-    forwardTargetRow.sales = mergeSalesLists([forwardTargetRow.sales, picked]);
+    var picked = document.querySelector('#forwardSalesOptions input[name=forwardPick]:checked');
+    if (!picked) { showToast('请选择转发对象'); return; }
+    forwardTargetRow.notifyee = picked.value;
+    forwardTargetRow.notifyMode = 'assigned';
+    upsertNotifyQueueItem(forwardTargetRow, document.getElementById('notifyDeadline').value);
     closeModal('forwardModal');
     renderBpTable();
-    showToast('已转发通知给：' + picked.join('、') + '（主负责人仍为 ' + forwardTargetRow.sales[0] + '）');
+    showToast('已转发给 ' + picked.value + '，仅其可在渠道侧看到该 SKU');
   };
-
-  loadGenMasterData().then(function () { /* ready */ });
 
   document.getElementById('btnBatchDel').onclick = function () {
     var checked = Array.prototype.slice.call(document.querySelectorAll('#bpBody .row-check:checked'));
@@ -935,11 +1129,33 @@
     openModal('notifyModal');
   };
   document.getElementById('btnConfirmNotify').onclick = function () {
+    var mode = document.querySelector('input[name=notifyPersonMode]:checked').value;
+    var assign = document.getElementById('notifyAssignPerson').value;
+    if (mode === 'assign' && !assign) { showToast('请选择指定通知人'); return; }
+    var scope = document.getElementById('notifyScope').value;
+    var list = getNotifyScopeRows(scope);
+    if (!list.length) { showToast('通知范围内无 SKU'); return; }
+    var deadline = document.getElementById('notifyDeadline').value;
+    list.forEach(function (row) {
+      if (mode === 'assign') {
+        row.notifyee = assign;
+        row.notifyMode = 'assigned';
+      } else {
+        row.notifyee = defaultNotifyee(row);
+        row.notifyMode = 'default';
+      }
+      upsertNotifyQueueItem(row, deadline);
+    });
     closeModal('notifyModal');
-    showToast('已按 SKU 负责人发送通知，Sales 可在系统中填报或导入');
+    renderBpTable();
+    showToast('已通知 ' + list.length + ' 条 SKU 至对应通知人（渠道侧仅通知人可见）');
   };
 
   document.getElementById('notifyScope').addEventListener('change', updateNotifyPreview);
+  document.getElementById('notifyAssignPerson').addEventListener('change', updateNotifyPreview);
+
+  loadGenMasterData().then(function () { /* ready */ });
+
   document.getElementById('checkAll').addEventListener('change', function () {
     document.querySelectorAll('.row-check').forEach(function (cb) { cb.checked = this.checked; }.bind(this));
     updateNotifyPreview();
