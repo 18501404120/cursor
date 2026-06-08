@@ -61,7 +61,7 @@
     .bp-table .col-remark { width: 56px; text-align: center; }
     .bp-table .col-status { width: 64px; text-align: center; }
     .bp-table .col-op {
-      width: 120px; text-align: center;
+      width: 168px; text-align: center;
       position: sticky; right: 0; z-index: 2; background: #fff;
       box-shadow: -4px 0 6px -4px rgba(0,0,0,0.12);
     }
@@ -85,6 +85,15 @@
     .progress-drawer-table { width: 100%; border-collapse: collapse; font-size: 13px; }
     .progress-drawer-table th, .progress-drawer-table td { border: 1px solid #e8e8e8; padding: 8px 10px; }
     .progress-drawer-table th { background: #fafafa; }
+    .gen-rules {
+      margin: 0 0 14px; padding: 12px 14px; background: #fafafa; border: 1px solid #f0f0f0;
+      border-radius: 6px; font-size: 12px; line-height: 1.75; color: #595959;
+    }
+    .gen-rules ol { margin: 8px 0 0; padding-left: 18px; }
+    .gen-result { margin-top: 12px; padding: 10px 12px; background: #f6ffed; border: 1px solid #b7eb8f; border-radius: 4px; font-size: 12px; display: none; }
+    .gen-result.show { display: block; }
+    tr.row-prelaunch .col-store { color: #d46b08; font-weight: 600; }
+    tr.row-prelaunch .col-region { color: #bfbfbf; }
   </style>
 </head>
 <body>
@@ -144,7 +153,7 @@
           <div class="left">
             <button type="button" class="btn btn-primary" id="btnNotify">通知填报</button>
             <button type="button" class="btn btn-primary" id="btnImport">导入</button>
-            <button type="button" class="btn">导出</button>
+            <button type="button" class="btn" id="btnExport">导出</button>
             <button type="button" class="btn btn-danger" id="btnBatchDel">批量删除</button>
             <button type="button" class="btn">批量提交</button>
             <button type="button" class="btn">批量变更</button>
@@ -260,6 +269,66 @@
   <div class="pop-ft"><button type="button" class="btn btn-primary" id="salesPopOk" style="height:26px;padding:0 10px;font-size:12px">确定</button></div>
 </div>
 
+<div class="modal-mask" id="genBpModal">
+  <div class="modal modal-lg">
+    <div class="modal-hd">
+      <h2>生成 BP 数据</h2>
+      <div class="modal-hd-actions"><button type="button" class="modal-close" data-close="genBpModal">×</button></div>
+    </div>
+    <div class="modal-bd">
+      <p style="margin:0 0 12px;font-size:13px;color:#666;line-height:1.6">
+        按主数据规则从 MSKU×店铺 汇总生成 BP 行（<strong>增量</strong>：仅追加新年份/新 SKU，已有行保留）。生成后状态为 <strong>待填写</strong>，指标为空。
+      </p>
+      <div class="form-grid">
+        <div class="form-field">
+          <label><span class="req">*</span> 年份</label>
+          <select id="genYear" class="ctl" style="width:100%;max-width:none;height:32px">
+            <option value="">请选择</option>
+            <option value="2026">2026</option>
+            <option value="2025">2025</option>
+            <option value="2024">2024</option>
+          </select>
+        </div>
+        <div class="form-field" style="align-self:end">
+          <button type="button" class="btn" id="btnGenDownloadTpl">下载 BP 模版</button>
+        </div>
+      </div>
+      <div class="gen-rules">
+        <strong>生成规则摘要</strong>
+        <ol>
+          <li>MSKU 准入：<strong>产品定位</strong> ∈ P0/P1/P2 稳定与新品（6 类）；剔除 <strong>研发状态 = EOL</strong> 的 MSKU 行。</li>
+          <li>仅 <strong>产品类型 = 成品</strong> 的 8 位 SKU；按 <strong>SKU + 店铺</strong> 去重。</li>
+          <li><strong>GTM 标签</strong>：同 SKU+店铺 多 MSKU 时取标签名<strong>年份最早</strong>；无则「—」。</li>
+          <li><strong>Sales</strong>：合并 MSKU 负责人；通知默认发第一位，可转发。</li>
+          <li><strong>新品待上市</strong>（排 Excel 最前）：model 研发状态为未研发/研发中；列表店铺显示「新品待上市」，导出时店铺列留空；可与常规行并存。</li>
+        </ol>
+      </div>
+      <div class="gen-result" id="genResult"></div>
+    </div>
+    <div class="modal-ft">
+      <button type="button" class="btn" data-close="genBpModal">取消</button>
+      <button type="button" class="btn btn-primary" id="btnConfirmGenBp">确认生成</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-mask" id="forwardModal">
+  <div class="modal" style="width:min(420px,96vw)">
+    <div class="modal-hd">
+      <h2>转发通知</h2>
+      <div class="modal-hd-actions"><button type="button" class="modal-close" data-close="forwardModal">×</button></div>
+    </div>
+    <div class="modal-bd">
+      <p style="margin:0 0 10px;font-size:12px;color:#666">主负责人仍为第一位 Sales；勾选额外转发对象：</p>
+      <div id="forwardSalesOptions"></div>
+    </div>
+    <div class="modal-ft">
+      <button type="button" class="btn" data-close="forwardModal">取消</button>
+      <button type="button" class="btn btn-primary" id="btnConfirmForward">确认转发</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-mask" id="toastModal" style="align-items:flex-start;padding-top:80px;">
   <div class="modal" style="width:400px;"><div class="modal-bd" id="toastMsg" style="text-align:center;padding:24px;font-size:14px;"></div></div>
 </div>
@@ -274,13 +343,18 @@
     finalized: { label: '定版', cls: 'status-finalized' }
   };
 
+  var PRELAUNCH_STORE = '新品待上市';
+  var POS_WHITELIST = ['P0稳定', 'P0新品', 'P1稳定', 'P1新品', 'P2稳定', 'P2新品'];
+  var masterData = null;
+  var forwardTargetRow = null;
+
   var rows = [
-    { region: '北美', store: 'Offline-CA', cat: '灯带', dept: '灯带', sku: 'H612F001', sales: ['张三'], tag: '2025 新品', rev: '', vol: '', gp: '', status: 'pending' },
-    { region: '西欧', store: 'Goveelife_UK', cat: '灯带', dept: '灯带', sku: 'H6074002', sales: ['李四', '王五'], tag: '2025 新品', rev: 340000, vol: 8500, gp: 68000, status: 'draft' },
-    { region: '北美', store: 'Govee_US', cat: '户外', dept: '户外', sku: 'H705001', sales: ['王五'], tag: '—', rev: 192000, vol: 3200, gp: 48000, status: 'finalized' },
-    { region: '西欧', store: 'APP商城-UK', cat: '智能家居', dept: 'App', sku: 'B517001', sales: ['赵六'], tag: '—', rev: 168000, vol: 5600, gp: 42000, status: 'finalized' },
-    { region: '北美', store: 'Govee_US', cat: '灯带', dept: '灯带', sku: 'H61B001', sales: ['张三'], tag: '—', rev: 248000, vol: 6200, gp: 49600, status: 'draft' },
-    { region: '西欧', store: 'Govee_DE', cat: '灯带', dept: '灯带', sku: 'H61A003', sales: ['赵六', '钱七'], tag: '2025 新品', rev: '', vol: '', gp: '', status: 'pending' }
+    { year: '2025', rowType: 'normal', region: '北美', store: 'Offline-CA', cat: '灯带', dept: '灯带', sku: 'H612F001', sales: ['张三'], tag: '2025年新品', rev: '', vol: '', gp: '', status: 'pending' },
+    { year: '2025', rowType: 'normal', region: '西欧', store: 'Goveelife_UK', cat: '灯带', dept: '灯带', sku: 'H6074002', sales: ['李四', '王五'], tag: '2025年新品', rev: 340000, vol: 8500, gp: 68000, status: 'draft' },
+    { year: '2025', rowType: 'normal', region: '北美', store: 'Govee_US', cat: '户外', dept: '户外', sku: 'H705001', sales: ['王五'], tag: '—', rev: 192000, vol: 3200, gp: 48000, status: 'finalized' },
+    { year: '2025', rowType: 'normal', region: '西欧', store: 'APP商城-UK', cat: '智能家居', dept: 'App', sku: 'B517001', sales: ['赵六'], tag: '—', rev: 168000, vol: 5600, gp: 42000, status: 'finalized' },
+    { year: '2025', rowType: 'normal', region: '北美', store: 'Govee_US', cat: '灯带', dept: '灯带', sku: 'H61B001', sales: ['张三'], tag: '—', rev: 248000, vol: 6200, gp: 49600, status: 'draft' },
+    { year: '2025', rowType: 'normal', region: '西欧', store: 'Govee_DE', cat: '灯带', dept: '灯带', sku: 'H61A003', sales: ['赵六', '钱七'], tag: '2025年新品', rev: '', vol: '', gp: '', status: 'pending' }
   ];
 
   var SYNC_KEY = 'bp_mgmt_channel_sync';
@@ -299,7 +373,9 @@
       (payload.submissions || []).forEach(function (sub) {
         (sub.rows || []).forEach(function (cr) {
           var st = sub.status === 'finalized' ? 'finalized' : 'draft';
-          var existing = rows.find(function (r) { return r.store === cr.store && r.sku === cr.sku; });
+          var existing = rows.find(function (r) {
+            return r.year === (sub.year || '2025') && r.sku === cr.sku && r.store === cr.store && (r.rowType || 'normal') === 'normal';
+          });
           if (existing) {
             existing.sales = (cr.sales || []).slice();
             existing.cat = cr.cat || existing.cat;
@@ -308,6 +384,8 @@
             existing.status = st;
           } else {
             rows.push({
+              year: sub.year || '2025',
+              rowType: 'normal',
               region: inferRegion(cr.store),
               store: cr.store,
               cat: cr.cat || '—',
@@ -329,10 +407,188 @@
   mergeChannelSync();
 
   function findRowByTr(tr) {
-    var sku = tr.querySelector('.col-sku').textContent;
-    var store = tr.querySelector('.col-store').textContent;
-    return rows.find(function (r) { return r.sku === sku && r.store === store; });
+    var sku = tr.dataset.sku;
+    var store = tr.dataset.store;
+    var year = tr.dataset.year;
+    var rowType = tr.dataset.rowType || 'normal';
+    return rows.find(function (r) {
+      return String(r.year) === year && r.sku === sku && (r.rowType || 'normal') === rowType &&
+        (rowType === 'prelaunch' || r.store === store);
+    });
   }
+
+  function rowExists(year, sku, store, rowType) {
+    return rows.some(function (r) {
+      return String(r.year) === String(year) && r.sku === sku && (r.rowType || 'normal') === rowType &&
+        (rowType === 'prelaunch' ? true : r.store === store);
+    });
+  }
+
+  function tagYear(tag) {
+    if (!tag || tag === '—') return 9999;
+    var m = String(tag).match(/(\d{4})/);
+    return m ? parseInt(m[1], 10) : 9999;
+  }
+
+  function pickEarliestTag(tags) {
+    var valid = tags.filter(function (t) { return t && t !== '—'; });
+    if (!valid.length) return '—';
+    valid.sort(function (a, b) { return tagYear(a) - tagYear(b); });
+    return valid[0];
+  }
+
+  function mergeSalesLists(lists) {
+    var seen = {};
+    var out = [];
+    lists.forEach(function (arr) {
+      (arr || []).forEach(function (s) {
+        if (s && !seen[s]) { seen[s] = true; out.push(s); }
+      });
+    });
+    return out.length ? out : ['—'];
+  }
+
+  function loadGenMasterData() {
+    return fetch('bp-gen-master-data.json').then(function (r) {
+      return r.ok ? r.json() : null;
+    }).catch(function () { return null; }).then(function (data) {
+      if (data) masterData = data;
+      else {
+        masterData = {
+          pos_whitelist: POS_WHITELIST,
+          msku_records: [],
+          sku_master: []
+        };
+      }
+      return masterData;
+    });
+  }
+
+  function buildBpCandidates(year) {
+    var data = masterData;
+    var posSet = {};
+    (data.pos_whitelist || POS_WHITELIST).forEach(function (p) { posSet[p] = true; });
+
+    var skuInfo = {};
+    (data.sku_master || []).forEach(function (s) {
+      if (s.产品类型 !== '成品') return;
+      if (!skuInfo[s.sku]) skuInfo[s.sku] = { modelRd: s.model研发状态, scene: s.场景, cat: s.品类, sales: [] };
+      (s.sales || []).forEach(function (x) {
+        if (skuInfo[s.sku].sales.indexOf(x) < 0) skuInfo[s.sku].sales.push(x);
+      });
+    });
+
+    var allMskuBySku = {};
+    (data.msku_records || []).forEach(function (r) { allMskuBySku[r.sku] = true; });
+
+    var filtered = (data.msku_records || []).filter(function (r) {
+      return posSet[r.产品定位] && r.研发状态 !== 'EOL' && skuInfo[r.sku];
+    });
+
+    var groups = {};
+    filtered.forEach(function (r) {
+      var key = r.sku + '\0' + r.店铺名称;
+      if (!groups[key]) {
+        groups[key] = { sku: r.sku, store: r.店铺名称, tags: [], salesLists: [], cat: r.品类, scene: r.场景 };
+      }
+      if (r.新品标签) groups[key].tags.push(r.新品标签);
+      groups[key].salesLists.push(Array.isArray(r.sales) ? r.sales : [r.sales].filter(Boolean));
+    });
+
+    var prelaunch = [];
+    var normal = [];
+
+    Object.keys(skuInfo).forEach(function (sku) {
+      var info = skuInfo[sku];
+      if (info.modelRd !== '未研发' && info.modelRd !== '研发中') return;
+      prelaunch.push({
+        year: year,
+        rowType: 'prelaunch',
+        region: '—',
+        store: PRELAUNCH_STORE,
+        cat: info.cat || '—',
+        dept: '—',
+        sku: sku,
+        sales: info.sales.length ? info.sales : ['—'],
+        tag: '—',
+        rev: '', vol: '', gp: '',
+        status: 'pending'
+      });
+    });
+
+    Object.keys(groups).forEach(function (key) {
+      var g = groups[key];
+      normal.push({
+        year: year,
+        rowType: 'normal',
+        region: inferRegion(g.store),
+        store: g.store,
+        cat: g.cat || '—',
+        dept: g.cat || '—',
+        sku: g.sku,
+        sales: mergeSalesLists(g.salesLists),
+        tag: pickEarliestTag(g.tags),
+        rev: '', vol: '', gp: '',
+        status: 'pending'
+      });
+    });
+
+    return { prelaunch: prelaunch, normal: normal, stats: {
+      mskuIn: (data.msku_records || []).length,
+      mskuAfterFilter: filtered.length,
+      prelaunchCount: prelaunch.length,
+      normalCount: normal.length
+    }};
+  }
+
+  function generateBpIncremental(year) {
+    var built = buildBpCandidates(year);
+    var addedPre = 0;
+    var addedNorm = 0;
+    built.prelaunch.forEach(function (r) {
+      if (!rowExists(year, r.sku, r.store, 'prelaunch')) { rows.push(r); addedPre++; }
+    });
+    built.normal.forEach(function (r) {
+      if (!rowExists(year, r.sku, r.store, 'normal')) { rows.push(r); addedNorm++; }
+    });
+    return { addedPre: addedPre, addedNorm: addedNorm, skipped: built.prelaunch.length + built.normal.length - addedPre - addedNorm, stats: built.stats };
+  }
+
+  function sortedRowsForDisplay() {
+    return rows.slice().sort(function (a, b) {
+      if (a.rowType === 'prelaunch' && b.rowType !== 'prelaunch') return -1;
+      if (b.rowType === 'prelaunch' && a.rowType !== 'prelaunch') return 1;
+      if (a.store !== b.store) return a.store.localeCompare(b.store);
+      return a.sku.localeCompare(b.sku);
+    });
+  }
+
+  function exportBpCsv() {
+    var header = ['年份', '区域', '渠道', 'SKU', 'Sales', 'GTM标签', '行类型', '全年销量', '全年销售额', '全年毛利'];
+    var lines = [header.join(',')];
+    sortedRowsForDisplay().forEach(function (r) {
+      var store = r.rowType === 'prelaunch' ? '' : r.store;
+      var region = r.rowType === 'prelaunch' ? '' : r.region;
+      lines.push([
+        r.year, region, store, r.sku,
+        (r.sales || []).filter(function (s) { return s !== '—'; }).join(','),
+        r.tag === '—' ? '' : r.tag,
+        r.rowType === 'prelaunch' ? '新品待上市' : '常规',
+        '', '', ''
+      ].join(','));
+    });
+    var blob = new Blob(['\ufeff' + lines.join('\n')], { type: 'text/csv;charset=utf-8' });
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'BP生成导出.csv';
+    a.click();
+  }
+
+  var BP_TEMPLATE_ROWS = [
+    ['年份', '区域', '渠道', 'SKU', 'Sales', '全年销量', '全年销售额', '全年毛利', '1月销量', '1月销售额', '1月毛利'],
+    ['2025', '北美', 'Govee_US', 'H6011001', '张三', '', '', '', '', '', ''],
+    ['2025', '', '', 'H70NEW01', '张三', '', '', '', '', '', '']
+  ];
 
   var salesProgress = [
     { sales: '张三', total: 48, done: 32, status: '填报中' },
@@ -395,8 +651,12 @@
 
   function renderOps(row) {
     var sku = row.sku;
-    var sales = salesText(row.sales);
-    var html = '<button type="button" class="btn-link btn-notify-one" data-sales="' + sales + '" data-sku="' + sku + '">通知</button>';
+    var primarySales = row.sales && row.sales[0] ? row.sales[0] : '—';
+    var html = '<button type="button" class="btn-link btn-notify-one" data-primary="' + primarySales + '" data-sku="' + sku + '">通知</button>';
+    html += '<button type="button" class="btn-link btn-forward-row">转发</button>';
+    if (row.rowType === 'prelaunch') {
+      html += '<button type="button" class="btn-link btn-prefill-row">产品预填</button>';
+    }
     if (row.status === 'finalized') {
       html += '<button type="button" class="btn-link btn-change-row">变更</button>';
     } else {
@@ -450,11 +710,34 @@
     }
     tr.querySelectorAll('.btn-notify-one').forEach(function (btn) {
       btn.onclick = function () {
-        document.getElementById('notifyPreview').innerHTML =
-          '将通知 Sales <strong>' + btn.dataset.sales + '</strong>，SKU：<strong>' + btn.dataset.sku + '</strong>';
+        var row = findRowByTr(tr);
+        var primary = btn.dataset.primary;
+        var skuId = btn.dataset.sku;
+        var tip = row && row.rowType === 'prelaunch'
+          ? '将通知主负责人 <strong>' + primary + '</strong>（SKU 级预 BP · ' + skuId + '）'
+          : '将通知主负责人 <strong>' + primary + '</strong>，SKU：<strong>' + skuId + '</strong>（店铺：' + tr.dataset.store + '）';
+        document.getElementById('notifyPreview').innerHTML = tip;
         openModal('notifyModal');
       };
     });
+    var btnForward = tr.querySelector('.btn-forward-row');
+    if (btnForward) {
+      btnForward.onclick = function () {
+        forwardTargetRow = findRowByTr(tr);
+        var current = forwardTargetRow ? forwardTargetRow.sales.slice() : [];
+        document.getElementById('forwardSalesOptions').innerHTML = ALL_SALES.map(function (name) {
+          var checked = current.indexOf(name) >= 0 ? ' checked' : '';
+          return '<label style="display:flex;gap:6px;padding:4px 0;font-size:13px"><input type="checkbox" value="' + name + '"' + checked + '> ' + name + '</label>';
+        }).join('');
+        openModal('forwardModal');
+      };
+    }
+    var btnPrefill = tr.querySelector('.btn-prefill-row');
+    if (btnPrefill) {
+      btnPrefill.onclick = function () {
+        showToast('进入 SKU 级产品预填（演示）：' + tr.dataset.sku + ' · 待 MSKU 上架后拆分到店铺');
+      };
+    }
   }
 
   function renderSalesCell(salesArr) {
@@ -511,20 +794,23 @@
 
   function renderBpTable() {
     tbody.innerHTML = '';
-    rows.forEach(function (row) {
+    sortedRowsForDisplay().forEach(function (row) {
       var tr = document.createElement('tr');
+      if (row.rowType === 'prelaunch') tr.classList.add('row-prelaunch');
       tr.dataset.sales = row.sales.join(',');
       tr.dataset.status = row.status;
       tr.dataset.store = row.store;
       tr.dataset.sku = row.sku;
+      tr.dataset.year = String(row.year);
+      tr.dataset.rowType = row.rowType || 'normal';
       var months = '';
       for (var i = 1; i <= 12; i++) months += '<td class="col-month">' + monthCell(row, factors[i]) + '</td>';
       tr.innerHTML =
         '<td class="col-check"><input type="checkbox" class="row-check"></td>' +
-        '<td class="col-fix col-region">' + row.region + '</td>' +
+        '<td class="col-fix col-region">' + (row.region || '—') + '</td>' +
         '<td class="col-fix col-store">' + row.store + '</td>' +
         '<td class="col-fix col-cat">' + row.cat + '</td>' +
-        '<td class="col-fix col-dept">' + row.dept + '</td>' +
+        '<td class="col-fix col-dept">' + (row.dept || '—') + '</td>' +
         '<td class="col-fix col-sku mono">' + row.sku + '</td>' +
         '<td class="col-fix col-sales">' + renderSalesCell(row.sales) + '</td>' +
         '<td class="col-fix col-tag">' + row.tag + '</td>' +
@@ -583,8 +869,48 @@
   }
 
   document.getElementById('btnGenBp').onclick = function () {
-    showToast('已生成 BP 数据，SKU 状态为「待填写」');
+    document.getElementById('genYear').value = '';
+    document.getElementById('genResult').classList.remove('show');
+    document.getElementById('genResult').textContent = '';
+    openModal('genBpModal');
   };
+
+  document.getElementById('btnGenDownloadTpl').onclick = function () {
+    ImportModalKit.downloadCsv('BP填报导入模版.csv', BP_TEMPLATE_ROWS);
+  };
+
+  document.getElementById('btnConfirmGenBp').onclick = function () {
+    var year = document.getElementById('genYear').value;
+    if (!year) { showToast('请选择年份'); return; }
+    if (!masterData) {
+      showToast('主数据加载中，请稍后重试');
+      return;
+    }
+    var result = generateBpIncremental(year);
+    renderBpTable();
+    var el = document.getElementById('genResult');
+    el.innerHTML = '生成完成（<strong>' + year + '</strong> 年）：新增 <strong>' + result.addedPre + '</strong> 条新品待上市、<strong>' + result.addedNorm + '</strong> 条常规 SKU+店铺；跳过已存在 <strong>' + result.skipped + '</strong> 条。<br>MSKU 过滤：' + result.stats.mskuIn + ' → ' + result.stats.mskuAfterFilter + ' 行参与汇总。';
+    el.classList.add('show');
+    showToast('已增量生成 BP 数据，新增 ' + (result.addedPre + result.addedNorm) + ' 条');
+  };
+
+  document.getElementById('btnExport').onclick = function () {
+    exportBpCsv();
+    showToast('已导出 CSV（新品行在前，待上市行店铺为空）');
+  };
+
+  document.getElementById('btnConfirmForward').onclick = function () {
+    if (!forwardTargetRow) return;
+    var picked = [];
+    document.querySelectorAll('#forwardSalesOptions input:checked').forEach(function (cb) { picked.push(cb.value); });
+    if (!picked.length) { showToast('请至少选择一位转发对象'); return; }
+    forwardTargetRow.sales = mergeSalesLists([forwardTargetRow.sales, picked]);
+    closeModal('forwardModal');
+    renderBpTable();
+    showToast('已转发通知给：' + picked.join('、') + '（主负责人仍为 ' + forwardTargetRow.sales[0] + '）');
+  };
+
+  loadGenMasterData().then(function () { /* ready */ });
 
   document.getElementById('btnBatchDel').onclick = function () {
     var checked = Array.prototype.slice.call(document.querySelectorAll('#bpBody .row-check:checked'));
