@@ -33,6 +33,9 @@
     .fill-table input:disabled { background: #f5f5f5; color: #999; }
     .empty-tip { padding: 32px; text-align: center; color: #999; font-size: 13px; }
     .panel-head-tools { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+    .notify-preview { margin-top: 12px; padding: 10px 12px; background: #fafafa; border: 1px solid #f0f0f0; border-radius: 4px; font-size: 12px; line-height: 1.8; max-height: 160px; overflow: auto; }
+    #chNotifyAssignWrap[hidden] { display: none !important; }
+    .form-field textarea { width: 100%; min-height: 72px; padding: 8px; border: 1px solid #d9d9d9; border-radius: 4px; font-size: 13px; resize: vertical; box-sizing: border-box; }
   </style>
 </head>
 <body>
@@ -191,22 +194,54 @@
   </div>
 </div>
 
-<div class="modal-mask" id="forwardNotifyModal">
-  <div class="modal" style="width:min(420px,96vw)">
+<!-- 通知提报（与 BP 管理总览弹窗一致） -->
+<div class="modal-mask" id="chNotifyModal">
+  <div class="modal modal-lg">
     <div class="modal-hd">
-      <h2>通知提报 · 转发</h2>
-      <div class="modal-hd-actions"><button type="button" class="modal-close" data-close="forwardNotifyModal">×</button></div>
+      <h2>通知提报</h2>
+      <div class="modal-hd-actions"><button type="button" class="modal-close" data-close="chNotifyModal">×</button></div>
     </div>
     <div class="modal-bd">
-      <p style="margin:0 0 10px;font-size:12px;color:#666;line-height:1.6">
-        将所选 SKU 的<strong>通知人</strong>转给以下人员（唯一）。转发后<strong>仅新通知人</strong>可在渠道侧看到，并从您的列表中移除。
+      <p style="margin:0 0 12px;font-size:13px;color:#666;line-height:1.6">
+        通知给 SKU 的 <strong>通知人</strong>（唯一）。渠道侧<strong>仅通知人</strong>可见对应数据；负责人将状态改为「草稿」即视为回传。
       </p>
-      <p style="margin:0 0 10px;font-size:12px;color:#1677ff" id="forwardScopeHint">转发范围：当前任务全部 SKU</p>
-      <div id="forwardPersonOptions"></div>
+      <div class="form-grid">
+        <div class="form-field"><label><span class="req">*</span> BP 版本</label><select id="chNotifyBpVer"><option>2025 年度 BP</option></select></div>
+        <div class="form-field"><label><span class="req">*</span> 截止日期</label><input type="date" id="chNotifyDeadline" value="2025-07-15"></div>
+        <div class="form-field full">
+          <label><span class="req">*</span> 通知范围</label>
+          <select id="chNotifyScope">
+            <option value="selected">已勾选 SKU（0 条，请先勾选列表）</option>
+            <option value="all" selected>当前任务全部 SKU</option>
+          </select>
+        </div>
+        <div class="form-field full">
+          <label><span class="req">*</span> 通知人规则</label>
+          <div style="display:flex;flex-direction:column;gap:8px;font-size:13px">
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+              <input type="radio" name="chNotifyPersonMode" value="default" checked> 默认：各行取 <strong>Sales 第一位</strong> 为通知人
+            </label>
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+              <input type="radio" name="chNotifyPersonMode" value="assign"> 指定通知人：<strong>仅被指定人</strong>可在渠道侧看到数据
+            </label>
+          </div>
+        </div>
+        <div class="form-field full" id="chNotifyAssignWrap" hidden>
+          <label><span class="req">*</span> 指定通知人</label>
+          <select id="chNotifyAssignPerson" class="ctl" style="width:100%;max-width:200px;height:32px">
+            <option value="">请选择</option>
+          </select>
+        </div>
+        <div class="form-field full">
+          <label>通知说明</label>
+          <textarea id="chNotifyRemark">请在本月底前完成所负责 SKU 的 BP 提报，支持在线填写或下载模板导入。</textarea>
+        </div>
+      </div>
+      <div class="notify-preview" id="chNotifyPreview"></div>
     </div>
     <div class="modal-ft">
-      <button type="button" class="btn" data-close="forwardNotifyModal">取消</button>
-      <button type="button" class="btn btn-primary" id="btnConfirmForwardNotify">确认转发</button>
+      <button type="button" class="btn" data-close="chNotifyModal">取消</button>
+      <button type="button" class="btn btn-primary" id="btnChConfirmNotify">确认发送</button>
     </div>
   </div>
 </div>
@@ -565,36 +600,85 @@
     saveNotifyQueue(q);
   }
 
-  function getForwardScopeRows() {
-    var idxs = getCheckedIdxs();
-    if (idxs.length) return idxs.map(function (i) { return currentRows[i]; });
+  function defaultNotifyeeRow(row) {
+    var s = (row.sales || []).filter(function (x) { return x && x !== '—'; });
+    return s.length ? s[0] : CURRENT_SALES;
+  }
+
+  function getChNotifyScopeRows(scope) {
+    if (scope === 'selected') {
+      var idxs = getCheckedIdxs();
+      return idxs.map(function (i) { return currentRows[i]; });
+    }
     return currentRows.slice();
   }
 
-  function forwardRowsToPerson(rows, person) {
-    if (!rows.length || !person) return;
+  function syncChNotifyAssignWrap() {
+    var modeEl = document.querySelector('input[name=chNotifyPersonMode]:checked');
+    var show = modeEl && modeEl.value === 'assign';
+    var wrap = document.getElementById('chNotifyAssignWrap');
+    wrap.hidden = !show;
+    wrap.style.display = show ? '' : 'none';
+  }
+
+  function updateChNotifyPreview() {
+    syncChNotifyAssignWrap();
+    var checked = document.querySelectorAll('#fillBody .row-check:checked').length;
+    var selOpt = document.querySelector('#chNotifyScope option[value=selected]');
+    if (selOpt) selOpt.textContent = '已勾选 SKU（' + checked + ' 条' + (checked ? '' : '，请先勾选列表') + '）';
+    var allOpt = document.querySelector('#chNotifyScope option[value=all]');
+    if (allOpt) allOpt.textContent = '当前任务全部 SKU（' + currentRows.length + ' 条）';
+
+    var scope = document.getElementById('chNotifyScope').value;
+    var list = getChNotifyScopeRows(scope);
+    var mode = document.querySelector('input[name=chNotifyPersonMode]:checked').value;
+    var groups = {};
+    list.forEach(function (row) {
+      var ne = mode === 'assign'
+        ? (document.getElementById('chNotifyAssignPerson').value || '（未选择）')
+        : defaultNotifyeeRow(row);
+      if (!groups[ne]) groups[ne] = [];
+      groups[ne].push(row.sku + '@' + row.store);
+    });
+    var html = list.length
+      ? '将通知 <strong>' + Object.keys(groups).length + '</strong> 位通知人，共 <strong>' + list.length + '</strong> 条 SKU：<br>'
+      : '当前范围内无 SKU';
+    Object.keys(groups).forEach(function (ne) {
+      html += '· ' + ne + '（' + groups[ne].slice(0, 3).join('、') + (groups[ne].length > 3 ? '…' : '') + '）<br>';
+    });
+    if (mode === 'assign') html += '<span style="color:#d46b08">指定模式下，仅被指定通知人可在渠道侧看到数据。</span>';
+    document.getElementById('chNotifyPreview').innerHTML = html;
+  }
+
+  function applyChannelNotifyRows(list, mode, assignPerson, deadline) {
+    if (!list.length) return { sent: 0, removed: 0, assignee: assignPerson };
     var q = loadNotifyQueue();
-    var keys = {};
-    rows.forEach(function (row) {
+    var removeKeys = {};
+    var assigneeSummary = mode === 'assign' ? assignPerson : '';
+    list.forEach(function (row) {
+      var ne = mode === 'assign' ? assignPerson : defaultNotifyeeRow(row);
       var key = row._queueKey || rowQueueKey(currentTask.year || '2025', row.store, row.sku, 'normal');
-      keys[key] = true;
       var idx = q.items.findIndex(function (it) { return it.key === key; });
       if (idx >= 0) {
-        q.items[idx].notifyee = person;
+        q.items[idx].notifyee = ne;
+        if (deadline) q.items[idx].deadline = deadline;
         q.items[idx].row = {
           store: row.store, sku: row.sku, cat: row.cat, scene: row.scene || '',
           tag: row.tag, sales: (row.sales || [CURRENT_SALES]).slice(),
           vol: row.vol, rev: row.rev, gp: row.gp
         };
       }
+      if (ne !== CURRENT_SALES) removeKeys[key] = ne;
     });
     saveNotifyQueue(q);
+    var removed = Object.keys(removeKeys).length;
     currentRows = currentRows.filter(function (row) {
       var key = row._queueKey || rowQueueKey(currentTask.year || '2025', row.store, row.sku, 'normal');
-      return !keys[key];
+      return !removeKeys[key];
     });
     persistTaskRows();
     renderFillTable();
+    return { sent: list.length, removed: removed, assignee: mode === 'assign' ? assignPerson : '' };
   }
 
   function bindClearableSelect(sel, wrap, clearBtn) {
@@ -734,32 +818,53 @@
   };
 
   document.getElementById('btnNotifyForward').onclick = function () {
-    if (!currentRows.length) { alert('当前任务无 SKU 可转发'); return; }
-    var scope = getForwardScopeRows();
-    var checked = document.querySelectorAll('#fillBody .row-check:checked').length;
-    document.getElementById('forwardScopeHint').textContent = checked
-      ? '转发范围：已勾选 ' + scope.length + ' 条 SKU'
-      : '转发范围：当前任务全部 ' + scope.length + ' 条 SKU（未勾选时默认全选）';
-    document.getElementById('forwardPersonOptions').innerHTML = ALL_SALES.filter(function (n) { return n !== CURRENT_SALES; }).map(function (name) {
-      return '<label style="display:flex;gap:6px;padding:4px 0;font-size:13px"><input type="radio" name="forwardNotifyPick" value="' + name + '"> ' + name + '</label>';
-    }).join('');
-    document.getElementById('forwardNotifyModal').classList.add('open');
+    if (!currentRows.length) { alert('当前任务无 SKU 可通知'); return; }
+    if (currentTask && currentTask.deadline) {
+      document.getElementById('chNotifyDeadline').value = currentTask.deadline;
+    }
+    document.querySelector('input[name=chNotifyPersonMode][value=default]').checked = true;
+    document.getElementById('chNotifyAssignPerson').value = '';
+    document.getElementById('chNotifyScope').value = document.querySelectorAll('#fillBody .row-check:checked').length ? 'selected' : 'all';
+    syncChNotifyAssignWrap();
+    updateChNotifyPreview();
+    document.getElementById('chNotifyModal').classList.add('open');
   };
 
-  document.getElementById('btnConfirmForwardNotify').onclick = function () {
-    var picked = document.querySelector('input[name=forwardNotifyPick]:checked');
-    if (!picked) { alert('请选择转发对象'); return; }
-    var scope = getForwardScopeRows();
-    if (!scope.length) { alert('无 SKU 可转发'); return; }
-    forwardRowsToPerson(scope, picked.value);
-    document.getElementById('forwardNotifyModal').classList.remove('open');
-    if (!currentRows.length) {
-      alert('已全部转发给 ' + picked.value + '，任务已从您的列表移除');
+  document.getElementById('btnChConfirmNotify').onclick = function () {
+    var mode = document.querySelector('input[name=chNotifyPersonMode]:checked').value;
+    var assign = document.getElementById('chNotifyAssignPerson').value;
+    if (mode === 'assign' && !assign) { alert('请选择指定通知人'); return; }
+    var scope = document.getElementById('chNotifyScope').value;
+    var list = getChNotifyScopeRows(scope);
+    if (!list.length) { alert('通知范围内无 SKU'); return; }
+    var deadline = document.getElementById('chNotifyDeadline').value;
+    var result = applyChannelNotifyRows(list, mode, assign, deadline);
+    document.getElementById('chNotifyModal').classList.remove('open');
+    if (result.removed > 0 && !currentRows.length) {
+      alert('已通知 ' + result.sent + ' 条 SKU；其中 ' + result.removed + ' 条已转给他人，任务已从您的列表移除');
       document.getElementById('btnBack').click();
+    } else if (result.removed > 0) {
+      alert('已通知 ' + result.sent + ' 条 SKU；' + result.removed + ' 条通知人非当前账号，已从列表移除');
     } else {
-      alert('已转发 ' + scope.length + ' 条 SKU 给 ' + picked.value + '，已从您的列表移除');
+      alert('已通知 ' + result.sent + ' 条 SKU（通知人仍为当前账号，列表保留）');
     }
   };
+
+  document.querySelectorAll('input[name=chNotifyPersonMode]').forEach(function (r) {
+    r.addEventListener('change', function () {
+      syncChNotifyAssignWrap();
+      updateChNotifyPreview();
+    });
+  });
+  document.getElementById('chNotifyScope').addEventListener('change', updateChNotifyPreview);
+  document.getElementById('chNotifyAssignPerson').addEventListener('change', updateChNotifyPreview);
+  ALL_SALES.forEach(function (name) {
+    var opt = document.createElement('option');
+    opt.value = name;
+    opt.textContent = name;
+    document.getElementById('chNotifyAssignPerson').appendChild(opt);
+  });
+  syncChNotifyAssignWrap();
 
   document.getElementById('checkAllRows').addEventListener('change', function () {
     document.querySelectorAll('#fillBody .row-check').forEach(function (cb) { cb.checked = this.checked; }.bind(this));

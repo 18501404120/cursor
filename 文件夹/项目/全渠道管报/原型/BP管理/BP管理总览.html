@@ -83,6 +83,7 @@
     .fill-bar .bar i { display: block; height: 100%; background: #1677ff; width: 68%; }
 
     .notify-preview { margin-top: 12px; padding: 10px 12px; background: #fafafa; border: 1px solid #f0f0f0; border-radius: 4px; font-size: 12px; line-height: 1.8; max-height: 160px; overflow: auto; }
+    #notifyAssignWrap[hidden] { display: none !important; }
     .progress-drawer-table { width: 100%; border-collapse: collapse; font-size: 13px; }
     .progress-drawer-table th, .progress-drawer-table td { border: 1px solid #e8e8e8; padding: 8px 10px; }
     .progress-drawer-table th { background: #fafafa; }
@@ -935,9 +936,17 @@
     document.getElementById('notifyAssignPerson').appendChild(opt);
   });
 
+  function syncNotifyAssignWrap() {
+    var modeEl = document.querySelector('input[name=notifyPersonMode]:checked');
+    var show = modeEl && modeEl.value === 'assign';
+    var wrap = document.getElementById('notifyAssignWrap');
+    wrap.hidden = !show;
+    wrap.style.display = show ? '' : 'none';
+  }
+
   document.querySelectorAll('input[name=notifyPersonMode]').forEach(function (r) {
     r.addEventListener('change', function () {
-      document.getElementById('notifyAssignWrap').hidden = this.value !== 'assign';
+      syncNotifyAssignWrap();
       updateNotifyPreview();
     });
   });
@@ -963,6 +972,7 @@
   }
 
   function updateNotifyPreview() {
+    syncNotifyAssignWrap();
     var scope = document.getElementById('notifyScope').value;
     var checked = getCheckedCount();
     var opt = document.querySelector('#notifyScope option[value="selected"]');
@@ -1120,11 +1130,20 @@
     showToast('已批量删除 ' + checked.length + ' 条');
   };
 
-  document.getElementById('btnNotify').onclick = function () { updateNotifyPreview(); openModal('notifyModal'); };
+  document.getElementById('btnNotify').onclick = function () {
+    document.querySelector('input[name=notifyPersonMode][value=default]').checked = true;
+    document.getElementById('notifyAssignPerson').value = '';
+    syncNotifyAssignWrap();
+    updateNotifyPreview();
+    openModal('notifyModal');
+  };
   document.getElementById('btnShowProgress').onclick = function () { openModal('progressDrawer'); };
   document.getElementById('btnNotifyPending').onclick = function () {
     closeModal('progressDrawer');
     document.getElementById('notifyScope').value = 'pending';
+    document.querySelector('input[name=notifyPersonMode][value=default]').checked = true;
+    document.getElementById('notifyAssignPerson').value = '';
+    syncNotifyAssignWrap();
     updateNotifyPreview();
     openModal('notifyModal');
   };
@@ -1153,6 +1172,7 @@
 
   document.getElementById('notifyScope').addEventListener('change', updateNotifyPreview);
   document.getElementById('notifyAssignPerson').addEventListener('change', updateNotifyPreview);
+  syncNotifyAssignWrap();
 
   loadGenMasterData().then(function () { /* ready */ });
 
