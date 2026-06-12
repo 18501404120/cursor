@@ -10,7 +10,7 @@
   /** 对外 Pages 只读、作者 IP / 本地 / ?paEdit= 可编；见 Skill §Git Pages 编辑权限 */
   const PA_POLICY_DEFAULT = {
     viewOnlyHostnames: ["18501404120.github.io"],
-    allowIps: ["113.110.230.127", "220.232.134.241"],
+    allowIps: ["113.110.230.127", "113.110.229.118", "220.232.134.241"],
     editToken: "",
     allowLocalhost: true,
     allowOtherHosts: true
