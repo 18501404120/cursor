@@ -391,7 +391,9 @@
     const editor = document.createElement("textarea");
     editor.className = "pa-editor";
     editor.placeholder = "1. 第一条说明\n2. 第二条说明";
-    popover.append(bodyLabel, editor);
+    const imageEditor = createImageEditor(state, []);
+    imageEditor.bindExtraPaste(editor);
+    popover.append(bodyLabel, editor, imageEditor.element);
 
     const hint = document.createElement("div");
     hint.className = "pa-selector-hint";
@@ -416,18 +418,20 @@
       event.stopPropagation();
       const title = titleInput.value.trim();
       const body = editor.value.trim();
+      const images = imageEditor.getImageIds();
       if (!title) {
         window.alert("请填写标题。");
         return;
       }
-      if (!body) {
-        window.alert("请填写说明正文。");
+      if (!body && !images.length) {
+        window.alert("请填写说明正文，或粘贴至少一张配图。");
         return;
       }
       const kind = inputTip.checked ? "fieldTip" : "annotation";
       const id = generateUserId();
       state.userAdded = state.userAdded || { annotations: [], fieldTips: [] };
       const item = { id: id, selector: selector, title: title, body: body };
+      if (images.length) item.images = images;
       if (kind === "fieldTip") {
         const tag = (target.tagName || "").toUpperCase();
         if (tag === "TH") item.inlineAnchor = undefined;
@@ -495,6 +499,9 @@
     return node;
   }
 
+  const PA_MAX_IMAGE_BYTES = 900 * 1024;
+  const PA_MAX_IMAGE_WIDTH = 1400;
+
   function parseBody(raw) {
     const lines = text(raw)
       .replace(/\r\n/g, "\n")
@@ -513,8 +520,153 @@
     return { numbered, extra };
   }
 
+  function normalizeContent(raw, defaultBody) {
+    if (raw && typeof raw === "object" && !Array.isArray(raw)) {
+      return {
+        body: text(raw.body !== undefined ? raw.body : defaultBody),
+        images: Array.isArray(raw.images) ? raw.images.filter(Boolean).slice() : []
+      };
+    }
+    const body = raw !== undefined && raw !== null ? text(raw) : text(defaultBody);
+    return { body: body, images: [] };
+  }
+
+  function resolveItemContent(state, key, item) {
+    const edited = state.edits && state.edits[key];
+    if (edited !== undefined) {
+      return normalizeContent(edited, item.body || "");
+    }
+    if (item.images && item.images.length) {
+      return normalizeContent({ body: item.body || "", images: item.images }, item.body || "");
+    }
+    return normalizeContent(item.body || "", item.body || "");
+  }
+
+  function ensureAssets(state) {
+    if (!state.assets) state.assets = {};
+    return state.assets;
+  }
+
+  function generateAssetId() {
+    return "pa-img-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 6);
+  }
+
+  function approxDataUrlBytes(dataUrl) {
+    const idx = String(dataUrl).indexOf(",");
+    if (idx < 0) return 0;
+    return Math.ceil((dataUrl.length - idx - 1) * 0.75);
+  }
+
+  function blobToDataUrl(blob) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result || ""));
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+  }
+
+  function compressImageDataUrl(dataUrl, maxWidth, quality) {
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => {
+        let w = img.naturalWidth || img.width;
+        let h = img.naturalHeight || img.height;
+        if (!w || !h || w <= maxWidth) {
+          resolve(dataUrl);
+          return;
+        }
+        const scale = maxWidth / w;
+        w = maxWidth;
+        h = Math.round(h * scale);
+        const canvas = document.createElement("canvas");
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) {
+          resolve(dataUrl);
+          return;
+        }
+        ctx.drawImage(img, 0, 0, w, h);
+        try {
+          const out = canvas.toDataURL("image/jpeg", quality || 0.86);
+          resolve(out.length < dataUrl.length ? out : dataUrl);
+        } catch (_error) {
+          resolve(dataUrl);
+        }
+      };
+      img.onerror = () => resolve(dataUrl);
+      img.src = dataUrl;
+    });
+  }
+
+  async function registerImageAsset(state, dataUrl) {
+    if (!dataUrl || !String(dataUrl).startsWith("data:image/")) return null;
+    let prepared = await compressImageDataUrl(dataUrl, PA_MAX_IMAGE_WIDTH, 0.86);
+    if (approxDataUrlBytes(prepared) > PA_MAX_IMAGE_BYTES) {
+      prepared = await compressImageDataUrl(prepared, 960, 0.72);
+    }
+    if (approxDataUrlBytes(prepared) > PA_MAX_IMAGE_BYTES) {
+      window.alert("图片过大，请裁剪或压缩后再粘贴（建议单张小于 900KB）。");
+      return null;
+    }
+    const assets = ensureAssets(state);
+    const id = generateAssetId();
+    assets[id] = prepared;
+    return id;
+  }
+
+  function readImageFileFromClipboard(event) {
+    const items = event.clipboardData && event.clipboardData.items;
+    if (!items) return null;
+    for (let i = 0; i < items.length; i += 1) {
+      const item = items[i];
+      if (item.type && item.type.indexOf("image") !== -1) {
+        return item.getAsFile();
+      }
+    }
+    return null;
+  }
+
+  function renderContentImages(container, imageIds, state) {
+    const assets = (state && state.assets) || {};
+    const ids = (imageIds || []).filter((id) => assets[id]);
+    if (!ids.length) return;
+    const wrap = document.createElement("div");
+    wrap.className = "pa-pop-images";
+    ids.forEach((id) => {
+      const img = document.createElement("img");
+      img.className = "pa-pop-image";
+      img.src = assets[id];
+      img.alt = "标注配图";
+      img.loading = "lazy";
+      img.addEventListener("click", (event) => {
+        event.stopPropagation();
+        openImagePreview(assets[id]);
+      });
+      wrap.appendChild(img);
+    });
+    container.appendChild(wrap);
+  }
+
+  function openImagePreview(src) {
+    const overlay = document.createElement("div");
+    overlay.className = "pa-root pa-image-preview";
+    overlay.setAttribute(ROOT_ATTR, "preview");
+    const img = document.createElement("img");
+    img.src = src;
+    img.alt = "标注配图预览";
+    overlay.appendChild(img);
+    overlay.addEventListener("click", () => overlay.remove());
+    document.body.appendChild(overlay);
+  }
+
   function fillBody(container, raw) {
-    const parsed = parseBody(raw);
+    fillContent(container, normalizeContent(raw, raw));
+  }
+
+  function fillContent(container, content, state) {
+    const parsed = parseBody(content.body);
     if (parsed.numbered.length) {
       const list = document.createElement("ol");
       list.className = "pa-pop-list";
@@ -535,14 +687,129 @@
       });
       container.appendChild(extra);
     }
-    if (!parsed.numbered.length && !parsed.extra.length) {
+    if (state) renderContentImages(container, content.images, state);
+    if (!parsed.numbered.length && !parsed.extra.length && !(content.images && content.images.length)) {
       const empty = document.createElement("div");
       empty.className = "pa-pop-extra";
       container.appendChild(empty);
     }
   }
 
-  function editablePopover(config, state, key, title, body, anchor, badgeLabel, meta) {
+  function createImageEditor(state, initialIds) {
+    let imageIds = (initialIds || []).slice();
+    const wrap = document.createElement("div");
+    wrap.className = "pa-image-editor";
+
+    const label = document.createElement("div");
+    label.className = "pa-field-label";
+    label.textContent = "配图（可选）";
+
+    const zone = document.createElement("div");
+    zone.className = "pa-image-paste-zone";
+    zone.tabIndex = 0;
+
+    const hint = document.createElement("div");
+    hint.className = "pa-image-paste-hint";
+    hint.textContent = "在此粘贴（Ctrl/Cmd+V）、拖拽图片，或点击选择文件";
+
+    const thumbs = document.createElement("div");
+    thumbs.className = "pa-image-thumbs";
+
+    const fileInput = document.createElement("input");
+    fileInput.type = "file";
+    fileInput.accept = "image/*";
+    fileInput.multiple = true;
+    fileInput.className = "pa-image-file-input";
+
+    function renderThumbs() {
+      thumbs.innerHTML = "";
+      const assets = ensureAssets(state);
+      imageIds.forEach((id) => {
+        if (!assets[id]) return;
+        const item = document.createElement("div");
+        item.className = "pa-image-thumb";
+        const img = document.createElement("img");
+        img.src = assets[id];
+        img.alt = "配图缩略图";
+        const remove = document.createElement("button");
+        remove.type = "button";
+        remove.className = "pa-image-remove";
+        remove.textContent = "×";
+        remove.title = "移除配图";
+        remove.addEventListener("click", (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          imageIds = imageIds.filter((x) => x !== id);
+          renderThumbs();
+        });
+        item.append(img, remove);
+        thumbs.appendChild(item);
+      });
+      zone.classList.toggle("has-images", imageIds.length > 0);
+    }
+
+    async function ingestFile(file) {
+      if (!file || !String(file.type || "").startsWith("image/")) return;
+      try {
+        const dataUrl = await blobToDataUrl(file);
+        const id = await registerImageAsset(state, dataUrl);
+        if (id) {
+          imageIds.push(id);
+          renderThumbs();
+        }
+      } catch (_error) {
+        window.alert("读取图片失败，请重试。");
+      }
+    }
+
+    zone.addEventListener("click", (event) => {
+      if (event.target.closest(".pa-image-remove")) return;
+      fileInput.click();
+    });
+    fileInput.addEventListener("change", async () => {
+      const files = fileInput.files ? Array.from(fileInput.files) : [];
+      fileInput.value = "";
+      for (let i = 0; i < files.length; i += 1) {
+        await ingestFile(files[i]);
+      }
+    });
+
+    async function onPaste(event) {
+      const file = readImageFileFromClipboard(event);
+      if (!file) return;
+      event.preventDefault();
+      event.stopPropagation();
+      await ingestFile(file);
+    }
+
+    zone.addEventListener("paste", onPaste);
+    wrap.addEventListener("paste", onPaste);
+    zone.addEventListener("dragover", (event) => {
+      event.preventDefault();
+      zone.classList.add("is-dragover");
+    });
+    zone.addEventListener("dragleave", () => zone.classList.remove("is-dragover"));
+    zone.addEventListener("drop", async (event) => {
+      event.preventDefault();
+      zone.classList.remove("is-dragover");
+      const files = event.dataTransfer && event.dataTransfer.files ? Array.from(event.dataTransfer.files) : [];
+      for (let i = 0; i < files.length; i += 1) {
+        await ingestFile(files[i]);
+      }
+    });
+
+    zone.append(hint, thumbs);
+    wrap.append(label, zone, fileInput);
+    renderThumbs();
+
+    return {
+      element: wrap,
+      bindExtraPaste: (node) => node.addEventListener("paste", onPaste),
+      getImageIds: () => imageIds.slice()
+    };
+  }
+
+  function editablePopover(config, state, key, title, body, anchor, badgeLabel, meta, item) {
     closePopovers();
     const popover = document.createElement("div");
     popover.className = "pa-root pa-popover";
@@ -550,6 +817,10 @@
     document.body.appendChild(popover);
     placePopover(popover, anchor);
     popover.addEventListener("click", (event) => event.stopPropagation());
+
+    function currentContent() {
+      return resolveItemContent(state, key, { body: body, images: (item && item.images) || [] });
+    }
 
     function appendHead(titleText) {
       const head = document.createElement("div");
@@ -569,10 +840,11 @@
 
     function renderView(content) {
       popover.innerHTML = "";
+      popover.classList.toggle("has-images", !!(content.images && content.images.length));
       appendHead(title);
       const bodyEl = document.createElement("div");
       bodyEl.className = "pa-pop-body";
-      fillBody(bodyEl, content);
+      fillContent(bodyEl, content, state);
       const actions = document.createElement("div");
       actions.className = "pa-actions";
       const close = button("关闭", "pa-action-primary");
@@ -603,29 +875,39 @@
 
     function renderEdit(content) {
       popover.innerHTML = "";
+      popover.classList.remove("has-images");
       appendHead(`编辑说明：${title}`);
+      const normalized = normalizeContent(content, body);
       const editor = document.createElement("textarea");
       editor.className = "pa-editor";
-      editor.value = content;
+      editor.value = normalized.body;
+      const imageEditor = createImageEditor(state, normalized.images);
+      imageEditor.bindExtraPaste(editor);
       const actions = document.createElement("div");
       actions.className = "pa-actions";
       const cancel = button("取消");
       const save = button("保存", "pa-action-primary");
       actions.append(cancel, save);
-      popover.append(editor, actions);
+      popover.append(editor, imageEditor.element, actions);
 
       cancel.addEventListener("click", (event) => {
         event.preventDefault();
         event.stopPropagation();
-        renderView((state.edits && state.edits[key]) || body);
+        renderView(currentContent());
       });
       save.addEventListener("click", (event) => {
         event.preventDefault();
         event.stopPropagation();
+        const nextBody = editor.value.trim();
+        const nextImages = imageEditor.getImageIds();
+        if (!nextBody && !nextImages.length) {
+          window.alert("请填写说明正文，或保留至少一张配图。");
+          return;
+        }
         state.edits = state.edits || {};
-        state.edits[key] = editor.value;
+        state.edits[key] = { body: nextBody, images: nextImages };
         saveState(config, state);
-        renderView(state.edits[key]);
+        renderView(normalizeContent(state.edits[key], body));
       });
     }
 
@@ -668,7 +950,7 @@
       });
     }
 
-    renderView(body);
+    renderView(currentContent());
   }
 
   function isVisibleTarget(target) {
@@ -798,7 +1080,6 @@
     const key = isUser ? `userAnnotation:${item.id}` : `annotation:${item.id || index}`;
     if (state.hidden && state.hidden[key]) return;
     if (document.querySelector(`[data-pa-item-key="${key}"]`)) return;
-    const saved = state.edits && state.edits[key];
     const dot = document.createElement("span");
     dot.className = "pa-root pa-dot";
     dot.setAttribute(ROOT_ATTR, "annotation");
@@ -809,7 +1090,17 @@
     const meta = isUser ? { isUser: true, listKey: "annotations", itemId: item.id } : null;
     dot.addEventListener("click", (event) => {
       event.stopPropagation();
-      editablePopover(config, state, key, item.title || "说明", saved || item.body || "", dot, dot.textContent, meta);
+      editablePopover(
+        config,
+        state,
+        key,
+        item.title || "说明",
+        item.body || "",
+        dot,
+        dot.textContent,
+        meta,
+        item
+      );
     });
   }
 
@@ -819,7 +1110,6 @@
     const key = isUser ? `userFieldTip:${item.id}` : `fieldTip:${item.id || index}`;
     if (state.hidden && state.hidden[key]) return;
     if (document.querySelector(`[data-pa-item-key="${key}"]`)) return;
-    const saved = state.edits && state.edits[key];
     const icon = document.createElement("span");
     icon.className = "pa-root pa-tip-icon";
     icon.setAttribute(ROOT_ATTR, "field-tip");
@@ -830,7 +1120,17 @@
     const meta = isUser ? { isUser: true, listKey: "fieldTips", itemId: item.id } : null;
     icon.addEventListener("click", (event) => {
       event.stopPropagation();
-      editablePopover(config, state, key, item.title || "字段释义", saved || item.body || "", icon, icon.textContent, meta);
+      editablePopover(
+        config,
+        state,
+        key,
+        item.title || "字段释义",
+        item.body || "",
+        icon,
+        icon.textContent,
+        meta,
+        item
+      );
     });
   }
 
@@ -1041,6 +1341,7 @@
     paCanEdit = await resolveCanEdit(config);
     const state = loadState(config);
     if (!state.userAdded) state.userAdded = { annotations: [], fieldTips: [] };
+    if (!state.assets) state.assets = {};
     const root = document.createElement("div");
     root.className = "pa-root pa-toolbar" + (paCanEdit ? "" : " pa-toolbar-readonly");
     root.setAttribute(ROOT_ATTR, "root");
