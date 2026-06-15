@@ -8,7 +8,7 @@ const {
   speakerLabel,
   formatTimestampMs,
 } = require('./lib/paths');
-const { convertToM4a, convertToWav16k, transcribeAudio, resolvePython } = require('./lib/transcribe');
+const { convertToM4a, transcribeAudio, warmTranscribeService, stopTranscribeService, buildTempSessionDir, removeDirSafe, resolvePython } = require('./lib/transcribe');
 
 let mainWindow = null;
 let tray = null;
@@ -104,11 +104,16 @@ app.whenReady().then(() => {
   }
   createWindow();
   createTray();
+  warmTranscribeService(loadConfig());
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
     else showMainWindow();
   });
+});
+
+app.on('before-quit', () => {
+  stopTranscribeService();
 });
 
 app.on('window-all-closed', (e) => {
@@ -127,9 +132,12 @@ ipcMain.handle('meeting:begin-session', async (_evt, payload) => {
   const config = loadConfig();
   const startedAt = payload?.startedAt ? new Date(payload.startedAt) : new Date();
   const paths = buildOutputPaths(config, startedAt);
+  const tempRoot = path.join(app.getPath('temp'), 'meeting-recorder');
+  const temp = buildTempSessionDir(tempRoot);
   sessionMeta = {
     startedAt,
     paths,
+    temp,
     durationMs: 0,
   };
   return { ok: true, baseName: paths.baseName, monthPath: paths.monthPath };
@@ -147,14 +155,12 @@ ipcMain.handle('meeting:save-and-transcribe', async (_evt, payload) => {
     throw new Error('录音数据为空');
   }
 
-  const tempWebm = paths.webmPath;
+  const tempWebm = sessionMeta.temp.webmPath;
   fs.writeFileSync(tempWebm, buffer);
 
   try {
     await convertToM4a(tempWebm, paths.m4aPath);
-    await convertToWav16k(tempWebm, paths.wavPath);
-
-    const result = await transcribeAudio(paths.wavPath, config);
+    const result = await transcribeAudio(paths.m4aPath, config);
     const lines = (result.sentences || []).map((s) => ({
       time: formatTimestampMs(s.start_ms || 0),
       speaker: speakerLabel(s.spk),
@@ -168,9 +174,7 @@ ipcMain.handle('meeting:save-and-transcribe', async (_evt, payload) => {
       speakerCount: speakers.size,
     });
     fs.writeFileSync(paths.txtPath, transcript, 'utf8');
-
-    if (fs.existsSync(tempWebm)) fs.unlinkSync(tempWebm);
-    if (fs.existsSync(paths.wavPath)) fs.unlinkSync(paths.wavPath);
+    removeDirSafe(sessionMeta.temp.dir);
 
     const outputDir = paths.monthPath;
     sessionMeta = null;
@@ -183,16 +187,10 @@ ipcMain.handle('meeting:save-and-transcribe', async (_evt, payload) => {
       lineCount: lines.length,
     };
   } catch (err) {
-    if (fs.existsSync(tempWebm)) {
+    removeDirSafe(sessionMeta.temp?.dir);
+    if (fs.existsSync(paths.txtPath)) {
       try {
-        fs.unlinkSync(tempWebm);
-      } catch (_) {
-        /* ignore */
-      }
-    }
-    if (fs.existsSync(paths.wavPath)) {
-      try {
-        fs.unlinkSync(paths.wavPath);
+        fs.unlinkSync(paths.txtPath);
       } catch (_) {
         /* ignore */
       }
@@ -216,9 +214,10 @@ ipcMain.handle('meeting:open-path', async (_evt, targetPath) => {
 });
 
 ipcMain.handle('meeting:cancel-session', async () => {
-  if (sessionMeta?.paths) {
-    const { webmPath, wavPath, m4aPath, txtPath } = sessionMeta.paths;
-    [webmPath, wavPath, m4aPath, txtPath].forEach((p) => {
+  if (sessionMeta) {
+    removeDirSafe(sessionMeta.temp?.dir);
+    const { m4aPath, txtPath } = sessionMeta.paths || {};
+    [m4aPath, txtPath].forEach((p) => {
       if (p && fs.existsSync(p)) {
         try {
           fs.unlinkSync(p);

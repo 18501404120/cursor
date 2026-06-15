@@ -1,8 +1,18 @@
 const { spawn } = require('child_process');
 const fs = require('fs');
 const path = require('path');
+const { randomUUID } = require('crypto');
 const ffmpegPath = require('ffmpeg-static');
 const { ROOT } = require('./paths');
+
+/** @type {import('child_process').ChildProcessWithoutNullStreams | null} */
+let serviceProcess = null;
+let serviceReady = false;
+/** @type {Promise<void> | null} */
+let serviceBootPromise = null;
+/** @type {Map<string, { resolve: Function, reject: Function, timer: NodeJS.Timeout }>} */
+const pendingJobs = new Map();
+let stdoutBuffer = '';
 
 function resolvePython(config) {
   if (config.pythonPath && fs.existsSync(config.pythonPath)) {
@@ -35,45 +45,162 @@ function runCommand(cmd, args, options = {}) {
   });
 }
 
-async function convertToM4a(inputPath, outputPath) {
-  if (!ffmpegPath) {
-    throw new Error('未找到 ffmpeg，无法生成 m4a');
-  }
-  await runCommand(ffmpegPath, [
-    '-y',
-    '-i',
-    inputPath,
-    '-c:a',
-    'aac',
-    '-b:a',
-    '128k',
-    outputPath,
-  ]);
+function buildTempSessionDir(tempRoot) {
+  const sessionId = randomUUID();
+  const dir = path.join(tempRoot, sessionId);
+  fs.mkdirSync(dir, { recursive: true });
+  return {
+    dir,
+    webmPath: path.join(dir, 'capture.webm'),
+  };
 }
 
-async function convertToWav16k(inputPath, outputPath) {
-  if (!ffmpegPath) {
-    throw new Error('未找到 ffmpeg，无法转换 wav');
-  }
-  await runCommand(ffmpegPath, [
-    '-y',
-    '-i',
-    inputPath,
-    '-ac',
-    '1',
-    '-ar',
-    '16000',
-    '-c:a',
-    'pcm_s16le',
-    outputPath,
-  ]);
+function removeDirSafe(dir) {
+  if (!dir || !fs.existsSync(dir)) return;
+  fs.rmSync(dir, { recursive: true, force: true });
 }
 
-async function transcribeAudio(audioPath, config) {
+function handleServiceLine(line) {
+  let msg;
+  try {
+    msg = JSON.parse(line);
+  } catch (_) {
+    return;
+  }
+  if (msg.type === 'ready') {
+    serviceReady = msg.ok === true;
+    return;
+  }
+  if (msg.type !== 'result' || !msg.id) return;
+  const job = pendingJobs.get(msg.id);
+  if (!job) return;
+  clearTimeout(job.timer);
+  pendingJobs.delete(msg.id);
+  if (msg.ok === false) job.reject(new Error(msg.error || '转写失败'));
+  else job.resolve(msg);
+}
+
+function onServiceStdout(chunk) {
+  stdoutBuffer += chunk.toString();
+  const parts = stdoutBuffer.split('\n');
+  stdoutBuffer = parts.pop() || '';
+  parts.forEach((line) => {
+    const trimmed = line.trim();
+    if (trimmed) handleServiceLine(trimmed);
+  });
+}
+
+function ensureTranscribeService(config) {
+  if (serviceProcess && serviceReady) return Promise.resolve();
+  if (serviceBootPromise) return serviceBootPromise;
+
+  serviceBootPromise = new Promise((resolve, reject) => {
+    const python = resolvePython(config);
+    const script = path.join(ROOT, 'scripts', 'transcribe_service.py');
+    serviceProcess = spawn(python, [script], {
+      cwd: path.join(ROOT, 'scripts'),
+      env: {
+        ...process.env,
+        FUNASR_MODEL: config.transcribeModel || 'paraformer-zh',
+        PYTHONUNBUFFERED: '1',
+      },
+      stdio: ['pipe', 'pipe', 'pipe'],
+    });
+
+    const bootTimer = setTimeout(() => {
+      reject(new Error('转写服务启动超时（模型加载中，请稍后重试）'));
+    }, 10 * 60 * 1000);
+
+    let bootBuffer = '';
+    serviceProcess.stdout.on('data', (d) => {
+      bootBuffer += d.toString();
+      const lines = bootBuffer.split('\n');
+      bootBuffer = lines.pop() || '';
+      lines.forEach((line) => {
+        const trimmed = line.trim();
+        if (!trimmed) return;
+        if (!serviceReady) {
+          try {
+            const msg = JSON.parse(trimmed);
+            if (msg.type === 'ready') {
+              clearTimeout(bootTimer);
+              if (msg.ok) {
+                serviceReady = true;
+                resolve();
+              } else {
+                reject(new Error(msg.error || '转写服务启动失败'));
+              }
+            }
+          } catch (_) {
+            /* ignore non-json during boot */
+          }
+          return;
+        }
+        handleServiceLine(trimmed);
+      });
+    });
+
+    serviceProcess.stderr.on('data', (d) => {
+      process.stderr.write(d);
+    });
+
+    serviceProcess.on('exit', () => {
+      serviceProcess = null;
+      serviceReady = false;
+      serviceBootPromise = null;
+      pendingJobs.forEach(({ reject: rej, timer }) => {
+        clearTimeout(timer);
+        rej(new Error('转写服务已退出'));
+      });
+      pendingJobs.clear();
+    });
+
+    serviceProcess.on('error', (err) => {
+      clearTimeout(bootTimer);
+      reject(err);
+    });
+  });
+
+  return serviceBootPromise;
+}
+
+function warmTranscribeService(config) {
+  ensureTranscribeService(config).catch((err) => {
+    console.warn('[meeting-recorder] 转写服务预热失败，将使用单次转写:', err.message);
+  });
+}
+
+function stopTranscribeService() {
+  if (!serviceProcess) return;
+  serviceProcess.kill();
+  serviceProcess = null;
+  serviceReady = false;
+  serviceBootPromise = null;
+}
+
+async function transcribeViaService(audioPath, config) {
+  await ensureTranscribeService(config);
+  if (!serviceProcess || !serviceReady) {
+    throw new Error('转写服务不可用');
+  }
+
+  const id = randomUUID();
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => {
+      pendingJobs.delete(id);
+      reject(new Error('转写超时，请稍后重试'));
+    }, 60 * 60 * 1000);
+
+    pendingJobs.set(id, { resolve, reject, timer });
+    serviceProcess.stdin.write(`${JSON.stringify({ id, audio: audioPath })}\n`);
+  });
+}
+
+async function transcribeOnce(audioPath, config) {
   const python = resolvePython(config);
   const script = path.join(ROOT, 'scripts', 'transcribe.py');
-  const { stdout } = await runCommand(python, [script, audioPath], {
-    cwd: ROOT,
+  const { stdout, stderr } = await runCommand(python, [script, audioPath], {
+    cwd: path.join(ROOT, 'scripts'),
     env: {
       ...process.env,
       FUNASR_MODEL: config.transcribeModel || 'paraformer-zh',
@@ -86,16 +213,31 @@ async function transcribeAudio(audioPath, config) {
   const line = [...lines].reverse().find((s) => s.startsWith('{')) || lines[lines.length - 1];
   if (!line) throw new Error(`转写脚本无输出${stderr ? `：${stderr.slice(-400)}` : ''}`);
   const parsed = JSON.parse(line);
-  if (parsed.ok === false) {
-    throw new Error(parsed.error || '转写失败');
-  }
+  if (parsed.ok === false) throw new Error(parsed.error || '转写失败');
   return parsed;
+}
+
+async function convertToM4a(inputPath, outputPath) {
+  if (!ffmpegPath) throw new Error('未找到 ffmpeg，无法生成 m4a');
+  await runCommand(ffmpegPath, ['-y', '-i', inputPath, '-c:a', 'aac', '-b:a', '128k', outputPath]);
+}
+
+async function transcribeAudio(audioPath, config) {
+  try {
+    return await transcribeViaService(audioPath, config);
+  } catch (err) {
+    console.warn('[meeting-recorder] 常驻转写失败，回退单次模式:', err.message);
+    return transcribeOnce(audioPath, config);
+  }
 }
 
 module.exports = {
   resolvePython,
   convertToM4a,
-  convertToWav16k,
   transcribeAudio,
+  warmTranscribeService,
+  stopTranscribeService,
+  buildTempSessionDir,
+  removeDirSafe,
   runCommand,
 };

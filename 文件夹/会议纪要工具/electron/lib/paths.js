@@ -82,8 +82,6 @@ function buildOutputPaths(config, startedAt = new Date()) {
     baseName,
     txtPath: path.join(monthPath, `${baseName}.txt`),
     m4aPath: path.join(monthPath, `${baseName}.m4a`),
-    webmPath: path.join(monthPath, `${baseName}.webm`),
-    wavPath: path.join(monthPath, `${baseName}.wav`),
   };
 }
 
