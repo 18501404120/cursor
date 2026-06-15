@@ -50,22 +50,26 @@ function hideMainWindow() {
   syncDockWithWindow();
 }
 
+const WIN_W = 158;
+const WIN_H = 44;
+
 function createWindow() {
   const icon = loadAppIcon();
   mainWindow = new BrowserWindow({
-    width: 220,
-    height: 88,
-    minWidth: 220,
-    minHeight: 88,
-    maxWidth: 220,
-    maxHeight: 88,
+    width: WIN_W,
+    height: WIN_H,
+    minWidth: WIN_W,
+    minHeight: WIN_H,
+    maxWidth: WIN_W,
+    maxHeight: WIN_H,
     frame: false,
-    transparent: false,
+    transparent: true,
     alwaysOnTop: true,
     resizable: false,
     skipTaskbar: false,
+    hasShadow: true,
     title: '会议记录',
-    backgroundColor: '#1a2332',
+    backgroundColor: '#00000000',
     icon: icon.isEmpty() ? undefined : icon,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
@@ -194,7 +198,7 @@ ipcMain.handle('meeting:save-and-transcribe', async (_evt, payload) => {
     fs.writeFileSync(paths.txtPath, transcript, 'utf8');
     removeDirSafe(sessionMeta.temp.dir);
 
-    const outputDir = paths.monthPath;
+    const outputDir = paths.sessionDir;
     sessionMeta = null;
 
     return {
@@ -202,6 +206,7 @@ ipcMain.handle('meeting:save-and-transcribe', async (_evt, payload) => {
       txtPath: paths.txtPath,
       m4aPath: paths.m4aPath,
       outputDir,
+      sessionDir: paths.sessionDir,
       lineCount: lines.length,
     };
   } catch (err) {
@@ -213,12 +218,20 @@ ipcMain.handle('meeting:save-and-transcribe', async (_evt, payload) => {
         /* ignore */
       }
     }
+    const hasM4a = fs.existsSync(paths.m4aPath);
+    if (!hasM4a && paths.sessionDir && fs.existsSync(paths.sessionDir)) {
+      try {
+        fs.rmdirSync(paths.sessionDir);
+      } catch (_) {
+        /* ignore */
+      }
+    }
     sessionMeta = null;
     return {
       ok: false,
       error: err.message || String(err),
-      partialDir: paths.monthPath,
-      m4aPath: fs.existsSync(paths.m4aPath) ? paths.m4aPath : null,
+      partialDir: paths.sessionDir || paths.monthPath,
+      m4aPath: hasM4a ? paths.m4aPath : null,
     };
   }
 });
@@ -234,7 +247,7 @@ ipcMain.handle('meeting:open-path', async (_evt, targetPath) => {
 ipcMain.handle('meeting:cancel-session', async () => {
   if (sessionMeta) {
     removeDirSafe(sessionMeta.temp?.dir);
-    const { m4aPath, txtPath } = sessionMeta.paths || {};
+    const { sessionDir, m4aPath, txtPath } = sessionMeta.paths || {};
     [m4aPath, txtPath].forEach((p) => {
       if (p && fs.existsSync(p)) {
         try {
@@ -244,6 +257,13 @@ ipcMain.handle('meeting:cancel-session', async () => {
         }
       }
     });
+    if (sessionDir && fs.existsSync(sessionDir)) {
+      try {
+        fs.rmdirSync(sessionDir);
+      } catch (_) {
+        /* ignore */
+      }
+    }
   }
   sessionMeta = null;
   return { ok: true };

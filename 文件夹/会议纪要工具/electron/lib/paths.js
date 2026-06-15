@@ -58,13 +58,10 @@ function mmFrom(d) {
   return pad2(d.getMonth() + 1);
 }
 
-function resolveUniqueBaseName(dir, baseName) {
+function resolveUniqueSessionDir(monthPath, baseName) {
   let candidate = baseName;
   let i = 2;
-  while (
-    fs.existsSync(path.join(dir, `${candidate}.txt`)) ||
-    fs.existsSync(path.join(dir, `${candidate}.m4a`))
-  ) {
+  while (fs.existsSync(path.join(monthPath, candidate))) {
     candidate = `${baseName}-${i}`;
     i += 1;
   }
@@ -76,12 +73,15 @@ function buildOutputPaths(config, startedAt = new Date()) {
   const monthPath = path.join(config.saveBaseDir, monthDir);
   fs.mkdirSync(monthPath, { recursive: true });
   const suffix = config.defaultTitleSuffix || '会议';
-  const baseName = resolveUniqueBaseName(monthPath, `${datePrefix} ${suffix}`);
+  const baseName = resolveUniqueSessionDir(monthPath, `${datePrefix} ${suffix}`);
+  const sessionDir = path.join(monthPath, baseName);
+  fs.mkdirSync(sessionDir, { recursive: true });
   return {
     monthPath,
+    sessionDir,
     baseName,
-    txtPath: path.join(monthPath, `${baseName}.txt`),
-    m4aPath: path.join(monthPath, `${baseName}.m4a`),
+    txtPath: path.join(sessionDir, `${baseName}.txt`),
+    m4aPath: path.join(sessionDir, `${baseName}.m4a`),
   };
 }
 

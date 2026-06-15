@@ -2,13 +2,11 @@
 
 const statusDot = document.getElementById('statusDot');
 const timerEl = document.getElementById('timer');
-const statusText = document.getElementById('statusText');
 const btnStart = document.getElementById('btnStart');
 const btnPause = document.getElementById('btnPause');
 const btnStop = document.getElementById('btnStop');
 const actionRow = document.getElementById('actionRow');
-const progressRow = document.getElementById('progressRow');
-const progressText = document.getElementById('progressText');
+const busySpinner = document.getElementById('busySpinner');
 const btnClose = document.getElementById('btnClose');
 
 /** @type {AppState} */
@@ -22,12 +20,22 @@ let elapsedBeforePause = 0;
 let tickTimer = null;
 let sessionStartedAt = null;
 
+const STATUS_TITLE = {
+  idle: '待机',
+  recording: '录音中',
+  paused: '已暂停',
+  transcribing: '转写中',
+};
+
 function formatTimer(ms) {
   const totalSec = Math.max(0, Math.floor(ms / 1000));
-  const h = String(Math.floor(totalSec / 3600)).padStart(2, '0');
-  const m = String(Math.floor((totalSec % 3600) / 60)).padStart(2, '0');
-  const s = String(totalSec % 60).padStart(2, '0');
-  return `${h}:${m}:${s}`;
+  const h = Math.floor(totalSec / 3600);
+  const m = Math.floor((totalSec % 3600) / 60);
+  const s = totalSec % 60;
+  if (h > 0) {
+    return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+  }
+  return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
 }
 
 function currentDurationMs() {
@@ -46,22 +54,18 @@ function setState(next) {
   if (next === 'recording') statusDot.classList.add('recording');
   if (next === 'paused') statusDot.classList.add('paused');
   if (next === 'transcribing') statusDot.classList.add('busy');
-
-  const map = {
-    idle: '待机',
-    recording: '录音中',
-    paused: '已暂停',
-    transcribing: '转写中',
-  };
-  statusText.textContent = map[next] || next;
+  statusDot.title = STATUS_TITLE[next] || next;
 
   btnStart.disabled = next === 'recording' || next === 'transcribing';
   btnPause.disabled = next !== 'recording' && next !== 'paused';
   btnStop.disabled = next !== 'recording' && next !== 'paused';
-  btnPause.textContent = next === 'paused' ? '继续' : '暂停';
+  btnPause.classList.toggle('is-resume', next === 'paused');
+  btnPause.title = next === 'paused' ? '继续' : '暂停';
 
-  actionRow.classList.toggle('hidden', next === 'transcribing');
-  progressRow.classList.toggle('hidden', next !== 'transcribing');
+  btnStart.classList.toggle('hidden', next === 'transcribing');
+  btnPause.classList.toggle('hidden', next === 'transcribing');
+  btnStop.classList.toggle('hidden', next === 'transcribing');
+  busySpinner.classList.toggle('hidden', next !== 'transcribing');
 }
 
 function startTick() {
@@ -145,7 +149,6 @@ async function handleStop() {
 
   const durationMs = currentDurationMs();
   setState('transcribing');
-  progressText.textContent = '正在保存并转写，请稍候…';
   stopTick();
 
   await new Promise((resolve) => {
@@ -172,13 +175,11 @@ async function handleStop() {
     if (!result.ok) {
       throw new Error(result.error || '转写失败');
     }
-    progressText.textContent = '完成，正在打开文件夹…';
     await window.meetingApi.openPath(result.txtPath);
     resetToIdle();
   } catch (err) {
-    progressText.textContent = '转写失败';
     alert(
-      `转写失败：${err.message || err}\n\n若尚未安装 Python 环境，请在终端执行 npm run setup:python\n录音文件如已生成，可在保存目录中查看 .m4a。`,
+      `转写失败：${err.message || err}\n\n若尚未安装 Python 环境，请在终端执行 npm run setup:python\n录音文件如已生成，可在会议文件夹中查看 .m4a。`,
     );
     resetToIdle();
   }
@@ -195,7 +196,7 @@ function resetToIdle() {
   elapsedBeforePause = 0;
   sessionStartedAt = null;
   stopTick();
-  timerEl.textContent = '00:00:00';
+  timerEl.textContent = '00:00';
   setState('idle');
 }
 
@@ -246,9 +247,9 @@ window.addEventListener('mouseup', () => {
 });
 
 window.meetingApi.getConfig().then((cfg) => {
-  statusText.title = `保存至：${cfg.saveBaseDir}`;
+  dragHandle.title = `拖动 · 保存至 ${cfg.saveBaseDir}`;
   if (!cfg.pythonReady) {
-    statusText.textContent = '待安装转写环境';
+    statusDot.title = '待安装转写环境';
   }
 });
 
