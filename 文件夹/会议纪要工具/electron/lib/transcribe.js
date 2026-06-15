@@ -141,18 +141,24 @@ function ensureTranscribeService(config) {
     });
 
     serviceProcess.stderr.on('data', (d) => {
-      process.stderr.write(d);
+      try {
+        if (process.stderr.writable) process.stderr.write(d);
+      } catch (err) {
+        if (err && err.code !== 'EPIPE') {
+          console.warn('[meeting-recorder] stderr forward failed:', err.message);
+        }
+      }
+    });
+
+    serviceProcess.stdin.on('error', (err) => {
+      if (err && err.code !== 'EPIPE') {
+        console.warn('[meeting-recorder] transcribe stdin error:', err.message);
+      }
+      resetTranscribeService();
     });
 
     serviceProcess.on('exit', () => {
-      serviceProcess = null;
-      serviceReady = false;
-      serviceBootPromise = null;
-      pendingJobs.forEach(({ reject: rej, timer }) => {
-        clearTimeout(timer);
-        rej(new Error('转写服务已退出'));
-      });
-      pendingJobs.clear();
+      resetTranscribeService();
     });
 
     serviceProcess.on('error', (err) => {
@@ -165,17 +171,53 @@ function ensureTranscribeService(config) {
 }
 
 function warmTranscribeService(config) {
-  ensureTranscribeService(config).catch((err) => {
-    console.warn('[meeting-recorder] 转写服务预热失败，将使用单次转写:', err.message);
+  // 延迟预热，避免启动瞬间与桌面启动器日志管道冲突
+  setTimeout(() => {
+    ensureTranscribeService(config).catch((err) => {
+      console.warn('[meeting-recorder] 转写服务预热失败，结束录音时将自动单次转写:', err.message);
+    });
+  }, 3000);
+}
+
+function resetTranscribeService() {
+  serviceProcess = null;
+  serviceReady = false;
+  serviceBootPromise = null;
+  pendingJobs.forEach(({ reject: rej, timer }) => {
+    clearTimeout(timer);
+    rej(new Error('转写服务已退出'));
   });
+  pendingJobs.clear();
 }
 
 function stopTranscribeService() {
   if (!serviceProcess) return;
+  try {
+    serviceProcess.stdin?.end();
+  } catch (_) {
+    /* ignore */
+  }
   serviceProcess.kill();
-  serviceProcess = null;
-  serviceReady = false;
-  serviceBootPromise = null;
+  resetTranscribeService();
+}
+
+function writeServiceJob(payload) {
+  return new Promise((resolve, reject) => {
+    if (!serviceProcess?.stdin?.writable) {
+      reject(new Error('转写服务不可用'));
+      return;
+    }
+    const line = `${JSON.stringify(payload)}\n`;
+    const ok = serviceProcess.stdin.write(line, (err) => {
+      if (err && err.code !== 'EPIPE') reject(err);
+    });
+    if (ok) resolve();
+    else serviceProcess.stdin.once('drain', resolve);
+    serviceProcess.stdin.once('error', (err) => {
+      if (err && err.code !== 'EPIPE') reject(err);
+      else reject(new Error('转写服务连接已断开'));
+    });
+  });
 }
 
 async function transcribeViaService(audioPath, config) {
@@ -192,7 +234,7 @@ async function transcribeViaService(audioPath, config) {
     }, 60 * 60 * 1000);
 
     pendingJobs.set(id, { resolve, reject, timer });
-    serviceProcess.stdin.write(`${JSON.stringify({ id, audio: audioPath })}\n`);
+    writeServiceJob({ id, audio: audioPath }).catch(reject);
   });
 }
 

@@ -2,6 +2,7 @@ const { app, BrowserWindow, ipcMain, shell, dialog, Menu, Tray, nativeImage } = 
 const fs = require('fs');
 const path = require('path');
 const {
+  ROOT,
   loadConfig,
   buildOutputPaths,
   buildTranscriptText,
@@ -15,6 +16,22 @@ let tray = null;
 let sessionMeta = null;
 
 const isDev = !app.isPackaged;
+const APP_ICON_PATH = path.join(ROOT, 'assets', 'app-icon.png');
+
+function loadAppIcon() {
+  if (!fs.existsSync(APP_ICON_PATH)) return nativeImage.createEmpty();
+  const img = nativeImage.createFromPath(APP_ICON_PATH);
+  return img.isEmpty() ? nativeImage.createEmpty() : img;
+}
+
+function applyAppBranding() {
+  app.setName('会议记录');
+  if (process.platform !== 'darwin') return;
+  const icon = loadAppIcon();
+  if (!icon.isEmpty()) {
+    app.dock.setIcon(icon);
+  }
+}
 
 function syncDockWithWindow() {
   if (process.platform !== 'darwin' || !app.dock) return;
@@ -34,6 +51,7 @@ function hideMainWindow() {
 }
 
 function createWindow() {
+  const icon = loadAppIcon();
   mainWindow = new BrowserWindow({
     width: 220,
     height: 88,
@@ -48,6 +66,7 @@ function createWindow() {
     skipTaskbar: false,
     title: '会议记录',
     backgroundColor: '#1a2332',
+    icon: icon.isEmpty() ? undefined : icon,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -71,13 +90,11 @@ function createWindow() {
 }
 
 function createTray() {
-  const iconPath = path.join(__dirname, '..', 'assets', 'trayTemplate.png');
-  let icon = nativeImage.createEmpty();
-  if (fs.existsSync(iconPath)) {
-    icon = nativeImage.createFromPath(iconPath);
-    icon.setTemplateImage(true);
-  } else {
+  let icon = loadAppIcon();
+  if (icon.isEmpty()) {
     icon = nativeImage.createFromNamedImage('NSMicrophoneTemplate', [-1, 0, 1]);
+  } else {
+    icon = icon.resize({ width: 22, height: 22 });
   }
   tray = new Tray(icon);
   tray.setToolTip('会议记录');
@@ -99,6 +116,7 @@ function createTray() {
 }
 
 app.whenReady().then(() => {
+  applyAppBranding();
   if (process.platform === 'darwin') {
     app.dock.show();
   }
@@ -243,6 +261,10 @@ ipcMain.on('meeting:window-drag', (_evt, { dx, dy }) => {
 });
 
 process.on('uncaughtException', (err) => {
+  if (err && (err.code === 'EPIPE' || /EPIPE/.test(String(err.message)))) {
+    console.warn('[meeting-recorder] ignored EPIPE:', err.message);
+    return;
+  }
   console.error(err);
   dialog.showErrorBox('会议记录', err.message || String(err));
 });

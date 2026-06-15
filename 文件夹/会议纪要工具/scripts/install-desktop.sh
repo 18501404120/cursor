@@ -18,6 +18,16 @@ if [ ! -d "$ROOT/scripts/.venv" ]; then
   echo "⚠️  转写环境未安装，启动后无法转写。建议先执行: npm run setup:python"
 fi
 
+echo "==> 生成应用图标"
+PYTHON_BIN="python3"
+if [ -x "$ROOT/scripts/.venv/bin/python3" ]; then
+  PYTHON_BIN="$ROOT/scripts/.venv/bin/python3"
+fi
+"$PYTHON_BIN" "$ROOT/scripts/generate-icon.py"
+
+ICNS_SRC="$ROOT/assets/AppIcon.icns"
+PNG_SRC="$ROOT/assets/app-icon.png"
+
 echo "==> 创建桌面启动器: $APP_PATH"
 rm -rf "$APP_PATH"
 mkdir -p "$APP_PATH/Contents/MacOS"
@@ -32,6 +42,8 @@ cat > "$APP_PATH/Contents/Info.plist" <<PLIST
   <string>zh_CN</string>
   <key>CFBundleExecutable</key>
   <string>launch</string>
+  <key>CFBundleIconFile</key>
+  <string>AppIcon</string>
   <key>CFBundleIdentifier</key>
   <string>com.local.meeting-recorder</string>
   <key>CFBundleInfoDictionaryVersion</key>
@@ -71,6 +83,13 @@ LOG_FILE="$LOG_FILE"
 LAUNCH
 
 chmod +x "$APP_PATH/Contents/MacOS/launch"
+
+if [ -f "$ICNS_SRC" ]; then
+  cp "$ICNS_SRC" "$APP_PATH/Contents/Resources/AppIcon.icns"
+elif [ -f "$PNG_SRC" ]; then
+  cp "$PNG_SRC" "$APP_PATH/Contents/Resources/app-icon.png"
+fi
+
 xattr -cr "$APP_PATH" 2>/dev/null || true
 
 echo ""
