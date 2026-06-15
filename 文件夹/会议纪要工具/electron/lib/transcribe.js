@@ -1,4 +1,4 @@
-const { spawn } = require('child_process');
+const { spawn, execSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 const { randomUUID } = require('crypto');
@@ -21,6 +21,27 @@ function resolvePython(config) {
   const venvPy = path.join(ROOT, 'scripts', '.venv', 'bin', 'python3');
   if (fs.existsSync(venvPy)) return venvPy;
   return 'python3';
+}
+
+/** 桌面/Electron 下 Python 可能误跑 x86_64，与 arm64 版 PyTorch 不兼容 */
+function buildPythonSpawn(pythonPath, scriptArgs = []) {
+  if (process.platform === 'darwin') {
+    try {
+      const machine = execSync('uname -m', { encoding: 'utf8' }).trim();
+      if (machine === 'arm64') {
+        return { command: 'arch', args: ['-arm64', pythonPath, ...scriptArgs] };
+      }
+    } catch (_) {
+      /* fall through */
+    }
+  }
+  return { command: pythonPath, args: scriptArgs };
+}
+
+function spawnPython(config, scriptArgs, options = {}) {
+  const python = resolvePython(config);
+  const { command, args } = buildPythonSpawn(python, scriptArgs);
+  return spawn(command, args, options);
 }
 
 function runCommand(cmd, args, options = {}) {
@@ -95,9 +116,8 @@ function ensureTranscribeService(config) {
   if (serviceBootPromise) return serviceBootPromise;
 
   serviceBootPromise = new Promise((resolve, reject) => {
-    const python = resolvePython(config);
     const script = path.join(ROOT, 'scripts', 'transcribe_service.py');
-    serviceProcess = spawn(python, [script], {
+    serviceProcess = spawnPython(config, [script], {
       cwd: path.join(ROOT, 'scripts'),
       env: {
         ...process.env,
@@ -239,9 +259,10 @@ async function transcribeViaService(audioPath, config) {
 }
 
 async function transcribeOnce(audioPath, config) {
-  const python = resolvePython(config);
   const script = path.join(ROOT, 'scripts', 'transcribe.py');
-  const { stdout, stderr } = await runCommand(python, [script, audioPath], {
+  const python = resolvePython(config);
+  const { command, args } = buildPythonSpawn(python, [script, audioPath]);
+  const { stdout, stderr } = await runCommand(command, args, {
     cwd: path.join(ROOT, 'scripts'),
     env: {
       ...process.env,

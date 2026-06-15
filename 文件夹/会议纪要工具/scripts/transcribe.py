@@ -55,6 +55,13 @@ def load_model(model_name: str):
         from funasr import AutoModel
     except ImportError as exc:
         raise ImportError("未安装 funasr，请运行: npm run setup:python") from exc
+    except Exception as exc:  # noqa: BLE001
+        msg = str(exc)
+        if "incompatible architecture" in msg or "have 'arm64', need 'x86_64'" in msg:
+            raise RuntimeError(
+                "PyTorch 架构不匹配：请退出应用后重新打开，或执行 npm run setup:python 重装转写环境"
+            ) from exc
+        raise
 
     model = AutoModel(
         model=model_name,

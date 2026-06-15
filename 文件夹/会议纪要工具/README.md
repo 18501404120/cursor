@@ -84,6 +84,17 @@ npm run setup:python
 
 若仍失败，可安装 Python 3.11（[python.org](https://www.python.org/downloads/)）后重试。
 
+**转写失败 / `incompatible architecture` / PyTorch dlopen**
+
+Apple Silicon 上若 PyTorch 为 arm64、Python 误跑 x86_64 会失败。当前版本已强制 `arch -arm64` 启动转写。
+
+请 **完全退出** 应用后重新打开再试；若仍失败：
+
+```bash
+rm -rf scripts/.venv
+npm run setup:python
+```
+
 **转写失败 / 提示未安装环境**
 
 ```bash

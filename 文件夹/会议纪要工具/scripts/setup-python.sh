@@ -41,8 +41,14 @@ if [ -d "$VENV" ]; then
   rm -rf "$VENV"
 fi
 
+MACHINE="$(uname -m)"
 echo "==> 创建 Python 虚拟环境: $VENV"
-"$PYTHON_BIN" -m venv "$VENV"
+if [ "$MACHINE" = "arm64" ]; then
+  echo "==> Apple Silicon：使用 arch -arm64 创建环境（与 PyTorch 架构一致）"
+  arch -arm64 "$PYTHON_BIN" -m venv "$VENV"
+else
+  "$PYTHON_BIN" -m venv "$VENV"
+fi
 
 # shellcheck disable=SC1091
 source "$VENV/bin/activate"
@@ -57,7 +63,11 @@ export PIP_NO_COMPILE=1
 pip install -r "$ROOT/scripts/requirements.txt"
 
 echo "==> 验证 funasr 可导入"
-python -c "from funasr import AutoModel; print('funasr import ok')"
+if [ "$MACHINE" = "arm64" ]; then
+  arch -arm64 python -c "import torch; from funasr import AutoModel; print('funasr import ok', torch.__version__)"
+else
+  python -c "import torch; from funasr import AutoModel; print('funasr import ok', torch.__version__)"
+fi
 
 echo ""
 echo "✅ Python 转写环境已就绪。"
