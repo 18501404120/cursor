@@ -34,6 +34,10 @@ npm run install:desktop
 
 会在 **桌面** 生成 **「会议记录.app」**，以后双击即可打开，无需开终端。
 
+若双击无反应（常见于使用 nvm 安装 Node 的环境），请重新执行一次 `npm run install:desktop` 更新启动器。
+
+启动失败时可查看日志：`~/Library/Logs/会议记录.log`
+
 可选：复制配置
 
 ```bash

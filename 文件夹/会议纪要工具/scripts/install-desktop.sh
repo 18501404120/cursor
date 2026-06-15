@@ -6,9 +6,10 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 APP_NAME="会议记录"
 DESKTOP="${DESKTOP:-$HOME/Desktop}"
 APP_PATH="$DESKTOP/${APP_NAME}.app"
-ELECTRON="$ROOT/node_modules/.bin/electron"
+ELECTRON_BIN="$ROOT/node_modules/electron/dist/Electron.app/Contents/MacOS/Electron"
+LOG_FILE="$HOME/Library/Logs/会议记录.log"
 
-if [ ! -x "$ELECTRON" ]; then
+if [ ! -x "$ELECTRON_BIN" ]; then
   echo "❌ 未找到 Electron，请先在项目目录执行: npm install"
   exit 1
 fi
@@ -31,8 +32,6 @@ cat > "$APP_PATH/Contents/Info.plist" <<PLIST
   <string>zh_CN</string>
   <key>CFBundleExecutable</key>
   <string>launch</string>
-  <key>CFBundleIconFile</key>
-  <string>AppIcon</string>
   <key>CFBundleIdentifier</key>
   <string>com.local.meeting-recorder</string>
   <key>CFBundleInfoDictionaryVersion</key>
@@ -55,22 +54,32 @@ cat > "$APP_PATH/Contents/Info.plist" <<PLIST
 </plist>
 PLIST
 
+# 注意：必须使用 Electron 原生二进制，不能调用 node_modules/.bin/electron（Finder 下无 node/nvm 会静默失败）
 cat > "$APP_PATH/Contents/MacOS/launch" <<LAUNCH
-#!/usr/bin/env bash
-set -euo pipefail
+#!/bin/bash
 TOOL_ROOT="$ROOT"
-cd "\$TOOL_ROOT"
-export PATH="/opt/homebrew/bin:/usr/local/bin:\$PATH"
-exec "\$TOOL_ROOT/node_modules/.bin/electron" .
+ELECTRON_BIN="$ELECTRON_BIN"
+LOG_FILE="$LOG_FILE"
+
+{
+  echo ""
+  echo "========== \$(date '+%Y-%m-%d %H:%M:%S') 启动 =========="
+  cd "\$TOOL_ROOT" || exit 1
+  export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:\$PATH"
+  exec "\$ELECTRON_BIN" .
+} >> "\$LOG_FILE" 2>&1
 LAUNCH
 
 chmod +x "$APP_PATH/Contents/MacOS/launch"
+xattr -cr "$APP_PATH" 2>/dev/null || true
 
 echo ""
 echo "✅ 已安装桌面启动器："
 echo "   $APP_PATH"
 echo ""
 echo "   双击桌面「${APP_NAME}」即可打开悬浮窗。"
-echo "   首次启动若提示无法打开，请：右键 → 打开 → 确认。"
+echo "   若仍无法打开，请查看日志："
+echo "   $LOG_FILE"
 echo ""
+echo "   首次启动若提示无法打开，请：右键 → 打开 → 确认。"
 echo "   关闭悬浮窗右上角 × 会隐藏到菜单栏；完全退出请点菜单栏图标 → 退出。"
