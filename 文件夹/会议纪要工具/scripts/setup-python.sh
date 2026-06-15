@@ -69,6 +69,8 @@ else
   python -c "import torch; from funasr import AutoModel; print('funasr import ok', torch.__version__)"
 fi
 
+chmod +x "$ROOT/scripts/run-python.sh"
+
 echo ""
 echo "✅ Python 转写环境已就绪。"
 echo "   下一步："

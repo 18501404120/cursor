@@ -50,7 +50,7 @@ function hideMainWindow() {
   syncDockWithWindow();
 }
 
-const WIN_W = 158;
+const WIN_W = 176;
 const WIN_H = 44;
 
 function createWindow() {

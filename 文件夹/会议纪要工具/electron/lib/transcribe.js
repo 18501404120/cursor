@@ -23,24 +23,31 @@ function resolvePython(config) {
   return 'python3';
 }
 
-/** 桌面/Electron 下 Python 可能误跑 x86_64，与 arm64 版 PyTorch 不兼容 */
-function buildPythonSpawn(pythonPath, scriptArgs = []) {
-  if (process.platform === 'darwin') {
-    try {
-      const machine = execSync('uname -m', { encoding: 'utf8' }).trim();
-      if (machine === 'arm64') {
-        return { command: 'arch', args: ['-arm64', pythonPath, ...scriptArgs] };
-      }
-    } catch (_) {
-      /* fall through */
-    }
+function isAppleSiliconMac() {
+  if (process.platform !== 'darwin') return false;
+  try {
+    const flag = execSync('sysctl -n hw.optional.arm64 2>/dev/null', { encoding: 'utf8' }).trim();
+    return flag === '1';
+  } catch (_) {
+    return false;
   }
-  return { command: pythonPath, args: scriptArgs };
+}
+
+/** Rosetta 下 uname -m 可能为 x86_64，须用硬件标志判断 Apple Silicon */
+function buildPythonSpawn(config, scriptArgs = []) {
+  const wrapper = path.join(ROOT, 'scripts', 'run-python.sh');
+  if (fs.existsSync(wrapper)) {
+    return { command: '/bin/bash', args: [wrapper, ...scriptArgs] };
+  }
+  const python = resolvePython(config);
+  if (isAppleSiliconMac()) {
+    return { command: 'arch', args: ['-arm64', python, ...scriptArgs] };
+  }
+  return { command: python, args: scriptArgs };
 }
 
 function spawnPython(config, scriptArgs, options = {}) {
-  const python = resolvePython(config);
-  const { command, args } = buildPythonSpawn(python, scriptArgs);
+  const { command, args } = buildPythonSpawn(config, scriptArgs);
   return spawn(command, args, options);
 }
 
@@ -260,8 +267,7 @@ async function transcribeViaService(audioPath, config) {
 
 async function transcribeOnce(audioPath, config) {
   const script = path.join(ROOT, 'scripts', 'transcribe.py');
-  const python = resolvePython(config);
-  const { command, args } = buildPythonSpawn(python, [script, audioPath]);
+  const { command, args } = buildPythonSpawn(config, [script, audioPath]);
   const { stdout, stderr } = await runCommand(command, args, {
     cwd: path.join(ROOT, 'scripts'),
     env: {
