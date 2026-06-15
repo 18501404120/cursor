@@ -16,6 +16,23 @@ let sessionMeta = null;
 
 const isDev = !app.isPackaged;
 
+function syncDockWithWindow() {
+  if (process.platform !== 'darwin' || !app.dock) return;
+  if (mainWindow?.isVisible()) app.dock.show();
+  else app.dock.hide();
+}
+
+function showMainWindow() {
+  if (!mainWindow) createWindow();
+  else mainWindow.show();
+  syncDockWithWindow();
+}
+
+function hideMainWindow() {
+  mainWindow?.hide();
+  syncDockWithWindow();
+}
+
 function createWindow() {
   mainWindow = new BrowserWindow({
     width: 220,
@@ -48,6 +65,9 @@ function createWindow() {
   mainWindow.on('closed', () => {
     mainWindow = null;
   });
+
+  mainWindow.on('hide', syncDockWithWindow);
+  mainWindow.on('show', syncDockWithWindow);
 }
 
 function createTray() {
@@ -62,15 +82,19 @@ function createTray() {
   tray = new Tray(icon);
   tray.setToolTip('会议记录');
   const menu = Menu.buildFromTemplate([
-    { label: '显示悬浮窗', click: () => mainWindow?.show() },
+    { label: '显示悬浮窗', click: () => showMainWindow() },
+    { label: '隐藏悬浮窗', click: () => hideMainWindow() },
     { type: 'separator' },
     { label: '退出', click: () => app.quit() },
   ]);
   tray.setContextMenu(menu);
   tray.on('click', () => {
-    if (!mainWindow) return;
-    if (mainWindow.isVisible()) mainWindow.hide();
-    else mainWindow.show();
+    if (!mainWindow) {
+      showMainWindow();
+      return;
+    }
+    if (mainWindow.isVisible()) hideMainWindow();
+    else showMainWindow();
   });
 }
 
@@ -83,7 +107,7 @@ app.whenReady().then(() => {
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
-    else mainWindow?.show();
+    else showMainWindow();
   });
 });
 
@@ -205,6 +229,11 @@ ipcMain.handle('meeting:cancel-session', async () => {
     });
   }
   sessionMeta = null;
+  return { ok: true };
+});
+
+ipcMain.handle('meeting:hide-window', async () => {
+  hideMainWindow();
   return { ok: true };
 });
 

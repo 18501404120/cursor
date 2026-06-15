@@ -9,7 +9,7 @@ const btnStop = document.getElementById('btnStop');
 const actionRow = document.getElementById('actionRow');
 const progressRow = document.getElementById('progressRow');
 const progressText = document.getElementById('progressText');
-const dragHandle = document.getElementById('dragHandle');
+const btnClose = document.getElementById('btnClose');
 
 /** @type {AppState} */
 let state = 'idle';
@@ -203,6 +203,24 @@ btnStart.addEventListener('click', handleStart);
 btnPause.addEventListener('click', handlePauseToggle);
 btnStop.addEventListener('click', handleStop);
 
+async function handleClose() {
+  if (state === 'transcribing') {
+    alert('正在转写，请稍候完成后再关闭窗口。');
+    return;
+  }
+  if (state === 'recording' || state === 'paused') {
+    const ok = confirm('录音进行中。隐藏窗口后应用仍在后台运行，可点击菜单栏图标再次打开。\n\n确定隐藏？');
+    if (!ok) return;
+  }
+  await window.meetingApi.hideWindow();
+}
+
+btnClose.addEventListener('click', (e) => {
+  e.stopPropagation();
+  handleClose();
+});
+
+const dragHandle = document.getElementById('dragHandle');
 let dragging = false;
 let lastX = 0;
 let lastY = 0;
