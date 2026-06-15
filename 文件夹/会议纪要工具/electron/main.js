@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, shell, dialog, Menu, Tray, nativeImage } = require('electron');
+const { app, BrowserWindow, ipcMain, shell, dialog, Menu, Tray, nativeImage, globalShortcut } = require('electron');
 const fs = require('fs');
 const path = require('path');
 const {
@@ -34,9 +34,19 @@ function applyAppBranding() {
 }
 
 function syncDockWithWindow() {
-  if (process.platform !== 'darwin' || !app.dock) return;
-  if (mainWindow?.isVisible()) app.dock.show();
-  else app.dock.hide();
+  // 始终显示 Dock 图标，便于 ⌘Q 退出（勿隐藏 Dock）
+  if (process.platform === 'darwin' && app.dock) {
+    app.dock.show();
+  }
+}
+
+function forceQuitApp() {
+  stopTranscribeService();
+  if (tray) {
+    tray.destroy();
+    tray = null;
+  }
+  app.exit(0);
 }
 
 function showMainWindow() {
@@ -106,7 +116,7 @@ function createTray() {
     { label: '显示悬浮窗', click: () => showMainWindow() },
     { label: '隐藏悬浮窗', click: () => hideMainWindow() },
     { type: 'separator' },
-    { label: '退出', click: () => app.quit() },
+    { label: '退出应用 (⌘Q)', click: () => forceQuitApp() },
   ]);
   tray.setContextMenu(menu);
   tray.on('click', () => {
@@ -128,6 +138,10 @@ app.whenReady().then(() => {
   createTray();
   warmTranscribeService(loadConfig());
 
+  globalShortcut.register('CommandOrControl+Q', () => {
+    forceQuitApp();
+  });
+
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
     else showMainWindow();
@@ -135,7 +149,12 @@ app.whenReady().then(() => {
 });
 
 app.on('before-quit', () => {
+  globalShortcut.unregisterAll();
   stopTranscribeService();
+});
+
+app.on('will-quit', () => {
+  globalShortcut.unregisterAll();
 });
 
 app.on('window-all-closed', (e) => {
@@ -269,6 +288,26 @@ ipcMain.handle('meeting:cancel-session', async () => {
   return { ok: true };
 });
 
+ipcMain.handle('meeting:quit-app', async () => {
+  forceQuitApp();
+  return { ok: true };
+});
+
+ipcMain.handle('meeting:notify-error', async (_evt, payload) => {
+  const title = payload?.title || '会议记录';
+  let message = payload?.message || '操作失败';
+  if (message.length > 160) message = `${message.slice(0, 160)}…`;
+  await dialog.showMessageBox(mainWindow || undefined, {
+    type: 'error',
+    title,
+    message,
+    buttons: ['好'],
+    defaultId: 0,
+    noLink: true,
+  });
+  return { ok: true };
+});
+
 ipcMain.handle('meeting:hide-window', async () => {
   hideMainWindow();
   return { ok: true };
@@ -285,6 +324,5 @@ process.on('uncaughtException', (err) => {
     console.warn('[meeting-recorder] ignored EPIPE:', err.message);
     return;
   }
-  console.error(err);
-  dialog.showErrorBox('会议记录', err.message || String(err));
+  console.error('[meeting-recorder] uncaughtException:', err);
 });

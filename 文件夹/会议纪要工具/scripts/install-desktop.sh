@@ -78,7 +78,11 @@ LOG_FILE="$LOG_FILE"
   echo "========== \$(date '+%Y-%m-%d %H:%M:%S') 启动 =========="
   cd "\$TOOL_ROOT" || exit 1
   export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:\$PATH"
-  exec "\$ELECTRON_BIN" .
+  if [ "\$(sysctl -n hw.optional.arm64 2>/dev/null || echo 0)" = "1" ]; then
+    exec arch -arm64 "\$ELECTRON_BIN" .
+  else
+    exec "\$ELECTRON_BIN" .
+  fi
 } >> "\$LOG_FILE" 2>&1
 LAUNCH
 

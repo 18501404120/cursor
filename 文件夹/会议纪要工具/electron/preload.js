@@ -7,5 +7,7 @@ contextBridge.exposeInMainWorld('meetingApi', {
   cancelSession: () => ipcRenderer.invoke('meeting:cancel-session'),
   openPath: (p) => ipcRenderer.invoke('meeting:open-path', p),
   hideWindow: () => ipcRenderer.invoke('meeting:hide-window'),
+  quitApp: () => ipcRenderer.invoke('meeting:quit-app'),
+  notifyError: (payload) => ipcRenderer.invoke('meeting:notify-error', payload),
   dragWindow: (dx, dy) => ipcRenderer.send('meeting:window-drag', { dx, dy }),
 });

@@ -178,9 +178,11 @@ async function handleStop() {
     await window.meetingApi.openPath(result.txtPath);
     resetToIdle();
   } catch (err) {
-    alert(
-      `转写失败：${err.message || err}\n\n若尚未安装 Python 环境，请在终端执行 npm run setup:python\n录音文件如已生成，可在会议文件夹中查看 .m4a。`,
-    );
+    const msg = String(err.message || err);
+    const brief = msg.includes('PyTorch') || msg.includes('架构')
+      ? '转写环境异常，请完全退出后重新打开应用。'
+      : msg.slice(0, 120);
+    await window.meetingApi.notifyError({ title: '转写失败', message: brief });
     resetToIdle();
   }
 }
@@ -206,10 +208,9 @@ btnStop.addEventListener('click', handleStop);
 
 async function handleClose() {
   if (state === 'transcribing') {
-    alert('正在转写，请稍候完成后再关闭窗口。');
-    return;
-  }
-  if (state === 'recording' || state === 'paused') {
+    const ok = confirm('转写进行中。隐藏窗口不会停止转写，可在菜单栏退出应用 (⌘Q)。\n\n确定隐藏？');
+    if (!ok) return;
+  } else if (state === 'recording' || state === 'paused') {
     const ok = confirm('录音进行中。隐藏窗口后应用仍在后台运行，可点击菜单栏图标再次打开。\n\n确定隐藏？');
     if (!ok) return;
   }
