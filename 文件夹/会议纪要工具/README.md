@@ -55,6 +55,22 @@ cp config.example.json config.json
 
 ## 常见问题
 
+**`npm run setup:python` 报错 `triton_ops.py SyntaxError`**
+
+macOS 自带 **Python 3.9** 与最新版 FunASR 不兼容。当前脚本已：
+
+- 锁定 `funasr==1.1.18`
+- 跳过 pip 预编译（`PIP_NO_COMPILE=1`）
+
+请删除旧环境后重装：
+
+```bash
+rm -rf scripts/.venv
+npm run setup:python
+```
+
+若仍失败，可安装 Python 3.11（[python.org](https://www.python.org/downloads/)）后重试。
+
 **转写失败 / 提示未安装环境**
 
 ```bash

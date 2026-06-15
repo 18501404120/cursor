@@ -75,7 +75,6 @@ def main() -> int:
         vad_model="fsmn-vad",
         punc_model="ct-punc",
         spk_model="cam++",
-        disable_update=True,
     )
 
     eprint(f"开始转写: {audio_path}")
