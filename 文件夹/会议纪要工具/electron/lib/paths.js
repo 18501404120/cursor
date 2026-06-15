@@ -2,9 +2,17 @@ const fs = require('fs');
 const path = require('path');
 const os = require('os');
 
-const ROOT = path.join(__dirname, '..');
+// electron/lib → 项目根目录（会议纪要工具/）
+const ROOT = path.join(__dirname, '..', '..');
 const CONFIG_PATH = path.join(ROOT, 'config.json');
 const EXAMPLE_PATH = path.join(ROOT, 'config.example.json');
+
+const DEFAULT_CONFIG = {
+  saveBaseDir: '~/Desktop/工作文件/会议记录',
+  defaultTitleSuffix: '会议',
+  pythonPath: '',
+  transcribeModel: 'paraformer-zh',
+};
 
 function expandHome(p) {
   if (!p || typeof p !== 'string') return p;
@@ -14,7 +22,10 @@ function expandHome(p) {
 }
 
 function loadConfig() {
-  const defaults = JSON.parse(fs.readFileSync(EXAMPLE_PATH, 'utf8'));
+  let defaults = { ...DEFAULT_CONFIG };
+  if (fs.existsSync(EXAMPLE_PATH)) {
+    defaults = { ...defaults, ...JSON.parse(fs.readFileSync(EXAMPLE_PATH, 'utf8')) };
+  }
   if (!fs.existsSync(CONFIG_PATH)) {
     return { ...defaults, saveBaseDir: expandHome(defaults.saveBaseDir) };
   }
