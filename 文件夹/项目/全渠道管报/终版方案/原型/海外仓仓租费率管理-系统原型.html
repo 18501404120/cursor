@@ -200,17 +200,46 @@
       display: grid;
       grid-template-columns: 120px 1fr;
       gap: 10px 12px;
-      align-items: center;
+      align-items: start;
     }
     .form-grid .label {
       color: #64748b;
       font-weight: 600;
     }
-    .form-grid input {
-      height: 32px;
+    .form-grid input,
+    .form-grid textarea {
       border: 1px solid var(--line);
       border-radius: 6px;
       padding: 0 8px;
+      font-size: 12px;
+    }
+    .form-grid input {
+      height: 32px;
+    }
+    .form-grid textarea {
+      width: 100%;
+      min-height: 88px;
+      padding: 8px;
+      line-height: 1.6;
+      resize: vertical;
+      font-family: inherit;
+    }
+    .rate-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      min-height: 32px;
+      padding-top: 0;
+    }
+    .rate-row input[type="number"] {
+      width: 120px;
+    }
+    #fCurrencyMount {
+      width: 88px;
+    }
+    .rate-unit-suffix {
+      color: #64748b;
       font-size: 12px;
     }
     .modal-foot {
@@ -320,12 +349,13 @@
           <div class="label">服务仓</div><div id="fService">-</div>
           <div class="label">仓库编码</div><div id="fCode">-</div>
           <div class="label">仓租费率</div>
-          <div>
+          <div class="rate-row">
             <input id="fRate" type="number" min="0" step="0.01" />
-            <span class="unit">（USD / 立方 / 天）</span>
+            <span id="fCurrencyMount"></span>
+            <span class="rate-unit-suffix">/ 立方 / 天</span>
           </div>
           <div class="label">变更说明</div>
-          <div><input id="fReason" placeholder="请输入本次费率调整原因" /></div>
+          <div><textarea id="fReason" placeholder="请输入本次费率调整原因" rows="4"></textarea></div>
         </div>
       </div>
       <div class="modal-foot">
@@ -362,24 +392,29 @@
     </div>
   </div>
 
+  <script src="../../../../规范/assets/searchable-select.js"></script>
   <script>
     (function () {
+      var CURRENCY_URL = "../../../../规范/基础数据/币种基础数据_v1.json";
+      var currencyOptions = [];
+      var currencySelect = null;
+
       var rows = [
-        { id: 1, service: "谷仓", code: "USWE", name: "美西5仓", country: "美国-西岸", addr: "Ontario-Trading路1号", contact: "Cindy", phone: "+1-909-112-8301", rate: 2.13 },
-        { id: 2, service: "谷仓", code: "USAE", name: "美东13仓", country: "美国-中东", addr: "新泽西 Newark 园区B2", contact: "Aiden", phone: "+1-551-271-9002", rate: 3.21 },
-        { id: 3, service: "谷仓", code: "UK", name: "英国5号仓", country: "英国-中部", addr: "Birmingham Unit 3", contact: "Oliver", phone: "+44-20-7001-2203", rate: 2.57 },
-        { id: 4, service: "谷仓", code: "DE", name: "德国9号仓", country: "德国-北部", addr: "Hamburg Hafenallee 18", contact: "Lena", phone: "+49-40-7789-2201", rate: 2.84 },
-        { id: 5, service: "递四方", code: "GLBTNA", name: "洛杉矶海外仓", country: "美国-西岸", addr: "Los Angeles South Gate", contact: "Mason", phone: "+1-323-909-3308", rate: 2.46 },
-        { id: 6, service: "递四方", code: "121", name: "波兰5号服务仓", country: "波兰", addr: "Warsaw DC-5", contact: "Iga", phone: "+48-22-681-9800", rate: 1.92 }
+        { id: 1, service: "谷仓", code: "USWE", name: "美西5仓", country: "美国-西岸", addr: "Ontario-Trading路1号", contact: "Cindy", phone: "+1-909-112-8301", rate: 2.13, currency: "USD" },
+        { id: 2, service: "谷仓", code: "USAE", name: "美东13仓", country: "美国-中东", addr: "新泽西 Newark 园区B2", contact: "Aiden", phone: "+1-551-271-9002", rate: 3.21, currency: "USD" },
+        { id: 3, service: "谷仓", code: "UK", name: "英国5号仓", country: "英国-中部", addr: "Birmingham Unit 3", contact: "Oliver", phone: "+44-20-7001-2203", rate: 2.57, currency: "GBP" },
+        { id: 4, service: "谷仓", code: "DE", name: "德国9号仓", country: "德国-北部", addr: "Hamburg Hafenallee 18", contact: "Lena", phone: "+49-40-7789-2201", rate: 2.84, currency: "EUR" },
+        { id: 5, service: "递四方", code: "GLBTNA", name: "洛杉矶海外仓", country: "美国-西岸", addr: "Los Angeles South Gate", contact: "Mason", phone: "+1-323-909-3308", rate: 2.46, currency: "USD" },
+        { id: 6, service: "递四方", code: "121", name: "波兰5号服务仓", country: "波兰", addr: "Warsaw DC-5", contact: "Iga", phone: "+48-22-681-9800", rate: 1.92, currency: "PLN" }
       ];
 
       var logs = {
         1: [
-          { time: "2026-05-21 09:21", before: 2.02, after: 2.13, user: "KA", reason: "按仓租合同更新" },
-          { time: "2026-04-08 17:10", before: 1.95, after: 2.02, user: "KA", reason: "季度调价" }
+          { time: "2026-05-21 09:21", before: 2.02, after: 2.13, currency: "USD", user: "KA", reason: "按仓租合同更新" },
+          { time: "2026-04-08 17:10", before: 1.95, after: 2.02, currency: "USD", user: "KA", reason: "季度调价" }
         ],
         2: [
-          { time: "2026-05-19 14:45", before: 3.05, after: 3.21, user: "KA", reason: "物业涨价同步" }
+          { time: "2026-05-19 14:45", before: 3.05, after: 3.21, currency: "USD", user: "KA", reason: "物业涨价同步" }
         ]
       };
 
@@ -408,6 +443,41 @@
         return String(v).toLowerCase().indexOf(q.toLowerCase()) > -1;
       }
 
+      function formatRate(amount, currency) {
+        return (currency || "USD") + " " + Number(amount).toFixed(2);
+      }
+
+      function ensureCurrencySelect(initialValue) {
+        if (!window.SearchableSelect || !currencyOptions.length) return;
+        if (currencySelect) {
+          currencySelect.destroy();
+          currencySelect = null;
+        }
+        currencySelect = SearchableSelect.mount(document.getElementById("fCurrencyMount"), {
+          options: currencyOptions,
+          placeholder: "币种",
+          initialValue: initialValue || "USD",
+          useBodyPortal: true,
+          zIndex: 30
+        });
+      }
+
+      function loadCurrencies() {
+        return fetch(CURRENCY_URL)
+          .then(function (res) { return res.json(); })
+          .then(function (data) {
+            currencyOptions = (data.currencies || []).map(function (c) {
+              return { value: c.code, label: c.code, hint: c.name };
+            });
+          })
+          .catch(function () {
+            currencyOptions = [
+              "USD", "CNY", "CAD", "GBP", "EUR", "JPY", "AUD", "SGD", "SEK", "PLN",
+              "MXN", "TRY", "HKD", "AED", "SAR", "ZAR", "QAR", "KWD", "ILS"
+            ].map(function (code) { return { value: code, label: code }; });
+          });
+      }
+
       function render() {
         var filtered = rows.filter(function (r) {
           return match(r.service, qService.value || "")
@@ -432,7 +502,7 @@
             + '<td class="addr">' + escapeHtml(r.addr) + '</td>'
             + '<td>' + escapeHtml(r.contact) + '</td>'
             + '<td>' + escapeHtml(r.phone) + '</td>'
-            + '<td><span class="unit">$' + r.rate.toFixed(2) + '</span></td>'
+            + '<td><span class="unit">' + formatRate(r.rate, r.currency) + '</span></td>'
             + '<td>'
             + '<a class="op" data-op="edit" data-id="' + r.id + '">费率维护</a>'
             + '<a class="op" data-op="log" data-id="' + r.id + '">日志</a>'
@@ -448,6 +518,7 @@
         document.getElementById("fCode").textContent = row.code;
         document.getElementById("fRate").value = row.rate.toFixed(2);
         document.getElementById("fReason").value = "";
+        ensureCurrencySelect(row.currency || "USD");
         rateMask.style.display = "flex";
       }
 
@@ -467,8 +538,8 @@
           logBody.innerHTML = items.map(function (it) {
             return "<tr>"
               + "<td>" + escapeHtml(it.time) + "</td>"
-              + "<td>$" + it.before.toFixed(2) + "</td>"
-              + "<td>$" + it.after.toFixed(2) + "</td>"
+              + "<td>" + formatRate(it.before, it.currency) + "</td>"
+              + "<td>" + formatRate(it.after, it.currency) + "</td>"
               + "<td>" + escapeHtml(it.user) + "</td>"
               + "<td>" + escapeHtml(it.reason) + "</td>"
               + "</tr>";
@@ -501,9 +572,14 @@
         if (!currentId) return;
         var row = rows.find(function (x) { return x.id === currentId; });
         var nextRate = Number(document.getElementById("fRate").value);
+        var nextCurrency = currencySelect ? currencySelect.getValue() : (row.currency || "USD");
         var reason = (document.getElementById("fReason").value || "").trim();
         if (!Number.isFinite(nextRate) || nextRate < 0) {
           alert("请输入有效的仓租费率。");
+          return;
+        }
+        if (!nextCurrency) {
+          alert("请选择币种。");
           return;
         }
         if (!reason) {
@@ -523,10 +599,12 @@
           time: t,
           before: row.rate,
           after: nextRate,
+          currency: nextCurrency,
           user: "KA",
           reason: reason
         });
         row.rate = nextRate;
+        row.currency = nextCurrency;
         closeRate();
         render();
       });
@@ -538,7 +616,9 @@
         if (e.target === logMask) closeLog();
       });
 
-      render();
+      loadCurrencies().then(function () {
+        render();
+      });
     })();
   </script>
 
@@ -578,7 +658,7 @@
       "id": "a5",
       "selector": "#rateMask .modal-head span",
       "title": "费率维护弹窗",
-      "body": "维护时只允许修改仓租费率并填写变更说明。提交后刷新列表，并生成费率变更日志记录。"
+      "body": "维护时只允许修改仓租费率（含币种）、并填写变更说明。币种为可搜索下拉，选项来自全局币种字典。提交后刷新列表，并生成费率变更日志记录。"
     },
     {
       "id": "a6",
@@ -598,7 +678,7 @@
       "id": "f1",
       "selector": "[data-pa-key=\"rateColumn\"]",
       "title": "仓租费率口径",
-      "body": "单位为“USD/立方/天”。表示1立方货物在服务仓存放1天对应的仓租成本。"
+      "body": "单位为“{币种}/立方/天”，如 USD 2.13。币种从全局币种字典选择，表示1立方货物在服务仓存放1天对应的仓租成本。"
     },
     {
       "id": "f2",
@@ -610,7 +690,7 @@
       "id": "f3",
       "selector": "#fReason",
       "title": "变更说明",
-      "body": "用于记录本次费率调整原因，便于后续审计和业务复盘。该字段为保存必填项。"
+      "body": "用于记录本次费率调整原因，便于后续审计和业务复盘。支持多行输入，该字段为保存必填项。"
     }
   ],
   "pageGuide": {
@@ -619,7 +699,7 @@
       "核心逻辑": [
         "列表数据来自物流系统服务仓信息，并叠加本页面维护的仓租费率。",
         "搜索仅做前台筛选示意，实际系统中应由后端按筛选条件返回数据。",
-        "费率维护仅修改“仓租费率（1立方1天）”，其余字段均禁止编辑。",
+        "费率维护仅修改“仓租费率（1立方1天）”及币种，其余字段均禁止编辑。",
         "保存费率时必须通过数值校验与变更说明校验。",
         "日志只记录费率变化，不记录其他字段。"
       ],
