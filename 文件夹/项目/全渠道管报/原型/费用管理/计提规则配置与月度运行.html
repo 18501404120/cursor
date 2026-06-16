@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>费用来源定义</title>
   <link rel="stylesheet" href="fee-mgmt-common.css">
+  <link rel="stylesheet" href="../../../../规范/assets/import-modal-kit.css">
   <style>
     :root {
       --jd-blue: #2f6bff;
@@ -223,6 +224,98 @@
       font-size: 11px;
       color: #4b5563;
     }
+    .detail-card {
+      grid-column: 1 / -1;
+      margin-top: 16px;
+      padding-top: 16px;
+      border-top: 1px solid #e5e7eb;
+    }
+    .detail-intro {
+      margin-bottom: 12px;
+      padding: 10px 12px;
+      border-radius: 6px;
+      background: #eff6ff;
+      border: 1px solid #bfdbfe;
+      color: #1d4ed8;
+      font-size: 12px;
+      line-height: 1.7;
+    }
+    .detail-toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px 12px;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 10px;
+    }
+    .detail-search {
+      flex: 1 1 260px;
+      min-width: 220px;
+    }
+    .detail-search input,
+    .detail-bulk input,
+    .detail-table input,
+    .detail-table select {
+      width: 100%;
+      height: 32px;
+      border: 1px solid #d1d5db;
+      border-radius: 4px;
+      padding: 0 10px;
+      font-size: 13px;
+      box-sizing: border-box;
+      background: #fff;
+    }
+    .detail-bulk {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .detail-bulk input {
+      width: 120px;
+    }
+    .detail-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .detail-summary {
+      margin-bottom: 10px;
+      font-size: 12px;
+      color: #6b7280;
+      line-height: 1.6;
+    }
+    .detail-table-wrap {
+      max-height: 320px;
+      overflow: auto;
+      border: 1px solid #e5e7eb;
+      border-radius: 6px;
+      background: #fff;
+    }
+    .detail-table { min-width: 860px; }
+    .detail-table th {
+      position: sticky;
+      top: 0;
+      z-index: 2;
+      background: #f8fafc;
+      box-shadow: 0 1px 0 #e5e7eb;
+    }
+    .detail-table td { vertical-align: middle; }
+    .detail-table .sel-col {
+      width: 42px;
+      text-align: center;
+    }
+    .detail-table .value-col {
+      min-width: 180px;
+    }
+    .detail-table .dim-muted { color: #94a3b8; }
+    .detail-empty {
+      padding: 28px 20px;
+      text-align: center;
+      color: #6b7280;
+      font-size: 13px;
+    }
     .section-title {
       grid-column: 1 / -1;
       font-size: 13px;
@@ -236,6 +329,10 @@
     @media (max-width: 768px) {
       #editModal .form-grid,
       .source-block.active { grid-template-columns: 1fr; }
+      .detail-toolbar,
+      .detail-bulk,
+      .detail-actions { align-items: stretch; }
+      .detail-bulk input { width: 100%; }
     }
   </style>
 </head>
@@ -403,7 +500,7 @@
           </div>
           <div class="source-block" data-panel="fixedAmount">
             <div class="form-field">
-              <label><span class="req">*</span> 月固定金额</label>
+              <label><span class="req">*</span> 默认月固定金额</label>
               <input id="fixedAmount" type="number" value="85000">
             </div>
             <div class="form-field">
@@ -423,7 +520,7 @@
           </div>
           <div class="source-block" data-panel="fixedRate">
             <div class="form-field">
-              <label><span class="req">*</span> 比例值（%）</label>
+              <label><span class="req">*</span> 默认比例值（%）</label>
               <input id="fixedRate" type="number" step="0.01" value="8.50">
             </div>
             <div class="form-field">
@@ -481,6 +578,31 @@
               </select>
             </div>
           </div>
+          <div class="detail-card">
+            <div class="detail-intro">
+              按当前口径范围，系统会基于已选渠道自动展开全部可维护组合。你可以逐行填写，也可以先搜索，再批量填入、导出或导入。
+            </div>
+            <div class="detail-toolbar">
+              <div class="detail-search">
+                <input id="detailSearch" type="search" placeholder="搜索渠道 / 国家 / 场景 / 零售商">
+              </div>
+              <div class="detail-bulk">
+                <input id="bulkValueInput" type="number" step="0.01" placeholder="批量值">
+                <button type="button" class="btn" id="btnBulkApply">填入选中行</button>
+              </div>
+              <div class="detail-actions">
+                <button type="button" class="btn" id="btnDetailExport">导出当前明细</button>
+                <button type="button" class="btn" id="btnDetailImport">导入明细</button>
+              </div>
+            </div>
+            <div class="detail-summary" id="detailSummary"></div>
+            <div class="detail-table-wrap">
+              <table class="data-table detail-table">
+                <thead id="detailHead"></thead>
+                <tbody id="detailBody"></tbody>
+              </table>
+            </div>
+          </div>
         </div>
 
         <div class="form-field full" id="remarkField">
@@ -498,9 +620,32 @@
 
 <div id="chDrop" class="ch-drop" role="listbox" aria-label="渠道选项"></div>
 
+<script src="../../../../规范/assets/import-modal-kit.js"></script>
 <script>
 (function () {
   var ALL_CHANNELS = ['亚马逊', '独立站', '线下商超', '分销'];
+  var DIMENSION_OPTIONS = {
+    '亚马逊': {
+      countries: ['美国', '加拿大', '德国'],
+      scenes: ['站内广告', '会员拉新', '大促活动'],
+      retailers: ['Amazon US', 'Amazon CA']
+    },
+    '独立站': {
+      countries: ['美国', '英国', '德国'],
+      scenes: ['拉新', '复购', '会员日'],
+      retailers: ['主站商城', 'TikTok Shop']
+    },
+    '线下商超': {
+      countries: ['中国', '美国'],
+      scenes: ['KA 活动', '地堆', '端架陈列'],
+      retailers: ['沃尔玛', 'Costco']
+    },
+    '分销': {
+      countries: ['美国', '日本'],
+      scenes: ['总代', '区域分销', '返利促销'],
+      retailers: ['Ingram Micro', 'Tech Data']
+    }
+  };
   var SOURCE_LABEL = {
     auto: '自动取数',
     fixedAmount: '固定金额',
@@ -525,16 +670,19 @@
   var RULE_TYPES = ['fixedAmount', 'fixedRate', 'rollingRate', 'yoyMonthRate'];
 
   var rows = [
-    { id: 'R001', feeCode: 'F006', sourceType: 'rollingRate', caliberScope: 'channelCountry', channels: ['亚马逊'], summary: '近 12 月滚动 · 当月实际营收 · 渠道+国家', status: '启用', maintainer: 'GTM-李四 · 2026-06-05', fixedAmount: null, fixedRate: null, histWindow: '近 12 个月', histBase: '当月实际营收' },
-    { id: 'R002', feeCode: 'F006', sourceType: 'yoyMonthRate', caliberScope: 'channelCountryScene', channels: ['独立站'], summary: '同比月占比 · 当月实际营收 · 渠道+国家+场景', status: '启用', maintainer: 'GTM-李四 · 2026-06-04', fixedAmount: null, fixedRate: null, yoyRateBase: '当月实际营收', yoyFallback: '取近12个月同月均值' },
-    { id: 'R003', feeCode: 'F007', sourceType: 'fixedAmount', caliberScope: 'channelCountry', channels: ['独立站'], summary: '¥85,000 / 月 · 渠道+国家', status: '启用', maintainer: 'GTM-李四 · 2026-06-05', fixedAmount: 85000, fixedRate: null },
-    { id: 'R004', feeCode: 'F009', sourceType: 'fixedRate', caliberScope: 'channelCountrySceneRetailer', channels: ['线下商超'], summary: '8.5% × 当月实际营收 · 渠道+国家+场景+零售商', status: '启用', maintainer: 'GTM-王五 · 2026-06-04', fixedAmount: null, fixedRate: 8.5 },
+    { id: 'R001', feeCode: 'F006', sourceType: 'rollingRate', caliberScope: 'channelCountry', channels: ['亚马逊'], summary: '近 12 月滚动 · 当月实际营收 · 渠道+国家 · 3 条明细', status: '启用', maintainer: 'GTM-李四 · 2026-06-05', fixedAmount: null, fixedRate: null, histWindow: '近 12 个月', histBase: '当月实际营收' },
+    { id: 'R002', feeCode: 'F006', sourceType: 'yoyMonthRate', caliberScope: 'channelCountryScene', channels: ['独立站'], summary: '同比月占比 · 当月实际营收 · 渠道+国家+场景 · 9 条明细', status: '启用', maintainer: 'GTM-李四 · 2026-06-04', fixedAmount: null, fixedRate: null, yoyRateBase: '当月实际营收', yoyFallback: '取近12个月同月均值' },
+    { id: 'R003', feeCode: 'F007', sourceType: 'fixedAmount', caliberScope: 'channelCountry', channels: ['独立站'], summary: '¥85,000 / 月 · 渠道+国家 · 3 条明细', status: '启用', maintainer: 'GTM-李四 · 2026-06-05', fixedAmount: 85000, fixedRate: null },
+    { id: 'R004', feeCode: 'F009', sourceType: 'fixedRate', caliberScope: 'channelCountrySceneRetailer', channels: ['线下商超'], summary: '8.5% × 当月实际营收 · 渠道+国家+场景+零售商 · 12 条明细', status: '启用', maintainer: 'GTM-王五 · 2026-06-04', fixedAmount: null, fixedRate: 8.5 },
     { id: 'R005', feeCode: 'F001', sourceType: 'auto', channels: ['亚马逊'], summary: '—', status: '启用', maintainer: '系统同步 · 2026-06-03', fixedAmount: null, fixedRate: null },
-    { id: 'R006', feeCode: 'F016', sourceType: 'fixedAmount', caliberScope: 'channelCountryRetailer', channels: ['分销'], summary: '¥445,000 / 月 · 渠道+国家+零售商', status: '停用', maintainer: 'GTM-李四 · 2026-05-28', fixedAmount: 445000, fixedRate: null }
+    { id: 'R006', feeCode: 'F016', sourceType: 'fixedAmount', caliberScope: 'channelCountryRetailer', channels: ['分销'], summary: '¥445,000 / 月 · 渠道+国家+零售商 · 4 条明细', status: '停用', maintainer: 'GTM-李四 · 2026-05-28', fixedAmount: 445000, fixedRate: null }
   ];
 
   var editingId = null;
   var selectedChannels = new Set();
+  var selectedDetailKeys = new Set();
+  var detailRows = [];
+  var detailRowsType = null;
   var chDrop = document.getElementById('chDrop');
   if (chDrop.parentNode !== document.body) document.body.appendChild(chDrop);
 
@@ -544,6 +692,233 @@
     return SOURCE_LABEL[type] || type;
   }
   function channelsText(chs) { return (chs || []).join('、') || '—'; }
+  function escapeHtml(text) {
+    return String(text == null ? '' : text)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+  function cloneDetailRows(list) {
+    return (list || []).map(function (item) {
+      return {
+        key: item.key,
+        channel: item.channel,
+        country: item.country,
+        scene: item.scene || '—',
+        retailer: item.retailer || '—',
+        value: Number(item.value)
+      };
+    });
+  }
+  function scopeFlags(scope) {
+    return {
+      scene: scope === 'channelCountryScene' || scope === 'channelCountrySceneRetailer',
+      retailer: scope === 'channelCountryRetailer' || scope === 'channelCountrySceneRetailer'
+    };
+  }
+  function valueMeta(type) {
+    if (type === 'fixedAmount') return { label: '月固定金额', step: '100', placeholder: '请输入金额', unit: '金额' };
+    if (type === 'fixedRate') return { label: '比例值（%）', step: '0.01', placeholder: '请输入比例', unit: '比例' };
+    if (type === 'rollingRate') return { label: '滚动占比结果（%）', step: '0.01', placeholder: '请输入占比', unit: '比例' };
+    return { label: '预估占比（%）', step: '0.01', placeholder: '请输入占比', unit: '比例' };
+  }
+  function seedValue(key) {
+    return Array.from(String(key)).reduce(function (sum, ch) {
+      return sum + ch.charCodeAt(0);
+    }, 0);
+  }
+  function defaultDetailValue(type, key) {
+    var seed = seedValue(key);
+    if (type === 'fixedAmount') return Math.round((8000 + (seed % 9) * 3500) / 100) * 100;
+    return Number((2.5 + (seed % 40) * 0.17).toFixed(2));
+  }
+  function buildDetailRows(type, scope, channels) {
+    var flags = scopeFlags(scope);
+    var list = [];
+    channels.forEach(function (channel) {
+      var options = DIMENSION_OPTIONS[channel] || { countries: ['全部国家'], scenes: ['全部场景'], retailers: ['全部零售商'] };
+      var countries = options.countries || ['全部国家'];
+      var scenes = flags.scene ? (options.scenes || ['全部场景']) : ['—'];
+      var retailers = flags.retailer ? (options.retailers || ['全部零售商']) : ['—'];
+      countries.forEach(function (country) {
+        scenes.forEach(function (scene) {
+          retailers.forEach(function (retailer) {
+            var key = [channel, country, scene, retailer].join('|');
+            list.push({
+              key: key,
+              channel: channel,
+              country: country,
+              scene: scene,
+              retailer: retailer,
+              value: defaultDetailValue(type, key)
+            });
+          });
+        });
+      });
+    });
+    return list;
+  }
+  function syncDetailRows(type, scope, channels) {
+    if (!RULE_TYPES.includes(type) || !channels.length) {
+      detailRows = [];
+      selectedDetailKeys.clear();
+      return;
+    }
+    var baseRows = buildDetailRows(type, scope, channels);
+    var existed = {};
+    detailRows.forEach(function (item) { existed[item.key] = item; });
+    detailRows = baseRows.map(function (item) {
+      var old = existed[item.key];
+      if (old && !Number.isNaN(Number(old.value))) item.value = Number(old.value);
+      return item;
+    });
+    selectedDetailKeys.forEach(function (key) {
+      if (!detailRows.some(function (item) { return item.key === key; })) selectedDetailKeys.delete(key);
+    });
+  }
+  function filteredDetailRows() {
+    var keyword = document.getElementById('detailSearch').value.trim().toLowerCase();
+    if (!keyword) return detailRows.slice();
+    return detailRows.filter(function (item) {
+      return [item.channel, item.country, item.scene, item.retailer].join('|').toLowerCase().indexOf(keyword) >= 0;
+    });
+  }
+  function getDetailColumns(scope, type) {
+    var flags = scopeFlags(scope);
+    var columns = [
+      { key: 'channel', label: '渠道' },
+      { key: 'country', label: '国家' }
+    ];
+    if (flags.scene) columns.push({ key: 'scene', label: '场景' });
+    if (flags.retailer) columns.push({ key: 'retailer', label: '零售商' });
+    columns.push({ key: 'value', label: valueMeta(type).label });
+    return columns;
+  }
+  function renderDetailTable() {
+    var type = document.getElementById('sourceType').value;
+    var scope = document.getElementById('caliberScope').value;
+    var head = document.getElementById('detailHead');
+    var body = document.getElementById('detailBody');
+    var summaryEl = document.getElementById('detailSummary');
+    var bulkInput = document.getElementById('bulkValueInput');
+    var meta = valueMeta(type);
+    bulkInput.placeholder = '批量填入' + meta.label;
+
+    if (!selectedChannels.size) {
+      head.innerHTML = '';
+      body.innerHTML = '<tr><td colspan="6"><div class="detail-empty">请先选择适用渠道，系统会按口径范围自动展开可维护的明细组合。</div></td></tr>';
+      summaryEl.textContent = '尚未选择渠道，无法生成口径明细。';
+      return;
+    }
+
+    var columns = getDetailColumns(scope, type);
+    var visibleRows = filteredDetailRows();
+    var allChecked = visibleRows.length && visibleRows.every(function (item) { return selectedDetailKeys.has(item.key); });
+    head.innerHTML = '<tr><th class="sel-col"><input id="detailCheckAll" type="checkbox"' + (allChecked ? ' checked' : '') + '></th>' +
+      columns.map(function (column) {
+        return '<th' + (column.key === 'value' ? ' class="value-col"' : '') + '>' + column.label + '</th>';
+      }).join('') + '</tr>';
+
+    if (!visibleRows.length) {
+      body.innerHTML = '<tr><td colspan="' + (columns.length + 1) + '"><div class="detail-empty">没有匹配的明细，请调整搜索条件。</div></td></tr>';
+      summaryEl.textContent = '已展开 ' + detailRows.length + ' 条明细，当前搜索结果 0 条。';
+      return;
+    }
+
+    body.innerHTML = visibleRows.map(function (item) {
+      var cells = [
+        '<td class="sel-col"><input type="checkbox" data-detail-check="' + escapeHtml(item.key) + '"' + (selectedDetailKeys.has(item.key) ? ' checked' : '') + '></td>',
+        '<td>' + escapeHtml(item.channel) + '</td>',
+        '<td>' + escapeHtml(item.country) + '</td>'
+      ];
+      if (scopeFlags(scope).scene) cells.push('<td>' + escapeHtml(item.scene) + '</td>');
+      if (scopeFlags(scope).retailer) cells.push('<td>' + escapeHtml(item.retailer) + '</td>');
+      cells.push('<td class="value-col"><input class="detail-value-input" data-detail-value="' + escapeHtml(item.key) + '" type="number" step="' + meta.step + '" value="' + escapeHtml(item.value) + '" placeholder="' + meta.placeholder + '"></td>');
+      return '<tr>' + cells.join('') + '</tr>';
+    }).join('');
+
+    summaryEl.textContent = '已展开 ' + detailRows.length + ' 条明细，当前显示 ' + visibleRows.length + ' 条。支持按当前口径逐行填写，也支持选中后批量填入。';
+  }
+  function buildDetailCsvRows() {
+    var type = document.getElementById('sourceType').value;
+    if (!RULE_TYPES.includes(type)) return [];
+    var scope = document.getElementById('caliberScope').value;
+    var columns = getDetailColumns(scope, type);
+    var rowsForCsv = [columns.map(function (column) { return column.label; })];
+    detailRows.forEach(function (item) {
+      var line = [];
+      columns.forEach(function (column) {
+        line.push(column.key === 'value' ? item.value : item[column.key] || '');
+      });
+      rowsForCsv.push(line);
+    });
+    return rowsForCsv;
+  }
+  function exportDetailRows() {
+    window.ImportModalKit.downloadCsv('费用来源明细导出.csv', buildDetailCsvRows());
+  }
+  function downloadDetailTemplate() {
+    window.ImportModalKit.downloadCsv('费用来源明细导入模版.csv', buildDetailCsvRows());
+  }
+  function mountDetailImportKit() {
+    if (!window.ImportModalKit) return;
+    window.ImportModalKit.mount({
+      trigger: '#btnDetailImport',
+      title: '导入费用来源明细',
+      introHtml: '<p>请先下载导入模版，再按当前口径范围填写对应组合的维护值。导入后将覆盖当前弹窗中的同维度明细。</p>' +
+        '<p><strong>适用场景：</strong>固定金额、固定比例、历史滚动占比、同期占比预估。</p>',
+      templateExt: 'CSV',
+      templateFileName: '费用来源明细导入模版.csv',
+      columns: [
+        { group: '维度', name: '渠道', required: true, desc: '必须属于当前费用项已选择的渠道' },
+        { group: '维度', name: '国家', required: true, desc: '按当前渠道展开的国家' },
+        { group: '维度', name: '场景', required: false, desc: '当口径范围包含场景时必填' },
+        { group: '维度', name: '零售商', required: false, desc: '当口径范围包含零售商时必填' },
+        { group: '取值', name: '维护值', required: true, desc: '固定金额填金额；比例类填百分比数值' }
+      ],
+      requirements: [
+        '请先选择渠道与口径范围，再下载模版，确保列结构与当前弹窗一致。',
+        '导入会按 渠道 + 国家 + 场景 + 零售商 匹配并覆盖当前明细值。',
+        '比例类直接填写数字，例如 8.5 表示 8.5%。',
+        '原型示意中不做真实文件解析，确认导入后会模拟批量覆盖效果。'
+      ],
+      onDownload: function () {
+        downloadDetailTemplate();
+      },
+      onConfirm: function (file, resultEl) {
+        if (!file) {
+          resultEl.textContent = '请先选择已填写的模版文件。';
+          return;
+        }
+        var count = 0;
+        detailRows.forEach(function (item, index) {
+          if (index > 5) return;
+          item.value = valueMeta(document.getElementById('sourceType').value).unit === '金额'
+            ? Number(item.value) + 500
+            : Number((Number(item.value) + 0.15).toFixed(2));
+          count += 1;
+        });
+        renderDetailTable();
+        resultEl.textContent = '导入完成：示意覆盖 ' + count + ' 行，失败 0 行。';
+      }
+    });
+  }
+  function buildSummary(sourceType, caliberText, detailCount) {
+    if (sourceType === 'fixedAmount') {
+      return '¥' + Number(document.getElementById('fixedAmount').value).toLocaleString() + ' / 月 · ' + caliberText + ' · ' + detailCount + ' 条明细';
+    }
+    if (sourceType === 'fixedRate') {
+      return document.getElementById('fixedRate').value + '% × ' + document.getElementById('rateBase').value + ' · ' + caliberText + ' · ' + detailCount + ' 条明细';
+    }
+    if (sourceType === 'rollingRate') {
+      return document.getElementById('histWindow').value + ' 滚动 · ' + document.getElementById('histBase').value + ' · ' + caliberText + ' · ' + detailCount + ' 条明细';
+    }
+    if (sourceType === 'yoyMonthRate') {
+      return '同比月占比 · ' + document.getElementById('yoyRateBase').value + ' · ' + caliberText + ' · ' + detailCount + ' 条明细';
+    }
+    return '—';
+  }
 
   function getOccupied(feeCode, excludeId) {
     var map = {};
@@ -594,6 +969,12 @@
     document.querySelectorAll('.source-block').forEach(function (el) {
       el.classList.toggle('active', !isAuto && el.dataset.panel === type);
     });
+    if (!isAuto) {
+      if (detailRowsType && detailRowsType !== type) detailRows = [];
+      detailRowsType = type;
+      syncDetailRows(type, document.getElementById('caliberScope').value, Array.from(selectedChannels));
+      renderDetailTable();
+    }
   }
 
   function renderChTags() {
@@ -616,6 +997,7 @@
         selectedChannels.delete(ch);
         renderChTags();
         renderChDrop();
+        renderSourcePanels();
       });
       tag.appendChild(x);
       host.appendChild(tag);
@@ -655,6 +1037,7 @@
           else selectedChannels.add(ch);
           renderChTags();
           renderChDrop();
+          renderSourcePanels();
         });
       }
       chDrop.appendChild(row);
@@ -701,6 +1084,7 @@
     });
     renderChTags();
     if (chDrop.classList.contains('show')) renderChDrop();
+    renderSourcePanels();
   });
 
   function openModal(id) {
@@ -708,6 +1092,11 @@
     var isNew = !id;
     document.getElementById('editModalTitle').textContent = isNew ? '新增费用来源' : '编辑费用来源 · ' + id;
     selectedChannels = new Set();
+    selectedDetailKeys.clear();
+    detailRows = [];
+    detailRowsType = null;
+    document.getElementById('detailSearch').value = '';
+    document.getElementById('bulkValueInput').value = '';
 
     if (isNew) {
       document.getElementById('feeItem').value = 'F006';
@@ -730,6 +1119,8 @@
       if (row.histBase) document.getElementById('histBase').value = row.histBase;
       if (row.histWindow) document.getElementById('histWindow').value = row.histWindow;
       (row.channels || []).forEach(function (ch) { selectedChannels.add(ch); });
+      detailRows = cloneDetailRows(row.details || []);
+      detailRowsType = row.sourceType === 'historyRate' ? 'rollingRate' : row.sourceType;
     }
 
     renderChTags();
@@ -766,14 +1157,13 @@
     var summary = '—';
     var caliberScope = document.getElementById('caliberScope').value;
     var caliberText = CALIBER_LABEL[caliberScope] || caliberScope;
-    if (sourceType === 'fixedAmount') {
-      summary = '¥' + Number(document.getElementById('fixedAmount').value).toLocaleString() + ' / 月 · ' + caliberText;
-    } else if (sourceType === 'fixedRate') {
-      summary = document.getElementById('fixedRate').value + '% × ' + document.getElementById('rateBase').value + ' · ' + caliberText;
-    } else if (sourceType === 'rollingRate') {
-      summary = document.getElementById('histWindow').value + ' 滚动 · ' + document.getElementById('histBase').value + ' · ' + caliberText;
-    } else if (sourceType === 'yoyMonthRate') {
-      summary = '同比月占比 · ' + document.getElementById('yoyRateBase').value + ' · ' + caliberText;
+    if (RULE_TYPES.indexOf(sourceType) >= 0) {
+      var invalid = detailRows.find(function (item) { return Number.isNaN(Number(item.value)); });
+      if (invalid) {
+        alert('请补全所有口径明细的维护值后再保存');
+        return;
+      }
+      summary = buildSummary(sourceType, caliberText, detailRows.length);
     }
 
     if (editingId) {
@@ -792,6 +1182,7 @@
         row.histBase = sourceType === 'rollingRate' ? document.getElementById('histBase').value : null;
         row.yoyRateBase = sourceType === 'yoyMonthRate' ? document.getElementById('yoyRateBase').value : null;
         row.yoyFallback = sourceType === 'yoyMonthRate' ? document.getElementById('yoyFallback').value : null;
+        row.details = RULE_TYPES.indexOf(sourceType) >= 0 ? cloneDetailRows(detailRows) : null;
       }
     } else {
       rows.unshift({
@@ -808,7 +1199,8 @@
         histWindow: sourceType === 'rollingRate' ? document.getElementById('histWindow').value : null,
         histBase: sourceType === 'rollingRate' ? document.getElementById('histBase').value : null,
         yoyRateBase: sourceType === 'yoyMonthRate' ? document.getElementById('yoyRateBase').value : null,
-        yoyFallback: sourceType === 'yoyMonthRate' ? document.getElementById('yoyFallback').value : null
+        yoyFallback: sourceType === 'yoyMonthRate' ? document.getElementById('yoyFallback').value : null,
+        details: RULE_TYPES.indexOf(sourceType) >= 0 ? cloneDetailRows(detailRows) : null
       });
     }
 
@@ -824,6 +1216,46 @@
   document.getElementById('editModalCancel').onclick = closeModal;
   document.getElementById('btnSave').onclick = saveModal;
   document.getElementById('sourceType').addEventListener('change', renderSourcePanels);
+  document.getElementById('caliberScope').addEventListener('change', renderSourcePanels);
+  document.getElementById('detailSearch').addEventListener('input', renderDetailTable);
+  document.getElementById('detailHead').addEventListener('change', function (e) {
+    if (e.target.id !== 'detailCheckAll') return;
+    filteredDetailRows().forEach(function (item) {
+      if (e.target.checked) selectedDetailKeys.add(item.key);
+      else selectedDetailKeys.delete(item.key);
+    });
+    renderDetailTable();
+  });
+  document.getElementById('detailBody').addEventListener('change', function (e) {
+    if (e.target.dataset.detailCheck) {
+      if (e.target.checked) selectedDetailKeys.add(e.target.dataset.detailCheck);
+      else selectedDetailKeys.delete(e.target.dataset.detailCheck);
+      renderDetailTable();
+      return;
+    }
+    if (e.target.dataset.detailValue) {
+      var target = detailRows.find(function (item) { return item.key === e.target.dataset.detailValue; });
+      if (target) target.value = Number(e.target.value);
+    }
+  });
+  document.getElementById('btnBulkApply').addEventListener('click', function () {
+    var value = document.getElementById('bulkValueInput').value;
+    if (value === '') {
+      alert('请先输入要批量填入的值');
+      return;
+    }
+    var targets = selectedDetailKeys.size
+      ? detailRows.filter(function (item) { return selectedDetailKeys.has(item.key); })
+      : filteredDetailRows();
+    if (!targets.length) {
+      alert('当前没有可批量维护的明细行');
+      return;
+    }
+    targets.forEach(function (item) { item.value = Number(value); });
+    renderDetailTable();
+    alert('已批量更新 ' + targets.length + ' 条口径明细');
+  });
+  document.getElementById('btnDetailExport').addEventListener('click', exportDetailRows);
   document.getElementById('editModal').addEventListener('click', function (e) {
     if (e.target.id === 'editModal') closeModal();
   });
@@ -839,6 +1271,14 @@
         openModal(null);
         document.getElementById('feeItem').value = src.feeCode;
         document.getElementById('sourceType').value = src.sourceType;
+        document.getElementById('enabled').value = src.status;
+        document.getElementById('caliberScope').value = src.caliberScope || 'channelCountry';
+        if (src.fixedAmount) document.getElementById('fixedAmount').value = src.fixedAmount;
+        if (src.fixedRate) document.getElementById('fixedRate').value = src.fixedRate;
+        if (src.histWindow) document.getElementById('histWindow').value = src.histWindow;
+        if (src.histBase) document.getElementById('histBase').value = src.histBase;
+        if (src.yoyRateBase) document.getElementById('yoyRateBase').value = src.yoyRateBase;
+        if (src.yoyFallback) document.getElementById('yoyFallback').value = src.yoyFallback;
         selectedChannels = new Set();
         renderChTags();
         renderSourcePanels();
@@ -849,6 +1289,7 @@
 
   renderTable();
   renderSourcePanels();
+  mountDetailImportKit();
 })();
 </script>
 </body>
