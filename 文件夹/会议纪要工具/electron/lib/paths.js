@@ -58,14 +58,25 @@ function mmFrom(d) {
   return pad2(d.getMonth() + 1);
 }
 
-function resolveUniqueSessionDir(monthPath, baseName) {
+function sanitizeFilename(name) {
+  return String(name || '')
+    .replace(/[\\/:*?"<>|]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 80);
+}
+
+function resolveUniqueSessionDir(monthPath, baseName, excludeDir) {
   let candidate = baseName;
   let i = 2;
-  while (fs.existsSync(path.join(monthPath, candidate))) {
+  while (true) {
+    const full = path.join(monthPath, candidate);
+    if (!fs.existsSync(full) || (excludeDir && path.resolve(full) === path.resolve(excludeDir))) {
+      return candidate;
+    }
     candidate = `${baseName}-${i}`;
     i += 1;
   }
-  return candidate;
 }
 
 function buildOutputPaths(config, startedAt = new Date()) {
@@ -128,8 +139,11 @@ module.exports = {
   loadConfig,
   buildOutputPaths,
   buildTranscriptText,
+  formatDateParts,
   formatDuration,
   formatTimestampMs,
   speakerLabel,
+  sanitizeFilename,
+  resolveUniqueSessionDir,
   expandHome,
 };

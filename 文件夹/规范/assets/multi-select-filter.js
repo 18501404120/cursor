@@ -10,6 +10,7 @@
  *   maxPanelHeight: 260,
  *   getOptions: () => [{ value, label }] | Promise<...>,
  *   initialValues: [],
+ *   clearable: true,
  *   onChange: (values: string[]) => {},
  *   useBodyPortal: true
  * })
@@ -25,14 +26,19 @@
     st.id = STYLE_ID;
     st.textContent =
       ".msf-root{position:relative;display:inline-block;vertical-align:middle;min-width:200px;max-width:100%;font-size:13px;}" +
-      ".msf-trigger{position:relative;display:flex;align-items:center;justify-content:space-between;gap:8px;width:100%;min-height:32px;height:32px;padding:4px 28px 4px 10px;border:1px solid #d9d9d9;border-radius:6px;background:#fff;cursor:pointer;text-align:left;color:#0f172a;box-sizing:border-box;}" +
+      ".msf-trigger-wrap{position:relative;display:flex;width:100%;align-items:center;}" +
+      ".msf-trigger{position:relative;display:flex;align-items:center;justify-content:space-between;gap:8px;width:100%;min-height:32px;height:32px;padding:4px 28px 4px 10px;border:1px solid #d9d9d9;border-radius:6px;background:#fff;cursor:pointer;text-align:left;color:#0f172a;box-sizing:border-box;font:inherit;}" +
+      ".msf-trigger-wrap.has-val .msf-trigger{padding-right:48px;}" +
       ".msf-trigger:hover{border-color:#1677ff;}" +
       ".msf-trigger.msf-open{border-color:#1677ff;box-shadow:0 0 0 2px rgba(22,119,255,.12);}" +
       ".msf-trigger .msf-trigger-text{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}" +
       ".msf-trigger .msf-ph{color:#bfbfbf;}" +
+      ".msf-clear{position:absolute;right:22px;top:50%;transform:translateY(-50%);width:18px;height:18px;border:none;background:transparent;color:rgba(0,0,0,.25);cursor:pointer;font-size:14px;line-height:1;padding:0;display:none;z-index:1;}" +
+      ".msf-clear:hover{color:rgba(0,0,0,.45);}" +
+      ".msf-trigger-wrap.has-val .msf-clear{display:block;}" +
       ".msf-chev{position:absolute;right:8px;top:50%;transform:translateY(-50%);width:0;height:0;border-left:5px solid transparent;border-right:5px solid transparent;border-top:6px solid #64748b;pointer-events:none;}" +
-      ".msf-panel{position:absolute;left:0;top:100%;margin-top:4px;min-width:100%;width:max-content;max-width:min(420px,92vw);background:#fff;border:1px solid #dbe4f0;border-radius:8px;box-shadow:0 10px 26px rgba(15,23,42,.12);z-index:400;display:none;flex-direction:column;box-sizing:border-box;}" +
-      ".msf-panel.msf-show{display:flex;}" +
+      ".msf-panel{position:absolute;left:0;top:100%;margin-top:4px;min-width:100%;width:max-content;max-width:min(420px,92vw);background:#fff;border:1px solid #dbe4f0;border-radius:8px;box-shadow:0 10px 26px rgba(15,23,42,.12);z-index:400;display:none;flex-direction:column;box-sizing:border-box;pointer-events:auto;}" +
+      ".msf-panel.msf-show{display:flex;pointer-events:auto !important;}" +
       ".msf-search{padding:8px;border-bottom:1px solid #f0f0f0;}" +
       ".msf-search input{width:100%;box-sizing:border-box;padding:6px 10px;border:1px solid #d9d9d9;border-radius:6px;font-size:13px;}" +
       ".msf-list{overflow-y:auto;padding:4px 0;max-height:260px;}" +
@@ -70,6 +76,7 @@
     var maxPanelHeight = options.maxPanelHeight != null ? options.maxPanelHeight : 260;
     var getOptions = options.getOptions || function () { return []; };
     var onChange = typeof options.onChange === "function" ? options.onChange : function () {};
+    var clearable = options.clearable !== false;
     var useBodyPortal = options.useBodyPortal !== false;
     var summaryMode = options.summaryMode === "tags" ? "tags" : "inline";
     var tagMaxLen = options.tagMaxLen != null ? options.tagMaxLen : 28;
@@ -93,11 +100,32 @@
       tagsWrap.className = "msf-tags-wrap";
     }
 
+    var triggerWrap = document.createElement("div");
+    triggerWrap.className = "msf-trigger-wrap";
+
     var trigger = document.createElement("button");
     trigger.type = "button";
     trigger.className = "msf-trigger";
     trigger.setAttribute("aria-haspopup", "listbox");
     trigger.setAttribute("aria-expanded", "false");
+
+    var clearBtn = null;
+    if (clearable) {
+      clearBtn = document.createElement("button");
+      clearBtn.type = "button";
+      clearBtn.className = "msf-clear";
+      clearBtn.setAttribute("aria-label", "清除已选");
+      clearBtn.textContent = "×";
+      clearBtn.addEventListener("click", function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        if (!selected.size) return;
+        selected.clear();
+        if (loaded) renderList();
+        updateTriggerLabel();
+        onChange([]);
+      });
+    }
 
     var chev = document.createElement("span");
     chev.className = "msf-chev";
@@ -105,7 +133,9 @@
     textSpan.className = "msf-trigger-text msf-ph";
     textSpan.textContent = placeholder;
     trigger.appendChild(textSpan);
-    trigger.appendChild(chev);
+    triggerWrap.appendChild(trigger);
+    if (clearBtn) triggerWrap.appendChild(clearBtn);
+    triggerWrap.appendChild(chev);
 
     var panel = document.createElement("div");
     panel.className = "msf-panel";
@@ -126,8 +156,8 @@
 
     panel.appendChild(searchWrap);
     panel.appendChild(list);
-    root.appendChild(trigger);
     if (tagsWrap) root.appendChild(tagsWrap);
+    root.appendChild(triggerWrap);
     root.appendChild(panel);
 
     function labelByValue(v) {
@@ -177,6 +207,7 @@
     }
 
     function updateTriggerLabel() {
+      triggerWrap.classList.toggle("has-val", selected.size > 0);
       if (!selected.size) {
         textSpan.textContent = placeholder;
         textSpan.classList.add("msf-ph");
@@ -407,6 +438,7 @@
         trigger.classList.remove("msf-open");
         trigger.setAttribute("aria-expanded", "false");
         panel.classList.remove("msf-show");
+        panel.style.removeProperty("pointer-events");
         restorePanelToRoot();
         return;
       }
@@ -414,6 +446,7 @@
       trigger.classList.add("msf-open");
       trigger.setAttribute("aria-expanded", "true");
       panel.classList.add("msf-show");
+      panel.style.removeProperty("pointer-events");
       if (useBodyPortal) {
         document.body.appendChild(panel);
       }

@@ -9,5 +9,10 @@ contextBridge.exposeInMainWorld('meetingApi', {
   hideWindow: () => ipcRenderer.invoke('meeting:hide-window'),
   quitApp: () => ipcRenderer.invoke('meeting:quit-app'),
   notifyError: (payload) => ipcRenderer.invoke('meeting:notify-error', payload),
+  onTranscribeProgress: (cb) => {
+    const handler = (_evt, payload) => cb(payload);
+    ipcRenderer.on('meeting:transcribe-progress', handler);
+    return () => ipcRenderer.removeListener('meeting:transcribe-progress', handler);
+  },
   dragWindow: (dx, dy) => ipcRenderer.send('meeting:window-drag', { dx, dy }),
 });

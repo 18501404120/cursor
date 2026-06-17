@@ -31,10 +31,50 @@
     });
   }
 
+  function resolveModalEl(el) {
+    if (!el) return null;
+    if (typeof el === 'string') return document.getElementById(el);
+    return el;
+  }
+
+  function clearModalInlineStyle(el) {
+    if (!el || !el.style) return;
+    el.style.removeProperty('display');
+    el.style.removeProperty('pointer-events');
+  }
+
+  function openModalMask(el) {
+    el = resolveModalEl(el);
+    if (!el) return el;
+    clearModalInlineStyle(el);
+    el.removeAttribute('hidden');
+    el.classList.add('open');
+    el.setAttribute('aria-hidden', 'false');
+    return el;
+  }
+
+  function closeModalMask(el) {
+    el = resolveModalEl(el);
+    if (!el) return el;
+    el.classList.remove('open');
+    el.setAttribute('aria-hidden', 'true');
+    clearModalInlineStyle(el);
+    return el;
+  }
+
+  /** 清除历史 inline 遮罩样式，确保未打开弹层不挡点击 */
   function ensureHiddenModals() {
-    document.querySelectorAll('.modal-mask:not(.open)').forEach(function (el) {
-      el.style.display = 'none';
-      el.style.pointerEvents = 'none';
+    document.querySelectorAll('.modal-mask').forEach(function (el) {
+      clearModalInlineStyle(el);
+      if (el.classList.contains('open')) {
+        el.setAttribute('aria-hidden', 'false');
+      } else {
+        el.classList.remove('open');
+        el.setAttribute('aria-hidden', 'true');
+      }
+    });
+    document.querySelectorAll('.msf-panel.msf-show').forEach(function (el) {
+      el.style.removeProperty('pointer-events');
     });
   }
 
@@ -63,7 +103,13 @@
     ensureHiddenModals();
     if (global.MutationObserver) {
       var timer = null;
-      var obs = new MutationObserver(function () {
+      var obs = new MutationObserver(function (mutations) {
+        var touched = mutations.some(function (m) {
+          if (m.type === 'childList') return true;
+          return m.type === 'attributes' && m.attributeName === 'class'
+            && m.target && m.target.classList && m.target.classList.contains('modal-mask');
+        });
+        if (!touched) return;
         if (timer) return;
         timer = setTimeout(function () {
           timer = null;
@@ -77,6 +123,8 @@
   global.FeeMgmtCommon = {
     syncClearableSelect: syncClearableSelect,
     wireClearableSelects: wireClearableSelects,
+    openModalMask: openModalMask,
+    closeModalMask: closeModalMask,
     ensureHiddenModals: ensureHiddenModals,
     downloadCsv: downloadCsv,
     initPage: initPage

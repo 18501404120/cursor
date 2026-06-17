@@ -98,7 +98,7 @@
     .toolbar-line { display: flex; gap: 8px; align-items: center; }
 
     /* 渠道多选 Tag（对齐《产品信息筛选区》§2.3） */
-    .ch-msf { position: relative; width: 100%; }
+    .ch-msf { position: relative; width: 100%; overflow: visible; }
     .ch-tags {
       display: flex;
       flex-wrap: wrap;
@@ -115,6 +115,12 @@
     .ch-tags.open {
       border-color: #1677ff;
       box-shadow: 0 0 0 2px rgba(22, 119, 255, 0.12);
+    }
+    .ch-tags.is-readonly {
+      cursor: default;
+      background: #fafafa;
+      opacity: 0.72;
+      pointer-events: none;
     }
     .ch-tags .ph { color: #bfbfbf; font-size: 13px; }
     .ch-tag {
@@ -150,14 +156,14 @@
     }
     .ch-drop {
       position: fixed;
-      z-index: 1100;
+      z-index: 1500;
+      min-width: 200px;
       background: #fff;
       border: 1px solid #dbe4f0;
       border-radius: 8px;
       box-shadow: 0 10px 26px rgba(15, 23, 42, 0.12);
       max-height: 240px;
       overflow-y: auto;
-      min-width: 200px;
       display: none;
     }
     .ch-drop.show { display: block; }
@@ -483,7 +489,7 @@
   </main>
 </div>
 
-<div class="modal-mask" id="editModal" role="dialog" aria-modal="true" aria-labelledby="editModalTitle">
+<div class="modal-mask" id="editModal" role="dialog" aria-modal="true" aria-labelledby="editModalTitle" aria-hidden="true">
   <div class="modal modal-lg modal-xl">
     <div class="modal-hd">
       <h2 id="editModalTitle">编辑费用来源</h2>
@@ -530,6 +536,7 @@
               <span class="ph">请选择渠道</span>
             </div>
             <span class="ch-chev" aria-hidden="true"></span>
+            <div id="chDrop" class="ch-drop" role="listbox" aria-label="渠道选项"></div>
           </div>
           <div id="chHint" style="font-size:11px;color:#6b7280;margin-top:4px;">
             同一费用项下，已被其它配置占用的渠道不可再选。
@@ -648,11 +655,11 @@
                   <label>国家</label>
                   <div id="detailMsfCountry"></div>
                 </div>
-                <div class="detail-filter-item" id="detailFilterSceneWrap">
+                <div class="detail-filter-item" id="detailFilterSceneWrap" hidden style="display:none;">
                   <label>场景</label>
                   <div id="detailMsfScene"></div>
                 </div>
-                <div class="detail-filter-item" id="detailFilterRetailerWrap">
+                <div class="detail-filter-item" id="detailFilterRetailerWrap" hidden style="display:none;">
                   <label>零售商</label>
                   <div id="detailMsfRetailer"></div>
                 </div>
@@ -686,7 +693,7 @@
   </div>
 </div>
 
-<div class="modal-mask" id="batchEditModal" role="dialog" aria-modal="true" aria-labelledby="batchEditModalTitle">
+<div class="modal-mask" id="batchEditModal" role="dialog" aria-modal="true" aria-labelledby="batchEditModalTitle" aria-hidden="true">
   <div class="modal modal-lg">
     <div class="modal-hd">
       <h2 id="batchEditModalTitle">批量编辑口径明细</h2>
@@ -714,36 +721,132 @@
   </div>
 </div>
 
-<div id="chDrop" class="ch-drop" role="listbox" aria-label="渠道选项"></div>
-
 <script src="fee-mgmt-common.js"></script>
 <script src="../../../../规范/assets/import-modal-kit.js"></script>
 <script src="../../../../规范/assets/multi-select-filter.js"></script>
 <script>
 (function () {
-  var ALL_CHANNELS = ['亚马逊', '独立站', '线下商超', '分销'];
-  var DIMENSION_OPTIONS = {
-    '亚马逊': {
-      countries: ['美国', '加拿大', '德国'],
-      scenes: ['站内广告', '会员拉新', '大促活动'],
-      retailers: ['Amazon US', 'Amazon CA']
-    },
-    '独立站': {
-      countries: ['美国', '英国', '德国'],
-      scenes: ['拉新', '复购', '会员日'],
-      retailers: ['主站商城', 'TikTok Shop']
-    },
-    '线下商超': {
-      countries: ['中国', '美国'],
-      scenes: ['KA 活动', '地堆', '端架陈列'],
-      retailers: ['沃尔玛', 'Costco']
-    },
-    '分销': {
-      countries: ['美国', '日本'],
-      scenes: ['总代', '区域分销', '返利促销'],
-      retailers: ['Ingram Micro', 'Tech Data']
-    }
+  function showMask(id) {
+    if (window.FeeMgmtCommon) window.FeeMgmtCommon.openModalMask(id);
+    else document.getElementById(id).classList.add('open');
+  }
+  function hideMask(id) {
+    if (window.FeeMgmtCommon) window.FeeMgmtCommon.closeModalMask(id);
+    else document.getElementById(id).classList.remove('open');
+  }
+
+  var MASTER_JSON_BASE = '../../../../规范/基础数据/';
+  var PAGE_CHANNEL_MASTER = {
+    '亚马逊': ['Govee', 'Govee EU', 'GoveeLife', 'Govee_VC', 'TTS'],
+    '独立站': ['独立站', 'APP商城'],
+    '线下商超': ['Offline', 'Wayfair-US', 'WM 3P', 'BBY 3P', 'Lowes 3P'],
+    '分销': ['线下分销', '京东']
   };
+  var ALL_CHANNELS = ['亚马逊', '独立站', '线下商超', '分销'];
+  /** 零售商 = 具体客户（非店铺 MSKU 店铺名），对齐补充费用导入原型 RETAILER_NAMES */
+  var RETAILER_BY_PAGE_CHANNEL = {
+    '亚马逊': ['Best Buy', 'Target', 'MediaMarkt', 'Yodobashi'],
+    '独立站': ['企业客户', '战略合作渠道', 'DTC 大客户'],
+    '线下商超': ['沃尔玛', 'Costco', 'Best Buy', 'Target', 'Wayfair', 'MediaMarkt'],
+    '分销': ['Ingram Micro', 'Tech Data', '华东总代', '华南总代', '跨境分销商']
+  };
+  var DIMENSION_OPTIONS = {};
+  var masterDataReady = false;
+
+  function flattenCountryNames(regionPayload) {
+    var names = [];
+    (regionPayload.regions || []).forEach(function (region) {
+      (region.countries || []).forEach(function (c) {
+        if (names.indexOf(c.country_name) < 0) names.push(c.country_name);
+      });
+    });
+    return names.sort();
+  }
+  function flattenSceneNames(scenePayload) {
+    return (scenePayload.scenes || [])
+      .map(function (s) { return s.scene_name; })
+      .filter(function (n) { return n && n !== '未分类'; })
+      .sort();
+  }
+  function storesForMasterChannels(channelPayload, masterNames) {
+    var set = new Set();
+    (channelPayload.channels || []).forEach(function (c) {
+      if (masterNames.indexOf(c.channel_name) < 0) return;
+      (c.stores || []).forEach(function (s) { set.add(s); });
+    });
+    return Array.from(set).sort();
+  }
+  function defaultRegionPayload() {
+    return {
+      regions: [
+        { countries: [{ country_name: '美国' }, { country_name: '加拿大' }, { country_name: '墨西哥' }] },
+        { countries: [{ country_name: '英国' }, { country_name: '德国' }, { country_name: '法国' }, { country_name: '意大利' }, { country_name: '西班牙' }, { country_name: '瑞典' }, { country_name: '波兰' }, { country_name: '比利时' }] },
+        { countries: [{ country_name: '中国' }, { country_name: '日本' }, { country_name: '韩国' }, { country_name: '新加坡' }, { country_name: '澳大利亚' }] }
+      ]
+    };
+  }
+  function defaultScenePayload() {
+    return {
+      scenes: [
+        { scene_name: '居家' }, { scene_name: '观影' }, { scene_name: '户外' },
+        { scene_name: '传感器及控制' }, { scene_name: '季节' }, { scene_name: '环境电器' },
+        { scene_name: '厨房电器' }, { scene_name: '游戏' }
+      ]
+    };
+  }
+  function defaultChannelPayload() {
+    return {
+      channels: [
+        { channel_name: 'Govee', stores: ['Govee_US', 'Govee_CA', 'Govee_DE', 'Govee_UK', 'Govee_FR', 'Govee_JP', 'Govee_AU'] },
+        { channel_name: 'Govee EU', stores: ['Govee_DE_1', 'Govee_UK_1', 'Govee_FR_1', 'Govee_IT_1', 'Govee_ES_1'] },
+        { channel_name: 'GoveeLife', stores: ['Goveelife_US', 'Goveelife_CA', 'Goveelife_DE', 'Goveelife_UK', 'Goveelife_FR'] },
+        { channel_name: '独立站', stores: ['独立站-US', '独立站-UK', '独立站-EU', '独立站-CA', '独立站-US-GL', '独立站-EU-GL'] },
+        { channel_name: 'APP商城', stores: ['APP商城-US', 'APP商城-CA', 'APP商城-EU', 'APP商城-UK'] },
+        { channel_name: 'Offline', stores: ['Offline-US', 'Offline-CA', 'Offline-MX', 'Offline-Others'] },
+        { channel_name: 'Wayfair-US', stores: ['Wayfair-US'] },
+        { channel_name: 'WM 3P', stores: ['WM 3P-US'] },
+        { channel_name: 'BBY 3P', stores: ['BBY 3P-US'] },
+        { channel_name: 'Lowes 3P', stores: ['Lowes 3P-US'] },
+        { channel_name: '线下分销', stores: ['分销-华东', '分销-华北', '分销-华南', '分销-跨境'] },
+        { channel_name: '京东', stores: ['京东旗舰店'] },
+        { channel_name: 'TTS', stores: ['TTS-US'] },
+        { channel_name: 'Govee_VC', stores: ['Govee_VC_JP'] }
+      ]
+    };
+  }
+  function retailersForPageChannel(pageChannel) {
+    return (RETAILER_BY_PAGE_CHANNEL[pageChannel] || []).slice();
+  }
+  function rebuildDimensionOptions(channelPayload, regionPayload, scenePayload) {
+    var allCountries = flattenCountryNames(regionPayload);
+    var allScenes = flattenSceneNames(scenePayload);
+    Object.keys(PAGE_CHANNEL_MASTER).forEach(function (pageChannel) {
+      DIMENSION_OPTIONS[pageChannel] = {
+        countries: allCountries.slice(),
+        scenes: allScenes.slice(),
+        retailers: retailersForPageChannel(pageChannel)
+      };
+    });
+    masterDataReady = true;
+  }
+  function fetchJson(url) {
+    return fetch(url).then(function (r) {
+      if (!r.ok) throw new Error('load failed');
+      return r.json();
+    });
+  }
+  function loadMasterDimensionData() {
+    rebuildDimensionOptions(defaultChannelPayload(), defaultRegionPayload(), defaultScenePayload());
+    return Promise.all([
+      fetchJson(MASTER_JSON_BASE + '渠道店铺基础数据_v1.json').catch(function () { return defaultChannelPayload(); }),
+      fetchJson(MASTER_JSON_BASE + '区域国家基础数据_v1.json').catch(function () { return defaultRegionPayload(); }),
+      fetchJson(MASTER_JSON_BASE + '场景品类基础数据_v1.json').catch(function () { return defaultScenePayload(); })
+    ]).then(function (payloads) {
+      rebuildDimensionOptions(payloads[0], payloads[1], payloads[2]);
+      refreshDetailFilters();
+      if (document.getElementById('editModal').classList.contains('open')) renderDetailTable();
+    });
+  }
   var SOURCE_LABEL = {
     auto: '自动取数',
     fixedAmount: '固定金额',
@@ -784,8 +887,9 @@
   var detailRowsType = null;
   var detailMsf = { channel: null, country: null, scene: null, retailer: null };
   var detailMsfMounted = false;
+  var detailFilterSyncGuard = false;
   var chDrop = document.getElementById('chDrop');
-  if (chDrop.parentNode !== document.body) document.body.appendChild(chDrop);
+  if (chDrop && chDrop.parentNode !== document.body) document.body.appendChild(chDrop);
 
   function feeName(code) { return FEE_LABEL[code] || code; }
   function sourceName(type) {
@@ -878,11 +982,27 @@
       if (!detailRows.some(function (item) { return item.key === key; })) selectedDetailKeys.delete(key);
     });
   }
-  function uniqueDetailValues(field) {
+  function getDetailFilterOptions(field) {
+    var scope = document.getElementById('caliberScope').value;
+    var flags = scopeFlags(scope);
+    if (field === 'scene' && !flags.scene) return [];
+    if (field === 'retailer' && !flags.retailer) return [];
+    var formChannels = Array.from(selectedChannels);
+    if (!formChannels.length) return [];
+    var filterChannels = getDetailFilterValues('channel');
+    var activeChannels = filterChannels.length ? filterChannels : formChannels;
     var set = new Set();
-    detailRows.forEach(function (item) {
-      var value = item[field];
-      if (value && value !== '—') set.add(value);
+    activeChannels.forEach(function (channel) {
+      if (field === 'channel') {
+        set.add(channel);
+        return;
+      }
+      var options = DIMENSION_OPTIONS[channel];
+      if (!options) return;
+      var list = field === 'country' ? options.countries
+        : field === 'scene' ? options.scenes
+          : options.retailers;
+      (list || []).forEach(function (value) { set.add(value); });
     });
     return Array.from(set).sort().map(function (value) {
       return { value: value, label: value };
@@ -890,19 +1010,23 @@
   }
   function mountDetailFilters() {
     if (detailMsfMounted || !window.MultiSelectFilter) return;
-    var z = 1250;
-    var onFilterChange = function () { renderDetailTable(); };
+    var z = 1400;
+    var onFilterChange = function () {
+      if (detailFilterSyncGuard) return;
+      renderDetailTable();
+    };
     function mk(key, id, placeholder) {
       var el = document.getElementById(id);
       if (!el) return null;
       return MultiSelectFilter.mount(el, {
         placeholder: placeholder,
         showSelectAll: true,
+        clearable: true,
         zIndex: z,
         useBodyPortal: true,
         maxPanelHeight: 240,
         onChange: onFilterChange,
-        getOptions: function () { return uniqueDetailValues(key); }
+        getOptions: function () { return getDetailFilterOptions(key); }
       });
     }
     detailMsf.channel = mk('channel', 'detailMsfChannel', '请选择');
@@ -936,26 +1060,44 @@
       return true;
     });
   }
+  function setDetailFilterItemVisible(id, visible) {
+    var el = document.getElementById(id);
+    if (!el) return;
+    el.hidden = !visible;
+    el.style.display = visible ? 'flex' : 'none';
+  }
   function updateDetailFilterVisibility() {
     var scope = document.getElementById('caliberScope').value;
     var flags = scopeFlags(scope);
-    document.getElementById('detailFilterSceneWrap').hidden = !flags.scene;
-    document.getElementById('detailFilterRetailerWrap').hidden = !flags.retailer;
-    if (!flags.scene && detailMsf.scene) detailMsf.scene.clear();
-    if (!flags.retailer && detailMsf.retailer) detailMsf.retailer.clear();
+    setDetailFilterItemVisible('detailFilterSceneWrap', flags.scene);
+    setDetailFilterItemVisible('detailFilterRetailerWrap', flags.retailer);
+    detailFilterSyncGuard = true;
+    try {
+      if (!flags.scene && detailMsf.scene) detailMsf.scene.clear();
+      if (!flags.retailer && detailMsf.retailer) detailMsf.retailer.clear();
+    } finally {
+      detailFilterSyncGuard = false;
+    }
   }
   function clearDetailFilters() {
-    ['channel', 'country', 'scene', 'retailer'].forEach(function (key) {
-      if (detailMsf[key]) detailMsf[key].clear();
-    });
+    detailFilterSyncGuard = true;
+    try {
+      ['channel', 'country', 'scene', 'retailer'].forEach(function (key) {
+        if (detailMsf[key]) detailMsf[key].clear();
+      });
+    } finally {
+      detailFilterSyncGuard = false;
+    }
   }
-  function setFormReadonly(readonly) {
+  function applyModalFormState() {
+    var readonly = isViewMode;
     document.querySelectorAll('#editModal select, #editModal input:not([type="search"]), #editModal textarea').forEach(function (el) {
       if (el.closest('#detailHead') || el.closest('#detailBody')) return;
       el.disabled = readonly;
     });
-    document.getElementById('chTags').style.pointerEvents = readonly ? 'none' : '';
-    document.getElementById('chTags').style.opacity = readonly ? '0.72' : '';
+    var chTags = document.getElementById('chTags');
+    chTags.classList.toggle('is-readonly', readonly);
+    if (readonly) closeChDrop();
     document.getElementById('btnBulkEdit').disabled = readonly;
     document.getElementById('btnDetailExport').disabled = readonly;
     document.getElementById('btnDetailImport').disabled = readonly;
@@ -996,10 +1138,10 @@
       }).join('');
       return '<tr>' + cells + '<td>' + escapeHtml(item.value) + '</td></tr>';
     }).join('');
-    document.getElementById('batchEditModal').classList.add('open');
+    showMask('batchEditModal');
   }
   function closeBatchEditModal() {
-    document.getElementById('batchEditModal').classList.remove('open');
+    hideMask('batchEditModal');
     document.getElementById('batchEditValue').value = '';
   }
   function confirmBatchEdit() {
@@ -1036,7 +1178,6 @@
     var body = document.getElementById('detailBody');
     var summaryEl = document.getElementById('detailSummary');
     var meta = valueMeta(type);
-    updateDetailFilterVisibility();
     refreshDetailFilters();
 
     if (!selectedChannels.size) {
@@ -1257,18 +1398,20 @@
       var tag = document.createElement('span');
       tag.className = 'ch-tag';
       tag.appendChild(document.createTextNode(ch));
-      var x = document.createElement('button');
-      x.type = 'button';
-      x.setAttribute('aria-label', '移除' + ch);
-      x.textContent = '×';
-      x.addEventListener('click', function (e) {
-        e.stopPropagation();
-        selectedChannels.delete(ch);
-        renderChTags();
-        renderChDrop();
-        renderSourcePanels();
-      });
-      tag.appendChild(x);
+      if (!isViewMode) {
+        var x = document.createElement('button');
+        x.type = 'button';
+        x.setAttribute('aria-label', '移除' + ch);
+        x.textContent = '×';
+        x.addEventListener('click', function (e) {
+          e.stopPropagation();
+          selectedChannels.delete(ch);
+          renderChTags();
+          renderChDrop();
+          renderSourcePanels();
+        });
+        tag.appendChild(x);
+      }
       host.appendChild(tag);
     });
   }
@@ -1316,10 +1459,11 @@
   function positionChDrop() {
     if (!chDrop.classList.contains('show')) return;
     var host = document.getElementById('chTags');
+    if (!host) return;
     var r = host.getBoundingClientRect();
     chDrop.style.left = r.left + 'px';
     chDrop.style.top = (r.bottom + 4) + 'px';
-    chDrop.style.minWidth = Math.max(r.width, 220) + 'px';
+    chDrop.style.width = Math.max(r.width, 220) + 'px';
   }
 
   function closeChDrop() {
@@ -1329,20 +1473,26 @@
   }
 
   function openChDrop() {
+    if (isViewMode) return;
+    renderChDrop();
+    if (chDrop.parentNode !== document.body) document.body.appendChild(chDrop);
     document.getElementById('chTags').classList.add('open');
     chDrop.classList.add('show');
     document.getElementById('chTags').setAttribute('aria-expanded', 'true');
-    renderChDrop();
     positionChDrop();
   }
 
   document.getElementById('chTags').addEventListener('click', function (e) {
     e.stopPropagation();
+    if (isViewMode) return;
     if (chDrop.classList.contains('show')) closeChDrop();
     else openChDrop();
   });
   chDrop.addEventListener('click', function (e) { e.stopPropagation(); });
-  document.addEventListener('click', closeChDrop);
+  document.addEventListener('click', function (e) {
+    if (e.target.closest('#chTags') || e.target.closest('#chDrop')) return;
+    closeChDrop();
+  });
   window.addEventListener('scroll', positionChDrop, true);
   window.addEventListener('resize', positionChDrop);
 
@@ -1397,18 +1547,18 @@
 
     renderChTags();
     renderSourcePanels();
-    setFormReadonly(isViewMode);
+    applyModalFormState();
     closeChDrop();
-    document.getElementById('editModal').classList.add('open');
+    showMask('editModal');
   }
 
   function closeModal() {
-    document.getElementById('editModal').classList.remove('open');
+    hideMask('editModal');
     closeChDrop();
     closeBatchEditModal();
     isViewMode = false;
-    setFormReadonly(false);
     editingId = null;
+    applyModalFormState();
   }
 
   function saveModal() {
@@ -1498,6 +1648,7 @@
   document.getElementById('sourceType').addEventListener('change', renderSourcePanels);
   document.getElementById('caliberScope').addEventListener('change', function () {
     clearDetailFilters();
+    updateDetailFilterVisibility();
     renderSourcePanels();
   });
   document.getElementById('detailHead').addEventListener('change', function (e) {
@@ -1534,19 +1685,44 @@
   });
   document.getElementById('btnQuery').onclick = renderTable;
   document.getElementById('btnExportList').onclick = exportSourceList;
-  document.getElementById('sourceBody').addEventListener('click', function (e) {
-    var btn = e.target.closest('[data-act]');
-    if (!btn) return;
-    var id = btn.dataset.id;
-    if (btn.dataset.act === 'edit') openModal(id);
-    if (btn.dataset.act === 'view') openModal(id, { viewOnly: true });
-    if (btn.dataset.act === 'toggle') alert('状态切换（原型示意）');
+
+  /* 列表页按钮委托：避免未关闭遮罩或重复绑定导致点击无响应 */
+  document.addEventListener('click', function (e) {
+    var t = e.target.closest('#btnAdd, #btnQuery, #btnExportList, [data-act]');
+    if (!t) return;
+    if (t.id === 'btnAdd') { openModal(null); return; }
+    if (t.id === 'btnQuery') { renderTable(); return; }
+    if (t.id === 'btnExportList') { exportSourceList(); return; }
+    if (t.dataset && t.dataset.act === 'edit') { openModal(t.dataset.id); return; }
+    if (t.dataset && t.dataset.act === 'view') { openModal(t.dataset.id, { viewOnly: true }); return; }
+    if (t.dataset && t.dataset.act === 'toggle') { alert('状态切换（原型示意）'); }
   });
 
   renderTable();
-  mountDetailFilters();
-  renderSourcePanels();
-  mountDetailImportKit();
+  loadMasterDimensionData();
+  try {
+    mountDetailFilters();
+    renderSourcePanels();
+    mountDetailImportKit();
+  } catch (err) {
+    console.error(err);
+    var warn = document.createElement('div');
+    warn.className = 'hint-bar';
+    warn.style.margin = '12px 16px';
+    warn.textContent = '部分交互脚本加载异常，请强制刷新或通过 GitHub Pages / 本地 HTTP 打开（勿用 file://）。';
+    document.querySelector('.page').insertBefore(warn, document.querySelector('.page').firstChild);
+  }
+  if (!window.MultiSelectFilter || !window.ImportModalKit) {
+    var bar = document.createElement('div');
+    bar.className = 'hint-bar';
+    bar.style.margin = '12px 16px';
+    bar.style.background = '#fff7e6';
+    bar.style.borderColor = '#ffd591';
+    bar.textContent = '规范脚本未完整加载，按钮可能无效。请确认通过仓库 HTTP 预览，并保留 文件夹/规范/ 目录结构。';
+    if (!document.querySelector('.page .hint-bar')) {
+      document.querySelector('.page').insertBefore(bar, document.querySelector('.page').firstChild);
+    }
+  }
   if (window.FeeMgmtCommon) window.FeeMgmtCommon.wireClearableSelects(document);
 })();
 </script>

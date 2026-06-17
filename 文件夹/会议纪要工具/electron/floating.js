@@ -27,6 +27,34 @@ const STATUS_TITLE = {
   transcribing: '转写中',
 };
 
+/** @type {(() => void) | null} */
+let progressUnsub = null;
+
+function updateTranscribeProgress(payload) {
+  if (state !== 'transcribing') return;
+  const { phase, percent, message } = payload || {};
+  if (phase === 'download' && percent != null) {
+    timerEl.textContent = `${percent}%`;
+    const tip = message || `首次下载模型 ${percent}%（约 1GB）`;
+    statusDot.title = tip;
+    busySpinner.title = tip;
+    return;
+  }
+  if (message) {
+    statusDot.title = message;
+    busySpinner.title = message;
+    if (phase === 'transcribe') {
+      timerEl.textContent = formatTimer(currentDurationMs());
+    } else if (phase === 'scenario') {
+      timerEl.textContent = '梳理';
+    } else if (phase === 'load') {
+      timerEl.textContent = '加载';
+    } else if (phase === 'prepare') {
+      timerEl.textContent = '准备';
+    }
+  }
+}
+
 function formatTimer(ms) {
   const totalSec = Math.max(0, Math.floor(ms / 1000));
   const h = Math.floor(totalSec / 3600);
@@ -150,6 +178,10 @@ async function handleStop() {
   const durationMs = currentDurationMs();
   setState('transcribing');
   stopTick();
+  timerEl.textContent = '…';
+  statusDot.title = '转写中（首次可能需下载模型）';
+  busySpinner.title = statusDot.title;
+  progressUnsub = window.meetingApi.onTranscribeProgress(updateTranscribeProgress);
 
   await new Promise((resolve) => {
     mediaRecorder.onstop = resolve;
@@ -162,28 +194,39 @@ async function handleStop() {
 
   const mime = mediaRecorder.mimeType || 'audio/webm';
   const blob = new Blob(chunks, { type: mime });
-  const buffer = await blob.arrayBuffer();
-  const bytes = new Uint8Array(buffer);
-  let binary = '';
-  for (let i = 0; i < bytes.length; i += 1) {
-    binary += String.fromCharCode(bytes[i]);
-  }
-  const audioBase64 = btoa(binary);
+  const audioBytes = await blob.arrayBuffer();
 
   try {
-    const result = await window.meetingApi.saveAndTranscribe({ audioBase64, durationMs });
+    const result = await window.meetingApi.saveAndTranscribe({ audioBytes, durationMs });
     if (!result.ok) {
       throw new Error(result.error || '转写失败');
     }
-    await window.meetingApi.openPath(result.txtPath);
+    const openTarget = result.htmlPath || result.txtPath;
+    await window.meetingApi.openPath(openTarget);
+    if (result.scenarioSkipped) {
+      await window.meetingApi.notifyError({
+        title: '场景梳理未生成',
+        message: result.scenarioSkipped.slice(0, 160),
+      });
+    } else if (result.scenarioError) {
+      await window.meetingApi.notifyError({
+        title: '场景梳理未生成',
+        message: `转写已完成，但场景梳理页生成失败：${result.scenarioError.slice(0, 120)}`,
+      });
+    }
     resetToIdle();
   } catch (err) {
     const msg = String(err.message || err);
     const brief = msg.includes('PyTorch') || msg.includes('架构')
       ? '转写环境异常，请完全退出后重新打开应用。'
-      : msg.slice(0, 120);
+      : msg.includes('下载') || msg.includes('模型')
+        ? `${msg.slice(0, 100)}。可先运行：npm run download:models`
+        : msg.slice(0, 120);
     await window.meetingApi.notifyError({ title: '转写失败', message: brief });
     resetToIdle();
+  } finally {
+    progressUnsub?.();
+    progressUnsub = null;
   }
 }
 
@@ -251,6 +294,8 @@ window.meetingApi.getConfig().then((cfg) => {
   dragHandle.title = `拖动 · 保存至 ${cfg.saveBaseDir}`;
   if (!cfg.pythonReady) {
     statusDot.title = '待安装转写环境';
+  } else if (cfg.scenarioFramingEnabled && !cfg.llmReady) {
+    statusDot.title = '转写就绪 · 未配置 LLM（仅输出 txt）';
   }
 });
 

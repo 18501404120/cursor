@@ -9,7 +9,9 @@ const {
   speakerLabel,
   formatTimestampMs,
 } = require('./lib/paths');
-const { convertToM4a, transcribeAudio, warmTranscribeService, stopTranscribeService, buildTempSessionDir, removeDirSafe, resolvePython } = require('./lib/transcribe');
+const { convertToM4a, convertToWav, transcribeAudio, warmTranscribeService, stopTranscribeService, buildTempSessionDir, removeDirSafe, resolvePython } = require('./lib/transcribe');
+const { generateScenarioFromTranscript } = require('./lib/scenario-framing');
+const { isLlmConfigured } = require('./lib/llm');
 
 let mainWindow = null;
 let tray = null;
@@ -166,6 +168,8 @@ ipcMain.handle('meeting:get-config', async () => {
   return {
     saveBaseDir: config.saveBaseDir,
     pythonReady: fs.existsSync(resolvePython(config)),
+    scenarioFramingEnabled: config.scenarioFraming?.enabled !== false,
+    llmReady: isLlmConfigured(config),
   };
 });
 
@@ -191,7 +195,14 @@ ipcMain.handle('meeting:save-and-transcribe', async (_evt, payload) => {
   const config = loadConfig();
   const { paths, startedAt } = sessionMeta;
   const durationMs = Number(payload?.durationMs) || 0;
-  const buffer = Buffer.from(payload?.audioBase64 || '', 'base64');
+  let buffer;
+  if (payload?.audioBytes) {
+    buffer = Buffer.from(payload.audioBytes);
+  } else if (payload?.audioBase64) {
+    buffer = Buffer.from(payload.audioBase64, 'base64');
+  } else {
+    buffer = Buffer.alloc(0);
+  }
   if (!buffer.length) {
     throw new Error('录音数据为空');
   }
@@ -201,7 +212,12 @@ ipcMain.handle('meeting:save-and-transcribe', async (_evt, payload) => {
 
   try {
     await convertToM4a(tempWebm, paths.m4aPath);
-    const result = await transcribeAudio(paths.m4aPath, config);
+    const tempWav = path.join(sessionMeta.temp.dir, 'transcribe.wav');
+    await convertToWav(tempWebm, tempWav);
+    const sendProgress = (payload) => {
+      mainWindow?.webContents.send('meeting:transcribe-progress', payload);
+    };
+    const result = await transcribeAudio(tempWav, config, sendProgress);
     const lines = (result.sentences || []).map((s) => ({
       time: formatTimestampMs(s.start_ms || 0),
       speaker: speakerLabel(s.spk),
@@ -217,15 +233,81 @@ ipcMain.handle('meeting:save-and-transcribe', async (_evt, payload) => {
     fs.writeFileSync(paths.txtPath, transcript, 'utf8');
     removeDirSafe(sessionMeta.temp.dir);
 
-    const outputDir = paths.sessionDir;
+    let finalPaths = {
+      txtPath: paths.txtPath,
+      m4aPath: paths.m4aPath,
+      sessionDir: paths.sessionDir,
+      baseName: paths.baseName,
+    };
+    let scenarioResult = null;
+    let scenarioSkipped = null;
+
+    if (config.scenarioFraming?.enabled !== false) {
+      if (!isLlmConfigured(config)) {
+        scenarioSkipped =
+          '未配置 llm.apiKey。请复制 config.example.json 为 config.json 并填写 API Key，然后对已有 .txt 运行 npm run scenario:from-txt';
+      } else {
+        try {
+          scenarioResult = await generateScenarioFromTranscript(config, {
+            transcript,
+            paths,
+            startedAt,
+            durationMs,
+            onProgress: sendProgress,
+          });
+          if (scenarioResult && !scenarioResult.skipped) {
+            finalPaths = {
+              txtPath: scenarioResult.txtPath,
+              m4aPath: scenarioResult.m4aPath,
+              sessionDir: scenarioResult.sessionDir,
+              baseName: scenarioResult.baseName,
+            };
+          }
+        } catch (err) {
+          console.warn('[meeting-recorder] 场景梳理生成失败:', err.message);
+          scenarioResult = { ok: false, error: err.message || String(err) };
+          // 场景失败不影响转写；若文件夹已改名，尽量指向现有 txt
+          if (!fs.existsSync(finalPaths.txtPath)) {
+            const monthPath = path.dirname(paths.sessionDir);
+            try {
+              const dirs = fs
+                .readdirSync(monthPath, { withFileTypes: true })
+                .filter((d) => d.isDirectory())
+                .map((d) => path.join(monthPath, d.name));
+              const match = dirs.find((dir) => {
+                const base = path.basename(dir);
+                return fs.existsSync(path.join(dir, `${base}.txt`));
+              });
+              if (match) {
+                const base = path.basename(match);
+                finalPaths = {
+                  sessionDir: match,
+                  baseName: base,
+                  txtPath: path.join(match, `${base}.txt`),
+                  m4aPath: path.join(match, `${base}.m4a`),
+                };
+              }
+            } catch (_) {
+              /* ignore */
+            }
+          }
+        }
+      }
+    }
+
     sessionMeta = null;
 
     return {
       ok: true,
-      txtPath: paths.txtPath,
-      m4aPath: paths.m4aPath,
-      outputDir,
-      sessionDir: paths.sessionDir,
+      txtPath: finalPaths.txtPath,
+      m4aPath: finalPaths.m4aPath,
+      outputDir: finalPaths.sessionDir,
+      sessionDir: finalPaths.sessionDir,
+      baseName: finalPaths.baseName,
+      htmlPath: scenarioResult?.htmlPath || null,
+      meetingTopic: scenarioResult?.meetingTopic || null,
+      scenarioError: scenarioResult?.ok === false ? scenarioResult.error : null,
+      scenarioSkipped,
       lineCount: lines.length,
     };
   } catch (err) {

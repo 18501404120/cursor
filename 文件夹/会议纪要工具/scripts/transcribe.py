@@ -63,11 +63,13 @@ def load_model(model_name: str):
             ) from exc
         raise
 
+    eprint("PROGRESS:load")
     model = AutoModel(
         model=model_name,
         vad_model="fsmn-vad",
         punc_model="ct-punc",
         spk_model="cam++",
+        disable_update=True,
     )
     _MODEL_CACHE[model_name] = model
     return model
@@ -102,8 +104,10 @@ def main() -> int:
 
     model_name = os.environ.get("FUNASR_MODEL", "paraformer-zh")
     try:
+        eprint("PROGRESS:prepare")
         eprint(f"加载 FunASR 模型: {model_name}")
         model = load_model(model_name)
+        eprint("PROGRESS:transcribe")
         eprint(f"开始转写: {audio_path}")
         payload = transcribe_with_model(model, audio_path, model_name)
         print(json.dumps(payload, ensure_ascii=False))

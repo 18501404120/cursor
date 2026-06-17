@@ -46,6 +46,23 @@ function buildPythonSpawn(config, scriptArgs = []) {
   return { command: python, args: scriptArgs };
 }
 
+function buildPythonEnv(config, extra = {}) {
+  const venvBin = path.join(ROOT, 'scripts', '.venv', 'bin');
+  const ffmpegDir = ffmpegPath && fs.existsSync(ffmpegPath) ? path.dirname(ffmpegPath) : '';
+  const pathSep = process.platform === 'win32' ? ';' : ':';
+  const basePath = process.env.PATH || '/usr/bin:/bin:/usr/sbin:/sbin';
+  const prefixes = [venvBin, ffmpegDir].filter((p) => p && fs.existsSync(p));
+  const pathValue = prefixes.length ? `${prefixes.join(pathSep)}${pathSep}${basePath}` : basePath;
+  return {
+    ...process.env,
+    PATH: pathValue,
+    FUNASR_MODEL: config?.transcribeModel || process.env.FUNASR_MODEL || 'paraformer-zh',
+    PYTHONUNBUFFERED: '1',
+    TQDM_DISABLE: '1',
+    ...extra,
+  };
+}
+
 function spawnPython(config, scriptArgs, options = {}) {
   const { command, args } = buildPythonSpawn(config, scriptArgs);
   return spawn(command, args, options);
@@ -71,6 +88,89 @@ function runCommand(cmd, args, options = {}) {
       else reject(new Error(stderr || stdout || `命令退出码 ${code}`));
     });
   });
+}
+
+function forwardStderr(d) {
+  try {
+    if (process.stderr.writable) process.stderr.write(d);
+  } catch (err) {
+    if (err && err.code !== 'EPIPE') {
+      console.warn('[meeting-recorder] stderr forward failed:', err.message);
+    }
+  }
+}
+
+function emitProgressFromStderr(text, onProgress) {
+  if (!onProgress || !text) return;
+  const progressMatch = text.match(/PROGRESS:(\w+)/);
+  if (progressMatch) {
+    const phase = progressMatch[1];
+    if (phase === 'prepare') onProgress({ phase: 'prepare', message: '准备转写…' });
+    else if (phase === 'load') onProgress({ phase: 'load', message: '加载模型…' });
+    else if (phase === 'transcribe') onProgress({ phase: 'transcribe', message: '转写中…' });
+    return;
+  }
+  const dl = text.match(/Downloading \[([^\]]+)\]:\s*(\d+)%/);
+  if (dl) {
+    const percent = parseInt(dl[2], 10);
+    onProgress({
+      phase: 'download',
+      percent,
+      message: `首次下载模型 ${percent}%（约 1GB，请耐心等待）`,
+    });
+  }
+}
+
+function stripAnsi(text) {
+  return String(text || '').replace(/\x1b\[[0-9;]*m/g, '');
+}
+
+function sanitizeTranscribeError(stderr, stdout = '') {
+  const blob = stripAnsi(`${stderr}\n${stdout}`);
+  if (!blob.trim()) return '';
+
+  if (/No such file or directory.*['"]ffmpeg['"]/i.test(blob) || /FileNotFoundError.*ffmpeg/i.test(blob)) {
+    return '转写引擎找不到 ffmpeg，请完全退出后重新打开应用';
+  }
+  if (/Format not recognised/i.test(blob) || /LibsndfileError/i.test(blob)) {
+    return '音频格式无法识别，请重试录音';
+  }
+
+  const lines = blob.split('\n').map((s) => s.trim()).filter(Boolean);
+  const jsonLine = [...lines].reverse().find((s) => s.startsWith('{"ok": false'));
+  if (jsonLine) {
+    try {
+      const parsed = JSON.parse(jsonLine);
+      if (parsed.error) return parsed.error;
+    } catch (_) {
+      /* ignore */
+    }
+  }
+
+  const errLine = [...lines].reverse().find(
+    (l) =>
+      /^(FileNotFoundError|LibsndfileError|RuntimeError|ImportError|ModuleNotFoundError):/.test(l) ||
+      /^Error:/.test(l),
+  );
+  if (errLine) {
+    return errLine.replace(/^(?:\w+Error:\s*)/, '').slice(0, 160);
+  }
+
+  const interesting = lines.filter(
+    (l) =>
+      !l.startsWith('File ') &&
+      !l.startsWith('Traceback') &&
+      !l.startsWith('  ') &&
+      !/^WARNING:/.test(l) &&
+      !/^DEBUG:/.test(l) &&
+      !/^\d+%\|/.test(l) &&
+      !/\?it\/s\]/.test(l) &&
+      !/^PROGRESS:/.test(l) &&
+      l.length < 200,
+  );
+  const last = interesting[interesting.length - 1] || '';
+  if (/^\d+%\|/.test(last) || last.includes('[0m')) return '转写失败，请查看日志或重试';
+  return last || '转写失败，请重试';
 }
 
 function buildTempSessionDir(tempRoot) {
@@ -126,11 +226,7 @@ function ensureTranscribeService(config) {
     const script = path.join(ROOT, 'scripts', 'transcribe_service.py');
     serviceProcess = spawnPython(config, [script], {
       cwd: path.join(ROOT, 'scripts'),
-      env: {
-        ...process.env,
-        FUNASR_MODEL: config.transcribeModel || 'paraformer-zh',
-        PYTHONUNBUFFERED: '1',
-      },
+      env: buildPythonEnv(config),
       stdio: ['pipe', 'pipe', 'pipe'],
     });
 
@@ -198,12 +294,13 @@ function ensureTranscribeService(config) {
 }
 
 function warmTranscribeService(config) {
-  // 延迟预热，避免启动瞬间与桌面启动器日志管道冲突
+  // 后台尝试预热；失败不影响转写（结束录音时走单次模式）
   setTimeout(() => {
     ensureTranscribeService(config).catch((err) => {
-      console.warn('[meeting-recorder] 转写服务预热失败，结束录音时将自动单次转写:', err.message);
+      console.warn('[meeting-recorder] 转写服务预热失败（将使用单次转写）:', err.message);
+      resetTranscribeService();
     });
-  }, 3000);
+  }, 5000);
 }
 
 function resetTranscribeService() {
@@ -258,51 +355,98 @@ async function transcribeViaService(audioPath, config) {
     const timer = setTimeout(() => {
       pendingJobs.delete(id);
       reject(new Error('转写超时，请稍后重试'));
-    }, 60 * 60 * 1000);
+    }, 3 * 60 * 60 * 1000);
 
     pendingJobs.set(id, { resolve, reject, timer });
     writeServiceJob({ id, audio: audioPath }).catch(reject);
   });
 }
 
-async function transcribeOnce(audioPath, config) {
+async function transcribeOnce(audioPath, config, onProgress) {
   const script = path.join(ROOT, 'scripts', 'transcribe.py');
   const { command, args } = buildPythonSpawn(config, [script, audioPath]);
-  const { stdout, stderr } = await runCommand(command, args, {
-    cwd: path.join(ROOT, 'scripts'),
-    env: {
-      ...process.env,
-      FUNASR_MODEL: config.transcribeModel || 'paraformer-zh',
-    },
+
+  return new Promise((resolve, reject) => {
+    if (onProgress) onProgress({ phase: 'prepare', message: '准备转写…' });
+
+    const child = spawn(command, args, {
+      cwd: path.join(ROOT, 'scripts'),
+      env: buildPythonEnv(config),
+    });
+
+    let stdout = '';
+    let stderr = '';
+
+    child.stdout.on('data', (d) => {
+      stdout += d.toString();
+    });
+    child.stderr.on('data', (d) => {
+      const chunk = d.toString();
+      stderr += chunk;
+      forwardStderr(d);
+      emitProgressFromStderr(chunk, onProgress);
+    });
+    child.on('error', reject);
+    child.on('close', (code) => {
+      if (code !== 0) {
+        reject(new Error(sanitizeTranscribeError(stderr, stdout) || `转写出错 (${code})`));
+        return;
+      }
+      const lines = stdout
+        .split('\n')
+        .map((s) => s.trim())
+        .filter(Boolean);
+      const line = [...lines].reverse().find((s) => s.startsWith('{')) || lines[lines.length - 1];
+      if (!line) {
+        reject(new Error(`转写脚本无输出${stderr ? `：${sanitizeTranscribeError(stderr)}` : ''}`));
+        return;
+      }
+      try {
+        const parsed = JSON.parse(line);
+        if (parsed.ok === false) reject(new Error(parsed.error || '转写失败'));
+        else resolve(parsed);
+      } catch (err) {
+        reject(new Error(`转写结果解析失败：${err.message}`));
+      }
+    });
   });
-  const lines = stdout
-    .split('\n')
-    .map((s) => s.trim())
-    .filter(Boolean);
-  const line = [...lines].reverse().find((s) => s.startsWith('{')) || lines[lines.length - 1];
-  if (!line) throw new Error(`转写脚本无输出${stderr ? `：${stderr.slice(-400)}` : ''}`);
-  const parsed = JSON.parse(line);
-  if (parsed.ok === false) throw new Error(parsed.error || '转写失败');
-  return parsed;
 }
 
 async function convertToM4a(inputPath, outputPath) {
   if (!ffmpegPath) throw new Error('未找到 ffmpeg，无法生成 m4a');
-  await runCommand(ffmpegPath, ['-y', '-i', inputPath, '-c:a', 'aac', '-b:a', '128k', outputPath]);
+  await runCommand(ffmpegPath, ['-y', '-i', inputPath, '-c:a', 'aac', '-b:a', '128k', outputPath], {
+    env: buildPythonEnv({}),
+  });
 }
 
-async function transcribeAudio(audioPath, config) {
-  try {
-    return await transcribeViaService(audioPath, config);
-  } catch (err) {
-    console.warn('[meeting-recorder] 常驻转写失败，回退单次模式:', err.message);
-    return transcribeOnce(audioPath, config);
+/** FunASR 对 16kHz mono wav 兼容性最好 */
+async function convertToWav(inputPath, outputPath) {
+  if (!ffmpegPath) throw new Error('未找到 ffmpeg，无法转换音频');
+  await runCommand(
+    ffmpegPath,
+    ['-y', '-i', inputPath, '-ac', '1', '-ar', '16000', '-c:a', 'pcm_s16le', outputPath],
+    { env: buildPythonEnv({}) },
+  );
+}
+
+async function transcribeAudio(audioPath, config, onProgress) {
+  // 仅当常驻服务已就绪时使用；否则直接单次转写，避免首次下载模型时无限等待
+  if (serviceProcess && serviceReady) {
+    try {
+      if (onProgress) onProgress({ phase: 'transcribe', message: '转写中…' });
+      return await transcribeViaService(audioPath, config);
+    } catch (err) {
+      console.warn('[meeting-recorder] 常驻转写失败，回退单次模式:', err.message);
+      resetTranscribeService();
+    }
   }
+  return transcribeOnce(audioPath, config, onProgress);
 }
 
 module.exports = {
   resolvePython,
   convertToM4a,
+  convertToWav,
   transcribeAudio,
   warmTranscribeService,
   stopTranscribeService,

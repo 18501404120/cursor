@@ -79,6 +79,8 @@
 2. 选项变更后同步清除钮显隐（示范页函数 `syncClearableSelect` / `wireClearableSelects`）。  
 3. **`fillSelect` 刷新选项列表后**须再次同步清除钮状态。
 
+**多选下拉筛选**（`MultiSelectFilter`）的触发器清除钮见 **`文件夹/规范/多选下拉筛选-全局UI规范.md`** §1（默认 `clearable: true`），视觉与行为与本节单选下拉对齐。
+
 ### 4.4 场景品类触发器
 
 场景品类为**自定义组合控件**，须在触发器行使用 **`.sc-cat-clear`**，规则同 §4.2；有任意已选叶子时显示 ×，点击清空**全部场景**下的品类选择（`selectedByScene = {}`）。

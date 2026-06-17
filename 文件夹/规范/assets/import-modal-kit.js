@@ -85,9 +85,20 @@
 
     document.body.appendChild(mainMask);
     document.body.appendChild(reqMask);
+    if (global.FeeMgmtCommon && global.FeeMgmtCommon.ensureHiddenModals) {
+      global.FeeMgmtCommon.ensureHiddenModals();
+    }
 
-    function open(el) { el.classList.add('open'); }
-    function close(el) { el.classList.remove('open'); }
+    function open(el) {
+      el.style.removeProperty('display');
+      el.style.removeProperty('pointer-events');
+      el.classList.add('open');
+    }
+    function close(el) {
+      el.classList.remove('open');
+      el.style.removeProperty('display');
+      el.style.removeProperty('pointer-events');
+    }
 
     var triggers = typeof config.trigger === 'string'
       ? document.querySelectorAll(config.trigger)
