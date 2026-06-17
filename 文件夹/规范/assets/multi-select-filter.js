@@ -41,7 +41,7 @@
       ".msf-panel.msf-show{display:flex;pointer-events:auto !important;}" +
       ".msf-search{padding:8px;border-bottom:1px solid #f0f0f0;}" +
       ".msf-search input{width:100%;box-sizing:border-box;padding:6px 10px;border:1px solid #d9d9d9;border-radius:6px;font-size:13px;}" +
-      ".msf-list{overflow-y:auto;padding:4px 0;max-height:260px;}" +
+      ".msf-list{overflow-y:auto;padding:4px 0;max-height:260px;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;}" +
       ".msf-row{display:flex;align-items:center;gap:8px;padding:6px 12px;cursor:pointer;user-select:none;color:#0f172a;}" +
       ".msf-row:hover{background:#f1f5f9;}" +
       ".msf-row.msf-master{font-weight:600;color:#0f2f63;}" +
@@ -156,6 +156,13 @@
 
     panel.appendChild(searchWrap);
     panel.appendChild(list);
+
+    function stopPanelEventBubble(e) {
+      e.stopPropagation();
+    }
+    panel.addEventListener("mousedown", stopPanelEventBubble);
+    panel.addEventListener("wheel", stopPanelEventBubble, { passive: true });
+    list.addEventListener("wheel", stopPanelEventBubble, { passive: true });
     if (tagsWrap) root.appendChild(tagsWrap);
     root.appendChild(triggerWrap);
     root.appendChild(panel);

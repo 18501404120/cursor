@@ -106,8 +106,10 @@
       var obs = new MutationObserver(function (mutations) {
         var touched = mutations.some(function (m) {
           if (m.type === 'childList') return true;
-          return m.type === 'attributes' && m.attributeName === 'class'
-            && m.target && m.target.classList && m.target.classList.contains('modal-mask');
+          if (m.type !== 'attributes' || m.attributeName !== 'class') return false;
+          var t = m.target;
+          if (!t || !t.classList) return false;
+          return t.classList.contains('modal-mask') || t.classList.contains('msf-panel');
         });
         if (!touched) return;
         if (timer) return;

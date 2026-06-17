@@ -1010,7 +1010,7 @@
   }
   function mountDetailFilters() {
     if (detailMsfMounted || !window.MultiSelectFilter) return;
-    var z = 1400;
+    var z = 1600;
     var onFilterChange = function () {
       if (detailFilterSyncGuard) return;
       renderDetailTable();
@@ -1686,17 +1686,18 @@
   document.getElementById('btnQuery').onclick = renderTable;
   document.getElementById('btnExportList').onclick = exportSourceList;
 
-  /* 列表页按钮委托：避免未关闭遮罩或重复绑定导致点击无响应 */
-  document.addEventListener('click', function (e) {
+  /* 列表页按钮委托（capture）：避免遮罩层拦截导致编辑/查看无响应 */
+  function handleListPageAction(e) {
     var t = e.target.closest('#btnAdd, #btnQuery, #btnExportList, [data-act]');
     if (!t) return;
-    if (t.id === 'btnAdd') { openModal(null); return; }
-    if (t.id === 'btnQuery') { renderTable(); return; }
-    if (t.id === 'btnExportList') { exportSourceList(); return; }
-    if (t.dataset && t.dataset.act === 'edit') { openModal(t.dataset.id); return; }
-    if (t.dataset && t.dataset.act === 'view') { openModal(t.dataset.id, { viewOnly: true }); return; }
-    if (t.dataset && t.dataset.act === 'toggle') { alert('状态切换（原型示意）'); }
-  });
+    if (t.id === 'btnAdd') { e.preventDefault(); e.stopPropagation(); openModal(null); return; }
+    if (t.id === 'btnQuery') { e.preventDefault(); e.stopPropagation(); renderTable(); return; }
+    if (t.id === 'btnExportList') { e.preventDefault(); e.stopPropagation(); exportSourceList(); return; }
+    if (t.dataset && t.dataset.act === 'edit') { e.preventDefault(); e.stopPropagation(); openModal(t.dataset.id); return; }
+    if (t.dataset && t.dataset.act === 'view') { e.preventDefault(); e.stopPropagation(); openModal(t.dataset.id, { viewOnly: true }); return; }
+    if (t.dataset && t.dataset.act === 'toggle') { e.preventDefault(); e.stopPropagation(); alert('状态切换（原型示意）'); }
+  }
+  document.addEventListener('click', handleListPageAction, true);
 
   renderTable();
   loadMasterDimensionData();
