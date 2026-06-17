@@ -244,18 +244,31 @@
       display: flex;
       flex-wrap: wrap;
       gap: 10px 12px;
-      align-items: center;
+      align-items: flex-end;
       justify-content: space-between;
       margin-bottom: 10px;
     }
-    .detail-search {
-      flex: 1 1 260px;
-      min-width: 220px;
+    .detail-search-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px 12px;
+      flex: 1 1 520px;
+      align-items: flex-end;
     }
-    .detail-search input,
-    .detail-bulk input,
+    .detail-search-item {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      min-width: 108px;
+    }
+    .detail-search-item label {
+      font-size: 12px;
+      color: #6b7280;
+    }
+    .detail-search-item input,
     .detail-table input,
-    .detail-table select {
+    .detail-table select,
+    #batchEditValue {
       width: 100%;
       height: 32px;
       border: 1px solid #d1d5db;
@@ -265,20 +278,37 @@
       box-sizing: border-box;
       background: #fff;
     }
-    .detail-bulk {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      flex-wrap: wrap;
-    }
-    .detail-bulk input {
-      width: 120px;
-    }
+    .detail-search-item input { min-width: 108px; }
     .detail-actions {
       display: flex;
       align-items: center;
       gap: 8px;
       flex-wrap: wrap;
+      margin-left: auto;
+    }
+    #editModal .modal.modal-xl { width: min(1180px, 98vw); }
+    .batch-preview-wrap {
+      margin-top: 14px;
+      max-height: 280px;
+      overflow: auto;
+      border: 1px solid #e5e7eb;
+      border-radius: 6px;
+    }
+    .batch-preview-wrap .data-table th {
+      position: sticky;
+      top: 0;
+      z-index: 1;
+      background: #f8fafc;
+    }
+    .view-mode-tip {
+      grid-column: 1 / -1;
+      padding: 10px 12px;
+      border-radius: 6px;
+      background: #fffbeb;
+      border: 1px solid #fde68a;
+      color: #92400e;
+      font-size: 12px;
+      line-height: 1.6;
     }
     .detail-summary {
       margin-bottom: 10px;
@@ -330,9 +360,9 @@
       #editModal .form-grid,
       .source-block.active { grid-template-columns: 1fr; }
       .detail-toolbar,
-      .detail-bulk,
+      .detail-search-row,
       .detail-actions { align-items: stretch; }
-      .detail-bulk input { width: 100%; }
+      .detail-search-item { min-width: 100%; }
     }
   </style>
 </head>
@@ -432,7 +462,7 @@
 </div>
 
 <div class="modal-mask" id="editModal" role="dialog" aria-modal="true" aria-labelledby="editModalTitle">
-  <div class="modal modal-lg">
+  <div class="modal modal-lg modal-xl">
     <div class="modal-hd">
       <h2 id="editModalTitle">编辑费用来源</h2>
       <div class="modal-hd-actions">
@@ -482,6 +512,10 @@
           <div id="chHint" style="font-size:11px;color:#6b7280;margin-top:4px;">
             同一费用项下，已被其它配置占用的渠道不可再选。
           </div>
+        </div>
+
+        <div id="viewModeTip" class="view-mode-tip full" hidden>
+          当前为<strong>查看模式</strong>：仅展示配置内容，不可修改。如需调整请点击列表中的「编辑」。
         </div>
 
         <div id="autoTip" class="auto-tip full">
@@ -580,17 +614,29 @@
           </div>
           <div class="detail-card">
             <div class="detail-intro">
-              按当前口径范围，系统会基于已选渠道自动展开全部可维护组合。你可以逐行填写，也可以先搜索，再批量填入、导出或导入。
+              按当前口径范围，系统会基于已选渠道自动展开全部可维护组合。你可以逐行填写，也可以先按维度筛选，勾选后批量编辑、导出或导入。
             </div>
             <div class="detail-toolbar">
-              <div class="detail-search">
-                <input id="detailSearch" type="search" placeholder="搜索渠道 / 国家 / 场景 / 零售商">
-              </div>
-              <div class="detail-bulk">
-                <input id="bulkValueInput" type="number" step="0.01" placeholder="批量值">
-                <button type="button" class="btn" id="btnBulkApply">填入选中行</button>
+              <div class="detail-search-row">
+                <div class="detail-search-item">
+                  <label for="detailSearchChannel">渠道</label>
+                  <input id="detailSearchChannel" type="search" placeholder="筛选渠道">
+                </div>
+                <div class="detail-search-item">
+                  <label for="detailSearchCountry">国家</label>
+                  <input id="detailSearchCountry" type="search" placeholder="筛选国家">
+                </div>
+                <div class="detail-search-item" id="detailSearchSceneWrap">
+                  <label for="detailSearchScene">场景</label>
+                  <input id="detailSearchScene" type="search" placeholder="筛选场景">
+                </div>
+                <div class="detail-search-item" id="detailSearchRetailerWrap">
+                  <label for="detailSearchRetailer">零售商</label>
+                  <input id="detailSearchRetailer" type="search" placeholder="筛选零售商">
+                </div>
               </div>
               <div class="detail-actions">
+                <button type="button" class="btn btn-primary" id="btnBulkEdit">批量编辑</button>
                 <button type="button" class="btn" id="btnDetailExport">导出当前明细</button>
                 <button type="button" class="btn" id="btnDetailImport">导入明细</button>
               </div>
@@ -614,6 +660,34 @@
     <div class="modal-ft">
       <button type="button" class="btn" id="editModalCancel">取消</button>
       <button type="button" class="btn btn-primary" id="btnSave">保存</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-mask" id="batchEditModal" role="dialog" aria-modal="true" aria-labelledby="batchEditModalTitle">
+  <div class="modal modal-lg">
+    <div class="modal-hd">
+      <h2 id="batchEditModalTitle">批量编辑口径明细</h2>
+      <div class="modal-hd-actions">
+        <button type="button" class="modal-close" id="batchEditModalClose" aria-label="关闭">×</button>
+      </div>
+    </div>
+    <div class="modal-bd">
+      <p id="batchEditIntro" style="margin:0 0 14px;font-size:13px;color:#475569;line-height:1.7;"></p>
+      <div class="form-field">
+        <label for="batchEditValue"><span class="req">*</span> <span id="batchEditValueLabel">维护值</span></label>
+        <input id="batchEditValue" type="number" step="0.01" placeholder="请输入统一维护值">
+      </div>
+      <div class="batch-preview-wrap">
+        <table class="data-table">
+          <thead id="batchEditHead"></thead>
+          <tbody id="batchEditBody"></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="modal-ft">
+      <button type="button" class="btn" id="batchEditCancel">取消</button>
+      <button type="button" class="btn btn-primary" id="batchEditConfirm">确认填入</button>
     </div>
   </div>
 </div>
@@ -679,6 +753,7 @@
   ];
 
   var editingId = null;
+  var isViewMode = false;
   var selectedChannels = new Set();
   var selectedDetailKeys = new Set();
   var detailRows = [];
@@ -778,11 +853,95 @@
     });
   }
   function filteredDetailRows() {
-    var keyword = document.getElementById('detailSearch').value.trim().toLowerCase();
-    if (!keyword) return detailRows.slice();
+    var channelKw = document.getElementById('detailSearchChannel').value.trim().toLowerCase();
+    var countryKw = document.getElementById('detailSearchCountry').value.trim().toLowerCase();
+    var sceneKw = document.getElementById('detailSearchScene').value.trim().toLowerCase();
+    var retailerKw = document.getElementById('detailSearchRetailer').value.trim().toLowerCase();
     return detailRows.filter(function (item) {
-      return [item.channel, item.country, item.scene, item.retailer].join('|').toLowerCase().indexOf(keyword) >= 0;
+      if (channelKw && String(item.channel).toLowerCase().indexOf(channelKw) < 0) return false;
+      if (countryKw && String(item.country).toLowerCase().indexOf(countryKw) < 0) return false;
+      if (sceneKw && String(item.scene).toLowerCase().indexOf(sceneKw) < 0) return false;
+      if (retailerKw && String(item.retailer).toLowerCase().indexOf(retailerKw) < 0) return false;
+      return true;
     });
+  }
+  function updateDetailSearchVisibility() {
+    var scope = document.getElementById('caliberScope').value;
+    var flags = scopeFlags(scope);
+    document.getElementById('detailSearchSceneWrap').hidden = !flags.scene;
+    document.getElementById('detailSearchRetailerWrap').hidden = !flags.retailer;
+    if (!flags.scene) document.getElementById('detailSearchScene').value = '';
+    if (!flags.retailer) document.getElementById('detailSearchRetailer').value = '';
+  }
+  function clearDetailSearch() {
+    document.getElementById('detailSearchChannel').value = '';
+    document.getElementById('detailSearchCountry').value = '';
+    document.getElementById('detailSearchScene').value = '';
+    document.getElementById('detailSearchRetailer').value = '';
+  }
+  function setFormReadonly(readonly) {
+    document.querySelectorAll('#editModal select, #editModal input:not([type="search"]), #editModal textarea').forEach(function (el) {
+      if (el.closest('#detailHead') || el.closest('#detailBody')) return;
+      el.disabled = readonly;
+    });
+    document.getElementById('chTags').style.pointerEvents = readonly ? 'none' : '';
+    document.getElementById('chTags').style.opacity = readonly ? '0.72' : '';
+    document.getElementById('btnBulkEdit').disabled = readonly;
+    document.getElementById('btnDetailExport').disabled = readonly;
+    document.getElementById('btnDetailImport').disabled = readonly;
+    document.getElementById('btnSave').hidden = readonly;
+    document.getElementById('viewModeTip').hidden = !readonly;
+    document.getElementById('editModalCancel').textContent = readonly ? '关闭' : '取消';
+  }
+  function getSelectedDetailRows() {
+    return detailRows.filter(function (item) { return selectedDetailKeys.has(item.key); });
+  }
+  function openBatchEditModal() {
+    if (isViewMode) return;
+    var targets = getSelectedDetailRows();
+    if (!targets.length) {
+      alert('请先勾选需要批量编辑的明细行');
+      return;
+    }
+    var type = document.getElementById('sourceType').value;
+    var scope = document.getElementById('caliberScope').value;
+    var meta = valueMeta(type);
+    var columns = getDetailColumns(scope, type).filter(function (column) { return column.key !== 'value'; });
+    document.getElementById('batchEditIntro').textContent = '已选中 ' + targets.length + ' 条明细。填写下方维护值后，将统一应用到所选组合。';
+    document.getElementById('batchEditValueLabel').textContent = meta.label;
+    document.getElementById('batchEditValue').value = '';
+    document.getElementById('batchEditValue').step = meta.step;
+    document.getElementById('batchEditValue').placeholder = meta.placeholder;
+    document.getElementById('batchEditHead').innerHTML = '<tr>' + columns.map(function (column) {
+      return '<th>' + column.label + '</th>';
+    }).join('') + '<th>' + meta.label + '（当前）</th></tr>';
+    document.getElementById('batchEditBody').innerHTML = targets.map(function (item) {
+      var cells = columns.map(function (column) {
+        return '<td>' + escapeHtml(item[column.key] || '—') + '</td>';
+      }).join('');
+      return '<tr>' + cells + '<td>' + escapeHtml(item.value) + '</td></tr>';
+    }).join('');
+    document.getElementById('batchEditModal').classList.add('open');
+  }
+  function closeBatchEditModal() {
+    document.getElementById('batchEditModal').classList.remove('open');
+    document.getElementById('batchEditValue').value = '';
+  }
+  function confirmBatchEdit() {
+    var value = document.getElementById('batchEditValue').value;
+    if (value === '') {
+      alert('请先输入维护值');
+      return;
+    }
+    var targets = getSelectedDetailRows();
+    if (!targets.length) {
+      alert('当前没有可批量编辑的明细行');
+      return;
+    }
+    targets.forEach(function (item) { item.value = Number(value); });
+    closeBatchEditModal();
+    renderDetailTable();
+    alert('已批量更新 ' + targets.length + ' 条口径明细');
   }
   function getDetailColumns(scope, type) {
     var flags = scopeFlags(scope);
@@ -801,9 +960,8 @@
     var head = document.getElementById('detailHead');
     var body = document.getElementById('detailBody');
     var summaryEl = document.getElementById('detailSummary');
-    var bulkInput = document.getElementById('bulkValueInput');
     var meta = valueMeta(type);
-    bulkInput.placeholder = '批量填入' + meta.label;
+    updateDetailSearchVisibility();
 
     if (!selectedChannels.size) {
       head.innerHTML = '';
@@ -814,31 +972,35 @@
 
     var columns = getDetailColumns(scope, type);
     var visibleRows = filteredDetailRows();
-    var allChecked = visibleRows.length && visibleRows.every(function (item) { return selectedDetailKeys.has(item.key); });
-    head.innerHTML = '<tr><th class="sel-col"><input id="detailCheckAll" type="checkbox"' + (allChecked ? ' checked' : '') + '></th>' +
+    var allChecked = !isViewMode && visibleRows.length && visibleRows.every(function (item) { return selectedDetailKeys.has(item.key); });
+    head.innerHTML = '<tr><th class="sel-col">' + (isViewMode ? '' : '<input id="detailCheckAll" type="checkbox"' + (allChecked ? ' checked' : '') + '>') + '</th>' +
       columns.map(function (column) {
         return '<th' + (column.key === 'value' ? ' class="value-col"' : '') + '>' + column.label + '</th>';
       }).join('') + '</tr>';
 
     if (!visibleRows.length) {
-      body.innerHTML = '<tr><td colspan="' + (columns.length + 1) + '"><div class="detail-empty">没有匹配的明细，请调整搜索条件。</div></td></tr>';
-      summaryEl.textContent = '已展开 ' + detailRows.length + ' 条明细，当前搜索结果 0 条。';
+      body.innerHTML = '<tr><td colspan="' + (columns.length + 1) + '"><div class="detail-empty">没有匹配的明细，请调整筛选条件。</div></td></tr>';
+      summaryEl.textContent = '已展开 ' + detailRows.length + ' 条明细，当前筛选结果 0 条。';
       return;
     }
 
     body.innerHTML = visibleRows.map(function (item) {
       var cells = [
-        '<td class="sel-col"><input type="checkbox" data-detail-check="' + escapeHtml(item.key) + '"' + (selectedDetailKeys.has(item.key) ? ' checked' : '') + '></td>',
+        '<td class="sel-col">' + (isViewMode ? '' : '<input type="checkbox" data-detail-check="' + escapeHtml(item.key) + '"' + (selectedDetailKeys.has(item.key) ? ' checked' : '') + '>') + '</td>',
         '<td>' + escapeHtml(item.channel) + '</td>',
         '<td>' + escapeHtml(item.country) + '</td>'
       ];
       if (scopeFlags(scope).scene) cells.push('<td>' + escapeHtml(item.scene) + '</td>');
       if (scopeFlags(scope).retailer) cells.push('<td>' + escapeHtml(item.retailer) + '</td>');
-      cells.push('<td class="value-col"><input class="detail-value-input" data-detail-value="' + escapeHtml(item.key) + '" type="number" step="' + meta.step + '" value="' + escapeHtml(item.value) + '" placeholder="' + meta.placeholder + '"></td>');
+      if (isViewMode) {
+        cells.push('<td class="value-col">' + escapeHtml(item.value) + '</td>');
+      } else {
+        cells.push('<td class="value-col"><input class="detail-value-input" data-detail-value="' + escapeHtml(item.key) + '" type="number" step="' + meta.step + '" value="' + escapeHtml(item.value) + '" placeholder="' + meta.placeholder + '"></td>');
+      }
       return '<tr>' + cells.join('') + '</tr>';
     }).join('');
 
-    summaryEl.textContent = '已展开 ' + detailRows.length + ' 条明细，当前显示 ' + visibleRows.length + ' 条。支持按当前口径逐行填写，也支持选中后批量填入。';
+    summaryEl.textContent = '已展开 ' + detailRows.length + ' 条明细，当前显示 ' + visibleRows.length + ' 条。支持逐行填写，也支持勾选后批量编辑。';
   }
   function buildDetailCsvRows() {
     var type = document.getElementById('sourceType').value;
@@ -956,7 +1118,7 @@
         '<td><span class="status-dot' + statusCls + '">' + r.status + '</span></td>' +
         '<td style="font-size:12px;color:#6b7280;">' + r.maintainer + '</td>' +
         '<td><button type="button" class="op-link" data-act="edit" data-id="' + r.id + '">编辑</button> ' +
-        '<button type="button" class="op-link" data-act="copy" data-id="' + r.id + '">复制</button> ' +
+        '<button type="button" class="op-link" data-act="view" data-id="' + r.id + '">查看</button> ' +
         '<button type="button" class="op-link" data-act="toggle" data-id="' + r.id + '">' + (r.status === '启用' ? '停用' : '启用') + '</button></td></tr>';
     }).join('') || '<tr><td colspan="7" style="text-align:center;color:#6b7280;padding:32px;">暂无数据</td></tr>';
   }
@@ -1087,16 +1249,19 @@
     renderSourcePanels();
   });
 
-  function openModal(id) {
+  function openModal(id, options) {
+    options = options || {};
+    isViewMode = !!options.viewOnly;
     editingId = id || null;
     var isNew = !id;
-    document.getElementById('editModalTitle').textContent = isNew ? '新增费用来源' : '编辑费用来源 · ' + id;
+    document.getElementById('editModalTitle').textContent = isViewMode
+      ? '查看费用来源 · ' + id
+      : (isNew ? '新增费用来源' : '编辑费用来源 · ' + id);
     selectedChannels = new Set();
     selectedDetailKeys.clear();
     detailRows = [];
     detailRowsType = null;
-    document.getElementById('detailSearch').value = '';
-    document.getElementById('bulkValueInput').value = '';
+    clearDetailSearch();
 
     if (isNew) {
       document.getElementById('feeItem').value = 'F006';
@@ -1125,6 +1290,7 @@
 
     renderChTags();
     renderSourcePanels();
+    setFormReadonly(isViewMode);
     closeChDrop();
     document.getElementById('editModal').classList.add('open');
   }
@@ -1132,10 +1298,17 @@
   function closeModal() {
     document.getElementById('editModal').classList.remove('open');
     closeChDrop();
+    closeBatchEditModal();
+    isViewMode = false;
+    setFormReadonly(false);
     editingId = null;
   }
 
   function saveModal() {
+    if (isViewMode) {
+      closeModal();
+      return;
+    }
     var feeCode = document.getElementById('feeItem').value;
     var sourceType = document.getElementById('sourceType').value;
     var status = document.getElementById('enabled').value;
@@ -1217,9 +1390,11 @@
   document.getElementById('btnSave').onclick = saveModal;
   document.getElementById('sourceType').addEventListener('change', renderSourcePanels);
   document.getElementById('caliberScope').addEventListener('change', renderSourcePanels);
-  document.getElementById('detailSearch').addEventListener('input', renderDetailTable);
+  ['detailSearchChannel', 'detailSearchCountry', 'detailSearchScene', 'detailSearchRetailer'].forEach(function (id) {
+    document.getElementById(id).addEventListener('input', renderDetailTable);
+  });
   document.getElementById('detailHead').addEventListener('change', function (e) {
-    if (e.target.id !== 'detailCheckAll') return;
+    if (isViewMode || e.target.id !== 'detailCheckAll') return;
     filteredDetailRows().forEach(function (item) {
       if (e.target.checked) selectedDetailKeys.add(item.key);
       else selectedDetailKeys.delete(item.key);
@@ -1227,6 +1402,7 @@
     renderDetailTable();
   });
   document.getElementById('detailBody').addEventListener('change', function (e) {
+    if (isViewMode) return;
     if (e.target.dataset.detailCheck) {
       if (e.target.checked) selectedDetailKeys.add(e.target.dataset.detailCheck);
       else selectedDetailKeys.delete(e.target.dataset.detailCheck);
@@ -1238,22 +1414,12 @@
       if (target) target.value = Number(e.target.value);
     }
   });
-  document.getElementById('btnBulkApply').addEventListener('click', function () {
-    var value = document.getElementById('bulkValueInput').value;
-    if (value === '') {
-      alert('请先输入要批量填入的值');
-      return;
-    }
-    var targets = selectedDetailKeys.size
-      ? detailRows.filter(function (item) { return selectedDetailKeys.has(item.key); })
-      : filteredDetailRows();
-    if (!targets.length) {
-      alert('当前没有可批量维护的明细行');
-      return;
-    }
-    targets.forEach(function (item) { item.value = Number(value); });
-    renderDetailTable();
-    alert('已批量更新 ' + targets.length + ' 条口径明细');
+  document.getElementById('btnBulkEdit').addEventListener('click', openBatchEditModal);
+  document.getElementById('batchEditModalClose').addEventListener('click', closeBatchEditModal);
+  document.getElementById('batchEditCancel').addEventListener('click', closeBatchEditModal);
+  document.getElementById('batchEditConfirm').addEventListener('click', confirmBatchEdit);
+  document.getElementById('batchEditModal').addEventListener('click', function (e) {
+    if (e.target.id === 'batchEditModal') closeBatchEditModal();
   });
   document.getElementById('btnDetailExport').addEventListener('click', exportDetailRows);
   document.getElementById('editModal').addEventListener('click', function (e) {
@@ -1265,25 +1431,7 @@
     if (!btn) return;
     var id = btn.dataset.id;
     if (btn.dataset.act === 'edit') openModal(id);
-    if (btn.dataset.act === 'copy') {
-      var src = rows.find(function (r) { return r.id === id; });
-      if (src) {
-        openModal(null);
-        document.getElementById('feeItem').value = src.feeCode;
-        document.getElementById('sourceType').value = src.sourceType;
-        document.getElementById('enabled').value = src.status;
-        document.getElementById('caliberScope').value = src.caliberScope || 'channelCountry';
-        if (src.fixedAmount) document.getElementById('fixedAmount').value = src.fixedAmount;
-        if (src.fixedRate) document.getElementById('fixedRate').value = src.fixedRate;
-        if (src.histWindow) document.getElementById('histWindow').value = src.histWindow;
-        if (src.histBase) document.getElementById('histBase').value = src.histBase;
-        if (src.yoyRateBase) document.getElementById('yoyRateBase').value = src.yoyRateBase;
-        if (src.yoyFallback) document.getElementById('yoyFallback').value = src.yoyFallback;
-        selectedChannels = new Set();
-        renderChTags();
-        renderSourcePanels();
-      }
-    }
+    if (btn.dataset.act === 'view') openModal(id, { viewOnly: true });
     if (btn.dataset.act === 'toggle') alert('状态切换（原型示意）');
   });
 
