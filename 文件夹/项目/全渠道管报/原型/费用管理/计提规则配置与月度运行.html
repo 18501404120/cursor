@@ -400,43 +400,55 @@
           <div class="filter-grid">
             <div class="f-item">
               <label for="filterFee">费用项</label>
-              <select id="filterFee">
-                <option value="">全部</option>
-                <option>退货运费</option>
-                <option>尾程运费（FBM）</option>
-                <option>线下商超推广费</option>
-                <option>平台佣金</option>
-                <option>品牌联合投放</option>
-              </select>
+              <span class="ctl-wrap">
+                <select id="filterFee" class="ctl">
+                  <option value="">全部</option>
+                  <option>退货运费</option>
+                  <option>尾程运费（FBM）</option>
+                  <option>线下商超推广费</option>
+                  <option>平台佣金</option>
+                  <option>品牌联合投放</option>
+                </select>
+                <button type="button" class="ctl-clear" aria-label="清除费用项">×</button>
+              </span>
             </div>
             <div class="f-item">
               <label for="filterSource">费用来源</label>
-              <select id="filterSource">
-                <option value="">全部</option>
-                <option>自动取数</option>
-                <option>固定金额</option>
-                <option>固定比例</option>
-                <option>历史滚动占比</option>
-                <option>同期占比预估</option>
-              </select>
+              <span class="ctl-wrap">
+                <select id="filterSource" class="ctl">
+                  <option value="">全部</option>
+                  <option>自动取数</option>
+                  <option>固定金额</option>
+                  <option>固定比例</option>
+                  <option>历史滚动占比</option>
+                  <option>同期占比预估</option>
+                </select>
+                <button type="button" class="ctl-clear" aria-label="清除费用来源">×</button>
+              </span>
             </div>
             <div class="f-item">
               <label for="filterChannel">渠道</label>
-              <select id="filterChannel">
-                <option value="">全部</option>
-                <option>亚马逊</option>
-                <option>独立站</option>
-                <option>线下商超</option>
-                <option>分销</option>
-              </select>
+              <span class="ctl-wrap">
+                <select id="filterChannel" class="ctl">
+                  <option value="">全部</option>
+                  <option>亚马逊</option>
+                  <option>独立站</option>
+                  <option>线下商超</option>
+                  <option>分销</option>
+                </select>
+                <button type="button" class="ctl-clear" aria-label="清除渠道">×</button>
+              </span>
             </div>
             <div class="f-item">
               <label for="filterStatus">状态</label>
-              <select id="filterStatus">
-                <option value="">全部</option>
-                <option>启用</option>
-                <option>停用</option>
-              </select>
+              <span class="ctl-wrap">
+                <select id="filterStatus" class="ctl">
+                  <option value="">全部</option>
+                  <option>启用</option>
+                  <option>停用</option>
+                </select>
+                <button type="button" class="ctl-clear" aria-label="清除状态">×</button>
+              </span>
             </div>
             <div class="f-item">
               <button type="button" class="btn btn-primary" id="btnQuery">查询</button>
@@ -446,7 +458,7 @@
         <div class="jd-card-hd" style="border-top:1px solid #eef0f5;">
           <span class="jd-card-title">费用来源列表</span>
           <div class="toolbar-line">
-            <button type="button" class="btn">导出</button>
+            <button type="button" class="btn" id="btnExportList">导出</button>
             <button type="button" class="btn btn-primary" id="btnAdd">新增来源</button>
           </div>
         </div>
@@ -704,6 +716,7 @@
 
 <div id="chDrop" class="ch-drop" role="listbox" aria-label="渠道选项"></div>
 
+<script src="fee-mgmt-common.js"></script>
 <script src="../../../../规范/assets/import-modal-kit.js"></script>
 <script src="../../../../规范/assets/multi-select-filter.js"></script>
 <script>
@@ -1081,10 +1094,38 @@
     return rowsForCsv;
   }
   function exportDetailRows() {
-    window.ImportModalKit.downloadCsv('费用来源明细导出.csv', buildDetailCsvRows());
+    if (!detailRows.length) {
+      alert('当前没有可导出的口径明细');
+      return;
+    }
+    (window.FeeMgmtCommon || window.ImportModalKit).downloadCsv('费用来源明细导出.csv', buildDetailCsvRows());
   }
   function downloadDetailTemplate() {
-    window.ImportModalKit.downloadCsv('费用来源明细导入模版.csv', buildDetailCsvRows());
+    if (!detailRows.length) {
+      alert('请先选择渠道并展开口径明细后再下载模版');
+      return;
+    }
+    (window.FeeMgmtCommon || window.ImportModalKit).downloadCsv('费用来源明细导入模版.csv', buildDetailCsvRows());
+  }
+  function exportSourceList() {
+    var list = filtered();
+    if (!list.length) {
+      alert('当前筛选结果为空，无可导出数据');
+      return;
+    }
+    var rowsForCsv = [['费用项', '费用项编码', '费用来源', '适用范围', '来源摘要', '状态', '最近维护']];
+    list.forEach(function (r) {
+      rowsForCsv.push([
+        feeName(r.feeCode),
+        r.feeCode,
+        sourceName(r.sourceType),
+        channelsText(r.channels),
+        r.sourceType === 'auto' ? '系统自动取数' : r.summary,
+        r.status,
+        r.maintainer
+      ]);
+    });
+    (window.FeeMgmtCommon || window.ImportModalKit).downloadCsv('费用来源列表.csv', rowsForCsv);
   }
   function mountDetailImportKit() {
     if (!window.ImportModalKit) return;
@@ -1128,6 +1169,7 @@
         resultEl.textContent = '导入完成：示意覆盖 ' + count + ' 行，失败 0 行。';
       }
     });
+    if (window.FeeMgmtCommon) window.FeeMgmtCommon.ensureHiddenModals();
   }
   function buildSummary(sourceType, caliberText, detailCount) {
     if (sourceType === 'fixedAmount') {
@@ -1491,6 +1533,7 @@
     if (e.target.id === 'editModal') closeModal();
   });
   document.getElementById('btnQuery').onclick = renderTable;
+  document.getElementById('btnExportList').onclick = exportSourceList;
   document.getElementById('sourceBody').addEventListener('click', function (e) {
     var btn = e.target.closest('[data-act]');
     if (!btn) return;
@@ -1504,6 +1547,7 @@
   mountDetailFilters();
   renderSourcePanels();
   mountDetailImportKit();
+  if (window.FeeMgmtCommon) window.FeeMgmtCommon.wireClearableSelects(document);
 })();
 </script>
 </body>

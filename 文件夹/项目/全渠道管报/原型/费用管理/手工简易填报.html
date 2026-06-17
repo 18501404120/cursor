@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>手工费用填报</title>
   <link rel="stylesheet" href="fee-mgmt-common.css">
+  <link rel="stylesheet" href="../../../../规范/assets/import-modal-kit.css">
   <style>
     :root {
       --jd-blue: #2f6bff;
@@ -235,13 +236,16 @@
           <div class="filter-grid">
             <div class="f-item">
               <label for="filterFee">费用项</label>
-              <select id="filterFee">
-                <option value="">全部</option>
-                <option>内容制作费</option>
-                <option>展会物料费</option>
-                <option>其它平台杂费</option>
-                <option>渠道临时推广费</option>
-              </select>
+              <span class="ctl-wrap">
+                <select id="filterFee" class="ctl">
+                  <option value="">全部</option>
+                  <option>内容制作费</option>
+                  <option>展会物料费</option>
+                  <option>其它平台杂费</option>
+                  <option>渠道临时推广费</option>
+                </select>
+                <button type="button" class="ctl-clear" aria-label="清除费用项">×</button>
+              </span>
             </div>
             <div class="f-item">
               <label>月份范围</label>
@@ -249,31 +253,40 @@
             </div>
             <div class="f-item">
               <label for="filterRegion">区域</label>
-              <select id="filterRegion">
-                <option value="">全部</option>
-                <option>北美</option>
-                <option>欧洲</option>
-                <option>亚太</option>
-              </select>
+              <span class="ctl-wrap">
+                <select id="filterRegion" class="ctl">
+                  <option value="">全部</option>
+                  <option>北美</option>
+                  <option>欧洲</option>
+                  <option>亚太</option>
+                </select>
+                <button type="button" class="ctl-clear" aria-label="清除区域">×</button>
+              </span>
             </div>
             <div class="f-item">
               <label for="filterChannel">渠道</label>
-              <select id="filterChannel">
-                <option value="">全部</option>
-                <option>亚马逊</option>
-                <option>独立站</option>
-                <option>线下商超</option>
-                <option>分销</option>
-              </select>
+              <span class="ctl-wrap">
+                <select id="filterChannel" class="ctl">
+                  <option value="">全部</option>
+                  <option>亚马逊</option>
+                  <option>独立站</option>
+                  <option>线下商超</option>
+                  <option>分销</option>
+                </select>
+                <button type="button" class="ctl-clear" aria-label="清除渠道">×</button>
+              </span>
             </div>
             <div class="f-item">
               <label for="filterStatus">状态</label>
-              <select id="filterStatus">
-                <option value="">全部</option>
-                <option>草稿</option>
-                <option>已确认</option>
-                <option>已作废</option>
-              </select>
+              <span class="ctl-wrap">
+                <select id="filterStatus" class="ctl">
+                  <option value="">全部</option>
+                  <option>草稿</option>
+                  <option>已确认</option>
+                  <option>已作废</option>
+                </select>
+                <button type="button" class="ctl-clear" aria-label="清除状态">×</button>
+              </span>
             </div>
             <div class="f-item">
               <button type="button" class="btn btn-primary" id="btnSearch">查询</button>
@@ -283,7 +296,7 @@
         <div class="jd-card-hd" style="border-top:1px solid #eef0f5;">
           <span class="jd-card-title">填报记录</span>
           <div class="toolbar-line">
-            <button type="button" class="btn" id="btnImport">模板导入</button>
+            <button type="button" class="btn" id="btnImport">批量导入</button>
             <button type="button" class="btn btn-primary" id="btnAdd">新增填报</button>
           </div>
         </div>
@@ -450,7 +463,9 @@
   </div>
 </div>
 
+<script src="fee-mgmt-common.js"></script>
 <script src="../../../../规范/assets/month-range-picker.js"></script>
+<script src="../../../../规范/assets/import-modal-kit.js"></script>
 <script>
 (function () {
   var countryMap = {
@@ -763,6 +778,65 @@
     alert(status === '草稿' ? '已保存草稿' : '已确认提交，费用将挂到命中 SKU：' + rec.sku);
   }
 
+  function mountImportKit() {
+    if (!window.ImportModalKit) return;
+    window.ImportModalKit.mount({
+      trigger: '#btnImport',
+      title: '导入手工费用填报',
+      introHtml: '<p>请下载导入模版，按列填写费用项、月份、金额、币种、区域、国家、渠道、场景及备注后上传。</p>' +
+        '<p>导入后系统将逐行命中范围内营收最高的 SKU，并生成草稿记录；附件请逐行在详情中补充。</p>',
+      templateExt: 'CSV',
+      templateFileName: '手工费用填报导入模版.csv',
+      columns: [
+        { group: '主键', name: '费用项', required: true, desc: '如：内容制作费、展会物料费' },
+        { group: '主键', name: '会计月份', required: true, desc: '格式 YYYY-MM' },
+        { group: '金额', name: '金额', required: true, desc: '数值，保留两位小数' },
+        { group: '金额', name: '币种', required: true, desc: 'CNY / USD / EUR' },
+        { group: '范围', name: '区域', required: true, desc: '北美 / 欧洲 / 亚太' },
+        { group: '范围', name: '国家', required: true, desc: '如 US、DE' },
+        { group: '范围', name: '渠道', required: true, desc: '亚马逊 / 独立站 / 线下商超 / 分销' },
+        { group: '范围', name: '场景', required: true, desc: '业务场景名称' },
+        { group: '范围', name: '品类', required: false, desc: '可留空表示全部品类' },
+        { group: '说明', name: '备注', required: false, desc: '补充说明' }
+      ],
+      requirements: [
+        '费用项、月份、金额、币种、区域、国家、渠道、场景为必填。',
+        '导入后默认生成草稿状态，需确认后才会挂账到命中 SKU。',
+        '模版中的区域、国家、渠道需与系统主数据一致。',
+        '原型示意中不做真实文件解析，确认导入后会模拟新增 2 条草稿。'
+      ],
+      downloadCsvRows: [
+        ['费用项', '会计月份', '金额', '币种', '区域', '国家', '渠道', '场景', '品类', '备注'],
+        ['内容制作费', '2026-06', '12000', 'CNY', '北美', 'US', '亚马逊', '居家', '香薰', '示例行']
+      ],
+      onConfirm: function (file, resultEl) {
+        if (!file) {
+          resultEl.textContent = '请先选择已填写的模版文件。';
+          return;
+        }
+        records.unshift({
+          id: 'MN-202606-' + String(seq++).padStart(3, '0'),
+          fee: '内容制作费',
+          month: '2026-06',
+          scope: '北美 / US / 亚马逊 / 居家 / 香薰',
+          sku: 'H6199A001',
+          amount: 12000,
+          status: '草稿',
+          region: 'NA',
+          country: 'US',
+          channel: '亚马逊',
+          scene: '居家',
+          category: '香薰',
+          currency: 'CNY',
+          attachment: null
+        });
+        renderRecords();
+        resultEl.textContent = '导入完成：成功 1 行，失败 0 行（原型示意）。';
+      }
+    });
+    if (window.FeeMgmtCommon) window.FeeMgmtCommon.ensureHiddenModals();
+  }
+
   document.getElementById('region').addEventListener('change', function () {
     renderCountries();
     resetHitPreview();
@@ -779,9 +853,6 @@
   document.getElementById('btnPreview').addEventListener('click', hitSku);
   document.getElementById('btnDraft').addEventListener('click', function () { saveRecord('草稿'); });
   document.getElementById('btnConfirm').addEventListener('click', function () { saveRecord('已确认'); });
-  document.getElementById('btnImport').addEventListener('click', function () {
-    alert('模板字段：费用项、月份、金额、币种、区域、国家、渠道、场景、品类（非必填）、备注；附件请逐行上传。导入后系统逐行命中最高营收 SKU。');
-  });
   document.getElementById('btnPickFile').addEventListener('click', function () {
     document.getElementById('attachmentFile').click();
   });
@@ -810,17 +881,20 @@
   });
   document.getElementById('btnSearch').addEventListener('click', renderRecords);
   document.getElementById('recordBody').addEventListener('click', function (e) {
-    if (!e.target.dataset.id) return;
-    var row = records.find(function (r) { return r.id === e.target.dataset.id; });
+    var btn = e.target.closest('[data-act]');
+    if (!btn || !btn.dataset.id) return;
+    var row = records.find(function (r) { return r.id === btn.dataset.id; });
     if (!row) return;
-    if (e.target.dataset.act === 'edit') openModal(row.id);
-    if (e.target.dataset.act === 'confirm') { row.status = '已确认'; renderRecords(); }
-    if (e.target.dataset.act === 'void') { row.status = '已作废'; renderRecords(); }
-    if (e.target.dataset.act === 'preview') openPreview(row);
-    if (e.target.dataset.act === 'download') downloadAttachment(row);
+    if (btn.dataset.act === 'edit') openModal(row.id);
+    if (btn.dataset.act === 'confirm') { row.status = '已确认'; renderRecords(); }
+    if (btn.dataset.act === 'void') { row.status = '已作废'; renderRecords(); }
+    if (btn.dataset.act === 'preview') openPreview(row);
+    if (btn.dataset.act === 'download') downloadAttachment(row);
   });
 
   initMonthRangePicker();
+  mountImportKit();
+  if (window.FeeMgmtCommon) window.FeeMgmtCommon.wireClearableSelects(document);
   renderCountries();
   renderRecords();
 })();
