@@ -244,28 +244,38 @@
       display: flex;
       flex-wrap: wrap;
       gap: 10px 12px;
-      align-items: flex-end;
+      align-items: center;
       justify-content: space-between;
       margin-bottom: 10px;
     }
-    .detail-search-row {
+    .detail-filter-bar {
       display: flex;
       flex-wrap: wrap;
-      gap: 10px 12px;
+      gap: 12px 16px;
+      align-items: center;
       flex: 1 1 520px;
-      align-items: flex-end;
+      padding-bottom: 10px;
+      border-bottom: 1px solid #eef0f5;
     }
-    .detail-search-item {
+    .detail-filter-item {
       display: flex;
-      flex-direction: column;
-      gap: 4px;
-      min-width: 108px;
+      align-items: center;
+      gap: 8px;
     }
-    .detail-search-item label {
+    .detail-filter-item > label {
       font-size: 12px;
-      color: #6b7280;
+      color: #374151;
+      white-space: nowrap;
     }
-    .detail-search-item input,
+    .detail-filter-item .msf-root {
+      min-width: 120px;
+      width: 120px;
+    }
+    #detailFilterSceneWrap .msf-root,
+    #detailFilterRetailerWrap .msf-root {
+      min-width: 140px;
+      width: 140px;
+    }
     .detail-table input,
     .detail-table select,
     #batchEditValue {
@@ -278,7 +288,6 @@
       box-sizing: border-box;
       background: #fff;
     }
-    .detail-search-item input { min-width: 108px; }
     .detail-actions {
       display: flex;
       align-items: center;
@@ -360,9 +369,10 @@
       #editModal .form-grid,
       .source-block.active { grid-template-columns: 1fr; }
       .detail-toolbar,
-      .detail-search-row,
+      .detail-filter-bar,
       .detail-actions { align-items: stretch; }
-      .detail-search-item { min-width: 100%; }
+      .detail-filter-item { width: 100%; }
+      .detail-filter-item .msf-root { width: 100%; min-width: 0; }
     }
   </style>
 </head>
@@ -614,25 +624,25 @@
           </div>
           <div class="detail-card">
             <div class="detail-intro">
-              按当前口径范围，系统会基于已选渠道自动展开全部可维护组合。你可以逐行填写，也可以先按维度筛选，勾选后批量编辑、导出或导入。
+              按当前口径范围，系统会基于已选渠道自动展开全部可维护组合。筛选条件与口径维度一致，支持多选下拉；勾选明细后可批量编辑、导出或导入。
             </div>
             <div class="detail-toolbar">
-              <div class="detail-search-row">
-                <div class="detail-search-item">
-                  <label for="detailSearchChannel">渠道</label>
-                  <input id="detailSearchChannel" type="search" placeholder="筛选渠道">
+              <div class="detail-filter-bar" id="detailFilterBar">
+                <div class="detail-filter-item">
+                  <label>渠道</label>
+                  <div id="detailMsfChannel"></div>
                 </div>
-                <div class="detail-search-item">
-                  <label for="detailSearchCountry">国家</label>
-                  <input id="detailSearchCountry" type="search" placeholder="筛选国家">
+                <div class="detail-filter-item">
+                  <label>国家</label>
+                  <div id="detailMsfCountry"></div>
                 </div>
-                <div class="detail-search-item" id="detailSearchSceneWrap">
-                  <label for="detailSearchScene">场景</label>
-                  <input id="detailSearchScene" type="search" placeholder="筛选场景">
+                <div class="detail-filter-item" id="detailFilterSceneWrap">
+                  <label>场景</label>
+                  <div id="detailMsfScene"></div>
                 </div>
-                <div class="detail-search-item" id="detailSearchRetailerWrap">
-                  <label for="detailSearchRetailer">零售商</label>
-                  <input id="detailSearchRetailer" type="search" placeholder="筛选零售商">
+                <div class="detail-filter-item" id="detailFilterRetailerWrap">
+                  <label>零售商</label>
+                  <div id="detailMsfRetailer"></div>
                 </div>
               </div>
               <div class="detail-actions">
@@ -695,6 +705,7 @@
 <div id="chDrop" class="ch-drop" role="listbox" aria-label="渠道选项"></div>
 
 <script src="../../../../规范/assets/import-modal-kit.js"></script>
+<script src="../../../../规范/assets/multi-select-filter.js"></script>
 <script>
 (function () {
   var ALL_CHANNELS = ['亚马逊', '独立站', '线下商超', '分销'];
@@ -758,6 +769,8 @@
   var selectedDetailKeys = new Set();
   var detailRows = [];
   var detailRowsType = null;
+  var detailMsf = { channel: null, country: null, scene: null, retailer: null };
+  var detailMsfMounted = false;
   var chDrop = document.getElementById('chDrop');
   if (chDrop.parentNode !== document.body) document.body.appendChild(chDrop);
 
@@ -852,32 +865,76 @@
       if (!detailRows.some(function (item) { return item.key === key; })) selectedDetailKeys.delete(key);
     });
   }
+  function uniqueDetailValues(field) {
+    var set = new Set();
+    detailRows.forEach(function (item) {
+      var value = item[field];
+      if (value && value !== '—') set.add(value);
+    });
+    return Array.from(set).sort().map(function (value) {
+      return { value: value, label: value };
+    });
+  }
+  function mountDetailFilters() {
+    if (detailMsfMounted || !window.MultiSelectFilter) return;
+    var z = 1250;
+    var onFilterChange = function () { renderDetailTable(); };
+    function mk(key, id, placeholder) {
+      var el = document.getElementById(id);
+      if (!el) return null;
+      return MultiSelectFilter.mount(el, {
+        placeholder: placeholder,
+        showSelectAll: true,
+        zIndex: z,
+        useBodyPortal: true,
+        maxPanelHeight: 240,
+        onChange: onFilterChange,
+        getOptions: function () { return uniqueDetailValues(key); }
+      });
+    }
+    detailMsf.channel = mk('channel', 'detailMsfChannel', '请选择');
+    detailMsf.country = mk('country', 'detailMsfCountry', '请选择');
+    detailMsf.scene = mk('scene', 'detailMsfScene', '请选择');
+    detailMsf.retailer = mk('retailer', 'detailMsfRetailer', '请选择');
+    detailMsfMounted = true;
+  }
+  function refreshDetailFilters() {
+    mountDetailFilters();
+    ['channel', 'country', 'scene', 'retailer'].forEach(function (key) {
+      if (detailMsf[key] && detailMsf[key].refreshOptions) detailMsf[key].refreshOptions();
+    });
+  }
+  function getDetailFilterValues(key) {
+    if (!detailMsf[key] || !detailMsf[key].getValues) return [];
+    return detailMsf[key].getValues();
+  }
   function filteredDetailRows() {
-    var channelKw = document.getElementById('detailSearchChannel').value.trim().toLowerCase();
-    var countryKw = document.getElementById('detailSearchCountry').value.trim().toLowerCase();
-    var sceneKw = document.getElementById('detailSearchScene').value.trim().toLowerCase();
-    var retailerKw = document.getElementById('detailSearchRetailer').value.trim().toLowerCase();
+    var scope = document.getElementById('caliberScope').value;
+    var flags = scopeFlags(scope);
+    var channels = getDetailFilterValues('channel');
+    var countries = getDetailFilterValues('country');
+    var scenes = getDetailFilterValues('scene');
+    var retailers = getDetailFilterValues('retailer');
     return detailRows.filter(function (item) {
-      if (channelKw && String(item.channel).toLowerCase().indexOf(channelKw) < 0) return false;
-      if (countryKw && String(item.country).toLowerCase().indexOf(countryKw) < 0) return false;
-      if (sceneKw && String(item.scene).toLowerCase().indexOf(sceneKw) < 0) return false;
-      if (retailerKw && String(item.retailer).toLowerCase().indexOf(retailerKw) < 0) return false;
+      if (channels.length && channels.indexOf(item.channel) < 0) return false;
+      if (countries.length && countries.indexOf(item.country) < 0) return false;
+      if (flags.scene && scenes.length && scenes.indexOf(item.scene) < 0) return false;
+      if (flags.retailer && retailers.length && retailers.indexOf(item.retailer) < 0) return false;
       return true;
     });
   }
-  function updateDetailSearchVisibility() {
+  function updateDetailFilterVisibility() {
     var scope = document.getElementById('caliberScope').value;
     var flags = scopeFlags(scope);
-    document.getElementById('detailSearchSceneWrap').hidden = !flags.scene;
-    document.getElementById('detailSearchRetailerWrap').hidden = !flags.retailer;
-    if (!flags.scene) document.getElementById('detailSearchScene').value = '';
-    if (!flags.retailer) document.getElementById('detailSearchRetailer').value = '';
+    document.getElementById('detailFilterSceneWrap').hidden = !flags.scene;
+    document.getElementById('detailFilterRetailerWrap').hidden = !flags.retailer;
+    if (!flags.scene && detailMsf.scene) detailMsf.scene.clear();
+    if (!flags.retailer && detailMsf.retailer) detailMsf.retailer.clear();
   }
-  function clearDetailSearch() {
-    document.getElementById('detailSearchChannel').value = '';
-    document.getElementById('detailSearchCountry').value = '';
-    document.getElementById('detailSearchScene').value = '';
-    document.getElementById('detailSearchRetailer').value = '';
+  function clearDetailFilters() {
+    ['channel', 'country', 'scene', 'retailer'].forEach(function (key) {
+      if (detailMsf[key]) detailMsf[key].clear();
+    });
   }
   function setFormReadonly(readonly) {
     document.querySelectorAll('#editModal select, #editModal input:not([type="search"]), #editModal textarea').forEach(function (el) {
@@ -892,6 +949,11 @@
     document.getElementById('btnSave').hidden = readonly;
     document.getElementById('viewModeTip').hidden = !readonly;
     document.getElementById('editModalCancel').textContent = readonly ? '关闭' : '取消';
+    var filterBar = document.getElementById('detailFilterBar');
+    if (filterBar) {
+      filterBar.style.pointerEvents = readonly ? 'none' : '';
+      filterBar.style.opacity = readonly ? '0.72' : '';
+    }
   }
   function getSelectedDetailRows() {
     return detailRows.filter(function (item) { return selectedDetailKeys.has(item.key); });
@@ -961,7 +1023,8 @@
     var body = document.getElementById('detailBody');
     var summaryEl = document.getElementById('detailSummary');
     var meta = valueMeta(type);
-    updateDetailSearchVisibility();
+    updateDetailFilterVisibility();
+    refreshDetailFilters();
 
     if (!selectedChannels.size) {
       head.innerHTML = '';
@@ -1000,7 +1063,7 @@
       return '<tr>' + cells.join('') + '</tr>';
     }).join('');
 
-    summaryEl.textContent = '已展开 ' + detailRows.length + ' 条明细，当前显示 ' + visibleRows.length + ' 条。支持逐行填写，也支持勾选后批量编辑。';
+    summaryEl.textContent = '已展开 ' + detailRows.length + ' 条明细，当前显示 ' + visibleRows.length + ' 条。筛选维度与当前口径范围一致，未选择时表示不过滤。';
   }
   function buildDetailCsvRows() {
     var type = document.getElementById('sourceType').value;
@@ -1135,6 +1198,8 @@
       if (detailRowsType && detailRowsType !== type) detailRows = [];
       detailRowsType = type;
       syncDetailRows(type, document.getElementById('caliberScope').value, Array.from(selectedChannels));
+      updateDetailFilterVisibility();
+      refreshDetailFilters();
       renderDetailTable();
     }
   }
@@ -1261,7 +1326,7 @@
     selectedDetailKeys.clear();
     detailRows = [];
     detailRowsType = null;
-    clearDetailSearch();
+    clearDetailFilters();
 
     if (isNew) {
       document.getElementById('feeItem').value = 'F006';
@@ -1389,9 +1454,9 @@
   document.getElementById('editModalCancel').onclick = closeModal;
   document.getElementById('btnSave').onclick = saveModal;
   document.getElementById('sourceType').addEventListener('change', renderSourcePanels);
-  document.getElementById('caliberScope').addEventListener('change', renderSourcePanels);
-  ['detailSearchChannel', 'detailSearchCountry', 'detailSearchScene', 'detailSearchRetailer'].forEach(function (id) {
-    document.getElementById(id).addEventListener('input', renderDetailTable);
+  document.getElementById('caliberScope').addEventListener('change', function () {
+    clearDetailFilters();
+    renderSourcePanels();
   });
   document.getElementById('detailHead').addEventListener('change', function (e) {
     if (isViewMode || e.target.id !== 'detailCheckAll') return;
@@ -1436,6 +1501,7 @@
   });
 
   renderTable();
+  mountDetailFilters();
   renderSourcePanels();
   mountDetailImportKit();
 })();
