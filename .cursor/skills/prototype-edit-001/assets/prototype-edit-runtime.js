@@ -190,12 +190,65 @@
     return document.querySelector('[data-pe-key="' + key.replace(/"/g, "") + '"]');
   }
 
-  function isPeUi(el) {
-    return el && el.closest && (el.closest("[" + ROOT_ATTR + "]") || el.closest("[data-pa-root]"));
+  function asElement(el) {
+    if (!el) return null;
+    if (el.nodeType === 1) return el;
+    if (el.nodeType === 3) return el.parentElement;
+    return null;
   }
 
-  function pickTarget(el) {
-    if (!el || isPeUi(el)) return null;
+  function isPeChrome(el) {
+    if (!el || !el.closest) return false;
+    return !!el.closest(
+      ".pe-toolbar, .pe-panel, .pe-toast, .pa-toolbar, .pa-popover, .pa-modal, .pa-add-form"
+    );
+  }
+
+  function isPeUi(el) {
+    return isPeChrome(el);
+  }
+
+  function getColumnHeaderText(th) {
+    if (!th) return "";
+    const saved = state.text && state.text[ensureKey(th)];
+    if (saved != null) return saved;
+    const wrap = th.querySelector(".pa-tip-label-wrap");
+    if (wrap) {
+      let text = "";
+      wrap.childNodes.forEach(function (n) {
+        if (n.nodeType === 3) text += n.textContent;
+      });
+      return text.trim() || wrap.textContent.replace(/\s*i\s*$/i, "").trim();
+    }
+    return (th.textContent || "").trim();
+  }
+
+  function setColumnHeaderText(th, value) {
+    if (!th) return;
+    const wrap = th.querySelector(".pa-tip-label-wrap");
+    if (wrap) {
+      const icon = wrap.querySelector(".pa-tip-icon");
+      wrap.textContent = "";
+      if (value) wrap.appendChild(document.createTextNode(value));
+      if (icon) wrap.appendChild(icon);
+      return;
+    }
+    th.textContent = value;
+  }
+
+  function pickTarget(raw) {
+    let el = asElement(raw);
+    if (!el || isPeChrome(el)) return null;
+
+    /* 列表列：优先 th / td（含点在蓝 i、列名文字上） */
+    if (el.closest(".pa-tip-icon, .pa-dot")) {
+      el = asElement(el.closest("th") || el.closest("td") || el.closest(".f") || el);
+    }
+    const th = el && el.closest && el.closest("th");
+    if (th && !isPeChrome(th)) return th;
+    const td = el && el.closest && el.closest("td");
+    if (td && !td.hasAttribute("colspan") && !isPeChrome(td)) return td;
+
     const selectors = [
       ".f-item",
       ".f.f-with-pin",
@@ -208,7 +261,6 @@
       ".panel-head",
       ".panel-head-tools",
       "button",
-      "th",
       "h1",
       "h2",
       "h3",
@@ -221,24 +273,21 @@
     ];
     for (let i = 0; i < selectors.length; i += 1) {
       const hit = el.closest(selectors[i]);
-      if (hit && !isPeUi(hit)) return hit;
+      if (hit && !isPeChrome(hit)) return hit;
     }
-    return el.parentElement && !isPeUi(el) ? el : null;
+    return el.parentElement && !isPeChrome(el) ? el : null;
   }
 
   function getTextTarget(el) {
     if (!el) return null;
     const tag = el.tagName;
+    if (tag === "TH") return el;
     if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") {
       const lbl = el.closest(".f-item, .f, .field");
       if (lbl) {
         const lab = lbl.querySelector("label");
         if (lab) return lab;
       }
-    }
-    if (tag === "TH") {
-      const inner = el.querySelector(".th-inner, span, div");
-      return inner || el;
     }
     if (tag === "BUTTON") return el;
     const lblInF = el.closest(".f, .f-item");
@@ -257,7 +306,8 @@
       const el = resolveByKey(key);
       const val = state.text[key];
       if (!el || val == null) return;
-      if (el.tagName === "INPUT" || el.tagName === "TEXTAREA") el.value = val;
+      if (el.tagName === "TH") setColumnHeaderText(el, val);
+      else if (el.tagName === "INPUT" || el.tagName === "TEXTAREA") el.value = val;
       else if (el.tagName === "BUTTON") el.textContent = val;
       else el.textContent = val;
       el.classList.add("pe-text-editable");
@@ -654,7 +704,8 @@
 
   function applyTextChange(textTarget, textKey, value) {
     state.text[textKey] = value;
-    if (textTarget.tagName === "INPUT" || textTarget.tagName === "TEXTAREA") textTarget.value = value;
+    if (textTarget.tagName === "TH") setColumnHeaderText(textTarget, value);
+    else if (textTarget.tagName === "INPUT" || textTarget.tagName === "TEXTAREA") textTarget.value = value;
     else textTarget.textContent = value;
     persist();
     toast("已生效");
@@ -676,19 +727,22 @@
 
   function showElementPanel(el) {
     const thEl = el.tagName === "TH" ? el : el.closest && el.closest("th");
-    const key = ensureKey(el);
-    const textTarget = getTextTarget(el);
+    const editEl = thEl || el;
+    const key = ensureKey(editEl);
+    const textTarget = getTextTarget(editEl);
     const textKey = textTarget ? ensureKey(textTarget) : key;
     const isHidden = (state.hidden || []).indexOf(key) !== -1;
-    const tag = el.tagName.toLowerCase();
+    const tag = editEl.tagName.toLowerCase();
     const curText =
-      textTarget && textTarget.tagName === "INPUT"
-        ? textTarget.value
-        : textTarget
-          ? state.text[textKey] != null
-            ? state.text[textKey]
-            : textTarget.textContent
-          : "";
+      textTarget && textTarget.tagName === "TH"
+        ? getColumnHeaderText(textTarget)
+        : textTarget && textTarget.tagName === "INPUT"
+          ? textTarget.value
+          : textTarget
+            ? state.text[textKey] != null
+              ? state.text[textKey]
+              : textTarget.textContent
+            : "";
 
     let tableSelector = "";
     let colKey = "";
@@ -700,7 +754,7 @@
       }
     }
 
-    openPanelBuilder(el, function (panel) {
+    openPanelBuilder(editEl, function (panel) {
       const h4 = document.createElement("h4");
       h4.textContent = thEl ? "编辑列表列" : "编辑元素";
       panel.appendChild(h4);
@@ -741,7 +795,7 @@
 
       actions.push(
         mkBtn(isHidden ? "恢复显示" : "隐藏", isHidden ? "" : "pe-danger", function () {
-          toggleHidden(el, key);
+          toggleHidden(editEl, key);
           closePanel();
         }),
         mkBtn("关闭", "", closePanel)
@@ -939,11 +993,13 @@
         }
       },
       click: function (e) {
-        if (isPeUi(e.target)) return;
+        if (isPeChrome(e.target)) return;
         e.preventDefault();
+        e.stopImmediatePropagation();
         e.stopPropagation();
         const t = pickTarget(e.target);
         if (t) showElementPanel(t);
+        else toast("请点选筛选项、按钮或表头列");
       }
     };
     document.addEventListener("mousemove", pickHandlers.move, true);
@@ -1029,9 +1085,9 @@
 
   function scanAndAssignKeys() {
     document
-      .querySelectorAll(".f, .f-item, .field, button, th, h1, .title, .panel-head, label")
+      .querySelectorAll("thead th, .f, .f-item, .field, button, h1, .title, .panel-head, label")
       .forEach(function (el) {
-        if (!isPeUi(el) && !el.getAttribute("data-pe-key")) ensureKey(el);
+        if (!isPeChrome(el) && !el.getAttribute("data-pe-key")) ensureKey(el);
       });
   }
 
