@@ -35,12 +35,22 @@
 2. **表格列**：点选 `table` 或 `#mainTable`；在 `thead tr` 末追加 `th`，在 `tbody tr` 追加 `td`。
 3. 插入节点统一带 `data-pe-key="pe-add-{uuid}"` 与 `data-pe-added="true"`。
 
+## JS 重绘（IIFE 页面）
+
+若页面主逻辑包在 `(function(){ ... })()` 内，`renderTable` 等**不在 window**，runtime 无法自动 hook。注入编辑能力时 **须** 在 IIFE 末尾增加：
+
+```javascript
+window.__boardRefreshAll = refreshAll; // 名称按页面自定
+```
+
+并在 `#prototype-edit-config` 的 `renderHooks` 中登记该名称。表格区仍靠 `MutationObserver` 兜底。
+
 ## JS 重绘表格时新增列的保持
 
-1. 页内保存 `addedColumns[]` 到 sidecar。
+1. 页内保存 `addedColumns[]` 到 state（自动 persist）。
 2. runtime 在 `applyAll()` 中：补 `th`；对 `tbody` 每行补缺失 `td`。
-3. 若存在 `window.renderTable` / `window.renderRows` / 自定义名在 `config.renderHooks`：包装原函数，末尾调用 `PrototypeEdit.applyAll()`。
-4. 无 hook 时：`MutationObserver` 监听目标 `tbody` 子树，debounce 300ms 后 `applyAll()`。
+3. 若存在 `window` 上的 refresh 函数且在 `renderHooks` 中登记：包装后末尾 `applyAll()`。
+4. 无 hook 时：`MutationObserver` 监听 `tbody`，debounce 200ms 后 `applyAll()`。
 
 ## Agent 添加复杂控件时
 

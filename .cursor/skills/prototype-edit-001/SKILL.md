@@ -56,14 +56,15 @@ python3 .cursor/skills/prototype-edit-001/scripts/save_sidecar.py \
 
 | 按钮 | 作用 |
 |------|------|
-| **编辑模式** | 悬停高亮 → 点击元素 → 改文案 / 隐藏或恢复 |
-| **Mock** | 编辑 `mockRegistry` 路径下的 JSON；应用后触发 `renderHooks` |
-| **添加组件** | 从组件目录插入下拉筛选、文本筛选、月份占位、表格文本列 |
-| **导出修改** | 下载 `{pageId}.prototype-edit.json` |
+| **编辑模式** | 悬停点选 → 改文案 / 隐藏（**立即生效**，自动 localStorage） |
+| **添加组件** | 插入筛选项或表格列（**立即生效**） |
+| **Mock** | 编辑 mock JSON 并应用 |
+| **保存** | 写入页面内 `#prototype-edit-config`；提示 Cmd+S 保存 HTML 入库 |
 
 - **Esc** 退出编辑模式。
-- 隐藏使用 `pe-hidden-by-edit`（`display:none !important`），不删 DOM，便于 Agent 合并 sidecar。
-- 元素稳定键：`data-pe-key`（runtime 自动分配或保留）。
+- **无需每次导出 JSON**：同浏览器刷新仍生效；进 Git 用 **保存** + 存 HTML，或 sidecar（可选）。
+- 组件目录 **内嵌 runtime**，`file://` 可直接用。
+- 页面脚本若在 IIFE 内，注入时须暴露 `window.__xxxRefreshAll` 并写入 `renderHooks`（见 component-add-guide）。
 
 ## Config Shape
 
