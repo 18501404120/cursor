@@ -48,7 +48,8 @@
   let pickHighlight = null;
   let panelEl = null;
   let toastTimer = null;
-let lastTableSelector = "";
+  let pickHandlers = null;
+  let lastTableSelector = "";
 
   function emptyState() {
     return {
