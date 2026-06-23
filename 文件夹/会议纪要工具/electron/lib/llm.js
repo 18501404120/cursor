@@ -29,7 +29,18 @@ function extractJson(text) {
   const start = raw.indexOf('{');
   const end = raw.lastIndexOf('}');
   if (start >= 0 && end > start) {
-    return JSON.parse(raw.slice(start, end + 1));
+    const slice = raw.slice(start, end + 1);
+    try {
+      return JSON.parse(slice);
+    } catch (_) {
+      // 模型偶发中文标点
+      const normalized = slice
+        .replace(/，/g, ',')
+        .replace(/：/g, ':')
+        .replace(/"/g, '"')
+        .replace(/"/g, '"');
+      return JSON.parse(normalized);
+    }
   }
 
   throw new Error('无法解析模型返回的 JSON');

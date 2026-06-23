@@ -1,0 +1,3202 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>导入费用分摊 · 系统原型</title>
+  <style>
+    :root {
+      --page-bg: #f0f2f5;
+      --bg: #f5f7fa;
+      --surface: #ffffff;
+      --text: #1e293b;
+      --muted: #64748b;
+      --line: #f0f0f0;
+      --panel-line: #e8e8e8;
+      --brand: #1677ff;
+      --brand-focus: #1677ff;
+      --brand-soft: #e6f4ff;
+      --shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+      --radius: 8px;
+      --label: #595959;
+      --border-input: #d9d9d9;
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      background: var(--page-bg);
+      color: var(--text);
+      font-size: 13px;
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+    }
+    .topbar {
+      flex-shrink: 0;
+      background: #fff;
+      border-bottom: 1px solid var(--line);
+      padding: 10px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .topbar a { color: var(--brand); text-decoration: none; font-size: 13px; }
+    .topbar a:hover { text-decoration: underline; }
+    .page {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+      width: 100%;
+      max-width: none;
+      margin: 0;
+      padding: 0;
+      background: transparent;
+    }
+    .page-hd {
+      flex-shrink: 0;
+      background: #fff;
+      border-bottom: 1px solid var(--panel-line);
+      padding: 14px 20px 16px;
+    }
+    .page-hd h1 { margin: 0 0 6px; font-size: 18px; font-weight: 700; }
+    .sub { color: var(--muted); font-size: 12px; line-height: 1.55; margin: 0; }
+
+    .page-body {
+      flex: 1;
+      min-height: 0;
+      overflow: auto;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    /* 与《经营分析明细》一致的卡片容器 */
+    .panel {
+      background: var(--surface);
+      border: 1px solid var(--panel-line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+    .panel.panel--filter-stack {
+      flex-shrink: 0;
+      overflow: visible;
+      position: relative;
+      z-index: 40;
+    }
+    .panel.panel--table {
+      flex: 1;
+      min-height: 280px;
+      display: flex;
+      flex-direction: column;
+    }
+    .panel-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--line);
+      background: linear-gradient(180deg, #fafafa 0%, #fff 100%);
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .panel-title { font-size: 14px; font-weight: 700; }
+    .panel-sub { font-size: 12px; color: var(--muted); margin-top: 2px; }
+
+    /* 《列表页顶部筛选区》+《产品信息筛选区》 */
+    .filter-panel {
+      padding: 12px 16px 14px;
+    }
+    .filter-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px 16px;
+      align-items: center;
+    }
+    .f-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-shrink: 0;
+      min-height: 32px;
+    }
+    .f-item > label {
+      color: var(--label);
+      font-size: 13px;
+      white-space: nowrap;
+    }
+    .ctl-wrap {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+    }
+    .ctl-wrap select.ctl {
+      width: 100%;
+      min-width: 88px;
+      max-width: 120px;
+      height: 32px;
+      padding: 0 36px 0 10px;
+      border: 1px solid var(--border-input);
+      border-radius: 6px;
+      font-size: 13px;
+      background: #fff;
+    }
+    .ctl-wrap select.ctl:focus {
+      outline: none;
+      border-color: var(--brand);
+      box-shadow: 0 0 0 2px rgba(22, 119, 255, 0.12);
+    }
+    .ctl-wrap input.ctl {
+      width: 100%;
+      min-width: 120px;
+      max-width: 160px;
+      height: 32px;
+      padding: 0 36px 0 10px;
+      border: 1px solid var(--border-input);
+      border-radius: 6px;
+      font-size: 13px;
+      background: #fff;
+    }
+    .ctl-wrap input.ctl:focus {
+      outline: none;
+      border-color: var(--brand);
+      box-shadow: 0 0 0 2px rgba(22, 119, 255, 0.12);
+    }
+    .ctl-clear {
+      position: absolute;
+      right: 22px;
+      top: 50%;
+      transform: translateY(-50%);
+      border: none;
+      background: transparent;
+      color: rgba(0, 0, 0, 0.25);
+      cursor: pointer;
+      font-size: 12px;
+      line-height: 1;
+      padding: 2px 4px;
+      z-index: 1;
+    }
+    .ctl-clear:hover { color: rgba(0, 0, 0, 0.45); }
+    .ctl-clear[hidden] { display: none; }
+    #qBelongMonthRangeHost .mrp-trigger {
+      min-width: 168px;
+      max-width: 180px;
+      height: 32px;
+      font-size: 13px;
+    }
+    .msf-host { min-width: 160px; max-width: 200px; }
+    .msf-host .msf-trigger {
+      min-width: 160px;
+      max-width: 200px;
+      height: 32px;
+    }
+
+    /* SKU：模式 68px + 输入 112px */
+    .sku-group {
+      display: inline-flex;
+      align-items: stretch;
+      border: 1px solid var(--border-input);
+      border-radius: 6px;
+      overflow: hidden;
+      background: #fff;
+    }
+    .sku-group:focus-within {
+      border-color: var(--brand);
+      box-shadow: 0 0 0 2px rgba(22, 119, 255, 0.12);
+    }
+    .sku-group select {
+      border: none;
+      border-right: 1px solid var(--line);
+      border-radius: 0;
+      height: 30px;
+      width: 68px;
+      min-width: 68px;
+      max-width: 68px;
+      flex: 0 0 68px;
+      padding: 0 18px 0 6px;
+      font-size: 12px;
+      background: #fafafa;
+    }
+    .sku-group input {
+      border: none;
+      height: 30px;
+      width: 112px;
+      min-width: 112px;
+      padding: 0 10px;
+      font-size: 13px;
+    }
+    .sku-group input:focus { outline: none; }
+    .f-search { margin-left: auto; }
+    .btn-query {
+      height: 32px;
+      padding: 0 16px;
+      border-radius: 6px;
+      border: 1px solid var(--brand);
+      background: var(--brand);
+      color: #fff;
+      font-size: 13px;
+      cursor: pointer;
+    }
+    .btn-query:hover { background: #4096ff; border-color: #4096ff; }
+
+    .list-hd {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px 16px;
+      width: 100%;
+    }
+    .list-title { margin: 0; font-size: 14px; font-weight: 700; color: var(--text); }
+    .list-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+    .table-scroll-wrap {
+      flex: 1;
+      min-height: 0;
+      overflow: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+    table.data-tbl {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+    table.data-tbl th,
+    table.data-tbl td {
+      border: 1px solid #e2e8f0;
+      padding: 8px 10px;
+      vertical-align: top;
+    }
+    table.data-tbl thead th {
+      position: sticky;
+      top: 0;
+      z-index: 2;
+      background: #eef5ff;
+      font-weight: 600;
+      color: #334155;
+      white-space: nowrap;
+      box-shadow: 0 1px 0 #cbd5e1;
+    }
+    table.data-tbl tbody tr:hover { background: #f8fafc; }
+    table.data-tbl tbody tr:nth-child(even) { background: #fafbfc; }
+    table.data-tbl tbody tr:nth-child(even):hover { background: #f1f5f9; }
+    #historyTable {
+      min-width: 1320px;
+    }
+    #historyTable th.col-check,
+    #historyTable td.col-check {
+      width: 44px;
+      min-width: 44px;
+      max-width: 44px;
+      text-align: center;
+    }
+    #historyTable th.col-action,
+    #historyTable td.col-action {
+      min-width: 92px;
+      position: sticky;
+      right: 0;
+      z-index: 3;
+      background: #fff;
+      box-shadow: -2px 0 4px rgba(15, 23, 42, 0.06);
+    }
+    #historyTable thead th.col-action {
+      z-index: 5;
+      background: #eef5ff;
+    }
+    #historyTable tbody tr:nth-child(even) td.col-action { background: #fafbfc; }
+
+    /* 弹窗/表单内仍用 filter-strip 作子区块 */
+    .filter-strip {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: var(--radius);
+      padding: 12px 14px;
+      margin-top: 12px;
+    }
+    .filter-strip .strip-title {
+      font-size: 12px;
+      font-weight: 700;
+      color: #334155;
+      margin-bottom: 10px;
+    }
+    .filter-row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 12px 16px;
+    }
+    .filter-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-height: 32px;
+    }
+    .filter-label {
+      font-size: 13px;
+      color: var(--label);
+      white-space: nowrap;
+    }
+    .filter-item select,
+    .filter-item input[type="text"],
+    .filter-item input[type="month"] {
+      min-width: 88px;
+      max-width: 120px;
+      height: 32px;
+      padding: 0 10px;
+      border: 1px solid var(--border-input);
+      border-radius: 6px;
+      font-size: 13px;
+      background: #fff;
+    }
+    .filter-item select:focus,
+    .filter-item input:focus {
+      outline: none;
+      border-color: var(--brand-focus);
+      box-shadow: 0 0 0 2px rgba(22, 119, 255, 0.12);
+    }
+    .sku-combo { display: none; }
+    .btn {
+      height: 32px;
+      padding: 0 14px;
+      border-radius: 6px;
+      border: 1px solid var(--border-input);
+      background: #fff;
+      color: var(--text);
+      font-size: 13px;
+      cursor: pointer;
+    }
+    .btn.primary {
+      background: var(--brand);
+      border-color: var(--brand);
+      color: #fff;
+    }
+    .btn.primary:hover { background: #4096ff; border-color: #4096ff; }
+    .btn.secondary {
+      background: #fff;
+      color: var(--brand);
+      border-color: var(--brand);
+    }
+    .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+    .btn-link {
+      background: none;
+      border: none;
+      color: var(--brand);
+      cursor: pointer;
+      font-size: 13px;
+      text-decoration: underline;
+      padding: 0 4px;
+    }
+
+    .panel {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      margin-bottom: 14px;
+      overflow: hidden;
+    }
+    .panel-hd {
+      padding: 10px 14px;
+      font-weight: 800;
+      font-size: 13px;
+      border-bottom: 1px solid var(--line);
+      background: #f8fbff;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .badge { font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 999px; background: var(--brand-soft); color: var(--brand); }
+    .badge.opt { background: #f1f5f9; color: #64748b; }
+    .panel-bd { padding: 14px; max-height: min(70vh, 640px); overflow-y: auto; }
+    .row { display: flex; flex-wrap: wrap; gap: 14px 20px; align-items: flex-start; }
+    .field { min-width: 180px; flex: 1; }
+    .field label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 6px; }
+    .field label .req { color: #b91c1c; margin-right: 2px; }
+    .scope-flat-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 14px 16px;
+      align-items: start;
+    }
+    .scope-flat-col > label {
+      display: block;
+      font-size: 12px;
+      color: var(--label);
+      margin-bottom: 6px;
+    }
+    .scope-flat-col .msf-host,
+    .scope-flat-col [class*="msf"] {
+      max-width: 100%;
+    }
+    .scope-flat-col .hint-col {
+      font-size: 11px;
+      color: #94a3b8;
+      margin-top: 4px;
+      line-height: 1.45;
+    }
+    .field select, .field input[type="number"], .field input[type="month"] {
+      width: 100%;
+      max-width: 300px;
+      padding: 8px 10px;
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      font-size: 14px;
+    }
+    .hint { font-size: 12px; color: var(--muted); margin-top: 6px; line-height: 1.55; }
+    .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; flex-wrap: wrap; }
+    .seg button {
+      border: none;
+      background: #fff;
+      padding: 8px 12px;
+      font-size: 12px;
+      cursor: pointer;
+      color: #334155;
+    }
+    .seg button.active { background: var(--brand); color: #fff; }
+    .seg-toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 12px 20px;
+    }
+    .new-product-chk {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 13px;
+      color: #475569;
+      cursor: pointer;
+      user-select: none;
+      white-space: nowrap;
+    }
+    .new-product-chk input[type="checkbox"] {
+      width: 14px;
+      height: 14px;
+      margin: 0;
+      accent-color: var(--brand);
+      cursor: pointer;
+    }
+    .tag-new { color: #0369a1; font-weight: 600; }
+    .tag-old { color: #64748b; }
+    .tag-wrap { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; min-height: 28px; }
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      border-radius: 6px;
+      background: #f1f5f9;
+      border: 1px solid #e2e8f0;
+      font-size: 12px;
+    }
+    .tag button { border: none; background: none; cursor: pointer; color: #64748b; padding: 0; font-size: 14px; }
+    .add-line { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; align-items: center; }
+    .logic-box {
+      background: #fffbeb;
+      border: 1px solid #fde68a;
+      border-radius: 8px;
+      padding: 10px 12px;
+      font-size: 12px;
+      line-height: 1.65;
+      color: #78350f;
+    }
+    .logic-box strong { color: #92400e; }
+    .upload-zone {
+      border: 1px dashed #94a3b8;
+      border-radius: 8px;
+      padding: 12px;
+      text-align: center;
+      color: var(--muted);
+      font-size: 12px;
+      background: #f8fafc;
+      max-width: 100%;
+    }
+
+    .table-wrap {
+      overflow: auto;
+      max-height: 420px;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      scrollbar-gutter: stable both-edges;
+      -webkit-overflow-scrolling: touch;
+    }
+    table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    .table-wrap.table-wrap--x > table {
+      width: max-content;
+      min-width: 100%;
+    }
+    thead th {
+      position: sticky;
+      top: 0;
+      background: #eef5ff;
+      z-index: 2;
+      text-align: left;
+      padding: 8px 10px;
+      border: 1px solid #e2e8f0;
+      font-weight: 600;
+    }
+    tbody td { padding: 8px 10px; border: 1px solid #e2e8f0; }
+    tbody tr:hover { background: #f8fafc; }
+    .num { text-align: right; font-variant-numeric: tabular-nums; }
+    .summary { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; margin-top: 10px; }
+    .sum-card { border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; background: #fff; }
+    .sum-card .k { font-size: 11px; color: var(--muted); }
+    .sum-card .v { font-size: 15px; font-weight: 800; margin-top: 2px; }
+
+    /* 弹窗 */
+    .overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.45);
+      z-index: 100;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+    }
+    .overlay.show { display: flex; }
+    .overlay.z-top { z-index: 110; }
+    #overlayHistoryDetail { z-index: 120; }
+    .dialog {
+      background: #fff;
+      border-radius: 14px;
+      width: 100%;
+      max-width: 920px;
+      max-height: 92vh;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 20px 50px rgba(0,0,0,0.2);
+    }
+    .dialog.sm { max-width: 480px; }
+    .dialog.wide { max-width: 800px; max-height: 88vh; }
+    .dialog.xl {
+      max-width: min(1280px, 98vw);
+      max-height: 94vh;
+    }
+    #overlayCreate .scope-flat-grid--fee {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+    #overlayCreate .scope-flat-col--full {
+      grid-column: 1 / -1;
+    }
+    #overlayCreate #feeRemark {
+      width: 100%;
+      min-height: 56px;
+      padding: 8px 9px;
+      border: 1px solid #d9d9d9;
+      border-radius: 6px;
+      font-size: 13px;
+      resize: vertical;
+      font-family: inherit;
+      box-sizing: border-box;
+    }
+    #overlayCreate .scope-flat-grid--channel,
+    #overlayCreate .scope-flat-grid--product {
+      align-items: start;
+    }
+    #overlayCreate .scope-flat-grid--channel {
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+    }
+    #overlayCreate .scope-flat-grid--product {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+    @media (min-width: 1100px) {
+      #overlayCreate .scope-flat-grid--product {
+        grid-template-columns: repeat(6, minmax(0, 1fr));
+      }
+    }
+    #overlayCreate .msf-root,
+    #overlayCreate .msf-host {
+      min-width: 0;
+      max-width: 100%;
+      width: 100%;
+    }
+    #overlayCreate .msf-trigger {
+      min-width: 0;
+      max-width: 100%;
+      width: 100%;
+    }
+    #overlayCreate .scope-flat-col {
+      min-width: 0;
+    }
+    #overlayCreate #createBelongMonth.month-ctl {
+      min-width: 100%;
+      max-width: 200px;
+    }
+    .dialog-hd {
+      padding: 14px 18px;
+      border-bottom: 1px solid var(--line);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-shrink: 0;
+    }
+    .dialog-hd h2 { margin: 0; font-size: 16px; }
+    .dialog-close {
+      border: none;
+      background: #f1f5f9;
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 18px;
+      line-height: 1;
+      color: #64748b;
+    }
+    .dialog-bd { padding: 0; overflow: hidden; display: flex; flex-direction: column; flex: 1; min-height: 0; }
+    .dialog-scroll { padding: 16px 18px 20px; overflow-y: auto; flex: 1; }
+    .import-body { padding: 18px 20px 22px; font-size: 13px; line-height: 1.7; color: #334155; }
+    .import-body a { color: var(--brand); }
+    .import-body a:hover { text-decoration: underline; }
+    .import-tpl-doc {
+      margin-top: 12px;
+      padding: 10px 12px;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      font-size: 12px;
+      line-height: 1.6;
+    }
+    .import-upload {
+      margin-top: 14px;
+      padding: 12px;
+      border: 1px dashed var(--border-input);
+      border-radius: 6px;
+      background: #fafafa;
+    }
+    .import-upload label { display: block; font-size: 12px; color: var(--label); margin-bottom: 6px; }
+    .import-actions { display: flex; flex-direction: column; gap: 12px; margin-top: 14px; }
+    .tpl-group-hd th { background: #e6f4ff; color: #0f2f63; font-weight: 700; text-align: center; }
+    .tpl-table { margin-top: 14px; font-size: 12px; }
+    .tpl-table th, .tpl-table td { border: 1px solid var(--line); padding: 8px; vertical-align: top; }
+    .tpl-table th { background: #f8fafc; }
+    .req-list { margin: 10px 0 0; padding-left: 18px; }
+    .req-list li { margin: 6px 0; }
+    .pick-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 10px;
+      max-height: 160px;
+      overflow-y: auto;
+      padding: 4px 0;
+    }
+    .pick-chip {
+      padding: 6px 12px;
+      border-radius: 6px;
+      border: 1px solid var(--border-input);
+      background: #fff;
+      font-size: 13px;
+      cursor: pointer;
+      color: #334155;
+    }
+    .pick-chip:hover { border-color: var(--brand-focus); color: var(--brand-focus); background: #f0f7ff; }
+    .native-multi-wrap { max-width: 420px; }
+    .native-multi-wrap label { display: block; font-size: 12px; color: var(--label); margin-bottom: 4px; }
+    .native-multi-wrap input[type="search"] {
+      width: 100%;
+      margin-bottom: 6px;
+      padding: 6px 10px;
+      border: 1px solid var(--border-input);
+      border-radius: 6px;
+    }
+    .native-multi-wrap select[multiple] {
+      width: 100%;
+      min-height: 160px;
+      padding: 6px;
+      border: 1px solid var(--border-input);
+      border-radius: 6px;
+      font-size: 13px;
+    }
+    /* 可搜索复选列表（替代原生多选，避免需按住 Cmd 多选） */
+    .checkbox-multi {
+      border: 1px solid var(--border-input);
+      border-radius: 6px;
+      padding: 6px 8px;
+      max-height: 220px;
+      overflow-y: auto;
+      background: #fff;
+      font-size: 13px;
+    }
+    .checkbox-multi .chk-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 5px 4px;
+      margin: 0;
+      cursor: pointer;
+      border-radius: 4px;
+    }
+    .checkbox-multi .chk-row:hover { background: #f1f5f9; }
+    .checkbox-multi .chk-row.chk-master { font-weight: 600; color: #0f2f63; }
+    .checkbox-multi .chk-row input { flex-shrink: 0; }
+    .st-pending { color: #b45309; font-weight: 600; }
+    .st-active { color: #047857; font-weight: 600; }
+    .st-invalid { color: #64748b; font-weight: 600; }
+    .hist-actions { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; justify-content: flex-start; }
+    .hist-actions .btn-link { padding: 0 2px; }
+
+    #createBelongMonth.month-ctl {
+      height: 32px;
+      min-width: 140px;
+      padding: 0 10px;
+      border: 1px solid var(--border-input);
+      border-radius: 6px;
+      font-size: 13px;
+      background: #fff;
+    }
+
+    .modal-intro { margin-bottom: 14px; display: flex; flex-direction: column; gap: 10px; }
+    .modal-intro-banner {
+      padding: 10px 14px;
+      background: linear-gradient(180deg, #eff6ff 0%, #f8fafc 100%);
+      border: 1px solid #bfdbfe;
+      border-radius: 8px;
+      font-size: 12px;
+      line-height: 1.65;
+      color: #334155;
+    }
+    .modal-intro-banner strong { color: #1e40af; font-weight: 600; }
+    .modal-intro-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .modal-intro-card {
+      padding: 10px 12px;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      font-size: 12px;
+      line-height: 1.6;
+      color: #475569;
+    }
+    .modal-intro-card h4 {
+      margin: 0 0 6px;
+      font-size: 12px;
+      font-weight: 700;
+      color: #0f172a;
+    }
+    .modal-intro-card ul { margin: 0; padding-left: 1.15em; }
+    .modal-intro-card li { margin: 4px 0; }
+    .modal-intro-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+    .modal-intro-tag {
+      display: inline-block;
+      padding: 2px 8px;
+      background: #fff;
+      border: 1px solid #e2e8f0;
+      border-radius: 4px;
+      font-size: 11px;
+      color: #64748b;
+    }
+    @media (max-width: 720px) {
+      .modal-intro-grid { grid-template-columns: 1fr; }
+    }
+
+    /* 页内「页面说明」（开发与测试可读） */
+    .topbar .btn-link {
+      background: none;
+      border: none;
+      color: var(--brand);
+      cursor: pointer;
+      font-size: 13px;
+      text-decoration: underline;
+      padding: 0;
+      font-family: inherit;
+    }
+    .page-logic-dot {
+      display: inline-block;
+      width: 6px;
+      height: 6px;
+      margin-left: 4px;
+      border-radius: 50%;
+      background: #ef4444;
+      vertical-align: super;
+      font-size: 0;
+    }
+    .page-logic-panel {
+      flex-shrink: 0;
+      background: var(--surface);
+      border: 1px solid var(--panel-line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      margin: 0;
+    }
+    .page-logic-panel[hidden] {
+      display: none !important;
+    }
+    .page-logic-inner {
+      padding: 16px 20px 18px;
+      font-size: 13px;
+      line-height: 1.75;
+      color: #334155;
+      max-height: min(72vh, 640px);
+      overflow-y: auto;
+    }
+    .page-logic-inner .doc-lead {
+      margin: 0 0 14px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+    .page-logic-inner h3.doc-h {
+      margin: 20px 0 10px;
+      font-size: 14px;
+      font-weight: 800;
+      color: #0f2f63;
+      border-left: 3px solid var(--brand);
+      padding-left: 10px;
+    }
+    .page-logic-inner h3.doc-h:first-of-type {
+      margin-top: 0;
+    }
+    .page-logic-inner ul.doc-ul {
+      margin: 6px 0 0;
+      padding-left: 1.25em;
+    }
+    .page-logic-inner table.doc-tbl {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+      margin: 10px 0 0;
+    }
+    .page-logic-inner table.doc-tbl th,
+    .page-logic-inner table.doc-tbl td {
+      border: 1px solid #e2e8f0;
+      padding: 6px 10px;
+      text-align: left;
+      vertical-align: top;
+    }
+    .page-logic-inner table.doc-tbl th {
+      background: #f8fbff;
+      font-weight: 700;
+      color: #0f2f63;
+    }
+    .page-logic-inner .logic-svg-wrap {
+      margin: 12px 0 4px;
+      overflow-x: auto;
+      background: #f8fafc;
+      border-radius: 8px;
+      padding: 12px;
+      border: 1px solid #e8edf3;
+    }
+    .page-logic-inner .logic-svg-wrap svg {
+      display: block;
+      max-width: 100%;
+      height: auto;
+    }
+    .page-logic-inner .doc-note {
+      margin-top: 10px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .page-logic-inner ol.doc-ol {
+      margin: 8px 0 0;
+      padding-left: 1.35em;
+    }
+    .proto-anno-note {
+      margin: 0 0 12px;
+      padding: 10px 12px;
+      border: 1px solid #fecaca;
+      background: #fff1f2;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      color: #9f1239;
+    }
+    .proto-anno-tag {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 62px;
+      height: 22px;
+      padding: 0 8px;
+      border-radius: 999px;
+      background: #e11d48;
+      color: #fff;
+      font-weight: 700;
+      font-size: 12px;
+      line-height: 1;
+      flex-shrink: 0;
+    }
+    body.embed-mode { min-height: auto; }
+    body.embed-mode .topbar { display: none; }
+    body.embed-mode .page-hd { display: none; }
+    body.embed-mode .page-body { padding: 0 0 12px; }
+    .scope-flat-col input.scope-text {
+      width: 100%;
+      max-width: 100%;
+      padding: 8px 10px;
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      font-size: 13px;
+      box-sizing: border-box;
+    }
+  </style>
+</head>
+<body>
+  <div class="topbar">
+    <div><strong>全渠道管报</strong> · 业务费用导入管理（原型）</div>
+    <div style="display:flex;gap:14px;align-items:center;flex-wrap:wrap;">
+      <button type="button" class="btn-link" id="btnPageLogicFromTop">页面说明<span class="page-logic-dot" title="页内展开"> </span></button>
+      <a href="index.html">← 返回费用管理目录</a>
+    </div>
+  </div>
+
+  <div class="page" id="mainPage">
+    <header class="page-hd">
+      <h1>导入费用分摊</h1>
+    </header>
+
+    <div class="page-body">
+    <section class="panel panel--filter-stack" aria-label="历史记录筛选">
+      <div class="panel-head">
+        <div>
+          <div class="panel-title">历史记录筛选</div>
+          <div class="panel-sub">筛选后点击「查询」刷新下方列表</div>
+        </div>
+      </div>
+      <div class="filter-panel">
+      <div class="filter-grid">
+        <div class="f-item">
+          <label>归属月范围</label>
+          <div id="qBelongMonthRangeHost"></div>
+        </div>
+        <div class="f-item">
+          <label>费用项</label>
+          <span class="ctl-wrap">
+            <select id="qFeeType" class="ctl" aria-label="费用项">
+              <option value="">全部</option>
+              <option>广告费</option>
+              <option>品牌营销费</option>
+              <option>推广费</option>
+            </select>
+            <button type="button" class="ctl-clear" hidden aria-label="清除费用项">×</button>
+          </span>
+        </div>
+        <div class="f-item">
+          <label>状态</label>
+          <span class="ctl-wrap">
+            <select id="qStatus" class="ctl" aria-label="状态">
+              <option value="">全部</option>
+              <option value="待生效">待生效</option>
+              <option value="已生效">已生效</option>
+              <option value="失效">失效</option>
+            </select>
+            <button type="button" class="ctl-clear" hidden aria-label="清除状态">×</button>
+          </span>
+        </div>
+        <div class="f-item">
+          <label for="qRemark">备注</label>
+          <span class="ctl-wrap">
+            <input type="text" id="qRemark" class="ctl" placeholder="关键词" maxlength="100" aria-label="备注关键词" />
+            <button type="button" class="ctl-clear" hidden aria-label="清除备注">×</button>
+          </span>
+        </div>
+        <div class="f-item f-search">
+          <button type="button" class="btn-query" id="btnQuery">查询</button>
+        </div>
+      </div>
+      </div>
+    </section>
+
+    <div id="pageLogicPanel" class="page-logic-panel" hidden>
+      <div class="page-logic-inner">
+        <p class="doc-lead">以下说明面向<strong>开发 / 测试</strong>：与当前原型交互一致；正式环境需补充权限、审计、并发与接口契约。</p>
+        <div class="proto-anno-note" aria-label="原型标注1">
+          <span class="proto-anno-tag">原型标注1</span>
+          <span>本页标注口径：以“历史导入费用”为主，按“导入/新增 → 状态流转 → 是否纳入管报计算”进行验收。</span>
+        </div>
+
+        <h3 class="doc-h">原型标注1｜页面说明（业务视角）</h3>
+        <ul class="doc-ul">
+          <li>这是「业务费用导入管理」页，核心目标是把新增/导入的费用批次管理清楚，并明确哪些批次会进入管报。</li>
+          <li>批次默认是“待生效”，只有变成“已生效”后才参与管报；“失效”批次不参与，且仅失效批次可删除。</li>
+          <li>列表和明细要保持口径一致：列表显示什么状态，明细里的“是否纳入管报计算”就应显示同样结论。</li>
+          <li>新增/导入只是“写入数据”，不是“直接生效”；业务确认动作在生效/失效操作里完成。</li>
+        </ul>
+
+        <h3 class="doc-h">原型标注1｜智能标注（当前页）</h3>
+        <table class="doc-tbl">
+          <thead><tr><th>标注位</th><th>页面区域</th><th>触发动作</th><th>系统行为</th><th>异常/拦截提示</th><th>验收点</th></tr></thead>
+          <tbody>
+            <tr><td>①</td><td>历史记录筛选区</td><td>改筛选条件、点查询</td><td>刷新当前列表；状态/费用项即时生效，其余条件按查询按钮生效</td><td>无数据时显示空列表，不报错</td><td>筛选结果仅影响当前可见行</td></tr>
+            <tr><td>②</td><td>历史导入费用列表</td><td>查看行信息、勾选行</td><td>展示批次号、范围摘要、状态与可用操作；支持按筛选结果全选</td><td>全选只作用当前筛选结果，不跨页/不跨筛选</td><td>表头全选与行勾选状态一致</td></tr>
+            <tr><td>③</td><td>行内操作</td><td>点生效/失效/删除/明细</td><td>按状态机执行迁移；明细展示分摊结果与纳入口径</td><td>非法状态不执行操作</td><td>待生效→已生效；待生效/已生效→失效；仅失效可删除</td></tr>
+            <tr><td>④</td><td>批量操作区</td><td>勾选多行后点批量生效/失效/删除</td><td>整批校验通过才执行；执行后整批刷新</td><td>混入不允许状态时整批拦截，不做部分成功</td><td>规则与单行操作完全一致</td></tr>
+            <tr><td>⑤</td><td>新增导入费用弹窗</td><td>按 Excel 平铺列填写，点预览/确认写入</td><td>渠道五列、产品九列可同时填；先预览再写入待生效批次</td><td>缺费用项/归属月/金额时禁止预览</td><td>预览口径块与导入模版列一致</td></tr>
+            <tr><td>⑥</td><td>分摊规则摘要与预览</td><td>点预览分摊</td><td>渠道范围五列×产品范围九列取交；填写新品标签时再收窄</td><td>交集为空或仅新品无命中时提示</td><td>预览展示与导入模版一致的口径块；总额与金额一致</td></tr>
+            <tr><td>⑦</td><td>导入入口与模板说明</td><td>打开钉钉模版、下载 CSV、上传文件或模拟导入</td><td>模版含费用项/归属月/金额/币种及渠道、产品分列；多选用英文逗号分隔；字典取值见钉钉「数据字典」页</td><td>字典项或主数据不匹配时应拦截（正式环境）</td><td>导入与手工新增的状态规则一致</td></tr>
+            <tr><td>⑧</td><td>分摊明细弹窗</td><td>点“明细”</td><td>展示模版口径 + 按 MSKU 分摊、权重占比、归属月内分摊、日均</td><td>批次不存在或被删除时不可查看</td><td>“纳入管报计算”仅在已生效时为是</td></tr>
+          </tbody>
+        </table>
+
+        <h3 class="doc-h">一、前提</h3>
+        <ul class="doc-ul">
+          <li>本页维护需<strong>补充导入的业务费用</strong>批次（手工新增弹窗 + 文件导入解析）。</li>
+          <li>批次通过<strong>状态</strong>决定是否进入全渠道管报的<strong>业务费用导入结果池</strong>及按 MSKU 分摊。</li>
+          <li>列表「明细」弹窗中的<strong>纳入管报计算</strong>与行状态一致，便于验收。</li>
+        </ul>
+
+        <h3 class="doc-h">二、本页在做什么</h3>
+        <ul class="doc-ul">
+          <li><strong>筛选</strong>：按归属月范围、费用项、<strong>状态</strong>等刷新历史列表（原型中部分条件为示意）。</li>
+          <li><strong>行操作</strong>：生效 / 失效 / 删除 / 明细；<strong>批量</strong>：批量生效、批量失效、批量删除（均带状态校验）。</li>
+          <li><strong>新增 / 导入</strong>：写入的新批次默认<strong>待生效</strong>，需人工「生效」后才参与管报。</li>
+        </ul>
+
+        <h3 class="doc-h">三、状态定义与默认值</h3>
+        <table class="doc-tbl">
+          <thead><tr><th>状态</th><th>含义</th></tr></thead>
+          <tbody>
+            <tr><td><strong>待生效</strong></td><td>新建或导入成功后的初始状态；<strong>不参与</strong>管报计算。</td></tr>
+            <tr><td><strong>已生效</strong></td><td>人工确认后；<strong>参与</strong>管报分摊与汇总。</td></tr>
+            <tr><td><strong>失效</strong></td><td>业务作废；<strong>不参与</strong>计算；<strong>仅此时允许删除</strong>。</td></tr>
+          </tbody>
+        </table>
+
+        <h3 class="doc-h">四、状态流转（图形）</h3>
+        <p style="margin:0 0 6px;font-size:12px;color:var(--muted);">单条与批量按钮遵循同一套状态迁移规则；非法组合操作时页面会弹出提示，且不改数据。</p>
+        <div class="logic-svg-wrap" aria-label="状态流转示意图">
+          <svg viewBox="0 0 400 184" width="400" height="184" xmlns="http://www.w3.org/2000/svg" role="img" xml:lang="zh-CN">
+            <title>业务费用批次状态流转</title>
+            <defs>
+              <marker id="logicStateArrow" markerUnits="strokeWidth" markerWidth="9" markerHeight="9" refX="8" refY="3" orient="auto">
+                <polygon points="0 0, 9 3, 0 6" fill="#64748b"/>
+              </marker>
+            </defs>
+            <g font-family="'PingFang SC','Microsoft YaHei',sans-serif">
+              <!-- 入口 -->
+              <text x="200" y="13" text-anchor="middle" font-size="11" fill="#64748b">新增 / 导入写入</text>
+              <line x1="200" y1="16" x2="200" y2="22" stroke="#64748b" stroke-width="1.5" marker-end="url(#logicStateArrow)"/>
+              <!-- 待生效 -->
+              <rect x="140" y="24" width="120" height="38" rx="8" fill="#fff7ed" stroke="#b45309" stroke-width="2"/>
+              <text x="200" y="48" text-anchor="middle" font-size="14" font-weight="700" fill="#92400e">待生效</text>
+              <!-- 主链：生效 -->
+              <line x1="200" y1="62" x2="200" y2="74" stroke="#64748b" stroke-width="1.5" marker-end="url(#logicStateArrow)"/>
+              <text x="208" y="71" font-size="11" fill="#64748b">生效</text>
+              <!-- 已生效 -->
+              <rect x="140" y="76" width="120" height="38" rx="8" fill="#ecfdf5" stroke="#047857" stroke-width="2"/>
+              <text x="200" y="100" text-anchor="middle" font-size="14" font-weight="700" fill="#065f46">已生效</text>
+              <!-- 主链：失效 -->
+              <line x1="200" y1="114" x2="200" y2="126" stroke="#64748b" stroke-width="1.5" marker-end="url(#logicStateArrow)"/>
+              <text x="208" y="123" font-size="11" fill="#64748b">失效</text>
+              <!-- 失效 -->
+              <rect x="140" y="128" width="120" height="38" rx="8" fill="#f1f5f9" stroke="#475569" stroke-width="2"/>
+              <text x="200" y="152" text-anchor="middle" font-size="14" font-weight="700" fill="#334155">失效</text>
+              <!-- 侧路：待生效 直接 失效（箭头落在失效框左侧中点） -->
+              <path d="M 140 43 L 52 43 L 52 147 L 140 147" fill="none" stroke="#64748b" stroke-width="1.5" marker-end="url(#logicStateArrow)"/>
+              <text x="56" y="38" font-size="11" fill="#64748b">失效</text>
+            </g>
+          </svg>
+          <p class="doc-note" style="margin-top:8px;margin-bottom:0;">待生效与已生效均可操作「失效」进入失效状态。<strong>删除</strong>仅允许针对已为「失效」的批次（见下文规则表）。</p>
+        </div>
+        <ul class="doc-ul">
+          <li><strong>生效</strong>：仅支持“待生效”变为“已生效”。</li>
+          <li><strong>失效</strong>：支持“待生效”或“已生效”变为“失效”。</li>
+          <li><strong>删除</strong>：仅“失效”批次可删除；删除后会从列表移除并清除对应明细记录。</li>
+        </ul>
+
+        <h3 class="doc-h">五、列表操作与批量规则</h3>
+        <table class="doc-tbl">
+          <thead><tr><th>当前状态</th><th>行内操作</th></tr></thead>
+          <tbody>
+            <tr><td>待生效</td><td>明细、生效、失效</td></tr>
+            <tr><td>已生效</td><td>明细、失效</td></tr>
+            <tr><td>失效</td><td>明细、删除</td></tr>
+          </tbody>
+        </table>
+        <table class="doc-tbl" style="margin-top:12px;">
+          <thead><tr><th>批量按钮</th><th>允许勾选的行</th><th>结果</th></tr></thead>
+          <tbody>
+            <tr><td>批量生效</td><td>全部为<strong>待生效</strong></td><td>一律变为已生效；混入其它状态则报错不执行。</td></tr>
+            <tr><td>批量失效</td><td>全部为<strong>待生效</strong>或<strong>已生效</strong>（可混）</td><td>一律变为失效；若含已失效行则报错不执行。</td></tr>
+            <tr><td>批量删除</td><td>全部为<strong>失效</strong></td><td>删除；混入非失效则报错不执行。</td></tr>
+          </tbody>
+        </table>
+        <p class="doc-note">表头「全选」仅作用于当前筛选结果中的可见行。</p>
+
+        <h3 class="doc-h">六、纳入管报计算</h3>
+        <ul class="doc-ul">
+          <li>仅<strong>已生效</strong>批次进入业务费用导入结果池及按 MSKU 分摊；<strong>待生效</strong>与<strong>失效</strong>均不参与。</li>
+        </ul>
+
+        <h3 class="doc-h">七、筛选与多选下拉</h3>
+        <ul class="doc-ul">
+          <li><strong>状态 / 费用项</strong>变更后立即刷新列表；点「查询」会刷新并在原型中提示其它筛选项仍为示意。</li>
+          <li><strong>MSKU、零售商</strong>及弹窗内渠道/店铺等：遵循《多选下拉筛选》— 默认点击展开后再加载选项；面板内搜索与多选；MSKU/SKU 弹窗内无「全部」；历史区零售商在「查询」左侧。</li>
+        </ul>
+
+        <h3 class="doc-h">八、弹窗入口</h3>
+        <ul class="doc-ul">
+          <li><strong>新增导入费用</strong>：配置后预览 → 确认写入 → 新增一条<strong>待生效</strong>批次及明细占位。</li>
+          <li><strong>导入</strong>：按钉钉《业务费用导入模版》填写（含数据字典页）；下载 CSV 或打开在线模版后上传；正式环境解析后批量待生效；原型可用「模拟：生成一条待生效批次」。</li>
+        </ul>
+
+        <h3 class="doc-h">九、测试建议（验收清单）</h3>
+        <ol class="doc-ol">
+          <li>状态筛选：待生效 / 已生效 / 失效 / 全部 与列表一致。</li>
+          <li>待生效 → 生效 → 已生效；明细中「纳入管报计算」为是。</li>
+          <li>已生效 → 失效；明细中为否。</li>
+          <li>失效 → 删除确认后行消失。</li>
+          <li>批量生效：混入已生效行应报错；仅待生效应全部已生效。</li>
+          <li>批量失效：待生效+已生效混合应全部失效；含失效行应报错。</li>
+          <li>批量删除：仅失效成功；混入待生效应报错。</li>
+          <li>全选 + 批量：仅处理当前筛选可见行。</li>
+        </ol>
+
+        <h3 class="doc-h">十、原型与正式环境差异</h3>
+        <table class="doc-tbl">
+          <thead><tr><th>维度</th><th>原型</th><th>正式环境（预期）</th></tr></thead>
+          <tbody>
+            <tr><td>权限</td><td>未区分角色</td><td>按角色控制生效/失效/删除/导入</td></tr>
+            <tr><td>审计</td><td>无</td><td>操作人、时间、前后状态</td></tr>
+            <tr><td>并发</td><td>无锁</td><td>乐观锁 / 版本号</td></tr>
+            <tr><td>筛选</td><td>部分示意</td><td>后端查询与分页</td></tr>
+            <tr><td>导入</td><td>模拟按钮</td><td>解析、校验、错误文件回传</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <section class="panel panel--table">
+      <div class="panel-head list-hd">
+        <h2 class="list-title">历史导入费用</h2>
+        <div class="list-actions">
+          <button type="button" class="btn primary" id="btnOpenCreate">新增导入费用</button>
+          <button type="button" class="btn secondary" id="btnOpenImport">导入</button>
+          <span style="width:1px;height:24px;background:#e2e8f0;" aria-hidden="true"></span>
+          <button type="button" class="btn secondary" id="btnBatchActivate">批量生效</button>
+          <button type="button" class="btn secondary" id="btnBatchDeactivate">批量失效</button>
+          <button type="button" class="btn secondary" id="btnBatchDelete">批量删除</button>
+        </div>
+      </div>
+      <div class="table-scroll-wrap">
+        <table id="historyTable" class="data-tbl">
+          <thead>
+            <tr>
+              <th class="col-check"><input type="checkbox" id="histSelectAll" title="全选当前列表" aria-label="全选"></th>
+              <th>导入批次号</th>
+              <th>费用项</th>
+              <th>归属月</th>
+              <th class="num">金额</th>
+              <th>币种</th>
+              <th>渠道范围摘要</th>
+              <th>产品范围摘要</th>
+              <th>备注</th>
+              <th>状态</th>
+              <th>操作人</th>
+              <th>创建时间</th>
+              <th class="col-action">操作</th>
+            </tr>
+          </thead>
+          <tbody id="historyBody"></tbody>
+        </table>
+      </div>
+    </section>
+    </div>
+  </div>
+
+  <!-- 历史记录：分摊明细 -->
+  <div class="overlay z-top" id="overlayHistoryDetail" aria-hidden="true">
+    <div class="dialog wide" role="dialog" aria-labelledby="dlgHistTitle">
+      <div class="dialog-hd">
+        <h2 id="dlgHistTitle">分摊明细</h2>
+        <button type="button" class="dialog-close" id="closeHistoryDetail" aria-label="关闭">×</button>
+      </div>
+      <div class="dialog-bd">
+        <div class="dialog-scroll">
+          <div id="historyDetailMeta" class="logic-box" style="margin-bottom:14px;"></div>
+          <div style="font-weight:800;font-size:13px;color:#0f2f63;margin-bottom:8px;">按 MSKU 分摊明细（权重月营收占比）</div>
+          <div class="table-wrap" style="max-height:min(52vh,480px);">
+            <table>
+              <thead>
+                <tr>
+                  <th>店铺</th>
+                  <th>MSKU</th>
+                  <th>新品标签</th>
+                  <th>零售商</th>
+                  <th class="num">权重月营收</th>
+                  <th class="num">权重占比</th>
+                  <th class="num">分摊金额</th>
+                </tr>
+              </thead>
+              <tbody id="historyDetailBody"></tbody>
+            </table>
+          </div>
+          <p class="hint" style="margin-top:12px;">原型数据为模拟；正式环境从分摊结果表加载全量行，支持导出与分页。</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 新增导入费用弹窗 -->
+  <div class="overlay" id="overlayCreate" aria-hidden="true">
+    <div class="dialog xl" role="dialog" aria-labelledby="dlgCreateTitle">
+      <div class="dialog-hd">
+        <h2 id="dlgCreateTitle">新增导入费用</h2>
+        <button type="button" class="dialog-close" id="closeCreate" aria-label="关闭">×</button>
+      </div>
+      <div class="dialog-bd">
+        <div class="dialog-scroll">
+          <div class="modal-intro">
+            <div class="modal-intro-banner">
+              维护补充导入的业务费用批次。仅 <strong>已生效</strong> 批次纳入管报；新建默认为 <strong>待生效</strong>，需人工生效后参与分摊。
+            </div>
+            <div class="modal-intro-grid">
+              <div class="modal-intro-card">
+                <h4>模版结构（与 Excel 列对列一致）</h4>
+                <ul>
+                  <li>费用信息 5 列：费用项、归属月、金额、币种、备注</li>
+                  <li>渠道范围 5 列：区域 / 国家 / 渠道 / 店铺 / 零售商</li>
+                  <li>产品范围 9 列：场景 / 品类 / MODEL / SKU / MSKU / ASIN / 新品标签 / 订单号 / DL批次号</li>
+                </ul>
+                <div class="modal-intro-tags">
+                  <span class="modal-intro-tag">多列可同时填</span>
+                  <span class="modal-intro-tag">列间取交集</span>
+                  <span class="modal-intro-tag">多选英文逗号分隔</span>
+                </div>
+              </div>
+              <div class="modal-intro-card">
+                <h4>分摊规则</h4>
+                <ul>
+                  <li>渠道五列 × 产品九列分别取交（不填视为全渠道/全产品）</li>
+                  <li>按置算表营收占比分摊，剔除回款为负数据</li>
+                  <li>金额按权重月各 MSKU 营收占比分摊至各行</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+
+          <div class="panel">
+            <div class="panel-hd">费用信息 <span class="badge">与模版第 1 段一致</span></div>
+            <div class="panel-bd" style="max-height:none;">
+              <div class="scope-flat-grid scope-flat-grid--fee">
+                <div class="scope-flat-col field">
+                  <label for="feeType"><span class="req">*</span>费用项</label>
+                  <select id="feeType">
+                    <option value="广告费">广告费</option>
+                    <option value="品牌营销费" selected>品牌营销费</option>
+                    <option value="推广费">推广费</option>
+                    <option value="样品费">样品费</option>
+                    <option value="运杂费">运杂费</option>
+                    <option value="其他补充费用">其他补充费用</option>
+                  </select>
+                </div>
+                <div class="scope-flat-col field">
+                  <label for="createBelongMonth"><span class="req">*</span>归属月</label>
+                  <input type="month" id="createBelongMonth" class="month-ctl" value="2026-04" aria-label="归属月">
+                  <p class="hint-col">格式 <code>YYYY-MM</code>，如 2026-05</p>
+                </div>
+                <div class="scope-flat-col field">
+                  <label for="totalAmount"><span class="req">*</span>金额</label>
+                  <input type="number" id="totalAmount" value="10000" min="0" step="0.01">
+                </div>
+                <div class="scope-flat-col field">
+                  <label for="feeCurrency"><span class="req">*</span>币种</label>
+                  <select id="feeCurrency" aria-label="币种">
+                    <option value="CNY">CNY</option>
+                    <option value="USD" selected>USD</option>
+                    <option value="EUR">EUR</option>
+                    <option value="GBP">GBP</option>
+                    <option value="JPY">JPY</option>
+                    <option value="CAD">CAD</option>
+                  </select>
+                </div>
+                <div class="scope-flat-col scope-flat-col--full field">
+                  <label for="feeRemark">备注</label>
+                  <textarea id="feeRemark" rows="2" placeholder="补充费用背景、活动说明或审批备注（非必填）"></textarea>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="panel">
+            <div class="panel-hd">渠道范围 <span class="badge">模版列 · 多列可同时填</span></div>
+            <div class="panel-bd" style="max-height:none;">
+              <p class="hint" style="margin:0 0 12px;">五列分别对应模版「区域 / 国家 / 渠道 / 店铺 / 零售商」。列内多选用英文逗号等价的多选；<strong>列与列之间取交集</strong>。五列均不选表示渠道侧不额外收窄。</p>
+              <div class="scope-flat-grid scope-flat-grid--channel">
+                <div class="scope-flat-col">
+                  <label for="msfCreateRegion">区域</label>
+                  <div id="msfCreateRegion"></div>
+                  <p class="hint-col">字典「区域」</p>
+                </div>
+                <div class="scope-flat-col">
+                  <label for="msfCreateCountry">国家</label>
+                  <div id="msfCreateCountry"></div>
+                  <p class="hint-col">如 美国 (US)</p>
+                </div>
+                <div class="scope-flat-col">
+                  <label for="msfCreateChannel">渠道</label>
+                  <div id="msfCreateChannel"></div>
+                  <p class="hint-col">渠道店铺基础数据</p>
+                </div>
+                <div class="scope-flat-col">
+                  <label for="msfCreateStore">店铺</label>
+                  <div id="msfCreateStore"></div>
+                  <p class="hint-col">如 Govee_US</p>
+                </div>
+                <div class="scope-flat-col">
+                  <label for="msfCreateRetailer">零售商</label>
+                  <div id="msfCreateRetailer"></div>
+                  <p class="hint-col">不选则不按零售商收窄</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="panel">
+            <div class="panel-hd">产品范围 <span class="badge">模版列 · 多列可同时填</span></div>
+            <div class="panel-bd" style="max-height:none;">
+              <p class="hint" style="margin:0 0 12px;">九列对应模版「场景 / 品类 / MODEL / SKU / MSKU / ASIN / 新品标签 / 订单号 / DL批次号」。列间取交集；各列均不选表示产品侧不额外收窄。</p>
+              <div class="scope-flat-grid scope-flat-grid--product">
+                <div class="scope-flat-col">
+                  <label for="msfCreateScene">场景</label>
+                  <div id="msfCreateScene"></div>
+                </div>
+                <div class="scope-flat-col">
+                  <label for="msfCreateCategory">品类</label>
+                  <div id="msfCreateCategory"></div>
+                  <p class="hint-col">场景/品类路径</p>
+                </div>
+                <div class="scope-flat-col">
+                  <label for="msfCreateModel">MODEL</label>
+                  <div id="msfCreateModel"></div>
+                  <p class="hint-col">SPU 前 5 位</p>
+                </div>
+                <div class="scope-flat-col">
+                  <label for="msfCreateSku">SKU</label>
+                  <div id="msfCreateSku"></div>
+                  <p class="hint-col">8 位生产 SKU</p>
+                </div>
+                <div class="scope-flat-col">
+                  <label for="msfCreateMsku">MSKU</label>
+                  <div id="msfCreateMsku"></div>
+                </div>
+                <div class="scope-flat-col">
+                  <label for="msfCreateAsin">ASIN</label>
+                  <div id="msfCreateAsin"></div>
+                  <p class="hint-col">亚马逊 ASIN</p>
+                </div>
+                <div class="scope-flat-col field">
+                  <label for="productNewTags">新品标签</label>
+                  <input type="text" id="productNewTags" class="scope-text" placeholder="如 2024年新品，多选英文逗号分隔">
+                  <p class="hint-col">填写后仅匹配带该标签的产品参与分摊</p>
+                </div>
+                <div class="scope-flat-col field">
+                  <label for="orderNos">订单号</label>
+                  <input type="text" id="orderNos" class="scope-text" placeholder="多选英文逗号分隔">
+                </div>
+                <div class="scope-flat-col field">
+                  <label for="dlBatchNos">DL批次号</label>
+                  <input type="text" id="dlBatchNos" class="scope-text" placeholder="多选英文逗号分隔">
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="panel">
+            <div class="panel-hd">分摊规则摘要</div>
+            <div class="panel-bd" style="max-height:none;">
+              <div class="logic-box" id="ruleText"></div>
+              <div class="toolbar" style="margin-top:12px;">
+                <button type="button" class="btn primary" id="btnPreview">预览分摊</button>
+                <button type="button" class="btn secondary" id="btnConfirmImport" disabled>确认写入</button>
+                <button type="button" class="btn secondary" id="btnExport">导出预览明细</button>
+              </div>
+              <div class="summary" id="summaryCards" style="display:none;"></div>
+              <div class="table-wrap" id="previewWrap" style="display:none;margin-top:10px;">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>店铺</th>
+                      <th>MSKU</th>
+                      <th>新品标签</th>
+                      <th>零售商</th>
+                      <th class="num">权重月营收</th>
+                      <th class="num">权重占比</th>
+                      <th class="num">分摊金额</th>
+                    </tr>
+                  </thead>
+                  <tbody id="previewBody"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 导入说明弹窗 -->
+  <div class="overlay" id="overlayImport" aria-hidden="true">
+    <div class="dialog sm" role="dialog" aria-labelledby="dlgImportTitle">
+      <div class="dialog-hd">
+        <h2 id="dlgImportTitle">批量导入</h2>
+        <button type="button" class="dialog-close" id="closeImport" aria-label="关闭">×</button>
+      </div>
+      <div class="dialog-bd">
+        <div class="import-body">
+          <div class="modal-intro">
+            <div class="modal-intro-banner">
+              维护补充导入的业务费用批次。仅 <strong>已生效</strong> 批次纳入管报；导入默认为 <strong>待生效</strong>，需人工生效后参与分摊。
+            </div>
+            <div class="modal-intro-grid">
+              <div class="modal-intro-card">
+                <h4>模版结构</h4>
+                <ul>
+                  <li>费用信息：费用项、归属月、金额、币种、备注</li>
+                  <li>渠道范围：区域 / 国家 / 渠道 / 店铺 / 零售商</li>
+                  <li>产品范围：场景 / 品类 / MODEL / SKU / MSKU / ASIN / 新品标签 / 订单号 / DL批次号</li>
+                </ul>
+                <div class="modal-intro-tags">
+                  <span class="modal-intro-tag">同一列多选英文逗号分隔</span>
+                  <span class="modal-intro-tag">取值见数据字典</span>
+                </div>
+              </div>
+              <div class="modal-intro-card">
+                <h4>分摊规则</h4>
+                <ul>
+                  <li>渠道与产品范围分别取交后分摊</li>
+                  <li>按置算表营收占比，剔除回款为负数据</li>
+                  <li>解析成功生成待生效批次，规则与「新增导入费用」一致</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+          <div class="import-tpl-doc">
+            <strong>在线模版与数据字典：</strong>
+            <a href="https://alidocs.dingtalk.com/i/nodes/r1R7q3QmWe7doAGOuZavPQnXJxkXOEP2" target="_blank" rel="noopener noreferrer" id="importTplDocLink">打开钉钉文档 · 业务费用导入模版</a>
+            <span style="color:#64748b;font-size:12px;display:block;margin-top:4px;">含「导入模版」示例行与「数据字典」各列合法取值；正式环境以此版本为准。</span>
+          </div>
+          <div class="import-upload">
+            <label for="importFileInput">上传已填写的模版文件（原型示意）</label>
+            <input type="file" id="importFileInput" accept=".xlsx,.xls,.csv" disabled title="原型：正式环境启用上传解析" />
+            <p style="margin:8px 0 0;font-size:12px;color:#94a3b8;">正式环境支持 Excel / CSV；校验失败时返回错误明细文件。</p>
+          </div>
+          <div class="import-actions">
+            <button type="button" class="btn primary" id="btnDownloadTpl">下载导入模版（CSV，列结构与钉钉一致）</button>
+            <button type="button" class="btn-link" id="btnOpenTplPreview">查看列说明与填写要求</button>
+            <button type="button" class="btn secondary" id="btnSimulateImport">模拟：按模版示例生成一条待生效批次</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 模版预览 -->
+  <div class="overlay z-top" id="overlayTpl" aria-hidden="true">
+    <div class="dialog wide" role="dialog" aria-labelledby="dlgTplTitle">
+      <div class="dialog-hd">
+        <h2 id="dlgTplTitle">导入模版预览与填写要求</h2>
+        <button type="button" class="dialog-close" id="closeTpl" aria-label="关闭">×</button>
+      </div>
+      <div class="dialog-bd">
+        <div class="dialog-scroll">
+          <p style="margin-top:0;font-size:13px;color:#475569;">列结构与钉钉《业务费用导入模版》一致；各列合法取值见同文档「数据字典」页。
+            <a href="https://alidocs.dingtalk.com/i/nodes/r1R7q3QmWe7doAGOuZavPQnXJxkXOEP2" target="_blank" rel="noopener noreferrer">打开在线模版</a>
+          </p>
+          <div class="table-wrap tpl-table" style="max-height:none;">
+            <table>
+              <thead>
+                <tr>
+                  <th>分组</th>
+                  <th>列名</th>
+                  <th>必填</th>
+                  <th>说明</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr><td rowspan="5">费用信息</td><td>费用项</td><td>是</td><td>数据字典「费用项」，如品牌营销费。</td></tr>
+                <tr><td>归属月</td><td>是</td><td><code>YYYY-MM</code>（示例 2026-05）。</td></tr>
+                <tr><td>金额</td><td>是</td><td>正数，勿用公式。</td></tr>
+                <tr><td>币种</td><td>是</td><td>数据字典「币种」三字码，如 USD。</td></tr>
+                <tr><td>备注</td><td>否</td><td>补充费用背景、活动说明；列表与明细中展示。</td></tr>
+                <tr><td rowspan="5">渠道范围</td><td>区域</td><td>否</td><td>字典「区域」；多选英文逗号，如西欧区,北欧区,东欧区。</td></tr>
+                <tr><td>国家</td><td>否</td><td>字典「国家」，如美国 (US),德国 (DE)；与区域等取交。</td></tr>
+                <tr><td>渠道</td><td>否</td><td>字典「渠道」，如亚马逊、shopify。</td></tr>
+                <tr><td>店铺</td><td>否</td><td>字典「店铺」，如 Govee_US；GoveeLife 为 Goveelife_XX。</td></tr>
+                <tr><td>零售商</td><td>否</td><td>字典「零售商」；空表示不按零售商收窄。</td></tr>
+                <tr><td rowspan="9">产品范围</td><td>场景</td><td>否</td><td>字典「场景」；多选英文逗号。</td></tr>
+                <tr><td>品类</td><td>否</td><td>字典「品类」（多为场景/品类路径）。</td></tr>
+                <tr><td>MODEL</td><td>否</td><td>主数据 MODEL（与 SPU 前 5 位一致）。</td></tr>
+                <tr><td>SKU</td><td>否</td><td>8 位生产 SKU。</td></tr>
+                <tr><td>MSKU</td><td>否</td><td>精确 MSKU。</td></tr>
+                <tr><td>ASIN</td><td>否</td><td>亚马逊 ASIN；多选英文逗号。</td></tr>
+                <tr><td>新品标签</td><td>否</td><td>如 2024年新品；多选英文逗号；填写后仅匹配带该标签的产品。</td></tr>
+                <tr><td>订单号</td><td>否</td><td>订单号；多选英文逗号；用于订单维度收窄。</td></tr>
+                <tr><td>DL批次号</td><td>否</td><td>DL 批次号；多选英文逗号。</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p style="font-weight:700;margin:14px 0 6px;font-size:13px;">填写要求</p>
+          <ol class="req-list">
+            <li>费用项、币种及渠道/产品各列取值须与钉钉模版「数据字典」页一致；店铺、SKU、MSKU 等与系统主数据二次校验。</li>
+            <li>同一单元格内多个选项仅用<strong>英文逗号</strong>分隔，勿用分号或中文逗号。</li>
+            <li>系统按渠道范围与产品范围分别取交后分摊；按权重月营收占比将金额分摊至各 MSKU。</li>
+            <li>解析失败行写入错误文件回传；成功行生成待生效批次。</li>
+          </ol>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="../../../../规范/assets/multi-select-filter.js"></script>
+  <script src="../../../../规范/assets/month-range-picker.js"></script>
+  <script>
+    const IMPORT_TEMPLATE_DOC_URL = "https://alidocs.dingtalk.com/i/nodes/r1R7q3QmWe7doAGOuZavPQnXJxkXOEP2";
+    const CHANNEL_STORE_URL = "../../../../规范/基础数据/渠道店铺基础数据_v1.json";
+    const SCENE_CAT_URL = "../../../../规范/基础数据/场景品类基础数据_v1.json";
+
+    const FALLBACK_CHANNELS = [
+      { channel_name: "Govee", stores: ["Govee_US", "Govee_DE", "Govee_UK", "Govee_JP"] },
+      { channel_name: "Govee EU", stores: ["Govee_DE_1", "Govee_UK_1", "Govee_FR_1"] },
+      { channel_name: "GoveeLife", stores: ["Goveelife_US", "Goveelife_DE", "Goveelife_UK"] },
+      { channel_name: "独立站", stores: ["独立站-US", "独立站-EU", "独立站-UK"] },
+      { channel_name: "TTS", stores: ["TTS-US"] }
+    ];
+    const FALLBACK_SCENES = [
+      {
+        scene_name: "居家",
+        scene_code: "1",
+        categories: [
+          { category_code: "1006", category_name: "落地灯" },
+          { category_code: "1010", category_name: "灯带" }
+        ]
+      },
+      {
+        scene_name: "户外",
+        scene_code: "3",
+        categories: [
+          { category_code: "3005", category_name: "庭院灯" },
+          { category_code: "3002", category_name: "户外灯带" }
+        ]
+      },
+      {
+        scene_name: "观影",
+        scene_code: "2",
+        categories: [{ category_code: "2003", category_name: "TV灯带" }]
+      }
+    ];
+
+    /** 分摊预览 / 明细示意行（与渠道店铺、MSKU 主数据命名一致） */
+    const DEMO_MSKU_PREVIEW_ROWS = [
+      { store: "Govee_US", msku: "H6011001+Govee+US", sku: "H6011001", isNewProduct: true, retailer: "—", rev: 182000 },
+      { store: "Govee_US", msku: "H6159001+Govee+US", sku: "H6159001", isNewProduct: false, retailer: "—", rev: 121400 },
+      { store: "Govee_DE", msku: "H6011002+Govee+DE", sku: "H6011002", isNewProduct: true, retailer: "—", rev: 98400 },
+      { store: "独立站-US", msku: "H6198001+独立站+US", sku: "H6198001", isNewProduct: false, retailer: "—", rev: 76000 }
+    ];
+
+    const RETAILER_NAMES = ["Best Buy", "Target", "MediaMarkt", "Yodobashi"];
+
+    /** 与导入模版「数据字典」页一致（原型静态） */
+    const DICT_REGIONS = [
+      "北美区", "西欧区", "北欧区", "东欧区", "东南亚", "大洋洲", "拉美区", "中东及非洲区", "南亚区"
+    ];
+    const DICT_COUNTRIES = [
+      "美国 (US)", "德国 (DE)", "英国 (UK)", "日本 (JP)", "加拿大 (CA)", "法国 (FR)",
+      "意大利 (IT)", "西班牙 (ES)", "新加坡 (SG)", "澳大利亚 (AU)", "荷兰 (NL)", "瑞典 (SE)"
+    ];
+    const DICT_MODELS = ["H6011", "H6159", "H6198", "H6201", "H605B"];
+    const DICT_ASINS = ["B0C1234567", "B0D7654321", "B0E9988776", "B0F1122334"];
+
+    function parseCommaList(s) {
+      if (!s || !String(s).trim()) return [];
+      return String(s).split(",").map((x) => x.trim()).filter(Boolean);
+    }
+
+    const state = {
+      channels: [],
+      scenes: [],
+      /** @type {{ id: string, fee: string, belongMonth: string, currency: string, amt: number, channelSummary: string, productSummary: string, status: string, op: string, at: string }[]} */
+      historyRows: [],
+      historyNextSeq: 100,
+      msf: {},
+      qBelongMonthRange: null
+    };
+
+    function monthInRange(monthStr, start, end) {
+      if (!monthStr) return false;
+      if (!start && !end) return true;
+      if (start && !end) return monthStr >= start;
+      if (!start && end) return monthStr <= end;
+      return monthStr >= start && monthStr <= end;
+    }
+
+    function getFilterMonthRange() {
+      if (!state.qBelongMonthRange || typeof state.qBelongMonthRange.get !== "function") {
+        return { start: "", end: "" };
+      }
+      return state.qBelongMonthRange.get();
+    }
+
+    function normalizeBelongMonth(s) {
+      if (!s || typeof s !== "string") return "";
+      const t = s.trim();
+      if (/^\d{4}-\d{2}$/.test(t)) return t;
+      if (/^\d{8}-\d{8}$/.test(t)) return `${t.slice(0, 4)}-${t.slice(4, 6)}`;
+      if (/^\d{8}$/.test(t)) return `${t.slice(0, 4)}-${t.slice(4, 6)}`;
+      if (/^\d{4}-\d{2}-\d{2}$/.test(t)) return t.slice(0, 7);
+      if (t.includes("至") || (t.includes("-") && t.length > 7)) {
+        const parsed = parseBelongRangeLabel(t);
+        return parsed.start ? parsed.start.slice(0, 7) : "";
+      }
+      return t;
+    }
+
+    function getCreateBelongMonth() {
+      const month = document.getElementById("createBelongMonth")?.value?.trim() || "";
+      return { month, label: month };
+    }
+
+    function parseYmdDate(s) {
+      if (!s || typeof s !== "string") return null;
+      const p = s.trim().split("-");
+      if (p.length !== 3) return null;
+      const y = +p[0], mo = +p[1], da = +p[2];
+      const d = new Date(y, mo - 1, da);
+      if (d.getFullYear() !== y || d.getMonth() !== mo - 1 || d.getDate() !== da) return null;
+      return d;
+    }
+
+    function ymdCompact(s) {
+      return (s || "").replace(/-/g, "");
+    }
+
+    function formatDateRangeDisplay(start, end) {
+      if (!start) return "";
+      const e = end || start;
+      if (e === start) return start;
+      return `${start} 至 ${e}`;
+    }
+
+    function formatDateRangeCompact(start, end) {
+      if (!start) return "";
+      const e = end || start;
+      if (ymdCompact(e) === ymdCompact(start)) return ymdCompact(start);
+      return `${ymdCompact(start)}-${ymdCompact(e)}`;
+    }
+
+    function parseBelongRangeLabel(s) {
+      if (!s || typeof s !== "string") return { start: "", end: "", compact: "" };
+      const t = s.trim();
+      if (/^\d{8}-\d{8}$/.test(t)) {
+        const [a, b] = t.split("-");
+        const start = `${a.slice(0, 4)}-${a.slice(4, 6)}-${a.slice(6, 8)}`;
+        const end = `${b.slice(0, 4)}-${b.slice(4, 6)}-${b.slice(6, 8)}`;
+        return { start, end, compact: t };
+      }
+      if (t.includes("至")) {
+        const parts = t.split("至").map((x) => x.trim());
+        const start = parts[0] || "";
+        const end = parts[1] || start;
+        return { start, end, compact: formatDateRangeCompact(start, end) };
+      }
+      if (t.includes(" - ")) {
+        const parts = t.split(" - ").map((x) => x.trim());
+        const start = parts[0] || "";
+        const end = parts[1] || start;
+        return { start, end, compact: formatDateRangeCompact(start, end) };
+      }
+      if (/^\d{4}-\d{2}-\d{2}$/.test(t)) {
+        return { start: t, end: t, compact: ymdCompact(t) };
+      }
+      return { start: "", end: "", compact: t };
+    }
+
+    function getCreateDateRange() {
+      const { month } = getCreateBelongMonth();
+      if (!month) return { start: "", end: "", label: "", compact: "" };
+      const start = `${month}-01`;
+      const dayCount = daysInMonth(month);
+      const end = `${month}-${String(dayCount).padStart(2, "0")}`;
+      return { start, end, label: month, compact: month };
+    }
+
+    function daysInDateRange(start, end) {
+      const d1 = parseYmdDate(start);
+      const d2 = parseYmdDate(end || start);
+      if (!d1 || !d2) return 0;
+      const ms = Math.abs(d2 - d1);
+      return Math.floor(ms / 86400000) + 1;
+    }
+
+    function dateRangesOverlap(aStart, aEnd, bStart, bEnd) {
+      if (!aStart || !bStart) return true;
+      const ae = aEnd || aStart;
+      const be = bEnd || bStart;
+      return aStart <= be && ae >= bStart;
+    }
+
+    function joinScopeCell(arr) {
+      if (!arr || !arr.length) return "（空）";
+      return arr.join(", ");
+    }
+
+    function collectChannelScopeFromUi() {
+      return {
+        regions: state.msf.region?.getValues() || [],
+        countries: state.msf.country?.getValues() || [],
+        channels: state.msf.ch?.getValues() || [],
+        stores: state.msf.store?.getValues() || [],
+        retailers: state.msf.retailer?.getValues() || []
+      };
+    }
+
+    function collectProductScopeFromUi() {
+      const catKeys = state.msf.cat?.getValues() || [];
+      return {
+        scenes: state.msf.scene?.getValues() || [],
+        categories: catKeys.map((k) => catOptionKeyToLabel(k)),
+        models: state.msf.model?.getValues() || [],
+        skus: state.msf.sku?.getValues() || [],
+        mskus: state.msf.msku?.getValues() || [],
+        asins: state.msf.asin?.getValues() || [],
+        newProductTags: parseCommaList(document.getElementById("productNewTags")?.value),
+        orderNos: parseCommaList(document.getElementById("orderNos")?.value),
+        dlBatchNos: parseCommaList(document.getElementById("dlBatchNos")?.value)
+      };
+    }
+
+    function getProductNewTagsLabel() {
+      const tags = parseCommaList(document.getElementById("productNewTags")?.value);
+      return tags.length ? tags.join(",") : "（空）";
+    }
+
+    function resetCreatePreview() {
+      document.getElementById("btnConfirmImport").disabled = true;
+      const pw = document.getElementById("previewWrap");
+      const sc = document.getElementById("summaryCards");
+      if (pw) pw.style.display = "none";
+      if (sc) sc.style.display = "none";
+    }
+
+    function buildAllCategoryOptions() {
+      const seen = new Set();
+      const opts = [];
+      state.scenes.forEach((sc) => {
+        (sc.categories || []).forEach((c) => {
+          const key = `${sc.scene_name}|${c.category_code}`;
+          if (seen.has(key)) return;
+          seen.add(key);
+          opts.push({
+            value: key,
+            label: `${sc.scene_name} / ${c.category_code} ${c.category_name}`
+          });
+        });
+      });
+      return opts;
+    }
+
+    function buildAllStoreOptions() {
+      const seen = new Set();
+      const opts = [];
+      state.channels.forEach((c) => {
+        (c.stores || []).forEach((s) => {
+          if (seen.has(s)) return;
+          seen.add(s);
+          opts.push({ value: s, label: s });
+        });
+      });
+      return opts;
+    }
+
+    function buildChannelScopeSummaryFromObj(ch) {
+      if (!ch.regions?.length && !ch.countries?.length && !ch.channels?.length && !ch.stores?.length && !ch.retailers?.length) {
+        return "全渠道（各列空）";
+      }
+      const parts = [];
+      if (ch.regions?.length) parts.push(`区域:${ch.regions.join(",")}`);
+      if (ch.countries?.length) parts.push(`国家:${ch.countries.join(",")}`);
+      if (ch.channels?.length) parts.push(`渠道:${ch.channels.join(",")}`);
+      if (ch.stores?.length) parts.push(`店铺:${ch.stores.join(",")}`);
+      if (ch.retailers?.length) parts.push(`零售商:${ch.retailers.join(",")}`);
+      return parts.join("；");
+    }
+
+    function buildChannelScopeSummary(ch) {
+      return buildChannelScopeSummaryFromObj(ch);
+    }
+
+    function buildProductScopeSummaryFromObj(ps) {
+      if (!ps.scenes?.length && !ps.categories?.length && !ps.models?.length && !ps.skus?.length &&
+          !ps.mskus?.length && !ps.asins?.length && !ps.newProductTags?.length &&
+          !ps.orderNos?.length && !ps.dlBatchNos?.length) {
+        return "全产品（各列空）";
+      }
+      const parts = [];
+      if (ps.scenes?.length) parts.push(`场景:${ps.scenes.join(",")}`);
+      if (ps.categories?.length) parts.push(`品类:${ps.categories.join(",")}`);
+      if (ps.models?.length) parts.push(`MODEL:${ps.models.join(",")}`);
+      if (ps.skus?.length) parts.push(`SKU:${ps.skus.join(",")}`);
+      if (ps.mskus?.length) parts.push(`MSKU:${ps.mskus.join(",")}`);
+      if (ps.asins?.length) parts.push(`ASIN:${ps.asins.join(",")}`);
+      if (ps.newProductTags?.length) parts.push(`新品标签:${ps.newProductTags.join(",")}`);
+      if (ps.orderNos?.length) parts.push(`订单号:${ps.orderNos.join(",")}`);
+      if (ps.dlBatchNos?.length) parts.push(`DL批次号:${ps.dlBatchNos.join(",")}`);
+      return parts.join("；");
+    }
+
+    function buildProductScopeSummary(ps) {
+      return buildProductScopeSummaryFromObj(ps);
+    }
+
+    function renderTemplateScopeMetaHtml(opts) {
+      const ch = opts.channelScope || {};
+      const ps = opts.productScope || {};
+      return `
+        <strong>费用项：</strong>${escHtml(opts.fee || "—")}　
+        <strong>归属月：</strong>${escHtml(opts.belongMonth || opts.belongRange || "—")}　
+        <strong>金额：</strong>${opts.amt != null ? Number(opts.amt).toLocaleString("zh-CN", { minimumFractionDigits: 2 }) : "—"}　
+        <strong>币种：</strong>${escHtml(opts.currency || "—")}<br>
+        <strong>渠道范围 · 区域：</strong>${escHtml(joinScopeCell(ch.regions))}　
+        <strong>国家：</strong>${escHtml(joinScopeCell(ch.countries))}　
+        <strong>渠道：</strong>${escHtml(joinScopeCell(ch.channels))}　
+        <strong>店铺：</strong>${escHtml(joinScopeCell(ch.stores))}　
+        <strong>零售商：</strong>${escHtml(joinScopeCell(ch.retailers))}<br>
+        <strong>产品范围 · 场景：</strong>${escHtml(joinScopeCell(ps.scenes))}　
+        <strong>品类：</strong>${escHtml(joinScopeCell(ps.categories))}　
+        <strong>MODEL：</strong>${escHtml(joinScopeCell(ps.models))}　
+        <strong>SKU：</strong>${escHtml(joinScopeCell(ps.skus))}　
+        <strong>MSKU：</strong>${escHtml(joinScopeCell(ps.mskus))}　
+        <strong>ASIN：</strong>${escHtml(joinScopeCell(ps.asins))}　
+        <strong>新品标签：</strong>${escHtml(joinScopeCell(ps.newProductTags))}　
+        <strong>订单号：</strong>${escHtml(joinScopeCell(ps.orderNos))}　
+        <strong>DL批次号：</strong>${escHtml(joinScopeCell(ps.dlBatchNos))}${opts.remark ? `<br><strong>备注：</strong>${escHtml(opts.remark)}` : ""}
+      `;
+    }
+
+    function syncClearableControl(el) {
+      if (!el) return;
+      const wrap = el.closest(".ctl-wrap");
+      if (!wrap) return;
+      const btn = wrap.querySelector(".ctl-clear");
+      if (!btn) return;
+      const hasVal = el.tagName === "INPUT" ? !!el.value.trim() : !!el.value;
+      btn.hidden = !hasVal;
+    }
+
+    function syncClearableSelect(sel) {
+      syncClearableControl(sel);
+    }
+
+    function wireClearableSelects() {
+      document.querySelectorAll(".ctl-wrap select.ctl").forEach((sel) => {
+        syncClearableSelect(sel);
+        sel.addEventListener("change", () => syncClearableSelect(sel));
+        const btn = sel.parentElement && sel.parentElement.querySelector(".ctl-clear");
+        if (!btn) return;
+        btn.addEventListener("click", (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          if (!sel.value) return;
+          sel.value = "";
+          syncClearableSelect(sel);
+          sel.dispatchEvent(new Event("change", { bubbles: true }));
+        });
+      });
+      document.querySelectorAll(".ctl-wrap input.ctl").forEach((inp) => {
+        syncClearableControl(inp);
+        inp.addEventListener("input", () => syncClearableControl(inp));
+        const btn = inp.parentElement && inp.parentElement.querySelector(".ctl-clear");
+        if (!btn) return;
+        btn.addEventListener("click", (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          if (!inp.value.trim()) return;
+          inp.value = "";
+          syncClearableControl(inp);
+          inp.dispatchEvent(new Event("input", { bubbles: true }));
+        });
+      });
+    }
+
+    function prevMonthYm(belongYm) {
+      const [y, m] = belongYm.split("-").map(Number);
+      const d = new Date(y, m - 2, 1);
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+    }
+    function daysInMonth(ym) {
+      const [y, m] = ym.split("-").map(Number);
+      return new Date(y, m, 0).getDate();
+    }
+
+    async function loadJson(url, fallback) {
+      try {
+        const r = await fetch(url);
+        if (!r.ok) throw new Error(String(r.status));
+        return await r.json();
+      } catch {
+        return fallback;
+      }
+    }
+
+    function fillChannelSelect(sel, includeAll) {
+      sel.innerHTML = "";
+      if (includeAll) {
+        const o = document.createElement("option");
+        o.value = "";
+        o.textContent = "全部";
+        sel.appendChild(o);
+      }
+      state.channels.forEach((c) => {
+        const o = document.createElement("option");
+        o.value = c.channel_name;
+        o.textContent = c.channel_name;
+        sel.appendChild(o);
+      });
+    }
+
+    function fillStoreSelect(storeSel, channelName) {
+      storeSel.innerHTML = "";
+      const all = document.createElement("option");
+      all.value = "";
+      all.textContent = "全部";
+      storeSel.appendChild(all);
+      if (!channelName) {
+        const seen = new Set();
+        state.channels.forEach((c) => {
+          (c.stores || []).forEach((s) => {
+            if (seen.has(s)) return;
+            seen.add(s);
+            const o = document.createElement("option");
+            o.value = s;
+            o.textContent = s;
+            storeSel.appendChild(o);
+          });
+        });
+        return;
+      }
+      const ch = state.channels.find((c) => c.channel_name === channelName);
+      (ch && ch.stores ? ch.stores : []).forEach((s) => {
+        const o = document.createElement("option");
+        o.value = s;
+        o.textContent = s;
+        storeSel.appendChild(o);
+      });
+    }
+
+    function fillSceneSelect(sel, includeAll) {
+      sel.innerHTML = "";
+      if (includeAll) {
+        const o = document.createElement("option");
+        o.value = "";
+        o.textContent = "全部";
+        sel.appendChild(o);
+      }
+      state.scenes.forEach((sc) => {
+        const o = document.createElement("option");
+        o.value = sc.scene_name;
+        o.textContent = sc.scene_name;
+        sel.appendChild(o);
+      });
+    }
+
+    function fillCategorySelect(catSel, sceneName) {
+      catSel.innerHTML = "";
+      const all = document.createElement("option");
+      all.value = "";
+      all.textContent = "全部";
+      catSel.appendChild(all);
+      if (!sceneName) return;
+      const sc = state.scenes.find((s) => s.scene_name === sceneName);
+      (sc && sc.categories ? sc.categories : []).forEach((c) => {
+        const o = document.createElement("option");
+        o.value = c.category_code;
+        o.textContent = `${c.category_code} ${c.category_name}`;
+        catSel.appendChild(o);
+      });
+    }
+
+    function wireChannelStore(channelSel, storeSel) {
+      channelSel.addEventListener("change", () => {
+        fillStoreSelect(storeSel, channelSel.value);
+        syncClearableSelect(channelSel);
+        syncClearableSelect(storeSel);
+      });
+    }
+
+    function wireSceneCategory(sceneSel, catSel) {
+      sceneSel.addEventListener("change", () => {
+        fillCategorySelect(catSel, sceneSel.value);
+        syncClearableSelect(sceneSel);
+        syncClearableSelect(catSel);
+      });
+    }
+
+    function setSeg(container, key, mode) {
+      state[key] = mode;
+      container.querySelectorAll("button").forEach((b) => {
+        b.classList.toggle("active", b.dataset.mode === mode);
+      });
+    }
+
+    function catOptionKeyToLabel(key) {
+      const parts = String(key).split("|");
+      const sn = parts[0];
+      const code = parts[1];
+      const sc = state.scenes.find((s) => s.scene_name === sn);
+      const cat = sc && sc.categories ? sc.categories.find((c) => c.category_code === code) : null;
+      return cat ? `${sn} / ${code} ${cat.category_name}` : key;
+    }
+
+    function mountAllSupplementMsf() {
+      if (state.msf._mounted) return;
+      if (typeof MultiSelectFilter === "undefined") {
+        console.warn("multi-select-filter.js 未加载");
+        return;
+      }
+      state.msf._mounted = true;
+      const z = 560;
+      const onScopeChange = () => {
+        resetCreatePreview();
+        updateRuleText();
+      };
+      const mk = (id, opts) => {
+        const el = document.getElementById(id);
+        if (!el) return null;
+        return MultiSelectFilter.mount(el, {
+          zIndex: z,
+          onChange: onScopeChange,
+          summaryMode: "tags",
+          tagMaxLen: 24,
+          useBodyPortal: true,
+          ...opts
+        });
+      };
+      state.msf.region = mk("msfCreateRegion", {
+        placeholder: "区域（可多选，可留空）",
+        showSelectAll: true,
+        getOptions: () => DICT_REGIONS.map((n) => ({ value: n, label: n }))
+      });
+      state.msf.country = mk("msfCreateCountry", {
+        placeholder: "国家（可多选，可留空）",
+        showSelectAll: true,
+        getOptions: () => DICT_COUNTRIES.map((n) => ({ value: n, label: n }))
+      });
+      state.msf.ch = mk("msfCreateChannel", {
+        placeholder: "渠道（可多选，可留空）",
+        showSelectAll: true,
+        getOptions: () => state.channels.map((c) => ({ value: c.channel_name, label: c.channel_name }))
+      });
+      state.msf.store = mk("msfCreateStore", {
+        placeholder: "店铺（可多选，可留空）",
+        showSelectAll: true,
+        getOptions: () => buildAllStoreOptions()
+      });
+      state.msf.scene = mk("msfCreateScene", {
+        placeholder: "场景（可多选，可留空）",
+        showSelectAll: true,
+        getOptions: () => state.scenes.map((sc) => ({ value: sc.scene_name, label: sc.scene_name }))
+      });
+      state.msf.cat = mk("msfCreateCategory", {
+        placeholder: "品类（可多选，可留空）",
+        showSelectAll: true,
+        getOptions: () => buildAllCategoryOptions()
+      });
+      state.msf.model = mk("msfCreateModel", {
+        placeholder: "点击选择 MODEL（可多选，无「全部」）",
+        showSelectAll: false,
+        getOptions: () => DICT_MODELS.map((m) => ({ value: m, label: m }))
+      });
+      state.msf.sku = mk("msfCreateSku", {
+        placeholder: "点击选择 SKU（可多选，无「全部」）",
+        showSelectAll: false,
+        getOptions: () => buildSkuPool().map((sku) => ({ value: sku, label: sku }))
+      });
+      state.msf.msku = mk("msfCreateMsku", {
+        placeholder: "点击选择 MSKU（可多选，无「全部」）",
+        showSelectAll: false,
+        getOptions: () => buildMskuPool().map((m) => ({ value: m, label: m }))
+      });
+      state.msf.asin = mk("msfCreateAsin", {
+        placeholder: "点击选择 ASIN（可多选，无「全部」）",
+        showSelectAll: false,
+        getOptions: () => DICT_ASINS.map((a) => ({ value: a, label: a }))
+      });
+      state.msf.retailer = mk("msfCreateRetailer", {
+        placeholder: "点击选择零售商（可多选）",
+        showSelectAll: true,
+        getOptions: () => RETAILER_NAMES.map((n) => ({ value: n, label: n }))
+      });
+    }
+
+    function formatNewProductTag(isNew) {
+      return isNew ? "2024年新品" : "—";
+    }
+
+    function buildSkuPool() {
+      const set = new Set(["H6011001", "H6011002", "H6159001", "H6198001", "H6201001", "H605B001"]);
+      state.scenes.forEach((sc) => {
+        (sc.categories || []).forEach((c) => {
+          set.add(`SKU-${c.category_code}`);
+        });
+      });
+      return [...set].sort();
+    }
+
+    function buildMskuPool() {
+      const arr = [];
+      const skuSamples = ["H6011001", "H6011002", "H6159001", "H6198001"];
+      state.channels.forEach((ch) => {
+        (ch.stores || []).slice(0, 3).forEach((store) => {
+          skuSamples.forEach((sku) => {
+            const region = /_([A-Z]{2})$/.exec(store)?.[1] || "US";
+            arr.push(`${sku}+${ch.channel_name}+${region}`);
+          });
+        });
+      });
+      if (!arr.length) {
+        arr.push("H6011001+Govee+US", "H6159001+独立站+US", "H6198001+独立站+US");
+      }
+      return [...new Set(arr)].slice(0, 120);
+    }
+
+    function updateRuleText() {
+      const { month, label } = getCreateBelongMonth();
+      const weight = month ? prevMonthYm(month) : "—";
+      const amt = Number(document.getElementById("totalAmount").value) || 0;
+      const fee = document.getElementById("feeType").value;
+      const currency = document.getElementById("feeCurrency")?.value || "CNY";
+      const ch = collectChannelScopeFromUi();
+      const ps = collectProductScopeFromUi();
+      const el = document.getElementById("ruleText");
+      if (!el) return;
+      const remark = document.getElementById("feeRemark")?.value?.trim() || "";
+      el.innerHTML = `
+        ${renderTemplateScopeMetaHtml({
+          fee,
+          belongMonth: label,
+          amt,
+          currency,
+          remark,
+          channelScope: ch,
+          productScope: ps
+        })}<br>
+        <strong>交集：</strong>渠道五列、产品九列分别取交后得到分摊对象集合。<br>
+        <strong>权重：</strong>按权重月 ${weight}（归属月的上月）各 MSKU 营收占比，将<strong>金额</strong>分摊至各行。
+      `;
+    }
+
+    function mockPreviewRows() {
+      const ch = collectChannelScopeFromUi();
+      const ps = collectProductScopeFromUi();
+      let rows = DEMO_MSKU_PREVIEW_ROWS.map((r) => ({ ...r }));
+      if (ps.newProductTags?.length) rows = rows.filter((r) => r.isNewProduct);
+      if (ch.retailers.length) {
+        rows.forEach((r, i) => { r.retailer = ch.retailers[i % ch.retailers.length]; });
+      }
+      return rows;
+    }
+
+    function renderPreviewRowHtml(r, totalRev, amt) {
+      const w = totalRev ? r.rev / totalRev : 0;
+      const alloc = amt * w;
+      const np = formatNewProductTag(!!r.isNewProduct);
+      const npCls = r.isNewProduct ? "tag-new" : "tag-old";
+      return `<tr>
+          <td>${escHtml(r.store)}</td>
+          <td>${escHtml(r.msku)}</td>
+          <td><span class="${npCls}">${np}</span></td>
+          <td>${escHtml(r.retailer)}</td>
+          <td class="num">${r.rev.toLocaleString("zh-CN")}</td>
+          <td class="num">${(w * 100).toFixed(2)}%</td>
+          <td class="num">${alloc.toFixed(2)}</td>
+        </tr>`;
+    }
+
+    function escHtml(s) {
+      return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/"/g, "&quot;");
+    }
+
+    /** 历史行「明细」弹窗：完整口径 + 按 MSKU 分摊表（原型模拟） */
+    const HISTORY_DETAIL_BY_ID = {
+      "IMP-202604-001": {
+        fee: "广告费",
+        belongMonth: "2026-04",
+        currency: "USD",
+        amt: 10000,
+        remark: "4 月站内广告投放",
+        channelScope: {
+          regions: [],
+          countries: [],
+          channels: ["Govee"],
+          stores: [],
+          retailers: []
+        },
+        productScope: { scenes: ["户外", "居家"], categories: [], models: [], skus: [], mskus: [], asins: [], newProductTags: ["2024年新品"], orderNos: [], dlBatchNos: [] },
+        st: "已生效",
+        op: "zhangsan",
+        at: "2026-04-02 10:20",
+        rawRows: [
+          { store: "Govee_US", msku: "H6011001+Govee+US", isNewProduct: true, retailer: "—", rev: 182000 },
+          { store: "Govee_DE", msku: "H6011002+Govee+DE", isNewProduct: true, retailer: "—", rev: 98400 }
+        ]
+      },
+      "IMP-202603-018": {
+        fee: "推广费",
+        belongMonth: "2026-03",
+        currency: "CNY",
+        amt: 3200,
+        remark: "",
+        channelScope: { regions: [], countries: [], channels: [], stores: [], retailers: [] },
+        productScope: { scenes: [], categories: [], models: [], skus: [], mskus: [], asins: [], newProductTags: [], orderNos: [], dlBatchNos: [] },
+        st: "已生效",
+        op: "lisi",
+        at: "2026-03-28 16:05",
+        rawRows: [
+          { store: "Govee_US", msku: "H6011001+Govee+US", isNewProduct: true, retailer: "—", rev: 210000 },
+          { store: "独立站-US", msku: "H6198001+独立站+US", isNewProduct: false, retailer: "—", rev: 126000 }
+        ]
+      },
+      "IMP-202603-017": {
+        fee: "广告费",
+        belongMonth: "2026-03",
+        currency: "USD",
+        amt: 8000,
+        remark: "新品标签收窄测试",
+        channelScope: {
+          regions: [],
+          countries: [],
+          channels: [],
+          stores: ["Govee_US", "Govee_DE"],
+          retailers: ["Best Buy", "Target"]
+        },
+        productScope: { scenes: [], categories: [], models: [], skus: ["H6011001", "H6011002"], mskus: [], asins: [], newProductTags: [], orderNos: [], dlBatchNos: [] },
+        st: "待生效",
+        op: "wangwu",
+        at: "2026-03-15 09:12",
+        rawRows: [
+          { store: "Govee_US", msku: "H6011001+Govee+US", isNewProduct: true, retailer: "Best Buy", rev: 95000 },
+          { store: "Govee_US", msku: "H6011002+Govee+US", isNewProduct: true, retailer: "Target", rev: 72000 },
+          { store: "Govee_DE", msku: "H6011001+Govee+DE", isNewProduct: true, retailer: "Best Buy", rev: 61000 },
+          { store: "Govee_DE", msku: "H6011002+Govee+DE", isNewProduct: true, retailer: "Target", rev: 48000 }
+        ]
+      },
+      "IMP-202602-099": {
+        fee: "样品费",
+        belongMonth: "2026-02",
+        currency: "CNY",
+        amt: 500,
+        remark: "已作废批次样例",
+        channelScope: { regions: [], countries: [], channels: [], stores: [], retailers: [] },
+        productScope: { scenes: [], categories: [], models: [], skus: [], mskus: [], asins: [], newProductTags: [], orderNos: [], dlBatchNos: [] },
+        st: "失效",
+        op: "zhao",
+        at: "2026-02-01 09:00",
+        rawRows: [
+          { store: "Govee_US", msku: "H6011001+Govee+US", isNewProduct: true, retailer: "—", rev: 100000 }
+        ]
+      }
+    };
+
+    function openHistoryDetail(batchId) {
+      const d = HISTORY_DETAIL_BY_ID[batchId];
+      if (!d) {
+        alert("原型：该批次暂无明细数据。");
+        return;
+      }
+      const rowLive = state.historyRows.find((r) => r.id === batchId);
+      if (rowLive) d.st = rowLive.status;
+      const belongMonth = normalizeBelongMonth(d.belongMonth || d.belongRange || d.month || "");
+      const wm = belongMonth ? prevMonthYm(belongMonth) : "—";
+      const tot = d.rawRows.reduce((s, r) => s + r.rev, 0);
+      const rows = d.rawRows.map((r) => {
+        const w = tot ? r.rev / tot : 0;
+        const alloc = d.amt * w;
+        return { ...r, w, alloc };
+      });
+      const ch = d.channelScope || {};
+      const ps = d.productScope || {};
+      document.getElementById("dlgHistTitle").textContent = `分摊明细 · ${batchId}`;
+      document.getElementById("historyDetailMeta").innerHTML = `
+        <div style="line-height:1.75;font-size:13px;color:#78350f;">
+          <strong>导入批次号：</strong>${escHtml(batchId)}<br>
+          ${renderTemplateScopeMetaHtml({
+            fee: d.fee,
+            belongMonth: belongMonth || d.belongMonth || d.month,
+            amt: d.amt,
+            currency: d.currency || "—",
+            remark: (rowLive && rowLive.remark) || d.remark || "",
+            channelScope: ch,
+            productScope: ps
+          })}<br>
+          <strong>权重月：</strong>${escHtml(wm)}（归属月的上月）<br>
+          <strong>状态：</strong>${escHtml(rowLive ? rowLive.status : d.st)}　<strong>操作人：</strong>${escHtml(d.op)}　<strong>创建时间：</strong>${escHtml(d.at)}<br>
+          <strong>纳入管报计算：</strong>${(rowLive && rowLive.status === "已生效") || (!rowLive && d.st === "已生效") ? "是（仅已生效批次参与）" : "否"}
+        </div>
+      `;
+      document.getElementById("historyDetailBody").innerHTML = rows.map((r) => `
+        <tr>
+          <td>${escHtml(r.store)}</td>
+          <td>${escHtml(r.msku)}</td>
+          <td><span class="${r.isNewProduct ? "tag-new" : "tag-old"}">${formatNewProductTag(!!r.isNewProduct)}</span></td>
+          <td>${escHtml(r.retailer)}</td>
+          <td class="num">${r.rev.toLocaleString("zh-CN")}</td>
+          <td class="num">${(r.w * 100).toFixed(2)}%</td>
+          <td class="num">${r.alloc.toFixed(2)}</td>
+        </tr>
+      `).join("");
+      openOverlay("overlayHistoryDetail");
+    }
+
+    function statusClass(st) {
+      if (st === "待生效") return "st-pending";
+      if (st === "已生效") return "st-active";
+      if (st === "失效") return "st-invalid";
+      return "";
+    }
+
+    function syncHistoryDetailStatus(batchId) {
+      const row = state.historyRows.find((x) => x.id === batchId);
+      const d = HISTORY_DETAIL_BY_ID[batchId];
+      if (row && d) d.st = row.status;
+    }
+
+    function getFilteredHistoryRows() {
+      const stF = document.getElementById("qStatus")?.value ?? "";
+      const feeF = document.getElementById("qFeeType")?.value ?? "";
+      const remarkKw = (document.getElementById("qRemark")?.value ?? "").trim().toLowerCase();
+      const range = getFilterMonthRange();
+      return state.historyRows.filter((r) => {
+        if (stF && r.status !== stF) return false;
+        if (feeF && r.fee !== feeF) return false;
+        if (remarkKw) {
+          const remark = String(r.remark || "").toLowerCase();
+          if (!remark.includes(remarkKw)) return false;
+        }
+        if (range.start || range.end) {
+          const rowMonth = normalizeBelongMonth(r.belongMonth || r.belongRange || r.month || "");
+          if (!monthInRange(rowMonth, range.start, range.end)) return false;
+        }
+        return true;
+      });
+    }
+
+    function getSelectedHistoryIds() {
+      return [...document.querySelectorAll("#historyBody input.hist-row-cb:checked")].map((cb) => cb.dataset.id);
+    }
+
+    function renderRowActions(r) {
+      const id = String(r.id).replace(/"/g, "");
+      const parts = [`<button type="button" class="btn-link" data-action="detail" data-id="${id}">明细</button>`];
+      if (r.status === "待生效") {
+        parts.push(`<button type="button" class="btn-link" data-action="activate" data-id="${id}">生效</button>`);
+        parts.push(`<button type="button" class="btn-link" data-action="deactivate" data-id="${id}">失效</button>`);
+      } else if (r.status === "已生效") {
+        parts.push(`<button type="button" class="btn-link" data-action="deactivate" data-id="${id}">失效</button>`);
+      } else if (r.status === "失效") {
+        parts.push(`<button type="button" class="btn-link" data-action="delete" data-id="${id}">删除</button>`);
+      }
+      return `<div class="hist-actions">${parts.join("")}</div>`;
+    }
+
+    function nextBatchId() {
+      const d = new Date();
+      const ymd = `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, "0")}${String(d.getDate()).padStart(2, "0")}`;
+      return `IMP-${ymd}-${String(state.historyNextSeq++).padStart(3, "0")}`;
+    }
+
+    function formatNow() {
+      const d = new Date();
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+    }
+
+    function setHistoryStatusByIds(ids, newStatus) {
+      ids.forEach((id) => {
+        const row = state.historyRows.find((x) => x.id === id);
+        if (row) row.status = newStatus;
+        syncHistoryDetailStatus(id);
+      });
+    }
+
+    function deleteHistoryByIds(ids) {
+      const set = new Set(ids);
+      state.historyRows = state.historyRows.filter((r) => !set.has(r.id));
+      ids.forEach((id) => { delete HISTORY_DETAIL_BY_ID[id]; });
+    }
+
+    function remarkCellHtml(text) {
+      if (!text) return '<span style="color:#94a3b8;">—</span>';
+      const t = String(text);
+      const short = t.length > 20 ? `${t.slice(0, 20)}…` : t;
+      return `<span title="${escHtml(t)}" style="font-size:12px;">${escHtml(short)}</span>`;
+    }
+
+    function renderHistory() {
+      const list = getFilteredHistoryRows();
+      const selAll = document.getElementById("histSelectAll");
+      if (selAll) selAll.checked = false;
+      document.getElementById("historyBody").innerHTML = list.map((r) => `
+        <tr>
+          <td class="col-check"><input type="checkbox" class="hist-row-cb" data-id="${String(r.id).replace(/"/g, "")}" aria-label="选择该行"></td>
+          <td>${escHtml(r.id)}</td>
+          <td>${escHtml(r.fee)}</td>
+          <td>${escHtml(normalizeBelongMonth(r.belongMonth || r.belongRange || r.month || ""))}</td>
+          <td class="num">${r.amt.toLocaleString("zh-CN")}</td>
+          <td>${escHtml(r.currency || "—")}</td>
+          <td>${escHtml(r.channelSummary || r.shop || "")}</td>
+          <td>${escHtml(r.productSummary || r.mskuScopeSummary || "")}</td>
+          <td>${remarkCellHtml(r.remark)}</td>
+          <td><span class="${statusClass(r.status)}">${escHtml(r.status)}</span></td>
+          <td>${escHtml(r.op)}</td>
+          <td>${escHtml(r.at)}</td>
+          <td>${renderRowActions(r)}</td>
+        </tr>
+      `).join("");
+    }
+
+    function downloadImportTemplate() {
+      const bom = "\ufeff";
+      const headers = [
+        "费用项",
+        "归属月",
+        "金额",
+        "币种",
+        "区域",
+        "国家",
+        "渠道",
+        "店铺",
+        "零售商",
+        "场景",
+        "品类",
+        "MODEL",
+        "SKU",
+        "MSKU",
+        "ASIN",
+        "新品标签",
+        "订单号",
+        "DL批次号",
+        "备注"
+      ];
+      const sample = [
+        "品牌营销费",
+        "2026-05",
+        "10000",
+        "USD",
+        "西欧区,北欧区,东欧区",
+        "美国 (US),德国 (DE),英国 (UK)",
+        "",
+        "",
+        "",
+        "居家,户外",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "Q2 品牌联合投放补充说明"
+      ];
+      const csv = bom + headers.join(",") + "\n" + sample.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(",") + "\n";
+      const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = "业务费用导入模版.csv";
+      a.click();
+      URL.revokeObjectURL(a.href);
+    }
+
+    function openOverlay(id) {
+      const o = document.getElementById(id);
+      o.classList.add("show");
+      o.setAttribute("aria-hidden", "false");
+    }
+    function closeOverlay(id) {
+      const o = document.getElementById(id);
+      o.classList.remove("show");
+      o.setAttribute("aria-hidden", "true");
+    }
+
+    function togglePageLogicPanel() {
+      const p = document.getElementById("pageLogicPanel");
+      if (!p) return;
+      if (p.hasAttribute("hidden")) {
+        p.removeAttribute("hidden");
+        p.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      } else {
+        p.setAttribute("hidden", "");
+      }
+    }
+    document.getElementById("btnPageLogicFromTop").addEventListener("click", () => togglePageLogicPanel());
+
+    document.getElementById("btnOpenCreate").addEventListener("click", () => {
+      const remarkEl = document.getElementById("feeRemark");
+      if (remarkEl) remarkEl.value = "";
+      updateRuleText();
+      openOverlay("overlayCreate");
+    });
+    document.getElementById("closeCreate").addEventListener("click", () => closeOverlay("overlayCreate"));
+    document.getElementById("btnOpenImport").addEventListener("click", () => openOverlay("overlayImport"));
+    document.getElementById("closeImport").addEventListener("click", () => closeOverlay("overlayImport"));
+    document.getElementById("btnDownloadTpl").addEventListener("click", downloadImportTemplate);
+    document.getElementById("btnSimulateImport").addEventListener("click", () => {
+      const id = nextBatchId();
+      const at = formatNow();
+      const channelScope = {
+        regions: ["西欧区", "北欧区", "东欧区"],
+        countries: ["美国 (US)", "德国 (DE)", "英国 (UK)"],
+        channels: [],
+        stores: [],
+        retailers: []
+      };
+      const productScope = { scenes: [], categories: [], models: [], skus: [], mskus: [], asins: [], newProductTags: [], orderNos: [], dlBatchNos: [] };
+      state.historyRows.unshift({
+        id,
+        fee: "品牌营销费",
+        belongMonth: "2026-05",
+        currency: "USD",
+        amt: 10000,
+        remark: "模版示例：品牌联合投放",
+        channelSummary: buildChannelScopeSummaryFromObj(channelScope),
+        productSummary: buildProductScopeSummaryFromObj(productScope),
+        status: "待生效",
+        op: "（导入任务）",
+        at
+      });
+      HISTORY_DETAIL_BY_ID[id] = {
+        fee: "品牌营销费",
+        belongMonth: "2026-05",
+        currency: "USD",
+        amt: 10000,
+        remark: "模版示例：品牌联合投放",
+        channelScope,
+        productScope,
+        st: "待生效",
+        op: "（导入任务）",
+        at,
+        rawRows: [
+          { store: "Govee_DE", msku: "H6011002+Govee+DE", isNewProduct: false, retailer: "—", rev: 98400 },
+          { store: "Govee_UK", msku: "H6159001+Govee+UK", isNewProduct: false, retailer: "—", rev: 76200 }
+        ]
+      };
+      closeOverlay("overlayImport");
+      renderHistory();
+      alert(`原型：已按模版示例行模拟导入，生成待生效批次 ${id}。`);
+    });
+    document.getElementById("btnOpenTplPreview").addEventListener("click", () => {
+      closeOverlay("overlayImport");
+      openOverlay("overlayTpl");
+    });
+    document.getElementById("closeTpl").addEventListener("click", () => closeOverlay("overlayTpl"));
+
+    document.getElementById("overlayCreate").addEventListener("click", (e) => {
+      if (e.target.id === "overlayCreate") closeOverlay("overlayCreate");
+    });
+    document.getElementById("overlayImport").addEventListener("click", (e) => {
+      if (e.target.id === "overlayImport") closeOverlay("overlayImport");
+    });
+    document.getElementById("overlayTpl").addEventListener("click", (e) => {
+      if (e.target.id === "overlayTpl") closeOverlay("overlayTpl");
+    });
+
+    document.getElementById("historyBody").addEventListener("click", (e) => {
+      const btn = e.target.closest("button[data-action][data-id]");
+      if (!btn) return;
+      const action = btn.getAttribute("data-action");
+      const id = btn.getAttribute("data-id");
+      const row = state.historyRows.find((x) => x.id === id);
+      if (!row) return;
+      if (action === "detail") {
+        openHistoryDetail(id);
+        return;
+      }
+      if (action === "activate") {
+        if (row.status !== "待生效") return;
+        row.status = "已生效";
+        syncHistoryDetailStatus(id);
+        renderHistory();
+        return;
+      }
+      if (action === "deactivate") {
+        if (row.status !== "待生效" && row.status !== "已生效") return;
+        row.status = "失效";
+        syncHistoryDetailStatus(id);
+        renderHistory();
+        return;
+      }
+      if (action === "delete") {
+        if (row.status !== "失效") return;
+        if (!confirm(`确定删除批次 ${id}？（原型：仅从列表移除）`)) return;
+        deleteHistoryByIds([id]);
+        renderHistory();
+      }
+    });
+
+    document.getElementById("histSelectAll").addEventListener("change", (e) => {
+      document.querySelectorAll("#historyBody .hist-row-cb").forEach((cb) => {
+        cb.checked = e.target.checked;
+      });
+    });
+
+    document.getElementById("btnBatchActivate").addEventListener("click", () => {
+      const ids = getSelectedHistoryIds();
+      if (!ids.length) {
+        alert("请先勾选至少一条历史记录。");
+        return;
+      }
+      const bad = ids.filter((id) => {
+        const r = state.historyRows.find((x) => x.id === id);
+        return !r || r.status !== "待生效";
+      });
+      if (bad.length) {
+        alert("批量生效仅允许「待生效」状态；请取消勾选其他状态的行。");
+        return;
+      }
+      setHistoryStatusByIds(ids, "已生效");
+      renderHistory();
+    });
+
+    document.getElementById("btnBatchDeactivate").addEventListener("click", () => {
+      const ids = getSelectedHistoryIds();
+      if (!ids.length) {
+        alert("请先勾选至少一条历史记录。");
+        return;
+      }
+      const bad = ids.filter((id) => {
+        const r = state.historyRows.find((x) => x.id === id);
+        return !r || (r.status !== "待生效" && r.status !== "已生效");
+      });
+      if (bad.length) {
+        alert("批量失效仅允许「待生效」或「已生效」；已失效的批次请取消勾选。");
+        return;
+      }
+      setHistoryStatusByIds(ids, "失效");
+      renderHistory();
+    });
+
+    document.getElementById("btnBatchDelete").addEventListener("click", () => {
+      const ids = getSelectedHistoryIds();
+      if (!ids.length) {
+        alert("请先勾选至少一条历史记录。");
+        return;
+      }
+      const bad = ids.filter((id) => {
+        const r = state.historyRows.find((x) => x.id === id);
+        return !r || r.status !== "失效";
+      });
+      if (bad.length) {
+        alert("批量删除仅允许「失效」状态；请取消勾选待生效/已生效行。");
+        return;
+      }
+      if (!confirm(`确定批量删除 ${ids.length} 条失效批次？（原型：从列表移除）`)) return;
+      deleteHistoryByIds(ids);
+      renderHistory();
+    });
+
+    document.getElementById("qStatus").addEventListener("change", () => renderHistory());
+    document.getElementById("qFeeType").addEventListener("change", () => renderHistory());
+    document.getElementById("closeHistoryDetail").addEventListener("click", () => closeOverlay("overlayHistoryDetail"));
+    document.getElementById("overlayHistoryDetail").addEventListener("click", (e) => {
+      if (e.target.id === "overlayHistoryDetail") closeOverlay("overlayHistoryDetail");
+    });
+
+    ["productNewTags", "orderNos", "dlBatchNos"].forEach((id) => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.addEventListener("input", () => {
+        resetCreatePreview();
+        updateRuleText();
+      });
+    });
+
+    document.getElementById("btnPreview").addEventListener("click", () => {
+      const { month, label } = getCreateBelongMonth();
+      const amt = Number(document.getElementById("totalAmount").value) || 0;
+      const currency = document.getElementById("feeCurrency")?.value || "CNY";
+      const fee = document.getElementById("feeType").value;
+      if (!month) {
+        alert("请填写归属月。");
+        return;
+      }
+      if (!amt) {
+        alert("请填写金额。");
+        return;
+      }
+      const rows = mockPreviewRows();
+      const ps = collectProductScopeFromUi();
+      if (!rows.length) {
+        alert(
+          ps.newProductTags?.length
+            ? "当前范围与「新品标签」条件下无 MSKU 可分摊，请放宽范围或清空新品标签。"
+            : "当前范围交集为空，无法预览分摊。"
+        );
+        return;
+      }
+      const ch = collectChannelScopeFromUi();
+      const totalRev = rows.reduce((s, r) => s + r.rev, 0);
+      document.getElementById("previewBody").innerHTML = rows
+        .map((r) => renderPreviewRowHtml(r, totalRev, amt))
+        .join("");
+      document.getElementById("previewWrap").style.display = "block";
+      document.getElementById("summaryCards").style.display = "grid";
+      document.getElementById("summaryCards").innerHTML = `
+        <div class="sum-card"><div class="k">MSKU 数（模拟）</div><div class="v">${rows.length}${ps.newProductTags?.length ? " · 新品标签" : ""}</div></div>
+        <div class="sum-card"><div class="k">归属月</div><div class="v" style="font-size:12px;">${label}</div></div>
+        <div class="sum-card"><div class="k">金额</div><div class="v">${amt.toFixed(2)} ${currency}</div></div>
+      `;
+      document.getElementById("btnConfirmImport").disabled = false;
+    });
+
+    document.getElementById("btnConfirmImport").addEventListener("click", () => {
+      const { month, label } = getCreateBelongMonth();
+      const amt = Number(document.getElementById("totalAmount").value) || 0;
+      const fee = document.getElementById("feeType").value;
+      const currency = document.getElementById("feeCurrency")?.value || "CNY";
+      if (!month || !fee || !amt) {
+        alert("请填写归属月、费用项、金额与币种，并先完成预览。");
+        return;
+      }
+      const id = nextBatchId();
+      const ch = collectChannelScopeFromUi();
+      const ps = collectProductScopeFromUi();
+      const channelSummary = buildChannelScopeSummary(ch);
+      const productSummary = buildProductScopeSummary(ps);
+      const remark = document.getElementById("feeRemark")?.value?.trim() || "";
+      const rawRows = mockPreviewRows();
+      const at = formatNow();
+      state.historyRows.unshift({
+        id,
+        fee,
+        belongMonth: month,
+        currency,
+        amt,
+        remark,
+        channelSummary,
+        productSummary,
+        status: "待生效",
+        op: "（原型用户）",
+        at
+      });
+      HISTORY_DETAIL_BY_ID[id] = {
+        fee,
+        belongMonth: month,
+        currency,
+        amt,
+        remark,
+        channelScope: ch,
+        productScope: ps,
+        st: "待生效",
+        op: "（原型用户）",
+        at,
+        rawRows
+      };
+      closeOverlay("overlayCreate");
+      renderHistory();
+      alert(`原型：已写入一条「待生效」批次 ${id}。请再点「生效」后才会纳入管报计算。`);
+    });
+    document.getElementById("btnExport").addEventListener("click", () => {
+      alert("原型：导出预览明细。");
+    });
+
+    ["totalAmount", "feeType", "feeCurrency", "feeRemark"].forEach((id) => {
+      const n = document.getElementById(id);
+      if (!n) return;
+      n.addEventListener("input", updateRuleText);
+      n.addEventListener("change", updateRuleText);
+    });
+
+    document.getElementById("btnQuery").addEventListener("click", () => {
+      renderHistory();
+    });
+
+    (async function init() {
+      const cs = await loadJson(CHANNEL_STORE_URL, { channels: FALLBACK_CHANNELS });
+      const sc = await loadJson(SCENE_CAT_URL, { scenes: FALLBACK_SCENES });
+      state.channels = cs.channels || FALLBACK_CHANNELS;
+      state.scenes = sc.scenes || FALLBACK_SCENES;
+
+      wireClearableSelects();
+
+      if (window.MonthRangePicker) {
+        state.qBelongMonthRange = MonthRangePicker.mount(document.getElementById("qBelongMonthRangeHost"), {
+          start: "2026-01",
+          end: "2026-06",
+          placeholder: "请选择月份范围",
+          zIndex: 400,
+          useBodyPortal: true
+        });
+      }
+
+      mountAllSupplementMsf();
+
+      document.getElementById("createBelongMonth")?.addEventListener("change", () => {
+        resetCreatePreview();
+        updateRuleText();
+      });
+
+      state.historyRows = [
+        {
+          id: "IMP-202604-001",
+          fee: "广告费",
+          belongMonth: "2026-04",
+          currency: "USD",
+          amt: 10000,
+          remark: "4 月站内广告投放",
+          channelSummary: buildChannelScopeSummaryFromObj(HISTORY_DETAIL_BY_ID["IMP-202604-001"].channelScope),
+          productSummary: buildProductScopeSummaryFromObj(HISTORY_DETAIL_BY_ID["IMP-202604-001"].productScope),
+          status: "已生效",
+          op: "zhangsan",
+          at: "2026-04-02 10:20"
+        },
+        {
+          id: "IMP-202603-018",
+          fee: "推广费",
+          belongMonth: "2026-03",
+          currency: "CNY",
+          amt: 3200,
+          remark: "",
+          channelSummary: "全渠道（各列空）",
+          productSummary: "全产品（各列空）",
+          status: "已生效",
+          op: "lisi",
+          at: "2026-03-28 16:05"
+        },
+        {
+          id: "IMP-202603-017",
+          fee: "广告费",
+          belongMonth: "2026-03",
+          currency: "USD",
+          amt: 8000,
+          remark: "新品标签收窄测试",
+          channelSummary: buildChannelScopeSummaryFromObj(HISTORY_DETAIL_BY_ID["IMP-202603-017"].channelScope),
+          productSummary: buildProductScopeSummaryFromObj(HISTORY_DETAIL_BY_ID["IMP-202603-017"].productScope),
+          status: "待生效",
+          op: "wangwu",
+          at: "2026-03-15 09:12"
+        },
+        {
+          id: "IMP-202602-099",
+          fee: "样品费",
+          belongMonth: "2026-02",
+          currency: "CNY",
+          amt: 500,
+          remark: "已作废批次样例",
+          channelSummary: "全渠道（各列空）",
+          productSummary: "全产品（各列空）",
+          status: "失效",
+          op: "zhao",
+          at: "2026-02-01 09:00"
+        }
+      ];
+      state.historyNextSeq = 100;
+
+      renderHistory();
+      updateRuleText();
+    })();
+
+    if (new URLSearchParams(location.search).get("embed") === "1") {
+      document.body.classList.add("embed-mode");
+    }
+  </script>
+
+
+
+
+
+
+
+
+
+
+
+<!-- prototype-annotation:start -->
+<link rel="stylesheet" href="../prototype-annotation/prototype-annotation.css">
+<script id="prototype-annotation-config" type="application/json">
+{
+  "pageId": "reporting-supplement-fee-import-allocation",
+  "version": "2026-05-19T22:00:00+08:00",
+  "pageTitle": "导入费用分摊",
+  "annotations": [
+    {
+      "id": "filter-belong-month",
+      "selector": "#qBelongMonthRangeHost",
+      "title": "归属月范围",
+      "body": "按起止月筛选历史批次，展示格式 YYYY-MM - YYYY-MM。列表归属月取自新增或导入时填写的 YYYY-MM，与创建时间无关。"
+    },
+    {
+      "id": "filter-fee-type",
+      "selector": "#qFeeType",
+      "title": "费用项筛选",
+      "body": "按费用类型过滤历史批次。用于快速定位物流、仓租、平台服务等不同费用。"
+    },
+    {
+      "id": "filter-remark",
+      "selector": "#qRemark",
+      "title": "备注筛选",
+      "body": "按备注关键词模糊匹配历史批次（包含即命中，不区分大小写）。留空表示不按备注筛选；点击「查询」后与归属月、费用项、状态等条件共同生效。"
+    },
+    {
+      "id": "filter-status",
+      "selector": "#qStatus",
+      "title": "状态筛选",
+      "body": "用于区分待生效、已生效、失效批次。状态直接决定是否纳入管报计算：只有已生效才进入业务费用导入结果池，待生效和失效都只保留记录不参与汇总。"
+    },
+    {
+      "id": "query-button",
+      "selector": "#btnQuery",
+      "title": "查询",
+      "body": "按当前筛选条件刷新历史列表。状态、费用项变更后立即刷新；归属月范围、备注关键词等点击查询后生效。无结果时显示空列表，不影响原有数据。"
+    },
+    {
+      "id": "create-button",
+      "selector": "#btnOpenCreate",
+      "title": "新增导入费用",
+      "body": "打开与 Excel 模版列对列一致的新增弹窗：费用五列（含备注）+ 渠道五列 + 产品九列平铺录入，预览后写入待生效批次。"
+    },
+    {
+      "id": "import-button",
+      "selector": "#btnOpenImport",
+      "title": "批量导入",
+      "body": "按钉钉业务费用导入模版批量写入：费用项、归属月(YYYY-MM)、金额、币种及渠道/产品分列。导入后默认待生效，需人工生效后才进入管报。"
+    },
+    {
+      "id": "batch-actions",
+      "selector": "#btnBatchActivate",
+      "title": "批量状态操作",
+      "body": "批量生效、失效、删除都受状态校验约束。系统按勾选批次逐条校验，只要混入不允许状态就整批拦截，不做部分成功。"
+    },
+    {
+      "id": "history-list",
+      "selector": "#historyTable",
+      "title": "历史导入费用列表",
+      "body": "展示批次、范围、状态与操作入口。范围摘要来自写入时保存的店铺、零售商、MSKU条件，当前筛选结果中的勾选用于批量处理。"
+    },
+    {
+      "id": "status-column",
+      "selector": "#historyTable thead th:nth-child(10)",
+      "title": "状态列",
+      "body": "反映批次当前业务状态，并决定是否纳入管报。验收时要同时核对列表状态和明细中的“纳入管报计算”是否一致。"
+    },
+    {
+      "id": "row-action-column",
+      "selector": "#historyTable thead th:nth-child(13)",
+      "title": "操作列",
+      "body": "行内支持明细、生效、失效、删除。可执行动作随当前状态变化。"
+    },
+    {
+      "id": "preview-button",
+      "selector": "#btnPreview",
+      "title": "预览分摊",
+      "body": "按当前范围和规则先生成分摊预览。系统取渠道/店铺与商品范围交集，可选零售商与「新品标签」收窄后，按上月营收权重分摊；预览表含新品标签列。"
+    },
+    {
+      "id": "confirm-import",
+      "selector": "#btnConfirmImport",
+      "title": "确认写入",
+      "body": "将本次新增配置写入为一个新批次。写入后状态固定为待生效。"
+    },
+    {
+      "id": "detail-dialog",
+      "selector": "#overlayHistoryDetail",
+      "title": "分摊明细",
+      "body": "展示与导入模版一致的费用/渠道/产品口径块，以及按 MSKU 的分摊表。可核对金额、权重、归属月内分摊额和日均额。"
+    },
+    {
+      "id": "create-dialog",
+      "selector": "#dlgCreateTitle",
+      "title": "新增导入费用弹窗",
+      "body": "该弹窗用于录入待导入业务费用并配置分摊范围。录入完成后先预览分摊结果，再确认写入待生效批次。"
+    },
+    {
+      "id": "create-fee-type",
+      "selector": "#feeType",
+      "title": "费用项",
+      "body": "定义本次费用的业务类别，影响后续管报分类汇总。字段值来自页面预置的费用项枚举，不允许自由输入。"
+    },
+    {
+      "id": "create-belong-range",
+      "selector": "#createBelongMonth",
+      "title": "归属月",
+      "body": "与导入模版「归属月」列一致（YYYY-MM）。权重月取归属月的上月；金额按权重月营收占比分摊至各 MSKU。"
+    },
+    {
+      "id": "create-total-amount",
+      "selector": "#totalAmount",
+      "title": "金额",
+      "body": "与导入模版「金额」列一致。预览分摊结果合计需与该金额一致。"
+    },
+    {
+      "id": "create-currency",
+      "selector": "#feeCurrency",
+      "title": "币种",
+      "body": "与导入模版「币种」列一致，取值须符合钉钉数据字典。"
+    },
+    {
+      "id": "create-remark",
+      "selector": "#feeRemark",
+      "title": "备注",
+      "body": "与导入模版「备注」列一致，补充费用背景、活动说明或审批备注；非必填，列表与明细中展示。"
+    },
+    {
+      "id": "create-channel-flat",
+      "selector": "#msfCreateRegion",
+      "title": "渠道范围（平铺列）",
+      "body": "与 Excel 模版五列一致：区域、国家、渠道、店铺、零售商可同时多选；列间取交，均可留空。"
+    },
+    {
+      "id": "create-product-flat",
+      "selector": "#msfCreateScene",
+      "title": "产品范围（平铺列）",
+      "body": "与 Excel 模版九列一致：场景、品类、MODEL、SKU、MSKU、ASIN、新品标签、订单号、DL批次号可同时填写；列间取交。"
+    },
+    {
+      "id": "create-new-product",
+      "selector": "#productNewTags",
+      "title": "新品标签",
+      "body": "如 2024年新品；多选英文逗号分隔。填写后仅匹配带该标签的产品参与分摊。"
+    },
+    {
+      "id": "create-retailer-col",
+      "selector": "#msfCreateRetailer",
+      "title": "零售商",
+      "body": "模版「零售商」列，属渠道范围第五列；不选表示不按零售商收窄。"
+    },
+    {
+      "id": "create-preview",
+      "selector": "#btnPreview",
+      "title": "预览分摊",
+      "body": "先验证规则与结果，成功后才允许确认写入。预览区上方展示与导入模版一致的口径块，下方为 MSKU 分摊表。"
+    },
+    {
+      "id": "create-confirm",
+      "selector": "#btnConfirmImport",
+      "title": "确认写入",
+      "body": "将本次配置写入历史批次，写入后状态为待生效。写入的是批次记录和分摊结果快照，不代表已进入正式汇总。"
+    },
+    {
+      "id": "create-rule-summary",
+      "selector": "#ruleText",
+      "title": "分摊规则摘要",
+      "body": "实时展示与导入模版一致的费用/渠道/产品口径及交集、权重月与分摊规则。"
+    },
+    {
+      "id": "import-dialog",
+      "selector": "#dlgImportTitle",
+      "title": "批量导入弹窗",
+      "body": "按钉钉《业务费用导入模版》批量写入费用批次：费用信息 + 渠道范围五列 + 产品范围九列；多选用英文逗号。弹窗内可打开在线模版与数据字典。导入成功为待生效，需人工生效。"
+    },
+    {
+      "id": "import-tpl-doc-link",
+      "selector": "#importTplDocLink",
+      "title": "在线模版与数据字典",
+      "body": "打开钉钉文档，含导入示例行与各列合法取值（费用项、币种、区域、国家、渠道、店铺、零售商、场景、品类等）。正式环境以此为准校验。"
+    },
+    {
+      "id": "download-template",
+      "selector": "#btnDownloadTpl",
+      "title": "下载导入模板",
+      "body": "下载与钉钉模版列结构一致的 CSV（费用项、归属月、金额、币种、备注及渠道/产品分列）。填写时对照文档「数据字典」页取值。"
+    },
+    {
+      "id": "simulate-import",
+      "selector": "#btnSimulateImport",
+      "title": "模拟导入",
+      "body": "原型中用于模拟生成一条待生效批次，便于验证导入后的状态和列表刷新逻辑。"
+    },
+    {
+      "id": "history-detail-meta",
+      "selector": "#historyDetailMeta",
+      "title": "批次明细口径",
+      "body": "展示与导入模版一致的口径块，以及批次号、状态、操作人、纳入管报计算等元信息。"
+    }
+  ],
+  "fieldTips": [
+    {
+      "id": "tip-remark-col",
+      "selector": "#historyTable thead th:nth-child(9)",
+      "title": "备注",
+      "body": "与导入模版「备注」列一致，展示批次写入时的补充说明；空则显示 —。"
+    },
+    {
+      "id": "tip-shop-scope",
+      "selector": "#historyTable thead th:nth-child(7)",
+      "title": "渠道范围摘要",
+      "body": "列表摘要：区域/国家/渠道/店铺/零售商各列取值，与导入模版渠道范围五列一致。"
+    },
+    {
+      "id": "tip-msku-scope",
+      "selector": "#historyTable thead th:nth-child(8)",
+      "title": "产品范围摘要",
+      "body": "列表摘要：场景/品类/MODEL/SKU/MSKU/ASIN/新品标签/订单号/DL批次号，与导入模版产品范围九列一致。"
+    },
+    {
+      "id": "tip-currency-col",
+      "selector": "#historyTable thead th:nth-child(6)",
+      "title": "币种",
+      "body": "与导入模版「币种」列一致，来自批次写入时的币种字段。"
+    }
+  ],
+  "pageGuide": {
+    "dev": {
+      "页面整体定位": "该页面用于管理业务费用导入批次的录入、导入、状态流转和分摊核对，归属全渠道管报费用管理模块。核心价值是确保只有业务确认后的批次进入管报计算，保证费用口径可控、可追溯、可复核。",
+      "页面核心业务逻辑": "数据来源于手工新增和模版导入形成的费用批次。归属月为 YYYY-MM。分摊逻辑是渠道范围五列与产品范围九列分别取交，再按上月营收占比分摊金额。生效后纳入管报结果池；失效后退出计算。",
+      "关键规则说明": "筛选区用于限制当前展示与批量处理范围；状态是最核心规则字段；备注支持关键词模糊匹配。按钮权限遵循状态机：待生效可生效/失效，已生效可失效，失效可删除。新增弹窗必须先预览分摊再确认写入，缺少关键范围时禁止确认。导入弹窗生成的批次与手工新增保持同一状态规则。",
+      "关联上下游": "上游是费用录入与导入来源、渠道主数据、店铺主数据、商品与MSKU映射、营收权重数据；下游是全渠道管报费用汇总与分摊展示。该页输出的生效批次直接影响后续管报费用口径，弹窗和明细页都属于同一业务闭环。"
+    },
+    "user": {
+      "标准操作流程": "第一步，先选归属月范围、费用项、备注关键词、状态并点击查询。第二步，查看历史列表的渠道/产品范围摘要，必要时批量操作。第三步，新增时填写费用项、归属月、金额、币种及渠道/产品范围；批量录入用钉钉模版。第四步，手工新增先预览分摊再确认写入。第五步，生效批次后进入管报。第六步，打开明细核对模版口径与分摊表。",
+      "关键按钮与场景": "查询用于刷新当前筛选结果。新增导入费用用于单次新增录入。导入用于按钉钉模版批量写入（含在线文档链接）。预览分摊用于先看规则是否正确。确认写入用于生成待生效批次。批量生效、失效、删除用于集中处理状态。明细用于核对单批次的范围、权重和分摊金额。",
+      "使用注意事项": "新增或导入后默认待生效。预览总额须与金额一致。导入模版多选仅用英文逗号；费用项、币种、区域等须与钉钉数据字典一致。手工新增与导入的明细/预览均展示相同模版口径字段。"
+    }
+  },
+  "statusFlow": {
+    "nodes": [
+      {
+        "id": "draft",
+        "label": "待生效",
+        "description": "新增或导入后的默认状态，不参与管报计算。"
+      },
+      {
+        "id": "active",
+        "label": "已生效",
+        "description": "业务确认后的有效状态，参与管报计算与分摊。"
+      },
+      {
+        "id": "inactive",
+        "label": "失效",
+        "description": "从计算口径剔除的状态，可执行删除。"
+      }
+    ],
+    "transitions": [
+      {
+        "from": "待生效",
+        "to": "已生效",
+        "trigger": "点击生效或批量生效且状态校验通过",
+        "allowed": "可查看明细、可失效",
+        "forbidden": "不可直接删除"
+      },
+      {
+        "from": "待生效",
+        "to": "失效",
+        "trigger": "点击失效或批量失效且状态校验通过",
+        "allowed": "可删除、可查看明细",
+        "forbidden": "不可参与管报计算"
+      },
+      {
+        "from": "已生效",
+        "to": "失效",
+        "trigger": "点击失效或批量失效且状态校验通过",
+        "allowed": "可删除、可查看明细",
+        "forbidden": "不可继续参与管报计算"
+      }
+    ]
+  },
+  "editPolicy": {
+    "viewOnlyHostnames": ["18501404120.github.io"],
+    "allowIps": ["113.110.230.127", "113.110.229.118", "220.232.134.241"],
+    "editToken": "",
+    "allowLocalhost": true,
+    "allowOtherHosts": true
+  }
+}
+</script>
+<script src="../prototype-annotation/prototype-annotation-runtime.js"></script>
+<!-- prototype-annotation:end -->
+</body>
+</html>

@@ -11,6 +11,13 @@
     wrap.classList.toggle('has-val', !!sel.value);
   }
 
+  function syncClearableInput(inp) {
+    if (!inp) return;
+    var wrap = inp.closest('.ctl-wrap');
+    if (!wrap) return;
+    wrap.classList.toggle('has-val', !!inp.value.trim());
+  }
+
   function wireClearableSelects(root) {
     var scope = root && root.querySelectorAll ? root : document;
     scope.querySelectorAll('.ctl-wrap select.ctl').forEach(function (sel) {
@@ -27,6 +34,26 @@
         sel.value = '';
         syncClearableSelect(sel);
         sel.dispatchEvent(new Event('change', { bubbles: true }));
+      });
+    });
+  }
+
+  function wireClearableInputs(root) {
+    var scope = root && root.querySelectorAll ? root : document;
+    scope.querySelectorAll('.ctl-wrap input.ctl').forEach(function (inp) {
+      if (inp.dataset.clearWired === '1') return;
+      inp.dataset.clearWired = '1';
+      syncClearableInput(inp);
+      inp.addEventListener('input', function () { syncClearableInput(inp); });
+      var btn = inp.parentElement && inp.parentElement.querySelector('.ctl-clear');
+      if (!btn) return;
+      btn.addEventListener('click', function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        if (!inp.value.trim()) return;
+        inp.value = '';
+        syncClearableInput(inp);
+        inp.dispatchEvent(new Event('input', { bubbles: true }));
       });
     });
   }
@@ -100,6 +127,7 @@
 
   function initPage() {
     wireClearableSelects(document);
+    wireClearableInputs(document);
     ensureHiddenModals();
     if (global.MutationObserver) {
       var timer = null;
@@ -124,7 +152,9 @@
 
   global.FeeMgmtCommon = {
     syncClearableSelect: syncClearableSelect,
+    syncClearableInput: syncClearableInput,
     wireClearableSelects: wireClearableSelects,
+    wireClearableInputs: wireClearableInputs,
     openModalMask: openModalMask,
     closeModalMask: closeModalMask,
     ensureHiddenModals: ensureHiddenModals,
