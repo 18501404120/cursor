@@ -441,6 +441,8 @@
         tr.appendChild(tds[oldIdx]);
       });
     });
+
+    syncTableColspans(table);
   }
 
   function applyColumnOrder() {
@@ -475,20 +477,63 @@
     toast("列顺序已更新");
   }
 
+  function getTableColumnCount(table) {
+    if (!table) return 0;
+    return table.querySelectorAll("thead tr:first-child th").length;
+  }
+
+  function syncTableColspans(table) {
+    if (!table) return;
+    const n = getTableColumnCount(table);
+    if (n < 1) return;
+    table.querySelectorAll("tbody td[colspan]").forEach(function (td) {
+      const span = parseInt(td.getAttribute("colspan") || td.colSpan, 10);
+      if (span !== n) {
+        td.colSpan = n;
+        td.setAttribute("colspan", String(n));
+      }
+    });
+  }
+
+  function styleAddedCell(cell, isHeader) {
+    cell.classList.add("pe-added-col");
+    cell.setAttribute("data-pe-added", "true");
+    if (!isHeader && (cell.textContent === "—" || cell.textContent === "-")) {
+      cell.classList.add("pe-added-col-empty");
+    }
+  }
+
+  function registerColumnInOrder(tableSelector, colKey) {
+    const table = document.querySelector(tableSelector);
+    if (!table) return;
+    if (!state.columnOrder) state.columnOrder = {};
+    normalizeColumnOrder(tableSelector, table);
+    const order = state.columnOrder[tableSelector];
+    if (order.indexOf(colKey) === -1) order.push(colKey);
+  }
+
   function applyAddedColumns() {
+    const touched = new Set();
     (state.addedColumns || []).forEach(function (col) {
       const table = document.querySelector(col.tableSelector || "table");
       if (!table) return;
+      const tableSelector = col.tableSelector || findTableSelector(table);
+      col.tableSelector = tableSelector;
+      touched.add(tableSelector);
+
       const theadRow = table.querySelector("thead tr");
       if (!theadRow) return;
+
       let th = table.querySelector('th[data-pe-key="' + col.id + '"]');
       if (!th) {
         th = document.createElement("th");
         th.setAttribute("data-pe-key", col.id);
-        th.setAttribute("data-pe-added", "true");
         theadRow.appendChild(th);
       }
       th.textContent = col.header || "新列";
+      styleAddedCell(th, true);
+      registerColumnInOrder(tableSelector, col.id);
+
       const fallback = col.defaultValue != null ? col.defaultValue : "—";
       table.querySelectorAll("tbody tr").forEach(function (tr) {
         if (tr.querySelector("td[colspan]")) return;
@@ -496,14 +541,19 @@
         if (!td) {
           td = document.createElement("td");
           td.setAttribute("data-pe-key", col.id);
-          td.setAttribute("data-pe-added", "true");
           tr.appendChild(td);
         }
-        if (!td.textContent || td.getAttribute("data-pe-auto") === "1") {
+        if (!td.textContent.trim() || td.getAttribute("data-pe-auto") === "1") {
           td.textContent = fallback;
           td.setAttribute("data-pe-auto", "1");
         }
+        styleAddedCell(td, false);
       });
+    });
+
+    touched.forEach(function (sel) {
+      const table = document.querySelector(sel);
+      syncTableColspans(table);
     });
   }
 
@@ -836,19 +886,24 @@
             applyAddedFilters();
           } else if (comp.category === "column") {
             const table =
-              document.querySelector("table thead") &&
-              document.querySelector("table thead").closest("table");
+              document.querySelector("#actsTableWrap table") ||
+              document.querySelector("#tblUsagePlanMirror") ||
+              document.querySelector("section.content table") ||
+              (document.querySelector("table thead") &&
+                document.querySelector("table thead").closest("table"));
             if (!table) {
               toast("未找到表格");
               return;
             }
+            const tableSelector = findTableSelector(table);
             state.addedColumns.push({
               id: id,
-              tableSelector: findTableSelector(table),
+              tableSelector: tableSelector,
               header: label,
               defaultValue: "—"
             });
             applyAddedColumns();
+            applyColumnOrderForTable(tableSelector);
           } else {
             toast("暂不支持该类型");
             return;
