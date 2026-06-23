@@ -48,7 +48,7 @@
   let pickHighlight = null;
   let panelEl = null;
   let toastTimer = null;
-  let pickHandlers = null;
+let lastTableSelector = "";
 
   function emptyState() {
     return {
@@ -101,6 +101,7 @@
         pageTitle: config.pageTitle,
         mockRegistry: config.mockRegistry || [],
         renderHooks: config.renderHooks || [],
+        tableTargets: config.tableTargets || [],
         canonicalEdits: config.canonicalEdits
       },
       null,
@@ -239,6 +240,13 @@
   function pickTarget(raw) {
     let el = asElement(raw);
     if (!el || isPeChrome(el)) return null;
+
+    /* 表头区域只认 th，避免选中整表 */
+    if (el.closest && el.closest("thead")) {
+      const thInHead = el.closest("th");
+      if (thInHead && !isPeChrome(thInHead)) return thInHead;
+      return null;
+    }
 
     /* 列表列：优先 th / td（含点在蓝 i、列名文字上） */
     if (el.closest(".pa-tip-icon, .pa-dot")) {
@@ -418,6 +426,26 @@
         mount.appendChild(node);
       }
     });
+  }
+
+  function getTableTargets() {
+    let list = (config && config.tableTargets) || [];
+    if (!list.length) {
+      list = [
+        { selector: "#tblActsPlans", label: "规划行列表" },
+        { selector: "#actsTableWrap table", label: "规划行列表" },
+        { selector: "#tblUsagePlanMirror", label: "底部分摊表" }
+      ];
+    }
+    const seen = new Set();
+    const out = [];
+    list.forEach(function (t) {
+      if (!t || !t.selector || seen.has(t.selector)) return;
+      if (!document.querySelector(t.selector)) return;
+      seen.add(t.selector);
+      out.push(t);
+    });
+    return out;
   }
 
   function findTableSelector(table) {
@@ -751,6 +779,7 @@
       if (table) {
         tableSelector = findTableSelector(table);
         colKey = ensureKey(thEl);
+        lastTableSelector = tableSelector;
       }
     }
 
@@ -876,6 +905,7 @@
       toast("无可用组件");
       return;
     }
+    const tableTargets = getTableTargets();
 
     openPanelBuilder(document.querySelector(".pe-toolbar"), function (panel) {
       const h4 = document.createElement("h4");
@@ -891,9 +921,27 @@
         const opt = document.createElement("option");
         opt.value = String(i);
         opt.textContent = c.label;
+        opt.setAttribute("data-category", c.category || "");
         typeSel.appendChild(opt);
       });
       panel.appendChild(typeSel);
+
+      const tableLab = document.createElement("label");
+      tableLab.id = "pe-add-table-lab";
+      tableLab.textContent = "目标表格";
+      panel.appendChild(tableLab);
+      const tableSel = document.createElement("select");
+      tableSel.id = "pe-add-table";
+      tableTargets.forEach(function (t) {
+        const opt = document.createElement("option");
+        opt.value = t.selector;
+        opt.textContent = t.label;
+        tableSel.appendChild(opt);
+      });
+      if (lastTableSelector && tableTargets.some(function (t) { return t.selector === lastTableSelector; })) {
+        tableSel.value = lastTableSelector;
+      }
+      panel.appendChild(tableSel);
 
       const labelLab = document.createElement("label");
       labelLab.textContent = "标签/列名";
@@ -905,6 +953,7 @@
       panel.appendChild(labelInp);
 
       const optLab = document.createElement("label");
+      optLab.id = "pe-add-opt-lab";
       optLab.textContent = "选项（下拉，逗号分隔）";
       panel.appendChild(optLab);
       const optInp = document.createElement("input");
@@ -912,6 +961,21 @@
       optInp.id = "pe-add-options";
       optInp.value = "全部,选项A,选项B";
       panel.appendChild(optInp);
+
+      function syncAddFormVisibility() {
+        const idx = parseInt(typeSel.value, 10);
+        const comp = items[idx];
+        const isColumn = comp && comp.category === "column";
+        const isFilter = comp && comp.category === "filter";
+        tableLab.style.display = isColumn ? "" : "none";
+        tableSel.style.display = isColumn ? "" : "none";
+        optLab.style.display = isFilter && comp.id === "filter-select" ? "" : "none";
+        optInp.style.display = isFilter && comp.id === "filter-select" ? "" : "none";
+        labelLab.textContent = isColumn ? "列名" : "标签/列名";
+        if (isColumn) labelInp.value = labelInp.value === "新筛选项" ? "新列" : labelInp.value;
+      }
+      typeSel.addEventListener("change", syncAddFormVisibility);
+      syncAddFormVisibility();
 
       appendActions(panel, [
         mkBtn("插入", "pe-primary", function () {
@@ -939,31 +1003,28 @@
             });
             applyAddedFilters();
           } else if (comp.category === "column") {
-            const table =
-              document.querySelector("#actsTableWrap table") ||
-              document.querySelector("#tblUsagePlanMirror") ||
-              document.querySelector("section.content table") ||
-              (document.querySelector("table thead") &&
-                document.querySelector("table thead").closest("table"));
+            const tableSelector = tableSel.value;
+            const table = document.querySelector(tableSelector);
             if (!table) {
-              toast("未找到表格");
+              toast("未找到所选表格");
               return;
             }
-            const tableSelector = findTableSelector(table);
             state.addedColumns.push({
               id: id,
               tableSelector: tableSelector,
               header: label,
               defaultValue: "—"
             });
+            lastTableSelector = tableSelector;
             applyAddedColumns();
             applyColumnOrderForTable(tableSelector);
+            toast("已添加到「" + (tableSel.options[tableSel.selectedIndex].text || "表格") + "」");
           } else {
             toast("暂不支持该类型");
             return;
           }
           persist();
-          toast("已插入并生效");
+          if (comp.category !== "column") toast("已插入并生效");
           closePanel();
         }),
         mkBtn("关闭", "", closePanel)
@@ -992,17 +1053,25 @@
           t.classList.add("pe-pick-highlight");
         }
       },
+      down: function (e) {
+        if (isPeChrome(e.target)) return;
+        if (e.button !== 0) return;
+        const t = pickTarget(e.target);
+        if (!t) return;
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        e.stopPropagation();
+        showElementPanel(t);
+      },
       click: function (e) {
         if (isPeChrome(e.target)) return;
         e.preventDefault();
         e.stopImmediatePropagation();
         e.stopPropagation();
-        const t = pickTarget(e.target);
-        if (t) showElementPanel(t);
-        else toast("请点选筛选项、按钮或表头列");
       }
     };
     document.addEventListener("mousemove", pickHandlers.move, true);
+    document.addEventListener("pointerdown", pickHandlers.down, true);
     document.addEventListener("click", pickHandlers.click, true);
   }
 
@@ -1017,6 +1086,7 @@
     if (pickHighlight) pickHighlight.classList.remove("pe-pick-highlight");
     if (pickHandlers) {
       document.removeEventListener("mousemove", pickHandlers.move, true);
+      document.removeEventListener("pointerdown", pickHandlers.down, true);
       document.removeEventListener("click", pickHandlers.click, true);
       pickHandlers = null;
     }
