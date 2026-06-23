@@ -25,6 +25,7 @@
 | `edits.mock` | **不得**覆盖 mock 为旧默认值；合并 mock 路径时保留 sidecar 值 |
 | `edits.addedFilters` | **不得**删除页内新增的筛选项；注入/重构时保留或迁移 `data-pe-key` |
 | `edits.addedColumns` | **不得**删除新增列；`renderTable` 等重构须保留列定义与渲染 |
+| `edits.columnOrder` | **不得**恢复旧列顺序；重构表头/表体后须重新 `applyColumnOrder` 语义（按 sidecar 顺序重排） |
 
 ## 用户明确要求「改回去」的触发词
 

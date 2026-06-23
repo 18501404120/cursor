@@ -58,7 +58,8 @@
       addedFilters: [],
       addedColumns: [],
       addedButtons: [],
-      addedFormFields: []
+      addedFormFields: [],
+      columnOrder: {}
     };
   }
 
@@ -136,6 +137,7 @@
     ).slice();
     out.addedButtons = (overlay.addedButtons || base.addedButtons || []).slice();
     out.addedFormFields = (overlay.addedFormFields || base.addedFormFields || []).slice();
+    out.columnOrder = Object.assign({}, base.columnOrder || {}, overlay.columnOrder || {});
     return out;
   }
 
@@ -163,6 +165,19 @@
     if (!el || el.nodeType !== 1) return "";
     if (el.getAttribute("data-pe-key")) return el.getAttribute("data-pe-key");
     const tag = el.tagName.toLowerCase();
+    if (tag === "th") {
+      const txt = (el.textContent || "").trim().slice(0, 40).replace(/\s+/g, "");
+      if (txt) {
+        let key = "pe:col-" + txt;
+        let n = 2;
+        while (document.querySelector('[data-pe-key="' + key + '"]')) {
+          key = "pe:col-" + txt + "-" + n;
+          n += 1;
+        }
+        el.setAttribute("data-pe-key", key);
+        return key;
+      }
+    }
     const id = el.id ? "id-" + el.id : "";
     const txt = (el.textContent || "").trim().slice(0, 20).replace(/\s+/g, "-");
     const key = "pe:" + (id || tag + (txt ? "-" + txt : "") + "-" + uid("k"));
@@ -358,8 +373,106 @@
   function findTableSelector(table) {
     if (!table) return "table";
     if (table.id) return "#" + table.id;
+    const host = table.closest("[id]");
+    if (host && host.id) return "#" + host.id + " table";
     if (table.classList.contains("data-table")) return "table.data-table";
     return "table";
+  }
+
+  function getTableThKeys(table) {
+    const row = table && table.querySelector("thead tr");
+    if (!row) return [];
+    return Array.from(row.querySelectorAll("th")).map(function (th) {
+      return ensureKey(th);
+    });
+  }
+
+  function normalizeColumnOrder(tableSelector, table) {
+    if (!table) return [];
+    if (!state.columnOrder) state.columnOrder = {};
+    const domKeys = getTableThKeys(table);
+    if (!domKeys.length) return [];
+    let order = (state.columnOrder[tableSelector] || []).slice();
+    order = order.filter(function (k) {
+      return domKeys.indexOf(k) !== -1;
+    });
+    domKeys.forEach(function (k) {
+      if (order.indexOf(k) === -1) order.push(k);
+    });
+    state.columnOrder[tableSelector] = order;
+    return order;
+  }
+
+  function applyColumnOrderForTable(tableSelector) {
+    const table = document.querySelector(tableSelector);
+    if (!table) return;
+    const theadRow = table.querySelector("thead tr");
+    if (!theadRow) return;
+
+    const order = normalizeColumnOrder(tableSelector, table);
+    if (!order.length) return;
+
+    const thEls = Array.from(theadRow.querySelectorAll("th"));
+    const oldKeys = thEls.map(function (th) {
+      return ensureKey(th);
+    });
+    const thMap = {};
+    thEls.forEach(function (th) {
+      thMap[ensureKey(th)] = th;
+    });
+
+    order.forEach(function (k) {
+      if (thMap[k]) theadRow.appendChild(thMap[k]);
+    });
+
+    const perm = order.map(function (k) {
+      return oldKeys.indexOf(k);
+    });
+    const tbody = table.querySelector("tbody");
+    if (!tbody) return;
+
+    tbody.querySelectorAll("tr").forEach(function (tr) {
+      if (tr.querySelector("td[colspan]")) return;
+      const tds = Array.from(tr.children).filter(function (c) {
+        return c.tagName === "TD";
+      });
+      if (tds.length !== oldKeys.length) return;
+      perm.forEach(function (oldIdx) {
+        tr.appendChild(tds[oldIdx]);
+      });
+    });
+  }
+
+  function applyColumnOrder() {
+    if (!state.columnOrder) return;
+    Object.keys(state.columnOrder).forEach(function (sel) {
+      applyColumnOrderForTable(sel);
+    });
+  }
+
+  function moveColumn(tableSelector, colKey, direction) {
+    const table = document.querySelector(tableSelector);
+    if (!table) {
+      toast("未找到表格");
+      return;
+    }
+    normalizeColumnOrder(tableSelector, table);
+    const order = state.columnOrder[tableSelector];
+    const idx = order.indexOf(colKey);
+    if (idx === -1) return;
+    const newIdx = idx + direction;
+    if (newIdx < 0 || newIdx >= order.length) {
+      toast(newIdx < 0 ? "已在最左" : "已在最右");
+      return;
+    }
+    const next = order.slice();
+    const tmp = next[idx];
+    next[idx] = next[newIdx];
+    next[newIdx] = tmp;
+    state.columnOrder[tableSelector] = next;
+    persist();
+    applyColumnOrderForTable(tableSelector);
+    toast("列顺序已更新");
   }
 
   function applyAddedColumns() {
@@ -399,6 +512,7 @@
     applyAddedColumns();
     applyMockOverrides();
     applyTextOverrides();
+    applyColumnOrder();
     applyHidden();
   }
 
@@ -511,6 +625,7 @@
   }
 
   function showElementPanel(el) {
+    const thEl = el.tagName === "TH" ? el : el.closest && el.closest("th");
     const key = ensureKey(el);
     const textTarget = getTextTarget(el);
     const textKey = textTarget ? ensureKey(textTarget) : key;
@@ -525,13 +640,23 @@
             : textTarget.textContent
           : "";
 
+    let tableSelector = "";
+    let colKey = "";
+    if (thEl) {
+      const table = thEl.closest("table");
+      if (table) {
+        tableSelector = findTableSelector(table);
+        colKey = ensureKey(thEl);
+      }
+    }
+
     openPanelBuilder(el, function (panel) {
       const h4 = document.createElement("h4");
-      h4.textContent = "编辑元素";
+      h4.textContent = thEl ? "编辑列表列" : "编辑元素";
       panel.appendChild(h4);
       const meta = document.createElement("div");
       meta.className = "pe-meta";
-      meta.textContent = tag + " · " + key;
+      meta.textContent = tag + " · " + (thEl ? colKey : key);
       panel.appendChild(meta);
 
       let inp = null;
@@ -546,17 +671,33 @@
         panel.appendChild(inp);
       }
 
-      appendActions(panel, [
+      const actions = [
         mkBtn("保存", "pe-primary", function () {
           if (inp && textTarget) applyTextChange(textTarget, textKey, inp.value.trim());
           closePanel();
-        }),
+        })
+      ];
+
+      if (thEl && tableSelector) {
+        actions.push(
+          mkBtn("← 左移", "", function () {
+            moveColumn(tableSelector, colKey, -1);
+          }),
+          mkBtn("右移 →", "", function () {
+            moveColumn(tableSelector, colKey, 1);
+          })
+        );
+      }
+
+      actions.push(
         mkBtn(isHidden ? "恢复显示" : "隐藏", isHidden ? "" : "pe-danger", function () {
           toggleHidden(el, key);
           closePanel();
         }),
         mkBtn("关闭", "", closePanel)
-      ]);
+      );
+
+      appendActions(panel, actions);
     });
   }
 

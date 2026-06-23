@@ -56,7 +56,7 @@ python3 .cursor/skills/prototype-edit-001/scripts/save_sidecar.py \
 
 | 按钮 | 作用 |
 |------|------|
-| **编辑模式** | 悬停点选 → 改文案 / 隐藏（**立即生效**，自动 localStorage） |
+| **编辑模式** | 悬停点选 → 改文案 / 隐藏；**点表头列** → **← 左移 / 右移 →** 调整列顺序（重绘后仍保持） |
 | **添加组件** | 插入筛选项或表格列（**立即生效**） |
 | **Mock** | 编辑 mock JSON 并应用 |
 | **保存** | 写入页面内 `#prototype-edit-config`；提示 Cmd+S 保存 HTML 入库 |

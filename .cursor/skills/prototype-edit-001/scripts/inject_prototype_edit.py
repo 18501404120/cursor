@@ -82,6 +82,7 @@ def empty_edits() -> dict:
         "addedColumns": [],
         "addedButtons": [],
         "addedFormFields": [],
+        "columnOrder": {},
     }
 
 
