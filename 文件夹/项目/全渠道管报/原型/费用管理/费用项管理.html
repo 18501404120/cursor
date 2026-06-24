@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>费用项管理</title>
+  <link rel="stylesheet" href="fee-mgmt-common.css">
+  <link rel="stylesheet" href="fee-item-master.css">
+  <style>
+    body { background: #f5f7fb; }
+    .header { background: #1f3a8a; }
+    .page { padding: 16px; max-width: 960px; margin: 0 auto; }
+    .breadcrumb { font-size: 12px; color: #6b7280; margin-bottom: 12px; }
+    .breadcrumb a { color: #2f6bff; text-decoration: none; }
+    .jd-card {
+      background: #fff;
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+    }
+    .jd-card-hd {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 16px;
+      border-bottom: 1px solid #eef0f5;
+      background: #fbfcff;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .jd-card-title { font-size: 15px; font-weight: 600; }
+    .jd-card-bd { padding: 16px; }
+    .lead { margin: 0 0 16px; font-size: 13px; color: #6b7280; line-height: 1.7; }
+    .toolbar-line { display: flex; gap: 8px; flex-wrap: wrap; }
+    .op-link {
+      border: none; background: transparent; color: #2f6bff;
+      cursor: pointer; padding: 0 4px; font-size: 13px;
+    }
+    .op-link:hover { text-decoration: underline; }
+    .mono { font-family: ui-monospace, monospace; font-size: 12px; }
+    .storage-tip {
+      margin-top: 16px;
+      padding: 10px 14px;
+      background: #eff6ff;
+      border: 1px solid #bfdbfe;
+      border-radius: 6px;
+      font-size: 12px;
+      color: #1e40af;
+      line-height: 1.6;
+    }
+  </style>
+</head>
+<body>
+<div class="layout">
+  <aside class="sider" aria-label="主导航">
+    <div class="sider-logo" aria-hidden="true"></div>
+    <a class="sider-item" href="../index.html">管报</a>
+  </aside>
+  <main class="main">
+    <header class="header">
+      <div class="title">费用项管理</div>
+      <nav class="nav-links">
+        <a href="index.html">目录</a>
+        <a href="计提规则配置与月度运行.html">费用来源</a>
+        <a href="手工简易填报.html">费用填报</a>
+        <a href="商超费用计提口径说明.html">口径说明</a>
+        <a class="active" href="费用项管理.html">费用项</a>
+      </nav>
+    </header>
+    <div class="page">
+      <div class="breadcrumb"><a href="index.html">费用管理</a> / 费用项管理</div>
+      <section class="jd-card">
+        <div class="jd-card-hd">
+          <span class="jd-card-title">费用项主数据</span>
+          <div class="toolbar-line">
+            <button type="button" class="btn" id="btnResetSeed">恢复默认数据</button>
+            <button type="button" class="btn btn-primary" id="btnAddInline">新增费用项</button>
+          </div>
+        </div>
+        <div class="jd-card-bd">
+          <p class="lead">
+            统一维护费用项<strong>名称</strong>与<strong>备注</strong>。数据保存在浏览器 localStorage（键名 <code>gb-fee-mgmt-fee-items-v1</code>），
+            费用来源定义、费用填报、导入费用分摊等页面共用同一份主数据。
+          </p>
+          <div class="fee-item-table-wrap" style="max-height:none;">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th style="width:88px;">编码</th>
+                  <th style="width:200px;">名称</th>
+                  <th>备注</th>
+                  <th style="width:120px;">操作</th>
+                </tr>
+              </thead>
+              <tbody id="feeItemPageBody"></tbody>
+            </table>
+          </div>
+          <div class="storage-tip">
+            提示：删除时若其它业务页仍有引用，请在对应页面先解除关联。各列表页工具栏亦提供「费用项管理」弹窗入口。
+          </div>
+        </div>
+      </section>
+    </div>
+  </main>
+</div>
+
+<script src="fee-mgmt-common.js"></script>
+<script src="fee-item-master.js"></script>
+<script>
+(function () {
+  function esc(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+  }
+
+  function renderPageTable() {
+    var body = document.getElementById('feeItemPageBody');
+    var list = FeeItemMaster.getAll();
+    body.innerHTML = list.map(function (item) {
+      var remark = item.remark || '';
+      var short = remark.length > 40 ? remark.slice(0, 40) + '…' : remark;
+      var remarkCell = remark
+        ? '<span title="' + esc(remark) + '">' + esc(short) + '</span>'
+        : '<span style="color:#9ca3af;">—</span>';
+      return '<tr>' +
+        '<td class="mono">' + esc(item.code) + '</td>' +
+        '<td><strong>' + esc(item.name) + '</strong></td>' +
+        '<td style="font-size:12px;color:#374151;">' + remarkCell + '</td>' +
+        '<td>' +
+          '<button type="button" class="op-link" data-edit="' + esc(item.code) + '">编辑</button> ' +
+          '<button type="button" class="op-link" data-del="' + esc(item.code) + '">删除</button>' +
+        '</td></tr>';
+    }).join('') || '<tr><td colspan="4" style="text-align:center;color:#6b7280;padding:32px;">暂无费用项</td></tr>';
+  }
+
+  FeeItemMaster.init({ usageResolver: function () { return null; } }).then(renderPageTable);
+  FeeItemMaster.onChange(renderPageTable);
+
+  document.getElementById('btnAddInline').addEventListener('click', function () {
+    FeeItemMaster.openEdit(null);
+  });
+  document.getElementById('btnResetSeed').addEventListener('click', function () {
+    if (!confirm('确认恢复为系统默认费用项列表？将覆盖当前本地保存的数据。')) return;
+    FeeItemMaster.resetToSeed();
+    renderPageTable();
+    alert('已恢复默认费用项数据');
+  });
+  document.getElementById('feeItemPageBody').addEventListener('click', function (e) {
+    var edit = e.target.closest('[data-edit]');
+    if (edit) {
+      FeeItemMaster.openEdit(edit.getAttribute('data-edit'));
+      return;
+    }
+    var del = e.target.closest('[data-del]');
+    if (del) {
+      FeeItemMaster.remove(del.getAttribute('data-del'));
+      renderPageTable();
+    }
+  });
+})();
+</script>
+</body>
+</html>

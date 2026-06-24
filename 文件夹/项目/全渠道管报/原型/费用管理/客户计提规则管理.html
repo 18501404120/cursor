@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>客户计提规则管理</title>
+  <link rel="stylesheet" href="fee-mgmt-common.css">
+  <style>
+    body { background: #f5f7fb; }
+    .header { background: #1f3a8a; }
+    .stat-row { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; padding: 0 16px 16px; }
+    .stat-card { border: 1px solid #e5e7eb; border-radius: 8px; background: #fff; padding: 12px 14px; }
+    .stat-card .k { font-size: 12px; color: #6b7280; }
+    .stat-card .v { margin-top: 4px; font-size: 22px; font-weight: 700; color: #1f2937; }
+    .ops { display: flex; gap: 8px; flex-wrap: wrap; }
+    .op-link { border: none; background: transparent; color: #1677ff; cursor: pointer; font-size: 12px; padding: 0 4px; }
+    .op-link.danger { color: #dc2626; }
+    .tag-origin { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 999px; font-size: 12px; }
+    .tag-origin.excel { color: #1d4ed8; background: #eff6ff; border: 1px solid #bfdbfe; }
+    .tag-origin.override { color: #a16207; background: #fffbeb; border: 1px solid #fde68a; }
+    .mono { font-family: ui-monospace, monospace; font-size: 12px; }
+    .hint { margin: 0 16px 12px; border: 1px solid #bfdbfe; background: #eff6ff; padding: 9px 12px; border-radius: 6px; font-size: 12px; color: #1e3a8a; }
+    .section-split { display: grid; gap: 16px; }
+    .form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 16px; }
+    .form-field { display: flex; flex-direction: column; gap: 6px; }
+    .form-field.full { grid-column: 1 / -1; }
+    .form-field label { color: #6b7280; font-size: 12px; }
+    .form-field input, .form-field select, .form-field textarea {
+      height: 32px; border: 1px solid #d9d9d9; border-radius: 6px; padding: 0 10px; font-size: 13px;
+    }
+    .form-field input[readonly] { background: #f8fafc; color: #475569; }
+    .form-field textarea { height: 70px; padding: 8px 10px; resize: vertical; }
+    @media (max-width: 980px) {
+      .stat-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .form-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+<div class="layout">
+  <aside class="sider" aria-label="主导航">
+    <div class="sider-logo" aria-hidden="true"></div>
+    <a class="sider-item active" href="index.html">费用</a>
+    <a class="sider-item" href="../经营分析明细.html">管报</a>
+  </aside>
+  <main class="main">
+    <header class="header">
+      <div class="title">客户计提规则管理</div>
+      <nav class="nav-links">
+        <a href="index.html">目录</a>
+        <a class="active" href="客户计提规则管理.html">客户计提规则</a>
+        <a href="退款管理.html">退款管理</a>
+        <a href="扣款管理.html">扣款管理</a>
+      </nav>
+    </header>
+
+    <div class="page">
+      <div class="breadcrumb"><a href="index.html">费用管理</a> / 客户计提规则管理</div>
+
+      <section class="panel">
+        <div class="panel-head">
+          <div>
+            <div class="panel-title">规则概览</div>
+            <div class="panel-sub">规则直接取自 Excel 计提模型，默认保持和表格一致，仅在需要时做覆盖调整</div>
+          </div>
+        </div>
+        <div class="stat-row">
+          <div class="stat-card"><div class="k">固定扣款规则</div><div class="v" id="statFixed">0</div></div>
+          <div class="stat-card"><div class="k">退款滚动规则</div><div class="v" id="statRefund">0</div></div>
+          <div class="stat-card"><div class="k">已调整规则</div><div class="v" id="statAdjusted">0</div></div>
+          <div class="stat-card"><div class="k">覆盖期间</div><div class="v" id="statPeriods">0</div></div>
+        </div>
+      </section>
+
+      <section class="panel panel--filter">
+        <div class="filter-panel">
+          <div class="filter-grid">
+            <div class="f-item">
+              <label for="qCustomer">客户</label>
+              <span class="ctl-wrap">
+                <select id="qCustomer" class="ctl"><option value="">全部</option></select>
+                <button type="button" class="ctl-clear" aria-label="清除客户">×</button>
+              </span>
+            </div>
+            <div class="f-item">
+              <label for="qFeeType">固定扣款费用项</label>
+              <span class="ctl-wrap">
+                <select id="qFeeType" class="ctl"><option value="">全部</option></select>
+                <button type="button" class="ctl-clear" aria-label="清除费用项">×</button>
+              </span>
+            </div>
+            <div class="f-item">
+              <label for="qPeriod">退款规则期间</label>
+              <span class="ctl-wrap">
+                <select id="qPeriod" class="ctl"><option value="">全部</option></select>
+                <button type="button" class="ctl-clear" aria-label="清除期间">×</button>
+              </span>
+            </div>
+            <div class="f-item">
+              <button type="button" class="btn" id="btnReset">重置筛选</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <div class="section-split">
+        <section class="panel panel--table">
+          <div class="panel-head">
+            <div>
+              <div class="panel-title">固定扣款规则</div>
+              <div class="panel-sub" id="fixedTip">共 0 条</div>
+            </div>
+          </div>
+          <div class="hint">促销扣款、销售折扣、现金折扣按“当月收入 x 规则比例”计提；销售费用默认沿用 Excel 月度预算/固定额。</div>
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>客户</th>
+                  <th>费用项</th>
+                  <th>计提方式</th>
+                  <th class="num">比例</th>
+                  <th class="num">月固定额</th>
+                  <th class="num">样例收入</th>
+                  <th class="num">样例计提</th>
+                  <th>来源期间</th>
+                  <th>规则来源</th>
+                  <th>备注</th>
+                  <th>操作</th>
+                </tr>
+              </thead>
+              <tbody id="fixedBody"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="panel panel--table">
+          <div class="panel-head">
+            <div>
+              <div class="panel-title">退款滚动规则</div>
+              <div class="panel-sub" id="refundTip">共 0 条</div>
+            </div>
+          </div>
+          <div class="hint">退款规则按客户、按月滚动计算：系统取近 12 个月退款率，结合目标窗口销售额，推导目标期末退款余额。</div>
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>期间</th>
+                  <th>客户</th>
+                  <th>规则口径</th>
+                  <th class="num">滚动退款率</th>
+                  <th class="num">目标窗口(月)</th>
+                  <th class="num">目标销售基数</th>
+                  <th class="num">目标期末余额</th>
+                  <th>规则来源</th>
+                  <th>备注</th>
+                  <th>操作</th>
+                </tr>
+              </thead>
+              <tbody id="refundRuleBody"></tbody>
+            </table>
+          </div>
+        </section>
+      </div>
+    </div>
+  </main>
+</div>
+
+<div class="modal-mask" id="fixedModal" aria-hidden="true">
+  <div class="modal">
+    <div class="modal-hd">
+      <h2>调整固定扣款规则</h2>
+      <button type="button" class="modal-close" id="btnFixedClose">×</button>
+    </div>
+    <div class="modal-bd">
+      <div class="form-grid">
+        <div class="form-field">
+          <label for="fFixedCustomer">客户</label>
+          <input id="fFixedCustomer" type="text" readonly>
+        </div>
+        <div class="form-field">
+          <label for="fFixedFeeType">费用项</label>
+          <input id="fFixedFeeType" type="text" readonly>
+        </div>
+        <div class="form-field">
+          <label for="fFixedMethod">计提方式</label>
+          <select id="fFixedMethod">
+            <option value="fixed_ratio">固定比例</option>
+            <option value="budget_or_fixed">预算/固定额</option>
+            <option value="monthly_fixed">月固定额</option>
+          </select>
+        </div>
+        <div class="form-field">
+          <label for="fFixedRatio">规则比例（0~1）</label>
+          <input id="fFixedRatio" type="number" min="0" max="1" step="0.00000001">
+        </div>
+        <div class="form-field">
+          <label for="fFixedAmount">月固定额</label>
+          <input id="fFixedAmount" type="number" step="0.01">
+        </div>
+        <div class="form-field">
+          <label for="fFixedSource">来源期间</label>
+          <input id="fFixedSource" type="text" readonly>
+        </div>
+        <div class="form-field full">
+          <label for="fFixedNote">备注</label>
+          <textarea id="fFixedNote" placeholder="例如：按合同比例、按预算固定额"></textarea>
+        </div>
+      </div>
+    </div>
+    <div class="modal-ft">
+      <button type="button" class="btn" id="btnFixedCancel">取消</button>
+      <button type="button" class="btn btn-primary" id="btnFixedSave">保存</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-mask" id="refundModal" aria-hidden="true">
+  <div class="modal">
+    <div class="modal-hd">
+      <h2>调整退款滚动规则</h2>
+      <button type="button" class="modal-close" id="btnRefundClose">×</button>
+    </div>
+    <div class="modal-bd">
+      <div class="form-grid">
+        <div class="form-field">
+          <label for="fRefundPeriod">期间</label>
+          <input id="fRefundPeriod" type="text" readonly>
+        </div>
+        <div class="form-field">
+          <label for="fRefundCustomer">客户</label>
+          <input id="fRefundCustomer" type="text" readonly>
+        </div>
+        <div class="form-field">
+          <label for="fRefundRatio">滚动退款率（0~1）</label>
+          <input id="fRefundRatio" type="number" min="0" max="1" step="0.00000001">
+        </div>
+        <div class="form-field">
+          <label for="fRefundWindow">目标窗口（月）</label>
+          <input id="fRefundWindow" type="number" min="1" step="1">
+        </div>
+        <div class="form-field">
+          <label for="fRefundBasis">当前目标销售基数</label>
+          <input id="fRefundBasis" type="text" readonly>
+        </div>
+        <div class="form-field">
+          <label for="fRefundTarget">当前目标期末余额</label>
+          <input id="fRefundTarget" type="text" readonly>
+        </div>
+        <div class="form-field full">
+          <label for="fRefundNote">备注</label>
+          <textarea id="fRefundNote" placeholder="例如：按特殊退款政策调整窗口或比例"></textarea>
+        </div>
+      </div>
+    </div>
+    <div class="modal-ft">
+      <button type="button" class="btn" id="btnRefundCancel">取消</button>
+      <button type="button" class="btn btn-primary" id="btnRefundSave">保存</button>
+    </div>
+  </div>
+</div>
+
+<script src="fee-mgmt-common.js"></script>
+<script src="supermarket-accrual-base.js"></script>
+<script src="supermarket-accrual-store.js"></script>
+<script src="客户计提规则管理.js"></script>
+</body>
+</html>

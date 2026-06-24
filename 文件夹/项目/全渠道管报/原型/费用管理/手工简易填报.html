@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>费用填报管理</title>
   <link rel="stylesheet" href="fee-mgmt-common.css">
+  <link rel="stylesheet" href="fee-item-master.css">
   <link rel="stylesheet" href="../../../../规范/assets/import-modal-kit.css">
   <style>
     :root {
@@ -321,6 +322,7 @@
         <a href="index.html">目录</a>
         <a href="计提规则配置与月度运行.html">费用来源</a>
         <a class="active" href="手工简易填报.html">费用填报</a>
+        <a href="商超费用计提口径说明.html">口径说明</a>
       </nav>
     </header>
 
@@ -345,10 +347,6 @@
               <span class="ctl-wrap">
                 <select id="filterFee" class="ctl">
                   <option value="">全部</option>
-                  <option>内容制作费</option>
-                  <option>展会物料费</option>
-                  <option>其它平台杂费</option>
-                  <option>渠道临时推广费</option>
                 </select>
                 <button type="button" class="ctl-clear" aria-label="清除费用项">×</button>
               </span>
@@ -411,6 +409,7 @@
         <div class="jd-card-hd" style="border-top:1px solid #eef0f5;">
           <span class="jd-card-title">填报记录</span>
           <div class="toolbar-line">
+            <button type="button" class="btn" id="btnManageFeeItems">费用项管理</button>
             <button type="button" class="btn" id="btnImport">批量导入</button>
             <button type="button" class="btn btn-primary" id="btnAdd">新增填报</button>
           </div>
@@ -455,12 +454,7 @@
       <div class="form-grid">
         <div class="field">
           <label><span class="req">*</span> 费用项</label>
-          <select id="feeItem">
-            <option value="F012">内容制作费</option>
-            <option value="F013">展会物料费</option>
-            <option value="F018">其它平台杂费</option>
-            <option value="F020">渠道临时推广费</option>
-          </select>
+          <select id="feeItem"></select>
         </div>
         <div class="field">
           <label><span class="req">*</span> 会计月份</label>
@@ -695,6 +689,7 @@
 </div>
 
 <script src="fee-mgmt-common.js"></script>
+<script src="fee-item-master.js"></script>
 <script src="../../../../规范/assets/month-range-picker.js"></script>
 <script src="../../../../规范/assets/searchable-select.js"></script>
 <script>
@@ -1431,9 +1426,33 @@
     if (btn.dataset.act === 'download') downloadAttachment(row);
   });
 
+  function refreshFeeItemSelects() {
+    if (!window.FeeItemMaster) return;
+    FeeItemMaster.syncSelect('filterFee', { mode: 'name', includeAll: true, allLabel: '全部' });
+    FeeItemMaster.syncSelect('feeItem', { mode: 'code', showCode: true });
+  }
+
+  document.getElementById('btnManageFeeItems').addEventListener('click', function () {
+    FeeItemMaster.openManage();
+  });
+
   initMonthRangePicker();
-  loadProductPool(function () {
-    mountProductSelects('', '');
+  FeeItemMaster.init({
+    usageResolver: function (code, name) {
+      if (records.some(function (r) { return r.fee === name; })) {
+        return '已被本页手工填报记录引用，不可删除';
+      }
+      return null;
+    }
+  }).then(function () {
+    refreshFeeItemSelects();
+    loadProductPool(function () {
+      mountProductSelects('', '');
+      renderRecords();
+    });
+  });
+  FeeItemMaster.onChange(function () {
+    refreshFeeItemSelects();
     renderRecords();
   });
   if (window.FeeMgmtCommon) {

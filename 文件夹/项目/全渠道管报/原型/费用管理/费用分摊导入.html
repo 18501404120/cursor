@@ -4,6 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>导入费用分摊 · 系统原型</title>
+  <link rel="stylesheet" href="fee-item-master.css">
   <style>
     :root {
       --page-bg: #f0f2f5;
@@ -942,6 +943,7 @@
     <div><strong>全渠道管报</strong> · 业务费用导入管理（原型）</div>
     <div style="display:flex;gap:14px;align-items:center;flex-wrap:wrap;">
       <button type="button" class="btn-link" id="btnPageLogicFromTop">页面说明<span class="page-logic-dot" title="页内展开"> </span></button>
+      <a href="商超费用计提口径说明.html">口径说明</a>
       <a href="index.html">← 返回费用管理目录</a>
     </div>
   </div>
@@ -970,9 +972,6 @@
           <span class="ctl-wrap">
             <select id="qFeeType" class="ctl" aria-label="费用项">
               <option value="">全部</option>
-              <option>广告费</option>
-              <option>品牌营销费</option>
-              <option>推广费</option>
             </select>
             <button type="button" class="ctl-clear" hidden aria-label="清除费用项">×</button>
           </span>
@@ -1166,6 +1165,7 @@
       <div class="panel-head list-hd">
         <h2 class="list-title">历史导入费用</h2>
         <div class="list-actions">
+          <button type="button" class="btn secondary" id="btnManageFeeItems">费用项管理</button>
           <button type="button" class="btn primary" id="btnOpenCreate">新增导入费用</button>
           <button type="button" class="btn secondary" id="btnOpenImport">导入</button>
           <span style="width:1px;height:24px;background:#e2e8f0;" aria-hidden="true"></span>
@@ -1277,14 +1277,7 @@
               <div class="scope-flat-grid scope-flat-grid--fee">
                 <div class="scope-flat-col field">
                   <label for="feeType"><span class="req">*</span>费用项</label>
-                  <select id="feeType">
-                    <option value="广告费">广告费</option>
-                    <option value="品牌营销费" selected>品牌营销费</option>
-                    <option value="推广费">推广费</option>
-                    <option value="样品费">样品费</option>
-                    <option value="运杂费">运杂费</option>
-                    <option value="其他补充费用">其他补充费用</option>
-                  </select>
+                  <select id="feeType"></select>
                 </div>
                 <div class="scope-flat-col field">
                   <label for="createBelongMonth"><span class="req">*</span>归属月</label>
@@ -1544,6 +1537,8 @@
     </div>
   </div>
 
+  <script src="fee-mgmt-common.js"></script>
+  <script src="fee-item-master.js"></script>
   <script src="../../../../规范/assets/multi-select-filter.js"></script>
   <script src="../../../../规范/assets/month-range-picker.js"></script>
   <script>
@@ -2525,6 +2520,16 @@
     }
     document.getElementById("btnPageLogicFromTop").addEventListener("click", () => togglePageLogicPanel());
 
+    function refreshFeeItemSelects() {
+      if (!window.FeeItemMaster) return;
+      FeeItemMaster.syncSelect("qFeeType", { mode: "name", includeAll: true, allLabel: "全部" });
+      FeeItemMaster.syncSelect("feeType", { mode: "name", showCode: false });
+    }
+
+    document.getElementById("btnManageFeeItems").addEventListener("click", () => {
+      FeeItemMaster.openManage();
+    });
+
     document.getElementById("btnOpenCreate").addEventListener("click", () => {
       const remarkEl = document.getElementById("feeRemark");
       if (remarkEl) remarkEl.value = "";
@@ -2888,6 +2893,28 @@
 
       renderHistory();
       updateRuleText();
+
+      FeeItemMaster.init({
+        usageResolver(code, name) {
+          if (state.historyRows.some((r) => r.fee === name)) {
+            return "已被本页导入批次引用，不可删除";
+          }
+          return null;
+        }
+      }).then(() => {
+        refreshFeeItemSelects();
+        const feeType = document.getElementById("feeType");
+        if (feeType && !feeType.value) {
+          const brand = FeeItemMaster.getByName("品牌营销费");
+          if (brand) feeType.value = brand.name;
+        }
+        updateRuleText();
+      });
+      FeeItemMaster.onChange(() => {
+        refreshFeeItemSelects();
+        renderHistory();
+        updateRuleText();
+      });
     })();
 
     if (new URLSearchParams(location.search).get("embed") === "1") {

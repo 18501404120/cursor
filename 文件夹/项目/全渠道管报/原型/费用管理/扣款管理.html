@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>扣款管理</title>
+  <link rel="stylesheet" href="fee-mgmt-common.css">
+  <style>
+    body { background: #f5f7fb; }
+    .header { background: #1f3a8a; }
+    .stat-row { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; padding: 0 16px 16px; }
+    .stat-card { border: 1px solid #e5e7eb; border-radius: 8px; background: #fff; padding: 12px 14px; }
+    .stat-card .k { font-size: 12px; color: #6b7280; }
+    .stat-card .v { margin-top: 4px; font-size: 22px; font-weight: 700; color: #1f2937; }
+    .ops { display: flex; gap: 8px; flex-wrap: wrap; }
+    .op-link { border: none; background: transparent; color: #1677ff; cursor: pointer; font-size: 12px; padding: 0 4px; }
+    .op-link.danger { color: #dc2626; }
+    .tag-match { background:#ecfdf5; color:#166534; border:1px solid #bbf7d0; }
+    .tag-high { background:#fff1f2; color:#be123c; border:1px solid #fecdd3; }
+    .tag-low { background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe; }
+    .tag-source { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 999px; font-size: 12px; }
+    .tag-source.manual { color: #a16207; background: #fffbeb; border: 1px solid #fde68a; }
+    .tag-source.excel { color: #1d4ed8; background: #eff6ff; border: 1px solid #bfdbfe; }
+    .form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 16px; }
+    .form-field { display: flex; flex-direction: column; gap: 6px; }
+    .form-field.full { grid-column: 1 / -1; }
+    .form-field label { color: #6b7280; font-size: 12px; }
+    .form-field input, .form-field textarea {
+      height: 32px; border: 1px solid #d9d9d9; border-radius: 6px; padding: 0 10px; font-size: 13px;
+    }
+    .form-field input[readonly] { background: #f8fafc; color: #475569; }
+    .form-field textarea { height: 70px; padding: 8px 10px; resize: vertical; }
+    .hint { margin: 0 16px 12px; border: 1px solid #bfdbfe; background: #eff6ff; padding: 9px 12px; border-radius: 6px; font-size: 12px; color: #1e3a8a; }
+    @media (max-width: 980px) {
+      .stat-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .form-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+<div class="layout">
+  <aside class="sider" aria-label="主导航">
+    <div class="sider-logo" aria-hidden="true"></div>
+    <a class="sider-item active" href="index.html">费用</a>
+    <a class="sider-item" href="../经营分析明细.html">管报</a>
+  </aside>
+  <main class="main">
+    <header class="header">
+      <div class="title">扣款管理</div>
+      <nav class="nav-links">
+        <a href="index.html">目录</a>
+        <a href="客户计提规则管理.html">客户计提规则</a>
+        <a href="退款管理.html">退款管理</a>
+        <a class="active" href="扣款管理.html">扣款管理</a>
+      </nav>
+    </header>
+
+    <div class="page">
+      <div class="breadcrumb"><a href="index.html">费用管理</a> / 扣款管理</div>
+
+      <section class="panel">
+        <div class="panel-head">
+          <div>
+            <div class="panel-title">扣款概览</div>
+            <div class="panel-sub">计提金额由规则和收入自动计算，页面只维护实际扣款金额</div>
+          </div>
+        </div>
+        <div class="stat-row">
+          <div class="stat-card"><div class="k">记录数</div><div class="v" id="statCount">0</div></div>
+          <div class="stat-card"><div class="k">实际扣款合计</div><div class="v" id="statActual">0</div></div>
+          <div class="stat-card"><div class="k">计提扣款合计</div><div class="v" id="statAccrual">0</div></div>
+          <div class="stat-card"><div class="k">差异合计(实际-计提)</div><div class="v" id="statDiff">0</div></div>
+        </div>
+      </section>
+
+      <section class="panel panel--filter">
+        <div class="filter-panel">
+          <div class="filter-grid">
+            <div class="f-item">
+              <label for="qPeriod">期间</label>
+              <span class="ctl-wrap">
+                <select id="qPeriod" class="ctl"><option value="">全部</option></select>
+                <button type="button" class="ctl-clear" aria-label="清除期间">×</button>
+              </span>
+            </div>
+            <div class="f-item">
+              <label for="qCustomer">客户</label>
+              <span class="ctl-wrap">
+                <select id="qCustomer" class="ctl"><option value="">全部</option></select>
+                <button type="button" class="ctl-clear" aria-label="清除客户">×</button>
+              </span>
+            </div>
+            <div class="f-item">
+              <label for="qFeeType">费用项</label>
+              <span class="ctl-wrap">
+                <select id="qFeeType" class="ctl"><option value="">全部</option></select>
+                <button type="button" class="ctl-clear" aria-label="清除费用项">×</button>
+              </span>
+            </div>
+            <div class="f-item">
+              <label for="qState">差异状态</label>
+              <span class="ctl-wrap">
+                <select id="qState" class="ctl">
+                  <option value="">全部</option>
+                  <option value="匹配">匹配</option>
+                  <option value="实际>计提">实际&gt;计提</option>
+                  <option value="实际<计提">实际&lt;计提</option>
+                </select>
+                <button type="button" class="ctl-clear" aria-label="清除状态">×</button>
+              </span>
+            </div>
+            <div class="f-item">
+              <button type="button" class="btn" id="btnReset">重置筛选</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <div class="hint">公式：期末余额 = 期初余额 - 实际扣款 + 计提扣款；促销扣款/销售折扣/现金折扣按收入 x 比例计提，销售费用优先取 Excel 月度预算值。</div>
+
+      <section class="panel panel--table">
+        <div class="panel-head">
+          <div>
+            <div class="panel-title">扣款明细</div>
+            <div class="panel-sub" id="resultTip">共 0 条</div>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>期间</th>
+                <th>客户</th>
+                <th>费用项</th>
+                <th class="num">期初余额</th>
+                <th class="num">实际扣款(录入)</th>
+                <th class="num">计提扣款</th>
+                <th class="num">期末余额</th>
+                <th class="num">差异(实际-计提)</th>
+                <th>状态</th>
+                <th class="num">收入基数</th>
+                <th>实际来源</th>
+                <th>备注</th>
+                <th>更新时间</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody id="deductionBody"></tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+  </main>
+</div>
+
+<div class="modal-mask" id="editModal" aria-hidden="true">
+  <div class="modal">
+    <div class="modal-hd">
+      <h2>录入实际扣款</h2>
+      <button type="button" class="modal-close" id="btnClose">×</button>
+    </div>
+    <div class="modal-bd">
+      <div class="form-grid">
+        <div class="form-field">
+          <label for="fPeriod">期间</label>
+          <input id="fPeriod" type="text" readonly>
+        </div>
+        <div class="form-field">
+          <label for="fCustomer">客户</label>
+          <input id="fCustomer" type="text" readonly>
+        </div>
+        <div class="form-field">
+          <label for="fFeeType">费用项</label>
+          <input id="fFeeType" type="text" readonly>
+        </div>
+        <div class="form-field">
+          <label for="fOpening">期初余额</label>
+          <input id="fOpening" type="text" readonly>
+        </div>
+        <div class="form-field">
+          <label for="fIncome">收入基数</label>
+          <input id="fIncome" type="text" readonly>
+        </div>
+        <div class="form-field">
+          <label for="fAccrual">系统计提金额</label>
+          <input id="fAccrual" type="text" readonly>
+        </div>
+        <div class="form-field">
+          <label for="fActual">实际扣款金额（用户录入）</label>
+          <input id="fActual" type="number" step="0.01">
+        </div>
+        <div class="form-field">
+          <label for="fClosing">预计期末余额</label>
+          <input id="fClosing" type="text" readonly>
+        </div>
+        <div class="form-field full">
+          <label for="fNote">备注</label>
+          <textarea id="fNote" placeholder="可填写账单来源、差异原因"></textarea>
+        </div>
+      </div>
+    </div>
+    <div class="modal-ft">
+      <button type="button" class="btn" id="btnCancel">取消</button>
+      <button type="button" class="btn btn-primary" id="btnSave">保存</button>
+    </div>
+  </div>
+</div>
+
+<script src="fee-mgmt-common.js"></script>
+<script src="supermarket-accrual-base.js"></script>
+<script src="supermarket-accrual-store.js"></script>
+<script src="扣款管理.js"></script>
+</body>
+</html>

@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>退款管理</title>
+  <link rel="stylesheet" href="fee-mgmt-common.css">
+  <style>
+    body { background: #f5f7fb; }
+    .header { background: #1f3a8a; }
+    .stat-row { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; padding: 0 16px 16px; }
+    .stat-card { border: 1px solid #e5e7eb; border-radius: 8px; background: #fff; padding: 12px 14px; }
+    .stat-card .k { font-size: 12px; color: #6b7280; }
+    .stat-card .v { margin-top: 4px; font-size: 22px; font-weight: 700; color: #1f2937; }
+    .ops { display: flex; gap: 8px; flex-wrap: wrap; }
+    .op-link { border: none; background: transparent; color: #1677ff; cursor: pointer; font-size: 12px; padding: 0 4px; }
+    .op-link.danger { color: #dc2626; }
+    .tag-source { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 999px; font-size: 12px; }
+    .tag-source.manual { color: #a16207; background: #fffbeb; border: 1px solid #fde68a; }
+    .tag-source.excel { color: #1d4ed8; background: #eff6ff; border: 1px solid #bfdbfe; }
+    .form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 16px; }
+    .form-field { display: flex; flex-direction: column; gap: 6px; }
+    .form-field.full { grid-column: 1 / -1; }
+    .form-field label { color: #6b7280; font-size: 12px; }
+    .form-field input, .form-field textarea {
+      height: 32px; border: 1px solid #d9d9d9; border-radius: 6px; padding: 0 10px; font-size: 13px;
+    }
+    .form-field input[readonly] { background: #f8fafc; color: #475569; }
+    .form-field textarea { height: 70px; padding: 8px 10px; resize: vertical; }
+    .hint { margin: 0 16px 12px; border: 1px solid #bfdbfe; background: #eff6ff; padding: 9px 12px; border-radius: 6px; font-size: 12px; color: #1e3a8a; }
+    @media (max-width: 980px) {
+      .stat-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .form-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+<div class="layout">
+  <aside class="sider" aria-label="主导航">
+    <div class="sider-logo" aria-hidden="true"></div>
+    <a class="sider-item active" href="index.html">费用</a>
+    <a class="sider-item" href="../经营分析明细.html">管报</a>
+  </aside>
+  <main class="main">
+    <header class="header">
+      <div class="title">退款管理</div>
+      <nav class="nav-links">
+        <a href="index.html">目录</a>
+        <a href="客户计提规则管理.html">客户计提规则</a>
+        <a class="active" href="退款管理.html">退款管理</a>
+        <a href="扣款管理.html">扣款管理</a>
+      </nav>
+    </header>
+
+    <div class="page">
+      <div class="breadcrumb"><a href="index.html">费用管理</a> / 退款管理</div>
+
+      <section class="panel">
+        <div class="panel-head">
+          <div>
+            <div class="panel-title">退款数据总览</div>
+            <div class="panel-sub">系统按滚动退款规则计算计提和余额，仅“实际退款金额”允许人工录入</div>
+          </div>
+        </div>
+        <div class="stat-row">
+          <div class="stat-card"><div class="k">记录数</div><div class="v" id="statCount">0</div></div>
+          <div class="stat-card"><div class="k">期初余额合计</div><div class="v" id="statOpening">0</div></div>
+          <div class="stat-card"><div class="k">实际退款合计</div><div class="v" id="statActual">0</div></div>
+          <div class="stat-card"><div class="k">期末余额合计</div><div class="v" id="statClosing">0</div></div>
+        </div>
+      </section>
+
+      <section class="panel panel--filter">
+        <div class="filter-panel">
+          <div class="filter-grid">
+            <div class="f-item">
+              <label for="qPeriod">期间</label>
+              <span class="ctl-wrap">
+                <select id="qPeriod" class="ctl"><option value="">全部</option></select>
+                <button type="button" class="ctl-clear" aria-label="清除期间">×</button>
+              </span>
+            </div>
+            <div class="f-item">
+              <label for="qCustomer">客户</label>
+              <span class="ctl-wrap">
+                <select id="qCustomer" class="ctl"><option value="">全部</option></select>
+                <button type="button" class="ctl-clear" aria-label="清除客户">×</button>
+              </span>
+            </div>
+            <div class="f-item">
+              <button type="button" class="btn" id="btnReset">重置筛选</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <div class="hint">公式：当月计提退款 = 实际退款金额 + 目标期末余额 - 期初余额；其中目标期末余额由“滚动退款率 x 目标窗口销售基数”自动计算。</div>
+
+      <section class="panel panel--table">
+        <div class="panel-head">
+          <div>
+            <div class="panel-title">退款明细</div>
+            <div class="panel-sub" id="resultTip">共 0 条</div>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>期间</th>
+                <th>客户</th>
+                <th class="num">期初退款余额</th>
+                <th class="num">实际退款(录入)</th>
+                <th class="num">滚动退款率</th>
+                <th class="num">目标窗口(月)</th>
+                <th class="num">目标销售基数</th>
+                <th class="num">当月计提退款</th>
+                <th class="num">期末退款余额</th>
+                <th>实际来源</th>
+                <th>备注</th>
+                <th>更新时间</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody id="refundBody"></tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+  </main>
+</div>
+
+<div class="modal-mask" id="editModal" aria-hidden="true">
+  <div class="modal">
+    <div class="modal-hd">
+      <h2>录入实际退款</h2>
+      <button type="button" class="modal-close" id="btnClose">×</button>
+    </div>
+    <div class="modal-bd">
+      <div class="form-grid">
+        <div class="form-field">
+          <label for="fPeriod">期间</label>
+          <input id="fPeriod" type="text" readonly>
+        </div>
+        <div class="form-field">
+          <label for="fCustomer">客户</label>
+          <input id="fCustomer" type="text" readonly>
+        </div>
+        <div class="form-field">
+          <label for="fOpening">期初退款余额</label>
+          <input id="fOpening" type="text" readonly>
+        </div>
+        <div class="form-field">
+          <label for="fRatio">滚动退款率</label>
+          <input id="fRatio" type="text" readonly>
+        </div>
+        <div class="form-field">
+          <label for="fBasis">目标销售基数</label>
+          <input id="fBasis" type="text" readonly>
+        </div>
+        <div class="form-field">
+          <label for="fTarget">目标期末余额</label>
+          <input id="fTarget" type="text" readonly>
+        </div>
+        <div class="form-field">
+          <label for="fActual">实际退款金额（用户录入）</label>
+          <input id="fActual" type="number" step="0.01">
+        </div>
+        <div class="form-field">
+          <label for="fAccrual">系统计提退款</label>
+          <input id="fAccrual" type="text" readonly>
+        </div>
+        <div class="form-field full">
+          <label for="fNote">备注</label>
+          <textarea id="fNote" placeholder="可填写账单来源、差异原因"></textarea>
+        </div>
+      </div>
+    </div>
+    <div class="modal-ft">
+      <button type="button" class="btn" id="btnCancel">取消</button>
+      <button type="button" class="btn btn-primary" id="btnSave">保存</button>
+    </div>
+  </div>
+</div>
+
+<script src="fee-mgmt-common.js"></script>
+<script src="supermarket-accrual-base.js"></script>
+<script src="supermarket-accrual-store.js"></script>
+<script src="退款管理.js"></script>
+</body>
+</html>

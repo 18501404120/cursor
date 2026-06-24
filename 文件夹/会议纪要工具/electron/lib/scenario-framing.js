@@ -39,6 +39,7 @@ const SCENARIO_PROMPT = `你是 ERP 产品「场景梳理」助手。根据【�
 【顶层字段 — 必须 JSON 根级】
 - meetingTopic, hero（一句话 ≤120字）, heroHint（可选）, subtitle（如「全渠道管报 · 亚马逊 · 2026-06-16 会议对齐」）
 - readMinutes：8～15
+- meetingTopic **禁止**仅为「会议」「会议梳理」，须为 4～24 字的具体业务主题
 - sections：至少 8 章，按会议内容选配 id（不可全空 items/blocks）
 - meetingMinutes：{ summaryBlocks: [{title, paragraphs[]}], todos[] }
 
@@ -242,17 +243,59 @@ function topicFromFolderName(name) {
     .trim();
 }
 
+/** 录音结束时的默认占位名（如「会议」「会议-2」），不能覆盖 LLM 主题 */
+function isGenericTopicName(name) {
+  const t = topicFromFolderName(name).replace(/\s+/g, '');
+  if (!t) return true;
+  if (t === '会议梳理') return true;
+  return /^会议(-\d+)?$/.test(t);
+}
+
 function applyTopicHint(data, topicHint) {
+  if (isGenericTopicName(topicHint)) return data;
   const fromFolder = topicFromFolderName(topicHint);
-  if (!fromFolder) return data;
+  if (!fromFolder || isGenericTopicName(fromFolder)) return data;
   const safe = sanitizeFilename(fromFolder);
   if (!safe) return data;
   const current = data.meetingTopic || '';
+  if (isGenericTopicName(current)) {
+    data.meetingTopic = safe;
+    return data;
+  }
   const overlap =
     fromFolder.includes(current.slice(0, 4)) || current.includes(fromFolder.slice(0, 4));
   if (!current || current === '会议梳理' || !overlap) {
     data.meetingTopic = safe;
   }
+  return data;
+}
+
+/** LLM 主题仍为占位时，从事实清单或 hero 提炼可用文件夹名 */
+function refineMeetingTopic(data, facts) {
+  if (!isGenericTopicName(data.meetingTopic)) return data;
+
+  const factTopic = facts?.meetingTopic;
+  if (factTopic && !isGenericTopicName(factTopic)) {
+    data.meetingTopic = sanitizeFilename(factTopic) || data.meetingTopic;
+    if (!isGenericTopicName(data.meetingTopic)) return data;
+  }
+
+  const hero = String(data.hero || '').trim();
+  if (hero.length >= 8) {
+    const clause = hero.split(/[，,。；;]/)[0].trim();
+    if (clause.length >= 4 && clause.length <= 40) {
+      data.meetingTopic = sanitizeFilename(clause) || data.meetingTopic;
+    }
+  }
+
+  if (isGenericTopicName(data.meetingTopic)) {
+    const bg = (data.sections || []).find((s) => s.id === 'bg');
+    const lead = bg?.lead || bg?.intro || '';
+    if (lead.length >= 6) {
+      data.meetingTopic = sanitizeFilename(lead.split(/[，,。；;]/)[0].slice(0, 36)) || data.meetingTopic;
+    }
+  }
+
   return data;
 }
 
@@ -319,6 +362,15 @@ function renameSessionFiles(renamed) {
   if (oldBaseName !== newBaseName) {
     if (fs.existsSync(oldTxt) && oldTxt !== newTxtPath) fs.renameSync(oldTxt, newTxtPath);
     if (fs.existsSync(oldM4a) && oldM4a !== newM4aPath) fs.renameSync(oldM4a, newM4aPath);
+    const oldHtml = path.join(newSessionDir, `${oldBaseName}.html`);
+    const newHtml = path.join(newSessionDir, `${newBaseName}.html`);
+    if (fs.existsSync(oldHtml) && oldHtml !== newHtml) {
+      if (fs.existsSync(newHtml)) {
+        fs.unlinkSync(oldHtml);
+      } else {
+        fs.renameSync(oldHtml, newHtml);
+      }
+    }
   }
 
   return {
@@ -383,6 +435,7 @@ async function analyzeTranscript(config, transcript, onProgress, topicHint) {
   }
 
   applyTopicHint(data, topicHint);
+  refineMeetingTopic(data, facts);
 
   if (!data.meetingTopic) {
     throw new Error('模型未返回 meetingTopic');
@@ -424,6 +477,7 @@ async function generateScenarioFromTranscript(config, options) {
       txtPath: paths.txtPath,
       m4aPath: paths.m4aPath,
     };
+    fs.writeFileSync(htmlPath, html, 'utf8');
   } else {
     const renamed = computeRenamedPaths(
       path.dirname(paths.sessionDir),
@@ -433,12 +487,8 @@ async function generateScenarioFromTranscript(config, options) {
       startedAt,
     );
     htmlPath = path.join(paths.sessionDir, `${renamed.newBaseName}.html`);
-    fs.writeFileSync(htmlPath, html, 'utf8');
     filePaths = renameSessionFiles(renamed);
     htmlPath = path.join(filePaths.sessionDir, `${filePaths.baseName}.html`);
-  }
-
-  if (htmlOnly) {
     fs.writeFileSync(htmlPath, html, 'utf8');
   }
 

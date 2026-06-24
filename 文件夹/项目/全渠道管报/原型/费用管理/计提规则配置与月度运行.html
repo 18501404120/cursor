@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>费用来源定义</title>
   <link rel="stylesheet" href="fee-mgmt-common.css">
+  <link rel="stylesheet" href="fee-item-master.css">
   <link rel="stylesheet" href="../../../../规范/assets/import-modal-kit.css">
   <style>
     :root {
@@ -396,6 +397,7 @@
         <a href="index.html">目录</a>
         <a class="active" href="计提规则配置与月度运行.html">费用来源</a>
         <a href="手工简易填报.html">手工填报</a>
+        <a href="商超费用计提口径说明.html">口径说明</a>
       </nav>
     </header>
     <div class="page">
@@ -409,11 +411,6 @@
               <span class="ctl-wrap">
                 <select id="filterFee" class="ctl">
                   <option value="">全部</option>
-                  <option>退货运费</option>
-                  <option>尾程运费（FBM）</option>
-                  <option>线下商超推广费</option>
-                  <option>平台佣金</option>
-                  <option>品牌联合投放</option>
                 </select>
                 <button type="button" class="ctl-clear" aria-label="清除费用项">×</button>
               </span>
@@ -464,6 +461,7 @@
         <div class="jd-card-hd" style="border-top:1px solid #eef0f5;">
           <span class="jd-card-title">费用来源列表</span>
           <div class="toolbar-line">
+            <button type="button" class="btn" id="btnManageFeeItems">费用项管理</button>
             <button type="button" class="btn" id="btnExportList">导出</button>
             <button type="button" class="btn btn-primary" id="btnAdd">新增来源</button>
           </div>
@@ -501,14 +499,7 @@
       <div class="form-grid">
         <div class="form-field">
           <label for="feeItem"><span class="req">*</span> 费用项</label>
-          <select id="feeItem">
-            <option value="F006">退货运费（F006）</option>
-            <option value="F007">尾程运费（FBM）（F007）</option>
-            <option value="F008">线下商超销售退款（F008）</option>
-            <option value="F009">线下商超推广费（F009）</option>
-            <option value="F001">平台佣金（F001）</option>
-            <option value="F016">品牌联合投放（F016）</option>
-          </select>
+          <select id="feeItem"></select>
         </div>
         <div class="form-field">
           <label for="sourceType"><span class="req">*</span> 费用来源</label>
@@ -722,6 +713,7 @@
 </div>
 
 <script src="fee-mgmt-common.js"></script>
+<script src="fee-item-master.js"></script>
 <script src="../../../../规范/assets/import-modal-kit.js"></script>
 <script src="../../../../规范/assets/multi-select-filter.js"></script>
 <script>
@@ -854,14 +846,6 @@
     rollingRate: '历史滚动占比',
     yoyMonthRate: '同期占比预估'
   };
-  var FEE_LABEL = {
-    F006: '退货运费',
-    F007: '尾程运费（FBM）',
-    F008: '线下商超销售退款',
-    F009: '线下商超推广费',
-    F001: '平台佣金',
-    F016: '品牌联合投放'
-  };
   var CALIBER_LABEL = {
     channelCountry: '渠道+国家',
     channelCountryScene: '渠道+国家+场景',
@@ -891,7 +875,14 @@
   var chDrop = document.getElementById('chDrop');
   if (chDrop && chDrop.parentNode !== document.body) document.body.appendChild(chDrop);
 
-  function feeName(code) { return FEE_LABEL[code] || code; }
+  function feeName(code) {
+    return window.FeeItemMaster ? FeeItemMaster.getName(code) : code;
+  }
+  function refreshFeeItemSelects() {
+    if (!window.FeeItemMaster) return;
+    FeeItemMaster.syncSelect('filterFee', { mode: 'name', includeAll: true, allLabel: '全部' });
+    FeeItemMaster.syncSelect('feeItem', { mode: 'code', showCode: true });
+  }
   function sourceName(type) {
     if (type === 'historyRate') return '历史滚动占比';
     return SOURCE_LABEL[type] || type;
@@ -1521,7 +1512,8 @@
     clearDetailFilters();
 
     if (isNew) {
-      document.getElementById('feeItem').value = 'F006';
+      var first = FeeItemMaster.getAll()[0];
+      document.getElementById('feeItem').value = first ? first.code : '';
       document.getElementById('sourceType').value = 'auto';
       document.getElementById('enabled').value = '启用';
       document.getElementById('remark').value = '';
@@ -1688,8 +1680,9 @@
 
   /* 列表页按钮委托（capture）：避免遮罩层拦截导致编辑/查看无响应 */
   function handleListPageAction(e) {
-    var t = e.target.closest('#btnAdd, #btnQuery, #btnExportList, [data-act]');
+    var t = e.target.closest('#btnAdd, #btnManageFeeItems, #btnQuery, #btnExportList, [data-act], [data-fee-item-act]');
     if (!t) return;
+    if (t.id === 'btnManageFeeItems') { e.preventDefault(); e.stopPropagation(); FeeItemMaster.openManage(); return; }
     if (t.id === 'btnAdd') { e.preventDefault(); e.stopPropagation(); openModal(null); return; }
     if (t.id === 'btnQuery') { e.preventDefault(); e.stopPropagation(); renderTable(); return; }
     if (t.id === 'btnExportList') { e.preventDefault(); e.stopPropagation(); exportSourceList(); return; }
@@ -1699,7 +1692,22 @@
   }
   document.addEventListener('click', handleListPageAction, true);
 
-  renderTable();
+  FeeItemMaster.init({
+    usageResolver: function (code) {
+      if (rows.some(function (r) { return r.feeCode === code; })) {
+        return '已被本页费用来源配置引用，不可删除';
+      }
+      return null;
+    }
+  }).then(function () {
+    refreshFeeItemSelects();
+    renderTable();
+  });
+  FeeItemMaster.onChange(function () {
+    refreshFeeItemSelects();
+    renderTable();
+  });
+
   loadMasterDimensionData();
   try {
     mountDetailFilters();
@@ -1762,6 +1770,12 @@
       "body": "按当前筛选条件刷新费用来源列表。"
     },
     {
+      "id": "btn-manage-fee-items",
+      "selector": "#btnManageFeeItems",
+      "title": "费用项管理",
+      "body": "维护费用项主数据：新增、编辑名称与备注、删除未引用的费用项。筛选区与「新增来源」的费用项下拉均同步自此。"
+    },
+    {
       "id": "btn-add",
       "selector": "#btnAdd",
       "title": "新增来源",
@@ -1772,6 +1786,18 @@
       "selector": "#sourceBody",
       "title": "费用来源列表",
       "body": "展示各费用项在不同渠道下的来源类型与摘要。支持查看、编辑、启停。"
+    },
+    {
+      "id": "fee-item-manage-modal",
+      "selector": "#feeItemManageTitle",
+      "title": "费用项管理弹窗",
+      "body": "列表展示编码、名称、备注；支持新增、编辑、删除。已被来源配置引用的费用项不可删除。"
+    },
+    {
+      "id": "fee-item-edit-modal",
+      "selector": "#feeItemEditTitle",
+      "title": "新增/编辑费用项",
+      "body": "填写费用项名称（必填）与备注（选填）。新增时系统自动分配编码；编辑时编码不可改。"
     },
     {
       "id": "edit-modal",
@@ -1870,11 +1896,11 @@
     "dev": {
       "页面整体定位": "费用来源定义用于配置各费用项在不同渠道下的取数或计提规则，是月度费用运行前的主数据配置页。",
       "页面核心业务逻辑": "来源类型决定计算方式：自动取数同步外部数据；固定金额/比例按明细维护值；历史滚动占比用历史窗口内费用÷基数滚动平均；同期占比取去年同月占比。口径范围决定明细粒度。",
-      "关键规则说明": "同费用项渠道互斥。明细表随口径范围展开组合，支持导入导出与批量编辑。启用/停用控制是否参与计提。",
+      "关键规则说明": "费用项主数据在「费用项管理」中维护（名称、备注）；同费用项渠道互斥。明细表随口径范围展开组合，支持导入导出与批量编辑。启用/停用控制是否参与计提。已被来源引用的费用项不可删除。",
       "关联上下游": "上游：渠道主数据、历史费用与营收基数；下游：费用来源月度运行与管报取数。"
     },
     "user": {
-      "标准操作流程": "1. 筛选并查询来源列表。2. 新增或编辑选择费用项与来源类型。3. 选择渠道与口径范围。4. 维护明细表或使用导入批量填写。5. 保存并确认启用。",
+      "标准操作流程": "1. 在「费用项管理」维护费用项名称与备注。2. 筛选并查询来源列表。3. 新增或编辑选择费用项与来源类型。4. 选择渠道与口径范围。5. 维护明细表或使用导入批量填写。6. 保存并确认启用。",
       "关键按钮与场景": "历史滚动占比需配置历史窗口与比例基数，并在明细表填写各国占比。导入明细适合批量维护多国数值。",
       "使用注意事项": "切换口径范围会改变明细表结构。保存前须补全所有明细维护值。已占用渠道不可重复配置。"
     }

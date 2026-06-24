@@ -22,10 +22,12 @@ function parseTranscriptMeta(text) {
 }
 
 async function main() {
-  const htmlOnly = process.argv.includes('--html-only');
+  const htmlOnly = process.argv.includes('--html-only') && !process.argv.includes('--rename');
   const txtPath = path.resolve(process.argv.find((a) => a.endsWith('.txt')) || '');
   if (!txtPath || !fs.existsSync(txtPath)) {
     console.error('用法: npm run scenario:from-txt -- "/path/to/26-06-16 会议.txt"');
+    console.error('      npm run scenario:from-txt -- --html-only "/path/..."   # 仅更新 HTML，不改文件夹名');
+    console.error('      npm run scenario:from-txt -- --rename "/path/..."     # 重新生成并按主题重命名');
     process.exit(2);
   }
 
