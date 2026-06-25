@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>退款管理</title>
   <link rel="stylesheet" href="fee-mgmt-common.css">
+  <link rel="stylesheet" href="../../../../规范/assets/import-modal-kit.css">
   <style>
     body { background: #f5f7fb; }
     .header { background: #1f3a8a; }
@@ -15,6 +16,16 @@
     .ops { display: flex; gap: 8px; flex-wrap: wrap; }
     .op-link { border: none; background: transparent; color: #1677ff; cursor: pointer; font-size: 12px; padding: 0 4px; }
     .op-link.danger { color: #dc2626; }
+    .calc-link {
+      border: none;
+      background: transparent;
+      color: #1677ff;
+      cursor: pointer;
+      padding: 0;
+      font: inherit;
+      text-decoration: underline dotted;
+      text-underline-offset: 2px;
+    }
     .tag-source { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 999px; font-size: 12px; }
     .tag-source.manual { color: #a16207; background: #fffbeb; border: 1px solid #fde68a; }
     .tag-source.excel { color: #1d4ed8; background: #eff6ff; border: 1px solid #bfdbfe; }
@@ -28,6 +39,83 @@
     .form-field input[readonly] { background: #f8fafc; color: #475569; }
     .form-field textarea { height: 70px; padding: 8px 10px; resize: vertical; }
     .hint { margin: 0 16px 12px; border: 1px solid #bfdbfe; background: #eff6ff; padding: 9px 12px; border-radius: 6px; font-size: 12px; color: #1e3a8a; }
+    .sub-hint { margin: -4px 16px 12px; font-size: 12px; color: #6b7280; }
+    .calc-panel { display: grid; gap: 12px; }
+    .calc-summary {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px;
+      padding: 12px;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+    }
+    .calc-summary .item { display: flex; flex-direction: column; gap: 4px; }
+    .calc-summary .label { font-size: 12px; color: #64748b; }
+    .calc-summary .value { font-size: 16px; font-weight: 700; color: #1f2937; }
+    .calc-edit {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+      align-items: end;
+      padding: 12px;
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      background: #fff;
+    }
+    .calc-edit .field { display: flex; flex-direction: column; gap: 6px; }
+    .calc-edit label { font-size: 12px; color: #6b7280; }
+    .calc-edit input {
+      height: 32px;
+      border: 1px solid #d9d9d9;
+      border-radius: 6px;
+      padding: 0 10px;
+      font-size: 13px;
+    }
+    .calc-edit .tip { grid-column: 1 / -1; font-size: 12px; color: #6b7280; }
+    .calc-card {
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      padding: 12px;
+      background: #fff;
+    }
+    .calc-card h3 {
+      margin: 0 0 8px;
+      font-size: 14px;
+      color: #1f2937;
+    }
+    .calc-card p {
+      margin: 0 0 8px;
+      font-size: 12px;
+      color: #475569;
+      line-height: 1.6;
+    }
+    .formula {
+      font-family: ui-monospace, monospace;
+      font-size: 12px;
+      color: #1e3a8a;
+      background: #eff6ff;
+      border: 1px solid #bfdbfe;
+      border-radius: 6px;
+      padding: 8px 10px;
+      line-height: 1.6;
+    }
+    .mini-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+    .mini-table th, .mini-table td {
+      border: 1px solid #e5e7eb;
+      padding: 6px 8px;
+      text-align: right;
+    }
+    .mini-table th:first-child, .mini-table td:first-child { text-align: left; }
+    .mini-table tbody tr.active { background: #fffbeb; }
+    @media (max-width: 1200px) {
+      .calc-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .calc-edit { grid-template-columns: 1fr; }
+    }
     @media (max-width: 980px) {
       .stat-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
       .form-grid { grid-template-columns: 1fr; }
@@ -64,9 +152,9 @@
         </div>
         <div class="stat-row">
           <div class="stat-card"><div class="k">记录数</div><div class="v" id="statCount">0</div></div>
-          <div class="stat-card"><div class="k">期初余额合计</div><div class="v" id="statOpening">0</div></div>
+          <div class="stat-card"><div class="k">期初计提退款余额合计</div><div class="v" id="statOpening">0</div></div>
           <div class="stat-card"><div class="k">实际退款合计</div><div class="v" id="statActual">0</div></div>
-          <div class="stat-card"><div class="k">期末余额合计</div><div class="v" id="statClosing">0</div></div>
+          <div class="stat-card"><div class="k">期末计提退款余额合计</div><div class="v" id="statClosing">0</div></div>
         </div>
       </section>
 
@@ -94,13 +182,17 @@
         </div>
       </section>
 
-      <div class="hint">公式：当月计提退款 = 实际退款金额 + 目标期末余额 - 期初余额；其中目标期末余额由“滚动退款率 x 目标窗口销售基数”自动计算。</div>
+      <div class="hint">公式：当月计提退款 = 实际退款金额 + 期末计提退款余额 - 期初计提退款余额。期初计提退款余额按上月滚动退款率 × 目标窗口内销售收入计算；期末计提退款余额按本月滚动退款率 × 目标窗口内销售收入计算。销售收入取自财务系统该零售商的销售收入。</div>
+      <div class="sub-hint">点击“上月滚动退款率 / 本月滚动退款率 / 目标窗口(月) / 期初计提退款余额 / 当月计提退款 / 期末计提退款余额”，可查看计算过程并调整目标窗口。</div>
 
       <section class="panel panel--table">
         <div class="panel-head">
           <div>
             <div class="panel-title">退款明细</div>
             <div class="panel-sub" id="resultTip">共 0 条</div>
+          </div>
+          <div class="panel-actions">
+            <button type="button" class="btn btn-primary" id="btnImport">导入</button>
           </div>
         </div>
         <div class="table-wrap">
@@ -109,13 +201,14 @@
               <tr>
                 <th>期间</th>
                 <th>客户</th>
-                <th class="num">期初退款余额</th>
+                <th class="num">销售收入</th>
+                <th class="num">期初计提退款余额</th>
                 <th class="num">实际退款(录入)</th>
-                <th class="num">滚动退款率</th>
+                <th class="num">上月滚动退款率</th>
+                <th class="num">本月滚动退款率</th>
                 <th class="num">目标窗口(月)</th>
-                <th class="num">目标销售基数</th>
                 <th class="num">当月计提退款</th>
-                <th class="num">期末退款余额</th>
+                <th class="num">期末计提退款余额</th>
                 <th>实际来源</th>
                 <th>备注</th>
                 <th>更新时间</th>
@@ -147,19 +240,19 @@
           <input id="fCustomer" type="text" readonly>
         </div>
         <div class="form-field">
-          <label for="fOpening">期初退款余额</label>
+          <label for="fOpening">期初计提退款余额</label>
           <input id="fOpening" type="text" readonly>
         </div>
         <div class="form-field">
-          <label for="fRatio">滚动退款率</label>
+          <label for="fPrevRatio">上月滚动退款率</label>
+          <input id="fPrevRatio" type="text" readonly>
+        </div>
+        <div class="form-field">
+          <label for="fRatio">本月滚动退款率</label>
           <input id="fRatio" type="text" readonly>
         </div>
         <div class="form-field">
-          <label for="fBasis">目标销售基数</label>
-          <input id="fBasis" type="text" readonly>
-        </div>
-        <div class="form-field">
-          <label for="fTarget">目标期末余额</label>
+          <label for="fTarget">期末计提退款余额</label>
           <input id="fTarget" type="text" readonly>
         </div>
         <div class="form-field">
@@ -183,7 +276,73 @@
   </div>
 </div>
 
+<div class="modal-mask" id="calcModal" aria-hidden="true">
+  <div class="modal" style="width:min(1080px, calc(100vw - 40px));">
+    <div class="modal-hd">
+      <h2 id="calcTitle">退款计算过程</h2>
+      <button type="button" class="modal-close" id="btnCalcClose">×</button>
+    </div>
+    <div class="modal-bd">
+      <div class="calc-panel">
+        <div class="calc-summary" id="calcSummary"></div>
+        <div class="calc-edit">
+          <div class="field">
+            <label for="calcWindowInput">目标窗口（月）</label>
+            <input id="calcWindowInput" type="number" min="1" step="1">
+          </div>
+          <div class="field">
+            <label for="calcPrevRatioInput">上月滚动退款率</label>
+            <input id="calcPrevRatioInput" type="text" readonly>
+          </div>
+          <div class="field">
+            <label for="calcRatioInput">本月滚动退款率</label>
+            <input id="calcRatioInput" type="text" readonly>
+          </div>
+          <div class="field">
+            <label for="calcSalesIncomeInput">当月销售收入</label>
+            <input id="calcSalesIncomeInput" type="text" readonly>
+          </div>
+          <div class="tip">调整目标窗口后，期初计提退款余额、当月计提退款、期末计提退款余额会即时预览；保存后，会继续顺延影响后续月份的期初计提退款余额。</div>
+        </div>
+        <div class="calc-card" id="sectionPrevRatio">
+          <h3>上月滚动退款率计算</h3>
+          <p>上月滚动退款率 = 截至上一自然月末、近 12 个月实际退款合计 / 近 12 个月销售收入合计。例如 2026-01 的上月滚动退款率，取 2025-01 至 2025-12 的收入与退款数据计算，结果为 7.17%。</p>
+          <div class="formula" id="prevRatioFormula"></div>
+          <div id="prevRatioHistoryWrap"></div>
+        </div>
+        <div class="calc-card" id="sectionRatio">
+          <h3>本月滚动退款率计算</h3>
+          <p>本月滚动退款率 = 截至当月末、近 12 个月实际退款合计 / 近 12 个月销售收入合计。例如 2026-01 的本月滚动退款率，取 2025-02 至 2026-01 的收入与退款数据。</p>
+          <div class="formula" id="ratioFormula"></div>
+          <div id="ratioHistoryWrap"></div>
+        </div>
+        <div class="calc-card" id="sectionOpening">
+          <h3>期初计提退款余额计算</h3>
+          <p>期初计提退款余额 = 上月滚动退款率 × 上一组目标窗口内销售收入合计。若已有上月台账，也可理解为上月期末计提退款余额顺延。</p>
+          <div class="formula" id="openingFormula"></div>
+          <div id="openingHistoryWrap"></div>
+        </div>
+        <div class="calc-card" id="sectionClosing">
+          <h3>期末计提退款余额计算</h3>
+          <p>期末计提退款余额 = 本月滚动退款率 × 当前目标窗口内销售收入合计，同时也是下个月期初计提退款余额的计算基础。</p>
+          <div class="formula" id="closingFormula"></div>
+          <div id="closingHistoryWrap"></div>
+        </div>
+        <div class="calc-card" id="sectionAccrual">
+          <h3>当月计提退款计算</h3>
+          <div class="formula" id="accrualFormula"></div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-ft">
+      <button type="button" class="btn" id="btnCalcCancel">取消</button>
+      <button type="button" class="btn btn-primary" id="btnCalcSave">保存目标窗口</button>
+    </div>
+  </div>
+</div>
+
 <script src="fee-mgmt-common.js"></script>
+<script src="../../../../规范/assets/import-modal-kit.js"></script>
 <script src="supermarket-accrual-base.js"></script>
 <script src="supermarket-accrual-store.js"></script>
 <script src="退款管理.js"></script>

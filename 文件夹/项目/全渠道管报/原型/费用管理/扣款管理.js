@@ -3,6 +3,7 @@
 
   var store = window.SupermarketAccrualStore;
   var editingId = null;
+  var calcState = null;
 
   function esc(text) {
     return String(text == null ? '' : text)
@@ -14,7 +15,16 @@
 
   function money(value) {
     var num = Number(value || 0);
-    return num.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    return '$' + num.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+
+  function pct(value) {
+    var num = Number(value || 0);
+    return (num * 100).toFixed(4).replace(/0+$/, '').replace(/\.$/, '') + '%';
+  }
+
+  function round2(value) {
+    return Math.round((Number(value) || 0) * 100) / 100;
   }
 
   function diff(actual, accrual) {
@@ -36,6 +46,77 @@
   function sourceTag(source) {
     var cls = source === '手工录入' ? 'manual' : 'excel';
     return '<span class="tag-source ' + cls + '">' + esc(source) + '</span>';
+  }
+
+  function ruleIdOf(row) {
+    return row.customer + '|' + row.feeType;
+  }
+
+  function isBudgetFeeType(row) {
+    return row.feeType === '销售费用' && row.ruleMethod !== 'fixed_ratio';
+  }
+
+  function isMonthlyFixed(row) {
+    return row.ruleMethod === 'monthly_fixed';
+  }
+
+  function getRowsByGroup(customer, feeType) {
+    return store.getDeductions().filter(function (row) {
+      return row.customer === customer && row.feeType === feeType;
+    }).sort(function (a, b) {
+      return a.period.localeCompare(b.period);
+    });
+  }
+
+  function buildCalcScenario(row) {
+    var rule = store.getFixedRule ? store.getFixedRule(ruleIdOf(row)) : null;
+    var groupRows = getRowsByGroup(row.customer, row.feeType);
+    var rowIndex = groupRows.findIndex(function (item) { return item.id === row.id; });
+    var previousRow = rowIndex > 0 ? groupRows[rowIndex - 1] : null;
+    var income = round2(row.income || 0);
+    var ratio = Number(row.ruleRatio || 0);
+    var budgetFee = isBudgetFeeType(row);
+    var monthlyFixed = isMonthlyFixed(row);
+    var excelBaseAccrual = round2(row.excelBaseAccrual || 0);
+    var computedAccrual;
+
+    if (budgetFee) {
+      computedAccrual = store.computeDeductionAccrual
+        ? round2(store.computeDeductionAccrual(row.customer, row.feeType, row.period, true))
+        : round2(row.excelBaseAccrual || row.accrualDeduction || 0);
+    } else if (monthlyFixed) {
+      computedAccrual = round2(row.ruleBaseAmount || (rule ? rule.baseAmount : 0));
+    } else {
+      computedAccrual = store.computeDeductionAccrual
+        ? round2(store.computeDeductionAccrual(row.customer, row.feeType, row.period, true))
+        : round2(income * ratio);
+    }
+
+    return {
+      row: row,
+      rule: rule,
+      previousRow: previousRow,
+      income: income,
+      ratio: ratio,
+      budgetFee: budgetFee,
+      monthlyFixed: monthlyFixed,
+      computedAccrual: computedAccrual,
+      openingBalance: round2(row.openingBalance || 0),
+      actualDeduction: round2(row.actualDeduction || 0),
+      accrualDeduction: round2(row.accrualDeduction || 0),
+      closingBalance: round2(row.closingBalance || 0),
+      previousClosing: previousRow ? round2(previousRow.closingBalance || 0) : null
+    };
+  }
+
+  function ratioDisplay(row) {
+    if (isBudgetFeeType(row)) return '预算/固定';
+    if (isMonthlyFixed(row)) return '月固定额';
+    return pct(row.ruleRatio);
+  }
+
+  function calcButton(row, field, text) {
+    return '<button type="button" class="calc-link" data-action="calc" data-field="' + esc(field) + '" data-id="' + esc(row.id) + '">' + esc(text) + '</button>';
   }
 
   function populateOptions() {
@@ -76,20 +157,20 @@
 
   function renderStats(rows) {
     var list = rows || store.getDeductions();
+    var opening = 0;
     var actual = 0;
-    var accrual = 0;
-    var delta = 0;
+    var closing = 0;
 
     list.forEach(function (row) {
+      opening += Number(row.openingBalance || 0);
       actual += Number(row.actualDeduction || 0);
-      accrual += Number(row.accrualDeduction || 0);
-      delta += diff(row.actualDeduction, row.accrualDeduction);
+      closing += Number(row.closingBalance || 0);
     });
 
     document.getElementById('statCount').textContent = list.length;
+    document.getElementById('statOpening').textContent = money(opening);
     document.getElementById('statActual').textContent = money(actual);
-    document.getElementById('statAccrual').textContent = money(accrual);
-    document.getElementById('statDiff').textContent = money(delta);
+    document.getElementById('statClosing').textContent = money(closing);
   }
 
   function renderTable() {
@@ -107,18 +188,24 @@
     body.innerHTML = rows.map(function (row) {
       var state = stateOf(row);
       var delta = diff(row.actualDeduction, row.accrualDeduction);
+      var ratioCell = isBudgetFeeType(row)
+        ? calcButton(row, 'accrual', '预算/固定')
+        : isMonthlyFixed(row)
+          ? calcButton(row, 'ratio', '月固定额')
+          : calcButton(row, 'ratio', ratioDisplay(row));
+
       return '' +
         '<tr>' +
           '<td>' + esc(row.period) + '</td>' +
           '<td>' + esc(row.customer) + '</td>' +
           '<td>' + esc(row.feeType) + '</td>' +
-          '<td class="num">' + money(row.openingBalance) + '</td>' +
+          '<td class="num">' + calcButton(row, 'opening', money(row.openingBalance)) + '</td>' +
           '<td class="num">' + money(row.actualDeduction) + '</td>' +
-          '<td class="num">' + money(row.accrualDeduction) + '</td>' +
-          '<td class="num">' + money(row.closingBalance) + '</td>' +
+          '<td class="num">' + ratioCell + '</td>' +
+          '<td class="num">' + calcButton(row, 'accrual', money(row.accrualDeduction)) + '</td>' +
+          '<td class="num">' + calcButton(row, 'closing', money(row.closingBalance)) + '</td>' +
           '<td class="num">' + money(delta) + '</td>' +
           '<td><span class="' + stateTagClass(state) + '">' + esc(state) + '</span></td>' +
-          '<td class="num">' + money(row.income) + '</td>' +
           '<td>' + sourceTag(row.actualSource) + '</td>' +
           '<td title="' + esc(row.note || '') + '">' + esc((row.note || '').slice(0, 24)) + '</td>' +
           '<td>' + esc(row.updatedAt || '-') + '</td>' +
@@ -149,6 +236,7 @@
     document.getElementById('fFeeType').value = row.feeType;
     document.getElementById('fOpening').value = money(row.openingBalance);
     document.getElementById('fIncome').value = money(row.income);
+    document.getElementById('fRatio').value = ratioDisplay(row);
     document.getElementById('fAccrual').value = money(row.accrualDeduction);
     document.getElementById('fActual').value = Number(row.actualDeduction || 0);
     document.getElementById('fNote').value = row.note || '';
@@ -159,6 +247,101 @@
   function closeModal() {
     editingId = null;
     window.FeeMgmtCommon.closeModalMask('editModal');
+  }
+
+  function focusCalcSection(field) {
+    var targetId = 'sectionAccrual';
+    if (field === 'ratio') targetId = 'sectionRatio';
+    if (field === 'opening') targetId = 'sectionOpening';
+    if (field === 'closing') targetId = 'sectionClosing';
+    if (field === 'accrual') {
+      targetId = calcState && calcState.row && isBudgetFeeType(calcState.row) ? 'sectionBudget' : 'sectionAccrual';
+    }
+
+    var target = document.getElementById(targetId);
+    if (target && typeof target.scrollIntoView === 'function') {
+      target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }
+
+  function renderCalcModal() {
+    if (!calcState || !calcState.row) return;
+
+    var row = calcState.row;
+    var scenario = buildCalcScenario(row);
+    var rule = scenario.rule;
+    var triggerLabel = {
+      ratio: '客户计提比例',
+      opening: '期初余额',
+      accrual: '计提扣款',
+      closing: '期末余额'
+    }[calcState.field] || '扣款';
+
+    document.getElementById('calcTitle').textContent = triggerLabel + '计算过程';
+    document.getElementById('calcSummary').innerHTML = '' +
+      '<div class="item"><div class="label">期间</div><div class="value">' + esc(row.period) + '</div></div>' +
+      '<div class="item"><div class="label">客户</div><div class="value">' + esc(row.customer) + '</div></div>' +
+      '<div class="item"><div class="label">费用项</div><div class="value">' + esc(row.feeType) + '</div></div>' +
+      '<div class="item"><div class="label">当月销售收入</div><div class="value">' + money(scenario.income) + '</div></div>';
+
+    document.getElementById('sectionRatio').hidden = scenario.budgetFee;
+    document.getElementById('sectionBudget').hidden = !scenario.budgetFee;
+
+    if (!scenario.budgetFee && !scenario.monthlyFixed) {
+      var ratioName = row.feeType === '促销扣款' ? '促销扣款比例' : (row.feeType === '销售折扣' ? '销售折扣比例' : (row.feeType === '现金折扣' ? '现金折扣比例' : '计提比例'));
+      document.getElementById('ratioFormula').textContent =
+        row.feeType + ' 计提扣款 = 当月销售收入 ' + money(scenario.income) +
+        ' × ' + ratioName + ' ' + pct(scenario.ratio) +
+        '（来源：Excel《扣款比例》' + esc(row.customer) + '）' +
+        ' = ' + money(scenario.computedAccrual);
+    } else if (scenario.monthlyFixed) {
+      document.getElementById('ratioFormula').textContent =
+        row.feeType + ' 按固定月度金额计提：' + money(scenario.computedAccrual);
+    }
+
+    if (scenario.budgetFee) {
+      var budgetNote = rule && rule.note ? '（' + rule.note + '）' : '';
+      document.getElementById('budgetFormula').textContent =
+        '销售费用计提扣款 = Excel《计提扣款金额》' + esc(row.period) + ' 月度值 ' +
+        money(scenario.computedAccrual) + budgetNote;
+    }
+
+    document.getElementById('openingFormula').textContent = scenario.previousRow
+      ? '本月期初余额 = 上月（' + esc(scenario.previousRow.period) + '）期末余额 = ' + money(scenario.openingBalance)
+      : '本月期初余额 = Excel 冲销记录期初值 = ' + money(scenario.openingBalance);
+
+    if (scenario.budgetFee) {
+      document.getElementById('accrualFormula').textContent =
+        '计提扣款 = Excel 月度预算/固定额 ' + money(scenario.accrualDeduction);
+    } else if (scenario.monthlyFixed) {
+      document.getElementById('accrualFormula').textContent =
+        '计提扣款 = 固定月度金额 ' + money(scenario.accrualDeduction);
+    } else {
+      document.getElementById('accrualFormula').textContent =
+        '计提扣款 = 当月销售收入 ' + money(scenario.income) +
+        ' × 计提比例 ' + pct(scenario.ratio) +
+        ' = ' + money(scenario.accrualDeduction);
+    }
+
+    document.getElementById('closingFormula').textContent =
+      '期末余额 = 期初余额 ' + money(scenario.openingBalance) +
+      ' - 实际扣款 ' + money(scenario.actualDeduction) +
+      ' + 计提扣款 ' + money(scenario.accrualDeduction) +
+      ' = ' + money(scenario.closingBalance);
+
+    focusCalcSection(calcState.field);
+  }
+
+  function openCalcModal(row, field) {
+    if (!row) return;
+    calcState = { id: row.id, field: field, row: row };
+    renderCalcModal();
+    window.FeeMgmtCommon.openModalMask('calcModal');
+  }
+
+  function closeCalcModal() {
+    calcState = null;
+    window.FeeMgmtCommon.closeModalMask('calcModal');
   }
 
   function saveRow() {
@@ -177,6 +360,63 @@
 
     closeModal();
     renderTable();
+  }
+
+  function buildImportTemplateRows() {
+    return [
+      ['期间', '客户', '费用项', '实际扣款金额', '备注'],
+      ['2026-01', 'Target', '促销扣款', '44956.16', '账单核对后录入']
+    ];
+  }
+
+  function mountImportKit() {
+    if (!window.ImportModalKit) return;
+    window.ImportModalKit.mount({
+      trigger: '#btnImport',
+      title: '导入实际扣款',
+      introHtml: '<p>批量导入各客户、各费用项、各期间的实际扣款金额。系统按「期间 + 客户 + 费用项」匹配台账，覆盖实际扣款（录入）值，并自动重算期末余额。</p>' +
+        '<p><strong>注意：</strong>仅「实际扣款金额」支持导入；计提比例、计提扣款仍由系统按 Excel 规则计算。</p>',
+      templateExt: 'CSV',
+      templateFileName: '扣款实际值导入模版.csv',
+      columns: [
+        { group: '主键', name: '期间', required: true, desc: '格式 YYYY-MM' },
+        { group: '主键', name: '客户', required: true, desc: '零售商名称' },
+        { group: '主键', name: '费用项', required: true, desc: '促销扣款 / 销售折扣 / 现金折扣 / 销售费用' },
+        { group: '录入', name: '实际扣款金额', required: true, desc: '正数金额，可带或不带 $ 符号' },
+        { group: '录入', name: '备注', required: false, desc: '账单来源、差异说明' }
+      ],
+      requirements: [
+        '期间、客户、费用项组合须在扣款台账中已存在。',
+        '实际扣款金额为必填，填写数字即可。',
+        '导入后标记为「手工录入」，并触发同客户同费用项后续月份余额顺延。',
+        '原型示意中不做真实文件解析，确认导入后模拟批量覆盖当前筛选结果前几条。'
+      ],
+      onDownload: function () {
+        window.ImportModalKit.downloadCsv('扣款实际值导入模版.csv', buildImportTemplateRows());
+      },
+      onConfirm: function (file, resultEl) {
+        if (!file) {
+          resultEl.textContent = '请先选择已填写的模版文件。';
+          return;
+        }
+        var rows = getRows();
+        var count = 0;
+        rows.slice(0, 3).forEach(function (row, index) {
+          store.upsertDeductionActual({
+            id: row.id,
+            feeType: row.feeType,
+            customer: row.customer,
+            period: row.period,
+            actualAmount: Number(row.actualDeduction || 0) + (index + 1) * 50,
+            note: '批量导入示意'
+          });
+          count += 1;
+        });
+        renderTable();
+        resultEl.textContent = '导入完成：成功 ' + count + ' 行，失败 0 行。';
+      }
+    });
+    if (window.FeeMgmtCommon) window.FeeMgmtCommon.ensureHiddenModals();
   }
 
   function bindEvents() {
@@ -204,6 +444,12 @@
       if (e.target.id === 'editModal') closeModal();
     });
 
+    document.getElementById('btnCalcClose').addEventListener('click', closeCalcModal);
+    document.getElementById('btnCalcClose2').addEventListener('click', closeCalcModal);
+    document.getElementById('calcModal').addEventListener('click', function (e) {
+      if (e.target.id === 'calcModal') closeCalcModal();
+    });
+
     document.getElementById('deductionBody').addEventListener('click', function (e) {
       var btn = e.target.closest('[data-action][data-id]');
       if (!btn) return;
@@ -215,12 +461,15 @@
       } else if (action === 'reset') {
         store.resetDeductionActual(id);
         renderTable();
+      } else if (action === 'calc') {
+        openCalcModal(findById(id), btn.getAttribute('data-field'));
       }
     });
   }
 
   function init() {
     populateOptions();
+    mountImportKit();
     bindEvents();
     renderTable();
   }

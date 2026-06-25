@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>扣款管理</title>
   <link rel="stylesheet" href="fee-mgmt-common.css">
+  <link rel="stylesheet" href="../../../../规范/assets/import-modal-kit.css">
   <style>
     body { background: #f5f7fb; }
     .header { background: #1f3a8a; }
@@ -15,6 +16,16 @@
     .ops { display: flex; gap: 8px; flex-wrap: wrap; }
     .op-link { border: none; background: transparent; color: #1677ff; cursor: pointer; font-size: 12px; padding: 0 4px; }
     .op-link.danger { color: #dc2626; }
+    .calc-link {
+      border: none;
+      background: transparent;
+      color: #1677ff;
+      cursor: pointer;
+      padding: 0;
+      font: inherit;
+      text-decoration: underline dotted;
+      text-underline-offset: 2px;
+    }
     .tag-match { background:#ecfdf5; color:#166534; border:1px solid #bbf7d0; }
     .tag-high { background:#fff1f2; color:#be123c; border:1px solid #fecdd3; }
     .tag-low { background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe; }
@@ -31,6 +42,50 @@
     .form-field input[readonly] { background: #f8fafc; color: #475569; }
     .form-field textarea { height: 70px; padding: 8px 10px; resize: vertical; }
     .hint { margin: 0 16px 12px; border: 1px solid #bfdbfe; background: #eff6ff; padding: 9px 12px; border-radius: 6px; font-size: 12px; color: #1e3a8a; }
+    .sub-hint { margin: -4px 16px 12px; font-size: 12px; color: #6b7280; }
+    .calc-panel { display: grid; gap: 12px; }
+    .calc-summary {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px;
+      padding: 12px;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+    }
+    .calc-summary .item { display: flex; flex-direction: column; gap: 4px; }
+    .calc-summary .label { font-size: 12px; color: #64748b; }
+    .calc-summary .value { font-size: 16px; font-weight: 700; color: #1f2937; }
+    .calc-card {
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      padding: 12px;
+      background: #fff;
+    }
+    .calc-card h3 {
+      margin: 0 0 8px;
+      font-size: 14px;
+      color: #1f2937;
+    }
+    .calc-card p {
+      margin: 0 0 8px;
+      font-size: 12px;
+      color: #475569;
+      line-height: 1.6;
+    }
+    .formula {
+      font-family: ui-monospace, monospace;
+      font-size: 12px;
+      color: #1e3a8a;
+      background: #eff6ff;
+      border: 1px solid #bfdbfe;
+      border-radius: 6px;
+      padding: 8px 10px;
+      line-height: 1.6;
+    }
+    @media (max-width: 1200px) {
+      .calc-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
     @media (max-width: 980px) {
       .stat-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
       .form-grid { grid-template-columns: 1fr; }
@@ -61,15 +116,15 @@
       <section class="panel">
         <div class="panel-head">
           <div>
-            <div class="panel-title">扣款概览</div>
-            <div class="panel-sub">计提金额由规则和收入自动计算，页面只维护实际扣款金额</div>
+            <div class="panel-title">扣款数据总览</div>
+            <div class="panel-sub">促销扣款、销售折扣、现金折扣按收入×比例计提，销售费用按 Excel 月度预算计提；仅「实际扣款金额」允许人工录入</div>
           </div>
         </div>
         <div class="stat-row">
           <div class="stat-card"><div class="k">记录数</div><div class="v" id="statCount">0</div></div>
+          <div class="stat-card"><div class="k">期初余额合计</div><div class="v" id="statOpening">0</div></div>
           <div class="stat-card"><div class="k">实际扣款合计</div><div class="v" id="statActual">0</div></div>
-          <div class="stat-card"><div class="k">计提扣款合计</div><div class="v" id="statAccrual">0</div></div>
-          <div class="stat-card"><div class="k">差异合计(实际-计提)</div><div class="v" id="statDiff">0</div></div>
+          <div class="stat-card"><div class="k">期末余额合计</div><div class="v" id="statClosing">0</div></div>
         </div>
       </section>
 
@@ -104,7 +159,7 @@
                   <option value="">全部</option>
                   <option value="匹配">匹配</option>
                   <option value="实际>计提">实际&gt;计提</option>
-                  <option value="实际<计提">实际&lt;计提</option>
+                  <option value="实际&lt;计提">实际&lt;计提</option>
                 </select>
                 <button type="button" class="ctl-clear" aria-label="清除状态">×</button>
               </span>
@@ -116,13 +171,17 @@
         </div>
       </section>
 
-      <div class="hint">公式：期末余额 = 期初余额 - 实际扣款 + 计提扣款；促销扣款/销售折扣/现金折扣按收入 x 比例计提，销售费用优先取 Excel 月度预算值。</div>
+      <div class="hint">公式：期末余额 = 期初余额 - 实际扣款 + 计提扣款。促销扣款 / 销售折扣 / 现金折扣按「当月销售收入 × 客户计提比例」计算（比例见客户计提规则管理 / Excel《扣款比例》）；销售费用按 Excel《计提扣款金额》月度预算计提。销售收入取自财务系统该零售商的销售收入。</div>
+      <div class="sub-hint">点击「计提比例 / 期初余额 / 计提扣款 / 期末余额」，可查看完整计算过程。数据示例来自 Excel《商超促销扣款&amp;销售折扣&amp;现金折扣&amp;销售费用测算数》与《商超退货扣款计提测算》。</div>
 
       <section class="panel panel--table">
         <div class="panel-head">
           <div>
             <div class="panel-title">扣款明细</div>
             <div class="panel-sub" id="resultTip">共 0 条</div>
+          </div>
+          <div class="panel-actions">
+            <button type="button" class="btn btn-primary" id="btnImport">导入</button>
           </div>
         </div>
         <div class="table-wrap">
@@ -134,11 +193,11 @@
                 <th>费用项</th>
                 <th class="num">期初余额</th>
                 <th class="num">实际扣款(录入)</th>
+                <th class="num">计提比例</th>
                 <th class="num">计提扣款</th>
                 <th class="num">期末余额</th>
                 <th class="num">差异(实际-计提)</th>
                 <th>状态</th>
-                <th class="num">收入基数</th>
                 <th>实际来源</th>
                 <th>备注</th>
                 <th>更新时间</th>
@@ -178,11 +237,15 @@
           <input id="fOpening" type="text" readonly>
         </div>
         <div class="form-field">
-          <label for="fIncome">收入基数</label>
+          <label for="fIncome">当月销售收入</label>
           <input id="fIncome" type="text" readonly>
         </div>
         <div class="form-field">
-          <label for="fAccrual">系统计提金额</label>
+          <label for="fRatio">计提比例</label>
+          <input id="fRatio" type="text" readonly>
+        </div>
+        <div class="form-field">
+          <label for="fAccrual">系统计提扣款</label>
           <input id="fAccrual" type="text" readonly>
         </div>
         <div class="form-field">
@@ -206,7 +269,49 @@
   </div>
 </div>
 
+<div class="modal-mask" id="calcModal" aria-hidden="true">
+  <div class="modal" style="width:min(960px, calc(100vw - 40px));">
+    <div class="modal-hd">
+      <h2 id="calcTitle">扣款计算过程</h2>
+      <button type="button" class="modal-close" id="btnCalcClose">×</button>
+    </div>
+    <div class="modal-bd">
+      <div class="calc-panel">
+        <div class="calc-summary" id="calcSummary"></div>
+        <div class="calc-card" id="sectionRatio">
+          <h3>客户计提比例</h3>
+          <p>促销扣款、销售折扣、现金折扣的比例来自 Excel《扣款比例》中该客户的固定点位，与当月销售收入相乘得到计提扣款。</p>
+          <div class="formula" id="ratioFormula"></div>
+        </div>
+        <div class="calc-card" id="sectionBudget" hidden>
+          <h3>月度预算计提</h3>
+          <p>销售费用优先使用 Excel《计提扣款金额》中的月度预算或固定额，不按收入比例滚动计算（部分客户另有收入比例兜底）。</p>
+          <div class="formula" id="budgetFormula"></div>
+        </div>
+        <div class="calc-card" id="sectionOpening">
+          <h3>期初余额计算</h3>
+          <p>首月取 Excel 冲销记录中的期初余额；后续月份等于上月期末余额顺延。</p>
+          <div class="formula" id="openingFormula"></div>
+        </div>
+        <div class="calc-card" id="sectionAccrual">
+          <h3>计提扣款计算</h3>
+          <div class="formula" id="accrualFormula"></div>
+        </div>
+        <div class="calc-card" id="sectionClosing">
+          <h3>期末余额计算</h3>
+          <p>期末余额 = 期初余额 - 实际扣款 + 计提扣款，与 Excel《销售费用计提冲销记录》滚动逻辑一致。</p>
+          <div class="formula" id="closingFormula"></div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-ft">
+      <button type="button" class="btn" id="btnCalcClose2">关闭</button>
+    </div>
+  </div>
+</div>
+
 <script src="fee-mgmt-common.js"></script>
+<script src="../../../../规范/assets/import-modal-kit.js"></script>
 <script src="supermarket-accrual-base.js"></script>
 <script src="supermarket-accrual-store.js"></script>
 <script src="扣款管理.js"></script>

@@ -218,6 +218,42 @@
     return round2(sumWindow(rows, 'sales', windowMonths));
   }
 
+  function historyBefore(customer, period) {
+    return historyRows(customer).filter(function (row) {
+      return row.period < period;
+    });
+  }
+
+  function computeOpeningSalesBasis(customer, period, prevPeriod, prevWindowMonths, currentWindowMonths) {
+    if (prevPeriod) {
+      return round2(sumWindow(historyUntil(customer, prevPeriod), 'sales', prevWindowMonths));
+    }
+    return round2(sumWindow(historyBefore(customer, period), 'sales', currentWindowMonths));
+  }
+
+  function shiftPeriod(period, delta) {
+    var parts = period.split('-').map(Number);
+    var y = parts[0];
+    var m = parts[1] + delta;
+    while (m > 12) {
+      m -= 12;
+      y += 1;
+    }
+    while (m < 1) {
+      m += 12;
+      y -= 1;
+    }
+    return y + '-' + pad(m);
+  }
+
+  function getPreviousRefundRatio(customer, period, customerPeriods, index) {
+    if (index > 0) {
+      var prevLedgerPeriod = customerPeriods[index - 1];
+      return getRefundRule(buildKey([customer, prevLedgerPeriod])).ratio;
+    }
+    return computeRefundRatio(customer, shiftPeriod(period, -1));
+  }
+
   function buildKey(parts) {
     return parts.join('|');
   }
@@ -262,7 +298,7 @@
     var note = Object.prototype.hasOwnProperty.call(overrideRow, 'note') ? String(overrideRow.note || '') : String(baseRow.note || '');
     var sourcePeriod = baseRow.sourcePeriod || periods[0] || '';
     var sampleIncome = getIncome(baseRow.customer, sourcePeriod);
-    var sampleAccrual = getSampleAccrual(baseRow.customer, baseRow.feeType, sourcePeriod, method, ratio, baseAmount, hasFixedMetricOverride(overrideRow));
+    var sampleAccrual = computeDeductionAccrual(baseRow.customer, baseRow.feeType, sourcePeriod, hasFixedMetricOverride(overrideRow));
 
     return {
       id: ruleId,
@@ -271,6 +307,7 @@
       method: method,
       methodLabel: METHOD_LABELS[method] || method || '-',
       ratio: ratio == null ? 0 : ratio,
+      ratioLabel: ratioLabelForFeeType(baseRow.feeType),
       baseAmount: baseAmount == null ? 0 : baseAmount,
       sourcePeriod: sourcePeriod,
       sampleIncome: sampleIncome,
@@ -368,34 +405,95 @@
 
   function getDeductionAccrual(customer, feeType, period) {
     var ruleId = buildKey([customer, feeType]);
-    var rule = fixedRuleBaseMap[ruleId] ? getFixedRule(ruleId) : null;
-    var income = getIncome(customer, period);
-    var baseAmount = getBaseAccrualAmount(customer, feeType, period);
-    var ledgerBase = deductionLedgerBaseMap[buildKey([feeType, customer, period])];
     var overrideRow = readOverrides(STORAGE_KEYS.fixedRules)[ruleId] || null;
+    return computeDeductionAccrual(customer, feeType, period, hasFixedMetricOverride(overrideRow));
+  }
 
-    if (!hasFixedMetricOverride(overrideRow)) {
-      if (ledgerBase) return round2(ledgerBase.excelAccrual || 0);
-      if (baseAmount || baseAmount === 0) return round2(baseAmount);
+  function computeDeductionAccrual(customer, feeType, period, forceRuleFormula) {
+    var ruleId = buildKey([customer, feeType]);
+    var baseRow = fixedRuleBaseMap[ruleId] || {};
+    var overrideRow = readOverrides(STORAGE_KEYS.fixedRules)[ruleId] || {};
+    var method = overrideRow.method || baseRow.method || (feeType === '销售费用' ? 'budget_or_fixed' : 'fixed_ratio');
+    var ratio = numericOrNull(overrideRow.ratio);
+    if (ratio == null) ratio = numericOrNull(baseRow.ratio);
+    if (ratio == null) ratio = 0;
+    var baseAmount = numericOrNull(overrideRow.baseAmount);
+    if (baseAmount == null) baseAmount = numericOrNull(baseRow.baseAmount);
+    if (baseAmount == null) baseAmount = 0;
+    var income = getIncome(customer, period);
+    var excelAmount = getBaseAccrualAmount(customer, feeType, period);
+    var ledgerBase = deductionLedgerBaseMap[buildKey([feeType, customer, period])];
+
+    if (!forceRuleFormula) {
+      if (ledgerBase && Object.keys(ledgerBase).length) return round2(ledgerBase.excelAccrual || 0);
+      if (excelAmount || excelAmount === 0) return round2(excelAmount);
+    }
+
+    if (feeType === '销售费用') {
+      if (excelAmount || excelAmount === 0) return round2(excelAmount);
+      if (method === 'budget_or_fixed' && hasValue(baseAmount)) return round2(baseAmount);
+      if (method === 'fixed_ratio') return round2(income * Number(ratio || 0));
       return round2(ledgerBase ? ledgerBase.excelAccrual : 0);
     }
 
-    if (rule) {
-      if (feeType === '销售费用') {
-        if (hasValue(rule.baseAmount)) {
-          return round2(rule.baseAmount);
-        }
-        if (rule.method === 'fixed_ratio') return round2(income * Number(rule.ratio || 0));
-        if (baseAmount) return round2(baseAmount);
-        return round2(ledgerBase ? ledgerBase.excelAccrual : 0);
-      }
+    if (method === 'monthly_fixed') return round2(baseAmount || 0);
+    if (method === 'fixed_ratio') return round2(income * Number(ratio || 0));
 
-      if (rule.method === 'monthly_fixed') return round2(rule.baseAmount);
-      if (hasValue(rule.ratio)) return round2(income * Number(rule.ratio || 0));
-    }
+    return round2(excelAmount);
+  }
 
-    if (baseAmount) return round2(baseAmount);
-    return round2(ledgerBase ? ledgerBase.excelAccrual : 0);
+  function getCustomerDeductionRateMatrix(samplePeriod) {
+    var period = samplePeriod || periods[0] || '';
+    var customerSet = {};
+    fixedRuleBaseRows.forEach(function (row) {
+      customerSet[row.customer] = true;
+    });
+
+    return Object.keys(customerSet).sort(function (a, b) {
+      return a.localeCompare(b, 'en');
+    }).map(function (customer) {
+      var promoRule = fixedRuleBaseMap[buildKey([customer, '促销扣款'])] ? getFixedRule(buildKey([customer, '促销扣款'])) : null;
+      var salesRule = fixedRuleBaseMap[buildKey([customer, '销售折扣'])] ? getFixedRule(buildKey([customer, '销售折扣'])) : null;
+      var cashRule = fixedRuleBaseMap[buildKey([customer, '现金折扣'])] ? getFixedRule(buildKey([customer, '现金折扣'])) : null;
+      var expenseRule = fixedRuleBaseMap[buildKey([customer, '销售费用'])] ? getFixedRule(buildKey([customer, '销售费用'])) : null;
+      var income = round2(getIncome(customer, period));
+      var promoAccrual = computeDeductionAccrual(customer, '促销扣款', period, true);
+      var salesAccrual = computeDeductionAccrual(customer, '销售折扣', period, true);
+      var cashAccrual = computeDeductionAccrual(customer, '现金折扣', period, true);
+      var expenseAccrual = computeDeductionAccrual(customer, '销售费用', period, true);
+      var origins = [promoRule, salesRule, cashRule, expenseRule].filter(Boolean).map(function (item) {
+        return item.origin;
+      });
+      var hasAdjusted = origins.indexOf('已调整') >= 0;
+
+      return {
+        customer: customer,
+        period: period,
+        income: income,
+        promoRatio: promoRule ? Number(promoRule.ratio || 0) : 0,
+        salesDiscountRatio: salesRule ? Number(salesRule.ratio || 0) : 0,
+        cashDiscountRatio: cashRule ? Number(cashRule.ratio || 0) : 0,
+        promoAccrual: promoAccrual,
+        salesDiscountAccrual: salesAccrual,
+        cashDiscountAccrual: cashAccrual,
+        salesExpenseAccrual: expenseAccrual,
+        salesExpenseMethod: expenseRule ? expenseRule.methodLabel : '—',
+        salesExpenseBudget: expenseRule ? round2(expenseRule.baseAmount || 0) : 0,
+        origin: hasAdjusted ? '已调整' : 'Excel',
+        promoRuleId: promoRule ? promoRule.id : '',
+        salesRuleId: salesRule ? salesRule.id : '',
+        cashRuleId: cashRule ? cashRule.id : '',
+        expenseRuleId: expenseRule ? expenseRule.id : ''
+      };
+    });
+  }
+
+  function ratioLabelForFeeType(feeType) {
+    if (feeType === '促销扣款') return '促销扣款比例';
+    if (feeType === '销售折扣') return '销售折扣比例';
+    if (feeType === '现金折扣') return '现金折扣比例';
+    if (feeType === '销售费用') return '参考比例';
+    return '计提比例';
   }
 
   function getFixedRules() {
@@ -448,12 +546,23 @@
         var actualOverride = actualOverrides[id] || {};
         var ruleOverride = ruleOverrides[id] || {};
         var rule = getRefundRule(id);
+        var prevPeriod = index > 0 ? rowsByCustomer[customer][index - 1] : null;
+        var prevRule = prevPeriod ? getRefundRule(buildKey([customer, prevPeriod])) : null;
+        var prevRatio = getPreviousRefundRatio(customer, period, rowsByCustomer[customer], index);
+        var openingSalesBasis = computeOpeningSalesBasis(
+          customer,
+          period,
+          prevPeriod,
+          prevRule ? prevRule.windowMonths : rule.windowMonths,
+          rule.windowMonths
+        );
         var openingBalance;
         var actualRefund;
         var targetClosing;
         var accrualAmount;
         var closingBalance;
         var affectsCalc = hasPriorDelta || hasValue(actualOverride.actualAmount) || hasRefundMetricOverride(ruleOverride);
+        var needsRecalcOpening = hasPriorDelta || hasRefundMetricOverride(ruleOverride);
 
         if (!affectsCalc && Object.keys(baseLedger).length) {
           openingBalance = round2(baseLedger.openingBalance || 0);
@@ -462,11 +571,13 @@
           accrualAmount = round2(baseLedger.excelAccrual || 0);
           closingBalance = round2(baseLedger.closingBalance || 0);
         } else {
-          openingBalance = hasPriorDelta ? round2(previousClosing) : round2(baseLedger.openingBalance || 0);
+          openingBalance = needsRecalcOpening
+            ? round2(prevRatio * openingSalesBasis)
+            : round2(baseLedger.openingBalance || 0);
           actualRefund = hasValue(actualOverride.actualAmount) ? round2(actualOverride.actualAmount) : round2(baseLedger.actualAmount || 0);
           targetClosing = round2(rule.targetClosing || 0);
           accrualAmount = round2(actualRefund + targetClosing - openingBalance);
-          closingBalance = round2(openingBalance - actualRefund + accrualAmount);
+          closingBalance = round2(targetClosing);
         }
 
         previousClosing = closingBalance;
@@ -480,6 +591,7 @@
           actualRefund: actualRefund,
           accrualAmount: accrualAmount,
           closingBalance: closingBalance,
+          prevRatio: round8(prevRatio),
           ratio: rule.ratio,
           windowMonths: rule.windowMonths,
           salesBasis: rule.salesBasis,
@@ -566,8 +678,10 @@
           actualSource: hasValue(actualOverride.actualAmount) ? '手工录入' : 'Excel基线',
           income: round2(getIncome(customer, period)),
           ruleRatio: rule ? Number(rule.ratio || 0) : 0,
+          ruleBaseAmount: rule ? round2(rule.baseAmount || 0) : 0,
           ruleMethod: rule ? rule.method : '',
           ruleMethodLabel: rule ? rule.methodLabel : 'Excel基线',
+          excelBaseAccrual: round2(getBaseAccrualAmount(customer, feeType, period)),
           excelAccrual: round2(baseLedger.excelAccrual || 0),
           excelClosing: round2(baseLedger.closingBalance || 0)
         });
@@ -719,6 +833,10 @@
     getRefunds: getRefunds,
     getDeductions: getDeductions,
     getFixedRule: getFixedRule,
+    getIncome: getIncome,
+    getBaseAccrualAmount: getBaseAccrualAmount,
+    computeDeductionAccrual: computeDeductionAccrual,
+    getCustomerDeductionRateMatrix: getCustomerDeductionRateMatrix,
     getRefundRule: getRefundRule,
     upsertFixedRule: upsertFixedRule,
     resetFixedRule: resetFixedRule,
@@ -727,6 +845,7 @@
     upsertRefundActual: upsertRefundActual,
     resetRefundActual: resetRefundActual,
     upsertDeductionActual: upsertDeductionActual,
-    resetDeductionActual: resetDeductionActual
+    resetDeductionActual: resetDeductionActual,
+    computeRefundRatio: computeRefundRatio
   };
 })(typeof window !== 'undefined' ? window : this);
