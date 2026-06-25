@@ -52,8 +52,17 @@
     return row.customer + '|' + row.feeType;
   }
 
+  function isSalesExpenseRule(row) {
+    return row.feeType === '销售费用';
+  }
+
+  function isRatioBasedFee(row) {
+    if (!isSalesExpenseRule(row)) return true;
+    return row.ruleMethod === 'fixed_ratio';
+  }
+
   function isBudgetFeeType(row) {
-    return row.feeType === '销售费用' && row.ruleMethod !== 'fixed_ratio';
+    return isSalesExpenseRule(row) && !isRatioBasedFee(row);
   }
 
   function isMonthlyFixed(row) {
@@ -110,7 +119,9 @@
   }
 
   function ratioDisplay(row) {
-    if (isBudgetFeeType(row)) return '预算/固定';
+    if (isSalesExpenseRule(row)) {
+      return row.ruleMethodLabel || '销售费用';
+    }
     if (isMonthlyFixed(row)) return '月固定额';
     return pct(row.ruleRatio);
   }
@@ -188,11 +199,9 @@
     body.innerHTML = rows.map(function (row) {
       var state = stateOf(row);
       var delta = diff(row.actualDeduction, row.accrualDeduction);
-      var ratioCell = isBudgetFeeType(row)
-        ? calcButton(row, 'accrual', '预算/固定')
-        : isMonthlyFixed(row)
-          ? calcButton(row, 'ratio', '月固定额')
-          : calcButton(row, 'ratio', ratioDisplay(row));
+      var ratioCell = isRatioBasedFee(row)
+        ? calcButton(row, 'ratio', ratioDisplay(row))
+        : calcButton(row, 'accrual', ratioDisplay(row));
 
       return '' +
         '<tr>' +
@@ -271,7 +280,7 @@
     var scenario = buildCalcScenario(row);
     var rule = scenario.rule;
     var triggerLabel = {
-      ratio: '客户计提比例',
+      ratio: '客户计提比例/规则',
       opening: '期初余额',
       accrual: '计提扣款',
       closing: '期末余额'
@@ -300,10 +309,14 @@
     }
 
     if (scenario.budgetFee) {
-      var budgetNote = rule && rule.note ? '（' + rule.note + '）' : '';
-      document.getElementById('budgetFormula').textContent =
-        '销售费用计提扣款 = Excel《计提扣款金额》' + esc(row.period) + ' 月度值 ' +
-        money(scenario.computedAccrual) + budgetNote;
+      var method = row.ruleMethodLabel || '销售费用';
+      var formulaText = {
+        monthly_fixed: '销售费用计提 = 月固定金额 ' + money(scenario.computedAccrual),
+        annual_avg: '销售费用计提 = 年总金额 ' + money(row.ruleBaseAmount) + ' ÷ 12 = ' + money(scenario.computedAccrual),
+        custom_monthly: '销售费用计提 = ' + esc(row.period) + ' 自定义月金额 ' + money(scenario.computedAccrual),
+        fixed_ratio: '销售费用计提 = 当月收入 ' + money(scenario.income) + ' × ' + pct(scenario.ratio) + ' = ' + money(scenario.computedAccrual)
+      }[row.ruleMethod] || ('销售费用计提 = ' + money(scenario.accrualDeduction));
+      document.getElementById('budgetFormula').textContent = formulaText + (rule && rule.note ? '（' + rule.note + '）' : '');
     }
 
     document.getElementById('openingFormula').textContent = scenario.previousRow
@@ -312,7 +325,7 @@
 
     if (scenario.budgetFee) {
       document.getElementById('accrualFormula').textContent =
-        '计提扣款 = Excel 月度预算/固定额 ' + money(scenario.accrualDeduction);
+        '计提扣款 = ' + (row.ruleMethodLabel || '销售费用规则') + ' → ' + money(scenario.accrualDeduction);
     } else if (scenario.monthlyFixed) {
       document.getElementById('accrualFormula').textContent =
         '计提扣款 = 固定月度金额 ' + money(scenario.accrualDeduction);

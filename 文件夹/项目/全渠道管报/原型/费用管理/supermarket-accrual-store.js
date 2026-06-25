@@ -17,9 +17,11 @@
   };
   var METHOD_LABELS = {
     fixed_ratio: '固定比例',
-    budget_or_fixed: '预算/固定额',
+    budget_or_fixed: '自定义月金额',
     rolling_refund: '滚动退款率',
-    monthly_fixed: '月固定额'
+    monthly_fixed: '月固定金额',
+    annual_avg: '年总金额月均分摊',
+    custom_monthly: '自定义月金额'
   };
   var storage = getStorage();
   var periods = Array.isArray(base.periods) ? base.periods.slice() : [];
@@ -286,19 +288,74 @@
     return ledgerRow ? Number(ledgerRow.excelAccrual || 0) : 0;
   }
 
+  function resolveExpenseMethod(baseRow, overrideRow) {
+    var method = overrideRow && overrideRow.method ? overrideRow.method : (baseRow.method || 'custom_monthly');
+    if (method !== 'budget_or_fixed') return method;
+
+    var customer = baseRow.customer;
+    var monthlyAmounts = periods.map(function (period) {
+      return round2(getBaseAccrualAmount(customer, '销售费用', period));
+    }).filter(function (value) { return value > 0; });
+
+    if (monthlyAmounts.length > 1) {
+      var first = monthlyAmounts[0];
+      var allSame = monthlyAmounts.every(function (value) {
+        return Math.abs(value - first) < 0.02;
+      });
+      if (!allSame) return 'custom_monthly';
+    }
+    if (Number(baseRow.baseAmount || 0) > 0 && monthlyAmounts.length) {
+      var annualAvg = round2(Number(baseRow.baseAmount) / 12);
+      if (monthlyAmounts.every(function (value) { return Math.abs(value - annualAvg) < 1; })) {
+        return 'annual_avg';
+      }
+      if (Math.abs(monthlyAmounts[0] - Number(baseRow.baseAmount)) < 1) return 'monthly_fixed';
+    }
+    if (Number(baseRow.ratio || 0) > 0 && monthlyAmounts.length) {
+      var income = getIncome(customer, periods[periods.length - 1] || '');
+      if (Math.abs(monthlyAmounts[monthlyAmounts.length - 1] - income * Number(baseRow.ratio)) < 1) {
+        return 'fixed_ratio';
+      }
+    }
+    return monthlyAmounts.length ? 'custom_monthly' : 'monthly_fixed';
+  }
+
+  function getCustomMonthlyAmount(customer, period, overrideRow, baseRow) {
+    var map = (overrideRow && overrideRow.monthlyAmounts) || {};
+    if (Object.prototype.hasOwnProperty.call(map, period)) {
+      return round2(Number(map[period]) || 0);
+    }
+    var excelAmount = getBaseAccrualAmount(customer, '销售费用', period);
+    if (excelAmount || excelAmount === 0) return round2(excelAmount);
+    return 0;
+  }
+
+  function describeExpenseRule(method, ratio, baseAmount, customer, period, overrideRow, baseRow) {
+    if (method === 'monthly_fixed') return '月固定金额 ' + round2(baseAmount || 0);
+    if (method === 'annual_avg') return '年总额 ' + round2(baseAmount || 0) + ' ÷ 12 = ' + round2(Number(baseAmount || 0) / 12);
+    if (method === 'fixed_ratio') return '当月收入 × ' + round8(ratio || 0);
+    if (method === 'custom_monthly') {
+      return period + ' 月金额 ' + getCustomMonthlyAmount(customer, period, overrideRow || {}, baseRow || {});
+    }
+    return '—';
+  }
+
   function getFixedRule(ruleId) {
     var baseRow = fixedRuleBaseMap[ruleId] || {};
     var overrides = readOverrides(STORAGE_KEYS.fixedRules);
     var overrideRow = overrides[ruleId] || {};
-    var method = overrideRow.method || baseRow.method || (baseRow.feeType === '销售费用' ? 'budget_or_fixed' : 'fixed_ratio');
+    var method = baseRow.feeType === '销售费用'
+      ? resolveExpenseMethod(baseRow, overrideRow)
+      : (overrideRow.method || baseRow.method || 'fixed_ratio');
     var ratio = numericOrNull(overrideRow.ratio);
     if (ratio == null) ratio = numericOrNull(baseRow.ratio);
     var baseAmount = numericOrNull(overrideRow.baseAmount);
     if (baseAmount == null) baseAmount = numericOrNull(baseRow.baseAmount);
     var note = Object.prototype.hasOwnProperty.call(overrideRow, 'note') ? String(overrideRow.note || '') : String(baseRow.note || '');
     var sourcePeriod = baseRow.sourcePeriod || periods[0] || '';
-    var sampleIncome = getIncome(baseRow.customer, sourcePeriod);
-    var sampleAccrual = computeDeductionAccrual(baseRow.customer, baseRow.feeType, sourcePeriod, hasFixedMetricOverride(overrideRow));
+    var previewPeriod = sourcePeriod;
+    var sampleIncome = getIncome(baseRow.customer, previewPeriod);
+    var sampleAccrual = computeDeductionAccrual(baseRow.customer, baseRow.feeType, previewPeriod, true);
 
     return {
       id: ruleId,
@@ -312,6 +369,10 @@
       sourcePeriod: sourcePeriod,
       sampleIncome: sampleIncome,
       sampleAccrual: sampleAccrual,
+      expenseRuleDesc: baseRow.feeType === '销售费用'
+        ? describeExpenseRule(method, ratio, baseAmount, baseRow.customer, previewPeriod, overrideRow, baseRow)
+        : '',
+      monthlyAmounts: overrideRow.monthlyAmounts || null,
       formulaDesc: buildFixedFormulaDesc(baseRow.feeType, method),
       note: note,
       origin: hasOverrideValues(overrideRow) ? '已调整' : 'Excel',
@@ -340,13 +401,20 @@
 
   function hasFixedMetricOverride(row) {
     if (!row) return false;
+    if (row.monthlyAmounts && Object.keys(row.monthlyAmounts).length) return true;
     return hasValue(row.method) || hasValue(row.ratio) || hasValue(row.baseAmount);
   }
 
   function buildFixedFormulaDesc(feeType, method) {
-    if (feeType === '销售费用' && method !== 'fixed_ratio') return '优先使用 Excel 月度预算/固定额';
+    if (feeType === '销售费用') {
+      if (method === 'monthly_fixed') return '销售费用 = 月固定金额';
+      if (method === 'annual_avg') return '销售费用 = 年总金额 ÷ 12';
+      if (method === 'custom_monthly') return '销售费用 = 按期间自定义月金额';
+      if (method === 'fixed_ratio') return '销售费用 = 当月收入 × 固定比例';
+      return '销售费用按 Excel 月度值计提';
+    }
     if (method === 'monthly_fixed') return '按固定月度金额计提';
-    return '计提金额 = 当月收入 x 规则比例';
+    return '计提金额 = 当月收入 × 规则比例';
   }
 
   function getRefundRule(ruleId) {
@@ -430,9 +498,18 @@
     }
 
     if (feeType === '销售费用') {
+      var expenseMethod = resolveExpenseMethod(baseRow, overrideRow);
+      if (!forceRuleFormula) {
+        if (ledgerBase && Object.keys(ledgerBase).length) return round2(ledgerBase.excelAccrual || 0);
+        if (excelAmount || excelAmount === 0) return round2(excelAmount);
+      }
+      if (expenseMethod === 'monthly_fixed') return round2(baseAmount || 0);
+      if (expenseMethod === 'annual_avg') return round2(Number(baseAmount || 0) / 12);
+      if (expenseMethod === 'fixed_ratio') return round2(income * Number(ratio || 0));
+      if (expenseMethod === 'custom_monthly') {
+        return getCustomMonthlyAmount(customer, period, overrideRow, baseRow);
+      }
       if (excelAmount || excelAmount === 0) return round2(excelAmount);
-      if (method === 'budget_or_fixed' && hasValue(baseAmount)) return round2(baseAmount);
-      if (method === 'fixed_ratio') return round2(income * Number(ratio || 0));
       return round2(ledgerBase ? ledgerBase.excelAccrual : 0);
     }
 
@@ -466,6 +543,9 @@
       });
       var hasAdjusted = origins.indexOf('已调整') >= 0;
 
+      var expenseMethod = expenseRule ? expenseRule.method : '';
+      var expenseDesc = expenseRule ? expenseRule.expenseRuleDesc : '—';
+
       return {
         customer: customer,
         period: period,
@@ -478,6 +558,8 @@
         cashDiscountAccrual: cashAccrual,
         salesExpenseAccrual: expenseAccrual,
         salesExpenseMethod: expenseRule ? expenseRule.methodLabel : '—',
+        salesExpenseMethodCode: expenseMethod,
+        salesExpenseRuleDesc: expenseDesc,
         salesExpenseBudget: expenseRule ? round2(expenseRule.baseAmount || 0) : 0,
         origin: hasAdjusted ? '已调整' : 'Excel',
         promoRuleId: promoRule ? promoRule.id : '',
@@ -708,6 +790,10 @@
       updatedAt: nowText()
     };
 
+    if (payload.monthlyAmounts && typeof payload.monthlyAmounts === 'object') {
+      nextRow.monthlyAmounts = payload.monthlyAmounts;
+    }
+
     if (nextRow.ratio == null) nextRow.ratio = numericOrNull(baseRow.ratio);
     if (nextRow.baseAmount == null) nextRow.baseAmount = numericOrNull(baseRow.baseAmount);
 
@@ -722,10 +808,17 @@
   }
 
   function isSameFixedRule(overrideRow, baseRow) {
-    return (overrideRow.method || '') === (baseRow.method || '') &&
+    var baseMethod = baseRow.feeType === '销售费用'
+      ? resolveExpenseMethod(baseRow, {})
+      : (baseRow.method || '');
+    var overrideMethod = baseRow.feeType === '销售费用' && overrideRow.method
+      ? overrideRow.method
+      : (overrideRow.method || baseMethod);
+    return overrideMethod === baseMethod &&
       round8(overrideRow.ratio || 0) === round8(baseRow.ratio || 0) &&
       round2(overrideRow.baseAmount || 0) === round2(baseRow.baseAmount || 0) &&
-      String(overrideRow.note || '') === String(baseRow.note || '');
+      String(overrideRow.note || '') === String(baseRow.note || '') &&
+      !overrideRow.monthlyAmounts;
   }
 
   function resetFixedRule(ruleId) {
