@@ -4,6 +4,20 @@
   var store = window.SupermarketAccrualStore;
   var editingId = null;
   var calcState = null;
+  var qMonthRangePicker = null;
+  var OP_LOG_SCOPE = 'deduction';
+
+  function appendOpLog(rowKey, entry) {
+    if (!window.FeeMgmtOpLog) return;
+    var payload = Object.assign({}, entry || {}, { rowKey: rowKey });
+    window.FeeMgmtOpLog.append(OP_LOG_SCOPE, payload);
+  }
+
+  function logCountLabel(rowKey) {
+    if (!window.FeeMgmtOpLog || !rowKey) return '日志';
+    var count = window.FeeMgmtOpLog.countByRow(OP_LOG_SCOPE, rowKey);
+    return count ? '日志(' + count + ')' : '日志';
+  }
 
   function esc(text) {
     return String(text == null ? '' : text)
@@ -43,9 +57,32 @@
     return 'tag tag-low';
   }
 
-  function sourceTag(source) {
-    var cls = source === '手工录入' ? 'manual' : 'excel';
-    return '<span class="tag-source ' + cls + '">' + esc(source) + '</span>';
+  function getDefaultMonthRange() {
+    var anchor = store.getRefundAnchorPeriod ? store.getRefundAnchorPeriod() : window.FeeMgmtCommon.currentMonthYm();
+    return window.FeeMgmtCommon.getRecentMonthsRange(3, anchor);
+  }
+
+  function getMonthRangeFilter() {
+    if (!qMonthRangePicker || !qMonthRangePicker.get) return getDefaultMonthRange();
+    return qMonthRangePicker.get();
+  }
+
+  function mountMonthRangeFilter() {
+    if (!window.MonthRangePicker) return;
+    var defaults = getDefaultMonthRange();
+    qMonthRangePicker = window.MonthRangePicker.mount(document.getElementById('qMonthRangeMount'), {
+      start: defaults.start,
+      end: defaults.end,
+      useBodyPortal: true,
+      onChange: renderTable
+    });
+  }
+
+  function resetMonthRangeFilter() {
+    var defaults = getDefaultMonthRange();
+    if (qMonthRangePicker && qMonthRangePicker.set) {
+      qMonthRangePicker.set(defaults.start, defaults.end);
+    }
   }
 
   function ruleIdOf(row) {
@@ -57,8 +94,15 @@
   }
 
   function isRatioBasedFee(row) {
-    if (!isSalesExpenseRule(row)) return true;
+    if (!isSalesExpenseRule(row)) {
+      return row.ruleMethod === 'fixed_ratio' || row.ruleMethod === 'dept_fixed_ratio' || row.ruleMethod === 'kingdee_doc_ratio';
+    }
     return row.ruleMethod === 'fixed_ratio';
+  }
+
+  function isDeptFixedFee(row) {
+    var method = row.ruleMethod;
+    return !isSalesExpenseRule(row) && (method === 'dept_fixed_ratio' || method === 'kingdee_doc_ratio');
   }
 
   function isBudgetFeeType(row) {
@@ -83,7 +127,14 @@
     var rowIndex = groupRows.findIndex(function (item) { return item.id === row.id; });
     var previousRow = rowIndex > 0 ? groupRows[rowIndex - 1] : null;
     var income = round2(row.income || 0);
+    var orderAmount = round2(row.orderAmountExTax || (store.getSalesOrderAmountExTax
+      ? store.getSalesOrderAmountExTax(row.customer, row.period)
+      : income));
     var ratio = Number(row.ruleRatio || 0);
+    var kingdeeDoc = isDeptFixedFee(row);
+    var deptRatioRows = kingdeeDoc && store.buildDeptRatioRows
+      ? store.buildDeptRatioRows(row.customer, row.period, row.ruleDeptItems || [])
+      : (row.ruleDeptRatioRows || []);
     var budgetFee = isBudgetFeeType(row);
     var monthlyFixed = isMonthlyFixed(row);
     var excelBaseAccrual = round2(row.excelBaseAccrual || 0);
@@ -106,7 +157,10 @@
       rule: rule,
       previousRow: previousRow,
       income: income,
+      orderAmount: orderAmount,
       ratio: ratio,
+      kingdeeDoc: kingdeeDoc,
+      deptRatioRows: deptRatioRows,
       budgetFee: budgetFee,
       monthlyFixed: monthlyFixed,
       computedAccrual: computedAccrual,
@@ -123,6 +177,7 @@
       return row.ruleMethodLabel || '销售费用';
     }
     if (isMonthlyFixed(row)) return '月固定额';
+    if (isDeptFixedFee(row)) return pct(row.ruleRatio) + ' · 部门';
     return pct(row.ruleRatio);
   }
 
@@ -131,9 +186,6 @@
   }
 
   function populateOptions() {
-    var periodOpts = store.periods.map(function (item) {
-      return '<option value="' + esc(item) + '">' + esc(item) + '</option>';
-    }).join('');
     var customerOpts = store.deductionCustomers.map(function (item) {
       return '<option value="' + esc(item) + '">' + esc(item) + '</option>';
     }).join('');
@@ -141,14 +193,15 @@
       return '<option value="' + esc(item) + '">' + esc(item) + '</option>';
     }).join('');
 
-    document.getElementById('qPeriod').insertAdjacentHTML('beforeend', periodOpts);
     document.getElementById('qCustomer').insertAdjacentHTML('beforeend', customerOpts);
     document.getElementById('qFeeType').insertAdjacentHTML('beforeend', feeOpts);
   }
 
   function getFilters() {
+    var range = getMonthRangeFilter();
     return {
-      period: document.getElementById('qPeriod').value,
+      monthStart: range.start,
+      monthEnd: range.end,
       customer: document.getElementById('qCustomer').value,
       feeType: document.getElementById('qFeeType').value,
       state: document.getElementById('qState').value
@@ -158,7 +211,7 @@
   function getRows() {
     var filters = getFilters();
     return store.getDeductions().filter(function (row) {
-      if (filters.period && row.period !== filters.period) return false;
+      if (!window.FeeMgmtCommon.periodInMonthRange(row.period, filters.monthStart, filters.monthEnd)) return false;
       if (filters.customer && row.customer !== filters.customer) return false;
       if (filters.feeType && row.feeType !== filters.feeType) return false;
       if (filters.state && stateOf(row) !== filters.state) return false;
@@ -192,7 +245,7 @@
     document.getElementById('resultTip').textContent = '共 ' + rows.length + ' 条';
 
     if (!rows.length) {
-      body.innerHTML = '<tr><td colspan="14" style="text-align:center;color:#6b7280;padding:32px;">暂无扣款记录</td></tr>';
+      body.innerHTML = '<tr><td colspan="13" style="text-align:center;color:#6b7280;padding:32px;">暂无扣款记录</td></tr>';
       return;
     }
 
@@ -202,10 +255,13 @@
       var ratioCell = isRatioBasedFee(row)
         ? calcButton(row, 'ratio', ratioDisplay(row))
         : calcButton(row, 'accrual', ratioDisplay(row));
+      var periodLabel = row.isProjected
+        ? esc(row.period) + ' <span class="tag-projected">滚动测算</span>'
+        : esc(row.period);
 
       return '' +
         '<tr>' +
-          '<td>' + esc(row.period) + '</td>' +
+          '<td>' + periodLabel + '</td>' +
           '<td>' + esc(row.customer) + '</td>' +
           '<td>' + esc(row.feeType) + '</td>' +
           '<td class="num">' + calcButton(row, 'opening', money(row.openingBalance)) + '</td>' +
@@ -215,10 +271,12 @@
           '<td class="num">' + calcButton(row, 'closing', money(row.closingBalance)) + '</td>' +
           '<td class="num">' + money(delta) + '</td>' +
           '<td><span class="' + stateTagClass(state) + '">' + esc(state) + '</span></td>' +
-          '<td>' + sourceTag(row.actualSource) + '</td>' +
           '<td title="' + esc(row.note || '') + '">' + esc((row.note || '').slice(0, 24)) + '</td>' +
           '<td>' + esc(row.updatedAt || '-') + '</td>' +
-          '<td><span class="ops"><button class="op-link" data-action="edit" data-id="' + esc(row.id) + '">录入实际值</button><button class="op-link danger" data-action="reset" data-id="' + esc(row.id) + '">恢复 Excel</button></span></td>' +
+          '<td><span class="ops">' +
+            '<button class="op-link" data-action="edit" data-id="' + esc(row.id) + '">录入实际值</button>' +
+            '<button class="op-link" data-action="row-log" data-row-key="' + esc(row.id) + '" data-row-label="' + esc(row.customer + ' · ' + row.feeType + ' · ' + row.period) + '">' + esc(logCountLabel(row.id)) + '</button>' +
+          '</span></td>' +
         '</tr>';
     }).join('');
   }
@@ -298,11 +356,21 @@
 
     if (!scenario.budgetFee && !scenario.monthlyFixed) {
       var ratioName = row.feeType === '促销扣款' ? '促销扣款比例' : (row.feeType === '销售折扣' ? '销售折扣比例' : (row.feeType === '现金折扣' ? '现金折扣比例' : '计提比例'));
-      document.getElementById('ratioFormula').textContent =
-        row.feeType + ' 计提扣款 = 当月销售收入 ' + money(scenario.income) +
-        ' × ' + ratioName + ' ' + pct(scenario.ratio) +
-        '（来源：Excel《扣款比例》' + esc(row.customer) + '）' +
-        ' = ' + money(scenario.computedAccrual);
+      if (scenario.kingdeeDoc) {
+        var deptLines = (scenario.deptRatioRows || []).map(function (item) {
+          return esc(item.name) + ' ' + money(item.orderAmountExTax) + ' × ' + pct(item.ratio) + ' = ' + money(item.accrual);
+        }).join('；');
+        document.getElementById('ratioFormula').textContent =
+          row.feeType + ' 计提扣款 = Σ（部门订单金额不含税 × 部门固定比例）' +
+          (deptLines ? '（' + deptLines + '）' : '') +
+          ' = ' + money(scenario.computedAccrual);
+      } else {
+        document.getElementById('ratioFormula').textContent =
+          row.feeType + ' 计提扣款 = 当月销售收入 ' + money(scenario.income) +
+          ' × ' + ratioName + ' ' + pct(scenario.ratio) +
+          '（来源：Excel《扣款比例》' + esc(row.customer) + '）' +
+          ' = ' + money(scenario.computedAccrual);
+      }
     } else if (scenario.monthlyFixed) {
       document.getElementById('ratioFormula').textContent =
         row.feeType + ' 按固定月度金额计提：' + money(scenario.computedAccrual);
@@ -329,6 +397,9 @@
     } else if (scenario.monthlyFixed) {
       document.getElementById('accrualFormula').textContent =
         '计提扣款 = 固定月度金额 ' + money(scenario.accrualDeduction);
+    } else if (scenario.kingdeeDoc) {
+      document.getElementById('accrualFormula').textContent =
+        '计提扣款 = Σ（部门订单金额不含税 × 部门固定比例） = ' + money(scenario.accrualDeduction);
     } else {
       document.getElementById('accrualFormula').textContent =
         '计提扣款 = 当月销售收入 ' + money(scenario.income) +
@@ -362,13 +433,22 @@
     var row = findById(editingId);
     if (!row) return;
 
+    var actualAmount = document.getElementById('fActual').value;
+    var note = document.getElementById('fNote').value.trim();
+
     store.upsertDeductionActual({
       id: editingId,
       feeType: row.feeType,
       customer: row.customer,
       period: row.period,
-      actualAmount: document.getElementById('fActual').value,
-      note: document.getElementById('fNote').value.trim()
+      actualAmount: actualAmount,
+      note: note
+    });
+
+    appendOpLog(editingId, {
+      action: '录入实际扣款',
+      target: row.customer + ' · ' + row.feeType + ' · ' + row.period,
+      detail: '实际扣款 ' + money(actualAmount) + (note ? '；备注：' + note : '')
     });
 
     closeModal();
@@ -415,13 +495,19 @@
         var rows = getRows();
         var count = 0;
         rows.slice(0, 3).forEach(function (row, index) {
+          var actualAmount = Number(row.actualDeduction || 0) + (index + 1) * 50;
           store.upsertDeductionActual({
             id: row.id,
             feeType: row.feeType,
             customer: row.customer,
             period: row.period,
-            actualAmount: Number(row.actualDeduction || 0) + (index + 1) * 50,
+            actualAmount: actualAmount,
             note: '批量导入示意'
+          });
+          appendOpLog(row.id, {
+            action: '批量导入实际扣款',
+            target: row.customer + ' · ' + row.feeType + ' · ' + row.period,
+            detail: '实际扣款 ' + money(actualAmount)
           });
           count += 1;
         });
@@ -433,16 +519,15 @@
   }
 
   function bindEvents() {
-    ['qPeriod', 'qCustomer', 'qFeeType', 'qState'].forEach(function (id) {
+    ['qCustomer', 'qFeeType', 'qState'].forEach(function (id) {
       document.getElementById(id).addEventListener('change', renderTable);
     });
 
     document.getElementById('btnReset').addEventListener('click', function () {
-      document.getElementById('qPeriod').value = '';
+      resetMonthRangeFilter();
       document.getElementById('qCustomer').value = '';
       document.getElementById('qFeeType').value = '';
       document.getElementById('qState').value = '';
-      window.FeeMgmtCommon.syncClearableSelect(document.getElementById('qPeriod'));
       window.FeeMgmtCommon.syncClearableSelect(document.getElementById('qCustomer'));
       window.FeeMgmtCommon.syncClearableSelect(document.getElementById('qFeeType'));
       window.FeeMgmtCommon.syncClearableSelect(document.getElementById('qState'));
@@ -471,9 +556,6 @@
 
       if (action === 'edit') {
         openModal(findById(id));
-      } else if (action === 'reset') {
-        store.resetDeductionActual(id);
-        renderTable();
       } else if (action === 'calc') {
         openCalcModal(findById(id), btn.getAttribute('data-field'));
       }
@@ -482,7 +564,14 @@
 
   function init() {
     populateOptions();
+    mountMonthRangeFilter();
     mountImportKit();
+    if (window.FeeMgmtOpLog) {
+      window.FeeMgmtOpLog.wireTable({
+        scope: OP_LOG_SCOPE,
+        tableBody: '#deductionBody'
+      });
+    }
     bindEvents();
     renderTable();
   }

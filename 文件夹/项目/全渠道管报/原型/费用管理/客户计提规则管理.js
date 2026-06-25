@@ -4,7 +4,21 @@
   var store = window.SupermarketAccrualStore;
   var editingRatioId = null;
   var editingExpenseId = null;
+  var editingDeptItems = null;
   var CUSTOM_MONTHLY_FUTURE_COUNT = 13;
+  var OP_LOG_SCOPE = 'customer-rule';
+
+  function appendOpLog(rowKey, entry) {
+    if (!window.FeeMgmtOpLog) return;
+    var payload = Object.assign({}, entry || {}, { rowKey: rowKey });
+    window.FeeMgmtOpLog.append(OP_LOG_SCOPE, payload);
+  }
+
+  function logCountLabel(rowKey) {
+    if (!window.FeeMgmtOpLog || !rowKey) return '日志';
+    var count = window.FeeMgmtOpLog.countByRow(OP_LOG_SCOPE, rowKey);
+    return count ? '日志(' + count + ')' : '日志';
+  }
 
   function esc(text) {
     return String(text == null ? '' : text)
@@ -24,14 +38,24 @@
     return (num * 100).toFixed(4).replace(/0+$/, '').replace(/\.$/, '') + '%';
   }
 
-  function originTag(origin) {
-    var cls = origin === '已调整' ? 'override' : 'excel';
-    return '<span class="tag-origin ' + cls + '">' + esc(origin) + '</span>';
+  function methodLabel(method) {
+    var map = {
+      monthly_fixed: '月固定金额',
+      annual_avg: '年总金额月均分摊',
+      fixed_ratio: '固定比例',
+      kingdee_doc_ratio: '部门固定比例',
+      dept_fixed_ratio: '部门固定比例',
+      custom_monthly: '自定义月金额'
+    };
+    return map[method] || method || '—';
   }
 
-  function getSamplePeriod() {
-    var selected = document.getElementById('qSamplePeriod').value;
-    if (selected) return selected;
+  function ratioCellDisplay(ratio, methodLabelText) {
+    var label = methodLabelText && methodLabelText !== '固定比例' ? ' · ' + methodLabelText : '';
+    return pct(ratio) + (label ? '<div style="font-size:11px;color:#6b7280;margin-top:2px;">' + esc(methodLabelText) + '</div>' : '');
+  }
+
+  function getAnchorPeriod() {
     var list = store.periods || [];
     return list.length ? list[list.length - 1] : '';
   }
@@ -54,7 +78,7 @@
   }
 
   function getMaintainableMonthPeriods(anchorPeriod) {
-    var anchor = anchorPeriod || getSamplePeriod() || (store.periods && store.periods[0]) || '';
+    var anchor = anchorPeriod || getAnchorPeriod() || (store.periods && store.periods[0]) || '';
     var list = [];
     for (var i = 0; i <= CUSTOM_MONTHLY_FUTURE_COUNT; i += 1) {
       list.push(addMonths(anchor, i));
@@ -91,7 +115,7 @@
   }
 
   function renderCustomMonthlyGrid(row) {
-    var anchor = getSamplePeriod();
+    var anchor = getAnchorPeriod();
     var periods = getMaintainableMonthPeriods(anchor);
     var body = document.getElementById('fExpenseCustomMonthlyBody');
     var hint = document.getElementById('fExpenseCustomMonthlyHint');
@@ -121,20 +145,13 @@
     var customerOpts = store.deductionCustomers.map(function (item) {
       return '<option value="' + esc(item) + '">' + esc(item) + '</option>';
     }).join('');
-    var periodOpts = store.periods.map(function (item) {
-      return '<option value="' + esc(item) + '">' + esc(item) + '</option>';
-    }).join('');
 
     document.getElementById('qCustomer').insertAdjacentHTML('beforeend', customerOpts);
-    document.getElementById('qSamplePeriod').insertAdjacentHTML('beforeend', periodOpts);
-    if (store.periods.length) {
-      document.getElementById('qSamplePeriod').value = store.periods[store.periods.length - 1];
-    }
   }
 
   function getMatrixRows() {
     var customer = document.getElementById('qCustomer').value;
-    var period = getSamplePeriod();
+    var period = getAnchorPeriod();
     return store.getCustomerDeductionRateMatrix(period).filter(function (row) {
       if (customer && row.customer !== customer) return false;
       return true;
@@ -146,19 +163,17 @@
     var adjusted = list.filter(function (row) { return row.origin === '已调整'; }).length;
     document.getElementById('statCustomers').textContent = list.length;
     document.getElementById('statAdjusted').textContent = adjusted;
-    document.getElementById('statPeriod').textContent = getSamplePeriod() || '—';
     document.getElementById('statSource').textContent = adjusted ? '含调整' : 'Excel';
   }
 
   function renderMatrixTable() {
     var rows = getMatrixRows();
     var body = document.getElementById('matrixBody');
-    var period = getSamplePeriod();
-    document.getElementById('matrixTip').textContent = '共 ' + rows.length + ' 条 · 试算期间 ' + period;
+    document.getElementById('matrixTip').textContent = '共 ' + rows.length + ' 条';
     renderStats(rows);
 
     if (!rows.length) {
-      body.innerHTML = '<tr><td colspan="13" style="text-align:center;color:#6b7280;padding:32px;">暂无零售商计提规则</td></tr>';
+      body.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#6b7280;padding:32px;">暂无零售商计提规则</td></tr>';
       return;
     }
 
@@ -166,23 +181,17 @@
       return '' +
         '<tr>' +
           '<td>' + esc(row.customer) + '</td>' +
-          '<td class="num">' + pct(row.promoRatio) + '</td>' +
-          '<td class="num">' + pct(row.salesDiscountRatio) + '</td>' +
-          '<td class="num">' + pct(row.cashDiscountRatio) + '</td>' +
+          '<td class="num">' + ratioCellDisplay(row.promoRatio, row.promoMethod) + '</td>' +
+          '<td class="num">' + ratioCellDisplay(row.salesDiscountRatio, row.salesDiscountMethod) + '</td>' +
+          '<td class="num">' + ratioCellDisplay(row.cashDiscountRatio, row.cashDiscountMethod) + '</td>' +
           '<td>' + esc(row.salesExpenseMethod) + '</td>' +
-          '<td title="' + esc(row.salesExpenseRuleDesc || '') + '">' + esc((row.salesExpenseRuleDesc || '—').slice(0, 36)) + '</td>' +
-          '<td class="num">' + money(row.income) + '</td>' +
-          '<td class="num">' + money(row.promoAccrual) + '</td>' +
-          '<td class="num">' + money(row.salesDiscountAccrual) + '</td>' +
-          '<td class="num">' + money(row.cashDiscountAccrual) + '</td>' +
-          '<td class="num">' + money(row.salesExpenseAccrual) + '</td>' +
-          '<td>' + originTag(row.origin) + '</td>' +
+          '<td title="' + esc(row.salesExpenseRuleDesc || '') + '">' + esc((row.salesExpenseRuleDesc || '—').slice(0, 48)) + '</td>' +
           '<td><span class="ops">' +
             '<button class="op-link" data-action="ratio" data-id="' + esc(row.promoRuleId) + '">促销</button>' +
             '<button class="op-link" data-action="ratio" data-id="' + esc(row.salesRuleId) + '">销折</button>' +
             '<button class="op-link" data-action="ratio" data-id="' + esc(row.cashRuleId) + '">现折</button>' +
             '<button class="op-link" data-action="expense" data-id="' + esc(row.expenseRuleId) + '">销费</button>' +
-            '<button class="op-link danger" data-action="reset-customer" data-customer="' + esc(row.customer) + '">恢复</button>' +
+            '<button class="op-link" data-action="row-log" data-row-key="' + esc(row.customer) + '" data-row-label="' + esc(row.customer) + '">' + esc(logCountLabel(row.customer)) + '</button>' +
           '</span></td>' +
         '</tr>';
     }).join('');
@@ -193,42 +202,150 @@
     return store.getFixedRules().find(function (row) { return row.id === id; }) || null;
   }
 
-  function previewRatioModal() {
-    if (!editingRatioId) return;
-    var row = findFixedById(editingRatioId);
-    if (!row) return;
-    var period = getSamplePeriod();
-    var income = store.getIncome(row.customer, period);
-    var ratio = Number(document.getElementById('fRatioValue').value || 0);
-    document.getElementById('fRatioPreviewIncome').value = money(income);
-    document.getElementById('fRatioPreviewAccrual').value = money(income * ratio);
+  function normalizeRatioMethod(method) {
+    return method === 'kingdee_doc_ratio' ? 'dept_fixed_ratio' : (method || 'fixed_ratio');
+  }
+
+  function cloneDeptItems(items) {
+    return (items || []).map(function (item) {
+      return {
+        id: item.id,
+        name: item.name,
+        ratio: Number(item.ratio || 0)
+      };
+    });
+  }
+
+  function readDeptRatioInputValue(input) {
+    var raw = String(input.value == null ? '' : input.value).trim();
+    if (!raw) return 0;
+    var num = Number(raw);
+    return Number.isFinite(num) ? num : 0;
+  }
+
+  function collectDeptItemsFromDom() {
+    var items = [];
+    document.querySelectorAll('#fDeptRatioBody tr[data-dept-id]').forEach(function (row) {
+      var id = row.getAttribute('data-dept-id');
+      var nameInput = row.querySelector('[data-dept-name]');
+      var ratioInput = row.querySelector('[data-dept-ratio]');
+      var name = nameInput ? String(nameInput.value || '').trim() : '';
+      if (!name) return;
+      items.push({
+        id: id,
+        name: name,
+        ratio: ratioInput ? readDeptRatioInputValue(ratioInput) : 0
+      });
+    });
+    return items;
+  }
+
+  function renderDeptRatioGrid() {
+    var body = document.getElementById('fDeptRatioBody');
+    var items = editingDeptItems || [];
+    if (!items.length && store.getDefaultDeptItems) {
+      editingDeptItems = cloneDeptItems(store.getDefaultDeptItems());
+      items = editingDeptItems;
+    }
+
+    body.innerHTML = items.map(function (item) {
+      var displayValue = Number(item.ratio || 0) ? String(item.ratio) : '';
+      return '' +
+        '<tr data-dept-id="' + esc(item.id) + '">' +
+          '<td><input type="text" data-dept-name value="' + esc(item.name || '') + '" placeholder="请输入部门名称"></td>' +
+          '<td class="num">' +
+            '<input type="number" min="0" max="1" step="0.00000001" data-dept-ratio value="' + esc(displayValue) + '" placeholder="0">' +
+          '</td>' +
+          '<td><button type="button" class="op-link danger" data-action="delete-dept" data-dept-id="' + esc(item.id) + '">删除</button></td>' +
+        '</tr>';
+    }).join('');
+  }
+
+  function addDeptRow() {
+    if (!editingDeptItems) editingDeptItems = [];
+    editingDeptItems.push({
+      id: 'dept_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
+      name: '',
+      ratio: 0
+    });
+    renderDeptRatioGrid();
+  }
+
+  function deleteDeptRow(deptId) {
+    if (!editingDeptItems) return;
+    editingDeptItems = editingDeptItems.filter(function (item) {
+      return item.id !== deptId;
+    });
+    renderDeptRatioGrid();
+  }
+
+  function syncDeptItemsFromDom() {
+    editingDeptItems = collectDeptItemsFromDom();
+  }
+
+  function toggleRatioFields() {
+    var method = normalizeRatioMethod(document.getElementById('fRatioMethod').value);
+    var isDept = method === 'dept_fixed_ratio';
+    document.getElementById('fieldRatioValue').classList.toggle('hidden', isDept);
+    document.getElementById('fieldDeptRatioGrid').classList.toggle('hidden', !isDept);
+    if (isDept) {
+      renderDeptRatioGrid();
+    }
   }
 
   function openRatioModal(row) {
     if (!row) return;
     editingRatioId = row.id;
+    editingDeptItems = cloneDeptItems(
+      row.deptItems && row.deptItems.length
+        ? row.deptItems
+        : (store.resolveDeptItems ? store.resolveDeptItems(row) : (store.getDefaultDeptItems ? store.getDefaultDeptItems() : []))
+    );
     document.getElementById('ratioModalTitle').textContent = '调整' + row.ratioLabel;
     document.getElementById('fRatioCustomer').value = row.customer;
     document.getElementById('fRatioFeeType').value = row.feeType;
+    document.getElementById('fRatioMethod').value = normalizeRatioMethod(row.method || 'fixed_ratio');
     document.getElementById('fRatioValueLabel').textContent = row.ratioLabel + '（0~1，对应 Excel《扣款比例》）';
-    document.getElementById('fRatioValue').value = Number(row.ratio || 0);
+    document.getElementById('fRatioValue').value = Number(row.manualRatio != null ? row.manualRatio : row.ratio || 0);
     document.getElementById('fRatioNote').value = row.note || '';
-    previewRatioModal();
+    toggleRatioFields();
     window.FeeMgmtCommon.openModalMask('ratioModal');
   }
 
   function closeRatioModal() {
     editingRatioId = null;
+    editingDeptItems = null;
     window.FeeMgmtCommon.closeModalMask('ratioModal');
   }
 
   function saveRatioRule() {
     if (!editingRatioId) return;
-    store.upsertFixedRule({
+    var row = findFixedById(editingRatioId);
+    if (!row) return;
+    var method = normalizeRatioMethod(document.getElementById('fRatioMethod').value);
+    var ratioValue = method === 'dept_fixed_ratio' ? null : document.getElementById('fRatioValue').value;
+    var note = document.getElementById('fRatioNote').value.trim();
+    var payload = {
       id: editingRatioId,
-      method: 'fixed_ratio',
-      ratio: document.getElementById('fRatioValue').value,
-      note: document.getElementById('fRatioNote').value.trim()
+      method: method,
+      ratio: ratioValue,
+      note: note
+    };
+    if (method === 'dept_fixed_ratio') {
+      syncDeptItemsFromDom();
+      payload.deptItems = editingDeptItems.slice();
+    }
+    store.upsertFixedRule(payload);
+    var detailMethod = methodLabel(method);
+    var detailRatio = method === 'dept_fixed_ratio'
+      ? payload.deptItems.map(function (item) {
+        return item.name + ' ' + pct(item.ratio || 0);
+      }).join('；')
+      : row.ratioLabel + ' ' + pct(ratioValue);
+    appendOpLog(row.customer, {
+      action: '调整' + row.ratioLabel,
+      target: row.customer + ' · ' + row.feeType,
+      detail: '方式：' + detailMethod + '；' + detailRatio + (note ? '；备注：' + note : '')
     });
     closeRatioModal();
     renderMatrixTable();
@@ -240,30 +357,6 @@
     document.getElementById('fieldAnnualTotal').classList.toggle('hidden', method !== 'annual_avg');
     document.getElementById('fieldExpenseRatio').classList.toggle('hidden', method !== 'fixed_ratio');
     document.getElementById('fieldCustomMonthlyGrid').classList.toggle('hidden', method !== 'custom_monthly');
-    previewExpenseModal();
-  }
-
-  function previewExpenseModal() {
-    if (!editingExpenseId) return;
-    var row = findFixedById(editingExpenseId);
-    if (!row) return;
-    var period = getSamplePeriod();
-    var income = store.getIncome(row.customer, period);
-    var method = document.getElementById('fExpenseMethod').value;
-    var accrual = 0;
-
-    if (method === 'monthly_fixed') {
-      accrual = Number(document.getElementById('fExpenseMonthlyFixed').value || 0);
-    } else if (method === 'annual_avg') {
-      accrual = Number(document.getElementById('fExpenseAnnualTotal').value || 0) / 12;
-    } else if (method === 'fixed_ratio') {
-      accrual = income * Number(document.getElementById('fExpenseRatio').value || 0);
-    } else {
-      accrual = getCustomMonthlyInputValue(period);
-    }
-
-    document.getElementById('fExpensePreviewIncome').value = money(income);
-    document.getElementById('fExpensePreviewAccrual').value = money(accrual);
   }
 
   function openExpenseModal(row) {
@@ -304,44 +397,37 @@
       payload.ratio = document.getElementById('fExpenseRatio').value;
     } else {
       var monthlyAmounts = collectCustomMonthlyAmounts();
-      var samplePeriod = getSamplePeriod();
+      var samplePeriod = getAnchorPeriod();
       payload.monthlyAmounts = monthlyAmounts;
       payload.baseAmount = monthlyAmounts[samplePeriod] || 0;
     }
 
     store.upsertFixedRule(payload);
+    appendOpLog(row.customer, {
+      action: '调整销售费用计提规则',
+      target: row.customer + ' · 销售费用',
+      detail: '方式：' + methodLabel(method) + (payload.note ? '；备注：' + payload.note : '')
+    });
     closeExpenseModal();
     renderMatrixTable();
   }
 
-  function resetCustomerRules(customer) {
-    ['促销扣款', '销售折扣', '现金折扣', '销售费用'].forEach(function (feeType) {
-      var id = customer + '|' + feeType;
-      if (findFixedById(id)) store.resetFixedRule(id);
-    });
-    renderMatrixTable();
-  }
-
   function bindEvents() {
-    ['qCustomer', 'qSamplePeriod'].forEach(function (id) {
-      document.getElementById(id).addEventListener('change', function () {
-        renderMatrixTable();
-        if (editingExpenseId && document.getElementById('expenseModal').classList.contains('open')) {
-          renderCustomMonthlyGrid(findFixedById(editingExpenseId));
-          previewExpenseModal();
-        }
-      });
-    });
+    document.getElementById('qCustomer').addEventListener('change', renderMatrixTable);
 
     document.getElementById('btnReset').addEventListener('click', function () {
       document.getElementById('qCustomer').value = '';
-      document.getElementById('qSamplePeriod').value = store.periods.length ? store.periods[store.periods.length - 1] : '';
       window.FeeMgmtCommon.syncClearableSelect(document.getElementById('qCustomer'));
-      window.FeeMgmtCommon.syncClearableSelect(document.getElementById('qSamplePeriod'));
       renderMatrixTable();
     });
 
-    document.getElementById('fRatioValue').addEventListener('input', previewRatioModal);
+    document.getElementById('fRatioMethod').addEventListener('change', toggleRatioFields);
+    document.getElementById('btnAddDeptRow').addEventListener('click', addDeptRow);
+    document.getElementById('fDeptRatioBody').addEventListener('click', function (e) {
+      var btn = e.target.closest('[data-action="delete-dept"]');
+      if (!btn) return;
+      deleteDeptRow(btn.getAttribute('data-dept-id'));
+    });
     document.getElementById('btnRatioClose').addEventListener('click', closeRatioModal);
     document.getElementById('btnRatioCancel').addEventListener('click', closeRatioModal);
     document.getElementById('btnRatioSave').addEventListener('click', saveRatioRule);
@@ -355,12 +441,6 @@
       }
       toggleExpenseFields();
     });
-    ['fExpenseMonthlyFixed', 'fExpenseAnnualTotal', 'fExpenseRatio'].forEach(function (id) {
-      document.getElementById(id).addEventListener('input', previewExpenseModal);
-      document.getElementById(id).addEventListener('change', previewExpenseModal);
-    });
-    document.getElementById('fExpenseCustomMonthlyBody').addEventListener('input', previewExpenseModal);
-    document.getElementById('fExpenseCustomMonthlyBody').addEventListener('change', previewExpenseModal);
     document.getElementById('btnExpenseClose').addEventListener('click', closeExpenseModal);
     document.getElementById('btnExpenseCancel').addEventListener('click', closeExpenseModal);
     document.getElementById('btnExpenseSave').addEventListener('click', saveExpenseRule);
@@ -376,14 +456,18 @@
         openRatioModal(findFixedById(btn.getAttribute('data-id')));
       } else if (action === 'expense') {
         openExpenseModal(findFixedById(btn.getAttribute('data-id')));
-      } else if (action === 'reset-customer') {
-        resetCustomerRules(btn.getAttribute('data-customer'));
       }
     });
   }
 
   function init() {
     populateOptions();
+    if (window.FeeMgmtOpLog) {
+      window.FeeMgmtOpLog.wireTable({
+        scope: OP_LOG_SCOPE,
+        tableBody: '#matrixBody'
+      });
+    }
     bindEvents();
     renderMatrixTable();
   }

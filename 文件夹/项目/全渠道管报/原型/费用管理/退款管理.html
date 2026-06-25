@@ -29,6 +29,19 @@
     .tag-source { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 999px; font-size: 12px; }
     .tag-source.manual { color: #a16207; background: #fffbeb; border: 1px solid #fde68a; }
     .tag-source.excel { color: #1d4ed8; background: #eff6ff; border: 1px solid #bfdbfe; }
+    .tag-source.projected { color: #6d28d9; background: #f5f3ff; border: 1px solid #ddd6fe; }
+    .tag-projected {
+      display: inline-flex;
+      align-items: center;
+      margin-left: 6px;
+      padding: 1px 6px;
+      border-radius: 999px;
+      font-size: 11px;
+      color: #6d28d9;
+      background: #f5f3ff;
+      border: 1px solid #ddd6fe;
+      vertical-align: middle;
+    }
     .form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 16px; }
     .form-field { display: flex; flex-direction: column; gap: 6px; }
     .form-field.full { grid-column: 1 / -1; }
@@ -162,11 +175,8 @@
         <div class="filter-panel">
           <div class="filter-grid">
             <div class="f-item">
-              <label for="qPeriod">期间</label>
-              <span class="ctl-wrap">
-                <select id="qPeriod" class="ctl"><option value="">全部</option></select>
-                <button type="button" class="ctl-clear" aria-label="清除期间">×</button>
-              </span>
+              <label for="qMonthRangeMount">月份范围</label>
+              <div id="qMonthRangeMount" style="width:180px;"></div>
             </div>
             <div class="f-item">
               <label for="qCustomer">客户</label>
@@ -182,8 +192,8 @@
         </div>
       </section>
 
-      <div class="hint">公式：当月计提退款 = 实际退款金额 + 期末计提退款余额 - 期初计提退款余额。期初计提退款余额按上月滚动退款率 × 目标窗口内销售收入计算；期末计提退款余额按本月滚动退款率 × 目标窗口内销售收入计算。销售收入取自财务系统该零售商的销售收入。</div>
-      <div class="sub-hint">点击“上月滚动退款率 / 本月滚动退款率 / 目标窗口(月) / 期初计提退款余额 / 当月计提退款 / 期末计提退款余额”，可查看计算过程并调整目标窗口。</div>
+      <div class="hint">公式：当月计提退款 = 实际退款金额 + 期末计提退款余额 - 期初计提退款余额。期初计提退款余额按上月滚动退款率 × 目标窗口内销售收入计算；期末计提退款余额按本月滚动退款率 × 目标窗口内销售收入计算。销售收入取自财务系统该零售商的销售收入；缺失的收入/退款按 0 参与测算。</div>
+      <div class="sub-hint">默认展示当前月及过去、未来各 3 个月的滚动窗口（共 7 个月），未来月份按规则自动测算；收入或退款入账后自动重算。点击“上月滚动退款率 / 本月滚动退款率 / 目标窗口(月) / 期初计提退款余额 / 当月计提退款 / 期末计提退款余额”，可查看计算过程并调整目标窗口。</div>
 
       <section class="panel panel--table">
         <div class="panel-head">
@@ -209,7 +219,6 @@
                 <th class="num">目标窗口(月)</th>
                 <th class="num">当月计提退款</th>
                 <th class="num">期末计提退款余额</th>
-                <th>实际来源</th>
                 <th>备注</th>
                 <th>更新时间</th>
                 <th>操作</th>
@@ -318,7 +327,7 @@
         </div>
         <div class="calc-card" id="sectionOpening">
           <h3>期初计提退款余额计算</h3>
-          <p>期初计提退款余额 = 上月滚动退款率 × 上一组目标窗口内销售收入合计。若已有上月台账，也可理解为上月期末计提退款余额顺延。</p>
+          <p>期初计提退款余额 = 上月滚动退款率 × 当前目标窗口内、截至上月的销售收入合计。若已有上月台账，也可理解为上月期末计提退款余额顺延。</p>
           <div class="formula" id="openingFormula"></div>
           <div id="openingHistoryWrap"></div>
         </div>
@@ -342,9 +351,141 @@
 </div>
 
 <script src="fee-mgmt-common.js"></script>
+<script src="fee-mgmt-op-log.js"></script>
 <script src="../../../../规范/assets/import-modal-kit.js"></script>
+<script src="../../../../规范/assets/month-range-picker.js"></script>
 <script src="supermarket-accrual-base.js"></script>
 <script src="supermarket-accrual-store.js"></script>
 <script src="退款管理.js"></script>
+
+<!-- prototype-annotation:start -->
+<link rel="stylesheet" href="../prototype-annotation/prototype-annotation.css">
+<script id="prototype-annotation-config" type="application/json">
+{
+  "pageId": "fee-refund-management",
+  "version": "2026-06-24T12:00:00+08:00",
+  "pageTitle": "退款管理",
+  "annotations": [
+    {
+      "id": "flt-month-range",
+      "selector": "#qMonthRangeMount",
+      "title": "月份范围",
+      "body": "月份范围筛选逻辑：\n1. 默认近 3 个自然月（含当前月），如 2026-04 至 2026-06。\n2. 列表与顶部汇总仅统计范围内期间。\n3. 需查看未来滚动测算月时，将结束月向后扩展即可。"
+    },
+    {
+      "id": "flt-customer",
+      "selector": "#qCustomer",
+      "title": "客户筛选",
+      "body": "按零售商过滤退款明细。与月份范围组合使用，不影响系统内滚动窗口数据生成，仅控制当前列表展示范围。"
+    },
+    {
+      "id": "btn-reset",
+      "selector": "#btnReset",
+      "title": "重置筛选",
+      "body": "恢复月份范围为默认近 3 个月，并清空客户筛选，刷新列表与汇总卡片。"
+    },
+    {
+      "id": "btn-import",
+      "selector": "#btnImport",
+      "title": "导入实际退款",
+      "body": "批量导入各客户、各期间的实际退款金额。\n1. 须下载模版并按「期间 + 客户」主键填写。\n2. 导入后覆盖对应行实际退款，标记为手工录入。\n3. 会触发同客户后续月份期初余额顺延重算，并写入行级操作日志。"
+    },
+    {
+      "id": "refund-table",
+      "selector": "#refundBody",
+      "title": "退款明细列表",
+      "body": "按客户 × 期间展示滚动退款台账。\n1. 无 Excel 基线的未来月显示「滚动测算」标签，按规则自动测算。\n2. 仅「实际退款(录入)」可人工维护；其余指标由系统计算。\n3. 点击带下划线的金额或比率可打开计算过程弹窗。"
+    },
+    {
+      "id": "edit-modal",
+      "selector": "#editModal .modal-hd h2",
+      "title": "录入实际退款",
+      "body": "维护单条实际退款金额与备注。\n1. 期间、客户及系统计算字段只读。\n2. 保存后重算当月计提退款与期末余额，并顺延影响后续月份。\n3. 操作记录可在行「日志」中查看。"
+    },
+    {
+      "id": "calc-modal",
+      "selector": "#calcModal",
+      "title": "退款计算过程",
+      "body": "展示上月/本月滚动退款率、期初与期末计提退款余额、当月计提退款的完整公式与历史数据引用。\n1. 可调整「目标窗口(月)」并预览对期初、计提、期末的影响。\n2. 保存目标窗口后，同客户后续月份继承该窗口并重算期初。\n3. 销售收入与历史退款取自财务系统，缺失按 0 参与测算。"
+    },
+    {
+      "id": "calc-window-save",
+      "selector": "#btnCalcSave",
+      "title": "保存目标窗口",
+      "body": "将计算弹窗中调整的目标窗口写入规则覆盖项。\n1. 保存后立即刷新列表中该客户后续月份的期初计提退款余额。\n2. 写入行级操作日志，便于追溯调整原因。"
+    }
+  ],
+  "fieldTips": [
+    {
+      "id": "tip-opening",
+      "selector": ".panel--table .data-table thead th:nth-child(4)",
+      "title": "期初计提退款余额",
+      "body": "等于上月滚动退款率 × 目标窗口内、截至上月的销售收入合计；有上月台账时也可理解为上月期末余额顺延。未来滚动测算月按规则重算。"
+    },
+    {
+      "id": "tip-prev-ratio",
+      "selector": ".panel--table .data-table thead th:nth-child(6)",
+      "title": "上月滚动退款率",
+      "body": "截至上一自然月末，近 12 个月实际退款合计 ÷ 近 12 个月销售收入合计。用于计算本月期初计提退款余额。"
+    },
+    {
+      "id": "tip-ratio",
+      "selector": ".panel--table .data-table thead th:nth-child(7)",
+      "title": "本月滚动退款率",
+      "body": "截至当月末，近 12 个月实际退款合计 ÷ 近 12 个月销售收入合计。用于计算本月期末计提退款余额。"
+    },
+    {
+      "id": "tip-window",
+      "selector": ".panel--table .data-table thead th:nth-child(8)",
+      "title": "目标窗口(月)",
+      "body": "计算期初/期末余额时取销售收入合计的连续月份数，默认 3 个月。可在计算弹窗中调整，保存后影响后续月份。"
+    },
+    {
+      "id": "tip-accrual",
+      "selector": ".panel--table .data-table thead th:nth-child(9)",
+      "title": "当月计提退款",
+      "body": "当月计提退款 = 实际退款金额 + 期末计提退款余额 − 期初计提退款余额。实际退款可人工录入，其余两项由滚动规则计算。"
+    },
+    {
+      "id": "tip-closing",
+      "selector": ".panel--table .data-table thead th:nth-child(10)",
+      "title": "期末计提退款余额",
+      "body": "等于本月滚动退款率 × 目标窗口内销售收入合计，也是下月期初余额的计算基础。"
+    }
+  ],
+  "pageGuide": {
+    "dev": {
+      "页面整体定位": "商超渠道销售退款滚动计提台账，按客户 × 期间维护实际退款并自动计算滚动退款率、期初/期末余额与当月计提。",
+      "页面核心业务逻辑": "数据底层含 Excel 基线台账与规则覆盖；滚动窗口为当前月前后各 3 个月共 7 个月。无基线月份为滚动测算行。期初 = 上月滚动率 × 目标窗口内收入；期末 = 本月滚动率 × 目标窗口内收入；计提 = 实际 + 期末 − 期初。",
+      "关键规则说明": "仅实际退款可录入/导入。调整目标窗口会写入规则覆盖并顺延后续月份期初。筛选为月份范围 + 客户，默认近 3 个月。行级日志 scope=refund。",
+      "关联上下游": "上游：客户计提规则（退款规则在退款管理内调整窗口）、财务销售收入与历史退款；下游：管报费用取数、商超费用计提口径。"
+    },
+    "user": {
+      "标准操作流程": "1. 确认月份范围（默认近 3 个月）。2. 可选客户筛选后查看列表与汇总。3. 对已有账单行点击「录入实际值」维护实际退款。4. 需解释差异时点击金额/比率查看计算过程。5. 需调整目标窗口时在计算弹窗修改并保存。6. 批量场景使用「导入」。",
+      "关键按钮与场景": "「导入」用于账单批量入账；计算弹窗「保存目标窗口」用于合同变更导致的窗口调整；「日志」查看本行录入与窗口变更记录。",
+      "使用注意事项": "未来月份为滚动测算，待实际退款入账后会自动重算。清空月份范围会展示范围内全部匹配行；重置筛选恢复默认近 3 个月。"
+    }
+  },
+  "statusFlow": {
+    "nodes": [],
+    "transitions": []
+  },
+  "editPolicy": {
+    "viewOnlyHostnames": [
+      "18501404120.github.io"
+    ],
+    "allowIps": [
+      "113.110.230.127",
+      "113.110.229.118",
+      "220.232.134.241"
+    ],
+    "editToken": "",
+    "allowLocalhost": true,
+    "allowOtherHosts": true
+  }
+}
+</script>
+<script src="../prototype-annotation/prototype-annotation-runtime.js"></script>
+<!-- prototype-annotation:end -->
 </body>
 </html>

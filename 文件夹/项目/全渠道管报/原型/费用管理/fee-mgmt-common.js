@@ -125,6 +125,74 @@
     URL.revokeObjectURL(a.href);
   }
 
+  function shiftPeriodYm(period, delta) {
+    var parts = String(period || '').split('-').map(Number);
+    if (!parts[0] || !parts[1]) return period;
+    var y = parts[0];
+    var m = parts[1] + delta;
+    while (m > 12) {
+      m -= 12;
+      y += 1;
+    }
+    while (m < 1) {
+      m += 12;
+      y -= 1;
+    }
+    return y + '-' + String(m).padStart(2, '0');
+  }
+
+  function lastDayOfMonthYm(period) {
+    var parts = String(period || '').split('-').map(Number);
+    if (!parts[0] || !parts[1]) return period;
+    var day = new Date(parts[0], parts[1], 0).getDate();
+    return period + '-' + String(day).padStart(2, '0');
+  }
+
+  function currentMonthYm() {
+    var now = new Date();
+    return now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
+  }
+
+  /** 近 N 个自然月（含锚点月）的起止月份 YYYY-MM，供 MonthRangePicker 默认值 */
+  function getRecentMonthsRange(monthCount, anchorPeriod) {
+    var anchor = anchorPeriod || currentMonthYm();
+    var count = Math.max(1, Number(monthCount) || 3);
+    var startYm = shiftPeriodYm(anchor, -(count - 1));
+    return {
+      start: startYm,
+      end: anchor
+    };
+  }
+
+  /** 业务期间 YYYY-MM 是否落在月份范围（闭区间） */
+  function periodInMonthRange(period, startYm, endYm) {
+    if (!period) return false;
+    if (!startYm && !endYm) return true;
+    if (startYm && period < startYm) return false;
+    if (endYm && period > endYm) return false;
+    return true;
+  }
+
+  /** @deprecated 请用 getRecentMonthsRange + MonthRangePicker */
+  function getRecentMonthsDateRange(monthCount, anchorPeriod) {
+    var range = getRecentMonthsRange(monthCount, anchorPeriod);
+    return {
+      start: range.start + '-01',
+      end: lastDayOfMonthYm(range.end)
+    };
+  }
+
+  /** @deprecated 请用 periodInMonthRange */
+  function periodInDateRange(period, startYmd, endYmd) {
+    if (!period) return false;
+    if (!startYmd && !endYmd) return true;
+    var periodStart = period + '-01';
+    var periodEnd = lastDayOfMonthYm(period);
+    if (startYmd && periodEnd < startYmd) return false;
+    if (endYmd && periodStart > endYmd) return false;
+    return true;
+  }
+
   function initPage() {
     wireClearableSelects(document);
     wireClearableInputs(document);
@@ -159,6 +227,13 @@
     closeModalMask: closeModalMask,
     ensureHiddenModals: ensureHiddenModals,
     downloadCsv: downloadCsv,
+    shiftPeriodYm: shiftPeriodYm,
+    lastDayOfMonthYm: lastDayOfMonthYm,
+    currentMonthYm: currentMonthYm,
+    getRecentMonthsRange: getRecentMonthsRange,
+    periodInMonthRange: periodInMonthRange,
+    getRecentMonthsDateRange: getRecentMonthsDateRange,
+    periodInDateRange: periodInDateRange,
     initPage: initPage
   };
 

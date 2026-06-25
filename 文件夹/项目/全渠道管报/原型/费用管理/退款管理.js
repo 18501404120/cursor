@@ -6,6 +6,20 @@
   var refundHistoryMap = base.refundHistory || {};
   var editingId = null;
   var calcState = null;
+  var qMonthRangePicker = null;
+  var OP_LOG_SCOPE = 'refund';
+
+  function appendOpLog(rowKey, entry) {
+    if (!window.FeeMgmtOpLog) return;
+    var payload = Object.assign({}, entry || {}, { rowKey: rowKey });
+    window.FeeMgmtOpLog.append(OP_LOG_SCOPE, payload);
+  }
+
+  function logCountLabel(rowKey) {
+    if (!window.FeeMgmtOpLog || !rowKey) return '日志';
+    var count = window.FeeMgmtOpLog.countByRow(OP_LOG_SCOPE, rowKey);
+    return count ? '日志(' + count + ')' : '日志';
+  }
 
   function esc(text) {
     return String(text == null ? '' : text)
@@ -22,16 +36,19 @@
 
   function pct(value) {
     var num = Number(value || 0);
-    return (num * 100).toFixed(4).replace(/0+$/, '').replace(/\.$/, '') + '%';
+    if (!num) return '0%';
+    return (num * 100).toFixed(4).replace(/\.?0+$/, '') + '%';
+  }
+
+  function getCalcHistoryUntil(customer, period) {
+    if (store.getRefundHistoryUntil) {
+      return store.getRefundHistoryUntil(customer, period);
+    }
+    return getHistoryUntil(customer, period);
   }
 
   function round2(value) {
     return Math.round((Number(value) || 0) * 100) / 100;
-  }
-
-  function sourceTag(source) {
-    var cls = source === '手工录入' ? 'manual' : 'excel';
-    return '<span class="tag-source ' + cls + '">' + esc(source) + '</span>';
   }
 
   function getHistoryRows(customer) {
@@ -52,6 +69,9 @@
   }
 
   function getCurrentSales(customer, period) {
+    if (store.getRefundSalesIncome) {
+      return round2(store.getRefundSalesIncome(customer, period));
+    }
     var match = getHistoryRows(customer).find(function (row) { return row.period === period; });
     return round2(match ? match.sales : 0);
   }
@@ -67,17 +87,50 @@
     }, 0));
   }
 
+  function getDefaultMonthRange() {
+    var anchor = store.getRefundAnchorPeriod ? store.getRefundAnchorPeriod() : window.FeeMgmtCommon.currentMonthYm();
+    return window.FeeMgmtCommon.getRecentMonthsRange(3, anchor);
+  }
+
+  function getMonthRangeFilter() {
+    if (!qMonthRangePicker || !qMonthRangePicker.get) return getDefaultMonthRange();
+    return qMonthRangePicker.get();
+  }
+
+  function mountMonthRangeFilter() {
+    if (!window.MonthRangePicker) return;
+    var defaults = getDefaultMonthRange();
+    qMonthRangePicker = window.MonthRangePicker.mount(document.getElementById('qMonthRangeMount'), {
+      start: defaults.start,
+      end: defaults.end,
+      useBodyPortal: true,
+      onChange: renderTable
+    });
+  }
+
+  function resetMonthRangeFilter() {
+    var defaults = getDefaultMonthRange();
+    if (qMonthRangePicker && qMonthRangePicker.set) {
+      qMonthRangePicker.set(defaults.start, defaults.end);
+    }
+  }
+
   function getRows() {
-    var filters = {
-      period: document.getElementById('qPeriod').value,
-      customer: document.getElementById('qCustomer').value
-    };
+    var range = getMonthRangeFilter();
+    var customer = document.getElementById('qCustomer').value;
 
     return store.getRefunds().filter(function (row) {
-      if (filters.period && row.period !== filters.period) return false;
-      if (filters.customer && row.customer !== filters.customer) return false;
+      if (!window.FeeMgmtCommon.periodInMonthRange(row.period, range.start, range.end)) return false;
+      if (customer && row.customer !== customer) return false;
       return true;
     });
+  }
+
+  function getFilterTipText() {
+    var range = getMonthRangeFilter();
+    if (!range.start && !range.end) return '';
+    if (range.start && range.end) return ' · 筛选 ' + range.start + ' - ' + range.end;
+    return '';
   }
 
   function getRefundRowsByCustomer(customer) {
@@ -119,8 +172,8 @@
     var rowIndex = customerRows.findIndex(function (item) { return item.id === row.id; });
     var previousRow = rowIndex > 0 ? customerRows[rowIndex - 1] : null;
     var prevPeriodLabel = shiftPeriod(row.period, -1);
-    var history12 = takeLast(getHistoryUntil(row.customer, row.period), 12);
-    var prevHistory12 = takeLast(getHistoryUntil(row.customer, prevPeriodLabel), 12);
+    var history12 = takeLast(getCalcHistoryUntil(row.customer, row.period), 12);
+    var prevHistory12 = takeLast(getCalcHistoryUntil(row.customer, prevPeriodLabel), 12);
     var history12Sales = sum(history12, 'sales', false);
     var history12Refund = sum(history12, 'refund', true);
     var prevHistory12Sales = sum(prevHistory12, 'sales', false);
@@ -128,24 +181,26 @@
     var currentSales = getCurrentSales(row.customer, row.period);
     var windowMonths = Math.max(1, Number(previewWindow || row.windowMonths || 1));
     var isWindowPreview = previewWindow != null && Number(previewWindow) !== Number(row.windowMonths || 1);
-    var basisRows = takeLast(getHistoryUntil(row.customer, row.period), windowMonths);
-    var openingBasisRows = previousRow
-      ? takeLast(getHistoryUntil(previousRow.customer, previousRow.period), previousRow.windowMonths)
-      : takeLast(getHistoryBefore(row.customer, row.period), windowMonths);
+    var basisRows = takeLast(getCalcHistoryUntil(row.customer, row.period), windowMonths);
+    var openingBasisRows = takeLast(getCalcHistoryUntil(row.customer, prevPeriodLabel), windowMonths);
     var salesBasis = sum(basisRows, 'sales', false);
     var openingSalesBasis = sum(openingBasisRows, 'sales', false);
     var ratio = Number(row.ratio || 0);
+    if (!ratio && store.computeRefundRatio) {
+      ratio = Number(store.computeRefundRatio(row.customer, row.period) || 0);
+    }
+    if (!ratio && history12Sales) {
+      ratio = round2(history12Refund / history12Sales);
+    }
     var openingRatio = store.computeRefundRatio
       ? Number(store.computeRefundRatio(row.customer, prevPeriodLabel) || 0)
       : getPreviousRatio(row);
+    if (!openingRatio && prevHistory12Sales) {
+      openingRatio = round2(prevHistory12Refund / prevHistory12Sales);
+    }
     var computedOpening = round2(openingRatio * openingSalesBasis);
-    var openingBalance = isWindowPreview ? computedOpening : round2(row.openingBalance || 0);
+    var computedClosing = round2(ratio * salesBasis);
     var actualRefund = round2(row.actualRefund || 0);
-    var targetClosing = round2(ratio * salesBasis);
-    var closingBalance = isWindowPreview ? round2(targetClosing) : round2(row.closingBalance || 0);
-    var accrualAmount = isWindowPreview
-      ? round2(actualRefund + targetClosing - openingBalance)
-      : round2(row.accrualAmount || 0);
 
     return {
       row: row,
@@ -165,11 +220,12 @@
       openingRatio: openingRatio,
       basisRows: basisRows,
       salesBasis: salesBasis,
-      openingBalance: openingBalance,
+      openingBalance: computedOpening,
       actualRefund: actualRefund,
-      targetClosing: targetClosing,
-      accrualAmount: accrualAmount,
-      closingBalance: closingBalance
+      targetClosing: computedClosing,
+      accrualAmount: round2(actualRefund + computedClosing - computedOpening),
+      closingBalance: computedClosing,
+      isWindowPreview: isWindowPreview
     };
   }
 
@@ -200,18 +256,21 @@
     var body = document.getElementById('refundBody');
 
     renderStats(rows);
-    document.getElementById('resultTip').textContent = '共 ' + rows.length + ' 条';
+    document.getElementById('resultTip').textContent = '共 ' + rows.length + ' 条' + getFilterTipText();
 
     if (!rows.length) {
-      body.innerHTML = '<tr><td colspan="14" style="text-align:center;color:#6b7280;padding:32px;">暂无退款记录</td></tr>';
+      body.innerHTML = '<tr><td colspan="13" style="text-align:center;color:#6b7280;padding:32px;">暂无退款记录</td></tr>';
       return;
     }
 
     body.innerHTML = rows.map(function (row) {
-      var salesIncome = getCurrentSales(row.customer, row.period);
+      var salesIncome = row.salesIncome != null ? row.salesIncome : getCurrentSales(row.customer, row.period);
+      var periodLabel = row.isProjected
+        ? esc(row.period) + ' <span class="tag-projected">滚动测算</span>'
+        : esc(row.period);
       return '' +
         '<tr>' +
-          '<td>' + esc(row.period) + '</td>' +
+          '<td>' + periodLabel + '</td>' +
           '<td>' + esc(row.customer) + '</td>' +
           '<td class="num">' + money(salesIncome) + '</td>' +
           '<td class="num">' + calcButton(row, 'opening', money(row.openingBalance)) + '</td>' +
@@ -221,10 +280,12 @@
           '<td class="num">' + calcButton(row, 'window', String(row.windowMonths)) + '</td>' +
           '<td class="num">' + calcButton(row, 'accrual', money(row.accrualAmount)) + '</td>' +
           '<td class="num">' + calcButton(row, 'closing', money(row.closingBalance)) + '</td>' +
-          '<td>' + sourceTag(row.actualSource) + '</td>' +
           '<td title="' + esc(row.note || '') + '">' + esc((row.note || '').slice(0, 24)) + '</td>' +
           '<td>' + esc(row.updatedAt || '-') + '</td>' +
-          '<td><span class="ops"><button class="op-link" data-action="edit" data-id="' + esc(row.id) + '">录入实际值</button><button class="op-link danger" data-action="reset" data-id="' + esc(row.id) + '">恢复 Excel</button></span></td>' +
+          '<td><span class="ops">' +
+            '<button class="op-link" data-action="edit" data-id="' + esc(row.id) + '">录入实际值</button>' +
+            '<button class="op-link" data-action="row-log" data-row-key="' + esc(row.id) + '" data-row-label="' + esc(row.customer + ' · ' + row.period) + '">' + esc(logCountLabel(row.id)) + '</button>' +
+          '</span></td>' +
         '</tr>';
     }).join('');
   }
@@ -343,7 +404,7 @@
 
     document.getElementById('openingFormula').textContent =
       '本月期初计提退款余额 = 上月滚动退款率 ' + pct(scenario.openingRatio) +
-      ' × 过去近 ' + scenario.openingBasisRows.length + ' 个月销售收入（' +
+      ' × 过去近 ' + scenario.windowMonths + ' 个月销售收入（截至 ' + esc(scenario.prevPeriodLabel) + '，' +
       scenario.openingBasisRows.map(function (item) { return money(item.sales); }).join(' + ') +
       '） = ' + money(scenario.openingBalance);
 
@@ -354,7 +415,7 @@
 
     document.getElementById('closingFormula').textContent =
       '本月期末计提退款余额 = 本月滚动退款率 ' + pct(scenario.ratio) +
-      ' × 过去近 ' + scenario.windowMonths + ' 个月销售收入（' +
+      ' × 过去近 ' + scenario.windowMonths + ' 个月销售收入（截至 ' + esc(row.period) + '，' +
       scenario.basisRows.map(function (item) { return money(item.sales); }).join(' + ') +
       '） = ' + money(scenario.closingBalance);
 
@@ -395,6 +456,12 @@
       note: currentRule.note || ''
     });
 
+    appendOpLog(calcState.id, {
+      action: '调整目标窗口',
+      target: row.customer + ' · ' + row.period,
+      detail: '目标窗口 ' + row.windowMonths + ' 月 → ' + document.getElementById('calcWindowInput').value + ' 月'
+    });
+
     calcState.row = findById(calcState.id);
     renderTable();
     renderCalcModal();
@@ -405,12 +472,21 @@
     var row = findById(editingId);
     if (!row) return;
 
+    var actualAmount = document.getElementById('fActual').value;
+    var note = document.getElementById('fNote').value.trim();
+
     store.upsertRefundActual({
       id: editingId,
       customer: row.customer,
       period: row.period,
-      actualAmount: document.getElementById('fActual').value,
-      note: document.getElementById('fNote').value.trim()
+      actualAmount: actualAmount,
+      note: note
+    });
+
+    appendOpLog(editingId, {
+      action: '录入实际退款',
+      target: row.customer + ' · ' + row.period,
+      detail: '实际退款 ' + money(actualAmount) + (note ? '；备注：' + note : '')
     });
 
     closeEditModal();
@@ -418,14 +494,10 @@
   }
 
   function populateOptions() {
-    var periodOpts = store.periods.map(function (item) {
-      return '<option value="' + esc(item) + '">' + esc(item) + '</option>';
-    }).join('');
     var customerOpts = store.refundCustomers.map(function (item) {
       return '<option value="' + esc(item) + '">' + esc(item) + '</option>';
     }).join('');
 
-    document.getElementById('qPeriod').insertAdjacentHTML('beforeend', periodOpts);
     document.getElementById('qCustomer').insertAdjacentHTML('beforeend', customerOpts);
   }
 
@@ -468,12 +540,18 @@
         var rows = getRows();
         var count = 0;
         rows.slice(0, 3).forEach(function (row, index) {
+          var amount = Number(row.actualRefund || 0) + (index + 1) * 100;
           store.upsertRefundActual({
             id: row.id,
             customer: row.customer,
             period: row.period,
-            actualAmount: Number(row.actualRefund || 0) + (index + 1) * 100,
+            actualAmount: amount,
             note: '批量导入示意'
+          });
+          appendOpLog(row.id, {
+            action: '批量导入实际退款',
+            target: row.customer + ' · ' + row.period,
+            detail: '实际退款 ' + money(amount)
           });
           count += 1;
         });
@@ -485,13 +563,11 @@
   }
 
   function bindEvents() {
-    document.getElementById('qPeriod').addEventListener('change', renderTable);
     document.getElementById('qCustomer').addEventListener('change', renderTable);
 
     document.getElementById('btnReset').addEventListener('click', function () {
-      document.getElementById('qPeriod').value = '';
+      resetMonthRangeFilter();
       document.getElementById('qCustomer').value = '';
-      window.FeeMgmtCommon.syncClearableSelect(document.getElementById('qPeriod'));
       window.FeeMgmtCommon.syncClearableSelect(document.getElementById('qCustomer'));
       renderTable();
     });
@@ -520,10 +596,6 @@
 
       if (action === 'edit') {
         openEditModal(findById(id));
-      } else if (action === 'reset') {
-        store.resetRefundActual(id);
-        store.resetRefundRule(id);
-        renderTable();
       } else if (action === 'calc') {
         openCalcModal(findById(id), btn.getAttribute('data-field'));
       }
@@ -532,7 +604,14 @@
 
   function init() {
     populateOptions();
+    mountMonthRangeFilter();
     mountImportKit();
+    if (window.FeeMgmtOpLog) {
+      window.FeeMgmtOpLog.wireTable({
+        scope: OP_LOG_SCOPE,
+        tableBody: '#refundBody'
+      });
+    }
     bindEvents();
     renderTable();
   }
