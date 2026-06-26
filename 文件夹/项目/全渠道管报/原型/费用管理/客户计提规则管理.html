@@ -130,7 +130,7 @@
         <div class="stat-row">
           <div class="stat-card"><div class="k">零售商数</div><div class="v" id="statCustomers">0</div></div>
           <div class="stat-card"><div class="k">已调整规则</div><div class="v" id="statAdjusted">0</div></div>
-          <div class="stat-card"><div class="k">规则来源</div><div class="v" id="statSource" style="font-size:16px;">Excel</div></div>
+          <div class="stat-card"><div class="k">规则来源</div><div class="v" id="statSource" style="font-size:16px;">系统基线</div></div>
         </div>
       </section>
 
@@ -151,7 +151,7 @@
         </div>
       </section>
 
-      <div class="hint">三类冲收入费用支持两种计提方式：<strong>固定比例</strong>（当月销售收入 × 手工/Excel 比例）与<strong>部门固定比例</strong>（各部门销售订单金额不含税 × 部门固定比例后汇总，比例默认 0）。销售费用支持月固定金额、年总金额月均分摊、固定比例、自定义月金额四种方式，与扣款管理页联动。</div>
+      <div class="hint">三类冲收入费用支持两种计提方式：<strong>固定比例</strong>（当月销售收入 × 客户计提规则中的比例）与<strong>部门固定比例</strong>（各部门销售订单金额不含税 × 部门固定比例后汇总，比例默认 0）。销售费用支持月固定金额、年总金额月均分摊、固定比例、自定义月金额四种方式，与扣款管理页联动。</div>
       <div class="sub-hint">退款滚动规则请至 <a href="退款管理.html">退款管理</a> 查看与调整。</div>
 
       <section class="panel panel--table">
@@ -308,12 +308,14 @@
 <script src="supermarket-accrual-store.js"></script>
 <script src="客户计提规则管理.js"></script>
 
+
+
 <!-- prototype-annotation:start -->
 <link rel="stylesheet" href="../prototype-annotation/prototype-annotation.css">
 <script id="prototype-annotation-config" type="application/json">
 {
   "pageId": "fee-customer-accrual-rules",
-  "version": "2026-06-24T12:00:00+08:00",
+  "version": "2026-06-24T18:00:00+08:00",
   "pageTitle": "客户计提规则管理",
   "annotations": [
     {
@@ -332,7 +334,7 @@
       "id": "rule-matrix",
       "selector": "#matrixBody",
       "title": "零售商计提规则",
-      "body": "一客户一行的规则矩阵。\n1. 前三列比例类费用可点击调整计提方式与比例。\n2. 销售费用列展示计提方式与规则摘要。\n3. 已手工调整的行标记为「已调整」，相对 Excel 基线有覆盖。"
+      "body": "一客户一行的规则矩阵。\n1. 前三列比例类费用可点击调整计提方式与比例。\n2. 销售费用列展示计提方式与规则摘要。\n3. 已手工调整的行相对系统基线有覆盖，概览卡片显示「含调整」。"
     },
     {
       "id": "ratio-modal",
@@ -362,7 +364,7 @@
       "id": "expense-method",
       "selector": "#fExpenseMethod",
       "title": "销售费用计提方式",
-      "body": "切换后展示对应参数字段：月固定金额、年总金额、固定比例或 14 个月自定义金额表。与 Excel 预算口径保持一致时可留空覆盖。"
+      "body": "切换后展示对应参数字段：月固定金额、年总金额、固定比例或 14 个月自定义金额表。与系统初始规则一致时可清除覆盖恢复基线。"
     }
   ],
   "fieldTips": [
@@ -370,7 +372,7 @@
       "id": "tip-promo",
       "selector": ".panel--table .data-table thead th:nth-child(2)",
       "title": "促销扣款比例",
-      "body": "该客户促销扣款的计提规则摘要。可能为固定比例、部门固定比例或 Excel 基线值。点击单元格可打开调整弹窗。"
+      "body": "该客户促销扣款的计提规则摘要。可能为固定比例、部门固定比例或系统基线值。点击单元格可打开调整弹窗。"
     },
     {
       "id": "tip-sales-discount",
@@ -400,9 +402,9 @@
   "pageGuide": {
     "dev": {
       "页面整体定位": "商超零售商维度计提规则主数据页，覆盖三类冲收入费用与销售费用，是扣款管理计提计算的规则源。",
-      "页面核心业务逻辑": "基线来自 Excel fixedRules；用户调整写入 localStorage 覆盖。部门固定比例存 deptItems 列表。销售费用 custom_monthly 维护 14 个月金额表。退款滚动规则不在本页维护。",
-      "关键规则说明": "保存 fixedRule 覆盖后 getDeductions 全量重算。已调整行相对基线显示 override 标记。部门可增删改，比例默认 0。",
-      "关联上下游": "上游：Excel 商超测算表；下游：扣款管理滚动计提。退款规则见退款管理页。"
+      "页面核心业务逻辑": "系统初始规则为基线；用户在本页调整写入本地覆盖。部门固定比例维护部门清单及比例。销售费用自定义月金额维护当前月及未来 13 个月。退款滚动规则不在本页维护。",
+      "关键规则说明": "保存规则覆盖后扣款管理全量重算。概览卡片「含调整」表示存在相对系统基线的覆盖。部门可增删改，比例默认 0。",
+      "关联上下游": "上游：系统初始化商超计提规则；下游：扣款管理滚动计提。退款规则见退款管理页。"
     },
     "user": {
       "标准操作流程": "1. 筛选目标客户（可选）。2. 在矩阵中点击比例或销售费用单元格。3. 在弹窗选择计提方式并填写参数。4. 保存后至扣款管理核对计提结果。5. 合同变更时更新备注便于审计。",
@@ -413,27 +415,27 @@
   "statusFlow": {
     "nodes": [
       {
-        "id": "excel",
-        "label": "Excel基线",
-        "description": "与 Excel 导入规则一致，未手工覆盖。"
+        "id": "baseline",
+        "label": "系统基线",
+        "description": "与系统初始规则一致，未手工覆盖。"
       },
       {
         "id": "override",
         "label": "已调整",
-        "description": "相对 Excel 基线存在手工保存的覆盖规则。"
+        "description": "相对系统基线存在手工保存的覆盖规则。"
       }
     ],
     "transitions": [
       {
-        "from": "Excel基线",
+        "from": "系统基线",
         "to": "已调整",
         "trigger": "在比例或销售费用弹窗保存变更",
         "allowed": "可再次编辑恢复或修改",
-        "forbidden": "不会自动回写 Excel 文件"
+        "forbidden": "不会自动回写系统初始规则"
       },
       {
         "from": "已调整",
-        "to": "Excel基线",
+        "to": "系统基线",
         "trigger": "将参数改回与基线一致并保存（系统清除覆盖）",
         "allowed": "扣款管理恢复基线计提",
         "forbidden": "无"
@@ -447,7 +449,8 @@
     "allowIps": [
       "113.110.230.127",
       "113.110.229.118",
-      "220.232.134.241"
+      "220.232.134.241",
+      "113.110.228.174"
     ],
     "editToken": "",
     "allowLocalhost": true,
