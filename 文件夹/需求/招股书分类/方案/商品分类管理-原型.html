@@ -4,6 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>对外披露分类管理 — 招股书分类</title>
+  <link rel="stylesheet" href="../../../规范/assets/import-modal-kit.css">
   <style>
     :root {
       --brand: #1677ff;
@@ -189,6 +190,24 @@
     }
     .confirm-text { margin: 0 0 8px; font-size: 14px; line-height: 1.6; }
     .confirm-sub { margin: 0; font-size: 12px; color: var(--muted); }
+    /* 页面弹窗：用 hidden 控制，避免与 ImportModalKit 的 .open 冲突 */
+    #editModal[hidden], #confirmModal[hidden] { display: none !important; }
+    #editModal:not([hidden]), #confirmModal:not([hidden]) {
+      display: flex !important; pointer-events: auto !important; z-index: 1000;
+    }
+    /* ImportModalKit 弹窗结构 */
+    .modal {
+      background: #fff; border-radius: 8px; width: min(520px, 96vw);
+      max-height: 90vh; display: flex; flex-direction: column;
+      box-shadow: 0 6px 16px rgba(0,0,0,.12);
+    }
+    .modal.modal-lg { width: min(560px, 96vw); }
+    .modal .modal-hd h2 { margin: 0; flex: 1; font-size: 16px; font-weight: 600; }
+    .modal .modal-ft .btn { height: 32px; padding: 0 14px; border-radius: 6px; font-size: 13px; cursor: pointer; border: 1px solid var(--border); background: #fff; font-family: inherit; }
+    .modal .modal-ft .btn-primary { background: var(--brand); color: #fff; border-color: var(--brand); }
+    .btn-link { border: none; background: none; color: var(--brand); cursor: pointer; font-size: 13px; padding: 0; font-family: inherit; }
+    .btn-link:hover { text-decoration: underline; }
+    .hint-bar { padding: 10px 12px; background: #fafafa; border: 1px solid #f0f0f0; border-radius: 6px; font-size: 12px; color: #475569; }
   </style>
 </head>
 <body>
@@ -232,6 +251,8 @@
       <button type="button" class="btn btn-primary" id="btnAddRoot">新增一级分类</button>
       <button type="button" class="btn btn-ghost" id="btnExpandAll">全部展开</button>
       <button type="button" class="btn btn-ghost" id="btnCollapseAll">全部折叠</button>
+      <button type="button" class="btn btn-ghost" id="btnImport">导入</button>
+      <button type="button" class="btn btn-ghost" id="btnExport">导出</button>
       <span class="hint" id="statHint">共 0 个分类</span>
     </div>
 
@@ -319,6 +340,7 @@
     </div>
   </div>
 
+  <script src="../../../规范/assets/import-modal-kit.js"></script>
   <script>
   (function () {
     var STORAGE_KEY = 'prospectus_product_category_v2';
@@ -634,6 +656,218 @@
       renderTable();
     }
 
+    var EXPORT_HEADER = ['上级分类路径', '对外披露分类', '排序', '状态', '备注'];
+
+    function getParentPath(id) {
+      var item = getById(id);
+      if (!item || !item.parentId) return '';
+      return getPathName(item.parentId);
+    }
+
+    function buildExportRows() {
+      var rows = [EXPORT_HEADER.slice()];
+      function walk(parentId) {
+        getChildren(parentId).forEach(function (item) {
+          rows.push([
+            getParentPath(item.id),
+            item.name,
+            item.sort,
+            item.status === 'on' ? '启用' : '停用',
+            item.remark || ''
+          ]);
+          walk(item.id);
+        });
+      }
+      walk(null);
+      return rows;
+    }
+
+    function buildTemplateRows() {
+      return [
+        EXPORT_HEADER.slice(),
+        ['', '智能照明', '1', '启用', '招股书主营业务分类'],
+        ['智能照明', '灯带', '1', '启用', ''],
+        ['智能照明', '灯泡/灯珠', '2', '启用', ''],
+        ['', '智能家居', '2', '启用', ''],
+        ['智能家居 / 空气环境', '空气净化器', '1', '启用', '']
+      ];
+    }
+
+    function parseCsvLine(line) {
+      var out = [];
+      var cur = '';
+      var inQ = false;
+      for (var i = 0; i < line.length; i++) {
+        var ch = line[i];
+        if (inQ) {
+          if (ch === '"' && line[i + 1] === '"') { cur += '"'; i++; }
+          else if (ch === '"') inQ = false;
+          else cur += ch;
+        } else if (ch === '"') inQ = true;
+        else if (ch === ',') { out.push(cur); cur = ''; }
+        else cur += ch;
+      }
+      out.push(cur);
+      return out;
+    }
+
+    function parseCsvText(text) {
+      return String(text || '').replace(/^\uFEFF/, '').split(/\r?\n/)
+        .filter(function (line) { return line.trim(); })
+        .map(parseCsvLine);
+    }
+
+    function normalizeImportStatus(raw) {
+      var s = String(raw == null ? '' : raw).trim();
+      if (s === '启用' || s === 'on' || s === '1') return 'on';
+      if (s === '停用' || s === 'off' || s === '0') return 'off';
+      return null;
+    }
+
+    function pathDepth(path) {
+      if (!path) return 0;
+      return path.split(' / ').filter(Boolean).length;
+    }
+
+    function importFromCsvText(text) {
+      var rows = parseCsvText(text);
+      if (rows.length < 2) {
+        return { errors: ['文件为空或仅有表头，请使用标准导入模版。'], categories: [], successCount: 0 };
+      }
+      var header = rows[0].map(function (h) { return String(h || '').trim(); });
+      var col = {
+        parent: header.indexOf('上级分类路径'),
+        name: header.indexOf('对外披露分类'),
+        sort: header.indexOf('排序'),
+        status: header.indexOf('状态'),
+        remark: header.indexOf('备注')
+      };
+      if (col.name < 0) {
+        return { errors: ['模版缺少「对外披露分类」列，请下载标准导入模版。'], categories: [], successCount: 0 };
+      }
+
+      var errors = [];
+      var pathToId = {};
+      var newCats = [];
+      var dataRows = rows.slice(1).map(function (r, i) {
+        return {
+          line: i + 2,
+          cells: r,
+          parentPath: col.parent >= 0 ? String(r[col.parent] || '').trim() : '',
+          name: String(r[col.name] || '').trim()
+        };
+      }).filter(function (d) { return d.name; });
+
+      dataRows.sort(function (a, b) {
+        var depthDiff = pathDepth(a.parentPath) - pathDepth(b.parentPath);
+        if (depthDiff) return depthDiff;
+        return a.name.localeCompare(b.name, 'zh-CN');
+      });
+
+      dataRows.forEach(function (d) {
+        var parentPath = d.parentPath;
+        var name = d.name;
+        var sortRaw = col.sort >= 0 ? d.cells[col.sort] : '0';
+        var sort = parseInt(sortRaw, 10);
+        if (isNaN(sort) || sort < 0) sort = 0;
+        var status = normalizeImportStatus(col.status >= 0 ? d.cells[col.status] : '启用');
+        if (!status) {
+          errors.push('第 ' + d.line + ' 行：状态须填写「启用」或「停用」');
+          return;
+        }
+        var remark = col.remark >= 0 ? String(d.cells[col.remark] || '').trim() : '';
+        var parentId = null;
+        if (parentPath) {
+          if (!pathToId[parentPath]) {
+            errors.push('第 ' + d.line + ' 行：上级分类路径「' + parentPath + '」不存在，请先维护上级或调整顺序');
+            return;
+          }
+          parentId = pathToId[parentPath];
+          if (pathDepth(parentPath) + 1 > MAX_LEVEL) {
+            errors.push('第 ' + d.line + ' 行：超过最大 ' + MAX_LEVEL + ' 级分类');
+            return;
+          }
+        }
+        var fullPath = parentPath ? parentPath + ' / ' + name : name;
+        if (pathToId[fullPath]) {
+          errors.push('第 ' + d.line + ' 行：分类路径「' + fullPath + '」重复');
+          return;
+        }
+        var id = uid();
+        pathToId[fullPath] = id;
+        newCats.push({ id: id, name: name, parentId: parentId, sort: sort, status: status, remark: remark });
+      });
+
+      if (errors.length) return { errors: errors, categories: [], successCount: 0 };
+      return { errors: [], categories: newCats, successCount: newCats.length };
+    }
+
+    function exportCategories() {
+      var d = new Date();
+      var fn = '对外披露分类导出_' +
+        d.getFullYear() +
+        String(d.getMonth() + 1).padStart(2, '0') +
+        String(d.getDate()).padStart(2, '0') + '.csv';
+      ImportModalKit.downloadCsv(fn, buildExportRows());
+      showToast('已开始下载导出文件');
+    }
+
+    var importModal = ImportModalKit.mount({
+      trigger: '#btnImport',
+      title: '导入对外披露分类',
+      templateFileName: '对外披露分类导入模版.csv',
+      introHtml:
+        '<p>请下载<strong>对外披露分类导入模版</strong>，按列填写后上传。导入校验通过后<strong>全量替换</strong>当前分类树；正式环境可按业务规则改为增量更新。</p>' +
+        '<p>一级分类的上级分类路径留空；下级填写完整上级路径，多级用「 / 」连接，如「智能家居 / 空气环境」。</p>',
+      columns: [
+        { group: '层级', name: '上级分类路径', required: false, desc: '一级留空；下级填完整上级路径，如「智能照明」或「智能家居 / 空气环境」' },
+        { group: '主信息', name: '对外披露分类', required: true, desc: '本行分类名称，同级不可重复' },
+        { group: '展示', name: '排序', required: false, desc: '同级升序，默认 0，数值越小越靠前' },
+        { group: '状态', name: '状态', required: true, desc: '启用 或 停用' },
+        { group: '说明', name: '备注', required: false, desc: '披露口径或边界说明，选填' }
+      ],
+      requirements: [
+        '须先维护上级分类再填写下级；同一文件中按层级从上到下或任意顺序均可，系统按上级路径自动建树。',
+        '对外披露分类、状态为必填；状态仅允许「启用」「停用」。',
+        '分类树最多 4 级；同一上级下分类名称不可重复。',
+        '导入失败时请按提示修正后重新上传；成功后将覆盖当前列表中的全部分类。'
+      ],
+      downloadCsvRows: buildTemplateRows(),
+      onConfirm: function (file, resultEl) {
+        resultEl.hidden = false;
+        resultEl.style.color = '#475569';
+        if (!file) {
+          resultEl.textContent = '请先选择已填写的模版文件。';
+          return;
+        }
+        var reader = new FileReader();
+        reader.onload = function () {
+          var result = importFromCsvText(reader.result);
+          if (result.errors.length) {
+            resultEl.style.color = '#cf1322';
+            var preview = result.errors.slice(0, 5).join('；');
+            resultEl.textContent = '导入失败 ' + result.errors.length + ' 处：' + preview + (result.errors.length > 5 ? '…' : '');
+            return;
+          }
+          categories = result.categories;
+          expanded = {};
+          saveData();
+          renderTable();
+          resultEl.style.color = '#389e0d';
+          resultEl.textContent = '导入完成：成功 ' + result.successCount + ' 行，失败 0 行。';
+          showToast('已导入 ' + result.successCount + ' 条分类');
+          setTimeout(function () { importModal.close(); }, 1200);
+        };
+        reader.onerror = function () {
+          resultEl.style.color = '#cf1322';
+          resultEl.textContent = '文件读取失败，请重试。';
+        };
+        reader.readAsText(file, 'UTF-8');
+      }
+    });
+
+    document.getElementById('btnExport').addEventListener('click', exportCategories);
+
     function wireClearableSelect(selectId, clearId) {
       var sel = document.getElementById(selectId);
       var clr = document.getElementById(clearId);
@@ -722,7 +956,7 @@
 <script id="prototype-annotation-config" type="application/json">
 {
   "pageId": "prospectus-product-category-mgmt",
-  "version": "2026-06-25T14:30:00+08:00",
+  "version": "2026-06-25T16:00:00+08:00",
   "pageTitle": "对外披露分类管理",
   "annotations": [
     {
@@ -754,6 +988,18 @@
       "selector": "#confirmOk",
       "title": "删除规则",
       "body": "删除分类规则：\n1. 存在下级分类时不允许删除，需先处理下级。\n2. 删除前二次确认；正式环境中若分类已被商品引用应禁止删除。\n3. 删除后不可恢复，请谨慎操作。"
+    },
+    {
+      "id": "a6",
+      "selector": "#btnImport",
+      "title": "批量导入",
+      "body": "导入对外披露分类逻辑：\n1. 须先下载模版，按「上级分类路径 + 对外披露分类」填写。\n2. 校验通过后全量替换当前分类树；失败时提示行号与原因。\n3. 一级分类的上级路径留空，下级用「 / 」连接完整上级路径。"
+    },
+    {
+      "id": "a7",
+      "selector": "#btnExport",
+      "title": "导出",
+      "body": "导出当前全部分类为 CSV，列与导入模版一致，便于批量维护后再次导入或留档。"
     }
   ],
   "fieldTips": [
@@ -789,7 +1035,8 @@
         "分类以树形结构存储，通过上级分类字段关联，最多 4 级。",
         "列表按同级排序值升序展示，支持展开/折叠与全部展开/折叠。",
         "新增与编辑仅需维护对外披露分类名称及上级、排序、状态、备注，无需手工填写编码。",
-        "删除前校验是否存在下级。"
+        "删除前校验是否存在下级。",
+        "支持 CSV 导入导出：导出列与导入模版一致；导入校验通过后全量替换分类树。"
       ],
       "联动关系": "下游为招股书披露报表、收入分部汇总及 SKU 与披露分类的映射配置（未在本页展示）。"
     },
@@ -799,7 +1046,8 @@
         "2. 点击「新增一级分类」或在某行点击「新增子类」维护分类树。",
         "3. 在弹窗中填写对外披露分类名称，按需调整上级、排序、状态与备注，点击「保存」。",
         "4. 需要调整时点击「编辑」；无下级时可「删除」。",
-        "5. 使用「全部展开/折叠」浏览整棵分类树。"
+        "5. 使用「全部展开/折叠」浏览整棵分类树。",
+        "6. 批量维护时可「导出」当前分类，编辑后通过「导入」全量更新。"
       ],
       "使用说明": "对外披露分类名称应与招股书披露口径一致，建议与财务、法务确认后再启用。",
       "注意事项": "停用分类不会自动解除已有商品映射；删除前请确认无下级且无商品引用。"
