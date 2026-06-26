@@ -248,7 +248,7 @@
     </div>
 
     <div class="toolbar">
-      <button type="button" class="btn btn-primary" id="btnAddRoot">新增一级分类</button>
+      <button type="button" class="btn btn-primary" id="btnAddRoot">新增零级分类</button>
       <button type="button" class="btn btn-ghost" id="btnExpandAll">全部展开</button>
       <button type="button" class="btn btn-ghost" id="btnCollapseAll">全部折叠</button>
       <button type="button" class="btn btn-ghost" id="btnImport">导入</button>
@@ -291,7 +291,7 @@
         <div class="form-row">
           <label for="fParent"><span class="req">*</span>上级分类</label>
           <select id="fParent"></select>
-          <div class="form-hint" id="parentHint">一级分类的上级为空。</div>
+          <div class="form-hint" id="parentHint">零级分类的上级为空。</div>
         </div>
         <div class="form-row">
           <label for="fName"><span class="req">*</span>对外披露分类</label>
@@ -344,7 +344,7 @@
   <script>
   (function () {
     var STORAGE_KEY = 'prospectus_product_category_v2';
-    var MAX_LEVEL = 4;
+    var MAX_LEVEL = 3;
 
     var DEFAULT_DATA = [
       { id: 'c1', name: '智能照明', parentId: null, sort: 1, status: 'on', remark: '' },
@@ -414,7 +414,7 @@
     }
 
     function getLevel(id) {
-      var lv = 1;
+      var lv = 0;
       var cur = getById(id);
       while (cur && cur.parentId) {
         lv += 1;
@@ -493,7 +493,7 @@
         '共 ' + categories.length + ' 个分类' + (filters.keyword || filters.status ? ' · 当前展示 ' + rows.length + ' 行' : '');
 
       if (!rows.length) {
-        body.innerHTML = '<tr class="empty-row"><td colspan="6">暂无符合条件的分类，可调整筛选或点击「新增一级分类」</td></tr>';
+        body.innerHTML = '<tr class="empty-row"><td colspan="6">暂无符合条件的分类，可调整筛选或点击「新增零级分类」</td></tr>';
         return;
       }
 
@@ -529,7 +529,7 @@
 
     function buildParentOptions(excludeId, selectedParentId) {
       var rootSel = selectedParentId == null ? ' selected' : '';
-      var opts = ['<option value=""' + rootSel + '>（无，作为一级分类）</option>'];
+      var opts = ['<option value=""' + rootSel + '>（无，作为零级分类）</option>'];
       categories.forEach(function (c) {
         if (excludeId && (c.id === excludeId || isDescendant(excludeId, c.id))) return;
         if (getLevel(c.id) >= MAX_LEVEL) return;
@@ -542,7 +542,7 @@
 
     function openEditModal(mode, id, parentId) {
       editingId = mode === 'edit' ? id : null;
-      var title = mode === 'edit' ? '编辑分类' : (parentId ? '新增子分类' : '新增一级分类');
+      var title = mode === 'edit' ? '编辑分类' : (parentId ? '新增子分类' : '新增零级分类');
       document.getElementById('editModalTitle').textContent = title;
 
       var parentSelect = document.getElementById('fParent');
@@ -567,7 +567,7 @@
         document.getElementById('fRemark').value = '';
         document.getElementById('parentHint').textContent = parentId
           ? '上级：' + getPathName(parentId)
-          : '一级分类的上级为空。';
+          : '零级分类的上级为空。';
       }
 
       document.getElementById('editModal').hidden = false;
@@ -597,10 +597,10 @@
             showToast('上级分类不能为自身或其下级', 'err'); return;
           }
           if (getLevel(parentId) + 1 > MAX_LEVEL) {
-            showToast('最多支持 ' + MAX_LEVEL + ' 级分类', 'err'); return;
+            showToast('最多支持至 ' + MAX_LEVEL + ' 级（零级起算）', 'err'); return;
           }
         } else if (getLevel(parentId) >= MAX_LEVEL) {
-          showToast('最多支持 ' + MAX_LEVEL + ' 级分类', 'err'); return;
+          showToast('最多支持至 ' + MAX_LEVEL + ' 级（零级起算）', 'err'); return;
         }
       }
 
@@ -783,8 +783,8 @@
             return;
           }
           parentId = pathToId[parentPath];
-          if (pathDepth(parentPath) + 1 > MAX_LEVEL) {
-            errors.push('第 ' + d.line + ' 行：超过最大 ' + MAX_LEVEL + ' 级分类');
+          if (parentPath && pathDepth(parentPath) > MAX_LEVEL) {
+            errors.push('第 ' + d.line + ' 行：超过最大层级（零级至 ' + MAX_LEVEL + ' 级）');
             return;
           }
         }
@@ -818,9 +818,9 @@
       templateFileName: '对外披露分类导入模版.csv',
       introHtml:
         '<p>请下载<strong>对外披露分类导入模版</strong>，按列填写后上传。导入校验通过后<strong>全量替换</strong>当前分类树；正式环境可按业务规则改为增量更新。</p>' +
-        '<p>一级分类的上级分类路径留空；下级填写完整上级路径，多级用「 / 」连接，如「智能家居 / 空气环境」。</p>',
+        '<p>零级分类的上级分类路径留空；下级填写完整上级路径，多级用「 / 」连接，如「智能家居 / 空气环境」。</p>',
       columns: [
-        { group: '层级', name: '上级分类路径', required: false, desc: '一级留空；下级填完整上级路径，如「智能照明」或「智能家居 / 空气环境」' },
+        { group: '层级', name: '上级分类路径', required: false, desc: '零级留空；下级填完整上级路径，如「智能照明」或「智能家居 / 空气环境」' },
         { group: '主信息', name: '对外披露分类', required: true, desc: '本行分类名称，同级不可重复' },
         { group: '展示', name: '排序', required: false, desc: '同级升序，默认 0，数值越小越靠前' },
         { group: '状态', name: '状态', required: true, desc: '启用 或 停用' },
@@ -829,7 +829,7 @@
       requirements: [
         '须先维护上级分类再填写下级；同一文件中按层级从上到下或任意顺序均可，系统按上级路径自动建树。',
         '对外披露分类、状态为必填；状态仅允许「启用」「停用」。',
-        '分类树最多 4 级；同一上级下分类名称不可重复。',
+        '分类树层级从零级起算，最多至 ' + MAX_LEVEL + ' 级（共 ' + (MAX_LEVEL + 1) + ' 层）；同一上级下分类名称不可重复。',
         '导入失败时请按提示修正后重新上传；成功后将覆盖当前列表中的全部分类。'
       ],
       downloadCsvRows: buildTemplateRows(),
@@ -956,7 +956,7 @@
 <script id="prototype-annotation-config" type="application/json">
 {
   "pageId": "prospectus-product-category-mgmt",
-  "version": "2026-06-25T16:00:00+08:00",
+  "version": "2026-06-26T15:00:00+08:00",
   "pageTitle": "对外披露分类管理",
   "annotations": [
     {
@@ -974,8 +974,8 @@
     {
       "id": "a3",
       "selector": "#btnAddRoot",
-      "title": "新增一级",
-      "body": "新增一级对外披露分类逻辑：\n1. 打开录入弹窗，上级分类默认为空。\n2. 仅需填写对外披露分类名称；排序、状态、备注选填。\n3. 保存后立即出现在列表顶层，默认启用。"
+      "title": "新增零级",
+      "body": "新增零级对外披露分类逻辑：\n1. 打开录入弹窗，上级分类默认为空。\n2. 仅需填写对外披露分类名称；排序、状态、备注选填。\n3. 保存后立即出现在列表顶层，默认启用。"
     },
     {
       "id": "a4",
