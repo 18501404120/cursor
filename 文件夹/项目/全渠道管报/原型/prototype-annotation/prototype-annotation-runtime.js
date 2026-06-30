@@ -202,8 +202,41 @@
   }
 
   function saveState(config, state) {
-    localStorage.setItem(storageKey(config), JSON.stringify(state));
+    try {
+      localStorage.setItem(storageKey(config), JSON.stringify(state));
+    } catch (error) {
+      console.warn("[prototype-annotation] localStorage save failed:", error);
+    }
     syncPersistedStateToConfig(config, state);
+  }
+
+  function readPersistedFromConfigScript() {
+    try {
+      const script = document.getElementById("prototype-annotation-config");
+      if (!script) return {};
+      return normalizePersistedState(JSON.parse(script.textContent).persistedState);
+    } catch (_error) {
+      return normalizePersistedState({});
+    }
+  }
+
+  /** 保存/重绘前从 HTML persistedState + localStorage 合并最新状态，避免闭包 state 滞后 */
+  function syncStateFromStorage(config, state) {
+    const live = mergeStateLayers(readPersistedFromConfigScript(), loadState(config));
+    state.edits = live.edits;
+    state.hidden = live.hidden;
+    state.guides = live.guides;
+    state.assets = live.assets;
+    state.userAdded = live.userAdded;
+    if (!state.userAdded) state.userAdded = emptyUserAdded();
+    if (!state.assets) state.assets = {};
+    return state;
+  }
+
+  function refreshAll(config, state) {
+    syncStateFromStorage(config, state);
+    removePinsOnly();
+    renderAll(config, state);
   }
 
   function hydrateState(config) {
@@ -534,7 +567,7 @@
       }
       saveState(config, state);
       closePopovers();
-      scheduleRender(config, state);
+      refreshAll(config, state);
       if (onDone) onDone(true);
     });
   }
@@ -565,12 +598,16 @@
       if (!el) return;
       event.preventDefault();
       event.stopPropagation();
+      event.stopImmediatePropagation();
       const selector = generateSelector(el);
       if (!selector) return;
-      exitPickMode();
-      openAddFormPopover(config, state, el, selector, (saved) => {
-        if (!saved) enterPickMode(config, state);
-      });
+      const pickedEl = el;
+      setTimeout(() => {
+        exitPickMode();
+        openAddFormPopover(config, state, pickedEl, selector, (saved) => {
+          if (!saved) enterPickMode(config, state);
+        });
+      }, 0);
     };
 
     const key = (event) => {
@@ -1000,6 +1037,7 @@
         state.edits[key] = { body: nextBody, images: nextImages };
         saveState(config, state);
         renderView(normalizeContent(state.edits[key], body));
+        refreshAll(config, state);
       });
     }
 
@@ -1038,7 +1076,7 @@
         saveState(config, state);
         if (anchor && anchor.remove) anchor.remove();
         closePopovers();
-        scheduleRender(config, state);
+        refreshAll(config, state);
       });
     }
 
@@ -1406,8 +1444,7 @@
   function scheduleRender(config, state) {
     if (window[RENDER_TIMER_KEY]) clearTimeout(window[RENDER_TIMER_KEY]);
     window[RENDER_TIMER_KEY] = setTimeout(() => {
-      removePinsOnly();
-      renderAll(config, state);
+      refreshAll(config, state);
       PORTAL_ENTRIES.forEach((entry) => {
         if (entry.icon && entry.icon.isConnected && entry.target && entry.target.isConnected) {
           entry.update();
@@ -1416,8 +1453,18 @@
     }, 80);
   }
 
+  function isPersistedConfigMutation(mutation) {
+    const target = mutation && mutation.target;
+    if (!target) return false;
+    if (target.id === "prototype-annotation-config") return true;
+    return !!(target.closest && target.closest("#prototype-annotation-config"));
+  }
+
   function bindDynamicObserver(config, state) {
-    const observer = new MutationObserver(() => scheduleRender(config, state));
+    const observer = new MutationObserver((mutations) => {
+      if (mutations.length && mutations.every(isPersistedConfigMutation)) return;
+      scheduleRender(config, state);
+    });
     observer.observe(document.body, {
       childList: true,
       subtree: true,
