@@ -46,8 +46,9 @@
 ## 与「原型标注001」共存
 
 - `prototype-edit` 管**页面结构与 mock**；`prototype-annotation` 管**说明层**。
-- 同页可同时注入；Agent 重生成标注时**不得**动 `prototype-edit` 块与 sidecar。
-- 重生成页面业务 HTML 时：**先**读 sidecar，**再**改结构，**最后**重新 inject edit runtime（`inject_prototype_edit.py --preserve-edits`）。
+- 同页可同时注入；Agent 改页面时 **两个系统均默认不动**。
+- 标注持久化见 **`.cursor/skills/prototype-annotation/references/ai-persistence-policy.md`**（`persistedState`，零导出）。
+- 重生成页面业务 HTML 时：**先**读 edit sidecar + annotation `persistedState`，**再**改结构，**最后**按需 re-inject runtime（edit：`--preserve-edits`；annotation：默认 `--preserve-persisted`）。
 
 ## 禁止行为
 

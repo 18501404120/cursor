@@ -189,12 +189,8 @@
     var customerOpts = store.deductionCustomers.map(function (item) {
       return '<option value="' + esc(item) + '">' + esc(item) + '</option>';
     }).join('');
-    var feeOpts = store.deductionFeeTypes.map(function (item) {
-      return '<option value="' + esc(item) + '">' + esc(item) + '</option>';
-    }).join('');
 
     document.getElementById('qCustomer').insertAdjacentHTML('beforeend', customerOpts);
-    document.getElementById('qFeeType').insertAdjacentHTML('beforeend', feeOpts);
   }
 
   function getFilters() {
@@ -202,9 +198,7 @@
     return {
       monthStart: range.start,
       monthEnd: range.end,
-      customer: document.getElementById('qCustomer').value,
-      feeType: document.getElementById('qFeeType').value,
-      state: document.getElementById('qState').value
+      customer: document.getElementById('qCustomer').value
     };
   }
 
@@ -213,8 +207,6 @@
     return store.getDeductions().filter(function (row) {
       if (!window.FeeMgmtCommon.periodInMonthRange(row.period, filters.monthStart, filters.monthEnd)) return false;
       if (filters.customer && row.customer !== filters.customer) return false;
-      if (filters.feeType && row.feeType !== filters.feeType) return false;
-      if (filters.state && stateOf(row) !== filters.state) return false;
       return true;
     });
   }
@@ -331,6 +323,12 @@
     }
   }
 
+  function salesIncomeLogicNote() {
+    return window.FeeMgmtCommon && window.FeeMgmtCommon.salesIncomeLogicDesc
+      ? window.FeeMgmtCommon.salesIncomeLogicDesc
+      : '销售收入 − 退货退款的收入（金蝶-销售退货单，type=退货退款）';
+  }
+
   function renderCalcModal() {
     if (!calcState || !calcState.row) return;
 
@@ -349,7 +347,7 @@
       '<div class="item"><div class="label">期间</div><div class="value">' + esc(row.period) + '</div></div>' +
       '<div class="item"><div class="label">客户</div><div class="value">' + esc(row.customer) + '</div></div>' +
       '<div class="item"><div class="label">费用项</div><div class="value">' + esc(row.feeType) + '</div></div>' +
-      '<div class="item"><div class="label">当月销售收入</div><div class="value">' + money(scenario.income) + '</div></div>';
+      '<div class="item"><div class="label" title="' + esc(salesIncomeLogicNote()) + '">当月销售收入</div><div class="value">' + money(scenario.income) + '</div></div>';
 
     document.getElementById('sectionRatio').hidden = scenario.budgetFee;
     document.getElementById('sectionBudget').hidden = !scenario.budgetFee;
@@ -368,7 +366,7 @@
         document.getElementById('ratioFormula').textContent =
           row.feeType + ' 计提扣款 = 当月销售收入 ' + money(scenario.income) +
           ' × ' + ratioName + ' ' + pct(scenario.ratio) +
-          '（来源：Excel《扣款比例》' + esc(row.customer) + '）' +
+          '（来源：客户计提规则 · ' + esc(row.customer) + '）' +
           ' = ' + money(scenario.computedAccrual);
       }
     } else if (scenario.monthlyFixed) {
@@ -389,7 +387,7 @@
 
     document.getElementById('openingFormula').textContent = scenario.previousRow
       ? '本月期初余额 = 上月（' + esc(scenario.previousRow.period) + '）期末余额 = ' + money(scenario.openingBalance)
-      : '本月期初余额 = Excel 冲销记录期初值 = ' + money(scenario.openingBalance);
+      : '本月期初余额 = 系统扣款台账期初值 = ' + money(scenario.openingBalance);
 
     if (scenario.budgetFee) {
       document.getElementById('accrualFormula').textContent =
@@ -468,7 +466,7 @@
       trigger: '#btnImport',
       title: '导入实际扣款',
       introHtml: '<p>批量导入各客户、各费用项、各期间的实际扣款金额。系统按「期间 + 客户 + 费用项」匹配台账，覆盖实际扣款（录入）值，并自动重算期末余额。</p>' +
-        '<p><strong>注意：</strong>仅「实际扣款金额」支持导入；计提比例、计提扣款仍由系统按 Excel 规则计算。</p>',
+        '<p><strong>注意：</strong>仅「实际扣款金额」支持导入；计提比例、计提扣款仍由系统按客户计提规则计算。</p>',
       templateExt: 'CSV',
       templateFileName: '扣款实际值导入模版.csv',
       columns: [
@@ -519,18 +517,12 @@
   }
 
   function bindEvents() {
-    ['qCustomer', 'qFeeType', 'qState'].forEach(function (id) {
-      document.getElementById(id).addEventListener('change', renderTable);
-    });
+    document.getElementById('qCustomer').addEventListener('change', renderTable);
 
     document.getElementById('btnReset').addEventListener('click', function () {
       resetMonthRangeFilter();
       document.getElementById('qCustomer').value = '';
-      document.getElementById('qFeeType').value = '';
-      document.getElementById('qState').value = '';
       window.FeeMgmtCommon.syncClearableSelect(document.getElementById('qCustomer'));
-      window.FeeMgmtCommon.syncClearableSelect(document.getElementById('qFeeType'));
-      window.FeeMgmtCommon.syncClearableSelect(document.getElementById('qState'));
       renderTable();
     });
 

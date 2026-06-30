@@ -76,6 +76,19 @@ function updateTimerDisplay() {
   timerEl.textContent = formatTimer(currentDurationMs());
 }
 
+function updateCloseButton() {
+  if (state === 'recording' || state === 'paused') {
+    btnClose.title = '取消录音（放弃本次，不转写）';
+    btnClose.setAttribute('aria-label', '取消录音');
+  } else if (state === 'transcribing') {
+    btnClose.title = '转写进行中';
+    btnClose.setAttribute('aria-label', '转写进行中');
+  } else {
+    btnClose.title = '隐藏悬浮窗';
+    btnClose.setAttribute('aria-label', '隐藏');
+  }
+}
+
 function setState(next) {
   state = next;
   statusDot.className = 'dot';
@@ -89,11 +102,13 @@ function setState(next) {
   btnStop.disabled = next !== 'recording' && next !== 'paused';
   btnPause.classList.toggle('is-resume', next === 'paused');
   btnPause.title = next === 'paused' ? '继续' : '暂停';
+  btnClose.disabled = next === 'transcribing';
 
   btnStart.classList.toggle('hidden', next === 'transcribing');
   btnPause.classList.toggle('hidden', next === 'transcribing');
   btnStop.classList.toggle('hidden', next === 'transcribing');
   busySpinner.classList.toggle('hidden', next !== 'transcribing');
+  updateCloseButton();
 }
 
 function startTick() {
@@ -251,12 +266,29 @@ btnStop.addEventListener('click', handleStop);
 
 async function handleClose() {
   if (state === 'transcribing') {
-    const ok = confirm('转写进行中。隐藏窗口不会停止转写，可在菜单栏退出应用 (⌘Q)。\n\n确定隐藏？');
-    if (!ok) return;
-  } else if (state === 'recording' || state === 'paused') {
-    const ok = confirm('录音进行中。隐藏窗口后应用仍在后台运行，可点击菜单栏图标再次打开。\n\n确定隐藏？');
-    if (!ok) return;
+    alert('转写进行中，请等待完成。如需退出应用请使用菜单栏 ⌘Q。');
+    return;
   }
+
+  if (state === 'recording' || state === 'paused') {
+    const ok = confirm(
+      '放弃本次会议录音？\n\n已录内容将删除，不会保存也不会转写。',
+    );
+    if (!ok) return;
+
+    if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+      mediaRecorder.onstop = null;
+      try {
+        mediaRecorder.stop();
+      } catch (_) {
+        /* ignore */
+      }
+    }
+    await window.meetingApi.cancelSession();
+    resetToIdle();
+    return;
+  }
+
   await window.meetingApi.hideWindow();
 }
 

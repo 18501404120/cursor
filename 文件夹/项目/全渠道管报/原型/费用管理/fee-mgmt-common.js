@@ -153,6 +153,9 @@
     return now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
   }
 
+  /** 商超扣款/退款页共用的「销售收入」取值口径说明 */
+  var SALES_INCOME_LOGIC_DESC = '销售收入 − 退货退款的收入（金蝶-销售退货单，type=退货退款）';
+
   /** 近 N 个自然月（含锚点月）的起止月份 YYYY-MM，供 MonthRangePicker 默认值 */
   function getRecentMonthsRange(monthCount, anchorPeriod) {
     var anchor = anchorPeriod || currentMonthYm();
@@ -230,6 +233,7 @@
     shiftPeriodYm: shiftPeriodYm,
     lastDayOfMonthYm: lastDayOfMonthYm,
     currentMonthYm: currentMonthYm,
+    salesIncomeLogicDesc: SALES_INCOME_LOGIC_DESC,
     getRecentMonthsRange: getRecentMonthsRange,
     periodInMonthRange: periodInMonthRange,
     getRecentMonthsDateRange: getRecentMonthsDateRange,

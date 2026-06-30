@@ -116,12 +116,85 @@
   }
 
   function storageKey(config) {
+    return `${STORAGE_PREFIX}${config.pageId || "page"}`;
+  }
+
+  function legacyStorageKey(config) {
     return `${STORAGE_PREFIX}${config.pageId || "page"}:${config.version || "draft"}`;
+  }
+
+  function emptyUserAdded() {
+    return { annotations: [], fieldTips: [] };
+  }
+
+  function normalizePersistedState(raw) {
+    const src = raw && typeof raw === "object" ? raw : {};
+    return {
+      edits: clone(src.edits || {}),
+      hidden: clone(src.hidden || {}),
+      guides: clone(src.guides || {}),
+      assets: clone(src.assets || {}),
+      userAdded: clone(src.userAdded || emptyUserAdded())
+    };
+  }
+
+  function mergeUserAdded(a, b) {
+    const left = a || emptyUserAdded();
+    const right = b || emptyUserAdded();
+    const out = emptyUserAdded();
+    const seenAnno = new Set();
+    const seenTip = new Set();
+    (left.annotations || []).concat(right.annotations || []).forEach((item) => {
+      if (!item || !item.id || seenAnno.has(item.id)) return;
+      seenAnno.add(item.id);
+      out.annotations.push(clone(item));
+    });
+    (left.fieldTips || []).concat(right.fieldTips || []).forEach((item) => {
+      if (!item || !item.id || seenTip.has(item.id)) return;
+      seenTip.add(item.id);
+      out.fieldTips.push(clone(item));
+    });
+    return out;
+  }
+
+  function mergeStateLayers(persisted, local) {
+    const p = normalizePersistedState(persisted);
+    const l = normalizePersistedState(local);
+    return {
+      edits: Object.assign({}, p.edits, l.edits),
+      hidden: Object.assign({}, p.hidden, l.hidden),
+      guides: Object.assign({}, p.guides, l.guides),
+      assets: Object.assign({}, p.assets, l.assets),
+      userAdded: mergeUserAdded(p.userAdded, l.userAdded)
+    };
+  }
+
+  function stateToPersisted(state) {
+    const normalized = normalizePersistedState(state);
+    return Object.assign({}, normalized, {
+      persistedAt: new Date().toISOString()
+    });
+  }
+
+  function syncPersistedStateToConfig(config, state) {
+    const script = document.getElementById("prototype-annotation-config");
+    if (!script) return;
+    try {
+      const cfg = JSON.parse(script.textContent);
+      cfg.persistedState = stateToPersisted(state);
+      script.textContent = JSON.stringify(cfg, null, 2);
+    } catch (error) {
+      console.warn("[prototype-annotation] persistedState sync failed:", error);
+    }
   }
 
   function loadState(config) {
     try {
-      const raw = localStorage.getItem(storageKey(config));
+      const key = storageKey(config);
+      let raw = localStorage.getItem(key);
+      if (!raw) {
+        raw = localStorage.getItem(legacyStorageKey(config));
+      }
       return raw ? JSON.parse(raw) : {};
     } catch (_error) {
       return {};
@@ -130,6 +203,17 @@
 
   function saveState(config, state) {
     localStorage.setItem(storageKey(config), JSON.stringify(state));
+    syncPersistedStateToConfig(config, state);
+  }
+
+  function hydrateState(config) {
+    const persisted = normalizePersistedState(config.persistedState);
+    const local = loadState(config);
+    const merged = mergeStateLayers(persisted, local);
+    if (!merged.userAdded) merged.userAdded = emptyUserAdded();
+    if (!merged.assets) merged.assets = {};
+    saveState(config, merged);
+    return merged;
   }
 
   function text(value) {
@@ -916,7 +1000,7 @@
       appendHead(`删除说明：${title}`);
       const bodyEl = document.createElement("div");
       bodyEl.className = "pa-pop-body";
-      fillBody(bodyEl, "1. 删除后，当前版本下该标注将不再显示。\n2. 如需恢复，请重新生成本页标注。");
+      fillBody(bodyEl, "1. 删除后，当前页面下该标注将不再显示。\n2. 刷新页面后仍会保持删除状态（已写入页面配置）。");
       const actions = document.createElement("div");
       actions.className = "pa-actions";
       const cancel = button("取消");
@@ -1339,9 +1423,7 @@
     removeOld();
     exitPickMode();
     paCanEdit = await resolveCanEdit(config);
-    const state = loadState(config);
-    if (!state.userAdded) state.userAdded = { annotations: [], fieldTips: [] };
-    if (!state.assets) state.assets = {};
+    const state = hydrateState(config);
     const root = document.createElement("div");
     root.className = "pa-root pa-toolbar" + (paCanEdit ? "" : " pa-toolbar-readonly");
     root.setAttribute(ROOT_ATTR, "root");

@@ -324,6 +324,12 @@
     window.FeeMgmtCommon.closeModalMask('editModal');
   }
 
+  function salesIncomeLogicNote() {
+    return window.FeeMgmtCommon && window.FeeMgmtCommon.salesIncomeLogicDesc
+      ? window.FeeMgmtCommon.salesIncomeLogicDesc
+      : '销售收入 − 退货退款的收入（金蝶-销售退货单，type=退货退款）';
+  }
+
   function renderMiniTable(rows, activePeriods) {
     if (!rows.length) {
       return '<p style="margin:0;font-size:12px;color:#6b7280;">无可用历史数据。</p>';
@@ -334,7 +340,7 @@
 
     return '' +
       '<table class="mini-table">' +
-        '<thead><tr><th>期间</th><th>销售收入</th><th>实际退款数据</th></tr></thead>' +
+        '<thead><tr><th>期间</th><th title="' + esc(salesIncomeLogicNote()) + '">销售收入</th><th>实际退款数据</th></tr></thead>' +
         '<tbody>' +
           rows.map(function (item) {
             return '' +
@@ -385,7 +391,7 @@
     document.getElementById('calcSummary').innerHTML = '' +
       '<div class="item"><div class="label">期间</div><div class="value">' + esc(row.period) + '</div></div>' +
       '<div class="item"><div class="label">客户</div><div class="value">' + esc(row.customer) + '</div></div>' +
-      '<div class="item"><div class="label">销售收入</div><div class="value">' + money(scenario.currentSales) + '</div></div>' +
+      '<div class="item"><div class="label" title="' + esc(salesIncomeLogicNote()) + '">销售收入</div><div class="value">' + money(scenario.currentSales) + '</div></div>' +
       '<div class="item"><div class="label">目标窗口</div><div class="value">' + esc(String(scenario.windowMonths)) + ' 月</div></div>';
 
     document.getElementById('ratioFormula').textContent =

@@ -348,21 +348,12 @@ ipcMain.handle('meeting:open-path', async (_evt, targetPath) => {
 ipcMain.handle('meeting:cancel-session', async () => {
   if (sessionMeta) {
     removeDirSafe(sessionMeta.temp?.dir);
-    const { sessionDir, m4aPath, txtPath } = sessionMeta.paths || {};
-    [m4aPath, txtPath].forEach((p) => {
-      if (p && fs.existsSync(p)) {
-        try {
-          fs.unlinkSync(p);
-        } catch (_) {
-          /* ignore */
-        }
-      }
-    });
+    const { sessionDir } = sessionMeta.paths || {};
     if (sessionDir && fs.existsSync(sessionDir)) {
       try {
-        fs.rmdirSync(sessionDir);
-      } catch (_) {
-        /* ignore */
+        fs.rmSync(sessionDir, { recursive: true, force: true });
+      } catch (err) {
+        console.warn('[meeting-recorder] 取消会话时删除目录失败:', err.message);
       }
     }
   }

@@ -158,19 +158,10 @@
     });
   }
 
-  function renderStats(rows) {
-    var list = rows || getMatrixRows();
-    var adjusted = list.filter(function (row) { return row.origin === '已调整'; }).length;
-    document.getElementById('statCustomers').textContent = list.length;
-    document.getElementById('statAdjusted').textContent = adjusted;
-    document.getElementById('statSource').textContent = adjusted ? '含调整' : 'Excel';
-  }
-
   function renderMatrixTable() {
     var rows = getMatrixRows();
     var body = document.getElementById('matrixBody');
     document.getElementById('matrixTip').textContent = '共 ' + rows.length + ' 条';
-    renderStats(rows);
 
     if (!rows.length) {
       body.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#6b7280;padding:32px;">暂无零售商计提规则</td></tr>';
@@ -305,7 +296,7 @@
     document.getElementById('fRatioCustomer').value = row.customer;
     document.getElementById('fRatioFeeType').value = row.feeType;
     document.getElementById('fRatioMethod').value = normalizeRatioMethod(row.method || 'fixed_ratio');
-    document.getElementById('fRatioValueLabel').textContent = row.ratioLabel + '（0~1，对应 Excel《扣款比例》）';
+    document.getElementById('fRatioValueLabel').textContent = row.ratioLabel + '（0~1，取自客户计提规则）';
     document.getElementById('fRatioValue').value = Number(row.manualRatio != null ? row.manualRatio : row.ratio || 0);
     document.getElementById('fRatioNote').value = row.note || '';
     toggleRatioFields();

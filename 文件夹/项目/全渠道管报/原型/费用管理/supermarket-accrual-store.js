@@ -645,7 +645,7 @@
       deptItems: deptItems,
       deptRatioRows: deptRatioRows,
       ratioLabel: ratioLabelForFeeType(baseRow.feeType),
-      ratioSource: method === 'dept_fixed_ratio' ? '部门固定比例' : (hasValue(overrideRow.ratio) ? '手工覆盖' : 'Excel《扣款比例》'),
+      ratioSource: method === 'dept_fixed_ratio' ? '部门固定比例' : (hasValue(overrideRow.ratio) ? '手工覆盖' : '客户计提规则'),
       baseAmount: baseAmount == null ? 0 : baseAmount,
       sourcePeriod: sourcePeriod,
       sampleIncome: sampleIncome,
@@ -657,8 +657,8 @@
       monthlyAmounts: overrideRow.monthlyAmounts || null,
       formulaDesc: buildFixedFormulaDesc(baseRow.feeType, method),
       note: note,
-      origin: hasOverrideValues(overrideRow) ? '已调整' : 'Excel',
-      updatedAt: overrideRow.updatedAt || 'Excel基线'
+      origin: hasOverrideValues(overrideRow) ? '已调整' : '系统基线',
+      updatedAt: overrideRow.updatedAt || '系统基线'
     };
   }
 
@@ -699,7 +699,7 @@
       if (method === 'annual_avg') return '销售费用 = 年总金额 ÷ 12';
       if (method === 'custom_monthly') return '销售费用 = 按期间自定义月金额';
       if (method === 'fixed_ratio') return '销售费用 = 当月收入 × 固定比例';
-      return '销售费用按 Excel 月度值计提';
+      return '销售费用按客户计提规则中的月度金额计提';
     }
     if (method === 'monthly_fixed') return '按固定月度金额计提';
     if (method === 'dept_fixed_ratio') return '计提金额 = Σ（部门销售订单金额不含税 × 部门固定比例）';
@@ -759,8 +759,8 @@
       targetClosing: round2(targetClosing),
       note: note,
       ratioSource: hasValue(overrideRow.ratio) ? '手工覆盖' : 'Excel滚动结果',
-      origin: hasOverrideValues(overrideRow) ? '已调整' : 'Excel',
-      updatedAt: overrideRow.updatedAt || 'Excel基线'
+      origin: hasOverrideValues(overrideRow) ? '已调整' : '系统基线',
+      updatedAt: overrideRow.updatedAt || '系统基线'
     };
   }
 
@@ -876,7 +876,7 @@
         salesExpenseMethodCode: expenseMethod,
         salesExpenseRuleDesc: expenseDesc,
         salesExpenseBudget: expenseRule ? round2(expenseRule.baseAmount || 0) : 0,
-        origin: hasAdjusted ? '已调整' : 'Excel',
+        origin: hasAdjusted ? '已调整' : '系统基线',
         promoRuleId: promoRule ? promoRule.id : '',
         salesRuleId: salesRule ? salesRule.id : '',
         cashRuleId: cashRule ? cashRule.id : '',
@@ -1005,8 +1005,8 @@
           salesIncome: getRefundSalesIncome(customer, period),
           isProjected: isProjected,
           note: actualOverride.note || '',
-          actualSource: hasValue(actualOverride.actualAmount) ? '手工录入' : (isProjected ? '规则测算' : 'Excel基线'),
-          updatedAt: actualOverride.updatedAt || (isProjected ? '规则测算' : 'Excel基线'),
+          actualSource: hasValue(actualOverride.actualAmount) ? '手工录入' : (isProjected ? '规则测算' : '系统基线'),
+          updatedAt: actualOverride.updatedAt || (isProjected ? '规则测算' : '系统基线'),
           excelAccrual: round2(baseLedger.excelAccrual || 0),
           excelClosing: round2(baseLedger.closingBalance || 0)
         });
@@ -1103,9 +1103,9 @@
           accrualDeduction: accrualDeduction,
           closingBalance: closingBalance,
           note: actualOverride.note || '',
-          updatedAt: actualOverride.updatedAt || (isProjected ? '规则测算' : 'Excel基线'),
+          updatedAt: actualOverride.updatedAt || (isProjected ? '规则测算' : '系统基线'),
           isProjected: isProjected,
-          actualSource: hasValue(actualOverride.actualAmount) ? '手工录入' : (isProjected ? '规则测算' : 'Excel基线'),
+          actualSource: hasValue(actualOverride.actualAmount) ? '手工录入' : (isProjected ? '规则测算' : '系统基线'),
           income: round2(getIncome(customer, period)),
           orderAmountExTax: round2(getSalesOrderAmountExTax(customer, period)),
           ruleRatio: rule ? Number(rule.ratio || 0) : 0,
@@ -1115,7 +1115,7 @@
           ruleDeptRatioRows: ruleDeptRatioRows,
           ruleBaseAmount: rule ? round2(rule.baseAmount || 0) : 0,
           ruleMethod: rule ? rule.method : '',
-          ruleMethodLabel: rule ? rule.methodLabel : 'Excel基线',
+          ruleMethodLabel: rule ? rule.methodLabel : '系统默认',
           excelBaseAccrual: round2(getBaseAccrualAmount(customer, feeType, period)),
           excelAccrual: round2(baseLedger.excelAccrual || 0),
           excelClosing: round2(baseLedger.closingBalance || 0)
