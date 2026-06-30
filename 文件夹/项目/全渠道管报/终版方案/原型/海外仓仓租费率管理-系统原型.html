@@ -129,7 +129,7 @@
     }
     table {
       width: 100%;
-      min-width: 1250px;
+      min-width: 1380px;
       border-collapse: collapse;
       font-size: 12px;
     }
@@ -235,8 +235,17 @@
     .rate-row input[type="number"] {
       width: 120px;
     }
+    .rate-row input[type="number"].days-input {
+      width: 88px;
+    }
     #fCurrencyMount {
       width: 88px;
+    }
+    .form-hint {
+      margin-top: 4px;
+      font-size: 11px;
+      color: #94a3b8;
+      line-height: 1.5;
     }
     .rate-unit-suffix {
       color: #64748b;
@@ -314,7 +323,7 @@
           <button class="btn" id="btnSearch">搜索</button>
         </div>
         <div class="hint">
-          数据来源：物流系统「海外仓管理 > 服务仓」。本页面仅维护“仓租费率（1立方1天）”，其他字段只读展示。
+          数据来源：物流系统「海外仓管理 > 服务仓」。本页面仅维护「常规仓租费率」「长期仓租费率」及长期仓储天数阈值，其他字段只读展示。费率单位均为 1 立方 / 天。
         </div>
         <div class="table-wrap">
           <table>
@@ -327,7 +336,8 @@
                 <th>地址</th>
                 <th>联系人</th>
                 <th>联系电话</th>
-                <th data-pa-key="rateColumn">仓租费率（1立方1天）</th>
+                <th data-pa-key="regularRateColumn">常规仓租费率（1立方/天）</th>
+                <th data-pa-key="longTermRateColumn">长期仓租费率（1立方/天）</th>
                 <th data-pa-key="actionColumn">操作</th>
               </tr>
             </thead>
@@ -348,11 +358,28 @@
         <div class="form-grid">
           <div class="label">服务仓</div><div id="fService">-</div>
           <div class="label">仓库编码</div><div id="fCode">-</div>
-          <div class="label">仓租费率</div>
+          <div class="label">币种</div>
+          <div><span id="fCurrencyMount"></span></div>
+          <div class="label">常规仓租费率</div>
           <div class="rate-row">
-            <input id="fRate" type="number" min="0" step="0.01" />
-            <span id="fCurrencyMount"></span>
+            <input id="fRegularRate" type="number" min="0" step="0.01" />
+            <span class="rate-unit-suffix" id="fRegularCurrencySuffix">USD</span>
             <span class="rate-unit-suffix">/ 立方 / 天</span>
+          </div>
+          <div class="label">长期仓租费率</div>
+          <div class="rate-row">
+            <input id="fLongTermRate" type="number" min="0" step="0.01" />
+            <span class="rate-unit-suffix" id="fLongTermCurrencySuffix">USD</span>
+            <span class="rate-unit-suffix">/ 立方 / 天</span>
+          </div>
+          <div class="label">长期仓储天数</div>
+          <div>
+            <div class="rate-row">
+              <span class="rate-unit-suffix">超过</span>
+              <input id="fLongTermDays" class="days-input" type="number" min="1" step="1" />
+              <span class="rate-unit-suffix">天按长期仓租费率计费</span>
+            </div>
+            <div class="form-hint">库存在该服务仓连续存放达到上述天数后，按长期仓租费率核算当日及后续仓租。</div>
           </div>
           <div class="label">变更说明</div>
           <div><textarea id="fReason" placeholder="请输入本次费率调整原因" rows="4"></textarea></div>
@@ -377,8 +404,9 @@
           <thead>
             <tr>
               <th>变更时间</th>
-              <th>变更前费率</th>
-              <th>变更后费率</th>
+              <th>变更项</th>
+              <th>变更前</th>
+              <th>变更后</th>
               <th>操作人</th>
               <th>变更说明</th>
             </tr>
@@ -400,21 +428,21 @@
       var currencySelect = null;
 
       var rows = [
-        { id: 1, service: "谷仓", code: "USWE", name: "美西5仓", country: "美国-西岸", addr: "Ontario-Trading路1号", contact: "Cindy", phone: "+1-909-112-8301", rate: 2.13, currency: "USD" },
-        { id: 2, service: "谷仓", code: "USAE", name: "美东13仓", country: "美国-中东", addr: "新泽西 Newark 园区B2", contact: "Aiden", phone: "+1-551-271-9002", rate: 3.21, currency: "USD" },
-        { id: 3, service: "谷仓", code: "UK", name: "英国5号仓", country: "英国-中部", addr: "Birmingham Unit 3", contact: "Oliver", phone: "+44-20-7001-2203", rate: 2.57, currency: "GBP" },
-        { id: 4, service: "谷仓", code: "DE", name: "德国9号仓", country: "德国-北部", addr: "Hamburg Hafenallee 18", contact: "Lena", phone: "+49-40-7789-2201", rate: 2.84, currency: "EUR" },
-        { id: 5, service: "递四方", code: "GLBTNA", name: "洛杉矶海外仓", country: "美国-西岸", addr: "Los Angeles South Gate", contact: "Mason", phone: "+1-323-909-3308", rate: 2.46, currency: "USD" },
-        { id: 6, service: "递四方", code: "121", name: "波兰5号服务仓", country: "波兰", addr: "Warsaw DC-5", contact: "Iga", phone: "+48-22-681-9800", rate: 1.92, currency: "PLN" }
+        { id: 1, service: "谷仓", code: "USWE", name: "美西5仓", country: "美国-西岸", addr: "Ontario-Trading路1号", contact: "Cindy", phone: "+1-909-112-8301", regularRate: 2.13, longTermRate: 3.28, longTermDays: 90, currency: "USD" },
+        { id: 2, service: "谷仓", code: "USAE", name: "美东13仓", country: "美国-中东", addr: "新泽西 Newark 园区B2", contact: "Aiden", phone: "+1-551-271-9002", regularRate: 3.21, longTermRate: 4.85, longTermDays: 60, currency: "USD" },
+        { id: 3, service: "谷仓", code: "UK", name: "英国5号仓", country: "英国-中部", addr: "Birmingham Unit 3", contact: "Oliver", phone: "+44-20-7001-2203", regularRate: 2.57, longTermRate: 3.90, longTermDays: 90, currency: "GBP" },
+        { id: 4, service: "谷仓", code: "DE", name: "德国9号仓", country: "德国-北部", addr: "Hamburg Hafenallee 18", contact: "Lena", phone: "+49-40-7789-2201", regularRate: 2.84, longTermRate: 4.12, longTermDays: 75, currency: "EUR" },
+        { id: 5, service: "递四方", code: "GLBTNA", name: "洛杉矶海外仓", country: "美国-西岸", addr: "Los Angeles South Gate", contact: "Mason", phone: "+1-323-909-3308", regularRate: 2.46, longTermRate: 3.55, longTermDays: 90, currency: "USD" },
+        { id: 6, service: "递四方", code: "121", name: "波兰5号服务仓", country: "波兰", addr: "Warsaw DC-5", contact: "Iga", phone: "+48-22-681-9800", regularRate: 1.92, longTermRate: 2.68, longTermDays: 120, currency: "PLN" }
       ];
 
       var logs = {
         1: [
-          { time: "2026-05-21 09:21", before: 2.02, after: 2.13, currency: "USD", user: "KA", reason: "按仓租合同更新" },
-          { time: "2026-04-08 17:10", before: 1.95, after: 2.02, currency: "USD", user: "KA", reason: "季度调价" }
+          { time: "2026-05-21 09:21", field: "常规仓租费率", before: "USD 2.02", after: "USD 2.13", user: "KA", reason: "按仓租合同更新常规费率" },
+          { time: "2026-04-08 17:10", field: "长期仓储天数", before: "60 天", after: "90 天", user: "KA", reason: "与服务商合同长期仓储口径对齐" }
         ],
         2: [
-          { time: "2026-05-19 14:45", before: 3.05, after: 3.21, currency: "USD", user: "KA", reason: "物业涨价同步" }
+          { time: "2026-05-19 14:45", field: "长期仓租费率", before: "USD 4.50", after: "USD 4.85", user: "KA", reason: "物业涨价同步长期费率" }
         ]
       };
 
@@ -447,6 +475,16 @@
         return (currency || "USD") + " " + Number(amount).toFixed(2);
       }
 
+      function formatDays(days) {
+        return Number(days) + " 天";
+      }
+
+      function updateCurrencySuffix(currency) {
+        var code = currency || "USD";
+        document.getElementById("fRegularCurrencySuffix").textContent = code;
+        document.getElementById("fLongTermCurrencySuffix").textContent = code;
+      }
+
       function ensureCurrencySelect(initialValue) {
         if (!window.SearchableSelect || !currencyOptions.length) return;
         if (currencySelect) {
@@ -458,8 +496,12 @@
           placeholder: "币种",
           initialValue: initialValue || "USD",
           useBodyPortal: true,
-          zIndex: 30
+          zIndex: 30,
+          onChange: function (val) {
+            updateCurrencySuffix(val);
+          }
         });
+        updateCurrencySuffix(initialValue || "USD");
       }
 
       function loadCurrencies() {
@@ -489,7 +531,7 @@
         });
 
         if (!filtered.length) {
-          tbody.innerHTML = '<tr><td colspan="9" class="empty">暂无数据</td></tr>';
+          tbody.innerHTML = '<tr><td colspan="10" class="empty">暂无数据</td></tr>';
           return;
         }
 
@@ -502,7 +544,8 @@
             + '<td class="addr">' + escapeHtml(r.addr) + '</td>'
             + '<td>' + escapeHtml(r.contact) + '</td>'
             + '<td>' + escapeHtml(r.phone) + '</td>'
-            + '<td><span class="unit">' + formatRate(r.rate, r.currency) + '</span></td>'
+            + '<td><span class="unit">' + formatRate(r.regularRate, r.currency) + '</span></td>'
+            + '<td><span class="unit">' + formatRate(r.longTermRate, r.currency) + '</span></td>'
             + '<td>'
             + '<a class="op" data-op="edit" data-id="' + r.id + '">费率维护</a>'
             + '<a class="op" data-op="log" data-id="' + r.id + '">日志</a>'
@@ -516,7 +559,9 @@
         var row = rows.find(function (x) { return x.id === id; });
         document.getElementById("fService").textContent = row.service;
         document.getElementById("fCode").textContent = row.code;
-        document.getElementById("fRate").value = row.rate.toFixed(2);
+        document.getElementById("fRegularRate").value = row.regularRate.toFixed(2);
+        document.getElementById("fLongTermRate").value = row.longTermRate.toFixed(2);
+        document.getElementById("fLongTermDays").value = row.longTermDays;
         document.getElementById("fReason").value = "";
         ensureCurrencySelect(row.currency || "USD");
         rateMask.style.display = "flex";
@@ -533,13 +578,14 @@
         document.getElementById("logTitle").textContent = row.service + " / " + row.code + " / " + row.name;
         var logBody = document.getElementById("logBody");
         if (!items.length) {
-          logBody.innerHTML = '<tr><td colspan="5" class="empty">暂无费率变更记录</td></tr>';
+          logBody.innerHTML = '<tr><td colspan="6" class="empty">暂无费率变更记录</td></tr>';
         } else {
           logBody.innerHTML = items.map(function (it) {
             return "<tr>"
               + "<td>" + escapeHtml(it.time) + "</td>"
-              + "<td>" + formatRate(it.before, it.currency) + "</td>"
-              + "<td>" + formatRate(it.after, it.currency) + "</td>"
+              + "<td>" + escapeHtml(it.field) + "</td>"
+              + "<td>" + escapeHtml(it.before) + "</td>"
+              + "<td>" + escapeHtml(it.after) + "</td>"
               + "<td>" + escapeHtml(it.user) + "</td>"
               + "<td>" + escapeHtml(it.reason) + "</td>"
               + "</tr>";
@@ -571,11 +617,21 @@
       document.getElementById("saveRate").addEventListener("click", function () {
         if (!currentId) return;
         var row = rows.find(function (x) { return x.id === currentId; });
-        var nextRate = Number(document.getElementById("fRate").value);
+        var nextRegularRate = Number(document.getElementById("fRegularRate").value);
+        var nextLongTermRate = Number(document.getElementById("fLongTermRate").value);
+        var nextLongTermDays = Number(document.getElementById("fLongTermDays").value);
         var nextCurrency = currencySelect ? currencySelect.getValue() : (row.currency || "USD");
         var reason = (document.getElementById("fReason").value || "").trim();
-        if (!Number.isFinite(nextRate) || nextRate < 0) {
-          alert("请输入有效的仓租费率。");
+        if (!Number.isFinite(nextRegularRate) || nextRegularRate < 0) {
+          alert("请输入有效的常规仓租费率。");
+          return;
+        }
+        if (!Number.isFinite(nextLongTermRate) || nextLongTermRate < 0) {
+          alert("请输入有效的长期仓租费率。");
+          return;
+        }
+        if (!Number.isInteger(nextLongTermDays) || nextLongTermDays < 1) {
+          alert("长期仓储天数须为大于 0 的整数。");
           return;
         }
         if (!nextCurrency) {
@@ -595,15 +651,41 @@
           + String(now.getMinutes()).padStart(2, "0");
 
         logs[currentId] = logs[currentId] || [];
-        logs[currentId].unshift({
-          time: t,
-          before: row.rate,
-          after: nextRate,
-          currency: nextCurrency,
-          user: "KA",
-          reason: reason
-        });
-        row.rate = nextRate;
+
+        if (row.regularRate !== nextRegularRate || row.currency !== nextCurrency) {
+          logs[currentId].unshift({
+            time: t,
+            field: "常规仓租费率",
+            before: formatRate(row.regularRate, row.currency),
+            after: formatRate(nextRegularRate, nextCurrency),
+            user: "KA",
+            reason: reason
+          });
+        }
+        if (row.longTermRate !== nextLongTermRate || row.currency !== nextCurrency) {
+          logs[currentId].unshift({
+            time: t,
+            field: "长期仓租费率",
+            before: formatRate(row.longTermRate, row.currency),
+            after: formatRate(nextLongTermRate, nextCurrency),
+            user: "KA",
+            reason: reason
+          });
+        }
+        if (row.longTermDays !== nextLongTermDays) {
+          logs[currentId].unshift({
+            time: t,
+            field: "长期仓储天数",
+            before: formatDays(row.longTermDays),
+            after: formatDays(nextLongTermDays),
+            user: "KA",
+            reason: reason
+          });
+        }
+
+        row.regularRate = nextRegularRate;
+        row.longTermRate = nextLongTermRate;
+        row.longTermDays = nextLongTermDays;
         row.currency = nextCurrency;
         closeRate();
         render();
@@ -627,7 +709,7 @@
 <script id="prototype-annotation-config" type="application/json">
 {
   "pageId": "overseas-warehouse-rent-rate-management",
-  "version": "2026-06-12T15:10:00+08:00",
+  "version": "2026-06-30T10:00:00+08:00",
   "pageTitle": "海外仓仓租费率管理",
   "annotations": [
     {
@@ -646,45 +728,57 @@
       "id": "a3",
       "selector": ".hint",
       "title": "数据来源",
-      "body": "服务仓基础信息来自物流系统“海外仓管理 > 服务仓”。本页面不维护基础信息，仅维护仓租费率。"
+      "body": "服务仓基础信息来自物流系统「海外仓管理 > 服务仓」。本页面不维护基础信息，仅维护常规仓租费率、长期仓租费率及长期仓储天数阈值。"
     },
     {
       "id": "a4",
       "selector": "[data-pa-key=\"actionColumn\"]",
       "title": "操作限制",
-      "body": "每行仅提供“费率维护”和“日志”两个动作。除仓租费率外，其他字段均为只读展示。"
+      "body": "每行仅提供「费率维护」和「日志」两个动作。除两类仓租费率及长期仓储天数外，其他字段均为只读展示。"
     },
     {
       "id": "a5",
       "selector": "#rateMask .modal-head span",
       "title": "费率维护弹窗",
-      "body": "维护时只允许修改仓租费率（含币种）、并填写变更说明。币种为可搜索下拉，选项来自全局币种字典。提交后刷新列表，并生成费率变更日志记录。"
+      "body": "维护时可修改币种、常规仓租费率、长期仓租费率、长期仓储天数，并填写变更说明。两类费率共用同一币种，单位均为「币种/立方/天」。长期仓储天数表示库存在该仓连续存放超过多少天后按长期费率计费。提交后刷新列表，并按实际变更项分别生成日志记录。"
     },
     {
       "id": "a6",
       "selector": "#saveRate",
       "title": "提交校验",
-      "body": "提交时会校验费率必须为有效非负数，同时必须填写变更说明。任一不满足则不允许保存。"
+      "body": "提交时会校验两类费率均为有效非负数、长期仓储天数为大于 0 的整数，同时必须填写变更说明。任一不满足则不允许保存。"
     },
     {
       "id": "a7",
       "selector": "#logMask .modal-head span",
       "title": "日志口径",
-      "body": "日志只记录仓租费率变化，包括变更前后费率、变更时间、操作人和变更说明，不记录其他字段变化。"
+      "body": "日志按变更项分别记录，包括常规仓租费率、长期仓租费率、长期仓储天数的变化，含变更前后值、变更时间、操作人和变更说明。"
     }
   ],
   "fieldTips": [
     {
       "id": "f1",
-      "selector": "[data-pa-key=\"rateColumn\"]",
-      "title": "仓租费率口径",
-      "body": "单位为“{币种}/立方/天”，如 USD 2.13。币种从全局币种字典选择，表示1立方货物在服务仓存放1天对应的仓租成本。"
+      "selector": "[data-pa-key=\"regularRateColumn\"]",
+      "title": "常规仓租费率",
+      "body": "单位为「币种/立方/天」，表示库存在长期仓储天数阈值以内时，按此费率核算每日仓租。"
+    },
+    {
+      "id": "f4",
+      "selector": "[data-pa-key=\"longTermRateColumn\"]",
+      "title": "长期仓租费率",
+      "body": "单位为「币种/立方/天」，表示库存连续存放超过长期仓储天数阈值后，按此费率核算每日仓租。通常高于常规费率。"
+    },
+    {
+      "id": "f5",
+      "selector": "#fLongTermDays",
+      "title": "长期仓储天数",
+      "body": "库存在该服务仓连续存放达到此天数后，自达标日起按长期仓租费率计费。须为正整数，与服务商合同口径保持一致。"
     },
     {
       "id": "f2",
       "selector": "[data-pa-key=\"actionColumn\"]",
       "title": "操作字段说明",
-      "body": "“费率维护”用于调整仓租费率；“日志”用于查看该服务仓历史费率变更记录。"
+      "body": "「费率维护」用于调整常规/长期仓租费率及长期仓储天数；「日志」用于查看该服务仓历史费率与天数变更记录。"
     },
     {
       "id": "f3",
@@ -697,19 +791,19 @@
     "dev": {
       "页面定位": "用于维护海外仓仓租费率，支撑管报中仓租成本测算。页面只维护费率，不维护服务仓主数据。",
       "核心逻辑": [
-        "列表数据来自物流系统服务仓信息，并叠加本页面维护的仓租费率。",
+        "列表数据来自物流系统服务仓信息，并叠加本页面维护的常规仓租费率、长期仓租费率及长期仓储天数。",
         "搜索仅做前台筛选示意，实际系统中应由后端按筛选条件返回数据。",
-        "费率维护仅修改“仓租费率（1立方1天）”及币种，其余字段均禁止编辑。",
-        "保存费率时必须通过数值校验与变更说明校验。",
-        "日志只记录费率变化，不记录其他字段。"
+        "费率维护可修改币种、两类仓租费率及长期仓储天数，其余字段均禁止编辑。",
+        "保存时必须通过数值校验与变更说明校验；仅实际发生变化的项写入日志。",
+        "日志按变更项拆分记录，不记录服务仓基础字段变化。"
       ],
       "联动关系": "上游为物流系统服务仓主数据；下游为管报成本分析、仓租费用核算与经营分析看板。"
     },
     "user": {
       "操作步骤": [
         "1. 在筛选区输入服务仓、仓库编码或国家等条件，点击“搜索”。",
-        "2. 在目标服务仓行点击“费率维护”，输入新费率并填写变更说明。",
-        "3. 点击“确定”后完成保存，列表显示最新费率。",
+        "2. 在目标服务仓行点击「费率维护」，维护常规/长期仓租费率、长期仓储天数并填写变更说明。",
+        "3. 点击「确定」后完成保存，列表显示最新两类费率。",
         "4. 点击“日志”查看该服务仓历史费率变化记录。"
       ],
       "使用说明": "当服务仓基础资料发生变化时，请先在物流系统维护服务仓资料；本页面仅承接并展示，不支持修改基础字段。",
@@ -721,19 +815,19 @@
       {
         "id": "未维护",
         "label": "未维护",
-        "description": "服务仓已有基础资料，但尚未设置仓租费率。"
+        "description": "服务仓已有基础资料，但尚未设置常规/长期仓租费率或长期仓储天数。"
       },
       {
         "id": "已维护",
         "label": "已维护",
-        "description": "服务仓已设置仓租费率，可用于管报成本计算。"
+        "description": "服务仓已设置常规/长期仓租费率及长期仓储天数，可用于管报成本计算。"
       }
     ],
     "transitions": [
       {
         "from": "未维护",
         "to": "已维护",
-        "trigger": "在费率维护弹窗提交有效费率并保存",
+        "trigger": "在费率维护弹窗提交有效费率与天数并保存",
         "allowed": "可继续调整费率并查看日志",
         "forbidden": "不可修改服务仓基础资料"
       }
