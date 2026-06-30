@@ -55,6 +55,8 @@
     .form-field textarea { height: 70px; padding: 8px 10px; resize: vertical; }
     .hint { margin: 0 16px 12px; border: 1px solid #bfdbfe; background: #eff6ff; padding: 9px 12px; border-radius: 6px; font-size: 12px; color: #1e3a8a; }
     .sub-hint { margin: -4px 16px 12px; font-size: 12px; color: #6b7280; }
+    .income-source-note { margin: 0 0 10px; font-size: 12px; color: #64748b; line-height: 1.6; }
+    .field-hint { margin-top: 4px; font-size: 11px; color: #6b7280; line-height: 1.5; }
     .panel-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
     .panel-actions .btn { text-decoration: none; display: inline-flex; align-items: center; }
     .calc-panel { display: grid; gap: 12px; }
@@ -157,32 +159,13 @@
               </span>
             </div>
             <div class="f-item">
-              <label for="qFeeType">费用项</label>
-              <span class="ctl-wrap">
-                <select id="qFeeType" class="ctl"><option value="">全部</option></select>
-                <button type="button" class="ctl-clear" aria-label="清除费用项">×</button>
-              </span>
-            </div>
-            <div class="f-item">
-              <label for="qState">差异状态</label>
-              <span class="ctl-wrap">
-                <select id="qState" class="ctl">
-                  <option value="">全部</option>
-                  <option value="匹配">匹配</option>
-                  <option value="实际>计提">实际&gt;计提</option>
-                  <option value="实际&lt;计提">实际&lt;计提</option>
-                </select>
-                <button type="button" class="ctl-clear" aria-label="清除状态">×</button>
-              </span>
-            </div>
-            <div class="f-item">
               <button type="button" class="btn" id="btnReset">重置筛选</button>
             </div>
           </div>
         </div>
       </section>
 
-      <div class="hint">公式：期末余额 = 期初余额 - 实际扣款 + 计提扣款。促销扣款 / 销售折扣 / 现金折扣支持<strong>固定比例</strong>（当月销售收入 × 比例）与<strong>部门固定比例</strong>（各部门订单金额不含税 × 部门比例后汇总）两种方式；销售费用按<strong>客户计提规则管理</strong>页配置计提。</div>
+      <div class="hint">公式：期末余额 = 期初余额 - 实际扣款 + 计提扣款。促销扣款 / 销售折扣 / 现金折扣支持<strong>固定比例</strong>（当月销售收入 × 比例）与<strong>部门固定比例</strong>（各部门订单金额不含税 × 部门比例后汇总）两种方式；销售费用按<strong>客户计提规则管理</strong>页配置计提。<strong>销售收入取值：销售收入 − 退货退款的收入（金蝶-销售退货单，type=退货退款）。</strong></div>
       <div class="sub-hint">点击「计提比例/规则 / 期初余额 / 计提扣款 / 期末余额」，可查看完整计算过程。数据示例来自 Excel《商超促销扣款&amp;销售折扣&amp;现金折扣&amp;销售费用测算数》与《商超退货扣款计提测算》。</div>
 
       <section class="panel panel--table">
@@ -250,6 +233,7 @@
         <div class="form-field">
           <label for="fIncome">当月销售收入</label>
           <input id="fIncome" type="text" readonly>
+          <div class="field-hint">取值：销售收入 − 退货退款的收入（金蝶-销售退货单，type=退货退款）</div>
         </div>
         <div class="form-field">
           <label for="fRatio">计提比例/规则</label>
@@ -288,10 +272,11 @@
     </div>
     <div class="modal-bd">
       <div class="calc-panel">
+        <p class="income-source-note">销售收入取值：销售收入 − 退货退款的收入（金蝶-销售退货单，type=退货退款）。</p>
         <div class="calc-summary" id="calcSummary"></div>
         <div class="calc-card" id="sectionRatio">
           <h3>客户计提比例/规则</h3>
-          <p>促销扣款、销售折扣、现金折扣支持固定比例（当月销售收入 × 比例）或部门固定比例（各部门订单金额不含税 × 部门比例后汇总）两种计提方式，规则在客户计提规则管理页维护。</p>
+          <p>促销扣款、销售折扣、现金折扣支持固定比例（当月销售收入 × 比例）或部门固定比例（各部门订单金额不含税 × 部门比例后汇总）两种计提方式，规则在客户计提规则管理页维护；当月销售收入按上述取值口径自财务系统取数。</p>
           <div class="formula" id="ratioFormula"></div>
         </div>
         <div class="calc-card" id="sectionBudget" hidden>
@@ -331,12 +316,18 @@
 
 
 
+
+
+
+
+
+
 <!-- prototype-annotation:start -->
 <link rel="stylesheet" href="../prototype-annotation/prototype-annotation.css">
 <script id="prototype-annotation-config" type="application/json">
 {
   "pageId": "fee-deduction-management",
-  "version": "2026-06-24T18:00:00+08:00",
+  "version": "2026-06-24T21:00:00+08:00",
   "pageTitle": "扣款管理",
   "annotations": [
     {
@@ -349,25 +340,13 @@
       "id": "flt-customer",
       "selector": "#qCustomer",
       "title": "客户筛选",
-      "body": "按零售商过滤扣款明细，可与费用项、差异状态组合使用。"
-    },
-    {
-      "id": "flt-fee-type",
-      "selector": "#qFeeType",
-      "title": "费用项筛选",
-      "body": "按费用项过滤：促销扣款、销售折扣、现金折扣、销售费用。四类费用各自独立滚动计提。"
-    },
-    {
-      "id": "flt-state",
-      "selector": "#qState",
-      "title": "差异状态",
-      "body": "按「实际扣款 − 计提扣款」差异筛选：匹配、实际大于计提、实际小于计提。便于对账排查。"
+      "body": "按零售商过滤扣款明细，与退款管理筛选一致。"
     },
     {
       "id": "btn-reset",
       "selector": "#btnReset",
       "title": "重置筛选",
-      "body": "恢复默认月份范围（近 3 个月），并清空客户、费用项、差异状态筛选。"
+      "body": "恢复默认月份范围（近 3 个月），并清空客户筛选。与退款管理重置逻辑一致。"
     },
     {
       "id": "link-rules",
@@ -397,10 +376,16 @@
       "id": "calc-modal",
       "selector": "#calcModal",
       "title": "扣款计算过程",
-      "body": "展示计提比例/规则、期初余额、计提扣款、期末余额的业务公式。\n1. 固定比例：当月销售收入 × 客户计提规则中的比例。\n2. 部门固定比例：各部门订单金额不含税 × 部门比例后汇总。\n3. 销售费用：按客户计提规则中的月固定/年均/自定义月金额等方式计提。"
+      "body": "展示计提比例/规则、期初余额、计提扣款、期末余额的业务公式。\n1. 固定比例：当月销售收入 × 客户计提规则中的比例。\n2. 部门固定比例：各部门订单金额不含税 × 部门比例后汇总。\n3. 销售费用：按客户计提规则中的月固定/年均/自定义月金额等方式计提。\n4. 销售收入取值：销售收入 − 退货退款的收入（金蝶-销售退货单，type=退货退款）。"
     }
   ],
   "fieldTips": [
+    {
+      "id": "tip-edit-income",
+      "selector": "#fIncome",
+      "title": "当月销售收入",
+      "body": "取值：销售收入 − 退货退款的收入（金蝶-销售退货单，type=退货退款）。固定比例类费用项计提基数；原型中可手工录入用于演示。"
+    },
     {
       "id": "tip-opening",
       "selector": ".panel--table .data-table thead th:nth-child(4)",
@@ -441,12 +426,12 @@
   "pageGuide": {
     "dev": {
       "页面整体定位": "商超促销扣款、销售折扣、现金折扣及销售费用的冲销台账，支持实际扣款录入与规则驱动计提。",
-      "页面核心业务逻辑": "滚动窗口与退款一致（前后各 3 月）。无历史台账基线的月份为滚动测算行。期末 = 期初 − 实际 + 计提。计提规则来自客户计提规则管理（系统初始规则 + 手工覆盖）；部门固定比例按部门订单不含税 × 比例汇总。",
-      "关键规则说明": "仅实际扣款可录入或导入。筛选：月份范围（默认近 3 月）+ 客户 + 费用项 + 差异状态。行日志记录录入与导入操作。",
-      "关联上下游": "上游：客户计提规则管理、系统初始化扣款台账；下游：管报费用、商超计提口径说明。"
+      "页面核心业务逻辑": "滚动窗口与退款一致（前后各 3 月）。无历史台账基线的月份为滚动测算行。期末 = 期初 − 实际 + 计提。计提规则来自客户计提规则管理；当月销售收入 = 销售收入 − 退货退款的收入（金蝶-销售退货单，type=退货退款）。部门固定比例按部门订单不含税 × 比例汇总。",
+      "关键规则说明": "仅实际扣款可录入或导入。筛选与退款管理一致：月份范围（默认近 3 月）+ 客户。行日志记录录入与导入操作。销售收入自财务系统取数并扣减退货退款。",
+      "关联上下游": "上游：客户计提规则管理、财务系统销售收入（扣减退货退款后）、系统初始化扣款台账；下游：管报费用、商超计提口径说明。"
     },
     "user": {
-      "标准操作流程": "1. 设置月份范围与客户/费用项筛选。2. 查看汇总与明细差异状态。3. 账单到达后「录入实际值」或「导入」。4. 差异较大时点击计提/余额字段查看计算过程。5. 需改比例或销售费用规则时进入「客户扣款计提规则」。",
+      "标准操作流程": "1. 设置月份范围与客户筛选（与退款管理相同）。2. 查看汇总与明细差异状态。3. 账单到达后「录入实际值」或「导入」。4. 差异较大时点击计提/余额字段查看计算过程。5. 需改比例或销售费用规则时进入「客户扣款计提规则」。",
       "关键按钮与场景": "「导入」适合多行实际扣款批量入账；「日志」追溯录入与导入；计算弹窗用于向财务解释计提口径。",
       "使用注意事项": "滚动测算月待实际扣款入账后会更新期末并顺延后续月份。三类冲收入费用与销售费用计提逻辑不同，须分费用项查看。"
     }
@@ -492,11 +477,12 @@
     ],
     "allowIps": [
       "113.110.230.127",
-      "113.110.229.118",
       "220.232.134.241",
-      "113.110.228.174"
+      "113.110.228.174",
+      "113.110.229.118",
+      "113.87.83.49"
     ],
-    "editToken": "",
+    "editToken": "paGoveeAuthor8k2m",
     "allowLocalhost": true,
     "allowOtherHosts": true
   }
