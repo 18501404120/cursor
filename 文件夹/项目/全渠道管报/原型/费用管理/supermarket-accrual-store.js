@@ -250,9 +250,19 @@
     return String(a).localeCompare(String(b));
   }
 
-  function getRefundAnchorPeriod() {
+  function getDemoAnchorPeriod() {
+    if (base.demoAnchorPeriod && periodIndexMap.hasOwnProperty(base.demoAnchorPeriod)) {
+      return base.demoAnchorPeriod;
+    }
+    if (periods.length) {
+      return periods[periods.length - 1];
+    }
     var now = new Date();
     return now.getFullYear() + '-' + pad(now.getMonth() + 1);
+  }
+
+  function getRefundAnchorPeriod() {
+    return getDemoAnchorPeriod();
   }
 
   function getRollingRefundPeriods(anchorPeriod) {

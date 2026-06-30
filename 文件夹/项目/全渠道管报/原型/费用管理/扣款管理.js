@@ -63,8 +63,19 @@
   }
 
   function getMonthRangeFilter() {
-    if (!qMonthRangePicker || !qMonthRangePicker.get) return getDefaultMonthRange();
-    return qMonthRangePicker.get();
+    var range;
+    if (!qMonthRangePicker || !qMonthRangePicker.get) {
+      range = getDefaultMonthRange();
+    } else {
+      range = qMonthRangePicker.get();
+    }
+    if (!range.start && !range.end) {
+      return getDefaultMonthRange();
+    }
+    if (range.start && range.end && range.start > range.end) {
+      return { start: range.end, end: range.start };
+    }
+    return range;
   }
 
   function mountMonthRangeFilter() {
@@ -555,16 +566,27 @@
   }
 
   function init() {
-    populateOptions();
-    mountMonthRangeFilter();
-    mountImportKit();
-    if (window.FeeMgmtOpLog) {
-      window.FeeMgmtOpLog.wireTable({
-        scope: OP_LOG_SCOPE,
-        tableBody: '#deductionBody'
-      });
+    if (!store || typeof store.getDeductions !== 'function') {
+      var tip = document.getElementById('resultTip');
+      if (tip) {
+        tip.textContent = '共 0 条 · 台账数据未加载，请确认 supermarket-accrual-base.js 可访问';
+      }
+      return;
     }
-    bindEvents();
+    try {
+      populateOptions();
+      mountMonthRangeFilter();
+      mountImportKit();
+      if (window.FeeMgmtOpLog) {
+        window.FeeMgmtOpLog.wireTable({
+          scope: OP_LOG_SCOPE,
+          tableBody: '#deductionBody'
+        });
+      }
+      bindEvents();
+    } catch (err) {
+      console.error('扣款管理 init:', err);
+    }
     renderTable();
   }
 

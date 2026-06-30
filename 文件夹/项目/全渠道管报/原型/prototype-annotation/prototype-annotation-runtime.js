@@ -233,6 +233,14 @@
     PORTAL_ENTRIES.length = 0;
   }
 
+  /** 动态重绘前仅移除标注点/字段 tip，保留右上角工具栏 */
+  function removePinsOnly() {
+    document
+      .querySelectorAll(`[${ROOT_ATTR}="annotation"], [${ROOT_ATTR}="field-tip"]`)
+      .forEach((node) => node.remove());
+    PORTAL_ENTRIES.length = 0;
+  }
+
   function resolve(selector) {
     if (!selector) return null;
     try {
@@ -1398,6 +1406,7 @@
   function scheduleRender(config, state) {
     if (window[RENDER_TIMER_KEY]) clearTimeout(window[RENDER_TIMER_KEY]);
     window[RENDER_TIMER_KEY] = setTimeout(() => {
+      removePinsOnly();
       renderAll(config, state);
       PORTAL_ENTRIES.forEach((entry) => {
         if (entry.icon && entry.icon.isConnected && entry.target && entry.target.isConnected) {
