@@ -8,6 +8,7 @@ const btnStop = document.getElementById('btnStop');
 const actionRow = document.getElementById('actionRow');
 const busySpinner = document.getElementById('busySpinner');
 const btnClose = document.getElementById('btnClose');
+const windowSlotEl = document.getElementById('windowSlot');
 
 /** @type {AppState} */
 let state = 'idle';
@@ -81,8 +82,9 @@ function updateCloseButton() {
     btnClose.title = '取消录音（放弃本次，不转写）';
     btnClose.setAttribute('aria-label', '取消录音');
   } else if (state === 'transcribing') {
-    btnClose.title = '转写进行中';
-    btnClose.setAttribute('aria-label', '转写进行中');
+    btnClose.title = '隐藏窗口（转写继续在后台）';
+    btnClose.setAttribute('aria-label', '隐藏');
+    btnClose.disabled = false;
   } else {
     btnClose.title = '隐藏悬浮窗';
     btnClose.setAttribute('aria-label', '隐藏');
@@ -102,7 +104,6 @@ function setState(next) {
   btnStop.disabled = next !== 'recording' && next !== 'paused';
   btnPause.classList.toggle('is-resume', next === 'paused');
   btnPause.title = next === 'paused' ? '继续' : '暂停';
-  btnClose.disabled = next === 'transcribing';
 
   btnStart.classList.toggle('hidden', next === 'transcribing');
   btnPause.classList.toggle('hidden', next === 'transcribing');
@@ -198,6 +199,16 @@ async function handleStop() {
   busySpinner.title = statusDot.title;
   progressUnsub = window.meetingApi.onTranscribeProgress(updateTranscribeProgress);
 
+  const cfg = await window.meetingApi.getConfig();
+  if (cfg.canOpenSecondWindow) {
+    const openSecond = confirm(
+      '本场会议正在转写（可能较久）。\n\n是否打开第二个悬浮窗，以便开始下一场会议录音？',
+    );
+    if (openSecond) {
+      await window.meetingApi.openSecondWindow();
+    }
+  }
+
   await new Promise((resolve) => {
     mediaRecorder.onstop = resolve;
     try {
@@ -266,7 +277,11 @@ btnStop.addEventListener('click', handleStop);
 
 async function handleClose() {
   if (state === 'transcribing') {
-    alert('转写进行中，请等待完成。如需退出应用请使用菜单栏 ⌘Q。');
+    const ok = confirm(
+      '转写将在后台继续。\n\n可打开第二个悬浮窗录下一场会议（菜单栏图标 → 新建悬浮窗）。\n\n隐藏本窗口？',
+    );
+    if (!ok) return;
+    await window.meetingApi.hideWindow();
     return;
   }
 
@@ -324,6 +339,11 @@ window.addEventListener('mouseup', () => {
 
 window.meetingApi.getConfig().then((cfg) => {
   dragHandle.title = `拖动 · 保存至 ${cfg.saveBaseDir}`;
+  if (cfg.windowCount > 1 && windowSlotEl) {
+    windowSlotEl.textContent = String(cfg.windowSlot);
+    windowSlotEl.classList.remove('hidden');
+    windowSlotEl.title = `悬浮窗 ${cfg.windowSlot} / ${cfg.maxWindows}`;
+  }
   if (!cfg.pythonReady) {
     statusDot.title = '待安装转写环境';
   } else if (cfg.scenarioFramingEnabled && !cfg.llmReady) {

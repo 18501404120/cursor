@@ -6,6 +6,7 @@ contextBridge.exposeInMainWorld('meetingApi', {
   saveAndTranscribe: (payload) => ipcRenderer.invoke('meeting:save-and-transcribe', payload),
   cancelSession: () => ipcRenderer.invoke('meeting:cancel-session'),
   openPath: (p) => ipcRenderer.invoke('meeting:open-path', p),
+  openSecondWindow: () => ipcRenderer.invoke('meeting:open-second-window'),
   hideWindow: () => ipcRenderer.invoke('meeting:hide-window'),
   quitApp: () => ipcRenderer.invoke('meeting:quit-app'),
   notifyError: (payload) => ipcRenderer.invoke('meeting:notify-error', payload),

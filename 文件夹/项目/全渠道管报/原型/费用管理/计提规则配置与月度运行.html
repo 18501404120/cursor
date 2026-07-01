@@ -355,6 +355,19 @@
     .detail-table .value-col {
       min-width: 180px;
     }
+    .detail-table .value-col.is-computed {
+      background: #fafbff;
+    }
+    .detail-value-readonly {
+      display: inline-block;
+      min-width: 72px;
+      padding: 4px 8px;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 4px;
+      color: #1e293b;
+      font-variant-numeric: tabular-nums;
+    }
     .detail-table .dim-muted { color: #94a3b8; }
     .detail-empty {
       padding: 28px 20px;
@@ -634,7 +647,7 @@
           </div>
           <div class="detail-card">
             <div class="detail-intro">
-              按当前口径范围，系统会基于已选渠道自动展开全部可维护组合。筛选条件与口径维度一致，支持多选下拉；勾选明细后可批量编辑、导出或导入。
+              按当前口径范围，系统会基于已选渠道自动展开全部可维护组合。筛选条件与口径维度一致，支持多选下拉；勾选明细后可批量编辑、导出或导入。历史滚动占比将展示当前计提月的系统计算结果（只读，不可手工修改）。
             </div>
             <div class="detail-toolbar">
               <div class="detail-filter-bar" id="detailFilterBar">
@@ -913,11 +926,30 @@
       retailer: scope === 'channelCountryRetailer' || scope === 'channelCountrySceneRetailer'
     };
   }
+  function currentAccrualMonthYm() {
+    var demoAnchor = '2026-04';
+    if (window.FeeMgmtCommon && typeof window.FeeMgmtCommon.currentMonthYm === 'function') {
+      var live = window.FeeMgmtCommon.currentMonthYm();
+      return live > demoAnchor ? demoAnchor : live;
+    }
+    return demoAnchor;
+  }
+  function isComputedDetailValue(type) {
+    return type === 'rollingRate';
+  }
   function valueMeta(type) {
-    if (type === 'fixedAmount') return { label: '月固定金额', step: '100', placeholder: '请输入金额', unit: '金额' };
-    if (type === 'fixedRate') return { label: '比例值（%）', step: '0.01', placeholder: '请输入比例', unit: '比例' };
-    if (type === 'rollingRate') return { label: '滚动占比结果（%）', step: '0.01', placeholder: '请输入占比', unit: '比例' };
-    return { label: '预估占比（%）', step: '0.01', placeholder: '请输入占比', unit: '比例' };
+    if (type === 'fixedAmount') return { label: '月固定金额', step: '100', placeholder: '请输入金额', unit: '金额', readonly: false };
+    if (type === 'fixedRate') return { label: '比例值（%）', step: '0.01', placeholder: '请输入比例', unit: '比例', readonly: false };
+    if (type === 'rollingRate') {
+      return {
+        label: currentAccrualMonthYm() + ' 滚动占比（%）',
+        step: '0.01',
+        placeholder: '',
+        unit: '比例',
+        readonly: true
+      };
+    }
+    return { label: '预估占比（%）', step: '0.01', placeholder: '请输入占比', unit: '比例', readonly: false };
   }
   function seedValue(key) {
     return Array.from(String(key)).reduce(function (sum, ch) {
@@ -1089,9 +1121,11 @@
     var chTags = document.getElementById('chTags');
     chTags.classList.toggle('is-readonly', readonly);
     if (readonly) closeChDrop();
-    document.getElementById('btnBulkEdit').disabled = readonly;
+    var type = document.getElementById('sourceType').value;
+    var computedValue = isComputedDetailValue(type);
+    document.getElementById('btnBulkEdit').disabled = readonly || computedValue;
     document.getElementById('btnDetailExport').disabled = readonly;
-    document.getElementById('btnDetailImport').disabled = readonly;
+    document.getElementById('btnDetailImport').disabled = readonly || computedValue;
     document.getElementById('btnSave').hidden = readonly;
     document.getElementById('viewModeTip').hidden = !readonly;
     document.getElementById('editModalCancel').textContent = readonly ? '关闭' : '取消';
@@ -1106,6 +1140,10 @@
   }
   function openBatchEditModal() {
     if (isViewMode) return;
+    if (isComputedDetailValue(document.getElementById('sourceType').value)) {
+      alert('历史滚动占比为系统计算结果，不支持批量编辑。');
+      return;
+    }
     var targets = getSelectedDetailRows();
     if (!targets.length) {
       alert('请先勾选需要批量编辑的明细行');
@@ -1169,6 +1207,7 @@
     var body = document.getElementById('detailBody');
     var summaryEl = document.getElementById('detailSummary');
     var meta = valueMeta(type);
+    var valueComputed = isComputedDetailValue(type);
     refreshDetailFilters();
 
     if (!selectedChannels.size) {
@@ -1183,7 +1222,12 @@
     var allChecked = !isViewMode && visibleRows.length && visibleRows.every(function (item) { return selectedDetailKeys.has(item.key); });
     head.innerHTML = '<tr><th class="sel-col">' + (isViewMode ? '' : '<input id="detailCheckAll" type="checkbox"' + (allChecked ? ' checked' : '') + '>') + '</th>' +
       columns.map(function (column) {
-        return '<th' + (column.key === 'value' ? ' class="value-col"' : '') + '>' + column.label + '</th>';
+        if (column.key === 'value') {
+          var thClass = 'value-col' + (valueComputed ? ' is-computed' : '');
+          var thTitle = valueComputed ? ' title="系统按历史窗口自动计算，不可手工修改"' : '';
+          return '<th class="' + thClass + '"' + thTitle + '>' + column.label + '</th>';
+        }
+        return '<th>' + column.label + '</th>';
       }).join('') + '</tr>';
 
     if (!visibleRows.length) {
@@ -1200,15 +1244,17 @@
       ];
       if (scopeFlags(scope).scene) cells.push('<td>' + escapeHtml(item.scene) + '</td>');
       if (scopeFlags(scope).retailer) cells.push('<td>' + escapeHtml(item.retailer) + '</td>');
-      if (isViewMode) {
-        cells.push('<td class="value-col">' + escapeHtml(item.value) + '</td>');
+      if (isViewMode || meta.readonly) {
+        var valueCellClass = 'value-col' + (meta.readonly ? ' is-computed' : '');
+        cells.push('<td class="' + valueCellClass + '"><span class="detail-value-readonly">' + escapeHtml(item.value) + '</span></td>');
       } else {
         cells.push('<td class="value-col"><input class="detail-value-input" data-detail-value="' + escapeHtml(item.key) + '" type="number" step="' + meta.step + '" value="' + escapeHtml(item.value) + '" placeholder="' + meta.placeholder + '"></td>');
       }
       return '<tr>' + cells.join('') + '</tr>';
     }).join('');
 
-    summaryEl.textContent = '已展开 ' + detailRows.length + ' 条明细，当前显示 ' + visibleRows.length + ' 条。筛选维度与当前口径范围一致，未选择时表示不过滤。';
+    summaryEl.textContent = '已展开 ' + detailRows.length + ' 条明细，当前显示 ' + visibleRows.length + ' 条。筛选维度与当前口径范围一致，未选择时表示不过滤。' +
+      (valueComputed ? ' ' + currentAccrualMonthYm() + ' 滚动占比由系统计算，不可修改。' : '');
   }
   function buildDetailCsvRows() {
     var type = document.getElementById('sourceType').value;
@@ -1265,7 +1311,7 @@
       trigger: '#btnDetailImport',
       title: '导入费用来源明细',
       introHtml: '<p>请先下载导入模版，再按当前口径范围填写对应组合的维护值。导入后将覆盖当前弹窗中的同维度明细。</p>' +
-        '<p><strong>适用场景：</strong>固定金额、固定比例、历史滚动占比、同期占比预估。</p>',
+        '<p><strong>适用场景：</strong>固定金额、固定比例、同期占比预估。历史滚动占比为系统计算，不支持导入。</p>',
       templateExt: 'CSV',
       templateFileName: '费用来源明细导入模版.csv',
       columns: [
@@ -1285,6 +1331,10 @@
         downloadDetailTemplate();
       },
       onConfirm: function (file, resultEl) {
+        if (isComputedDetailValue(document.getElementById('sourceType').value)) {
+          resultEl.textContent = '历史滚动占比为系统计算结果，不支持导入。';
+          return;
+        }
         if (!file) {
           resultEl.textContent = '请先选择已填写的模版文件。';
           return;
@@ -1376,6 +1426,7 @@
       refreshDetailFilters();
       renderDetailTable();
     }
+    applyModalFormState();
   }
 
   function renderChTags() {

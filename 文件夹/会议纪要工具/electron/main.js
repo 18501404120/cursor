@@ -9,16 +9,36 @@ const {
   speakerLabel,
   formatTimestampMs,
 } = require('./lib/paths');
-const { convertToM4a, convertToWav, transcribeAudio, warmTranscribeService, stopTranscribeService, buildTempSessionDir, removeDirSafe, resolvePython } = require('./lib/transcribe');
+const {
+  convertToM4a,
+  convertToWav,
+  transcribeAudio,
+  warmTranscribeService,
+  stopTranscribeService,
+  buildTempSessionDir,
+  removeDirSafe,
+  resolvePython,
+} = require('./lib/transcribe');
 const { generateScenarioFromTranscript } = require('./lib/scenario-framing');
 const { isLlmConfigured } = require('./lib/llm');
 
-let mainWindow = null;
+const MAX_FLOATING_WINDOWS = 2;
+const WIN_W = 176;
+const WIN_H = 44;
+const APP_ICON_PATH = path.join(ROOT, 'assets', 'app-icon.png');
+
+/** @type {Map<number, { win: import('electron').BrowserWindow, slot: number }>} */
+const floatingWindows = new Map();
+/** @type {Map<number, object>} */
+const sessionsByWindowId = new Map();
+/** @type {import('electron').Tray | null} */
 let tray = null;
-let sessionMeta = null;
+
+/** 转写 + 场景梳理串行队列，避免双窗口同时跑模型 */
+const transcribeQueue = [];
+let transcribeQueueRunning = false;
 
 const isDev = !app.isPackaged;
-const APP_ICON_PATH = path.join(ROOT, 'assets', 'app-icon.png');
 
 function loadAppIcon() {
   if (!fs.existsSync(APP_ICON_PATH)) return nativeImage.createEmpty();
@@ -30,16 +50,11 @@ function applyAppBranding() {
   app.setName('会议记录');
   if (process.platform !== 'darwin') return;
   const icon = loadAppIcon();
-  if (!icon.isEmpty()) {
-    app.dock.setIcon(icon);
-  }
+  if (!icon.isEmpty()) app.dock.setIcon(icon);
 }
 
 function syncDockWithWindow() {
-  // 始终显示 Dock 图标，便于 ⌘Q 退出（勿隐藏 Dock）
-  if (process.platform === 'darwin' && app.dock) {
-    app.dock.show();
-  }
+  if (process.platform === 'darwin' && app.dock) app.dock.show();
 }
 
 function forceQuitApp() {
@@ -51,23 +66,72 @@ function forceQuitApp() {
   app.exit(0);
 }
 
-function showMainWindow() {
-  if (!mainWindow) createWindow();
-  else mainWindow.show();
-  syncDockWithWindow();
+function getWindowFromEvent(event) {
+  return BrowserWindow.fromWebContents(event.sender);
 }
 
-function hideMainWindow() {
-  mainWindow?.hide();
-  syncDockWithWindow();
+function getWindowEntry(win) {
+  if (!win) return null;
+  return floatingWindows.get(win.id) || null;
 }
 
-const WIN_W = 176;
-const WIN_H = 44;
+function listFloatingWindows() {
+  return [...floatingWindows.values()].map(({ win, slot }) => ({ id: win.id, slot }));
+}
 
-function createWindow() {
+function canOpenAnotherWindow() {
+  return floatingWindows.size < MAX_FLOATING_WINDOWS;
+}
+
+function updateTrayMenu() {
+  if (!tray) return;
+  const items = [];
+  floatingWindows.forEach(({ win, slot }) => {
+    items.push({
+      label: `显示悬浮窗 ${slot}${win.isVisible() ? ' ✓' : ''}`,
+      click: () => {
+        win.show();
+        syncDockWithWindow();
+      },
+    });
+  });
+  if (canOpenAnotherWindow()) {
+    items.push({
+      label: '新建悬浮窗（录下一场会议）',
+      click: () => openAnotherFloatingWindow(),
+    });
+  }
+  items.push({ type: 'separator' });
+  items.push({ label: '退出应用 (⌘Q)', click: () => forceQuitApp() });
+  tray.setContextMenu(Menu.buildFromTemplate(items));
+}
+
+function openAnotherFloatingWindow() {
+  if (!canOpenAnotherWindow()) {
+    dialog.showMessageBox({
+      type: 'info',
+      title: '会议记录',
+      message: `最多同时打开 ${MAX_FLOATING_WINDOWS} 个悬浮窗。`,
+      buttons: ['好'],
+    });
+    return null;
+  }
+  const win = createFloatingWindow();
+  if (win) {
+    win.show();
+    syncDockWithWindow();
+  }
+  return win;
+}
+
+function createFloatingWindow(options = {}) {
+  if (!canOpenAnotherWindow() && floatingWindows.size >= MAX_FLOATING_WINDOWS) {
+    return null;
+  }
+
+  const slot = floatingWindows.size + 1;
   const icon = loadAppIcon();
-  mainWindow = new BrowserWindow({
+  const win = new BrowserWindow({
     width: WIN_W,
     height: WIN_H,
     minWidth: WIN_W,
@@ -80,7 +144,7 @@ function createWindow() {
     resizable: false,
     skipTaskbar: false,
     hasShadow: true,
-    title: '会议记录',
+    title: slot === 1 ? '会议记录' : `会议记录 ${slot}`,
     backgroundColor: '#00000000',
     icon: icon.isEmpty() ? undefined : icon,
     webPreferences: {
@@ -91,18 +155,173 @@ function createWindow() {
     },
   });
 
-  mainWindow.loadFile(path.join(__dirname, 'floating.html'));
-
-  if (isDev) {
-    // mainWindow.webContents.openDevTools({ mode: 'detach' });
+  const baseX = options.x;
+  const baseY = options.y;
+  if (typeof baseX === 'number' && typeof baseY === 'number') {
+    win.setPosition(baseX + (slot - 1) * 52, baseY + (slot - 1) * 52);
+  } else if (slot > 1 && floatingWindows.size >= 1) {
+    const first = [...floatingWindows.values()][0]?.win;
+    if (first && !first.isDestroyed()) {
+      const [x, y] = first.getPosition();
+      win.setPosition(x + 52, y + 52);
+    }
   }
 
-  mainWindow.on('closed', () => {
-    mainWindow = null;
+  win.loadFile(path.join(__dirname, 'floating.html'));
+
+  floatingWindows.set(win.id, { win, slot });
+
+  win.on('closed', () => {
+    floatingWindows.delete(win.id);
+    sessionsByWindowId.delete(win.id);
+    updateTrayMenu();
+    if (floatingWindows.size === 0) {
+      createFloatingWindow();
+      updateTrayMenu();
+    }
   });
 
-  mainWindow.on('hide', syncDockWithWindow);
-  mainWindow.on('show', syncDockWithWindow);
+  win.on('hide', syncDockWithWindow);
+  win.on('show', () => {
+    syncDockWithWindow();
+    updateTrayMenu();
+  });
+
+  updateTrayMenu();
+  return win;
+}
+
+function showPrimaryWindow() {
+  const first = [...floatingWindows.values()][0]?.win;
+  if (first && !first.isDestroyed()) {
+    first.show();
+  } else {
+    createFloatingWindow();
+  }
+  syncDockWithWindow();
+}
+
+function enqueueTranscribeJob(task) {
+  return new Promise((resolve, reject) => {
+    transcribeQueue.push({ task, resolve, reject });
+    pumpTranscribeQueue();
+  });
+}
+
+async function pumpTranscribeQueue() {
+  if (transcribeQueueRunning || !transcribeQueue.length) return;
+  transcribeQueueRunning = true;
+  const { task, resolve, reject } = transcribeQueue.shift();
+  try {
+    resolve(await task());
+  } catch (err) {
+    reject(err);
+  } finally {
+    transcribeQueueRunning = false;
+    pumpTranscribeQueue();
+  }
+}
+
+async function runTranscribePipeline({ win, paths, startedAt, durationMs, tempDir, config }) {
+  const sendProgress = (payload) => {
+    if (win && !win.isDestroyed()) {
+      win.webContents.send('meeting:transcribe-progress', payload);
+    }
+  };
+
+  const tempWav = path.join(tempDir, 'transcribe.wav');
+  await convertToWav(path.join(tempDir, 'capture.webm'), tempWav);
+  const result = await transcribeAudio(tempWav, config, sendProgress);
+
+  const lines = (result.sentences || []).map((s) => ({
+    time: formatTimestampMs(s.start_ms || 0),
+    speaker: speakerLabel(s.spk),
+    text: (s.text || '').trim(),
+  }));
+  const speakers = new Set(lines.map((l) => l.speaker));
+  const transcript = buildTranscriptText({
+    startedAt,
+    durationMs,
+    lines,
+    speakerCount: speakers.size,
+  });
+  fs.writeFileSync(paths.txtPath, transcript, 'utf8');
+  removeDirSafe(tempDir);
+
+  let finalPaths = {
+    txtPath: paths.txtPath,
+    m4aPath: paths.m4aPath,
+    sessionDir: paths.sessionDir,
+    baseName: paths.baseName,
+  };
+  let scenarioResult = null;
+  let scenarioSkipped = null;
+
+  if (config.scenarioFraming?.enabled !== false) {
+    if (!isLlmConfigured(config)) {
+      scenarioSkipped =
+        '未配置 llm.apiKey。请复制 config.example.json 为 config.json 并填写 API Key，然后对已有 .txt 运行 npm run scenario:from-txt';
+    } else {
+      try {
+        scenarioResult = await generateScenarioFromTranscript(config, {
+          transcript,
+          paths,
+          startedAt,
+          durationMs,
+          onProgress: sendProgress,
+        });
+        if (scenarioResult && !scenarioResult.skipped) {
+          finalPaths = {
+            txtPath: scenarioResult.txtPath,
+            m4aPath: scenarioResult.m4aPath,
+            sessionDir: scenarioResult.sessionDir,
+            baseName: scenarioResult.baseName,
+          };
+        }
+      } catch (err) {
+        console.warn('[meeting-recorder] 场景梳理生成失败:', err.message);
+        scenarioResult = { ok: false, error: err.message || String(err) };
+        if (!fs.existsSync(finalPaths.txtPath)) {
+          const monthPath = path.dirname(paths.sessionDir);
+          try {
+            const dirs = fs
+              .readdirSync(monthPath, { withFileTypes: true })
+              .filter((d) => d.isDirectory())
+              .map((d) => path.join(monthPath, d.name));
+            const match = dirs.find((dir) => {
+              const base = path.basename(dir);
+              return fs.existsSync(path.join(dir, `${base}.txt`));
+            });
+            if (match) {
+              const base = path.basename(match);
+              finalPaths = {
+                sessionDir: match,
+                baseName: base,
+                txtPath: path.join(match, `${base}.txt`),
+                m4aPath: path.join(match, `${base}.m4a`),
+              };
+            }
+          } catch (_) {
+            /* ignore */
+          }
+        }
+      }
+    }
+  }
+
+  return {
+    ok: true,
+    txtPath: finalPaths.txtPath,
+    m4aPath: finalPaths.m4aPath,
+    outputDir: finalPaths.sessionDir,
+    sessionDir: finalPaths.sessionDir,
+    baseName: finalPaths.baseName,
+    htmlPath: scenarioResult?.htmlPath || null,
+    meetingTopic: scenarioResult?.meetingTopic || null,
+    scenarioError: scenarioResult?.ok === false ? scenarioResult.error : null,
+    scenarioSkipped,
+    lineCount: lines.length,
+  };
 }
 
 function createTray() {
@@ -113,30 +332,33 @@ function createTray() {
     icon = icon.resize({ width: 22, height: 22 });
   }
   tray = new Tray(icon);
-  tray.setToolTip('会议记录');
-  const menu = Menu.buildFromTemplate([
-    { label: '显示悬浮窗', click: () => showMainWindow() },
-    { label: '隐藏悬浮窗', click: () => hideMainWindow() },
-    { type: 'separator' },
-    { label: '退出应用 (⌘Q)', click: () => forceQuitApp() },
-  ]);
-  tray.setContextMenu(menu);
+  tray.setToolTip('会议记录（最多 2 个悬浮窗）');
+  updateTrayMenu();
   tray.on('click', () => {
-    if (!mainWindow) {
-      showMainWindow();
-      return;
+    const visible = [...floatingWindows.values()].some(({ win }) => win.isVisible());
+    if (visible) {
+      floatingWindows.forEach(({ win }) => win.hide());
+    } else {
+      showPrimaryWindow();
     }
-    if (mainWindow.isVisible()) hideMainWindow();
-    else showMainWindow();
+    syncDockWithWindow();
+  });
+}
+
+const gotSingleInstanceLock = app.requestSingleInstanceLock();
+if (!gotSingleInstanceLock) {
+  app.quit();
+} else {
+  app.on('second-instance', () => {
+    if (canOpenAnotherWindow()) openAnotherFloatingWindow();
+    else showPrimaryWindow();
   });
 }
 
 app.whenReady().then(() => {
   applyAppBranding();
-  if (process.platform === 'darwin') {
-    app.dock.show();
-  }
-  createWindow();
+  if (process.platform === 'darwin') app.dock.show();
+  createFloatingWindow();
   createTray();
   warmTranscribeService(loadConfig());
 
@@ -145,8 +367,8 @@ app.whenReady().then(() => {
   });
 
   app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) createWindow();
-    else showMainWindow();
+    if (floatingWindows.size === 0) createFloatingWindow();
+    else showPrimaryWindow();
   });
 });
 
@@ -163,37 +385,56 @@ app.on('window-all-closed', (e) => {
   e.preventDefault();
 });
 
-ipcMain.handle('meeting:get-config', async () => {
+ipcMain.handle('meeting:get-config', async (event) => {
+  const win = getWindowFromEvent(event);
+  const entry = getWindowEntry(win);
   const config = loadConfig();
   return {
     saveBaseDir: config.saveBaseDir,
     pythonReady: fs.existsSync(resolvePython(config)),
     scenarioFramingEnabled: config.scenarioFraming?.enabled !== false,
     llmReady: isLlmConfigured(config),
+    windowSlot: entry?.slot || 1,
+    windowCount: floatingWindows.size,
+    maxWindows: MAX_FLOATING_WINDOWS,
+    canOpenSecondWindow: canOpenAnotherWindow(),
+    queueLength: transcribeQueue.length + (transcribeQueueRunning ? 1 : 0),
   };
 });
 
-ipcMain.handle('meeting:begin-session', async (_evt, payload) => {
+ipcMain.handle('meeting:open-second-window', async () => {
+  const win = openAnotherFloatingWindow();
+  return { ok: Boolean(win), windowCount: floatingWindows.size };
+});
+
+ipcMain.handle('meeting:begin-session', async (event, payload) => {
+  const win = getWindowFromEvent(event);
+  if (sessionsByWindowId.has(win.id)) {
+    throw new Error('当前窗口已有进行中的会议，请先结束或取消');
+  }
   const config = loadConfig();
   const startedAt = payload?.startedAt ? new Date(payload.startedAt) : new Date();
   const paths = buildOutputPaths(config, startedAt);
   const tempRoot = path.join(app.getPath('temp'), 'meeting-recorder');
   const temp = buildTempSessionDir(tempRoot);
-  sessionMeta = {
+  sessionsByWindowId.set(win.id, {
     startedAt,
     paths,
     temp,
     durationMs: 0,
-  };
+  });
   return { ok: true, baseName: paths.baseName, monthPath: paths.monthPath };
 });
 
-ipcMain.handle('meeting:save-and-transcribe', async (_evt, payload) => {
+ipcMain.handle('meeting:save-and-transcribe', async (event, payload) => {
+  const win = getWindowFromEvent(event);
+  const sessionMeta = sessionsByWindowId.get(win.id);
   if (!sessionMeta) {
     throw new Error('未找到录音会话，请重新开始');
   }
+
   const config = loadConfig();
-  const { paths, startedAt } = sessionMeta;
+  const { paths, startedAt, temp } = sessionMeta;
   const durationMs = Number(payload?.durationMs) || 0;
   let buffer;
   if (payload?.audioBytes) {
@@ -207,111 +448,25 @@ ipcMain.handle('meeting:save-and-transcribe', async (_evt, payload) => {
     throw new Error('录音数据为空');
   }
 
-  const tempWebm = sessionMeta.temp.webmPath;
+  const tempWebm = temp.webmPath;
   fs.writeFileSync(tempWebm, buffer);
 
   try {
     await convertToM4a(tempWebm, paths.m4aPath);
-    const tempWav = path.join(sessionMeta.temp.dir, 'transcribe.wav');
-    await convertToWav(tempWebm, tempWav);
-    const sendProgress = (payload) => {
-      mainWindow?.webContents.send('meeting:transcribe-progress', payload);
-    };
-    const result = await transcribeAudio(tempWav, config, sendProgress);
-    const lines = (result.sentences || []).map((s) => ({
-      time: formatTimestampMs(s.start_ms || 0),
-      speaker: speakerLabel(s.spk),
-      text: (s.text || '').trim(),
-    }));
-    const speakers = new Set(lines.map((l) => l.speaker));
-    const transcript = buildTranscriptText({
+    sessionsByWindowId.delete(win.id);
+
+    const pipelineMeta = {
+      win,
+      paths,
       startedAt,
       durationMs,
-      lines,
-      speakerCount: speakers.size,
-    });
-    fs.writeFileSync(paths.txtPath, transcript, 'utf8');
-    removeDirSafe(sessionMeta.temp.dir);
-
-    let finalPaths = {
-      txtPath: paths.txtPath,
-      m4aPath: paths.m4aPath,
-      sessionDir: paths.sessionDir,
-      baseName: paths.baseName,
+      tempDir: temp.dir,
+      config,
     };
-    let scenarioResult = null;
-    let scenarioSkipped = null;
 
-    if (config.scenarioFraming?.enabled !== false) {
-      if (!isLlmConfigured(config)) {
-        scenarioSkipped =
-          '未配置 llm.apiKey。请复制 config.example.json 为 config.json 并填写 API Key，然后对已有 .txt 运行 npm run scenario:from-txt';
-      } else {
-        try {
-          scenarioResult = await generateScenarioFromTranscript(config, {
-            transcript,
-            paths,
-            startedAt,
-            durationMs,
-            onProgress: sendProgress,
-          });
-          if (scenarioResult && !scenarioResult.skipped) {
-            finalPaths = {
-              txtPath: scenarioResult.txtPath,
-              m4aPath: scenarioResult.m4aPath,
-              sessionDir: scenarioResult.sessionDir,
-              baseName: scenarioResult.baseName,
-            };
-          }
-        } catch (err) {
-          console.warn('[meeting-recorder] 场景梳理生成失败:', err.message);
-          scenarioResult = { ok: false, error: err.message || String(err) };
-          // 场景失败不影响转写；若文件夹已改名，尽量指向现有 txt
-          if (!fs.existsSync(finalPaths.txtPath)) {
-            const monthPath = path.dirname(paths.sessionDir);
-            try {
-              const dirs = fs
-                .readdirSync(monthPath, { withFileTypes: true })
-                .filter((d) => d.isDirectory())
-                .map((d) => path.join(monthPath, d.name));
-              const match = dirs.find((dir) => {
-                const base = path.basename(dir);
-                return fs.existsSync(path.join(dir, `${base}.txt`));
-              });
-              if (match) {
-                const base = path.basename(match);
-                finalPaths = {
-                  sessionDir: match,
-                  baseName: base,
-                  txtPath: path.join(match, `${base}.txt`),
-                  m4aPath: path.join(match, `${base}.m4a`),
-                };
-              }
-            } catch (_) {
-              /* ignore */
-            }
-          }
-        }
-      }
-    }
-
-    sessionMeta = null;
-
-    return {
-      ok: true,
-      txtPath: finalPaths.txtPath,
-      m4aPath: finalPaths.m4aPath,
-      outputDir: finalPaths.sessionDir,
-      sessionDir: finalPaths.sessionDir,
-      baseName: finalPaths.baseName,
-      htmlPath: scenarioResult?.htmlPath || null,
-      meetingTopic: scenarioResult?.meetingTopic || null,
-      scenarioError: scenarioResult?.ok === false ? scenarioResult.error : null,
-      scenarioSkipped,
-      lineCount: lines.length,
-    };
+    return await enqueueTranscribeJob(() => runTranscribePipeline(pipelineMeta));
   } catch (err) {
-    removeDirSafe(sessionMeta.temp?.dir);
+    removeDirSafe(temp?.dir);
     if (fs.existsSync(paths.txtPath)) {
       try {
         fs.unlinkSync(paths.txtPath);
@@ -327,7 +482,7 @@ ipcMain.handle('meeting:save-and-transcribe', async (_evt, payload) => {
         /* ignore */
       }
     }
-    sessionMeta = null;
+    sessionsByWindowId.delete(win.id);
     return {
       ok: false,
       error: err.message || String(err),
@@ -345,7 +500,9 @@ ipcMain.handle('meeting:open-path', async (_evt, targetPath) => {
   return { ok: false };
 });
 
-ipcMain.handle('meeting:cancel-session', async () => {
+ipcMain.handle('meeting:cancel-session', async (event) => {
+  const win = getWindowFromEvent(event);
+  const sessionMeta = sessionsByWindowId.get(win.id);
   if (sessionMeta) {
     removeDirSafe(sessionMeta.temp?.dir);
     const { sessionDir } = sessionMeta.paths || {};
@@ -356,8 +513,8 @@ ipcMain.handle('meeting:cancel-session', async () => {
         console.warn('[meeting-recorder] 取消会话时删除目录失败:', err.message);
       }
     }
+    sessionsByWindowId.delete(win.id);
   }
-  sessionMeta = null;
   return { ok: true };
 });
 
@@ -366,11 +523,12 @@ ipcMain.handle('meeting:quit-app', async () => {
   return { ok: true };
 });
 
-ipcMain.handle('meeting:notify-error', async (_evt, payload) => {
+ipcMain.handle('meeting:notify-error', async (event, payload) => {
+  const win = getWindowFromEvent(event);
   const title = payload?.title || '会议记录';
   let message = payload?.message || '操作失败';
   if (message.length > 160) message = `${message.slice(0, 160)}…`;
-  await dialog.showMessageBox(mainWindow || undefined, {
+  await dialog.showMessageBox(win && !win.isDestroyed() ? win : undefined, {
     type: 'error',
     title,
     message,
@@ -381,15 +539,19 @@ ipcMain.handle('meeting:notify-error', async (_evt, payload) => {
   return { ok: true };
 });
 
-ipcMain.handle('meeting:hide-window', async () => {
-  hideMainWindow();
+ipcMain.handle('meeting:hide-window', async (event) => {
+  const win = getWindowFromEvent(event);
+  if (win && !win.isDestroyed()) win.hide();
+  syncDockWithWindow();
+  updateTrayMenu();
   return { ok: true };
 });
 
-ipcMain.on('meeting:window-drag', (_evt, { dx, dy }) => {
-  if (!mainWindow) return;
-  const [x, y] = mainWindow.getPosition();
-  mainWindow.setPosition(x + dx, y + dy);
+ipcMain.on('meeting:window-drag', (event, { dx, dy }) => {
+  const win = getWindowFromEvent(event);
+  if (!win || win.isDestroyed()) return;
+  const [x, y] = win.getPosition();
+  win.setPosition(x + dx, y + dy);
 });
 
 process.on('uncaughtException', (err) => {
