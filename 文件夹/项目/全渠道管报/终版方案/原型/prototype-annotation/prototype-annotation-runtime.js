@@ -10,7 +10,8 @@
   /** 对外 Pages 只读、作者 IP / 本地 / ?paEdit= 可编；见 Skill §Git Pages 编辑权限 */
   const PA_POLICY_DEFAULT = {
     viewOnlyHostnames: ["18501404120.github.io"],
-    allowIps: ["113.110.230.127", "113.110.229.118", "220.232.134.241", "113.110.228.174", "113.87.83.49"],
+    allowIps: ["113.110.230.127", "113.110.229.118", "220.232.134.241", "113.110.228.174", "113.87.83.49", "113.110.230.92"],
+    allowIpPrefixes: ["113.110.230.", "113.110.228.", "113.110.229.", "113.87.83."],
     editToken: "paGoveeAuthor8k2m",
     allowLocalhost: true,
     allowOtherHosts: true
@@ -29,6 +30,10 @@
           ? fromConfig.viewOnlyHostnames
           : PA_POLICY_DEFAULT.viewOnlyHostnames,
       allowIps: fromConfig.allowIps != null ? fromConfig.allowIps : PA_POLICY_DEFAULT.allowIps,
+      allowIpPrefixes:
+        fromConfig.allowIpPrefixes != null
+          ? fromConfig.allowIpPrefixes
+          : PA_POLICY_DEFAULT.allowIpPrefixes,
       editToken: fromConfig.editToken != null ? fromConfig.editToken : PA_POLICY_DEFAULT.editToken,
       allowLocalhost:
         fromConfig.allowLocalhost != null ? fromConfig.allowLocalhost : PA_POLICY_DEFAULT.allowLocalhost,
@@ -84,6 +89,12 @@
     throw lastError || new Error("no-ip-source");
   }
 
+  function ipMatchesPolicy(ip, policy) {
+    if (!ip) return false;
+    if ((policy.allowIps || []).includes(ip)) return true;
+    return (policy.allowIpPrefixes || []).some((prefix) => prefix && ip.startsWith(prefix));
+  }
+
   async function resolveCanEdit(config) {
     const policy = mergeEditPolicy(config);
     const host = location.hostname || "";
@@ -100,12 +111,15 @@
     if (!isViewOnlyHost) {
       return policy.allowOtherHosts !== false;
     }
-    if (!policy.allowIps || !policy.allowIps.length) {
+    const hasIpRule =
+      (policy.allowIps && policy.allowIps.length) ||
+      (policy.allowIpPrefixes && policy.allowIpPrefixes.length);
+    if (!hasIpRule && !policy.editToken) {
       return false;
     }
     try {
       const ip = await fetchPublicIp();
-      return policy.allowIps.includes(ip);
+      return ipMatchesPolicy(ip, policy);
     } catch (_error) {
       return false;
     }

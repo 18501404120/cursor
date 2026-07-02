@@ -10,7 +10,8 @@
   /** 对外 Pages 只读、作者 IP / 本地 / ?paEdit= 可编；见 Skill §Git Pages 编辑权限 */
   const PA_POLICY_DEFAULT = {
     viewOnlyHostnames: ["18501404120.github.io"],
-    allowIps: ["113.110.230.127", "113.110.229.118", "220.232.134.241", "113.110.228.174", "113.87.83.49"],
+    allowIps: ["113.110.230.127", "113.110.229.118", "220.232.134.241", "113.110.228.174", "113.87.83.49", "113.110.230.92"],
+    allowIpPrefixes: ["113.110.230.", "113.110.228.", "113.110.229.", "113.87.83."],
     editToken: "paGoveeAuthor8k2m",
     allowLocalhost: true,
     allowOtherHosts: true
@@ -29,6 +30,10 @@
           ? fromConfig.viewOnlyHostnames
           : PA_POLICY_DEFAULT.viewOnlyHostnames,
       allowIps: fromConfig.allowIps != null ? fromConfig.allowIps : PA_POLICY_DEFAULT.allowIps,
+      allowIpPrefixes:
+        fromConfig.allowIpPrefixes != null
+          ? fromConfig.allowIpPrefixes
+          : PA_POLICY_DEFAULT.allowIpPrefixes,
       editToken: fromConfig.editToken != null ? fromConfig.editToken : PA_POLICY_DEFAULT.editToken,
       allowLocalhost:
         fromConfig.allowLocalhost != null ? fromConfig.allowLocalhost : PA_POLICY_DEFAULT.allowLocalhost,
@@ -84,6 +89,12 @@
     throw lastError || new Error("no-ip-source");
   }
 
+  function ipMatchesPolicy(ip, policy) {
+    if (!ip) return false;
+    if ((policy.allowIps || []).includes(ip)) return true;
+    return (policy.allowIpPrefixes || []).some((prefix) => prefix && ip.startsWith(prefix));
+  }
+
   async function resolveCanEdit(config) {
     const policy = mergeEditPolicy(config);
     const host = location.hostname || "";
@@ -100,12 +111,15 @@
     if (!isViewOnlyHost) {
       return policy.allowOtherHosts !== false;
     }
-    if (!policy.allowIps || !policy.allowIps.length) {
+    const hasIpRule =
+      (policy.allowIps && policy.allowIps.length) ||
+      (policy.allowIpPrefixes && policy.allowIpPrefixes.length);
+    if (!hasIpRule && !policy.editToken) {
       return false;
     }
     try {
       const ip = await fetchPublicIp();
-      return policy.allowIps.includes(ip);
+      return ipMatchesPolicy(ip, policy);
     } catch (_error) {
       return false;
     }
@@ -202,41 +216,8 @@
   }
 
   function saveState(config, state) {
-    try {
-      localStorage.setItem(storageKey(config), JSON.stringify(state));
-    } catch (error) {
-      console.warn("[prototype-annotation] localStorage save failed:", error);
-    }
+    localStorage.setItem(storageKey(config), JSON.stringify(state));
     syncPersistedStateToConfig(config, state);
-  }
-
-  function readPersistedFromConfigScript() {
-    try {
-      const script = document.getElementById("prototype-annotation-config");
-      if (!script) return {};
-      return normalizePersistedState(JSON.parse(script.textContent).persistedState);
-    } catch (_error) {
-      return normalizePersistedState({});
-    }
-  }
-
-  /** 保存/重绘前从 HTML persistedState + localStorage 合并最新状态，避免闭包 state 滞后 */
-  function syncStateFromStorage(config, state) {
-    const live = mergeStateLayers(readPersistedFromConfigScript(), loadState(config));
-    state.edits = live.edits;
-    state.hidden = live.hidden;
-    state.guides = live.guides;
-    state.assets = live.assets;
-    state.userAdded = live.userAdded;
-    if (!state.userAdded) state.userAdded = emptyUserAdded();
-    if (!state.assets) state.assets = {};
-    return state;
-  }
-
-  function refreshAll(config, state) {
-    syncStateFromStorage(config, state);
-    removePinsOnly();
-    renderAll(config, state);
   }
 
   function hydrateState(config) {
@@ -263,14 +244,6 @@
       window[RENDER_TIMER_KEY] = null;
     }
     document.querySelectorAll(`[${ROOT_ATTR}]`).forEach((node) => node.remove());
-    PORTAL_ENTRIES.length = 0;
-  }
-
-  /** 动态重绘前仅移除标注点/字段 tip，保留右上角工具栏 */
-  function removePinsOnly() {
-    document
-      .querySelectorAll(`[${ROOT_ATTR}="annotation"], [${ROOT_ATTR}="field-tip"]`)
-      .forEach((node) => node.remove());
     PORTAL_ENTRIES.length = 0;
   }
 
@@ -567,7 +540,7 @@
       }
       saveState(config, state);
       closePopovers();
-      refreshAll(config, state);
+      scheduleRender(config, state);
       if (onDone) onDone(true);
     });
   }
@@ -598,16 +571,12 @@
       if (!el) return;
       event.preventDefault();
       event.stopPropagation();
-      event.stopImmediatePropagation();
       const selector = generateSelector(el);
       if (!selector) return;
-      const pickedEl = el;
-      setTimeout(() => {
-        exitPickMode();
-        openAddFormPopover(config, state, pickedEl, selector, (saved) => {
-          if (!saved) enterPickMode(config, state);
-        });
-      }, 0);
+      exitPickMode();
+      openAddFormPopover(config, state, el, selector, (saved) => {
+        if (!saved) enterPickMode(config, state);
+      });
     };
 
     const key = (event) => {
@@ -1037,7 +1006,6 @@
         state.edits[key] = { body: nextBody, images: nextImages };
         saveState(config, state);
         renderView(normalizeContent(state.edits[key], body));
-        refreshAll(config, state);
       });
     }
 
@@ -1076,7 +1044,7 @@
         saveState(config, state);
         if (anchor && anchor.remove) anchor.remove();
         closePopovers();
-        refreshAll(config, state);
+        scheduleRender(config, state);
       });
     }
 
@@ -1444,7 +1412,7 @@
   function scheduleRender(config, state) {
     if (window[RENDER_TIMER_KEY]) clearTimeout(window[RENDER_TIMER_KEY]);
     window[RENDER_TIMER_KEY] = setTimeout(() => {
-      refreshAll(config, state);
+      renderAll(config, state);
       PORTAL_ENTRIES.forEach((entry) => {
         if (entry.icon && entry.icon.isConnected && entry.target && entry.target.isConnected) {
           entry.update();
@@ -1453,18 +1421,8 @@
     }, 80);
   }
 
-  function isPersistedConfigMutation(mutation) {
-    const target = mutation && mutation.target;
-    if (!target) return false;
-    if (target.id === "prototype-annotation-config") return true;
-    return !!(target.closest && target.closest("#prototype-annotation-config"));
-  }
-
   function bindDynamicObserver(config, state) {
-    const observer = new MutationObserver((mutations) => {
-      if (mutations.length && mutations.every(isPersistedConfigMutation)) return;
-      scheduleRender(config, state);
-    });
+    const observer = new MutationObserver(() => scheduleRender(config, state));
     observer.observe(document.body, {
       childList: true,
       subtree: true,
