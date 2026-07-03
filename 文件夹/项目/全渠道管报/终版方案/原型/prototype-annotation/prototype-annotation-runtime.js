@@ -7,15 +7,17 @@
   const RENDER_TIMER_KEY = "__prototypeAnnotationRenderTimer";
   const PORTAL_REPOSITION_KEY = "__prototypeAnnotationPortalReposition";
   const PORTAL_ENTRIES = [];
-  /** 对外 Pages 只读、作者 IP / 本地 / ?paEdit= 可编；见 Skill §Git Pages 编辑权限 */
+  /** 对外 Pages 只读；作者 IP / 网段 / 本机浏览器信任 / 本地可编；见 Skill §Git Pages 编辑权限 */
   const PA_POLICY_DEFAULT = {
     viewOnlyHostnames: ["18501404120.github.io"],
     allowIps: ["113.110.230.127", "113.110.229.118", "220.232.134.241", "113.110.228.174", "113.87.83.49", "113.110.230.92"],
     allowIpPrefixes: ["113.110.230.", "113.110.228.", "113.110.229.", "113.87.83."],
-    editToken: "paGoveeAuthor8k2m",
+    allowTrustedBrowser: true,
+    editToken: "",
     allowLocalhost: true,
     allowOtherHosts: true
   };
+  const TRUSTED_BROWSER_KEY = "prototypeAnnotation:trustedAuthorBrowser";
   let outsideCloseBound = false;
   let pickModeActive = false;
   let pickHighlightEl = null;
@@ -34,6 +36,10 @@
         fromConfig.allowIpPrefixes != null
           ? fromConfig.allowIpPrefixes
           : PA_POLICY_DEFAULT.allowIpPrefixes,
+      allowTrustedBrowser:
+        fromConfig.allowTrustedBrowser != null
+          ? fromConfig.allowTrustedBrowser
+          : PA_POLICY_DEFAULT.allowTrustedBrowser,
       editToken: fromConfig.editToken != null ? fromConfig.editToken : PA_POLICY_DEFAULT.editToken,
       allowLocalhost:
         fromConfig.allowLocalhost != null ? fromConfig.allowLocalhost : PA_POLICY_DEFAULT.allowLocalhost,
@@ -95,11 +101,29 @@
     return (policy.allowIpPrefixes || []).some((prefix) => prefix && ip.startsWith(prefix));
   }
 
+  function isTrustedBrowser() {
+    try {
+      return localStorage.getItem(TRUSTED_BROWSER_KEY) === "1";
+    } catch (_error) {
+      return false;
+    }
+  }
+
+  function markTrustedBrowser() {
+    try {
+      localStorage.setItem(TRUSTED_BROWSER_KEY, "1");
+    } catch (_error) {
+      /* ignore */
+    }
+  }
+
   async function resolveCanEdit(config) {
     const policy = mergeEditPolicy(config);
     const host = location.hostname || "";
+    const trustBrowser = policy.allowTrustedBrowser !== false;
 
     if (policy.allowLocalhost && (host === "localhost" || host === "127.0.0.1")) {
+      if (trustBrowser) markTrustedBrowser();
       return true;
     }
     if (policy.editToken && editTokenFromUrl() === policy.editToken) {
@@ -111,6 +135,9 @@
     if (!isViewOnlyHost) {
       return policy.allowOtherHosts !== false;
     }
+    if (trustBrowser && isTrustedBrowser()) {
+      return true;
+    }
     const hasIpRule =
       (policy.allowIps && policy.allowIps.length) ||
       (policy.allowIpPrefixes && policy.allowIpPrefixes.length);
@@ -119,9 +146,13 @@
     }
     try {
       const ip = await fetchPublicIp();
-      return ipMatchesPolicy(ip, policy);
-    } catch (_error) {
+      if (ipMatchesPolicy(ip, policy)) {
+        if (trustBrowser) markTrustedBrowser();
+        return true;
+      }
       return false;
+    } catch (_error) {
+      return trustBrowser && isTrustedBrowser();
     }
   }
 
