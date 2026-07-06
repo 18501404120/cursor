@@ -303,6 +303,8 @@
       margin-left: auto;
     }
     #editModal .modal.modal-xl { width: min(1180px, 98vw); }
+    #editModal.modal-mask.open { z-index: 1600 !important; }
+    #batchEditModal.modal-mask.open { z-index: 1650 !important; }
     .batch-preview-wrap {
       margin-top: 14px;
       max-height: 280px;
@@ -731,6 +733,8 @@
 <script src="../../../../规范/assets/multi-select-filter.js"></script>
 <script>
 (function () {
+  if (window.FeeMgmtCommon) window.FeeMgmtCommon.ensureHiddenModals();
+
   function showMask(id) {
     if (window.FeeMgmtCommon) window.FeeMgmtCommon.openModalMask(id);
     else document.getElementById(id).classList.add('open');
@@ -1459,6 +1463,7 @@
   }
 
   function renderChDrop() {
+    if (!chDrop) return;
     var feeCode = document.getElementById('feeItem').value;
     var occupied = getOccupied(feeCode, editingId);
     chDrop.innerHTML = '';
@@ -1498,8 +1503,14 @@
     });
   }
 
+  function getDefaultFeeCode() {
+    if (!window.FeeItemMaster || typeof FeeItemMaster.getLeafItems !== 'function') return '';
+    var leaves = FeeItemMaster.getLeafItems();
+    return leaves.length ? leaves[0].code : '';
+  }
+
   function positionChDrop() {
-    if (!chDrop.classList.contains('show')) return;
+    if (!chDrop || !chDrop.classList.contains('show')) return;
     var host = document.getElementById('chTags');
     if (!host) return;
     var r = host.getBoundingClientRect();
@@ -1509,28 +1520,33 @@
   }
 
   function closeChDrop() {
-    document.getElementById('chTags').classList.remove('open');
-    chDrop.classList.remove('show');
-    document.getElementById('chTags').setAttribute('aria-expanded', 'false');
+    var chTagsEl = document.getElementById('chTags');
+    if (chTagsEl) chTagsEl.classList.remove('open');
+    if (chDrop) chDrop.classList.remove('show');
+    if (chTagsEl) chTagsEl.setAttribute('aria-expanded', 'false');
   }
 
   function openChDrop() {
-    if (isViewMode) return;
+    if (isViewMode || !chDrop) return;
     renderChDrop();
     if (chDrop.parentNode !== document.body) document.body.appendChild(chDrop);
-    document.getElementById('chTags').classList.add('open');
+    var chTagsEl = document.getElementById('chTags');
+    if (chTagsEl) chTagsEl.classList.add('open');
     chDrop.classList.add('show');
-    document.getElementById('chTags').setAttribute('aria-expanded', 'true');
+    if (chTagsEl) chTagsEl.setAttribute('aria-expanded', 'true');
     positionChDrop();
   }
 
   document.getElementById('chTags').addEventListener('click', function (e) {
     e.stopPropagation();
     if (isViewMode) return;
+    if (!chDrop) return;
     if (chDrop.classList.contains('show')) closeChDrop();
     else openChDrop();
   });
-  chDrop.addEventListener('click', function (e) { e.stopPropagation(); });
+  if (chDrop) {
+    chDrop.addEventListener('click', function (e) { e.stopPropagation(); });
+  }
   document.addEventListener('click', function (e) {
     if (e.target.closest('#chTags') || e.target.closest('#chDrop')) return;
     closeChDrop();
@@ -1550,49 +1566,57 @@
 
   function openModal(id, options) {
     options = options || {};
-    isViewMode = !!options.viewOnly;
-    editingId = id || null;
-    var isNew = !id;
-    document.getElementById('editModalTitle').textContent = isViewMode
-      ? '查看费用来源 · ' + id
-      : (isNew ? '新增费用来源' : '编辑费用来源 · ' + id);
-    selectedChannels = new Set();
-    selectedDetailKeys.clear();
-    detailRows = [];
-    detailRowsType = null;
-    clearDetailFilters();
+    try {
+      isViewMode = !!options.viewOnly;
+      editingId = id || null;
+      var isNew = !id;
+      document.getElementById('editModalTitle').textContent = isViewMode
+        ? '查看费用来源 · ' + id
+        : (isNew ? '新增费用来源' : '编辑费用来源 · ' + id);
+      selectedChannels = new Set();
+      selectedDetailKeys.clear();
+      detailRows = [];
+      detailRowsType = null;
+      clearDetailFilters();
 
-    if (isNew) {
-      var first = FeeItemMaster.getLeafItems()[0];
-      document.getElementById('feeItem').value = first ? first.code : '';
-      document.getElementById('sourceType').value = 'auto';
-      document.getElementById('enabled').value = '启用';
-      document.getElementById('remark').value = '';
-      document.getElementById('caliberScope').value = 'channelCountry';
-    } else {
-      var row = rows.find(function (r) { return r.id === id; });
-      if (!row) return;
-      document.getElementById('feeItem').value = row.feeCode;
-      document.getElementById('sourceType').value = row.sourceType === 'historyRate' ? 'rollingRate' : row.sourceType;
-      document.getElementById('enabled').value = row.status;
-      document.getElementById('remark').value = row.remark || '';
-      if (row.fixedAmount) document.getElementById('fixedAmount').value = row.fixedAmount;
-      if (row.fixedRate) document.getElementById('fixedRate').value = row.fixedRate;
-      document.getElementById('caliberScope').value = row.caliberScope || 'channelCountry';
-      if (row.yoyRateBase) document.getElementById('yoyRateBase').value = row.yoyRateBase;
-      if (row.yoyFallback) document.getElementById('yoyFallback').value = row.yoyFallback;
-      if (row.histBase) document.getElementById('histBase').value = row.histBase;
-      if (row.histWindow) document.getElementById('histWindow').value = row.histWindow;
-      (row.channels || []).forEach(function (ch) { selectedChannels.add(ch); });
-      detailRows = cloneDetailRows(row.details || []);
-      detailRowsType = row.sourceType === 'historyRate' ? 'rollingRate' : row.sourceType;
+      if (isNew) {
+        document.getElementById('feeItem').value = getDefaultFeeCode();
+        document.getElementById('sourceType').value = 'auto';
+        document.getElementById('enabled').value = '启用';
+        document.getElementById('remark').value = '';
+        document.getElementById('caliberScope').value = 'channelCountry';
+      } else {
+        var row = rows.find(function (r) { return r.id === id; });
+        if (!row) return;
+        document.getElementById('feeItem').value = row.feeCode;
+        document.getElementById('sourceType').value = row.sourceType === 'historyRate' ? 'rollingRate' : row.sourceType;
+        document.getElementById('enabled').value = row.status;
+        document.getElementById('remark').value = row.remark || '';
+        if (row.fixedAmount) document.getElementById('fixedAmount').value = row.fixedAmount;
+        if (row.fixedRate) document.getElementById('fixedRate').value = row.fixedRate;
+        document.getElementById('caliberScope').value = row.caliberScope || 'channelCountry';
+        if (row.yoyRateBase) document.getElementById('yoyRateBase').value = row.yoyRateBase;
+        if (row.yoyFallback) document.getElementById('yoyFallback').value = row.yoyFallback;
+        if (row.histBase) document.getElementById('histBase').value = row.histBase;
+        if (row.histWindow) document.getElementById('histWindow').value = row.histWindow;
+        (row.channels || []).forEach(function (ch) { selectedChannels.add(ch); });
+        detailRows = cloneDetailRows(row.details || []);
+        detailRowsType = row.sourceType === 'historyRate' ? 'rollingRate' : row.sourceType;
+      }
+
+      renderChTags();
+      renderSourcePanels();
+      applyModalFormState();
+      closeChDrop();
+      showMask('editModal');
+    } catch (err) {
+      console.error('openModal failed', err);
+      try {
+        showMask('editModal');
+      } catch (maskErr) {
+        console.error('showMask failed', maskErr);
+      }
     }
-
-    renderChTags();
-    renderSourcePanels();
-    applyModalFormState();
-    closeChDrop();
-    showMask('editModal');
   }
 
   function closeModal() {
@@ -1685,6 +1709,9 @@
   }
 
   document.getElementById('btnAdd').onclick = function () { openModal(null); };
+  document.getElementById('btnAdd').addEventListener('click', function (e) {
+    e.stopPropagation();
+  });
   document.getElementById('editModalClose').onclick = closeModal;
   document.getElementById('editModalCancel').onclick = closeModal;
   document.getElementById('btnSave').onclick = saveModal;
@@ -1733,7 +1760,13 @@
   function handleListPageAction(e) {
     var t = e.target.closest('#btnAdd, #btnManageFeeItems, #btnQuery, #btnExportList, [data-act], [data-fee-item-act]');
     if (!t) return;
-    if (t.id === 'btnManageFeeItems') { e.preventDefault(); e.stopPropagation(); FeeItemMaster.openManage(); return; }
+    if (t.id === 'btnManageFeeItems') {
+      e.preventDefault();
+      e.stopPropagation();
+      if (window.FeeItemMaster && typeof FeeItemMaster.openManage === 'function') FeeItemMaster.openManage();
+      else alert('费用项管理脚本未加载，请通过仓库 HTTP 预览本页。');
+      return;
+    }
     if (t.id === 'btnAdd') { e.preventDefault(); e.stopPropagation(); openModal(null); return; }
     if (t.id === 'btnQuery') { e.preventDefault(); e.stopPropagation(); renderTable(); return; }
     if (t.id === 'btnExportList') { e.preventDefault(); e.stopPropagation(); exportSourceList(); return; }
@@ -1743,21 +1776,25 @@
   }
   document.addEventListener('click', handleListPageAction, true);
 
-  FeeItemMaster.init({
-    usageResolver: function (code) {
-      if (rows.some(function (r) { return r.feeCode === code && r.status === '启用'; })) {
-        return '该费用项存在启用的费用来源配置，不可删除';
+  if (window.FeeItemMaster) {
+    FeeItemMaster.init({
+      usageResolver: function (code) {
+        if (rows.some(function (r) { return r.feeCode === code && r.status === '启用'; })) {
+          return '该费用项存在启用的费用来源配置，不可删除';
+        }
+        return null;
       }
-      return null;
-    }
-  }).then(function () {
-    refreshFeeItemSelects();
+    }).then(function () {
+      refreshFeeItemSelects();
+      renderTable();
+    });
+    FeeItemMaster.onChange(function () {
+      refreshFeeItemSelects();
+      renderTable();
+    });
+  } else {
     renderTable();
-  });
-  FeeItemMaster.onChange(function () {
-    refreshFeeItemSelects();
-    renderTable();
-  });
+  }
 
   loadMasterDimensionData();
   try {
@@ -1778,12 +1815,15 @@
     bar.style.margin = '12px 16px';
     bar.style.background = '#fff7e6';
     bar.style.borderColor = '#ffd591';
-    bar.textContent = '规范脚本未完整加载，按钮可能无效。请确认通过仓库 HTTP 预览，并保留 文件夹/规范/ 目录结构。';
+    bar.textContent = '规范脚本（多选筛选/导入组件）未完整加载：弹窗内明细筛选与导入暂不可用。新增/编辑来源仍可用；请通过仓库 HTTP 预览并保留 文件夹/规范/ 目录结构。';
     if (!document.querySelector('.page .hint-bar')) {
       document.querySelector('.page').insertBefore(bar, document.querySelector('.page').firstChild);
     }
   }
-  if (window.FeeMgmtCommon) window.FeeMgmtCommon.wireClearableSelects(document);
+  if (window.FeeMgmtCommon) {
+    window.FeeMgmtCommon.ensureHiddenModals();
+    window.FeeMgmtCommon.wireClearableSelects(document);
+  }
 })();
 </script>
 

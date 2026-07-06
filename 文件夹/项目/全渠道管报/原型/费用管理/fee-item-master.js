@@ -232,7 +232,10 @@
           '<div class="modal-bd">' +
             '<p class="fee-item-master-lead">维护费用项树形结构：任意节点可新增下级；同一父节点下的子节点即为一组。业务配置仅可选无下级的末级节点。备注通过操作栏「备注」维护。已启用的节点不可删除。</p>' +
             '<div class="fee-item-toolbar">' +
-              '<button type="button" class="btn" id="btnFeeTreeExpandAll">全部展开</button>' +
+              '<div class="fee-item-toolbar-main">' +
+                '<button type="button" class="btn" id="btnFeeTreeExpandAll">全部展开</button>' +
+                '<button type="button" class="btn" id="btnFeeTreeCollapseAll">全部收拢</button>' +
+              '</div>' +
               '<div class="fee-item-toolbar-actions">' +
                 '<button type="button" class="btn btn-primary" id="btnFeeNodeAdd">新增节点</button>' +
               '</div>' +
@@ -324,6 +327,24 @@
       modal.querySelector('.fee-item-toolbar-actions').appendChild(btn);
     }
 
+    var toolbar = modal.querySelector('.fee-item-toolbar');
+    var expandBtn = document.getElementById('btnFeeTreeExpandAll');
+    if (toolbar && expandBtn && !expandBtn.closest('.fee-item-toolbar-main')) {
+      var main = document.createElement('div');
+      main.className = 'fee-item-toolbar-main';
+      toolbar.insertBefore(main, toolbar.firstChild);
+      main.appendChild(expandBtn);
+    }
+    if (toolbar && !document.getElementById('btnFeeTreeCollapseAll')) {
+      var collapseBtn = document.createElement('button');
+      collapseBtn.type = 'button';
+      collapseBtn.className = 'btn';
+      collapseBtn.id = 'btnFeeTreeCollapseAll';
+      collapseBtn.textContent = '全部收拢';
+      var targetWrap = toolbar.querySelector('.fee-item-toolbar-main') || toolbar;
+      targetWrap.appendChild(collapseBtn);
+    }
+
     if (!document.getElementById('feeItemTreeRoot')) {
       var tableWrap = modal.querySelector('.fee-item-table-wrap');
       if (tableWrap) tableWrap.outerHTML = '<div class="fee-item-tree-wrap" id="feeItemTreeRoot"></div>';
@@ -352,12 +373,7 @@
       wireRemarkEvents();
     }
 
-    var nodeAdd = document.getElementById('btnFeeNodeAdd');
-    if (nodeAdd && !nodeAdd.dataset.feeNodeWired) {
-      nodeAdd.dataset.feeNodeWired = '1';
-      nodeAdd.addEventListener('click', function () { openEdit(null, {}); });
-    }
-
+    wireManageToolbarEvents();
     bindTreeEvents();
   }
 
@@ -393,8 +409,7 @@
 
     document.getElementById('feeItemManageClose').addEventListener('click', closeManage);
     document.getElementById('feeItemManageDone').addEventListener('click', closeManage);
-    document.getElementById('btnFeeNodeAdd').addEventListener('click', function () { openEdit(null, {}); });
-    document.getElementById('btnFeeTreeExpandAll').addEventListener('click', expandAllNodes);
+    wireManageToolbarEvents();
     document.getElementById('feeItemEditClose').addEventListener('click', closeEdit);
     document.getElementById('feeItemEditCancel').addEventListener('click', closeEdit);
     document.getElementById('feeItemEditSave').addEventListener('click', saveEdit);
@@ -406,6 +421,26 @@
       if (e.target.id === 'feeItemEditModal') closeEdit();
     });
     bindTreeEvents();
+  }
+
+  function wireManageToolbarEvents() {
+    var nodeAdd = document.getElementById('btnFeeNodeAdd');
+    if (nodeAdd && !nodeAdd.dataset.feeNodeWired) {
+      nodeAdd.dataset.feeNodeWired = '1';
+      nodeAdd.addEventListener('click', function () { openEdit(null, {}); });
+    }
+
+    var expand = document.getElementById('btnFeeTreeExpandAll');
+    if (expand && !expand.dataset.feeTreeWired) {
+      expand.dataset.feeTreeWired = '1';
+      expand.addEventListener('click', expandAllNodes);
+    }
+
+    var collapse = document.getElementById('btnFeeTreeCollapseAll');
+    if (collapse && !collapse.dataset.feeTreeWired) {
+      collapse.dataset.feeTreeWired = '1';
+      collapse.addEventListener('click', collapseAllNodes);
+    }
   }
 
   function handleTreeClick(e) {
@@ -442,6 +477,11 @@
     items.forEach(function (item) {
       if (hasChildren(item.code)) expandedNodes.add(item.code);
     });
+    renderTree();
+  }
+
+  function collapseAllNodes() {
+    expandedNodes.clear();
     renderTree();
   }
 
