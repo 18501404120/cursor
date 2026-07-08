@@ -70,6 +70,17 @@
     el.style.removeProperty('pointer-events');
   }
 
+  function notifyAnnotationResync() {
+    document.dispatchEvent(new CustomEvent('pa:layout-change'));
+    if (global.PrototypeAnnotation && typeof global.PrototypeAnnotation.resync === 'function') {
+      requestAnimationFrame(function () {
+        requestAnimationFrame(function () {
+          global.PrototypeAnnotation.resync();
+        });
+      });
+    }
+  }
+
   function openModalMask(el) {
     el = resolveModalEl(el);
     if (!el) return el;
@@ -77,6 +88,7 @@
     el.removeAttribute('hidden');
     el.classList.add('open');
     el.setAttribute('aria-hidden', 'false');
+    notifyAnnotationResync();
     return el;
   }
 
@@ -86,6 +98,7 @@
     el.classList.remove('open');
     el.setAttribute('aria-hidden', 'true');
     clearModalInlineStyle(el);
+    notifyAnnotationResync();
     return el;
   }
 
@@ -226,6 +239,7 @@
     syncClearableInput: syncClearableInput,
     wireClearableSelects: wireClearableSelects,
     wireClearableInputs: wireClearableInputs,
+    notifyAnnotationResync: notifyAnnotationResync,
     openModalMask: openModalMask,
     closeModalMask: closeModalMask,
     ensureHiddenModals: ensureHiddenModals,

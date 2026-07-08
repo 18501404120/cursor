@@ -14,6 +14,8 @@
   var modalsReady = false;
   var expandedNodes = new Set();
   var pendingEditOptions = null;
+  var manageTreeKeyword = '';
+  var treeSelectInstances = [];
 
   var DEFAULT_ITEMS = [
     { code: 'CAT01', name: '平台与交易费用', remark: '平台扣点、杂费等', parentCode: null, sortOrder: 10 },
@@ -183,21 +185,45 @@
     return rows;
   }
 
-  function flattenTreeOptions(nodes, depth, excludeCode) {
-    var options = [];
+  function flattenTreeRows(nodes, depth) {
+    var rows = [];
     nodes.forEach(function (node) {
-      if (node.code !== excludeCode) {
-        options.push({
-          code: node.code,
-          label: (depth ? '　'.repeat(depth) + '└ ' : '') + node.name + ' · ' + node.code,
-          depth: depth
-        });
-        if (node.children && node.children.length) {
-          options = options.concat(flattenTreeOptions(node.children, depth + 1, excludeCode));
-        }
-      }
+      var nodeHasChildren = node.children && node.children.length > 0;
+      rows.push({ node: node, depth: depth, hasChildren: nodeHasChildren });
+      if (nodeHasChildren) rows = rows.concat(flattenTreeRows(node.children, depth + 1));
     });
-    return options;
+    return rows;
+  }
+
+  function normalizedKeyword(text) {
+    return String(text || '').trim().toLowerCase();
+  }
+
+  function matchItemKeyword(item, keyword) {
+    if (!keyword) return true;
+    return [item.name, item.code, item.remark].some(function (value) {
+      return String(value || '').toLowerCase().indexOf(keyword) >= 0;
+    });
+  }
+
+  function filterTreeByKeyword(nodes, keyword) {
+    keyword = normalizedKeyword(keyword);
+    if (!keyword) return nodes;
+    return nodes.map(function (node) {
+      var children = filterTreeByKeyword(node.children || [], keyword);
+      if (!matchItemKeyword(node, keyword) && !children.length) return null;
+      return Object.assign({}, node, { children: children });
+    }).filter(Boolean);
+  }
+
+  function buildExcludeMap(opts) {
+    var map = {};
+    if (!opts || !opts.excludeCode) return map;
+    map[opts.excludeCode] = true;
+    if (opts.excludeDescendants) {
+      getDescendantCodes(opts.excludeCode).forEach(function (code) { map[code] = true; });
+    }
+    return map;
   }
 
   function migrateFlatItemsIfNeeded() {
@@ -231,8 +257,9 @@
           '</div>' +
           '<div class="modal-bd">' +
             '<p class="fee-item-master-lead">维护费用项树形结构：任意节点可新增下级；同一父节点下的子节点即为一组。业务配置仅可选无下级的末级节点。备注通过操作栏「备注」维护。已启用的节点不可删除。</p>' +
-            '<div class="fee-item-toolbar">' +
+            '<div class="fee-item-toolbar" data-pa-key="fee-item-toolbar">' +
               '<div class="fee-item-toolbar-main">' +
+                '<input type="search" class="fee-item-tree-search" id="feeItemTreeSearch" placeholder="搜索费用项/编码">' +
                 '<button type="button" class="btn" id="btnFeeTreeExpandAll">全部展开</button>' +
                 '<button type="button" class="btn" id="btnFeeTreeCollapseAll">全部收拢</button>' +
               '</div>' +
@@ -328,6 +355,9 @@
     }
 
     var toolbar = modal.querySelector('.fee-item-toolbar');
+    if (toolbar && !toolbar.getAttribute('data-pa-key')) {
+      toolbar.setAttribute('data-pa-key', 'fee-item-toolbar');
+    }
     var expandBtn = document.getElementById('btnFeeTreeExpandAll');
     if (toolbar && expandBtn && !expandBtn.closest('.fee-item-toolbar-main')) {
       var main = document.createElement('div');
@@ -343,6 +373,15 @@
       collapseBtn.textContent = '全部收拢';
       var targetWrap = toolbar.querySelector('.fee-item-toolbar-main') || toolbar;
       targetWrap.appendChild(collapseBtn);
+    }
+    if (toolbar && !document.getElementById('feeItemTreeSearch')) {
+      var search = document.createElement('input');
+      search.type = 'search';
+      search.className = 'fee-item-tree-search';
+      search.id = 'feeItemTreeSearch';
+      search.placeholder = '搜索费用项/编码';
+      var mainWrap = toolbar.querySelector('.fee-item-toolbar-main') || toolbar;
+      mainWrap.insertBefore(search, mainWrap.firstChild);
     }
 
     if (!document.getElementById('feeItemTreeRoot')) {
@@ -441,6 +480,15 @@
       collapse.dataset.feeTreeWired = '1';
       collapse.addEventListener('click', collapseAllNodes);
     }
+
+    var search = document.getElementById('feeItemTreeSearch');
+    if (search && !search.dataset.feeTreeWired) {
+      search.dataset.feeTreeWired = '1';
+      search.addEventListener('input', function () {
+        manageTreeKeyword = search.value;
+        renderTree();
+      });
+    }
   }
 
   function handleTreeClick(e) {
@@ -501,7 +549,7 @@
 
   function renderTreeNode(node) {
     var nodeHasChildren = node.children && node.children.length > 0;
-    var expanded = expandedNodes.has(node.code);
+    var expanded = manageTreeKeyword ? true : expandedNodes.has(node.code);
     var blockReason = getUsageBlockReason(node.code, node.name);
     var toggleClass = 'fee-item-tree-toggle' + (nodeHasChildren ? '' : ' is-placeholder');
     var toggleLabel = nodeHasChildren ? (expanded ? '▼' : '▶') : '·';
@@ -532,35 +580,75 @@
 
   function renderTreeNodes(nodes) {
     if (!nodes.length) {
-      return '<div class="fee-item-tree-empty">暂无节点，请点击「新增节点」</div>';
+      return '<div class="fee-item-tree-empty">' + (manageTreeKeyword ? '无匹配费用项' : '暂无节点，请点击「新增节点」') + '</div>';
     }
     return '<ul class="fee-item-tree">' + nodes.map(renderTreeNode).join('') + '</ul>';
+  }
+
+  function renderTreeHeadHtml() {
+    return (
+      '<div class="fee-item-tree-head">' +
+        '<span class="fee-item-tree-head-label">费用项</span>' +
+        '<span class="fee-item-tree-head-actions" data-pa-key="fee-item-actions-col">操作</span>' +
+      '</div>'
+    );
   }
 
   function renderTree() {
     var root = document.getElementById('feeItemTreeRoot');
     if (!root) return;
-    root.innerHTML = renderTreeNodes(buildTreeNodes());
+    var nodes = filterTreeByKeyword(buildTreeNodes(), manageTreeKeyword);
+    root.innerHTML = renderTreeHeadHtml() + renderTreeNodes(nodes);
+    if (global.FeeMgmtCommon && typeof global.FeeMgmtCommon.notifyAnnotationResync === 'function') {
+      global.FeeMgmtCommon.notifyAnnotationResync();
+    }
   }
 
   function renderParentSelect(excludeCode, selectedParent) {
     var sel = document.getElementById('feeItemParent');
     if (!sel) return;
-    var options = flattenTreeOptions(buildTreeNodes(), 0, excludeCode);
-    sel.innerHTML = '<option value="">无（顶级）</option>' + options.map(function (opt) {
-      return '<option value="' + escapeHtml(opt.code) + '">' + escapeHtml(opt.label) + '</option>';
-    }).join('');
+    syncSelect(sel, {
+      mode: 'code',
+      showCode: true,
+      forceShowCode: true,
+      leavesOnly: false,
+      includeAll: true,
+      allLabel: '无（顶级）',
+      preserve: false,
+      excludeCode: excludeCode,
+      excludeDescendants: true
+    });
     sel.value = selectedParent || '';
+    mountTreeSelect(sel, {
+      mode: 'code',
+      showCode: true,
+      forceShowCode: true,
+      leavesOnly: false,
+      includeAll: true,
+      allLabel: '无（顶级）',
+      placeholder: '请选择上级节点',
+      excludeCode: excludeCode,
+      excludeDescendants: true,
+      zIndex: 1700
+    });
+    sel.dispatchEvent(new Event('change', { bubbles: true }));
   }
 
   function openManage() {
     ensureModals();
     ensureExpandedDefaults();
+    var search = document.getElementById('feeItemTreeSearch');
+    if (search) {
+      search.value = manageTreeKeyword;
+    }
     renderTree();
     openMask('feeItemManageModal');
   }
 
   function closeManage() {
+    manageTreeKeyword = '';
+    var search = document.getElementById('feeItemTreeSearch');
+    if (search) search.value = '';
     closeMask('feeItemManageModal');
   }
 
@@ -718,16 +806,227 @@
     opts = opts || {};
     var leavesOnly = opts.leavesOnly !== false;
     var treeLabels = opts.treeLabels !== false;
+    var excludeMap = buildExcludeMap(opts);
     if (!treeLabels) {
       var list = leavesOnly ? getLeafItems() : items.slice();
-      return list.map(function (item) { return { item: item, depth: 0 }; });
+      return list.filter(function (item) { return !excludeMap[item.code]; })
+        .map(function (item) { return { item: item, depth: 0, hasChildren: hasChildren(item.code) }; });
     }
-    var rows = flattenTreeForDisplay(buildTreeNodes(), 0);
+    var rows = flattenTreeRows(buildTreeNodes(), 0).filter(function (row) {
+      return !excludeMap[row.node.code];
+    });
     return rows.filter(function (row) {
       return leavesOnly ? !row.hasChildren : true;
     }).map(function (row) {
-      return { item: row.node, depth: row.depth };
+      return { item: row.node, depth: row.depth, hasChildren: row.hasChildren };
     });
+  }
+
+  function findTreeSelectInstance(sel) {
+    for (var i = 0; i < treeSelectInstances.length; i++) {
+      if (treeSelectInstances[i].select === sel) return treeSelectInstances[i];
+    }
+    return null;
+  }
+
+  function shouldShowCode(opts) {
+    opts = opts || {};
+    return (opts.showCode !== false && opts.mode === 'code') || opts.forceShowCode;
+  }
+
+  function getTreeSelectRows(inst) {
+    var opts = inst.opts || {};
+    var keyword = normalizedKeyword(inst.keyword);
+    var nodes = filterTreeByKeyword(buildTreeNodes(), keyword);
+    var excludeMap = buildExcludeMap(opts);
+    var rows = flattenTreeRows(nodes, 0).filter(function (row) {
+      return !excludeMap[row.node.code];
+    });
+    var result = [];
+    if (opts.includeAll && !keyword) {
+      result.push({
+        value: '',
+        label: opts.allLabel || '全部',
+        depth: 0,
+        disabled: false,
+        special: true
+      });
+    }
+    rows.forEach(function (row) {
+      var item = row.node;
+      var value = opts.mode === 'code' ? item.code : item.name;
+      var disabled = opts.leavesOnly !== false && row.hasChildren;
+      result.push({
+        value: value,
+        label: item.name,
+        code: item.code,
+        showCode: shouldShowCode(opts),
+        depth: row.depth,
+        disabled: disabled,
+        hasChildren: row.hasChildren
+      });
+    });
+    return result;
+  }
+
+  function syncTreeSelectTrigger(inst) {
+    if (!inst || !inst.trigger) return;
+    var sel = inst.select;
+    var value = sel.value;
+    var selected = Array.from(sel.options).find(function (opt) { return opt.value === value; });
+    var label = selected ? selected.textContent.replace(/^[　\s└]+/, '') : '';
+    if (value && label) inst.trigger.textContent = label;
+    else if (value) inst.trigger.textContent = value;
+    else if (inst.opts && inst.opts.includeAll) inst.trigger.textContent = inst.opts.allLabel || '全部';
+    else inst.trigger.textContent = (inst.opts && inst.opts.placeholder) || '请选择';
+    inst.wrap.classList.toggle('has-value', !!value);
+  }
+
+  function positionTreeSelectPanel(inst) {
+    if (!inst || !inst.open) return;
+    var rect = inst.trigger.getBoundingClientRect();
+    var panel = inst.panel;
+    var width = Math.max(rect.width, inst.opts.panelWidth || 260);
+    var maxHeight = Math.min(inst.opts.maxPanelHeight || 320, window.innerHeight - 24);
+    var top = rect.bottom + 4;
+    panel.style.width = width + 'px';
+    panel.style.maxHeight = maxHeight + 'px';
+    panel.style.left = Math.max(8, Math.min(rect.left, window.innerWidth - width - 8)) + 'px';
+    if (top + Math.min(maxHeight, 320) > window.innerHeight && rect.top > 220) {
+      top = Math.max(8, rect.top - Math.min(maxHeight, 320) - 4);
+    }
+    panel.style.top = top + 'px';
+  }
+
+  function closeTreeSelect(inst) {
+    if (!inst || !inst.open) return;
+    inst.open = false;
+    inst.wrap.classList.remove('is-open');
+    inst.panel.classList.remove('show');
+    inst.trigger.setAttribute('aria-expanded', 'false');
+    window.removeEventListener('scroll', inst.reposition, true);
+    window.removeEventListener('resize', inst.reposition);
+  }
+
+  function closeOtherTreeSelects(inst) {
+    treeSelectInstances.forEach(function (item) {
+      if (item !== inst) closeTreeSelect(item);
+    });
+  }
+
+  function renderTreeSelectPanel(inst) {
+    var rows = getTreeSelectRows(inst);
+    var value = inst.select.value;
+    var list = rows.length ? rows.map(function (row) {
+      var cls = 'fee-tree-select-option' +
+        (row.disabled ? ' is-disabled' : '') +
+        (row.value === value ? ' is-selected' : '') +
+        (row.hasChildren ? ' has-children' : '');
+      return '<button type="button" class="' + cls + '" data-value="' + escapeHtml(row.value) + '"' +
+        (row.disabled ? ' disabled' : '') +
+        ' style="padding-left:' + (12 + row.depth * 18) + 'px;">' +
+        '<span class="fee-tree-select-label">' + escapeHtml(row.label) + '</span>' +
+        (row.code && row.showCode ? '<span class="fee-tree-select-code">' + escapeHtml(row.code) + '</span>' : '') +
+        '</button>';
+    }).join('') : '<div class="fee-tree-select-empty">无匹配费用项</div>';
+    inst.panel.innerHTML = '<div class="fee-tree-select-search-wrap">' +
+      '<input type="search" class="fee-tree-select-search" placeholder="搜索名称/编码" value="' + escapeHtml(inst.keyword || '') + '">' +
+      '</div><div class="fee-tree-select-list">' + list + '</div>';
+
+    var search = inst.panel.querySelector('.fee-tree-select-search');
+    search.addEventListener('input', function () {
+      inst.keyword = search.value;
+      renderTreeSelectPanel(inst);
+      positionTreeSelectPanel(inst);
+      var next = inst.panel.querySelector('.fee-tree-select-search');
+      if (next) {
+        next.focus();
+        next.setSelectionRange(next.value.length, next.value.length);
+      }
+    });
+    inst.panel.querySelectorAll('.fee-tree-select-option:not(.is-disabled)').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        inst.select.value = btn.dataset.value || '';
+        inst.select.dispatchEvent(new Event('change', { bubbles: true }));
+        closeTreeSelect(inst);
+      });
+    });
+  }
+
+  function openTreeSelect(inst) {
+    if (!inst) return;
+    closeOtherTreeSelects(inst);
+    inst.open = true;
+    inst.keyword = '';
+    inst.wrap.classList.add('is-open');
+    inst.trigger.setAttribute('aria-expanded', 'true');
+    renderTreeSelectPanel(inst);
+    document.body.appendChild(inst.panel);
+    inst.panel.classList.add('show');
+    positionTreeSelectPanel(inst);
+    window.addEventListener('scroll', inst.reposition, true);
+    window.addEventListener('resize', inst.reposition);
+    var search = inst.panel.querySelector('.fee-tree-select-search');
+    if (search) search.focus();
+  }
+
+  function refreshTreeSelect(inst, opts) {
+    if (!inst) return;
+    inst.opts = Object.assign({}, inst.opts, opts || {});
+    syncTreeSelectTrigger(inst);
+    if (inst.open) {
+      renderTreeSelectPanel(inst);
+      positionTreeSelectPanel(inst);
+    }
+  }
+
+  function mountTreeSelect(selectOrId, opts) {
+    opts = opts || {};
+    var sel = typeof selectOrId === 'string' ? document.getElementById(selectOrId) : selectOrId;
+    if (!sel) return null;
+    var existed = findTreeSelectInstance(sel);
+    if (existed) {
+      refreshTreeSelect(existed, opts);
+      return existed;
+    }
+    var wrap = document.createElement('div');
+    wrap.className = 'fee-tree-select' + (sel.classList.contains('ctl') ? ' is-compact' : '');
+    var trigger = document.createElement('button');
+    trigger.type = 'button';
+    trigger.className = 'fee-tree-select-trigger';
+    trigger.setAttribute('aria-haspopup', 'listbox');
+    trigger.setAttribute('aria-expanded', 'false');
+    var panel = document.createElement('div');
+    panel.className = 'fee-tree-select-panel';
+    panel.style.zIndex = String(opts.zIndex || 1700);
+    sel.classList.add('fee-tree-native-select');
+    sel.setAttribute('tabindex', '-1');
+    sel.insertAdjacentElement('afterend', wrap);
+    wrap.appendChild(trigger);
+    var inst = {
+      select: sel,
+      wrap: wrap,
+      trigger: trigger,
+      panel: panel,
+      opts: Object.assign({}, opts),
+      keyword: '',
+      open: false,
+      reposition: function () { positionTreeSelectPanel(inst); }
+    };
+    trigger.addEventListener('click', function (e) {
+      e.preventDefault();
+      e.stopPropagation();
+      if (inst.open) closeTreeSelect(inst);
+      else openTreeSelect(inst);
+    });
+    sel.addEventListener('change', function () { syncTreeSelectTrigger(inst); });
+    document.addEventListener('click', function (e) {
+      if (inst.wrap.contains(e.target) || inst.panel.contains(e.target)) return;
+      closeTreeSelect(inst);
+    });
+    treeSelectInstances.push(inst);
+    syncTreeSelectTrigger(inst);
+    return inst;
   }
 
   function syncSelect(selectOrId, opts) {
@@ -735,7 +1034,7 @@
     var sel = typeof selectOrId === 'string' ? document.getElementById(selectOrId) : selectOrId;
     if (!sel) return;
     var mode = opts.mode || 'name';
-    var showCode = opts.showCode !== false && mode === 'code';
+    var showCode = (opts.showCode !== false && mode === 'code') || opts.forceShowCode;
     var prev = sel.value;
     var html = '';
     if (opts.includeAll) {
@@ -756,6 +1055,7 @@
     if (global.FeeMgmtCommon && global.FeeMgmtCommon.syncClearableSelect) {
       global.FeeMgmtCommon.syncClearableSelect(sel);
     }
+    refreshTreeSelect(findTreeSelectInstance(sel), opts);
   }
 
   function mountToolbarButton(container, options) {
@@ -845,6 +1145,7 @@
     getByName: getByName,
     getName: getName,
     syncSelect: syncSelect,
+    mountTreeSelect: mountTreeSelect,
     openManage: openManage,
     openEdit: openEdit,
     openRemark: openRemark,
