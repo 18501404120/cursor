@@ -6,7 +6,8 @@
     refundActuals: 'gb-fee-mgmt-refund-actual-overrides-v1',
     deductionActuals: 'gb-fee-mgmt-deduction-actual-overrides-v1',
     fixedRules: 'gb-fee-mgmt-fixed-rule-overrides-v1',
-    refundRules: 'gb-fee-mgmt-refund-rule-overrides-v1'
+    refundRules: 'gb-fee-mgmt-refund-rule-overrides-v1',
+    customerDeptMaster: 'gb-fee-mgmt-customer-dept-master-v1'
   };
   var DEDUCTION_FEE_TYPES = ['促销扣款', '销售折扣', '现金折扣', '销售费用'];
   var REFUND_ROLLING_PAST_MONTHS = 3;
@@ -490,11 +491,51 @@
     });
   }
 
+  function readCustomerDeptMasterMap() {
+    return safeRead(STORAGE_KEYS.customerDeptMaster);
+  }
+
+  function normalizeDepartmentMasterItem(item) {
+    var code = String(item && (item.code || item.id) ? (item.code || item.id) : '').trim();
+    if (!code) return null;
+    return {
+      id: code,
+      code: code,
+      name: String(item && item.name != null ? item.name : '').trim()
+    };
+  }
+
+  function getMaintainedDepartments(customer) {
+    if (!customer) return [];
+    var map = readCustomerDeptMasterMap();
+    var list = map[customer];
+    if (!Array.isArray(list)) return [];
+    return list.map(normalizeDepartmentMasterItem).filter(function (item) {
+      return !!item;
+    });
+  }
+
   function getDepartments(customer) {
+    var maintained = getMaintainedDepartments(customer);
+    if (maintained.length) return maintained;
     var erpDepts = getErpOrderDepartments(customer);
     if (erpDepts.length) return erpDepts;
     if (!customer) return DEFAULT_DEPARTMENTS.slice();
     return [];
+  }
+
+  function setCustomerDepartments(customer, departments) {
+    if (!customer) return;
+    var map = readCustomerDeptMasterMap();
+    var normalized = (departments || []).map(normalizeDepartmentMasterItem).filter(function (item) {
+      return !!item;
+    });
+    if (!normalized.length) {
+      delete map[customer];
+    } else {
+      map[customer] = normalized;
+    }
+    safeWrite(STORAGE_KEYS.customerDeptMaster, map);
   }
 
   function getDefaultDeptItems(customer) {
@@ -1429,7 +1470,9 @@
     getFixedRule: getFixedRule,
     getIncome: getIncome,
     getDepartments: getDepartments,
+    getMaintainedDepartments: getMaintainedDepartments,
     getErpOrderDepartments: getErpOrderDepartments,
+    setCustomerDepartments: setCustomerDepartments,
     getDefaultDeptItems: getDefaultDeptItems,
     getRecalcFromPeriod: getRecalcFromPeriod,
     isPeriodClosed: isPeriodClosed,

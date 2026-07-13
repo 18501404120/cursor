@@ -6,6 +6,7 @@
   var editingRatioCustomer = null;
   var editingExpenseId = null;
   var editingDeptItems = null;
+  var deptMasterRows = [];
   var OP_LOG_SCOPE = 'customer-rule';
 
   function appendOpLog(rowKey, entry) {
@@ -187,25 +188,182 @@
     return items;
   }
 
-  function mergeDeptItemsWithErp(customer, savedItems) {
-    var erpItems = store.getDefaultDeptItems ? store.getDefaultDeptItems(customer) : [];
+  function mergeDeptItemsWithMaster(customer, savedItems) {
+    var masterItems = store.getDefaultDeptItems ? store.getDefaultDeptItems(customer) : [];
     var savedMap = {};
     (savedItems || []).forEach(function (item) {
       savedMap[item.id] = item;
     });
-    return erpItems.map(function (dept) {
+    return masterItems.map(function (dept) {
       var saved = savedMap[dept.id];
       return saved ? cloneDeptItems([saved])[0] : dept;
     });
   }
 
+  function refreshRatioDeptGridIfOpen() {
+    if (!editingRatioId || !editingRatioCustomer) return;
+    var row = findFixedById(editingRatioId);
+    if (!row) return;
+    var method = normalizeRatioMethod(document.getElementById('fRatioMethod').value);
+    if (method !== 'dept_fixed_ratio') return;
+    editingDeptItems = mergeDeptItemsWithMaster(
+      editingRatioCustomer,
+      collectDeptItemsFromDom().length ? collectDeptItemsFromDom() : editingDeptItems
+    );
+    renderDeptRatioGrid();
+  }
+
+  function populateDeptCustomerOptions() {
+    var select = document.getElementById('fDeptCustomer');
+    if (!select) return;
+    var current = select.value;
+    var html = '<option value="">请选择客户</option>';
+    store.deductionCustomers.forEach(function (item) {
+      html += '<option value="' + esc(item) + '">' + esc(item) + '</option>';
+    });
+    select.innerHTML = html;
+    if (current) select.value = current;
+    if (window.FeeMgmtCommon) window.FeeMgmtCommon.syncClearableSelect(select);
+  }
+
+  function loadDeptMasterRows(customer) {
+    if (!customer) {
+      deptMasterRows = [];
+      renderDeptMasterTable();
+      return;
+    }
+    var maintained = store.getMaintainedDepartments ? store.getMaintainedDepartments(customer) : [];
+    if (maintained.length) {
+      deptMasterRows = maintained.map(function (item) {
+        return { code: item.code || item.id, name: item.name || '' };
+      });
+    } else if (store.getErpOrderDepartments) {
+      deptMasterRows = store.getErpOrderDepartments(customer).map(function (item) {
+        return { code: item.code || item.id, name: item.name || '' };
+      });
+    } else {
+      deptMasterRows = [];
+    }
+    renderDeptMasterTable();
+  }
+
+  function renderDeptMasterTable() {
+    var body = document.getElementById('deptMasterBody');
+    var tip = document.getElementById('deptMasterTip');
+    if (!body) return;
+
+    if (tip) tip.textContent = '共 ' + deptMasterRows.length + ' 条';
+
+    if (!deptMasterRows.length) {
+      body.innerHTML = '<tr><td colspan="3" style="text-align:center;color:#6b7280;padding:20px;">暂无部门，请点击「新增部门」维护</td></tr>';
+      return;
+    }
+
+    body.innerHTML = deptMasterRows.map(function (item, index) {
+      return '' +
+        '<tr data-dept-index="' + index + '">' +
+          '<td><input type="text" data-dept-code value="' + esc(item.code || '') + '" placeholder="如 1001"></td>' +
+          '<td><input type="text" data-dept-name value="' + esc(item.name || '') + '" placeholder="如 北美商超业务部"></td>' +
+          '<td><button type="button" class="op-link danger" data-action="dept-remove" data-dept-index="' + index + '">删除</button></td>' +
+        '</tr>';
+    }).join('');
+  }
+
+  function collectDeptMasterRowsFromDom() {
+    var rows = [];
+    document.querySelectorAll('#deptMasterBody tr[data-dept-index]').forEach(function (row) {
+      var codeInput = row.querySelector('[data-dept-code]');
+      var nameInput = row.querySelector('[data-dept-name]');
+      rows.push({
+        code: codeInput ? String(codeInput.value || '').trim() : '',
+        name: nameInput ? String(nameInput.value || '').trim() : ''
+      });
+    });
+    return rows;
+  }
+
+  function openDeptModal(prefillCustomer) {
+    populateDeptCustomerOptions();
+    var customer = prefillCustomer || document.getElementById('qCustomer').value || '';
+    document.getElementById('fDeptCustomer').value = customer;
+    if (window.FeeMgmtCommon) window.FeeMgmtCommon.syncClearableSelect(document.getElementById('fDeptCustomer'));
+    loadDeptMasterRows(customer);
+    window.FeeMgmtCommon.openModalMask('deptModal');
+  }
+
+  function closeDeptModal() {
+    deptMasterRows = [];
+    window.FeeMgmtCommon.closeModalMask('deptModal');
+  }
+
+  function saveDeptMaster() {
+    var customer = document.getElementById('fDeptCustomer').value;
+    if (!customer) {
+      window.alert('请先选择客户。');
+      return;
+    }
+
+    var rows = collectDeptMasterRowsFromDom();
+    var seen = {};
+    for (var i = 0; i < rows.length; i += 1) {
+      var row = rows[i];
+      if (!row.code && !row.name) continue;
+      if (!row.code) {
+        window.alert('第 ' + (i + 1) + ' 行请填写部门编码。');
+        return;
+      }
+      if (!row.name) {
+        window.alert('第 ' + (i + 1) + ' 行请填写部门名称。');
+        return;
+      }
+      if (seen[row.code]) {
+        window.alert('部门编码「' + row.code + '」重复，请修改后再保存。');
+        return;
+      }
+      seen[row.code] = true;
+    }
+
+    var normalized = rows.filter(function (row) {
+      return row.code && row.name;
+    });
+
+    if (!normalized.length) {
+      if (!window.confirm('未填写任何部门，保存后将清空该客户已维护的部门清单。是否继续？')) {
+        return;
+      }
+    }
+
+    store.setCustomerDepartments(customer, normalized);
+    appendOpLog(customer, {
+      action: '维护部门清单',
+      target: customer,
+      detail: normalized.length
+        ? '共 ' + normalized.length + ' 个部门：' + normalized.map(function (item) {
+          return item.code + ' ' + item.name;
+        }).join('；')
+        : '已清空部门清单'
+    });
+
+    if (editingRatioCustomer === customer) {
+      var row = findFixedById(editingRatioId);
+      editingDeptItems = mergeDeptItemsWithMaster(
+        customer,
+        row && row.deptItems && row.deptItems.length ? row.deptItems : editingDeptItems
+      );
+      refreshRatioDeptGridIfOpen();
+    }
+
+    closeDeptModal();
+    renderMatrixTable();
+  }
+
   function renderDeptRatioGrid() {
     var body = document.getElementById('fDeptRatioBody');
     var customer = editingRatioCustomer || '';
-    var items = editingDeptItems || mergeDeptItemsWithErp(customer, []);
+    var items = editingDeptItems || mergeDeptItemsWithMaster(customer, []);
 
     if (!items.length) {
-      body.innerHTML = '<tr><td colspan="3" style="text-align:center;color:#6b7280;padding:16px;">当前客户暂无 ERP 订单部门数据</td></tr>';
+      body.innerHTML = '<tr><td colspan="3" style="text-align:center;color:#6b7280;padding:16px;">请先在列表上方点击「部门管理」维护该客户的部门编码与名称</td></tr>';
       return;
     }
 
@@ -236,7 +394,7 @@
     if (!row) return;
     editingRatioId = row.id;
     editingRatioCustomer = row.customer;
-    editingDeptItems = mergeDeptItemsWithErp(
+    editingDeptItems = mergeDeptItemsWithMaster(
       row.customer,
       row.deptItems && row.deptItems.length
         ? row.deptItems
@@ -279,7 +437,7 @@
     if (method === 'dept_fixed_ratio') {
       editingDeptItems = collectDeptItemsFromDom();
       if (!editingDeptItems.length) {
-        window.alert('当前客户暂无 ERP 订单部门，无法保存部门固定比例。');
+        window.alert('请先在「部门管理」中维护该客户的部门，再保存部门固定比例。');
         return;
       }
       var invalidDeptRatio = editingDeptItems.find(function (item) {
@@ -392,6 +550,35 @@
       renderMatrixTable();
     });
 
+    document.getElementById('btnDeptManage').addEventListener('click', function () {
+      openDeptModal(document.getElementById('qCustomer').value);
+    });
+    document.getElementById('fDeptCustomer').addEventListener('change', function () {
+      deptMasterRows = [];
+      loadDeptMasterRows(document.getElementById('fDeptCustomer').value);
+    });
+    document.getElementById('btnDeptAddRow').addEventListener('click', function () {
+      deptMasterRows = collectDeptMasterRowsFromDom();
+      deptMasterRows.push({ code: '', name: '' });
+      renderDeptMasterTable();
+    });
+    document.getElementById('deptMasterBody').addEventListener('click', function (e) {
+      var btn = e.target.closest('[data-action="dept-remove"]');
+      if (!btn) return;
+      var index = Number(btn.getAttribute('data-dept-index'));
+      deptMasterRows = collectDeptMasterRowsFromDom();
+      if (index >= 0 && index < deptMasterRows.length) {
+        deptMasterRows.splice(index, 1);
+      }
+      renderDeptMasterTable();
+    });
+    document.getElementById('btnDeptClose').addEventListener('click', closeDeptModal);
+    document.getElementById('btnDeptCancel').addEventListener('click', closeDeptModal);
+    document.getElementById('btnDeptSave').addEventListener('click', saveDeptMaster);
+    document.getElementById('deptModal').addEventListener('click', function (e) {
+      if (e.target.id === 'deptModal') closeDeptModal();
+    });
+
     document.getElementById('fRatioMethod').addEventListener('change', toggleRatioFields);
     document.getElementById('btnRatioClose').addEventListener('click', closeRatioModal);
     document.getElementById('btnRatioCancel').addEventListener('click', closeRatioModal);
@@ -422,7 +609,11 @@
 
   function init() {
     populateOptions();
+    populateDeptCustomerOptions();
     applyQueryCustomer();
+    if (window.FeeMgmtCommon) {
+      window.FeeMgmtCommon.wireClearableSelects(document);
+    }
     if (window.FeeMgmtOpLog) {
       window.FeeMgmtOpLog.wireTable({
         scope: OP_LOG_SCOPE,
