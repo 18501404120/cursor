@@ -7,6 +7,7 @@
   var editingExpenseId = null;
   var editingDeptItems = null;
   var deptMasterRows = [];
+  var deptCustomerMsf = null;
   var OP_LOG_SCOPE = 'customer-rule';
 
   function appendOpLog(rowKey, entry) {
@@ -221,58 +222,81 @@
     return html;
   }
 
-  function getDeptFilterCustomer() {
-    var select = document.getElementById('fDeptCustomer');
-    return select ? String(select.value || '').trim() : '';
-  }
-
-  function populateDeptCustomerOptions() {
-    var select = document.getElementById('fDeptCustomer');
-    if (!select) return;
-    var current = select.value;
-    var html = '<option value="">全部</option>';
-    store.deductionCustomers.forEach(function (item) {
-      html += '<option value="' + esc(item) + '">' + esc(item) + '</option>';
+  function getDeptCustomerFilterOptions() {
+    return store.deductionCustomers.map(function (item) {
+      return { value: item, label: item };
     });
-    select.innerHTML = html;
-    if (current) select.value = current;
-    if (window.FeeMgmtCommon) window.FeeMgmtCommon.syncClearableSelect(select);
   }
 
-  function loadDeptMasterRows(filterCustomer) {
-    var customer = filterCustomer != null ? filterCustomer : getDeptFilterCustomer();
+  function destroyDeptCustomerFilter() {
+    if (deptCustomerMsf && deptCustomerMsf.destroy) {
+      deptCustomerMsf.destroy();
+    }
+    deptCustomerMsf = null;
+  }
 
-    if (customer) {
-      var maintained = store.getMaintainedDepartments ? store.getMaintainedDepartments(customer) : [];
-      if (maintained.length) {
-        deptMasterRows = maintained.map(function (item) {
-          return {
-            customer: customer,
-            code: item.code || item.id,
-            name: item.name || ''
-          };
-        });
-      } else if (store.getErpOrderDepartments) {
-        deptMasterRows = store.getErpOrderDepartments(customer).map(function (item) {
-          return {
-            customer: customer,
-            code: item.code || item.id,
-            name: item.name || ''
-          };
-        });
-      } else {
-        deptMasterRows = [];
+  function mountDeptCustomerFilter(initialValues) {
+    if (!window.MultiSelectFilter) return;
+    var el = document.getElementById('deptCustomerMsfMount');
+    if (!el) return;
+    destroyDeptCustomerFilter();
+    deptCustomerMsf = window.MultiSelectFilter.mount(el, {
+      placeholder: '全部客户',
+      showSelectAll: true,
+      clearable: true,
+      zIndex: 2000,
+      useBodyPortal: true,
+      maxPanelHeight: 260,
+      initialValues: (initialValues || []).map(String),
+      onChange: function () {
+        loadDeptMasterRows();
+      },
+      getOptions: function () {
+        return getDeptCustomerFilterOptions();
       }
-    } else if (store.getAllMaintainedDepartmentRows) {
-      deptMasterRows = store.getAllMaintainedDepartmentRows().map(function (item) {
-        return {
-          customer: item.customer,
-          code: item.code,
-          name: item.name
-        };
-      });
+    });
+  }
+
+  function getDeptFilterCustomers() {
+    if (!deptCustomerMsf || !deptCustomerMsf.getValues) return [];
+    return deptCustomerMsf.getValues();
+  }
+
+  function loadDeptMasterRows() {
+    var filterCustomers = getDeptFilterCustomers();
+    deptMasterRows = [];
+
+    if (!filterCustomers.length) {
+      if (store.getAllMaintainedDepartmentRows) {
+        deptMasterRows = store.getAllMaintainedDepartmentRows().map(function (item) {
+          return {
+            customer: item.customer,
+            code: item.code,
+            name: item.name
+          };
+        });
+      }
     } else {
-      deptMasterRows = [];
+      filterCustomers.forEach(function (customer) {
+        var maintained = store.getMaintainedDepartments ? store.getMaintainedDepartments(customer) : [];
+        if (maintained.length) {
+          maintained.forEach(function (item) {
+            deptMasterRows.push({
+              customer: customer,
+              code: item.code || item.id,
+              name: item.name || ''
+            });
+          });
+        } else if (store.getErpOrderDepartments) {
+          store.getErpOrderDepartments(customer).forEach(function (item) {
+            deptMasterRows.push({
+              customer: customer,
+              code: item.code || item.id,
+              name: item.name || ''
+            });
+          });
+        }
+      });
     }
     renderDeptMasterTable();
   }
@@ -317,22 +341,22 @@
     return rows;
   }
 
-  function openDeptModal(prefillCustomer) {
-    populateDeptCustomerOptions();
-    var customer = prefillCustomer || document.getElementById('qCustomer').value || '';
-    document.getElementById('fDeptCustomer').value = customer;
-    if (window.FeeMgmtCommon) window.FeeMgmtCommon.syncClearableSelect(document.getElementById('fDeptCustomer'));
-    loadDeptMasterRows(customer);
+  function openDeptModal() {
+    mountDeptCustomerFilter([]);
+    loadDeptMasterRows();
     window.FeeMgmtCommon.openModalMask('deptModal');
   }
 
   function closeDeptModal() {
     deptMasterRows = [];
+    destroyDeptCustomerFilter();
+    var mount = document.getElementById('deptCustomerMsfMount');
+    if (mount) mount.innerHTML = '';
     window.FeeMgmtCommon.closeModalMask('deptModal');
   }
 
   function saveDeptMaster() {
-    var filterCustomer = getDeptFilterCustomer();
+    var filterCustomers = getDeptFilterCustomers();
     var rows = collectDeptMasterRowsFromDom();
     var grouped = {};
     var seen = {};
@@ -352,6 +376,10 @@
         window.alert('第 ' + (i + 1) + ' 行请填写部门名称。');
         return;
       }
+      if (filterCustomers.length && filterCustomers.indexOf(row.customer) < 0) {
+        window.alert('第 ' + (i + 1) + ' 行客户不在当前筛选范围内，请调整客户或清空筛选。');
+        return;
+      }
       var dupKey = row.customer + '|' + row.code;
       if (seen[dupKey]) {
         window.alert('客户「' + row.customer + '」下部门编码「' + row.code + '」重复，请修改后再保存。');
@@ -362,15 +390,21 @@
       grouped[row.customer].push({ code: row.code, name: row.name });
     }
 
-    var customersToSave = filterCustomer ? [filterCustomer] : Object.keys(grouped);
+    var customersToSave = filterCustomers.length ? filterCustomers.slice() : Object.keys(grouped);
 
     if (!customersToSave.length) {
       window.alert('请至少维护一条部门记录。');
       return;
     }
 
-    if (filterCustomer && !grouped[filterCustomer] && !window.confirm('未填写任何部门，保存后将清空客户「' + filterCustomer + '」的部门清单。是否继续？')) {
-      return;
+    var needClearConfirm = customersToSave.filter(function (customer) {
+      return !grouped[customer] || !grouped[customer].length;
+    });
+    if (needClearConfirm.length) {
+      var clearMsg = needClearConfirm.length === 1
+        ? '客户「' + needClearConfirm[0] + '」在列表中无部门，保存后将清空其部门清单。是否继续？'
+        : '以下客户在列表中无部门，保存后将清空其部门清单：' + needClearConfirm.join('、') + '。是否继续？';
+      if (!window.confirm(clearMsg)) return;
     }
 
     customersToSave.forEach(function (customer) {
@@ -593,15 +627,16 @@
     });
 
     document.getElementById('btnDeptManage').addEventListener('click', function () {
-      openDeptModal(document.getElementById('qCustomer').value);
-    });
-    document.getElementById('fDeptCustomer').addEventListener('change', function () {
-      loadDeptMasterRows(getDeptFilterCustomer());
+      openDeptModal();
     });
     document.getElementById('btnDeptAddRow').addEventListener('click', function () {
       deptMasterRows = collectDeptMasterRowsFromDom();
+      var filterCustomers = getDeptFilterCustomers();
+      var defaultCustomer = filterCustomers.length === 1
+        ? filterCustomers[0]
+        : (document.getElementById('qCustomer').value || '');
       deptMasterRows.push({
-        customer: getDeptFilterCustomer() || document.getElementById('qCustomer').value || '',
+        customer: defaultCustomer,
         code: '',
         name: ''
       });
@@ -654,7 +689,6 @@
 
   function init() {
     populateOptions();
-    populateDeptCustomerOptions();
     applyQueryCustomer();
     if (window.FeeMgmtCommon) {
       window.FeeMgmtCommon.wireClearableSelects(document);

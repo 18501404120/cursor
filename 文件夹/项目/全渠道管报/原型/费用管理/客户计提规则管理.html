@@ -107,6 +107,10 @@
       gap: 8px;
       flex-wrap: wrap;
     }
+    .dept-filter-field .msf-root {
+      min-width: 220px;
+      max-width: 100%;
+    }
     .panel-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
     .panel-actions .btn { text-decoration: none; display: inline-flex; align-items: center; }
     .clickable-cell { cursor: pointer; }
@@ -253,15 +257,12 @@
     </div>
     <div class="modal-bd" data-pa-key="dept-modal-body">
       <div class="form-grid">
-        <div class="form-field">
-          <label for="fDeptCustomer">筛选客户</label>
-          <span class="ctl-wrap" id="fDeptCustomerWrap">
-            <select id="fDeptCustomer" class="ctl"><option value="">全部</option></select>
-            <button type="button" class="ctl-clear" aria-label="清除客户筛选">×</button>
-          </span>
+        <div class="form-field dept-filter-field">
+          <label for="deptCustomerMsfMount">筛选客户</label>
+          <div id="deptCustomerMsfMount" data-pa-key="dept-customer-filter"></div>
         </div>
       </div>
-      <p class="dept-ratio-hint" style="margin:0 0 10px;">维护各客户用于「部门固定比例」计提的部门主数据。列表须填写客户、部门编码与部门名称；保存后，对应客户调整计提比例弹窗将显示此处部门。</p>
+      <p class="dept-ratio-hint" style="margin:0 0 10px;">维护各客户用于「部门固定比例」计提的部门主数据。筛选客户默认展示全部，可多选、可搜索、可清空；列表须填写客户、部门编码与部门名称。</p>
       <div class="dept-master-wrap">
         <table class="dept-master-table">
           <thead>
@@ -332,6 +333,7 @@
   </div>
 </div>
 
+<script src="../../../../规范/assets/multi-select-filter.js"></script>
 <script src="fee-mgmt-common.js"></script>
 <script src="fee-mgmt-op-log.js"></script>
 <script src="supermarket-accrual-base.js"></script>
@@ -349,7 +351,7 @@
 <script id="prototype-annotation-config" type="application/json">
 {
   "pageId": "fee-customer-accrual-rules",
-  "version": "2026-07-13T16:00:00+08:00",
+  "version": "2026-07-13T18:00:00+08:00",
   "pageTitle": "客户计提规则管理",
   "annotations": [
     {
@@ -368,7 +370,7 @@
       "id": "btn-dept-manage",
       "selector": "[data-pa-key=\"btn-dept-manage\"]",
       "title": "部门管理",
-      "body": "按客户维护部门主数据，供「部门固定比例」计提使用：\n1. 点击打开部门维护弹窗；若顶部已筛选客户，会自动选中该客户。\n2. 可新增、编辑部门编码与部门名称，或删除行。\n3. 保存后写入本页本地存储；调整计提比例弹窗中的部门清单即显示此处维护的部门。\n4. 若该客户从未保存过部门，首次打开会尝试带出 ERP 订单部门作为编辑起点（可改后保存）。\n5. 未维护且无 ERP 部门时（如 AAFES），须先在此新增部门，再配置部门固定比例。"
+      "body": "按客户维护部门主数据，供「部门固定比例」计提使用：\n1. 点击打开部门维护弹窗；打开时筛选默认「全部客户」，展示所有已保存部门。\n2. 列表每行须填写客户、部门编码、部门名称。\n3. 顶部筛选支持搜索、多选、全选与清空，用于缩小列表范围。"
     },
     {
       "id": "matrix-anchor-period",
@@ -389,10 +391,16 @@
       "body": "每行可操作：\n1. 「促销 / 销折 / 现折 / 销费」分别打开对应调整弹窗。\n2. 「日志」查看该客户历次规则变更与部门维护记录。\n3. 每次成功保存后，日志条数应增加一条。"
     },
     {
+      "id": "dept-customer-filter",
+      "selector": "[data-pa-key=\"dept-customer-filter\"]",
+      "title": "筛选客户（多选）",
+      "body": "部门列表筛选控件：\n1. 默认不选任何客户，即展示全部已维护部门。\n2. 支持面板内搜索客户名称、多选勾选、首行「全部」全选/全不选。\n3. 点击右侧 × 可一键清空筛选，恢复展示全部。\n4. 选中一个或多个客户后，列表只展示这些客户的部门（无已保存数据时尝试带出 ERP 部门作为编辑起点）。"
+    },
+    {
       "id": "dept-modal",
       "selector": "[data-pa-key=\"dept-modal-body\"]",
       "title": "部门维护弹窗",
-      "body": "维护某客户的部门清单：\n1. 先选客户（可与列表筛选联动）。\n2. 表格填写部门编码、部门名称；可「新增部门」或「删除」行。\n3. 保存时校验：编码、名称必填，编码不可重复。\n4. 保存为空将清空该客户已维护的部门；之后部门固定比例弹窗将无部门可选（除非 ERP 仍有数据）。\n5. 保存成功记入该客户操作日志。"
+      "body": "维护部门主数据列表：\n1. 顶部「筛选客户」可选全部或某一客户，用于缩小列表范围。\n2. 表格列：客户、部门编码、部门名称、操作；每行客户为下拉选择。\n3. 保存时按客户分组写入；同一客户下部门编码不可重复。\n4. 筛选某一客户时，仅更新该客户的部门清单；选「全部」时更新列表中出现的各客户。\n5. 保存成功记入对应客户操作日志。"
     },
     {
       "id": "btn-dept-save",
