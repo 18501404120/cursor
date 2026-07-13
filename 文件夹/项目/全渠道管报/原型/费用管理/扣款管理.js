@@ -200,8 +200,13 @@
     var customerOpts = store.deductionCustomers.map(function (item) {
       return '<option value="' + esc(item) + '">' + esc(item) + '</option>';
     }).join('');
-
     document.getElementById('qCustomer').insertAdjacentHTML('beforeend', customerOpts);
+
+    var feeTypes = store.deductionFeeTypes || ['促销扣款', '销售折扣', '现金折扣', '销售费用'];
+    var feeOpts = feeTypes.map(function (item) {
+      return '<option value="' + esc(item) + '">' + esc(item) + '</option>';
+    }).join('');
+    document.getElementById('qFeeType').insertAdjacentHTML('beforeend', feeOpts);
   }
 
   function getFilters() {
@@ -209,7 +214,8 @@
     return {
       monthStart: range.start,
       monthEnd: range.end,
-      customer: document.getElementById('qCustomer').value
+      customer: document.getElementById('qCustomer').value,
+      feeType: document.getElementById('qFeeType').value
     };
   }
 
@@ -218,6 +224,7 @@
     return store.getDeductions().filter(function (row) {
       if (!window.FeeMgmtCommon.periodInMonthRange(row.period, filters.monthStart, filters.monthEnd)) return false;
       if (filters.customer && row.customer !== filters.customer) return false;
+      if (filters.feeType && row.feeType !== filters.feeType) return false;
       return true;
     });
   }
@@ -242,10 +249,14 @@
 
   function renderTable() {
     var rows = getRows();
+    if (!rows.length && store.getDeductions().length) {
+      resetMonthRangeFilter();
+      rows = getRows();
+    }
     var body = document.getElementById('deductionBody');
 
     renderStats(rows);
-    document.getElementById('resultTip').textContent = '共 ' + rows.length + ' 条';
+    document.getElementById('resultTip').textContent = '共 ' + rows.length + ' 条 · 金额单位 USD';
 
     if (!rows.length) {
       body.innerHTML = '<tr><td colspan="13" style="text-align:center;color:#6b7280;padding:32px;">暂无扣款记录</td></tr>';
@@ -278,6 +289,9 @@
           '<td>' + esc(row.updatedAt || '-') + '</td>' +
           '<td><span class="ops">' +
             '<button class="op-link" data-action="edit" data-id="' + esc(row.id) + '">录入实际值</button>' +
+            (state !== '匹配'
+              ? '<a class="op-link" href="客户计提规则管理.html?qCustomer=' + encodeURIComponent(row.customer) + '">调整规则</a>'
+              : '') +
             '<button class="op-link" data-action="row-log" data-row-key="' + esc(row.id) + '" data-row-label="' + esc(row.customer + ' · ' + row.feeType + ' · ' + row.period) + '">' + esc(logCountLabel(row.id)) + '</button>' +
           '</span></td>' +
         '</tr>';
@@ -390,7 +404,6 @@
       var formulaText = {
         monthly_fixed: '销售费用计提 = 月固定金额 ' + money(scenario.computedAccrual),
         annual_avg: '销售费用计提 = 年总金额 ' + money(row.ruleBaseAmount) + ' ÷ 12 = ' + money(scenario.computedAccrual),
-        custom_monthly: '销售费用计提 = ' + esc(row.period) + ' 自定义月金额 ' + money(scenario.computedAccrual),
         fixed_ratio: '销售费用计提 = 当月收入 ' + money(scenario.income) + ' × ' + pct(scenario.ratio) + ' = ' + money(scenario.computedAccrual)
       }[row.ruleMethod] || ('销售费用计提 = ' + money(scenario.accrualDeduction));
       document.getElementById('budgetFormula').textContent = formulaText + (rule && rule.note ? '（' + rule.note + '）' : '');
@@ -529,11 +542,14 @@
 
   function bindEvents() {
     document.getElementById('qCustomer').addEventListener('change', renderTable);
+    document.getElementById('qFeeType').addEventListener('change', renderTable);
 
     document.getElementById('btnReset').addEventListener('click', function () {
       resetMonthRangeFilter();
       document.getElementById('qCustomer').value = '';
+      document.getElementById('qFeeType').value = '';
       window.FeeMgmtCommon.syncClearableSelect(document.getElementById('qCustomer'));
+      window.FeeMgmtCommon.syncClearableSelect(document.getElementById('qFeeType'));
       renderTable();
     });
 
@@ -584,6 +600,9 @@
         });
       }
       bindEvents();
+      if (window.FeeMgmtCommon) {
+        window.FeeMgmtCommon.wireClearableSelects(document);
+      }
     } catch (err) {
       console.error('扣款管理 init:', err);
     }

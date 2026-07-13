@@ -264,10 +264,14 @@
 
   function renderTable() {
     var rows = getRows();
+    if (!rows.length && store.getRefunds().length) {
+      resetMonthRangeFilter();
+      rows = getRows();
+    }
     var body = document.getElementById('refundBody');
 
     renderStats(rows);
-    document.getElementById('resultTip').textContent = '共 ' + rows.length + ' 条' + getFilterTipText();
+    document.getElementById('resultTip').textContent = '共 ' + rows.length + ' 条' + getFilterTipText() + ' · 金额单位 USD';
 
     if (!rows.length) {
       body.innerHTML = '<tr><td colspan="13" style="text-align:center;color:#6b7280;padding:32px;">暂无退款记录</td></tr>';

@@ -21,19 +21,16 @@
     fixed_ratio: '固定比例',
     dept_fixed_ratio: '部门固定比例',
     kingdee_doc_ratio: '部门固定比例',
-    budget_or_fixed: '自定义月金额',
+    budget_or_fixed: '月固定金额',
     rolling_refund: '滚动退款率',
     monthly_fixed: '月固定金额',
-    annual_avg: '年总金额月均分摊',
-    custom_monthly: '自定义月金额'
+    annual_avg: '年总金额月均分摊'
   };
   var KINGDEE_ORDER_TAX_FACTOR = 0.9524;
   var DEFAULT_DEPARTMENTS = [
-    { id: 'dept_na', name: '北美渠道部' },
-    { id: 'dept_eu', name: '欧洲渠道部' },
-    { id: 'dept_apac', name: '亚太渠道部' },
-    { id: 'dept_ka', name: '商超业务部' },
-    { id: 'dept_ec', name: '电商业务部' }
+    { id: '1001', code: '1001', name: '北美商超业务部' },
+    { id: '2003', code: '2003', name: '电商渠道部' },
+    { id: '3008', code: '3008', name: '商超大客户部' }
   ];
   var storage = getStorage();
   var periods = Array.isArray(base.periods) ? base.periods.slice() : [];
@@ -251,7 +248,7 @@
   }
 
   function getDemoAnchorPeriod() {
-    if (base.demoAnchorPeriod && periodIndexMap.hasOwnProperty(base.demoAnchorPeriod)) {
+    if (base.demoAnchorPeriod) {
       return base.demoAnchorPeriod;
     }
     if (periods.length) {
@@ -435,41 +432,130 @@
     return method || 'fixed_ratio';
   }
 
-  function getDepartments() {
-    if (Array.isArray(base.departments) && base.departments.length) return base.departments.slice();
-    return DEFAULT_DEPARTMENTS.slice();
+  function getClosedPeriods() {
+    return Array.isArray(base.closedPeriods) ? base.closedPeriods.slice() : [];
   }
 
-  function getDefaultDeptItems() {
-    return getDepartments().map(function (dept) {
-      return { id: dept.id, name: dept.name, ratio: 0 };
+  function isPeriodClosed(period) {
+    return getClosedPeriods().indexOf(period) >= 0;
+  }
+
+  function getRecalcFromPeriod() {
+    var i;
+    for (i = 0; i < periods.length; i += 1) {
+      if (!isPeriodClosed(periods[i])) return periods[i];
+    }
+    return periods.length ? periods[0] : '';
+  }
+
+  function getErpDeptMaster() {
+    return base.erpDeptMaster && typeof base.erpDeptMaster === 'object' ? base.erpDeptMaster : {};
+  }
+
+  function getErpOrderDeptAmountsMap() {
+    return base.erpOrderDeptAmounts && typeof base.erpOrderDeptAmounts === 'object'
+      ? base.erpOrderDeptAmounts
+      : {};
+  }
+
+  function parseCustomerPeriodKey(key) {
+    var idx = String(key || '').lastIndexOf('|');
+    if (idx < 0) return null;
+    return {
+      customer: key.slice(0, idx),
+      period: key.slice(idx + 1)
+    };
+  }
+
+  function getErpOrderDepartments(customer) {
+    var master = getErpDeptMaster();
+    var amountsMap = getErpOrderDeptAmountsMap();
+    var codeSet = {};
+    Object.keys(amountsMap).forEach(function (key) {
+      var parsed = parseCustomerPeriodKey(key);
+      if (!parsed) return;
+      if (customer && parsed.customer !== customer) return;
+      var split = amountsMap[key];
+      if (!split || typeof split !== 'object') return;
+      Object.keys(split).forEach(function (code) {
+        codeSet[code] = true;
+      });
+    });
+    return Object.keys(codeSet).sort().map(function (code) {
+      return {
+        id: code,
+        code: code,
+        name: master[code] || ('部门 ' + code)
+      };
+    });
+  }
+
+  function getDepartments(customer) {
+    var erpDepts = getErpOrderDepartments(customer);
+    if (erpDepts.length) return erpDepts;
+    if (!customer) return DEFAULT_DEPARTMENTS.slice();
+    return [];
+  }
+
+  function getDefaultDeptItems(customer) {
+    return getDepartments(customer).map(function (dept) {
+      return {
+        id: dept.id,
+        code: dept.code || dept.id,
+        name: dept.name,
+        ratio: 0
+      };
     });
   }
 
   function normalizeDeptItem(item) {
+    var code = String(item && item.code ? item.code : (item && item.id ? item.id : ''));
     return {
-      id: String(item && item.id ? item.id : ('dept_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6))),
+      id: code,
+      code: code,
       name: String(item && item.name != null ? item.name : '').trim(),
       ratio: round8(Number(item && item.ratio != null ? item.ratio : 0))
     };
   }
 
-  function resolveDeptItems(overrideRow) {
+  function resolveDeptItems(overrideRow, customer, baseRow) {
+    var defaults = getDefaultDeptItems(customer);
+    if (!defaults.length) return [];
+
+    var savedMap = {};
     if (overrideRow && Array.isArray(overrideRow.deptItems) && overrideRow.deptItems.length) {
-      return overrideRow.deptItems.map(normalizeDeptItem).filter(function (item) {
-        return item.name;
+      overrideRow.deptItems.forEach(function (item) {
+        var normalized = normalizeDeptItem(item);
+        if (normalized.id) savedMap[normalized.id] = normalized;
       });
-    }
-    if (overrideRow && overrideRow.deptRatios) {
-      return getDefaultDeptItems().map(function (dept) {
-        return {
+    } else if (overrideRow && overrideRow.deptRatios) {
+      defaults.forEach(function (dept) {
+        savedMap[dept.id] = normalizeDeptItem({
           id: dept.id,
+          code: dept.code,
           name: dept.name,
-          ratio: round8(Number(overrideRow.deptRatios[dept.id] || 0))
-        };
+          ratio: Number(overrideRow.deptRatios[dept.id] || 0)
+        });
+      });
+    } else if (baseRow && Array.isArray(baseRow.deptItems) && baseRow.deptItems.length) {
+      baseRow.deptItems.forEach(function (item) {
+        var normalized = normalizeDeptItem(item);
+        if (normalized.id) savedMap[normalized.id] = normalized;
+      });
+    } else if (baseRow && baseRow.deptRatios) {
+      defaults.forEach(function (dept) {
+        savedMap[dept.id] = normalizeDeptItem({
+          id: dept.id,
+          code: dept.code,
+          name: dept.name,
+          ratio: Number(baseRow.deptRatios[dept.id] || 0)
+        });
       });
     }
-    return getDefaultDeptItems();
+
+    return defaults.map(function (dept) {
+      return savedMap[dept.id] || normalizeDeptItem(dept);
+    });
   }
 
   function deptItemsToRatios(deptItems) {
@@ -480,15 +566,24 @@
     return ratios;
   }
 
-  function resolveDeptRatios(overrideRow) {
-    return deptItemsToRatios(resolveDeptItems(overrideRow));
+  function resolveDeptRatios(overrideRow, customer, baseRow) {
+    return deptItemsToRatios(resolveDeptItems(overrideRow, customer, baseRow));
   }
 
   function getDeptOrderAmounts(customer, period, deptItems) {
-    var depts = deptItems && deptItems.length ? deptItems : getDefaultDeptItems();
+    var depts = deptItems && deptItems.length ? deptItems : getDefaultDeptItems(customer);
+    var key = buildKey([customer, period]);
+    var erpSplits = getErpOrderDeptAmountsMap()[key];
+    if (erpSplits && typeof erpSplits === 'object') {
+      var erpMapped = {};
+      depts.forEach(function (dept) {
+        erpMapped[dept.id] = round2(erpSplits[dept.id] || erpSplits[dept.code] || 0);
+      });
+      return erpMapped;
+    }
+
     var total = getSalesOrderAmountExTax(customer, period);
     var splitMap = base.deptOrderSplits || {};
-    var key = buildKey([customer, period]);
     if (splitMap[key] && typeof splitMap[key] === 'object') {
       var mapped = {};
       var sum = 0;
@@ -510,7 +605,7 @@
   }
 
   function computeDeptFixedAccrual(customer, period, deptItems) {
-    var items = deptItems && deptItems.length ? deptItems : getDefaultDeptItems();
+    var items = deptItems && deptItems.length ? deptItems : getDefaultDeptItems(customer);
     var amounts = getDeptOrderAmounts(customer, period, items);
     return round2(items.reduce(function (sum, dept) {
       return sum + Number(amounts[dept.id] || 0) * Number(dept.ratio || 0);
@@ -518,13 +613,14 @@
   }
 
   function buildDeptRatioRows(customer, period, deptItems) {
-    var items = deptItems && deptItems.length ? deptItems : getDefaultDeptItems();
+    var items = deptItems && deptItems.length ? deptItems : getDefaultDeptItems(customer);
     var amounts = getDeptOrderAmounts(customer, period, items);
     return items.map(function (dept) {
       var ratio = Number(dept.ratio || 0);
       var orderAmount = Number(amounts[dept.id] || 0);
       return {
         id: dept.id,
+        code: dept.code || dept.id,
         name: dept.name,
         ratio: round8(ratio),
         orderAmountExTax: round2(orderAmount),
@@ -569,8 +665,12 @@
   }
 
   function resolveExpenseMethod(baseRow, overrideRow) {
-    var method = overrideRow && overrideRow.method ? overrideRow.method : (baseRow.method || 'custom_monthly');
-    if (method !== 'budget_or_fixed') return method;
+    var method = overrideRow && overrideRow.method ? overrideRow.method : (baseRow.method || 'monthly_fixed');
+    if (method === 'custom_monthly') method = 'monthly_fixed';
+    if (method !== 'budget_or_fixed') {
+      if (method === 'monthly_fixed' || method === 'annual_avg' || method === 'fixed_ratio') return method;
+      return 'monthly_fixed';
+    }
 
     var customer = baseRow.customer;
     var monthlyAmounts = periods.map(function (period) {
@@ -582,7 +682,17 @@
       var allSame = monthlyAmounts.every(function (value) {
         return Math.abs(value - first) < 0.02;
       });
-      if (!allSame) return 'custom_monthly';
+      if (allSame) return 'monthly_fixed';
+    }
+    if (Number(baseRow.ratio || 0) > 0 && monthlyAmounts.length) {
+      var ratioValue = Number(baseRow.ratio);
+      var allMatchRatio = periods.every(function (p) {
+        var amt = round2(getBaseAccrualAmount(customer, '销售费用', p));
+        if (amt <= 0) return true;
+        var income = getIncome(customer, p);
+        return income > 0 && Math.abs(amt - income * ratioValue) < 1;
+      });
+      if (allMatchRatio) return 'fixed_ratio';
     }
     if (Number(baseRow.baseAmount || 0) > 0 && monthlyAmounts.length) {
       var annualAvg = round2(Number(baseRow.baseAmount) / 12);
@@ -591,32 +701,25 @@
       }
       if (Math.abs(monthlyAmounts[0] - Number(baseRow.baseAmount)) < 1) return 'monthly_fixed';
     }
-    if (Number(baseRow.ratio || 0) > 0 && monthlyAmounts.length) {
-      var income = getIncome(customer, periods[periods.length - 1] || '');
-      if (Math.abs(monthlyAmounts[monthlyAmounts.length - 1] - income * Number(baseRow.ratio)) < 1) {
-        return 'fixed_ratio';
-      }
-    }
-    return monthlyAmounts.length ? 'custom_monthly' : 'monthly_fixed';
+    return 'monthly_fixed';
   }
 
-  function getCustomMonthlyAmount(customer, period, overrideRow, baseRow) {
-    var map = (overrideRow && overrideRow.monthlyAmounts) || {};
-    if (Object.prototype.hasOwnProperty.call(map, period)) {
-      return round2(Number(map[period]) || 0);
+  function describeExpenseRule(method, ratio, baseAmount, customer, period, excelAccrual, hasOverride) {
+    var excelAmt = round2(excelAccrual || 0);
+    if (method === 'monthly_fixed') {
+      if (hasOverride) return '月固定金额 ' + round2(baseAmount || excelAmt || 0);
+      return '月固定金额 ' + round2(excelAmt > 0 ? excelAmt : (baseAmount || 0));
     }
-    var excelAmount = getBaseAccrualAmount(customer, '销售费用', period);
-    if (excelAmount || excelAmount === 0) return round2(excelAmount);
-    return 0;
-  }
-
-  function describeExpenseRule(method, ratio, baseAmount, customer, period, overrideRow, baseRow) {
-    if (method === 'monthly_fixed') return '月固定金额 ' + round2(baseAmount || 0);
-    if (method === 'annual_avg') return '年总额 ' + round2(baseAmount || 0) + ' ÷ 12 = ' + round2(Number(baseAmount || 0) / 12);
+    if (method === 'annual_avg') {
+      var monthly = hasOverride
+        ? round2(Number(baseAmount || 0) / 12)
+        : (excelAmt > 0 ? excelAmt : round2(Number(baseAmount || 0) / 12));
+      var annual = hasOverride
+        ? round2(baseAmount || 0)
+        : (excelAmt > 0 ? round2(excelAmt * 12) : round2(baseAmount || 0));
+      return '年总额 ' + round2(annual) + ' ÷ 12 = ' + round2(monthly);
+    }
     if (method === 'fixed_ratio') return '当月收入 × ' + round8(ratio || 0);
-    if (method === 'custom_monthly') {
-      return period + ' 月金额 ' + getCustomMonthlyAmount(customer, period, overrideRow || {}, baseRow || {});
-    }
     return '—';
   }
 
@@ -635,10 +738,12 @@
     var previewPeriod = sourcePeriod;
     var sampleIncome = getIncome(baseRow.customer, previewPeriod);
     var sampleOrderAmount = getSalesOrderAmountExTax(baseRow.customer, previewPeriod);
-    var deptItems = resolveDeptItems(overrideRow);
-    var deptRatios = resolveDeptRatios(overrideRow);
+    var deptItems = resolveDeptItems(overrideRow, baseRow.customer, baseRow);
+    var deptRatios = resolveDeptRatios(overrideRow, baseRow.customer, baseRow);
     var deptRatioRows = buildDeptRatioRows(baseRow.customer, previewPeriod, deptItems);
     var sampleAccrual = computeDeductionAccrual(baseRow.customer, baseRow.feeType, previewPeriod, true);
+    var excelAccrual = round2(getBaseAccrualAmount(baseRow.customer, baseRow.feeType, previewPeriod));
+    var hasOverride = hasOverrideValues(overrideRow);
     var effectiveRatio = method === 'dept_fixed_ratio'
       ? (sampleOrderAmount ? round8(sampleAccrual / sampleOrderAmount) : 0)
       : ratio;
@@ -662,9 +767,9 @@
       sampleOrderAmount: sampleOrderAmount,
       sampleAccrual: sampleAccrual,
       expenseRuleDesc: baseRow.feeType === '销售费用'
-        ? describeExpenseRule(method, ratio, baseAmount, baseRow.customer, previewPeriod, overrideRow, baseRow)
+        ? describeExpenseRule(method, ratio, baseAmount, baseRow.customer, previewPeriod, excelAccrual, hasOverride)
         : '',
-      monthlyAmounts: overrideRow.monthlyAmounts || null,
+      excelAccrual: excelAccrual,
       formulaDesc: buildFixedFormulaDesc(baseRow.feeType, method),
       note: note,
       origin: hasOverrideValues(overrideRow) ? '已调整' : '系统基线',
@@ -689,14 +794,15 @@
 
     if (method === 'monthly_fixed') return round2(baseAmount);
     if (method === 'dept_fixed_ratio') {
-      return computeDeptFixedAccrual(customer, period, resolveDeptItems({}));
+      var baseRow = fixedRuleBaseMap[buildKey([customer, feeType])] || {};
+      var overrideRow = readOverrides(STORAGE_KEYS.fixedRules)[buildKey([customer, feeType])] || {};
+      return computeDeptFixedAccrual(customer, period, resolveDeptItems(overrideRow, customer, baseRow));
     }
     return round2(income * Number(ratio || 0));
   }
 
   function hasFixedMetricOverride(row) {
     if (!row) return false;
-    if (row.monthlyAmounts && Object.keys(row.monthlyAmounts).length) return true;
     if (row.deptItems && row.deptItems.length) return true;
     if (row.deptRatios && typeof row.deptRatios === 'object') return true;
     return hasValue(row.method) || hasValue(row.ratio) || hasValue(row.baseAmount);
@@ -707,7 +813,6 @@
     if (feeType === '销售费用') {
       if (method === 'monthly_fixed') return '销售费用 = 月固定金额';
       if (method === 'annual_avg') return '销售费用 = 年总金额 ÷ 12';
-      if (method === 'custom_monthly') return '销售费用 = 按期间自定义月金额';
       if (method === 'fixed_ratio') return '销售费用 = 当月收入 × 固定比例';
       return '销售费用按客户计提规则中的月度金额计提';
     }
@@ -825,16 +930,13 @@
       if (expenseMethod === 'monthly_fixed') return round2(baseAmount || 0);
       if (expenseMethod === 'annual_avg') return round2(Number(baseAmount || 0) / 12);
       if (expenseMethod === 'fixed_ratio') return round2(income * Number(ratio || 0));
-      if (expenseMethod === 'custom_monthly') {
-        return getCustomMonthlyAmount(customer, period, overrideRow, baseRow);
-      }
       if (excelAmount || excelAmount === 0) return round2(excelAmount);
       return round2(ledgerBase ? ledgerBase.excelAccrual : 0);
     }
 
     if (method === 'monthly_fixed') return round2(baseAmount || 0);
     if (method === 'dept_fixed_ratio') {
-      return computeDeptFixedAccrual(customer, period, resolveDeptItems(overrideRow));
+      return computeDeptFixedAccrual(customer, period, resolveDeptItems(overrideRow, customer, baseRow));
     }
     if (method === 'fixed_ratio') return round2(income * Number(ratio || 0));
 
@@ -860,13 +962,26 @@
       var salesAccrual = computeDeductionAccrual(customer, '销售折扣', period, true);
       var cashAccrual = computeDeductionAccrual(customer, '现金折扣', period, true);
       var expenseAccrual = computeDeductionAccrual(customer, '销售费用', period, true);
-      var origins = [promoRule, salesRule, cashRule, expenseRule].filter(Boolean).map(function (item) {
-        return item.origin;
-      });
-      var hasAdjusted = origins.indexOf('已调整') >= 0;
-
-      var expenseMethod = expenseRule ? expenseRule.method : '';
-      var expenseDesc = expenseRule ? expenseRule.expenseRuleDesc : '—';
+      var expenseBaseRow = fixedRuleBaseMap[buildKey([customer, '销售费用'])] || null;
+      var expenseOverride = expenseBaseRow
+        ? (readOverrides(STORAGE_KEYS.fixedRules)[buildKey([customer, '销售费用'])] || {})
+        : {};
+      var expenseMethodCode = expenseBaseRow ? resolveExpenseMethod(expenseBaseRow, expenseOverride) : '';
+      var expenseMethodLabel = METHOD_LABELS[expenseMethodCode] || expenseMethodCode || '—';
+      var excelExpense = round2(getBaseAccrualAmount(customer, '销售费用', period));
+      var expenseRatio = expenseRule ? Number(expenseRule.manualRatio != null ? expenseRule.manualRatio : (expenseRule.ratio || 0)) : 0;
+      var expenseBaseAmount = expenseRule ? round2(expenseRule.baseAmount || 0) : 0;
+      var expenseDesc = expenseRule
+        ? describeExpenseRule(
+          expenseMethodCode,
+          expenseRatio,
+          expenseBaseAmount,
+          customer,
+          period,
+          excelExpense,
+          hasOverrideValues(expenseOverride)
+        )
+        : '—';
 
       return {
         customer: customer,
@@ -882,11 +997,10 @@
         salesDiscountAccrual: salesAccrual,
         cashDiscountAccrual: cashAccrual,
         salesExpenseAccrual: expenseAccrual,
-        salesExpenseMethod: expenseRule ? expenseRule.methodLabel : '—',
-        salesExpenseMethodCode: expenseMethod,
+        salesExpenseMethod: expenseMethodLabel,
+        salesExpenseMethodCode: expenseMethodCode,
         salesExpenseRuleDesc: expenseDesc,
         salesExpenseBudget: expenseRule ? round2(expenseRule.baseAmount || 0) : 0,
-        origin: hasAdjusted ? '已调整' : '系统基线',
         promoRuleId: promoRule ? promoRule.id : '',
         salesRuleId: salesRule ? salesRule.id : '',
         cashRuleId: cashRule ? cashRule.id : '',
@@ -955,8 +1069,8 @@
         var id = buildKey([customer, period]);
         var baseLedger = refundLedgerBaseMap[id] || {};
         var hasBaseLedger = Object.keys(baseLedger).length > 0;
-        var isProjected = !hasBaseLedger;
         var actualOverride = actualOverrides[id] || {};
+        var isProjected = !hasBaseLedger && !hasValue(actualOverride.actualAmount);
         var ruleOverride = ruleOverrides[id] || {};
         var rule = getRefundRule(id);
         var prevPeriod = index > 0 ? rowsByCustomer[customer][index - 1] : null;
@@ -1069,8 +1183,8 @@
         var id = buildKey([feeType, customer, period]);
         var baseLedger = deductionLedgerBaseMap[id] || {};
         var hasBaseLedger = Object.keys(baseLedger).length > 0;
-        var isProjected = !hasBaseLedger;
         var actualOverride = actualOverrides[id] || {};
+        var isProjected = !hasBaseLedger && !hasValue(actualOverride.actualAmount);
         var openingBalance;
         var actualDeduction;
         var accrualDeduction;
@@ -1154,9 +1268,6 @@
       updatedAt: nowText()
     };
 
-    if (payload.monthlyAmounts && typeof payload.monthlyAmounts === 'object') {
-      nextRow.monthlyAmounts = payload.monthlyAmounts;
-    }
     if (payload.deptItems && Array.isArray(payload.deptItems)) {
       nextRow.deptItems = payload.deptItems.map(normalizeDeptItem).filter(function (item) {
         return item.name;
@@ -1186,15 +1297,16 @@
     var overrideMethod = normalizeDeductionMethod(overrideRow.method || baseMethod);
     if (overrideMethod !== baseMethod) return false;
     if (overrideMethod === 'dept_fixed_ratio') {
-      return isSameDeptItems(resolveDeptItems(overrideRow), getDefaultDeptItems()) &&
+      return isSameDeptItems(
+        resolveDeptItems(overrideRow, baseRow.customer, baseRow),
+        resolveDeptItems({}, baseRow.customer, baseRow)
+      ) &&
         round2(overrideRow.baseAmount || 0) === round2(baseRow.baseAmount || 0) &&
-        String(overrideRow.note || '') === String(baseRow.note || '') &&
-        !overrideRow.monthlyAmounts;
+        String(overrideRow.note || '') === String(baseRow.note || '');
     }
     return round8(overrideRow.ratio || 0) === round8(baseRow.ratio || 0) &&
       round2(overrideRow.baseAmount || 0) === round2(baseRow.baseAmount || 0) &&
-      String(overrideRow.note || '') === String(baseRow.note || '') &&
-      !overrideRow.monthlyAmounts;
+      String(overrideRow.note || '') === String(baseRow.note || '');
   }
 
   function resetFixedRule(ruleId) {
@@ -1317,7 +1429,10 @@
     getFixedRule: getFixedRule,
     getIncome: getIncome,
     getDepartments: getDepartments,
+    getErpOrderDepartments: getErpOrderDepartments,
     getDefaultDeptItems: getDefaultDeptItems,
+    getRecalcFromPeriod: getRecalcFromPeriod,
+    isPeriodClosed: isPeriodClosed,
     resolveDeptItems: resolveDeptItems,
     getSalesOrderAmountExTax: getSalesOrderAmountExTax,
     getDeptOrderAmounts: getDeptOrderAmounts,

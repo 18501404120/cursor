@@ -136,7 +136,7 @@
             <div class="panel-sub">促销扣款、销售折扣、现金折扣按收入×比例计提，销售费用按客户计提规则配置计提；仅「实际扣款金额」允许人工录入</div>
           </div>
         </div>
-        <div class="stat-row">
+        <div class="stat-row" data-pa-key="stat-overview">
           <div class="stat-card"><div class="k">记录数</div><div class="v" id="statCount">0</div></div>
           <div class="stat-card"><div class="k">期初余额合计</div><div class="v" id="statOpening">0</div></div>
           <div class="stat-card"><div class="k">实际扣款合计</div><div class="v" id="statActual">0</div></div>
@@ -159,14 +159,20 @@
               </span>
             </div>
             <div class="f-item">
+              <label for="qFeeType">费用项</label>
+              <span class="ctl-wrap">
+                <select id="qFeeType" class="ctl"><option value="">全部</option></select>
+                <button type="button" class="ctl-clear" aria-label="清除费用项">×</button>
+              </span>
+            </div>
+            <div class="f-item">
               <button type="button" class="btn" id="btnReset">重置筛选</button>
             </div>
           </div>
         </div>
       </section>
 
-      <div class="hint">公式：期末余额 = 期初余额 - 实际扣款 + 计提扣款。促销扣款 / 销售折扣 / 现金折扣支持<strong>固定比例</strong>（当月销售收入 × 比例）与<strong>部门固定比例</strong>（各部门订单金额不含税 × 部门比例后汇总）两种方式；销售费用按<strong>客户计提规则管理</strong>页配置计提。<strong>销售收入取值：销售收入 − 退货退款的收入（金蝶-销售退货单，type=退货退款）。</strong></div>
-      <div class="sub-hint">点击「计提比例/规则 / 期初余额 / 计提扣款 / 期末余额」，可查看完整计算过程。数据示例来自 Excel《商超促销扣款&amp;销售折扣&amp;现金折扣&amp;销售费用测算数》与《商超退货扣款计提测算》。</div>
+      <div class="hint">公式：期末余额 = 期初余额 - 实际扣款 + 计提扣款。促销扣款 / 销售折扣 / 现金折扣支持<strong>固定比例</strong>（计提用收入 × 比例）与<strong>部门固定比例</strong>（各部门 ERP 订单金额不含税 × 部门比例后汇总）两种方式；销售费用按<strong>客户计提规则管理</strong>页配置计提。金额单位 <strong>USD</strong>。<strong>计提用收入 = 销售收入 − 退货退款的收入（金蝶-销售退货单，type=退货退款）</strong>；与实际扣款入账分离，不重复扣减。</div>
 
       <section class="panel panel--table">
         <div class="panel-head">
@@ -183,19 +189,19 @@
           <table class="data-table">
             <thead>
               <tr>
-                <th>期间</th>
-                <th>客户</th>
-                <th>费用项</th>
-                <th class="num">期初余额</th>
-                <th class="num">实际扣款(录入)</th>
-                <th class="num">计提比例/规则</th>
-                <th class="num">计提扣款</th>
-                <th class="num">期末余额</th>
-                <th class="num">差异(实际-计提)</th>
-                <th>状态</th>
-                <th>备注</th>
-                <th>更新时间</th>
-                <th>操作</th>
+                <th data-pa-key="col-period">期间</th>
+                <th data-pa-key="col-customer">客户</th>
+                <th data-pa-key="col-fee-type">费用项</th>
+                <th class="num" data-pa-key="col-opening">期初余额</th>
+                <th class="num" data-pa-key="col-actual">实际扣款(录入)</th>
+                <th class="num" data-pa-key="col-ratio-rule">计提比例/规则</th>
+                <th class="num" data-pa-key="col-accrual">计提扣款</th>
+                <th class="num" data-pa-key="col-closing">期末余额</th>
+                <th class="num" data-pa-key="col-delta">差异(实际-计提)</th>
+                <th data-pa-key="col-state">状态</th>
+                <th data-pa-key="col-note">备注</th>
+                <th data-pa-key="col-updated">更新时间</th>
+                <th data-pa-key="col-ops">操作</th>
               </tr>
             </thead>
             <tbody id="deductionBody"></tbody>
@@ -243,7 +249,7 @@
           <label for="fAccrual">系统计提扣款</label>
           <input id="fAccrual" type="text" readonly>
         </div>
-        <div class="form-field">
+        <div class="form-field" data-pa-key="edit-preview-closing">
           <label for="fActual">实际扣款金额（用户录入）</label>
           <input id="fActual" type="number" step="0.01">
         </div>
@@ -281,7 +287,7 @@
         </div>
         <div class="calc-card" id="sectionBudget" hidden>
           <h3>月度预算计提</h3>
-          <p>销售费用按客户计提规则中的月固定金额、年总额分摊、固定比例或自定义月金额等方式计提（部分客户另有收入比例兜底）。</p>
+          <p>销售费用按客户计提规则中的月固定金额、年总额分摊或固定比例等方式计提。</p>
           <div class="formula" id="budgetFormula"></div>
         </div>
         <div class="calc-card" id="sectionOpening">
@@ -329,113 +335,162 @@
 <script id="prototype-annotation-config" type="application/json">
 {
   "pageId": "fee-deduction-management",
-  "version": "2026-06-24T21:00:00+08:00",
+  "version": "2026-07-13T14:00:00+08:00",
   "pageTitle": "扣款管理",
   "annotations": [
     {
+      "id": "stat-overview",
+      "selector": "[data-pa-key=\"stat-overview\"]",
+      "title": "汇总卡片",
+      "body": "顶部汇总说明：\n1. 条数、期初、实际扣款、期末、差异合计，都按当前筛选（月份 + 客户 + 费用项）加总。\n2. 录入保存或改筛选后，数字应与列表一致。\n3. 「差异合计」是各行「实际减计提」之和，不是「匹配/不匹配」的笔数统计。"
+    },
+    {
       "id": "flt-month-range",
       "selector": "#qMonthRangeMount",
-      "title": "月份范围",
-      "body": "月份范围筛选逻辑：\n1. 默认近 3 个自然月（含当前月）。\n2. 列表与汇总卡片随范围刷新。\n3. 系统底层滚动窗口含未来 3 个月测算数据，扩展结束月即可查看。"
+      "title": "月份范围筛选",
+      "body": "月份筛选说明：\n1. 默认最近 3 个月，与退款管理页一致。\n2. 与客户、费用项筛选同时生效。\n3. 筛选结果为空但系统有数据时，自动恢复默认月份。\n4. 列表与顶部汇总同步刷新。"
     },
     {
       "id": "flt-customer",
       "selector": "#qCustomer",
       "title": "客户筛选",
-      "body": "按零售商过滤扣款明细，与退款管理筛选一致。"
+      "body": "从零售商下拉列表中选择；可清除恢复「全部」。与月份、费用项组合筛选。点「重置」清空所有筛选并恢复默认月份。只影响显示，不改计提规则。"
     },
     {
-      "id": "btn-reset",
-      "selector": "#btnReset",
-      "title": "重置筛选",
-      "body": "恢复默认月份范围（近 3 个月），并清空客户筛选。与退款管理重置逻辑一致。"
+      "id": "flt-fee-type",
+      "selector": "#qFeeType",
+      "title": "费用项筛选",
+      "body": "可选：促销扣款、销售折扣、现金折扣、销售费用；选「全部」则四类都显示。\n四类费用的计提方式不同：前三类多为按收入或按部门比例；销售费用多为月固定、年分摊或固定比例。验收时需分项核对。"
     },
     {
       "id": "link-rules",
       "selector": ".panel-actions a.btn",
-      "title": "客户扣款计提规则",
-      "body": "跳转至客户计提规则管理页，维护各零售商的计提比例/部门比例及销售费用计提方式。保存后与扣款管理联动重算。"
+      "title": "客户计提规则入口",
+      "body": "跳转到「客户计提规则管理」页，维护各零售商的计提比例与销售费用方式。\n在规则页保存后，本页对应费用的「计提扣款」应重算（已关账月按提示不变）。\n导入实际扣款只改实际金额，不改计提规则。"
     },
     {
       "id": "btn-import",
       "selector": "#btnImport",
       "title": "导入实际扣款",
-      "body": "批量导入实际扣款金额。\n1. 主键为「期间 + 客户 + 费用项」。\n2. 导入后覆盖实际扣款并顺延同客户同费用项后续月份余额。\n3. 计提比例与计提扣款仍由系统按客户计提规则计算。"
+      "body": "批量导入说明：\n1. 按「期间 + 客户 + 费用项」匹配每一行。\n2. 只更新实际扣款金额；计提比例、计提扣款仍按客户计提规则计算。\n3. 保存后，同客户、同费用项从当月起后续月份期末余额顺延重算，并记入日志。\n4. 当前原型为演示导入；正式环境需解析文件并提示失败行。"
+    },
+    {
+      "id": "rolling-period",
+      "selector": "th[data-pa-key=\"col-period\"]",
+      "title": "滚动测算行",
+      "body": "期间后标「滚动测算」表示：该月尚无系统历史台账，按规则向前推算。\n期初余额可从上个月期末顺延；实际扣款在录入前按 0。与退款管理页的演示月份窗口概念一致。"
     },
     {
       "id": "deduction-table",
       "selector": "#deductionBody",
       "title": "扣款明细列表",
-      "body": "按费用项 × 客户 × 期间展示冲销台账。\n1. 无系统台账基线的月份显示「滚动测算」。\n2. 仅实际扣款可录入；计提由客户计提规则驱动。\n3. 点击带下划线字段可查看计算过程；行「日志」记录录入与导入。"
+      "body": "列表说明：\n1. 每行 = 一个费用项 × 一个客户 × 一个自然月。\n2. 「实际扣款」可点「录入实际值」维护；期初、计提、期末等带下划线可查看计算过程。\n3. 「差异」= 实际扣款 − 计提扣款；差额绝对值小于 0.01 美元视为「匹配」。\n4. 展示结果综合了系统初始数据、规则页调整与本页录入。"
+    },
+    {
+      "id": "matrix-ops",
+      "selector": "th[data-pa-key=\"col-ops\"]",
+      "title": "操作列",
+      "body": "每行可操作：\n1. 「录入实际值」打开录入弹窗。\n2. 状态不是「匹配」时，会出现「调整规则」，跳转到规则页并自动选中该客户。\n3. 「日志」查看本行录入、导入等记录。\n4. 验收：差额 0.009 美元应显示匹配，0.011 美元应显示不匹配。"
     },
     {
       "id": "edit-modal",
       "selector": "#editModal .modal-hd h2",
-      "title": "录入实际扣款",
-      "body": "维护单条实际扣款与备注。保存后按公式「期末 = 期初 − 实际 + 计提」重算本行及后续月份顺延。"
+      "title": "录入实际扣款弹窗",
+      "body": "弹窗说明：\n1. 期间、客户、费用项、期初、当月销售收入（计提用收入）、计提规则摘要、系统计提扣款均为只读。\n2. 只需填写实际扣款金额和备注。\n3. 打开时会根据当前填写预览「预计期末余额」；保存后才真正写入并重算后续月份。"
+    },
+    {
+      "id": "edit-preview-closing",
+      "selector": "[data-pa-key=\"edit-preview-closing\"]",
+      "title": "录入时预览期末",
+      "body": "填写实际扣款时的即时预览：\n1. 每改一次实际扣款，「预计期末余额」会马上更新。\n2. 公式：预计期末 = 期初余额 − 实际扣款 + 计提扣款（计提扣款取当前行已算好的值，不随录入改变）。\n3. 点「保存」后，系统按同样公式重算该客户、该费用项后续各月的期末余额。"
+    },
+    {
+      "id": "edit-save",
+      "selector": "#btnSave",
+      "title": "保存实际扣款",
+      "body": "保存后系统会：\n1. 记下实际扣款与备注。\n2. 从当月起，同客户、同费用项后续各月的期初、期末余额顺延重算。\n3. 记入操作日志。\n4. 关闭弹窗，刷新列表、汇总及「状态」「差异」列。"
     },
     {
       "id": "calc-modal",
       "selector": "#calcModal",
-      "title": "扣款计算过程",
-      "body": "展示计提比例/规则、期初余额、计提扣款、期末余额的业务公式。\n1. 固定比例：当月销售收入 × 客户计提规则中的比例。\n2. 部门固定比例：各部门订单金额不含税 × 部门比例后汇总。\n3. 销售费用：按客户计提规则中的月固定/年均/自定义月金额等方式计提。\n4. 销售收入取值：销售收入 − 退货退款的收入（金蝶-销售退货单，type=退货退款）。"
+      "title": "扣款计算过程弹窗",
+      "body": "查看计算过程：\n1. 点击列表中带下划线的期初、比例/规则、计提、期末等，打开本弹窗并定位到对应说明块。\n2. 销售费用与前三类冲收入费用展示不同：前者侧重月固定/年分摊/比例；后者侧重固定比例或分部门比例。\n3. 期末余额统一按：期初 − 实际扣款 + 计提扣款。\n4. 弹窗顶部有本行摘要及收入取数口径说明。"
+    },
+    {
+      "id": "section-ratio",
+      "selector": "#sectionRatio",
+      "title": "比例类计提规则",
+      "body": "促销扣款、销售折扣、现金折扣的计算说明（本块在销售费用行不显示）：\n1. 固定比例：计提扣款 = 当月计提用收入 × 比例。\n2. 部门固定比例：分别用各部门「订单金额不含税 × 部门比例」，再相加；弹窗会列出各部门明细。\n3. 比例与方式来自「客户计提规则管理」页及本页已保存的调整。"
+    },
+    {
+      "id": "section-budget",
+      "selector": "#sectionBudget",
+      "title": "销售费用计提",
+      "body": "仅「销售费用」行显示本块（比例类块会隐藏）：\n1. 按规则页的月固定金额、年总额按月分摊，或按收入固定比例计提。\n2. 与客户计提规则管理中销售费用的设置一致。\n3. 与前三类按收入比例计提的方式不同，验收时需单独核对。"
+    },
+    {
+      "id": "delta-state",
+      "selector": "th[data-pa-key=\"col-state\"]",
+      "title": "差异与状态",
+      "body": "对账状态怎么判：\n1. 先算差额 = 实际扣款 − 计提扣款。\n2. 差额绝对值小于 0.01 美元 →「匹配」。\n3. 差额为正 →「实际>计提」；为负 →「实际<计提」。\n4. 只有非「匹配」时，操作列才显示「调整规则」链接。"
     }
   ],
   "fieldTips": [
     {
-      "id": "tip-edit-income",
-      "selector": "#fIncome",
-      "title": "当月销售收入",
-      "body": "取值：销售收入 − 退货退款的收入（金蝶-销售退货单，type=退货退款）。固定比例类费用项计提基数；原型中可手工录入用于演示。"
+      "id": "tip-period",
+      "selector": "th[data-pa-key=\"col-period\"]",
+      "title": "期间",
+      "body": "自然月，如 2026-04。无历史台账的未来月标「滚动测算」，期初可按上月期末顺延。"
     },
     {
       "id": "tip-opening",
-      "selector": ".panel--table .data-table thead th:nth-child(4)",
+      "selector": "th[data-pa-key=\"col-opening\"]",
       "title": "期初余额",
-      "body": "首月取系统扣款台账期初值；后续月份等于上月期末余额顺延。滚动测算月按前月期末链式计算。"
+      "body": "首月取系统台账期初值；之后各月等于上月期末余额。滚动测算月按上月期末顺延。"
     },
     {
       "id": "tip-ratio-rule",
-      "selector": ".panel--table .data-table thead th:nth-child(6)",
+      "selector": "th[data-pa-key=\"col-ratio-rule\"]",
       "title": "计提比例/规则",
-      "body": "展示当前费用项适用的计提方式摘要：固定比例、部门固定比例、月固定金额或销售费用规则类型。比例与规则取自客户计提规则管理。点击可查看详细计算过程。"
+      "body": "当前费用项适用的计提方式摘要：固定比例、部门固定比例、月固定金额或销售费用规则类型。来自客户计提规则管理，点击可查看详细计算。"
     },
     {
       "id": "tip-accrual",
-      "selector": ".panel--table .data-table thead th:nth-child(7)",
+      "selector": "th[data-pa-key=\"col-accrual\"]",
       "title": "计提扣款",
-      "body": "系统按客户计提规则计算的应计提金额。促销/折扣/现金类按收入或部门订单基数 × 比例；销售费用按规则页配置的月金额或比例。"
+      "body": "系统按客户计提规则算出的应计提金额。冲收入类多按计提用收入或分部门基数 × 比例；销售费用按规则页配置。"
     },
     {
       "id": "tip-closing",
-      "selector": ".panel--table .data-table thead th:nth-child(8)",
+      "selector": "th[data-pa-key=\"col-closing\"]",
       "title": "期末余额",
-      "body": "期末余额 = 期初余额 − 实际扣款 + 计提扣款。与商超扣款冲销台账滚动逻辑一致。"
+      "body": "期末余额 = 期初余额 − 实际扣款 + 计提扣款，与商超扣款冲销台账滚动逻辑一致。"
     },
     {
       "id": "tip-delta",
-      "selector": ".panel--table .data-table thead th:nth-child(9)",
+      "selector": "th[data-pa-key=\"col-delta\"]",
       "title": "差异(实际-计提)",
-      "body": "实际扣款减去计提扣款的差额。绝对值小于 0.01 视为匹配；正数表示实际大于计提，负数反之。"
+      "body": "实际扣款减去计提扣款的差额。绝对值小于 0.01 美元视为匹配；正数表示实际多于计提，负数反之。"
     },
     {
       "id": "tip-state",
-      "selector": ".panel--table .data-table thead th:nth-child(10)",
+      "selector": "th[data-pa-key=\"col-state\"]",
       "title": "状态",
-      "body": "由差异金额映射：匹配、实际>计提、实际<计提。用于快速识别对账结果。"
+      "body": "根据差异金额显示：匹配、实际>计提、实际<计提，便于快速对账。"
     }
   ],
   "pageGuide": {
     "dev": {
-      "页面整体定位": "商超促销扣款、销售折扣、现金折扣及销售费用的冲销台账，支持实际扣款录入与规则驱动计提。",
-      "页面核心业务逻辑": "滚动窗口与退款一致（前后各 3 月）。无历史台账基线的月份为滚动测算行。期末 = 期初 − 实际 + 计提。计提规则来自客户计提规则管理；当月销售收入 = 销售收入 − 退货退款的收入（金蝶-销售退货单，type=退货退款）。部门固定比例按部门订单不含税 × 比例汇总。",
-      "关键规则说明": "仅实际扣款可录入或导入。筛选与退款管理一致：月份范围（默认近 3 月）+ 客户。行日志记录录入与导入操作。销售收入自财务系统取数并扣减退货退款。",
-      "关联上下游": "上游：客户计提规则管理、财务系统销售收入（扣减退货退款后）、系统初始化扣款台账；下游：管报费用、商超计提口径说明。"
+      "页面整体定位": "商超四类费用（促销扣款、销售折扣、现金折扣、销售费用）的冲销台账：录入实际扣款，系统按规则算计提并与实际比对。",
+      "页面核心业务逻辑": "展示系统初始数据、规则页调整与本页录入的综合结果。销售费用与前三类费用计算方式不同。录入实际扣款后，同客户同费用项后续月份余额顺延。对账容差 0.01 美元。",
+      "关键规则说明": "只有实际扣款可录入或导入。计提用收入与实际扣款分开。部门固定比例为各部门订单不含税 × 比例后相加。",
+      "测试验收要点": "1. 四类费用项分别筛选、分别核对计提逻辑。2. 录入后后续月份期末连锁变化。3. 差额 0.01 美元边界。4. 非匹配时出现「调整规则」并跳转正确客户。5. 计算弹窗中销售费用与比例类说明块显隐正确。6. 规则页改比例后本页计提应变化。",
+      "关联上下游": "上游：客户计提规则管理、财务收入数据、系统初始扣款台账；下游：管报费用、商超计提口径说明。"
     },
     "user": {
-      "标准操作流程": "1. 设置月份范围与客户筛选（与退款管理相同）。2. 查看汇总与明细差异状态。3. 账单到达后「录入实际值」或「导入」。4. 差异较大时点击计提/余额字段查看计算过程。5. 需改比例或销售费用规则时进入「客户扣款计提规则」。",
-      "关键按钮与场景": "「导入」适合多行实际扣款批量入账；「日志」追溯录入与导入；计算弹窗用于向财务解释计提口径。",
-      "使用注意事项": "滚动测算月待实际扣款入账后会更新期末并顺延后续月份。三类冲收入费用与销售费用计提逻辑不同，须分费用项查看。"
+      "标准操作流程": "1. 设置月份、客户、费用项筛选。2. 看汇总与明细差异状态。3. 账单到达后「录入实际值」或「导入」。4. 差异大时查看计算过程或去调整计提规则。5. 改比例或销售费用请到「客户计提规则管理」。",
+      "关键按钮与场景": "「导入」适合批量入账；「日志」追溯操作；计算弹窗便于向财务解释计提口径。",
+      "使用注意事项": "三类冲收入费用与销售费用逻辑不同，请分费用项查看。金额单位为美元。"
     }
   },
   "statusFlow": {
@@ -462,16 +517,27 @@
         "to": "实际>计提",
         "trigger": "录入或导入更高的实际扣款",
         "allowed": "可继续录入修正",
-        "forbidden": "不会自动改计提规则"
+        "forbidden": "不会自动修改计提规则"
       },
       {
         "from": "实际>计提",
         "to": "匹配",
-        "trigger": "实际扣款下调或规则调整后重算计提",
+        "trigger": "下调实际扣款，或调整规则后重算计提",
         "allowed": "可查看计算过程核对",
         "forbidden": "无"
       }
     ]
+  },
+  "persistedState": {
+    "edits": {},
+    "hidden": {},
+    "guides": {},
+    "assets": {},
+    "userAdded": {
+      "annotations": [],
+      "fieldTips": []
+    },
+    "persistedAt": ""
   },
   "editPolicy": {
     "viewOnlyHostnames": [
@@ -485,7 +551,12 @@
       "113.87.83.49",
       "113.110.230.92"
     ],
-    "allowIpPrefixes": ["113.110.230.", "113.110.228.", "113.110.229.", "113.87.83."],
+    "allowIpPrefixes": [
+      "113.110.230.",
+      "113.110.228.",
+      "113.110.229.",
+      "113.87.83."
+    ],
     "allowTrustedBrowser": true,
     "editToken": "",
     "allowLocalhost": true,

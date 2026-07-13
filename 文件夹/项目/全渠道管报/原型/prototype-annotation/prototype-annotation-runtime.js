@@ -7,6 +7,7 @@
   const RENDER_TIMER_KEY = "__prototypeAnnotationRenderTimer";
   const PORTAL_REPOSITION_KEY = "__prototypeAnnotationPortalReposition";
   const PORTAL_ENTRIES = [];
+  let activeMount = null;
   /** 对外 Pages 只读；作者 IP / 网段 / 本机浏览器信任 / 本地可编；见 Skill §Git Pages 编辑权限 */
   const PA_POLICY_DEFAULT = {
     viewOnlyHostnames: ["18501404120.github.io"],
@@ -1085,9 +1086,64 @@
   function isVisibleTarget(target) {
     if (!target) return false;
     if (target.closest("[hidden]")) return false;
-    if (target.closest('[aria-hidden="true"]')) return false;
+    const closedOverlay = target.closest(
+      ".modal-mask:not(.open), .drawer-mask:not(.open), [aria-modal='true'][aria-hidden='true']"
+    );
+    if (closedOverlay) return false;
     const rects = target.getClientRects();
     return rects.length > 0;
+  }
+
+  function removeAnnotationPortalByKey(key) {
+    const existing = document.querySelector(`[data-pa-item-key="${key}"]`);
+    if (!existing) return;
+    const idx = PORTAL_ENTRIES.findIndex((entry) => entry.icon === existing);
+    if (idx >= 0) PORTAL_ENTRIES.splice(idx, 1);
+    existing.remove();
+  }
+
+  function clearAnnotationPortalsOnly() {
+    document.querySelectorAll(".pa-dot.pa-icon-portal").forEach((node) => node.remove());
+    PORTAL_ENTRIES.length = 0;
+  }
+
+  function renderAnnotations(config, state) {
+    clearAnnotationPortalsOnly();
+    const baseAnno = config.annotations || [];
+    const userAnno = (state.userAdded && state.userAdded.annotations) || [];
+    baseAnno.forEach((item, index) => addAnnotation(config, state, item, index, false));
+    userAnno.forEach((item, index) => addAnnotation(config, state, item, baseAnno.length + index, true));
+  }
+
+  function renderFieldTips(config, state) {
+    const baseTips = config.fieldTips || [];
+    const userTips = (state.userAdded && state.userAdded.fieldTips) || [];
+    baseTips.forEach((item, index) => addFieldTip(config, state, item, index, false));
+    userTips.forEach((item, index) => addFieldTip(config, state, item, index, true));
+  }
+
+  function resyncAnnotationsNow() {
+    if (!activeMount) return;
+    const { config, state } = activeMount;
+    renderAnnotations(config, state);
+    renderFieldTips(config, state);
+    PORTAL_ENTRIES.forEach((entry) => {
+      if (entry.icon && entry.icon.isConnected && entry.target && entry.target.isConnected && isVisibleTarget(entry.target)) {
+        entry.update();
+      }
+    });
+  }
+
+  function queueAnnotationResync() {
+    if (!activeMount) return;
+    if (window[RENDER_TIMER_KEY]) clearTimeout(window[RENDER_TIMER_KEY]);
+    window[RENDER_TIMER_KEY] = setTimeout(() => {
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          resyncAnnotationsNow();
+        });
+      });
+    }, 60);
   }
 
   function bindPortalReposition() {
@@ -1096,7 +1152,8 @@
     const tick = () => {
       PORTAL_ENTRIES.forEach((entry) => {
         if (entry.icon && entry.icon.isConnected && entry.target && entry.target.isConnected) {
-          entry.update();
+          if (isVisibleTarget(entry.target)) entry.update();
+          else entry.icon.style.visibility = "hidden";
         }
       });
     };
@@ -1208,7 +1265,13 @@
     if (!target) return;
     const key = isUser ? `userAnnotation:${item.id}` : `annotation:${item.id || index}`;
     if (state.hidden && state.hidden[key]) return;
-    if (document.querySelector(`[data-pa-item-key="${key}"]`)) return;
+    const existing = document.querySelector(`[data-pa-item-key="${key}"]`);
+    if (existing) {
+      const entry = PORTAL_ENTRIES.find((row) => row.icon === existing);
+      if (entry && entry.target === target && isVisibleTarget(target)) return;
+      removeAnnotationPortalByKey(key);
+    }
+    if (!isVisibleTarget(target)) return;
     const dot = document.createElement("span");
     dot.className = "pa-root pa-dot";
     dot.setAttribute(ROOT_ATTR, "annotation");
@@ -1429,27 +1492,13 @@
   }
 
   function renderAll(config, state) {
-    const baseAnno = config.annotations || [];
-    const userAnno = (state.userAdded && state.userAdded.annotations) || [];
-    baseAnno.forEach((item, index) => addAnnotation(config, state, item, index, false));
-    userAnno.forEach((item, index) => addAnnotation(config, state, item, baseAnno.length + index, true));
-
-    const baseTips = config.fieldTips || [];
-    const userTips = (state.userAdded && state.userAdded.fieldTips) || [];
-    baseTips.forEach((item, index) => addFieldTip(config, state, item, index, false));
-    userTips.forEach((item, index) => addFieldTip(config, state, item, index, true));
+    renderAnnotations(config, state);
+    renderFieldTips(config, state);
   }
 
   function scheduleRender(config, state) {
-    if (window[RENDER_TIMER_KEY]) clearTimeout(window[RENDER_TIMER_KEY]);
-    window[RENDER_TIMER_KEY] = setTimeout(() => {
-      renderAll(config, state);
-      PORTAL_ENTRIES.forEach((entry) => {
-        if (entry.icon && entry.icon.isConnected && entry.target && entry.target.isConnected) {
-          entry.update();
-        }
-      });
-    }, 80);
+    activeMount = { config, state };
+    queueAnnotationResync();
   }
 
   function bindDynamicObserver(config, state) {
@@ -1461,6 +1510,7 @@
       attributeFilter: ["hidden", "style", "class", "aria-hidden"]
     });
     window[OBSERVER_STORE_KEY] = observer;
+    document.addEventListener("pa:layout-change", () => scheduleRender(config, state));
   }
 
   async function mount(input) {
@@ -1469,6 +1519,7 @@
     exitPickMode();
     paCanEdit = await resolveCanEdit(config);
     const state = hydrateState(config);
+    activeMount = { config, state };
     const root = document.createElement("div");
     root.className = "pa-root pa-toolbar" + (paCanEdit ? "" : " pa-toolbar-readonly");
     root.setAttribute(ROOT_ATTR, "root");
@@ -1507,7 +1558,12 @@
     }
   }
 
-  window.PrototypeAnnotation = { mount, mountFromScript, resolveCanEdit };
+  window.PrototypeAnnotation = {
+    mount,
+    mountFromScript,
+    resolveCanEdit,
+    resync: resyncAnnotationsNow
+  };
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", mountFromScript);
   } else {

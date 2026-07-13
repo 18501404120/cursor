@@ -3,9 +3,9 @@
 
   var store = window.SupermarketAccrualStore;
   var editingRatioId = null;
+  var editingRatioCustomer = null;
   var editingExpenseId = null;
   var editingDeptItems = null;
-  var CUSTOM_MONTHLY_FUTURE_COUNT = 13;
   var OP_LOG_SCOPE = 'customer-rule';
 
   function appendOpLog(rowKey, entry) {
@@ -44,15 +44,13 @@
       annual_avg: '年总金额月均分摊',
       fixed_ratio: '固定比例',
       kingdee_doc_ratio: '部门固定比例',
-      dept_fixed_ratio: '部门固定比例',
-      custom_monthly: '自定义月金额'
+      dept_fixed_ratio: '部门固定比例'
     };
     return map[method] || method || '—';
   }
 
-  function ratioCellDisplay(ratio, methodLabelText) {
-    var label = methodLabelText && methodLabelText !== '固定比例' ? ' · ' + methodLabelText : '';
-    return pct(ratio) + (label ? '<div style="font-size:11px;color:#6b7280;margin-top:2px;">' + esc(methodLabelText) + '</div>' : '');
+  function ratioCellDisplay(ratio) {
+    return pct(ratio);
   }
 
   function getAnchorPeriod() {
@@ -60,85 +58,28 @@
     return list.length ? list[list.length - 1] : '';
   }
 
-  function addMonths(period, offset) {
-    if (!period) return '';
-    var parts = String(period).split('-');
-    var year = parseInt(parts[0], 10);
-    var month = parseInt(parts[1], 10);
-    month += offset;
-    while (month > 12) {
-      month -= 12;
-      year += 1;
-    }
-    while (month < 1) {
-      month += 12;
-      year -= 1;
-    }
-    return year + '-' + String(month).padStart(2, '0');
+  function normalizeExpenseMethod(method) {
+    if (!method || method === 'custom_monthly' || method === 'budget_or_fixed') return 'monthly_fixed';
+    if (method === 'monthly_fixed' || method === 'annual_avg' || method === 'fixed_ratio') return method;
+    return 'monthly_fixed';
   }
 
-  function getMaintainableMonthPeriods(anchorPeriod) {
-    var anchor = anchorPeriod || getAnchorPeriod() || (store.periods && store.periods[0]) || '';
-    var list = [];
-    for (var i = 0; i <= CUSTOM_MONTHLY_FUTURE_COUNT; i += 1) {
-      list.push(addMonths(anchor, i));
-    }
-    return list;
+  function getRecalcConfirmMessage() {
+    var fromPeriod = store.getRecalcFromPeriod ? store.getRecalcFromPeriod() : '';
+    if (!fromPeriod) return '保存后将联动扣款管理重算计提结果。是否继续？';
+    return '保存后将联动扣款管理，自 ' + fromPeriod + ' 起未关账月份的计提结果重算（已关账月不变）。是否继续？';
   }
 
-  function readCustomMonthlyInputValue(input) {
-    var raw = String(input.value == null ? '' : input.value).trim();
-    if (!raw) return 0;
-    var num = Number(raw);
-    return Number.isFinite(num) ? num : 0;
+  function confirmRecalc() {
+    return window.confirm(getRecalcConfirmMessage());
   }
 
-  function getCustomMonthlyInputValue(period) {
-    var input = document.querySelector('#fExpenseCustomMonthlyBody input[data-period="' + period + '"]');
-    return input ? readCustomMonthlyInputValue(input) : 0;
-  }
-
-  function collectCustomMonthlyAmounts() {
-    var amounts = {};
-    document.querySelectorAll('#fExpenseCustomMonthlyBody input[data-period]').forEach(function (input) {
-      amounts[input.getAttribute('data-period')] = readCustomMonthlyInputValue(input);
-    });
-    return amounts;
-  }
-
-  function resolveCustomMonthlySeedAmount(row, period) {
-    var saved = row.monthlyAmounts || {};
-    if (Object.prototype.hasOwnProperty.call(saved, period)) {
-      return Number(saved[period]) || 0;
-    }
-    return Number(store.computeDeductionAccrual(row.customer, '销售费用', period, true)) || 0;
-  }
-
-  function renderCustomMonthlyGrid(row) {
-    var anchor = getAnchorPeriod();
-    var periods = getMaintainableMonthPeriods(anchor);
-    var body = document.getElementById('fExpenseCustomMonthlyBody');
-    var hint = document.getElementById('fExpenseCustomMonthlyHint');
-    if (!row) {
-      body.innerHTML = '';
-      return;
-    }
-
-    body.innerHTML = periods.map(function (period) {
-      var amount = resolveCustomMonthlySeedAmount(row, period);
-      var displayValue = amount ? String(amount) : '';
-      return '' +
-        '<tr>' +
-          '<td>' + esc(period) + '</td>' +
-          '<td class="num">' +
-            '<input type="number" min="0" step="0.01" data-period="' + esc(period) + '" value="' + esc(displayValue) + '" placeholder="0">' +
-          '</td>' +
-        '</tr>';
-    }).join('');
-
-    if (hint) {
-      hint.textContent = '当前月 ' + anchor + ' 及未来 ' + CUSTOM_MONTHLY_FUTURE_COUNT + ' 个月（共 ' + periods.length + ' 个月）；不填视为 0，保存后与扣款管理联动重算。';
-    }
+  function validateRatioValue(value) {
+    if (value === '' || value == null) return '请填写计提比例';
+    var num = Number(value);
+    if (!Number.isFinite(num)) return '计提比例须为数字';
+    if (num < 0 || num > 1) return '计提比例须在 0～1 之间';
+    return '';
   }
 
   function populateOptions() {
@@ -147,6 +88,20 @@
     }).join('');
 
     document.getElementById('qCustomer').insertAdjacentHTML('beforeend', customerOpts);
+  }
+
+  function applyQueryCustomer() {
+    var params = new URLSearchParams(window.location.search);
+    var customer = params.get('qCustomer') || params.get('customer') || '';
+    if (!customer) return;
+    var select = document.getElementById('qCustomer');
+    if (!select) return;
+    var exists = Array.prototype.some.call(select.options, function (opt) {
+      return opt.value === customer;
+    });
+    if (!exists) return;
+    select.value = customer;
+    window.FeeMgmtCommon.syncClearableSelect(select);
   }
 
   function getMatrixRows() {
@@ -161,7 +116,7 @@
   function renderMatrixTable() {
     var rows = getMatrixRows();
     var body = document.getElementById('matrixBody');
-    document.getElementById('matrixTip').textContent = '共 ' + rows.length + ' 条';
+    document.getElementById('matrixTip').textContent = '共 ' + rows.length + ' 条 · 金额单位 USD';
 
     if (!rows.length) {
       body.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#6b7280;padding:32px;">暂无零售商计提规则</td></tr>';
@@ -172,11 +127,11 @@
       return '' +
         '<tr>' +
           '<td>' + esc(row.customer) + '</td>' +
-          '<td class="num">' + ratioCellDisplay(row.promoRatio, row.promoMethod) + '</td>' +
-          '<td class="num">' + ratioCellDisplay(row.salesDiscountRatio, row.salesDiscountMethod) + '</td>' +
-          '<td class="num">' + ratioCellDisplay(row.cashDiscountRatio, row.cashDiscountMethod) + '</td>' +
-          '<td>' + esc(row.salesExpenseMethod) + '</td>' +
-          '<td title="' + esc(row.salesExpenseRuleDesc || '') + '">' + esc((row.salesExpenseRuleDesc || '—').slice(0, 48)) + '</td>' +
+          '<td class="num clickable-cell" data-action="ratio" data-id="' + esc(row.promoRuleId) + '" title="点击调整促销扣款">' + ratioCellDisplay(row.promoRatio) + '</td>' +
+          '<td class="num clickable-cell" data-action="ratio" data-id="' + esc(row.salesRuleId) + '" title="点击调整销售折扣">' + ratioCellDisplay(row.salesDiscountRatio) + '</td>' +
+          '<td class="num clickable-cell" data-action="ratio" data-id="' + esc(row.cashRuleId) + '" title="点击调整现金折扣">' + ratioCellDisplay(row.cashDiscountRatio) + '</td>' +
+          '<td class="clickable-cell" data-action="expense" data-id="' + esc(row.expenseRuleId) + '" title="点击调整销售费用">' + esc(row.salesExpenseMethod) + '</td>' +
+          '<td class="clickable-cell" data-action="expense" data-id="' + esc(row.expenseRuleId) + '" title="点击调整销售费用">' + esc((row.salesExpenseRuleDesc || '—').slice(0, 48)) + '</td>' +
           '<td><span class="ops">' +
             '<button class="op-link" data-action="ratio" data-id="' + esc(row.promoRuleId) + '">促销</button>' +
             '<button class="op-link" data-action="ratio" data-id="' + esc(row.salesRuleId) + '">销折</button>' +
@@ -201,6 +156,7 @@
     return (items || []).map(function (item) {
       return {
         id: item.id,
+        code: item.code || item.id,
         name: item.name,
         ratio: Number(item.ratio || 0)
       };
@@ -218,12 +174,12 @@
     var items = [];
     document.querySelectorAll('#fDeptRatioBody tr[data-dept-id]').forEach(function (row) {
       var id = row.getAttribute('data-dept-id');
-      var nameInput = row.querySelector('[data-dept-name]');
+      var code = row.getAttribute('data-dept-code') || id;
+      var name = row.getAttribute('data-dept-name') || '';
       var ratioInput = row.querySelector('[data-dept-ratio]');
-      var name = nameInput ? String(nameInput.value || '').trim() : '';
-      if (!name) return;
       items.push({
         id: id,
+        code: code,
         name: name,
         ratio: ratioInput ? readDeptRatioInputValue(ratioInput) : 0
       });
@@ -231,47 +187,39 @@
     return items;
   }
 
+  function mergeDeptItemsWithErp(customer, savedItems) {
+    var erpItems = store.getDefaultDeptItems ? store.getDefaultDeptItems(customer) : [];
+    var savedMap = {};
+    (savedItems || []).forEach(function (item) {
+      savedMap[item.id] = item;
+    });
+    return erpItems.map(function (dept) {
+      var saved = savedMap[dept.id];
+      return saved ? cloneDeptItems([saved])[0] : dept;
+    });
+  }
+
   function renderDeptRatioGrid() {
     var body = document.getElementById('fDeptRatioBody');
-    var items = editingDeptItems || [];
-    if (!items.length && store.getDefaultDeptItems) {
-      editingDeptItems = cloneDeptItems(store.getDefaultDeptItems());
-      items = editingDeptItems;
+    var customer = editingRatioCustomer || '';
+    var items = editingDeptItems || mergeDeptItemsWithErp(customer, []);
+
+    if (!items.length) {
+      body.innerHTML = '<tr><td colspan="3" style="text-align:center;color:#6b7280;padding:16px;">当前客户暂无 ERP 订单部门数据</td></tr>';
+      return;
     }
 
     body.innerHTML = items.map(function (item) {
       var displayValue = Number(item.ratio || 0) ? String(item.ratio) : '';
       return '' +
-        '<tr data-dept-id="' + esc(item.id) + '">' +
-          '<td><input type="text" data-dept-name value="' + esc(item.name || '') + '" placeholder="请输入部门名称"></td>' +
+        '<tr data-dept-id="' + esc(item.id) + '" data-dept-code="' + esc(item.code || item.id) + '" data-dept-name="' + esc(item.name || '') + '">' +
+          '<td><code>' + esc(item.code || item.id) + '</code></td>' +
+          '<td>' + esc(item.name || '') + '</td>' +
           '<td class="num">' +
             '<input type="number" min="0" max="1" step="0.00000001" data-dept-ratio value="' + esc(displayValue) + '" placeholder="0">' +
           '</td>' +
-          '<td><button type="button" class="op-link danger" data-action="delete-dept" data-dept-id="' + esc(item.id) + '">删除</button></td>' +
         '</tr>';
     }).join('');
-  }
-
-  function addDeptRow() {
-    if (!editingDeptItems) editingDeptItems = [];
-    editingDeptItems.push({
-      id: 'dept_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
-      name: '',
-      ratio: 0
-    });
-    renderDeptRatioGrid();
-  }
-
-  function deleteDeptRow(deptId) {
-    if (!editingDeptItems) return;
-    editingDeptItems = editingDeptItems.filter(function (item) {
-      return item.id !== deptId;
-    });
-    renderDeptRatioGrid();
-  }
-
-  function syncDeptItemsFromDom() {
-    editingDeptItems = collectDeptItemsFromDom();
   }
 
   function toggleRatioFields() {
@@ -287,10 +235,12 @@
   function openRatioModal(row) {
     if (!row) return;
     editingRatioId = row.id;
-    editingDeptItems = cloneDeptItems(
+    editingRatioCustomer = row.customer;
+    editingDeptItems = mergeDeptItemsWithErp(
+      row.customer,
       row.deptItems && row.deptItems.length
         ? row.deptItems
-        : (store.resolveDeptItems ? store.resolveDeptItems(row) : (store.getDefaultDeptItems ? store.getDefaultDeptItems() : []))
+        : (store.resolveDeptItems ? store.resolveDeptItems(row, row.customer) : [])
     );
     document.getElementById('ratioModalTitle').textContent = '调整' + row.ratioLabel;
     document.getElementById('fRatioCustomer').value = row.customer;
@@ -305,6 +255,7 @@
 
   function closeRatioModal() {
     editingRatioId = null;
+    editingRatioCustomer = null;
     editingDeptItems = null;
     window.FeeMgmtCommon.closeModalMask('ratioModal');
   }
@@ -313,6 +264,8 @@
     if (!editingRatioId) return;
     var row = findFixedById(editingRatioId);
     if (!row) return;
+    if (!confirmRecalc()) return;
+
     var method = normalizeRatioMethod(document.getElementById('fRatioMethod').value);
     var ratioValue = method === 'dept_fixed_ratio' ? null : document.getElementById('fRatioValue').value;
     var note = document.getElementById('fRatioNote').value.trim();
@@ -322,15 +275,41 @@
       ratio: ratioValue,
       note: note
     };
+
     if (method === 'dept_fixed_ratio') {
-      syncDeptItemsFromDom();
+      editingDeptItems = collectDeptItemsFromDom();
+      if (!editingDeptItems.length) {
+        window.alert('当前客户暂无 ERP 订单部门，无法保存部门固定比例。');
+        return;
+      }
+      var invalidDeptRatio = editingDeptItems.find(function (item) {
+        var num = Number(item.ratio || 0);
+        return num < 0 || num > 1;
+      });
+      if (invalidDeptRatio) {
+        window.alert('部门固定比例须在 0～1 之间。');
+        return;
+      }
+      var allZero = editingDeptItems.every(function (item) {
+        return !Number(item.ratio || 0);
+      });
+      if (allZero && !window.confirm('所有部门比例均为 0，将导致计提为 0。是否仍要保存？')) {
+        return;
+      }
       payload.deptItems = editingDeptItems.slice();
+    } else {
+      var ratioError = validateRatioValue(ratioValue);
+      if (ratioError) {
+        window.alert(ratioError);
+        return;
+      }
     }
+
     store.upsertFixedRule(payload);
     var detailMethod = methodLabel(method);
     var detailRatio = method === 'dept_fixed_ratio'
       ? payload.deptItems.map(function (item) {
-        return item.name + ' ' + pct(item.ratio || 0);
+        return (item.code || item.id) + ' ' + pct(item.ratio || 0);
       }).join('；')
       : row.ratioLabel + ' ' + pct(ratioValue);
     appendOpLog(row.customer, {
@@ -347,18 +326,17 @@
     document.getElementById('fieldMonthlyFixed').classList.toggle('hidden', method !== 'monthly_fixed');
     document.getElementById('fieldAnnualTotal').classList.toggle('hidden', method !== 'annual_avg');
     document.getElementById('fieldExpenseRatio').classList.toggle('hidden', method !== 'fixed_ratio');
-    document.getElementById('fieldCustomMonthlyGrid').classList.toggle('hidden', method !== 'custom_monthly');
   }
 
   function openExpenseModal(row) {
     if (!row) return;
     editingExpenseId = row.id;
+    var method = normalizeExpenseMethod(row.method);
     document.getElementById('fExpenseCustomer').value = row.customer;
-    document.getElementById('fExpenseMethod').value = row.method || 'custom_monthly';
+    document.getElementById('fExpenseMethod').value = method;
     document.getElementById('fExpenseMonthlyFixed').value = Number(row.baseAmount || 0);
     document.getElementById('fExpenseAnnualTotal').value = Number(row.baseAmount || 0);
     document.getElementById('fExpenseRatio').value = Number(row.ratio || 0);
-    renderCustomMonthlyGrid(row);
     document.getElementById('fExpenseNote').value = row.note || '';
     toggleExpenseFields();
     window.FeeMgmtCommon.openModalMask('expenseModal');
@@ -373,6 +351,8 @@
     if (!editingExpenseId) return;
     var row = findFixedById(editingExpenseId);
     if (!row) return;
+    if (!confirmRecalc()) return;
+
     var method = document.getElementById('fExpenseMethod').value;
     var payload = {
       id: editingExpenseId,
@@ -385,12 +365,12 @@
     } else if (method === 'annual_avg') {
       payload.baseAmount = document.getElementById('fExpenseAnnualTotal').value;
     } else if (method === 'fixed_ratio') {
+      var ratioError = validateRatioValue(document.getElementById('fExpenseRatio').value);
+      if (ratioError) {
+        window.alert(ratioError);
+        return;
+      }
       payload.ratio = document.getElementById('fExpenseRatio').value;
-    } else {
-      var monthlyAmounts = collectCustomMonthlyAmounts();
-      var samplePeriod = getAnchorPeriod();
-      payload.monthlyAmounts = monthlyAmounts;
-      payload.baseAmount = monthlyAmounts[samplePeriod] || 0;
     }
 
     store.upsertFixedRule(payload);
@@ -413,12 +393,6 @@
     });
 
     document.getElementById('fRatioMethod').addEventListener('change', toggleRatioFields);
-    document.getElementById('btnAddDeptRow').addEventListener('click', addDeptRow);
-    document.getElementById('fDeptRatioBody').addEventListener('click', function (e) {
-      var btn = e.target.closest('[data-action="delete-dept"]');
-      if (!btn) return;
-      deleteDeptRow(btn.getAttribute('data-dept-id'));
-    });
     document.getElementById('btnRatioClose').addEventListener('click', closeRatioModal);
     document.getElementById('btnRatioCancel').addEventListener('click', closeRatioModal);
     document.getElementById('btnRatioSave').addEventListener('click', saveRatioRule);
@@ -426,12 +400,7 @@
       if (e.target.id === 'ratioModal') closeRatioModal();
     });
 
-    document.getElementById('fExpenseMethod').addEventListener('change', function () {
-      if (document.getElementById('fExpenseMethod').value === 'custom_monthly' && editingExpenseId) {
-        renderCustomMonthlyGrid(findFixedById(editingExpenseId));
-      }
-      toggleExpenseFields();
-    });
+    document.getElementById('fExpenseMethod').addEventListener('change', toggleExpenseFields);
     document.getElementById('btnExpenseClose').addEventListener('click', closeExpenseModal);
     document.getElementById('btnExpenseCancel').addEventListener('click', closeExpenseModal);
     document.getElementById('btnExpenseSave').addEventListener('click', saveExpenseRule);
@@ -453,6 +422,7 @@
 
   function init() {
     populateOptions();
+    applyQueryCustomer();
     if (window.FeeMgmtOpLog) {
       window.FeeMgmtOpLog.wireTable({
         scope: OP_LOG_SCOPE,
