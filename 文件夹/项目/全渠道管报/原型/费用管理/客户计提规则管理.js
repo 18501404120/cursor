@@ -262,42 +262,43 @@
     return deptCustomerMsf.getValues();
   }
 
-  function loadDeptMasterRows() {
-    var filterCustomers = getDeptFilterCustomers();
-    deptMasterRows = [];
+  function appendDeptRowsForCustomer(customer) {
+    var maintained = store.getMaintainedDepartments ? store.getMaintainedDepartments(customer) : [];
+    var source = maintained.length
+      ? maintained
+      : (store.getErpOrderDepartments ? store.getErpOrderDepartments(customer) : []);
+    source.forEach(function (item) {
+      deptMasterRows.push({
+        customer: customer,
+        code: item.code || item.id,
+        name: item.name || ''
+      });
+    });
+  }
 
-    if (!filterCustomers.length) {
-      if (store.getAllMaintainedDepartmentRows) {
-        deptMasterRows = store.getAllMaintainedDepartmentRows().map(function (item) {
-          return {
-            customer: item.customer,
-            code: item.code,
-            name: item.name
-          };
-        });
-      }
-    } else {
-      filterCustomers.forEach(function (customer) {
-        var maintained = store.getMaintainedDepartments ? store.getMaintainedDepartments(customer) : [];
-        if (maintained.length) {
-          maintained.forEach(function (item) {
-            deptMasterRows.push({
-              customer: customer,
-              code: item.code || item.id,
-              name: item.name || ''
-            });
-          });
-        } else if (store.getErpOrderDepartments) {
-          store.getErpOrderDepartments(customer).forEach(function (item) {
-            deptMasterRows.push({
-              customer: customer,
-              code: item.code || item.id,
-              name: item.name || ''
-            });
-          });
-        }
+  function resolveDeptFilterCustomerList() {
+    var filterCustomers = getDeptFilterCustomers();
+    if (filterCustomers.length) return filterCustomers;
+
+    var customerSet = {};
+    if (store.getAllMaintainedDepartmentRows) {
+      store.getAllMaintainedDepartmentRows().forEach(function (item) {
+        if (item.customer) customerSet[item.customer] = true;
       });
     }
+    (store.deductionCustomers || []).forEach(function (customer) {
+      if (store.getErpOrderDepartments && store.getErpOrderDepartments(customer).length) {
+        customerSet[customer] = true;
+      }
+    });
+    return Object.keys(customerSet).sort();
+  }
+
+  function loadDeptMasterRows() {
+    deptMasterRows = [];
+    resolveDeptFilterCustomerList().forEach(function (customer) {
+      appendDeptRowsForCustomer(customer);
+    });
     renderDeptMasterTable();
   }
 
