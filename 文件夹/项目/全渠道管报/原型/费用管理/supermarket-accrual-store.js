@@ -538,6 +538,23 @@
     safeWrite(STORAGE_KEYS.customerDeptMaster, map);
   }
 
+  function getAllMaintainedDepartmentRows() {
+    var map = readCustomerDeptMasterMap();
+    var rows = [];
+    Object.keys(map).sort().forEach(function (customer) {
+      (map[customer] || []).forEach(function (dept) {
+        var item = normalizeDepartmentMasterItem(dept);
+        if (!item) return;
+        rows.push({
+          customer: customer,
+          code: item.code,
+          name: item.name
+        });
+      });
+    });
+    return rows;
+  }
+
   function getDefaultDeptItems(customer) {
     return getDepartments(customer).map(function (dept) {
       return {
@@ -1471,6 +1488,7 @@
     getIncome: getIncome,
     getDepartments: getDepartments,
     getMaintainedDepartments: getMaintainedDepartments,
+    getAllMaintainedDepartmentRows: getAllMaintainedDepartmentRows,
     getErpOrderDepartments: getErpOrderDepartments,
     setCustomerDepartments: setCustomerDepartments,
     getDefaultDeptItems: getDefaultDeptItems,
