@@ -3,17 +3,32 @@
  * 挂载：ProjectBudgetPlan.init({ tbodyId, onChange })
  */
 (function (global) {
-  var STORAGE_KEY = "project_create_budget_v7";
+  var STORAGE_KEY = "project_create_budget_v8";
 
   /** 与 BP 管理筛选一致（《列表页顶部筛选区》可清除单选下拉） */
   var DEPARTMENT_OPTIONS = ["智能照明", "智能家电"];
-  var BUDGET_TYPES = ["paid", "creative", "BD", "event", "KOL", "SNS", "PR"];
+  var MARKETING_TYPES = [
+    "自主营销-产品营销",
+    "自主营销-品牌营销",
+    "联合营销-产品营销",
+    "联合营销-品牌营销"
+  ];
+  var BUDGET_TYPES = [
+    "海外社媒投放",
+    "红人营销（KOL）",
+    "媒体公关（PR）",
+    "视觉素材制作",
+    "地标广告",
+    "大型展会",
+    "代言与赞助",
+    "发布会"
+  ];
   var CURRENCY_OPTIONS = ["USD", "CNY", "EUR", "GBP", "JPY", "CAD", "AUD"];
   /** 来自《销售主数据索引_v1》原型子集；fetch 成功后替换为全量 model 列表 */
   var MODEL_OPTIONS = ["H6065", "H6076", "H617E", "H6672", "H6840", "B5040", "H1310", "H70B1", "B601B"];
   var MODEL_INDEX_PATHS = [
-    "../../../规范/基础数据/销售主数据索引_v1.json",
-    "../../../../规范/基础数据/销售主数据索引_v1.json"
+    "../../../../规范/基础数据/销售主数据索引_v1.json",
+    "../../../规范/基础数据/销售主数据索引_v1.json"
   ];
 
   var SCENES = [
@@ -66,7 +81,8 @@
           id: "budget-sample-na-2025",
           revenueDateStart: "2025-01-01",
           revenueDateEnd: "2025-12-31",
-          budgetType: "paid",
+          marketingType: "自主营销-产品营销",
+          budgetType: "海外社媒投放",
           dept: "智能照明",
           models: ["H6065"],
           scene: "观影",
@@ -84,7 +100,8 @@
           id: "budget-sample-prime-day",
           revenueDateStart: "2025-06-01",
           revenueDateEnd: "2025-07-31",
-          budgetType: "event",
+          marketingType: "联合营销-品牌营销",
+          budgetType: "大型展会",
           dept: "智能照明",
           models: ["H617E"],
           scene: "居家",
@@ -110,22 +127,38 @@
       .replace(/"/g, "&quot;");
   }
 
-  function budgetTypeSelectHtml(value) {
+  function selectOptionsHtml(options, value) {
     var v = String(value || "");
     return (
-      '<select class="js-budget-type">' +
       '<option value="">请选择</option>' +
-      BUDGET_TYPES.map(function (t) {
-        return (
-          '<option value="' +
-          escapeHtml(t) +
-          '"' +
-          (t === v ? " selected" : "") +
-          ">" +
-          escapeHtml(t) +
-          "</option>"
-        );
-      }).join("") +
+      options
+        .map(function (t) {
+          return (
+            '<option value="' +
+            escapeHtml(t) +
+            '"' +
+            (t === v ? " selected" : "") +
+            ">" +
+            escapeHtml(t) +
+            "</option>"
+          );
+        })
+        .join("")
+    );
+  }
+
+  function marketingTypeSelectHtml(value) {
+    return (
+      '<select class="js-marketing-type" required aria-required="true">' +
+      selectOptionsHtml(MARKETING_TYPES, value) +
+      "</select>"
+    );
+  }
+
+  function budgetTypeSelectHtml(value) {
+    return (
+      '<select class="js-budget-type">' +
+      selectOptionsHtml(BUDGET_TYPES, value) +
       "</select>"
     );
   }
@@ -612,6 +645,7 @@
       row.revenueDateEnd = dr.end || "";
     }
 
+    row.marketingType = String((tr.querySelector(".js-marketing-type") || {}).value || "").trim();
     row.budgetType = String((tr.querySelector(".js-budget-type") || {}).value || "").trim();
     row.dept = String((tr.querySelector(".js-budget-dept") || {}).value || "").trim();
     row.amount = parseFloat((tr.querySelector(".js-budget-amt") || {}).value) || 0;
@@ -641,6 +675,10 @@
     var n = index != null ? "第 " + (index + 1) + " 行" : "预算行";
     if (!row.revenueDateStart || !row.revenueDateEnd) {
       if (!silent) toast(n + "：请完整选择收益日期范围");
+      return false;
+    }
+    if (!row.marketingType) {
+      if (!silent) toast(n + "：请选择营销类型");
       return false;
     }
     if (!row.budgetType) {
@@ -684,7 +722,7 @@
 
     if (!list.length) {
       tbody.innerHTML =
-        '<tr><td colspan="15" class="empty">暂无预算行，请点击「新增一行」；立项提交前至少须有一行有效预算。</td></tr>';
+        '<tr><td colspan="16" class="empty">暂无预算行，请点击「新增一行」；立项提交前至少须有一行有效预算。</td></tr>';
       updateBatchDelState(tbodyId, chkAllId, btnBatchDelId);
       return;
     }
@@ -695,6 +733,7 @@
       tr.innerHTML =
         '<td class="chk-col"><span class="chk-cell-inner"><input type="checkbox" class="js-budget-chk" aria-label="选择本行" /></span></td>' +
         '<td><div class="js-budget-dr plan-row-dr-host"></div></td>' +
+        "<td>" + marketingTypeSelectHtml(row.marketingType) + "</td>" +
         "<td>" + budgetTypeSelectHtml(row.budgetType) + "</td>" +
         "<td>" + departmentSelectHtml(row.dept) + "</td>" +
         '<td><div class="js-budget-sc msf-plan-row"></div></td>' +
@@ -805,6 +844,7 @@
       id: uid(),
       revenueDateStart: "2025-01-01",
       revenueDateEnd: "2025-12-31",
+      marketingType: "",
       budgetType: "",
       dept: "",
       models: [],
