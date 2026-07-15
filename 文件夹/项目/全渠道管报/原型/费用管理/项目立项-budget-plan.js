@@ -181,7 +181,7 @@
         );
       }).join("") +
       "</select>" +
-      '<button type="button" class="ctl-clear" hidden aria-label="清除部门">×</button>' +
+      '<button type="button" class="ctl-clear" hidden aria-label="清除费用部门">×</button>' +
       "</span>"
     );
   }
