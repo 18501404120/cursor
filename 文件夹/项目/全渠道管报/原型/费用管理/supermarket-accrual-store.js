@@ -628,6 +628,23 @@
     return deptItemsToRatios(resolveDeptItems(overrideRow, customer, baseRow));
   }
 
+  function applyRefundToDeptAmounts(customer, period, amounts) {
+    var keys = Object.keys(amounts || {});
+    var total = keys.reduce(function (sum, key) {
+      return sum + Number(amounts[key] || 0);
+    }, 0);
+    var refundAmount = getRefundActualAmount(customer, period);
+
+    if (!keys.length || !total || !refundAmount) return amounts;
+
+    keys.forEach(function (key) {
+      var value = Number(amounts[key] || 0);
+      var refundShare = refundAmount * (value / total);
+      amounts[key] = round2(value - refundShare);
+    });
+    return amounts;
+  }
+
   function getDeptOrderAmounts(customer, period, deptItems) {
     var depts = deptItems && deptItems.length ? deptItems : getDefaultDeptItems(customer);
     var key = buildKey([customer, period]);
@@ -637,10 +654,9 @@
       depts.forEach(function (dept) {
         erpMapped[dept.id] = round2(erpSplits[dept.id] || erpSplits[dept.code] || 0);
       });
-      return erpMapped;
+      return applyRefundToDeptAmounts(customer, period, erpMapped);
     }
 
-    var total = getSalesOrderAmountExTax(customer, period);
     var splitMap = base.deptOrderSplits || {};
     if (splitMap[key] && typeof splitMap[key] === 'object') {
       var mapped = {};
@@ -649,17 +665,14 @@
         mapped[dept.id] = round2(splitMap[key][dept.id] || 0);
         sum += mapped[dept.id];
       });
-      if (sum > 0) return mapped;
+      if (sum > 0) return applyRefundToDeptAmounts(customer, period, mapped);
     }
-    if (!depts.length) return {};
-    var each = round2(total / depts.length);
-    var amounts = {};
-    depts.forEach(function (dept, index) {
-      amounts[dept.id] = index === depts.length - 1
-        ? round2(total - each * (depts.length - 1))
-        : each;
+
+    var zeroAmounts = {};
+    depts.forEach(function (dept) {
+      zeroAmounts[dept.id] = 0;
     });
-    return amounts;
+    return zeroAmounts;
   }
 
   function computeDeptFixedAccrual(customer, period, deptItems) {
@@ -875,7 +888,7 @@
       return '销售费用按客户计提规则中的月度金额计提';
     }
     if (method === 'monthly_fixed') return '按固定月度金额计提';
-    if (method === 'dept_fixed_ratio') return '计提金额 = Σ（部门销售订单金额不含税 × 部门固定比例）';
+    if (method === 'dept_fixed_ratio') return '计提金额 = Σ（部门销售订单金额不含税并减去退款金额 × 部门固定比例）';
     return '计提金额 = 当月收入 × 规则比例';
   }
 

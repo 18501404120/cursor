@@ -384,7 +384,7 @@
           return esc(item.name) + ' ' + money(item.orderAmountExTax) + ' × ' + pct(item.ratio) + ' = ' + money(item.accrual);
         }).join('；');
         document.getElementById('ratioFormula').textContent =
-          row.feeType + ' 计提扣款 = Σ（部门订单金额不含税 × 部门固定比例）' +
+          row.feeType + ' 计提扣款 = Σ（部门订单金额不含税并减去退款金额 × 部门固定比例）' +
           (deptLines ? '（' + deptLines + '）' : '') +
           ' = ' + money(scenario.computedAccrual);
       } else {
@@ -421,7 +421,7 @@
         '计提扣款 = 固定月度金额 ' + money(scenario.accrualDeduction);
     } else if (scenario.kingdeeDoc) {
       document.getElementById('accrualFormula').textContent =
-        '计提扣款 = Σ（部门订单金额不含税 × 部门固定比例） = ' + money(scenario.accrualDeduction);
+        '计提扣款 = Σ（部门订单金额不含税并减去退款金额 × 部门固定比例） = ' + money(scenario.accrualDeduction);
     } else {
       document.getElementById('accrualFormula').textContent =
         '计提扣款 = 当月销售收入 ' + money(scenario.income) +
