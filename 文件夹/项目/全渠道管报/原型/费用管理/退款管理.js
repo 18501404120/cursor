@@ -305,6 +305,34 @@
     }).join('');
   }
 
+  function exportRows() {
+    var rows = getRows();
+    if (!rows.length) {
+      window.alert('当前筛选结果为空，无可导出数据');
+      return;
+    }
+    var csvRows = [
+      ['期间', '客户', '销售收入', '期初计提退款余额', '实际退款(录入)', '上月滚动退款率', '本月滚动退款率', '目标窗口(月)', '当月计提退款', '期末计提退款余额', '备注', '更新时间']
+    ].concat(rows.map(function (row) {
+      var salesIncome = row.salesIncome != null ? row.salesIncome : getCurrentSales(row.customer, row.period);
+      return [
+        row.isProjected ? row.period + ' 滚动测算' : row.period,
+        row.customer,
+        money(salesIncome),
+        money(row.openingBalance),
+        money(row.actualRefund),
+        pct(getPreviousRatio(row)),
+        pct(row.ratio),
+        String(row.windowMonths),
+        money(row.accrualAmount),
+        money(row.closingBalance),
+        row.note || '',
+        row.updatedAt || '-'
+      ];
+    }));
+    window.FeeMgmtCommon.downloadCsv('退款管理导出.csv', csvRows);
+  }
+
   function findById(id) {
     return store.getRefunds().find(function (row) { return row.id === id; }) || null;
   }
@@ -585,6 +613,7 @@
 
   function bindEvents() {
     document.getElementById('qCustomer').addEventListener('change', renderTable);
+    document.getElementById('btnExport').addEventListener('click', exportRows);
 
     document.getElementById('btnReset').addEventListener('click', function () {
       resetMonthRangeFilter();

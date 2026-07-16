@@ -298,6 +298,34 @@
     }).join('');
   }
 
+  function exportRows() {
+    var rows = getRows();
+    if (!rows.length) {
+      window.alert('当前筛选结果为空，无可导出数据');
+      return;
+    }
+    var csvRows = [
+      ['期间', '客户', '费用项', '期初余额', '实际扣款(录入)', '计提比例/规则', '计提扣款', '期末余额', '差异(实际-计提)', '状态', '备注', '更新时间']
+    ].concat(rows.map(function (row) {
+      var delta = diff(row.actualDeduction, row.accrualDeduction);
+      return [
+        row.isProjected ? row.period + ' 滚动测算' : row.period,
+        row.customer,
+        row.feeType,
+        money(row.openingBalance),
+        money(row.actualDeduction),
+        ratioDisplay(row),
+        money(row.accrualDeduction),
+        money(row.closingBalance),
+        money(delta),
+        stateOf(row),
+        row.note || '',
+        row.updatedAt || '-'
+      ];
+    }));
+    window.FeeMgmtCommon.downloadCsv('扣款管理导出.csv', csvRows);
+  }
+
   function findById(id) {
     return store.getDeductions().find(function (row) { return row.id === id; }) || null;
   }
@@ -543,6 +571,7 @@
   function bindEvents() {
     document.getElementById('qCustomer').addEventListener('change', renderTable);
     document.getElementById('qFeeType').addEventListener('change', renderTable);
+    document.getElementById('btnExport').addEventListener('click', exportRows);
 
     document.getElementById('btnReset').addEventListener('click', function () {
       resetMonthRangeFilter();

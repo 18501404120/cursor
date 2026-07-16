@@ -145,6 +145,27 @@
     }).join('');
   }
 
+  function exportMatrixRows() {
+    var rows = getMatrixRows();
+    if (!rows.length) {
+      window.alert('当前筛选结果为空，无可导出数据');
+      return;
+    }
+    var csvRows = [
+      ['客户', '促销扣款比例', '销售折扣比例', '现金折扣比例', '销售费用计提方式', '销售费用规则']
+    ].concat(rows.map(function (row) {
+      return [
+        row.customer,
+        ratioCellDisplay(row.promoRatio),
+        ratioCellDisplay(row.salesDiscountRatio),
+        ratioCellDisplay(row.cashDiscountRatio),
+        row.salesExpenseMethod,
+        row.salesExpenseRuleDesc || '—'
+      ];
+    }));
+    window.FeeMgmtCommon.downloadCsv('客户计提规则管理导出.csv', csvRows);
+  }
+
   function findFixedById(id) {
     if (!id) return null;
     return store.getFixedRules().find(function (row) { return row.id === id; }) || null;
@@ -630,6 +651,7 @@
     document.getElementById('btnDeptManage').addEventListener('click', function () {
       openDeptModal();
     });
+    document.getElementById('btnExport').addEventListener('click', exportMatrixRows);
     document.getElementById('btnDeptAddRow').addEventListener('click', function () {
       deptMasterRows = collectDeptMasterRowsFromDom();
       var filterCustomers = getDeptFilterCustomers();
