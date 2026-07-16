@@ -35,7 +35,7 @@
     return prefix + Math.abs(num).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   }
 
-  function exportMonth(value) {
+  function exportText(value) {
     return '="' + String(value || '') + '"';
   }
 
@@ -318,16 +318,16 @@
     ].concat(rows.map(function (row) {
       var salesIncome = row.salesIncome != null ? row.salesIncome : getCurrentSales(row.customer, row.period);
       return [
-        exportMonth(row.period),
+        exportText(row.period),
         row.customer,
-        money(salesIncome),
-        money(row.openingBalance),
-        money(row.actualRefund),
+        exportText(money(salesIncome)),
+        exportText(money(row.openingBalance)),
+        exportText(money(row.actualRefund)),
         pct(getPreviousRatio(row)),
         pct(row.ratio),
         String(row.windowMonths),
-        money(row.accrualAmount),
-        money(row.closingBalance),
+        exportText(money(row.accrualAmount)),
+        exportText(money(row.closingBalance)),
         row.note || '',
         row.updatedAt || '-'
       ];

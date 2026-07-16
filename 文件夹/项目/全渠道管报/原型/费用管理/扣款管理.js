@@ -33,7 +33,7 @@
     return prefix + Math.abs(num).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   }
 
-  function exportMonth(value) {
+  function exportText(value) {
     return '="' + String(value || '') + '"';
   }
 
@@ -311,15 +311,15 @@
     ].concat(rows.map(function (row) {
       var delta = diff(row.actualDeduction, row.accrualDeduction);
       return [
-        exportMonth(row.period),
+        exportText(row.period),
         row.customer,
         row.feeType,
-        money(row.openingBalance),
-        money(row.actualDeduction),
+        exportText(money(row.openingBalance)),
+        exportText(money(row.actualDeduction)),
         ratioDisplay(row),
-        money(row.accrualDeduction),
-        money(row.closingBalance),
-        money(delta),
+        exportText(money(row.accrualDeduction)),
+        exportText(money(row.closingBalance)),
+        exportText(money(delta)),
         stateOf(row),
         row.note || '',
         row.updatedAt || '-'
