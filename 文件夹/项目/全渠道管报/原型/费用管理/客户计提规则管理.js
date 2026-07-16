@@ -32,7 +32,8 @@
 
   function money(value) {
     var num = Number(value || 0);
-    return '$' + num.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    var prefix = num < 0 ? '-$' : '$';
+    return prefix + Math.abs(num).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   }
 
   function pct(value) {

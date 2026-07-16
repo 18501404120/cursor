@@ -29,7 +29,12 @@
 
   function money(value) {
     var num = Number(value || 0);
-    return '$' + num.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    var prefix = num < 0 ? '-$' : '$';
+    return prefix + Math.abs(num).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+
+  function exportMonth(value) {
+    return '="' + String(value || '') + '"';
   }
 
   function pct(value) {
@@ -269,13 +274,10 @@
       var ratioCell = isRatioBasedFee(row)
         ? calcButton(row, 'ratio', ratioDisplay(row))
         : calcButton(row, 'accrual', ratioDisplay(row));
-      var periodLabel = row.isProjected
-        ? esc(row.period) + ' <span class="tag-projected">滚动测算</span>'
-        : esc(row.period);
 
       return '' +
         '<tr>' +
-          '<td>' + periodLabel + '</td>' +
+          '<td>' + esc(row.period) + '</td>' +
           '<td>' + esc(row.customer) + '</td>' +
           '<td>' + esc(row.feeType) + '</td>' +
           '<td class="num">' + calcButton(row, 'opening', money(row.openingBalance)) + '</td>' +
@@ -309,7 +311,7 @@
     ].concat(rows.map(function (row) {
       var delta = diff(row.actualDeduction, row.accrualDeduction);
       return [
-        row.isProjected ? row.period + ' 滚动测算' : row.period,
+        exportMonth(row.period),
         row.customer,
         row.feeType,
         money(row.openingBalance),

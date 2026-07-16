@@ -31,7 +31,12 @@
 
   function money(value) {
     var num = Number(value || 0);
-    return '$' + num.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    var prefix = num < 0 ? '-$' : '$';
+    return prefix + Math.abs(num).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+
+  function exportMonth(value) {
+    return '="' + String(value || '') + '"';
   }
 
   function pct(value) {
@@ -280,12 +285,9 @@
 
     body.innerHTML = rows.map(function (row) {
       var salesIncome = row.salesIncome != null ? row.salesIncome : getCurrentSales(row.customer, row.period);
-      var periodLabel = row.isProjected
-        ? esc(row.period) + ' <span class="tag-projected">滚动测算</span>'
-        : esc(row.period);
       return '' +
         '<tr>' +
-          '<td>' + periodLabel + '</td>' +
+          '<td>' + esc(row.period) + '</td>' +
           '<td>' + esc(row.customer) + '</td>' +
           '<td class="num">' + money(salesIncome) + '</td>' +
           '<td class="num">' + calcButton(row, 'opening', money(row.openingBalance)) + '</td>' +
@@ -316,7 +318,7 @@
     ].concat(rows.map(function (row) {
       var salesIncome = row.salesIncome != null ? row.salesIncome : getCurrentSales(row.customer, row.period);
       return [
-        row.isProjected ? row.period + ' 滚动测算' : row.period,
+        exportMonth(row.period),
         row.customer,
         money(salesIncome),
         money(row.openingBalance),
