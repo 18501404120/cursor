@@ -6,7 +6,9 @@
   const OBSERVER_STORE_KEY = "__prototypeAnnotationObserver";
   const RENDER_TIMER_KEY = "__prototypeAnnotationRenderTimer";
   const PORTAL_REPOSITION_KEY = "__prototypeAnnotationPortalReposition";
+  const SCROLL_PARENT_BOUND_KEY = "__prototypeAnnotationScrollParents";
   const PORTAL_ENTRIES = [];
+  const boundScrollParents = new WeakSet();
   let activeMount = null;
   /** 对外 Pages 只读；作者 IP / 网段 / 本机浏览器信任 / 本地可编；见 Skill §Git Pages 编辑权限 */
   const PA_POLICY_DEFAULT = {
@@ -638,16 +640,22 @@
       .split("\n")
       .map((item) => item.trim())
       .filter(Boolean);
+    const lead = [];
     const numbered = [];
-    const extra = [];
+    const trailing = [];
+    let seenNumbered = false;
     lines.forEach((line) => {
       if (/^\d+[.、)]\s*/.test(line)) {
+        seenNumbered = true;
         numbered.push(line.replace(/^\d+[.、)]\s*/, ""));
+      } else if (!seenNumbered) {
+        // 编号列表之前的非编号行（如「新增预算行逻辑：」）作为正文小标题，须置顶
+        lead.push(line);
       } else {
-        extra.push(line);
+        trailing.push(line);
       }
     });
-    return { numbered, extra };
+    return { lead: lead, numbered: numbered, trailing: trailing, extra: trailing };
   }
 
   function normalizeContent(raw, defaultBody) {
@@ -797,6 +805,19 @@
 
   function fillContent(container, content, state) {
     const parsed = parseBody(content.body);
+    const leadLines = parsed.lead || [];
+    const trailingLines = parsed.trailing || parsed.extra || [];
+    // 渲染顺序：逻辑小标题 → 编号规则 → 补充说明 → 配图（小标题绝不可落到列表下方）
+    if (leadLines.length) {
+      const lead = document.createElement("div");
+      lead.className = "pa-pop-lead";
+      leadLines.forEach((item) => {
+        const p = document.createElement("p");
+        p.textContent = item;
+        lead.appendChild(p);
+      });
+      container.appendChild(lead);
+    }
     if (parsed.numbered.length) {
       const list = document.createElement("ol");
       list.className = "pa-pop-list";
@@ -807,10 +828,10 @@
       });
       container.appendChild(list);
     }
-    if (parsed.extra.length) {
+    if (trailingLines.length) {
       const extra = document.createElement("div");
       extra.className = "pa-pop-extra";
-      parsed.extra.forEach((item) => {
+      trailingLines.forEach((item) => {
         const p = document.createElement("p");
         p.textContent = item;
         extra.appendChild(p);
@@ -818,7 +839,12 @@
       container.appendChild(extra);
     }
     if (state) renderContentImages(container, content.images, state);
-    if (!parsed.numbered.length && !parsed.extra.length && !(content.images && content.images.length)) {
+    if (
+      !leadLines.length &&
+      !parsed.numbered.length &&
+      !trailingLines.length &&
+      !(content.images && content.images.length)
+    ) {
       const empty = document.createElement("div");
       empty.className = "pa-pop-extra";
       container.appendChild(empty);
@@ -1107,12 +1133,74 @@
     PORTAL_ENTRIES.length = 0;
   }
 
+  function isPaOwnedNode(node) {
+    if (!node) return false;
+    const el = node.nodeType === 1 ? node : node.parentElement;
+    if (!el || !el.closest) return false;
+    return !!(el.closest(`[${ROOT_ATTR}]`) || el.closest(".pa-root") || el.closest(".pa-icon-portal"));
+  }
+
+  function mutationAffectsPageContent(mutations) {
+    for (let i = 0; i < mutations.length; i += 1) {
+      const m = mutations[i];
+      if (m.type === "attributes") {
+        if (!isPaOwnedNode(m.target)) return true;
+        continue;
+      }
+      const lists = [m.addedNodes, m.removedNodes];
+      for (let li = 0; li < lists.length; li += 1) {
+        const nodes = lists[li];
+        for (let ni = 0; ni < nodes.length; ni += 1) {
+          if (!isPaOwnedNode(nodes[ni])) return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  function withObserverPaused(fn) {
+    const observer = window[OBSERVER_STORE_KEY];
+    if (observer && observer.disconnect) observer.disconnect();
+    try {
+      fn();
+    } finally {
+      if (observer && activeMount && observer.observe) {
+        observer.observe(document.body, {
+          childList: true,
+          subtree: true,
+          attributes: true,
+          attributeFilter: ["hidden", "style", "class", "aria-hidden"]
+        });
+      }
+    }
+  }
+
   function renderAnnotations(config, state) {
-    clearAnnotationPortalsOnly();
+    const keepKeys = new Set();
     const baseAnno = config.annotations || [];
     const userAnno = (state.userAdded && state.userAdded.annotations) || [];
-    baseAnno.forEach((item, index) => addAnnotation(config, state, item, index, false));
-    userAnno.forEach((item, index) => addAnnotation(config, state, item, baseAnno.length + index, true));
+    baseAnno.forEach((item, index) => {
+      const key = `annotation:${item.id || index}`;
+      if (state.hidden && state.hidden[key]) {
+        removeAnnotationPortalByKey(key);
+        return;
+      }
+      keepKeys.add(key);
+      addAnnotation(config, state, item, index, false);
+    });
+    userAnno.forEach((item, index) => {
+      const key = `userAnnotation:${item.id}`;
+      if (state.hidden && state.hidden[key]) {
+        removeAnnotationPortalByKey(key);
+        return;
+      }
+      keepKeys.add(key);
+      addAnnotation(config, state, item, baseAnno.length + index, true);
+    });
+    document.querySelectorAll(".pa-dot.pa-icon-portal[data-pa-item-key]").forEach((node) => {
+      const key = node.getAttribute("data-pa-item-key");
+      if (key && !keepKeys.has(key)) removeAnnotationPortalByKey(key);
+    });
   }
 
   function renderFieldTips(config, state) {
@@ -1125,12 +1213,10 @@
   function resyncAnnotationsNow() {
     if (!activeMount) return;
     const { config, state } = activeMount;
-    renderAnnotations(config, state);
-    renderFieldTips(config, state);
-    PORTAL_ENTRIES.forEach((entry) => {
-      if (entry.icon && entry.icon.isConnected && entry.target && entry.target.isConnected && isVisibleTarget(entry.target)) {
-        entry.update();
-      }
+    withObserverPaused(() => {
+      renderAnnotations(config, state);
+      renderFieldTips(config, state);
+      repositionAllPortalIcons();
     });
   }
 
@@ -1146,19 +1232,59 @@
     }, 60);
   }
 
+  function getScrollableParents(el) {
+    const parents = [];
+    let node = el && el.parentElement;
+    while (node && node !== document.documentElement) {
+      const style = getComputedStyle(node);
+      const overflow = `${style.overflow} ${style.overflowX} ${style.overflowY}`;
+      if (/(auto|scroll|overlay)/.test(overflow)) parents.push(node);
+      node = node.parentElement;
+    }
+    return parents;
+  }
+
+  function repositionAllPortalIcons() {
+    PORTAL_ENTRIES.forEach((entry) => {
+      if (entry.icon && entry.icon.isConnected && entry.target && entry.target.isConnected) {
+        if (isVisibleTarget(entry.target)) entry.update();
+        else entry.icon.style.visibility = "hidden";
+      }
+    });
+    const buckets = new Map();
+    PORTAL_ENTRIES.forEach((entry) => {
+      if (!entry.icon || !entry.icon.isConnected || entry.icon.style.visibility === "hidden") return;
+      const rect = entry.icon.getBoundingClientRect();
+      const key = `${Math.round(rect.left / 10)}:${Math.round(rect.top / 10)}`;
+      if (!buckets.has(key)) buckets.set(key, []);
+      buckets.get(key).push(entry);
+    });
+    PORTAL_ENTRIES.forEach((entry) => {
+      if (entry.icon) entry.icon.style.transform = "";
+    });
+    buckets.forEach((entries) => {
+      if (entries.length < 2) return;
+      entries.forEach((entry, index) => {
+        entry.icon.style.transform = `translate(${index * 14}px, ${index * 12}px)`;
+      });
+    });
+  }
+
+  function bindScrollableParents(el) {
+    if (!el) return;
+    if (!window[SCROLL_PARENT_BOUND_KEY]) window[SCROLL_PARENT_BOUND_KEY] = boundScrollParents;
+    getScrollableParents(el).forEach((parent) => {
+      if (boundScrollParents.has(parent)) return;
+      boundScrollParents.add(parent);
+      parent.addEventListener("scroll", repositionAllPortalIcons, { passive: true });
+    });
+  }
+
   function bindPortalReposition() {
     if (window[PORTAL_REPOSITION_KEY]) return;
     window[PORTAL_REPOSITION_KEY] = true;
-    const tick = () => {
-      PORTAL_ENTRIES.forEach((entry) => {
-        if (entry.icon && entry.icon.isConnected && entry.target && entry.target.isConnected) {
-          if (isVisibleTarget(entry.target)) entry.update();
-          else entry.icon.style.visibility = "hidden";
-        }
-      });
-    };
-    window.addEventListener("scroll", tick, true);
-    window.addEventListener("resize", tick);
+    window.addEventListener("scroll", repositionAllPortalIcons, true);
+    window.addEventListener("resize", repositionAllPortalIcons);
   }
 
   /** 开发/测试编号点：固定叠在目标 getBoundingClientRect 右上角，不插入文档流 */
@@ -1183,6 +1309,51 @@
     update();
     PORTAL_ENTRIES.push({ icon, target, update });
     bindPortalReposition();
+    bindScrollableParents(target);
+    repositionAllPortalIcons();
+    return true;
+  }
+
+  function tableHasStickyColumns(table) {
+    return !!(
+      table &&
+      table.querySelector("th.actions, td.actions, th.chk-col, td.chk-col, .actions, .chk-col")
+    );
+  }
+
+  function shouldPortalFieldTip(target) {
+    const tag = (target && target.tagName) || "";
+    if (tag.toUpperCase() !== "TH") return false;
+    const table = target.closest("table");
+    if (!table) return false;
+    if (tableHasStickyColumns(table)) return true;
+    return getScrollableParents(target).length > 0;
+  }
+
+  function positionPortalFieldTip(icon, target) {
+    const wrap = target.querySelector(".pa-tip-label-wrap");
+    const anchor = wrap || target;
+    const rect = anchor.getBoundingClientRect();
+    if (rect.width <= 0 && rect.height <= 0) {
+      icon.style.visibility = "hidden";
+      return;
+    }
+    icon.style.visibility = "visible";
+    const h = icon.offsetHeight || 16;
+    icon.style.left = `${Math.round(rect.right + 2)}px`;
+    icon.style.top = `${Math.round(rect.top + Math.max(0, (rect.height - h) / 2))}px`;
+  }
+
+  function attachFieldTipPortal(icon, target) {
+    if (!isVisibleTarget(target)) return false;
+    icon.classList.add("pa-tip-icon-portal");
+    document.body.appendChild(icon);
+    const update = () => positionPortalFieldTip(icon, target);
+    update();
+    PORTAL_ENTRIES.push({ icon, target, update });
+    bindPortalReposition();
+    bindScrollableParents(target);
+    repositionAllPortalIcons();
     return true;
   }
 
@@ -1201,9 +1372,9 @@
   /** 用户字段 i：紧跟说明文字之后，参与行内排版（表头写在 th 内，不挤列宽） */
   function attachFieldTipInline(icon, target, item) {
     if (!isVisibleTarget(target)) return false;
-    icon.classList.add("pa-tip-inline");
     const inlineAnchor = (item && item.inlineAnchor) || "";
     if (inlineAnchor === "afterElement") {
+      icon.classList.add("pa-tip-inline");
       target.insertAdjacentElement("afterend", icon);
       return true;
     }
@@ -1215,10 +1386,14 @@
       const labelText = target.textContent.trim();
       target.textContent = "";
       if (labelText) wrap.appendChild(document.createTextNode(labelText));
-      wrap.appendChild(icon);
       target.appendChild(wrap);
+      if (shouldPortalFieldTip(target)) return attachFieldTipPortal(icon, target);
+      icon.classList.add("pa-tip-inline");
+      wrap.appendChild(icon);
       return true;
     }
+
+    icon.classList.add("pa-tip-inline");
 
     if (target.classList && target.classList.contains("th-inner")) {
       target.appendChild(icon);
@@ -1268,7 +1443,20 @@
     const existing = document.querySelector(`[data-pa-item-key="${key}"]`);
     if (existing) {
       const entry = PORTAL_ENTRIES.find((row) => row.icon === existing);
-      if (entry && entry.target === target && isVisibleTarget(target)) return;
+      if (entry && entry.target === target && isVisibleTarget(target)) {
+        existing.textContent = String(index + 1);
+        existing.title = item.title || "说明";
+        entry.update();
+        return;
+      }
+      // 目标节点被替换（如表体重绘）时，改绑到新 target，避免整表清空重建导致点击失效
+      if (entry && existing.isConnected && isVisibleTarget(target)) {
+        entry.target = target;
+        existing.textContent = String(index + 1);
+        existing.title = item.title || "说明";
+        entry.update();
+        return;
+      }
       removeAnnotationPortalByKey(key);
     }
     if (!isVisibleTarget(target)) return;
@@ -1502,7 +1690,10 @@
   }
 
   function bindDynamicObserver(config, state) {
-    const observer = new MutationObserver(() => scheduleRender(config, state));
+    const observer = new MutationObserver((mutations) => {
+      if (!mutationAffectsPageContent(mutations)) return;
+      scheduleRender(config, state);
+    });
     observer.observe(document.body, {
       childList: true,
       subtree: true,
