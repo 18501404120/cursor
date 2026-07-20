@@ -238,14 +238,36 @@
     }
   }
 
+  function collectVersionedStates(config) {
+    const pageId = config.pageId || "page";
+    const prefix = `${STORAGE_PREFIX}${pageId}:`;
+    const mainKey = storageKey(config);
+    const states = [];
+    try {
+      for (let i = 0; i < localStorage.length; i += 1) {
+        const key = localStorage.key(i);
+        if (!key || key === mainKey || !key.startsWith(prefix)) continue;
+        const raw = localStorage.getItem(key);
+        if (!raw) continue;
+        states.push(JSON.parse(raw));
+      }
+    } catch (_error) {
+      /* ignore */
+    }
+    return states;
+  }
+
   function loadState(config) {
     try {
-      const key = storageKey(config);
-      let raw = localStorage.getItem(key);
-      if (!raw) {
-        raw = localStorage.getItem(legacyStorageKey(config));
-      }
-      return raw ? JSON.parse(raw) : {};
+      let merged = {};
+      const mainRaw = localStorage.getItem(storageKey(config));
+      if (mainRaw) merged = mergeStateLayers(merged, JSON.parse(mainRaw));
+      const currentLegacyRaw = localStorage.getItem(legacyStorageKey(config));
+      if (currentLegacyRaw) merged = mergeStateLayers(merged, JSON.parse(currentLegacyRaw));
+      collectVersionedStates(config).forEach((layer) => {
+        merged = mergeStateLayers(merged, layer);
+      });
+      return merged;
     } catch (_error) {
       return {};
     }
@@ -1805,11 +1827,29 @@
     }
   }
 
+  async function recoverUserAnnotations() {
+    const script = document.getElementById("prototype-annotation-config");
+    if (!script) return { recovered: false, reason: "no-config" };
+    try {
+      const config = JSON.parse(script.textContent);
+      const merged = loadState(config);
+      const count =
+        (merged.userAdded && merged.userAdded.annotations ? merged.userAdded.annotations.length : 0) +
+        (merged.userAdded && merged.userAdded.fieldTips ? merged.userAdded.fieldTips.length : 0);
+      await mount(config);
+      return { recovered: true, userAddedCount: count, userAdded: merged.userAdded };
+    } catch (error) {
+      return { recovered: false, reason: String(error) };
+    }
+  }
+
   window.PrototypeAnnotation = {
     mount,
     mountFromScript,
     resolveCanEdit,
-    resync: resyncAnnotationsNow
+    resync: resyncAnnotationsNow,
+    recoverUserAnnotations,
+    loadState
   };
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", mountFromScript);
