@@ -7,8 +7,10 @@
   const RENDER_TIMER_KEY = "__prototypeAnnotationRenderTimer";
   const PORTAL_REPOSITION_KEY = "__prototypeAnnotationPortalReposition";
   const SCROLL_PARENT_BOUND_KEY = "__prototypeAnnotationScrollParents";
+  const RESIZE_OBSERVER_KEY = "__prototypeAnnotationResizeObserver";
   const PORTAL_ENTRIES = [];
   const boundScrollParents = new WeakSet();
+  const boundResizeTargets = new WeakSet();
   let activeMount = null;
   /** 对外 Pages 只读；作者 IP / 网段 / 本机浏览器信任 / 本地可编；见 Skill §Git Pages 编辑权限 */
   const PA_POLICY_DEFAULT = {
@@ -1270,6 +1272,15 @@
     });
   }
 
+  function bindResizeWatch(el) {
+    if (!el || !window.ResizeObserver || boundResizeTargets.has(el)) return;
+    boundResizeTargets.add(el);
+    if (!window[RESIZE_OBSERVER_KEY]) {
+      window[RESIZE_OBSERVER_KEY] = new ResizeObserver(() => repositionAllPortalIcons());
+    }
+    window[RESIZE_OBSERVER_KEY].observe(el);
+  }
+
   function bindScrollableParents(el) {
     if (!el) return;
     if (!window[SCROLL_PARENT_BOUND_KEY]) window[SCROLL_PARENT_BOUND_KEY] = boundScrollParents;
@@ -1277,7 +1288,11 @@
       if (boundScrollParents.has(parent)) return;
       boundScrollParents.add(parent);
       parent.addEventListener("scroll", repositionAllPortalIcons, { passive: true });
+      bindResizeWatch(parent);
     });
+    const table = el.closest && el.closest("table");
+    if (table) bindResizeWatch(table);
+    bindResizeWatch(el);
   }
 
   function bindPortalReposition() {
@@ -1285,6 +1300,32 @@
     window[PORTAL_REPOSITION_KEY] = true;
     window.addEventListener("scroll", repositionAllPortalIcons, true);
     window.addEventListener("resize", repositionAllPortalIcons);
+    bindResizeWatch(document.body);
+  }
+
+  function shouldInlineAnnotation(target) {
+    if (!target) return false;
+    return (target.tagName || "").toUpperCase() === "TH" && !!target.closest("table");
+  }
+
+  function attachAnnotationInline(icon, target) {
+    if (!isVisibleTarget(target)) return false;
+    icon.classList.add("pa-dot-inline-th");
+    target.appendChild(icon);
+    return true;
+  }
+
+  function bindAnnotationActivate(node, handler) {
+    node.addEventListener("pointerdown", (event) => {
+      if (event.button !== 0) return;
+      event.preventDefault();
+      event.stopPropagation();
+      handler(event);
+    });
+    node.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+    });
   }
 
   /** 开发/测试编号点：固定叠在目标 getBoundingClientRect 右上角，不插入文档流 */
@@ -1440,36 +1481,51 @@
     if (!target) return;
     const key = isUser ? `userAnnotation:${item.id}` : `annotation:${item.id || index}`;
     if (state.hidden && state.hidden[key]) return;
+    const wantInline = shouldInlineAnnotation(target);
     const existing = document.querySelector(`[data-pa-item-key="${key}"]`);
     if (existing) {
       const entry = PORTAL_ENTRIES.find((row) => row.icon === existing);
-      if (entry && entry.target === target && isVisibleTarget(target)) {
-        existing.textContent = String(index + 1);
-        existing.title = item.title || "说明";
-        entry.update();
-        return;
+      const isInline = existing.classList.contains("pa-dot-inline-th");
+      if (wantInline !== isInline) {
+        removeAnnotationPortalByKey(key);
+      } else if (entry) {
+        if (entry.target === target && isVisibleTarget(target)) {
+          existing.textContent = String(index + 1);
+          existing.title = item.title || "说明";
+          entry.update();
+          return;
+        }
+        if (existing.isConnected && isVisibleTarget(target)) {
+          entry.target = target;
+          existing.textContent = String(index + 1);
+          existing.title = item.title || "说明";
+          entry.update();
+          return;
+        }
+        removeAnnotationPortalByKey(key);
+      } else if (isInline) {
+        if (existing.parentElement === target && isVisibleTarget(target)) {
+          existing.textContent = String(index + 1);
+          existing.title = item.title || "说明";
+          return;
+        }
+        removeAnnotationPortalByKey(key);
+      } else {
+        removeAnnotationPortalByKey(key);
       }
-      // 目标节点被替换（如表体重绘）时，改绑到新 target，避免整表清空重建导致点击失效
-      if (entry && existing.isConnected && isVisibleTarget(target)) {
-        entry.target = target;
-        existing.textContent = String(index + 1);
-        existing.title = item.title || "说明";
-        entry.update();
-        return;
-      }
-      removeAnnotationPortalByKey(key);
     }
     if (!isVisibleTarget(target)) return;
-    const dot = document.createElement("span");
+    const dot = document.createElement("button");
+    dot.type = "button";
     dot.className = "pa-root pa-dot";
     dot.setAttribute(ROOT_ATTR, "annotation");
     dot.setAttribute("data-pa-item-key", key);
     dot.textContent = String(index + 1);
     dot.title = item.title || "说明";
-    if (!attachAnnotationPortal(dot, target)) return;
+    const attached = wantInline ? attachAnnotationInline(dot, target) : attachAnnotationPortal(dot, target);
+    if (!attached) return;
     const meta = isUser ? { isUser: true, listKey: "annotations", itemId: item.id } : null;
-    dot.addEventListener("click", (event) => {
-      event.stopPropagation();
+    bindAnnotationActivate(dot, () => {
       editablePopover(
         config,
         state,
