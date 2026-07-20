@@ -5,8 +5,9 @@
 (function (global) {
   var STORAGE_KEY = "project_create_budget_v8";
 
-  /** 与 BP 管理筛选一致（《列表页顶部筛选区》可清除单选下拉） */
-  var DEPARTMENT_OPTIONS = ["智能照明", "智能家电"];
+  /** 部门树形下拉实例池 */
+  var deptPickerInstances = [];
+  var deptPickerReady = false;
   var MARKETING_TYPES = [
     "自主营销-产品营销",
     "自主营销-品牌营销",
@@ -45,12 +46,14 @@
     { code: "APAC", name: "亚太区", countries: ["日本", "澳大利亚", "新加坡"] }
   ];
 
-  var CHANNELS = ["Govee", "Goveelife", "独立站", "商超"];
+  var CHANNELS = ["亚马逊", "Shopify", "APP商城", "线下商超", "商超3P", "线下分销"];
   var STORES = {
-    Govee: ["Govee_US", "Govee_CA", "Govee_DE", "Govee_FR"],
-    Goveelife: ["Goveelife_US", "Goveelife_DE"],
-    独立站: ["独立站-US", "独立站-EU", "独立站-UK"],
-    商超: ["Walmart_US", "Costco_US"]
+    亚马逊: ["亚马逊_US", "亚马逊_CA", "亚马逊_DE", "亚马逊_FR"],
+    Shopify: ["Shopify_US", "Shopify_EU", "Shopify_UK"],
+    APP商城: ["APP_US", "APP_Global"],
+    线下商超: ["Walmart_US", "Costco_US", "Target_US"],
+    商超3P: ["商超3P_US", "商超3P_EU"],
+    线下分销: ["分销_北美", "分销_欧洲", "分销_亚太"]
   };
 
   var SKU_OPTIONS = [
@@ -83,7 +86,7 @@
           revenueDateEnd: "2025-12-31",
           marketingType: "自主营销-产品营销",
           budgetType: "海外社媒投放",
-          dept: "智能照明",
+          dept: "亚马逊平台 · Govee",
           models: ["H6065"],
           scene: "观影",
           category: "TV灯带",
@@ -91,8 +94,8 @@
           npTag: "2025新品",
           region: "NA",
           countries: ["美国", "加拿大"],
-          channels: ["Govee"],
-          stores: ["Govee_US"],
+          channels: ["亚马逊"],
+          stores: ["亚马逊_US"],
           amount: 1200000,
           currency: "USD"
         },
@@ -102,7 +105,7 @@
           revenueDateEnd: "2025-07-31",
           marketingType: "联合营销-品牌营销",
           budgetType: "大型展会",
-          dept: "智能照明",
+          dept: "品牌中心",
           models: ["H617E"],
           scene: "居家",
           category: "灯带",
@@ -110,8 +113,8 @@
           npTag: "",
           region: "EU",
           countries: ["德国", "法国", "意大利"],
-          channels: ["Govee"],
-          stores: ["Govee_DE", "Govee_FR"],
+          channels: ["亚马逊"],
+          stores: ["亚马逊_DE", "亚马逊_FR"],
           amount: 800000,
           currency: "USD"
         }
@@ -167,52 +170,272 @@
     var v = String(value || "");
     return (
       '<span class="ctl-wrap budget-dept-wrap">' +
-      '<select class="js-budget-dept">' +
+      '<select class="js-budget-dept" hidden>' +
       '<option value="">请选择</option>' +
-      DEPARTMENT_OPTIONS.map(function (d) {
-        return (
-          '<option value="' +
-          escapeHtml(d) +
-          '"' +
-          (d === v ? " selected" : "") +
-          ">" +
-          escapeHtml(d) +
-          "</option>"
-        );
-      }).join("") +
       "</select>" +
+      '<div class="fee-tree-select is-compact js-budget-dept-picker" data-value="' + escapeHtml(v) + '">' +
+      '<button type="button" class="fee-tree-select-trigger" aria-haspopup="listbox" aria-expanded="false">' +
+      escapeHtml(v || "请选择") +
+      "</button>" +
+      "</div>" +
       '<button type="button" class="ctl-clear" hidden aria-label="清除费用部门">×</button>' +
       "</span>"
     );
   }
 
-  function syncDeptClearBtn(sel) {
-    if (!sel) return;
-    var wrap = sel.closest(".ctl-wrap");
-    if (!wrap) return;
-    var btn = wrap.querySelector(".ctl-clear");
-    if (!btn) return;
-    btn.hidden = !sel.value;
+  /* ---- 部门树形下拉单选组件（数据来源 FeeDeptMaster，可选任意层级） ---- */
+  function getDeptNodes() {
+    if (global.FeeDeptMaster && typeof global.FeeDeptMaster.getAll === "function") {
+      return global.FeeDeptMaster.getAll();
+    }
+    return [];
+  }
+
+  function buildDeptTree(nodes) {
+    // 过滤掉禁选节点（selectable === false），不显示
+    var visibleNodes = nodes.filter(function (n) { return n.selectable !== false; });
+    var map = {};
+    var roots = [];
+    visibleNodes.forEach(function (n) {
+      map[n.code] = { node: n, children: [], depth: 0, hasChildren: false, parent: null };
+    });
+    visibleNodes.forEach(function (n) {
+      var entry = map[n.code];
+      if (n.parentCode && map[n.parentCode]) {
+        map[n.parentCode].children.push(entry);
+        map[n.parentCode].hasChildren = true;
+        entry.parent = map[n.parentCode];
+      } else {
+        roots.push(entry);
+      }
+    });
+    roots.sort(function (a, b) {
+      return (a.node.sortOrder || 0) - (b.node.sortOrder || 0);
+    });
+    return { roots: roots, map: map };
+  }
+
+  function flattenDeptRows(entries, depth, keyword, expandedSet, out) {
+    out = out || [];
+    entries.forEach(function (entry) {
+      entry.depth = depth;
+      var name = entry.node.name || "";
+      var code = entry.node.code || "";
+      var hit = !keyword || name.indexOf(keyword) >= 0 || code.indexOf(keyword) >= 0 ||
+        (entry.node.bmName || "").indexOf(keyword) >= 0;
+      if (hit) out.push(entry);
+      if (entry.children.length) {
+        // 搜索时全部展开；非搜索时按 expandedSet 状态
+        var shouldExpand = !!keyword || expandedSet.has(entry.node.code);
+        if (shouldExpand) {
+          flattenDeptRows(entry.children, depth + 1, keyword, expandedSet, out);
+        }
+      }
+    });
+    return out;
+  }
+
+  function syncDeptPickerTrigger(inst) {
+    if (!inst || !inst.trigger) return;
+    var value = inst.value || "";
+    var nodes = getDeptNodes();
+    var node = null;
+    for (var i = 0; i < nodes.length; i++) {
+      if (nodes[i].name === value || nodes[i].code === value) { node = nodes[i]; break; }
+    }
+    var label = node ? node.name : (value || "请选择");
+    inst.trigger.textContent = label;
+    inst.wrap.classList.toggle("has-value", !!value);
+    inst.wrap.classList.toggle("has-val", !!value);
+    var clearBtn = inst.wrap.parentElement.querySelector(".ctl-clear");
+    if (clearBtn) clearBtn.hidden = !value;
+    var sel = inst.wrap.parentElement.querySelector(".js-budget-dept");
+    if (sel) {
+      var opt = Array.from(sel.options).find(function (o) { return o.value === value; });
+      if (!opt) {
+        opt = document.createElement("option");
+        opt.value = value;
+        opt.textContent = label;
+        sel.appendChild(opt);
+      }
+      sel.value = value;
+    }
+  }
+
+  function positionDeptPickerPanel(inst) {
+    if (!inst || !inst.open) return;
+    var rect = inst.trigger.getBoundingClientRect();
+    var panel = inst.panel;
+    var width = Math.max(rect.width, 260);
+    var maxHeight = Math.min(320, window.innerHeight - 24);
+    var top = rect.bottom + 4;
+    panel.style.width = width + "px";
+    panel.style.maxHeight = maxHeight + "px";
+    panel.style.left = Math.max(8, Math.min(rect.left, window.innerWidth - width - 8)) + "px";
+    if (top + Math.min(maxHeight, 320) > window.innerHeight && rect.top > 220) {
+      top = Math.max(8, rect.top - Math.min(maxHeight, 320) - 4);
+    }
+    panel.style.top = top + "px";
+  }
+
+  function closeDeptPicker(inst) {
+    if (!inst || !inst.open) return;
+    inst.open = false;
+    inst.wrap.classList.remove("is-open");
+    inst.panel.classList.remove("show");
+    inst.trigger.setAttribute("aria-expanded", "false");
+    window.removeEventListener("scroll", inst.reposition, true);
+    window.removeEventListener("resize", inst.reposition);
+  }
+
+  function closeOtherDeptPickers(inst) {
+    deptPickerInstances.forEach(function (item) {
+      if (item !== inst) closeDeptPicker(item);
+    });
+  }
+
+  function renderDeptPickerPanel(inst) {
+    var nodes = getDeptNodes();
+    var tree = buildDeptTree(nodes);
+    var keyword = (inst.keyword || "").trim().toLowerCase();
+    if (!inst.expandedSet) inst.expandedSet = new Set();
+    // 首次打开时默认展开根节点
+    if (!inst._expandedInit) {
+      tree.roots.forEach(function (r) { if (r.hasChildren) inst.expandedSet.add(r.node.code); });
+      inst._expandedInit = true;
+    }
+    var rows = flattenDeptRows(tree.roots, 0, keyword, inst.expandedSet);
+    var value = inst.value || "";
+    var list = rows.length ? rows.map(function (entry) {
+      var n = entry.node;
+      var isExpanded = inst.expandedSet.has(n.code);
+      var toggleHtml = entry.hasChildren
+        ? '<span class="dept-tree-toggle" data-toggle="' + escapeHtml(n.code) + '" aria-label="' + (isExpanded ? "收起" : "展开") + '">' + (isExpanded ? "▾" : "▸") + "</span>"
+        : '<span class="dept-tree-toggle-placeholder"></span>';
+      var cls = "fee-tree-select-option dept-tree-option" +
+        (n.name === value || n.code === value ? " is-selected" : "") +
+        (entry.hasChildren ? " has-children" : "");
+      var indent = 8 + entry.depth * 18;
+      var label = escapeHtml(n.name || "");
+      var codeHint = (n.bmName && n.bmName !== n.name) ? '<span class="fee-tree-select-code">' + escapeHtml(n.bmName) + "</span>" : "";
+      return '<div class="' + cls + '" style="padding-left:' + indent + 'px;">' +
+        toggleHtml +
+        '<button type="button" class="dept-tree-label-btn" data-name="' + escapeHtml(n.name) + '" data-code="' + escapeHtml(n.code) + '">' +
+        '<span class="fee-tree-select-label">' + label + "</span>" + codeHint +
+        "</button></div>";
+    }).join("") : '<div class="fee-tree-select-empty">无匹配部门</div>';
+    inst.panel.innerHTML =
+      '<div class="fee-tree-select-search-wrap">' +
+      '<input type="search" class="fee-tree-select-search" placeholder="搜索部门/BM/组织" value="' + escapeHtml(inst.keyword || "") + '">' +
+      "</div><div class=\"fee-tree-select-list\">" + list + "</div>";
+    var search = inst.panel.querySelector(".fee-tree-select-search");
+    if (search) {
+      search.addEventListener("input", function () {
+        inst.keyword = search.value;
+        renderDeptPickerPanel(inst);
+        positionDeptPickerPanel(inst);
+        var next = inst.panel.querySelector(".fee-tree-select-search");
+        if (next) {
+          next.focus();
+          next.setSelectionRange(next.value.length, next.value.length);
+        }
+      });
+    }
+    // 展开/收拢切换
+    inst.panel.querySelectorAll(".dept-tree-toggle").forEach(function (toggle) {
+      toggle.addEventListener("click", function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        var code = toggle.dataset.toggle;
+        if (inst.expandedSet.has(code)) inst.expandedSet.delete(code);
+        else inst.expandedSet.add(code);
+        renderDeptPickerPanel(inst);
+      });
+    });
+    // 选择部门
+    inst.panel.querySelectorAll(".dept-tree-label-btn").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        inst.value = btn.dataset.name || "";
+        syncDeptPickerTrigger(inst);
+        if (onChangeCb) onChangeCb(loadAll());
+        closeDeptPicker(inst);
+      });
+    });
+  }
+
+  function openDeptPicker(inst) {
+    if (!inst) return;
+    closeOtherDeptPickers(inst);
+    inst.open = true;
+    inst.keyword = "";
+    inst.wrap.classList.add("is-open");
+    inst.trigger.setAttribute("aria-expanded", "true");
+    renderDeptPickerPanel(inst);
+    document.body.appendChild(inst.panel);
+    inst.panel.classList.add("show");
+    positionDeptPickerPanel(inst);
+    window.addEventListener("scroll", inst.reposition, true);
+    window.addEventListener("resize", inst.reposition);
+    var search = inst.panel.querySelector(".fee-tree-select-search");
+    if (search) search.focus();
+  }
+
+  function mountDeptPicker(pickerEl) {
+    if (!pickerEl) return null;
+    if (pickerEl._deptPickerInst) return pickerEl._deptPickerInst;
+    var trigger = pickerEl.querySelector(".fee-tree-select-trigger");
+    if (!trigger) return null;
+    var panel = document.createElement("div");
+    panel.className = "fee-tree-select-panel";
+    panel.style.zIndex = "1700";
+    var inst = {
+      wrap: pickerEl,
+      trigger: trigger,
+      panel: panel,
+      value: pickerEl.dataset.value || "",
+      keyword: "",
+      open: false,
+      reposition: function () { positionDeptPickerPanel(inst); }
+    };
+    trigger.addEventListener("click", function (e) {
+      e.preventDefault();
+      e.stopPropagation();
+      if (inst.open) closeDeptPicker(inst);
+      else openDeptPicker(inst);
+    });
+    pickerEl._deptPickerInst = inst;
+    deptPickerInstances.push(inst);
+    syncDeptPickerTrigger(inst);
+    return inst;
   }
 
   function wireDeptSelects(tbody) {
     if (!tbody) return;
-    tbody.querySelectorAll(".js-budget-dept").forEach(function (sel) {
-      syncDeptClearBtn(sel);
-      sel.addEventListener("change", function () {
-        syncDeptClearBtn(sel);
-        if (onChangeCb) onChangeCb(loadAll());
-      });
-      var btn = sel.closest(".ctl-wrap") && sel.closest(".ctl-wrap").querySelector(".ctl-clear");
+    tbody.querySelectorAll(".js-budget-dept-picker").forEach(function (pickerEl) {
+      var inst = pickerEl._deptPickerInst || mountDeptPicker(pickerEl);
+      if (!inst) return;
+      var wrap = pickerEl.closest(".ctl-wrap");
+      var sel = wrap && wrap.querySelector(".js-budget-dept");
+      var btn = wrap && wrap.querySelector(".ctl-clear");
       if (btn && !btn.dataset.wired) {
         btn.dataset.wired = "1";
         btn.addEventListener("click", function (e) {
           e.preventDefault();
           e.stopPropagation();
-          sel.value = "";
-          sel.dispatchEvent(new Event("change", { bubbles: true }));
-          syncDeptClearBtn(sel);
+          inst.value = "";
+          syncDeptPickerTrigger(inst);
+          if (onChangeCb) onChangeCb(loadAll());
         });
+      }
+    });
+    document.removeEventListener("click", deptPickerDocClose);
+    document.addEventListener("click", deptPickerDocClose);
+  }
+
+  function deptPickerDocClose(e) {
+    deptPickerInstances.forEach(function (inst) {
+      if (inst.open && inst.wrap && !inst.wrap.contains(e.target) && inst.panel && !inst.panel.contains(e.target)) {
+        closeDeptPicker(inst);
       }
     });
   }
@@ -359,6 +582,11 @@
     Object.keys(rowPickers).forEach(function (id) {
       destroyRowWidgets(id);
     });
+    // 清理旧的部门下拉面板，避免 DOM 孤儿
+    deptPickerInstances.forEach(function (inst) {
+      if (inst.panel && inst.panel.parentNode) inst.panel.parentNode.removeChild(inst.panel);
+    });
+    deptPickerInstances = [];
   }
 
   function getSelectedIds(tbodyId) {
@@ -647,7 +875,13 @@
 
     row.marketingType = String((tr.querySelector(".js-marketing-type") || {}).value || "").trim();
     row.budgetType = String((tr.querySelector(".js-budget-type") || {}).value || "").trim();
-    row.dept = String((tr.querySelector(".js-budget-dept") || {}).value || "").trim();
+    row.dept = "";
+    var pickerEl = tr.querySelector(".js-budget-dept-picker");
+    if (pickerEl && pickerEl._deptPickerInst) {
+      row.dept = String(pickerEl._deptPickerInst.value || "").trim();
+    } else if (pickerEl) {
+      row.dept = String(pickerEl.dataset.value || "").trim();
+    }
     row.amount = parseFloat((tr.querySelector(".js-budget-amt") || {}).value) || 0;
     row.currency = String((tr.querySelector(".js-budget-currency") || {}).value || "USD").trim() || "USD";
     row.npTag = String((tr.querySelector(".js-budget-np") || {}).value || "").trim();
@@ -919,6 +1153,21 @@
       fetchModelOptions(function () {
         render(tbodyId, chkAllId, btnBatchDelId);
       });
+
+      // 初始化费用部门主数据，就绪后重新渲染以挂载树形下拉
+      if (global.FeeDeptMaster && typeof global.FeeDeptMaster.init === "function") {
+        global.FeeDeptMaster.init().then(function () {
+          deptPickerReady = true;
+          render(tbodyId, chkAllId, btnBatchDelId);
+        }).catch(function () {
+          render(tbodyId, chkAllId, btnBatchDelId);
+        });
+        if (typeof global.FeeDeptMaster.onChange === "function") {
+          global.FeeDeptMaster.onChange(function () {
+            if (deptPickerReady) render(tbodyId, chkAllId, btnBatchDelId);
+          });
+        }
+      }
 
       var btnAdd = document.getElementById(opts.btnAddId || "btnBudgetAdd");
       if (btnAdd) {
