@@ -24,6 +24,15 @@ description: Generate reusable intelligent business annotations for HTML prototy
 
 完整内容规范、图标位置、弹层结构、selector 策略、pageGuide 要求 — **与 001 一致**（见 `../prototype-annotation/SKILL.md` 对应章节）。
 
+### 弹层防裁切（与 001 相同 · mandatory）
+
+标注弹层（红点 / 蓝 i / 新增表单）**不得**被视口右/下边缘裁切。注入时必须使用本 skill `assets/prototype-annotation-runtime.js` 与 `assets/prototype-annotation.css` 的最新版：
+
+- `placePopover` + `schedulePlacePopover`：按实际宽高钳制；带图按 420 宽；内容渲染后再定位。
+- `.pa-popover`：`max-width/max-height` 限制在 `100vw/100vh - 28px`，超高可滚动。
+
+细节见 001 skill「Annotation popover viewport clamp」。
+
 ## Workflow
 
 0. **Remove legacy annotations** — 使用 `scripts/remove_legacy_prototype_annotations.py`（与 001 共用）。

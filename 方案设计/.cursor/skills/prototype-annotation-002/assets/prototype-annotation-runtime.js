@@ -323,15 +323,79 @@
     }
   }
 
+  /**
+   * 将标注弹层固定在视口内：按实际宽高钳制，避免贴右边/底边时被裁切。
+   * 带配图时宽度可达 420px，不可再用固定 340 估算。
+   */
   function placePopover(popover, anchor) {
+    if (!popover || !anchor) return;
+    const margin = 14;
+    const gap = 8;
+    const vw = window.innerWidth || document.documentElement.clientWidth || 0;
+    const vh = window.innerHeight || document.documentElement.clientHeight || 0;
+    if (!vw || !vh) return;
+
+    const maxW = Math.max(160, vw - margin * 2);
+    const maxH = Math.max(120, vh - margin * 2);
+    popover.style.maxWidth = maxW + "px";
+    popover.style.maxHeight = maxH + "px";
+    popover.style.boxSizing = "border-box";
+    popover.style.overflowY = "auto";
+
     const rect = anchor.getBoundingClientRect();
-    const width = Math.min(340, window.innerWidth - 28);
+    const hasImages = popover.classList.contains("has-images");
+    let width = popover.offsetWidth;
+    if (!width || width < 40) {
+      width = Math.min(hasImages ? 420 : 340, maxW);
+    }
+    width = Math.min(width, maxW);
+
+    let height = popover.offsetHeight;
+    if (!height || height < 40) height = Math.min(240, maxH);
+    height = Math.min(height, maxH);
+
+    // 水平：优先与锚点左对齐；右侧空间不足则右对齐锚点或贴视口右边
     let left = rect.left;
-    let top = rect.bottom + 8;
-    if (left + width > window.innerWidth - 14) left = window.innerWidth - width - 14;
-    if (top + 180 > window.innerHeight) top = Math.max(14, rect.top - 190);
-    popover.style.left = `${Math.max(14, left)}px`;
-    popover.style.top = `${Math.max(14, top)}px`;
+    if (rect.left > vw * 0.55) {
+      left = rect.right - width;
+    }
+    if (left + width > vw - margin) left = vw - margin - width;
+    if (left < margin) left = margin;
+
+    // 垂直：优先在锚点下方；下方不够则翻到上方；仍不够则钳在视口内滚动
+    let top = rect.bottom + gap;
+    if (top + height > vh - margin) {
+      const above = rect.top - gap - height;
+      if (above >= margin) top = above;
+      else top = Math.max(margin, vh - margin - height);
+    }
+    if (top < margin) top = margin;
+
+    popover.style.left = left + "px";
+    popover.style.top = top + "px";
+
+    // 内容渲染后再量一次，修正 has-images / 长文案导致的偏差
+    const pr = popover.getBoundingClientRect();
+    if (pr.width > 0) {
+      let l = pr.left;
+      let t = pr.top;
+      if (pr.right > vw - margin) l = Math.max(margin, vw - margin - pr.width);
+      if (pr.bottom > vh - margin) t = Math.max(margin, vh - margin - pr.height);
+      if (l < margin) l = margin;
+      if (t < margin) t = margin;
+      popover.style.left = l + "px";
+      popover.style.top = t + "px";
+    }
+  }
+
+  function schedulePlacePopover(popover, anchor) {
+    placePopover(popover, anchor);
+    requestAnimationFrame(function () {
+      placePopover(popover, anchor);
+      requestAnimationFrame(function () {
+        placePopover(popover, anchor);
+      });
+    });
   }
 
   function closePopovers() {
@@ -379,20 +443,85 @@
     const label = el.closest("label");
     if (label && !isPaInternal(label)) return label;
 
+    // 含顶栏 nav 链接（如「预算」tab）：须落到具体 <a>，不能升到整段 #topModuleNav
     const interactive = el.closest(
-      "button, select, textarea, input, a.btn, .btn, .sc-cat-trigger, .mrp-trigger, .ctl-host, [role='button']"
+      "button, select, textarea, input, a, .btn, [role='button'], .sc-cat-trigger, .mrp-trigger, .drp-trigger, .fee-tree-select-trigger, .msf-trigger, .ctl-host"
     );
-    if (interactive && !interactive.closest(".pa-toolbar")) return interactive;
+    if (interactive && !interactive.closest(".pa-toolbar") && !isPaInternal(interactive)) {
+      return interactive;
+    }
 
     const filterItem = el.closest(".f, .f-item, .filter-field");
     if (filterItem) {
       const withId = filterItem.querySelector("[id]");
       if (withId && withId.id) return withId;
-      const ctl = filterItem.querySelector("select, .sc-cat-wrap, .sku-group, button");
+      const ctl = filterItem.querySelector("select, .sc-cat-wrap, .sku-group, button, a");
       if (ctl) return ctl;
     }
 
+    // 过宽容器不可作为标注锚点（红点会跑到容器右上角）
+    if (isOverbroadPickContainer(el)) return null;
+
     return el;
+  }
+
+  function isCompactPickTarget(el) {
+    if (!el || el.nodeType !== 1) return false;
+    const tag = (el.tagName || "").toUpperCase();
+    if (["A", "BUTTON", "SELECT", "INPUT", "TEXTAREA", "LABEL", "TH", "TD"].indexOf(tag) >= 0) return true;
+    try {
+      return el.matches(".btn, [role='button'], .msf-trigger, .fee-tree-select-trigger, .drp-trigger, .sc-cat-trigger");
+    } catch (_e) {
+      return false;
+    }
+  }
+
+  /** 整段导航/页头等过宽节点：不可单独作为 selector，否则红点落在右上角 */
+  function isOverbroadPickContainer(el) {
+    if (!el || el.nodeType !== 1) return true;
+    const tag = (el.tagName || "").toUpperCase();
+    if (["NAV", "HEADER", "MAIN", "FOOTER", "BODY", "HTML", "FORM", "TABLE", "THEAD", "TBODY"].indexOf(tag) >= 0) {
+      return true;
+    }
+    if (el.id === "topModuleNav" || el.id === "sectionBudget") return true;
+    if (el.classList) {
+      if (
+        el.classList.contains("pmp-top-nav") ||
+        el.classList.contains("pmp-top") ||
+        el.classList.contains("app-main") ||
+        el.classList.contains("page-wrap") ||
+        el.classList.contains("app-layout") ||
+        el.classList.contains("budget-table-wrap") ||
+        el.classList.contains("table-toolbar")
+      ) {
+        return true;
+      }
+    }
+    const rect = el.getBoundingClientRect();
+    if (rect.width > Math.min((window.innerWidth || 1200) * 0.45, 520)) return true;
+    return false;
+  }
+
+  function scopedChildSelector(el) {
+    const parent = el && el.parentElement;
+    if (!parent) return null;
+    const tag = (el.tagName || "").toLowerCase();
+    if (!tag) return null;
+    const sameTag = Array.prototype.filter.call(parent.children, function (c) {
+      return c.tagName === el.tagName;
+    });
+    const idx = sameTag.indexOf(el) + 1;
+    if (idx <= 0) return null;
+    if (parent.id && !/^\d/.test(parent.id)) {
+      try {
+        return `#${CSS.escape(parent.id)} > ${tag}:nth-of-type(${idx})`;
+      } catch (_e) {
+        return `#${parent.id} > ${tag}:nth-of-type(${idx})`;
+      }
+    }
+    const pkey = parent.getAttribute("data-pa-key");
+    if (pkey) return `[data-pa-key="${escapeAttr(pkey)}"] > ${tag}:nth-of-type(${idx})`;
+    return null;
   }
 
   function generateSelector(el) {
@@ -400,7 +529,7 @@
     el = normalizePickTarget(el);
     if (!el) return null;
 
-    if (el.id && !/^\d/.test(el.id)) {
+    if (el.id && !/^\d/.test(el.id) && !isOverbroadPickContainer(el)) {
       try {
         return `#${CSS.escape(el.id)}`;
       } catch (_e) {
@@ -427,30 +556,18 @@
       }
     }
 
-    let node = el.parentElement;
-    for (let depth = 0; depth < 6 && node; depth += 1) {
-      const nt = (node.tagName || "").toUpperCase();
-      if (nt === "TABLE" || nt === "THEAD" || nt === "TBODY" || nt === "TR") {
-        node = node.parentElement;
-        continue;
-      }
-      if (node.id && !/^\d/.test(node.id)) {
-        try {
-          return `#${CSS.escape(node.id)}`;
-        } catch (_e) {
-          return `#${node.id}`;
-        }
-      }
-      const key = node.getAttribute("data-pa-key");
-      if (key) return `[data-pa-key="${escapeAttr(key)}"]`;
-      node = node.parentElement;
+    // 紧凑控件：用「父级 id > 子:nth-of-type」保留具体节点（如 #topModuleNav > a:nth-of-type(13)）
+    // 禁止只返回父级 #topModuleNav，否则红点会跑到导航栏右上角
+    if (isCompactPickTarget(el)) {
+      const scoped = scopedChildSelector(el);
+      if (scoped) return scoped;
     }
 
     let autoKey = "pa-pick-" + Date.now().toString(36);
-    if (tag === "TH" || tag === "TD") {
+    if (tag === "TH" || tag === "TD" || tag === "A" || tag === "BUTTON") {
       const label = el.textContent.trim().replace(/\s+/g, " ").slice(0, 24);
       if (label) {
-        autoKey = "pa-col-" + label.replace(/[^\u4e00-\u9fa5a-zA-Z0-9_-]/g, "");
+        autoKey = "pa-" + (tag === "A" ? "nav-" : tag === "BUTTON" ? "btn-" : "col-") + label.replace(/[^\u4e00-\u9fa5a-zA-Z0-9_-]/g, "");
       }
     }
     el.setAttribute("data-pa-key", autoKey);
@@ -465,15 +582,40 @@
     if (target.classList && target.classList.contains("th-inner")) {
       return target.closest("th") || target;
     }
+    // 若历史错误 selector 指向过宽容器，尝试落到 active / 首个可点子节点
+    if (isOverbroadPickContainer(target)) {
+      const active = target.querySelector("a.active, .active, [aria-current='page']");
+      if (active) return active;
+      return null;
+    }
     return target;
   }
 
   function pickTargetFromEvent(event) {
-    const raw = document.elementFromPoint(event.clientX, event.clientY);
-    return normalizePickTarget(raw);
+    const stack =
+      typeof document.elementsFromPoint === "function"
+        ? document.elementsFromPoint(event.clientX, event.clientY)
+        : [document.elementFromPoint(event.clientX, event.clientY)];
+    for (let i = 0; i < stack.length; i++) {
+      const raw = stack[i];
+      if (!raw || raw.nodeType !== 1) continue;
+      if (isPaInternal(raw)) continue;
+      if (
+        raw.classList &&
+        (raw.classList.contains("pa-dot") ||
+          raw.classList.contains("pa-tip-icon") ||
+          raw.classList.contains("pa-icon-portal") ||
+          raw.classList.contains("pa-tip-icon-portal"))
+      ) {
+        continue;
+      }
+      const normalized = normalizePickTarget(raw);
+      if (normalized) return normalized;
+    }
+    return null;
   }
 
-  function highlightPickTarget(el) {
+function highlightPickTarget(el) {
     clearPickHighlight();
     if (!el) return;
     pickHighlightEl = el;
@@ -509,7 +651,6 @@
     popover.className = "pa-root pa-popover pa-add-form";
     popover.setAttribute(ROOT_ATTR, "popover");
     document.body.appendChild(popover);
-    placePopover(popover, target);
     popover.addEventListener("click", (event) => event.stopPropagation());
 
     const head = document.createElement("div");
@@ -610,6 +751,7 @@
       scheduleRender(config, state);
       if (onDone) onDone(true);
     });
+    schedulePlacePopover(popover, target);
   }
 
   function enterPickMode(config, state) {
@@ -980,7 +1122,6 @@
     popover.className = "pa-root pa-popover";
     popover.setAttribute(ROOT_ATTR, "popover");
     document.body.appendChild(popover);
-    placePopover(popover, anchor);
     popover.addEventListener("click", (event) => event.stopPropagation());
 
     function currentContent() {
@@ -1036,6 +1177,7 @@
         event.stopPropagation();
         closePopovers();
       });
+      schedulePlacePopover(popover, anchor);
     }
 
     function renderEdit(content) {
@@ -1074,6 +1216,7 @@
         saveState(config, state);
         renderView(normalizeContent(state.edits[key], body));
       });
+      schedulePlacePopover(popover, anchor);
     }
 
     function renderDeleteConfirm(content) {
@@ -1113,6 +1256,7 @@
         closePopovers();
         scheduleRender(config, state);
       });
+      schedulePlacePopover(popover, anchor);
     }
 
     renderView(currentContent());
@@ -1150,11 +1294,14 @@
     icon.style.visibility = "visible";
     const w = icon.offsetWidth || 16;
     const h = icon.offsetHeight || 16;
-    icon.style.left = `${Math.round(rect.right - w * 0.55)}px`;
+    // 过宽目标（误绑到整段 nav 时）钉在左侧一小段，避免红点飞到屏幕右上角
+    const maxPinSpan = 140;
+    const pinRight = rect.width > maxPinSpan ? rect.left + maxPinSpan : rect.right;
+    icon.style.left = `${Math.round(pinRight - w * 0.55)}px`;
     icon.style.top = `${Math.round(rect.top - h * 0.35)}px`;
   }
 
-  function attachAnnotationPortal(icon, target) {
+function attachAnnotationPortal(icon, target) {
     if (!isVisibleTarget(target)) return false;
     icon.classList.add("pa-icon-portal");
     document.body.appendChild(icon);
