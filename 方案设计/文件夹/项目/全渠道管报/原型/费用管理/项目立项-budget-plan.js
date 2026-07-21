@@ -3,9 +3,7 @@
  * 挂载：ProjectBudgetPlan.init({ tbodyId, onChange })
  */
 (function (global) {
-  var STORAGE_KEY = "project_create_budget_v10";
-  var STORAGE_META_KEY = "project_create_budget_meta_v1";
-  var allocMode = "分摊";
+  var STORAGE_KEY = "project_create_budget_v12";
   /** 旧版 BP 部门名，已废弃，加载时清空 */
   var LEGACY_BP_DEPT_NAMES = { "智能照明": true, "智能家电": true };
 
@@ -29,6 +27,7 @@
     "发布会"
   ];
   var CURRENCY_OPTIONS = ["USD", "CNY", "EUR", "GBP", "JPY", "CAD", "AUD"];
+  var ALLOC_MODE_OPTIONS = ["分摊", "不分摊"];
   /** 来自《销售主数据索引_v1》原型子集；fetch 成功后替换为全量 model 列表 */
   var MODEL_OPTIONS = ["H6065", "H6076", "H617E", "H6672", "H6840", "B5040", "H1310", "H70B1", "B601B"];
   var MODEL_INDEX_PATHS = [
@@ -93,84 +92,73 @@
   var activeTbodyId = "tbodyBudget";
   var cachedDefaults = null;
 
-  function loadAllocMode() {
-    try {
-      var raw = localStorage.getItem(STORAGE_META_KEY);
-      if (raw) {
-        var meta = JSON.parse(raw);
-        if (meta.allocMode === "分摊" || meta.allocMode === "不分摊") return meta.allocMode;
-      }
-    } catch (e) {}
-    return "分摊";
+  function getRowAllocMode(row) {
+    if (!row) return "";
+    var m = String(row.allocMode || "").trim();
+    return m === "分摊" || m === "不分摊" ? m : "";
   }
 
-  function saveAllocMode(mode) {
-    try {
-      localStorage.setItem(STORAGE_META_KEY, JSON.stringify({ allocMode: mode }));
-    } catch (e) {}
+  function getAllocModeFromTr(tr) {
+    if (!tr) return "";
+    var sel = tr.querySelector(".js-budget-alloc-mode");
+    if (!sel) return "";
+    var m = String(sel.value || "").trim();
+    return m === "分摊" || m === "不分摊" ? m : "";
   }
 
-  function getAllocMode() {
-    return allocMode || "分摊";
+  function allocModeSelectHtml(value) {
+    var v = String(value || "").trim();
+    var isAlloc = v === "分摊";
+    var isNoAlloc = v === "不分摊";
+    // 「请选择」仅作空值占位展示，不出现在下拉选项中；真实选项仅「分摊」「不分摊」
+    return (
+      '<select class="js-budget-alloc-mode" aria-required="true" aria-label="分摊模式">' +
+      '<option value="" disabled hidden' + (!isAlloc && !isNoAlloc ? " selected" : "") + ">请选择</option>" +
+      '<option value="分摊"' + (isAlloc ? " selected" : "") + ">分摊</option>" +
+      '<option value="不分摊"' + (isNoAlloc ? " selected" : "") + ">不分摊</option>" +
+      "</select>"
+    );
   }
 
-  function enforceSingleMsf(msf) {
-    if (!msf || getAllocMode() !== "不分摊") return;
+  function enforceSingleMsf(msf, mode) {
+    if (!msf || mode !== "不分摊") return;
     var vals = msf.getValues ? msf.getValues() : [];
     if (vals.length > 1) msf.setValues([vals[vals.length - 1]]);
   }
 
-  function enforceSingleSc(sc) {
-    if (!sc || getAllocMode() !== "不分摊") return;
+  function enforceSingleSc(sc, mode) {
+    if (!sc || mode !== "不分摊") return;
     var vals = sc.getValues ? sc.getValues() : [];
     if (vals.length > 1) sc.setValues([vals[vals.length - 1]]);
   }
 
-  function applyAllocModeToRowMsfs() {
-    if (getAllocMode() !== "不分摊") return;
-    Object.keys(rowMsfs).forEach(function (id) {
-      var msf = rowMsfs[id];
-      if (!msf) return;
-      ["model", "sku", "region", "country", "channel", "store"].forEach(function (key) {
-        if (msf[key]) enforceSingleMsf(msf[key]);
-      });
-      if (msf.sc) enforceSingleSc(msf.sc);
+  function enforceRowAllocModeRules(id) {
+    var tbody = document.getElementById(activeTbodyId);
+    if (!tbody) return;
+    var tr = tbody.querySelector('tr[data-id="' + id + '"]');
+    if (!tr) return;
+    var mode = getAllocModeFromTr(tr);
+    var msf = rowMsfs[id];
+    if (!msf || mode !== "不分摊") return;
+    ["model", "sku", "region", "country", "channel", "store"].forEach(function (key) {
+      if (msf[key]) enforceSingleMsf(msf[key], mode);
     });
+    if (msf.sc) enforceSingleSc(msf.sc, mode);
   }
 
-  function updateAllocModeUi() {
-    var mode = getAllocMode();
-    var seg = document.getElementById("budgetAllocModeSeg");
-    var field = document.getElementById("budgetAllocModeField");
-    var hint = document.getElementById("budgetAllocModeHint");
-    if (seg) {
-      seg.querySelectorAll("button").forEach(function (btn) {
-        btn.classList.toggle("active", btn.dataset.mode === mode);
-      });
-    }
-    if (field) field.classList.toggle("mode-noalloc", mode === "不分摊");
-    if (hint) {
-      hint.textContent =
-        mode === "分摊"
-          ? "分摊（规划）：记录后续将按渠道/产品范围拆分至各商品；此处仅做预算规划，不生成实际分摊结果。"
-          : "不分摊（规划）：记录后续将整笔挂到指定维度；范围可全空（全公司通用预算），费用部门必填。";
-    }
-    var deptReq = document.getElementById("budgetDeptReq");
-    if (deptReq) deptReq.style.display = mode === "不分摊" ? "" : "none";
-  }
-
-  function setAllocMode(mode) {
-    if (mode !== "分摊" && mode !== "不分摊") return;
-    allocMode = mode;
-    saveAllocMode(mode);
-    updateAllocModeUi();
-    applyAllocModeToRowMsfs();
+  function applyAllocModeToRowMsfs() {
+    Object.keys(rowMsfs).forEach(function (id) {
+      enforceRowAllocModeRules(id);
+    });
   }
 
   function makeMsfOnChange(id, key, extraFn) {
     return function () {
-      if (getAllocMode() === "不分摊" && rowMsfs[id] && rowMsfs[id][key]) {
-        enforceSingleMsf(rowMsfs[id][key]);
+      var tbody = document.getElementById(activeTbodyId);
+      var tr = tbody && tbody.querySelector('tr[data-id="' + id + '"]');
+      var mode = getAllocModeFromTr(tr);
+      if (mode === "不分摊" && rowMsfs[id] && rowMsfs[id][key]) {
+        enforceSingleMsf(rowMsfs[id][key], mode);
       }
       if (extraFn) extraFn();
       if (onChangeCb) onChangeCb(loadAll());
@@ -179,8 +167,11 @@
 
   function makeScOnChange(id) {
     return function () {
-      if (getAllocMode() === "不分摊" && rowMsfs[id] && rowMsfs[id].sc) {
-        enforceSingleSc(rowMsfs[id].sc);
+      var tbody = document.getElementById(activeTbodyId);
+      var tr = tbody && tbody.querySelector('tr[data-id="' + id + '"]');
+      var mode = getAllocModeFromTr(tr);
+      if (mode === "不分摊" && rowMsfs[id] && rowMsfs[id].sc) {
+        enforceSingleSc(rowMsfs[id].sc, mode);
       }
       if (onChangeCb) onChangeCb(loadAll());
     };
@@ -200,6 +191,7 @@
           revenueDateEnd: "2025-12-31",
           marketingType: "自主营销-产品营销",
           budgetType: "海外社媒投放",
+          allocMode: "",
           deptCode: "D102_AMZ",
           dept: "亚马逊平台 · Govee",
           models: ["H6065"],
@@ -221,6 +213,7 @@
           revenueDateEnd: "2025-07-31",
           marketingType: "联合营销-品牌营销",
           budgetType: "大型展会",
+          allocMode: "",
           deptCode: "D102_BRAND",
           dept: "品牌中心",
           models: ["H617E"],
@@ -242,6 +235,7 @@
           revenueDateEnd: "2025-12-31",
           marketingType: "自主营销-产品营销",
           budgetType: "红人营销（KOL）",
+          allocMode: "",
           deptCode: "D109_GL",
           dept: "Goveelife",
           models: ["H7170"],
@@ -349,10 +343,16 @@
     var org = String(node.orgCode || "").trim();
     var orgName = String(node.orgName || "").trim();
     var name = String(node.name || "").trim();
-    var bmCode = String(node.bmCode || "").trim();
     var orgPart = org ? (orgName ? org + "·" + orgName : org) : "";
-    var main = orgPart && name ? orgPart + " / " + name : name || orgPart || String(node.bmName || "").trim();
-    return bmCode && main ? main + " · " + bmCode : main;
+    // 与费用导入页一致：组织·组织名 / 管报部门（如 102·Govee / APP商城）
+    if (node.nodeType === "org") return orgPart || name;
+    if (!name || name === orgPart) return orgPart || name;
+    var compactOrg = orgPart.replace(/\s+/g, "");
+    var compactName = name.replace(/\s+/g, "");
+    if (compactOrg && compactName && (compactName === compactOrg || compactName.indexOf(compactOrg) >= 0)) {
+      return orgPart;
+    }
+    return orgPart && name ? orgPart + " / " + name : name || orgPart;
   }
 
   function findDeptNodeByCode(code) {
@@ -382,12 +382,12 @@
     var code = String(row.deptCode || "").trim();
     if (code) {
       var byCode = findDeptNodeByCode(code);
-      if (byCode) return byCode.name;
+      if (byCode) return formatDeptFullLabel(byCode);
     }
     var legacy = String(row.dept || "").trim();
     if (!legacy) return "";
     var byValue = findDeptNodeByValue(legacy);
-    return byValue ? byValue.name : legacy;
+    return byValue ? formatDeptFullLabel(byValue) : legacy;
   }
 
   function normalizeDeptFields(row) {
@@ -403,13 +403,13 @@
       var node = findDeptNodeByValue(name);
       if (node) {
         row.deptCode = node.code;
-        row.dept = node.name;
+        row.dept = formatDeptFullLabel(node);
       }
       return row;
     }
     if (code) {
       var matched = findDeptNodeByCode(code);
-      if (matched) row.dept = matched.name;
+      if (matched) row.dept = formatDeptFullLabel(matched);
       else {
         row.deptCode = "";
         row.dept = "";
@@ -472,8 +472,9 @@
     if (!inst || !inst.trigger) return;
     var code = inst.value || "";
     var node = findDeptNodeByCode(code);
-    var label = node ? node.name : code || "请选择";
+    var label = node ? formatDeptFullLabel(node) : code || "请选择";
     inst.trigger.textContent = label;
+    inst.trigger.title = label === "请选择" ? "" : label;
     inst.wrap.dataset.value = code;
     inst.wrap.classList.toggle("has-value", !!code);
     inst.wrap.classList.toggle("has-val", !!code);
@@ -499,7 +500,7 @@
     if (!inst || !inst.open) return;
     var rect = inst.trigger.getBoundingClientRect();
     var panel = inst.panel;
-    var width = Math.max(rect.width, 260);
+    var width = Math.max(rect.width, 320);
     var maxHeight = Math.min(320, window.innerHeight - 24);
     var top = rect.bottom + 4;
     panel.style.width = width + "px";
@@ -549,12 +550,18 @@
         (n.code === value ? " is-selected" : "") +
         (entry.hasChildren ? " has-children" : "");
       var indent = 8 + entry.depth * 18;
+      var fullLabel = formatDeptFullLabel(n);
       var label = escapeHtml(n.name || "");
-      var codeHint = (n.bmName && n.bmName !== n.name) ? '<span class="fee-tree-select-code">' + escapeHtml(n.bmName) + "</span>" : "";
-      return '<div class="' + cls + '" style="padding-left:' + indent + 'px;">' +
+      var orgHint = (n.orgCode && n.nodeType !== "org")
+        ? '<span class="fee-tree-select-code">' + escapeHtml(String(n.orgCode) + (n.orgName ? "·" + n.orgName : "")) + "</span>"
+        : "";
+      var bmHint = (n.bmName && n.bmName !== n.name)
+        ? '<span class="fee-tree-select-code">' + escapeHtml(n.bmName) + "</span>"
+        : "";
+      return '<div class="' + cls + '" style="padding-left:' + indent + 'px;" title="' + escapeHtml(fullLabel) + '">' +
         toggleHtml +
         '<button type="button" class="dept-tree-label-btn" data-name="' + escapeHtml(n.name) + '" data-code="' + escapeHtml(n.code) + '">' +
-        '<span class="fee-tree-select-label">' + label + "</span>" + codeHint +
+        '<span class="fee-tree-select-label">' + label + "</span>" + orgHint + bmHint +
         "</button></div>";
     }).join("") : '<motion></motion><div class="fee-tree-select-empty">' + (getDeptNodes().length ? "无匹配部门" : "费用部门主数据未加载，请确认 fee-dept-master.js 可访问") + "</div>".replace(/<\/?motion>/g, "");
     inst.panel.innerHTML =
@@ -792,12 +799,21 @@
     if (row.npTag && /年新品$/.test(String(row.npTag))) {
       row.npTag = String(row.npTag).replace(/年新品$/, "");
     }
+    if (row.allocMode !== "分摊" && row.allocMode !== "不分摊") {
+      row.allocMode = "";
+    }
     return normalizeDeptFields(row);
   }
 
   function loadAll() {
     try {
       var raw = localStorage.getItem(STORAGE_KEY);
+      if (raw == null || raw === "") {
+        raw = localStorage.getItem("project_create_budget_v11");
+      }
+      if (raw == null || raw === "") {
+        raw = localStorage.getItem("project_create_budget_v10");
+      }
       if (raw == null || raw === "") {
         raw = localStorage.getItem("project_create_budget_v9");
       }
@@ -1142,6 +1158,7 @@
 
     row.marketingType = String((tr.querySelector(".js-marketing-type") || {}).value || "").trim();
     row.budgetType = String((tr.querySelector(".js-budget-type") || {}).value || "").trim();
+    row.allocMode = String((tr.querySelector(".js-budget-alloc-mode") || {}).value || "").trim();
     row.deptCode = "";
     row.dept = "";
     var pickerEl = tr.querySelector(".js-budget-dept-picker");
@@ -1151,7 +1168,7 @@
       row.deptCode = String(pickerEl.dataset.value || "").trim();
     }
     var deptNode = findDeptNodeByCode(row.deptCode);
-    row.dept = deptNode ? deptNode.name : "";
+    row.dept = deptNode ? formatDeptFullLabel(deptNode) : "";
     row.amount = parseFloat((tr.querySelector(".js-budget-amt") || {}).value) || 0;
     row.currency = String((tr.querySelector(".js-budget-currency") || {}).value || "USD").trim() || "USD";
     row.npTag = String((tr.querySelector(".js-budget-np") || {}).value || "").trim();
@@ -1197,21 +1214,18 @@
       if (!silent) toast(n + "：请选择类型");
       return false;
     }
-    if (getAllocMode() === "不分摊" && !row.deptCode) {
+    if (!getRowAllocMode(row)) {
+      if (!silent) toast(n + "：请选择分摊模式");
+      return false;
+    }
+    var rowAllocMode = getRowAllocMode(row);
+    if (rowAllocMode === "不分摊" && !row.deptCode) {
       if (!silent) toast(n + "：不分摊模式下费用部门为必填项");
       return false;
     }
     if (!(row.amount > 0)) {
       if (!silent) toast(n + "：营销费用规划为必填，且须大于 0");
       return false;
-    }
-    if (getAllocMode() === "分摊") {
-      var hasSceneCategory = row.sceneCategories && row.sceneCategories.length;
-      var hasScope = hasSceneCategory || (row.scene && row.category) || (row.skus && row.skus.length) || row.npTag;
-      if (!hasScope) {
-        if (!silent) toast(n + "：分摊模式下，场景品类、SKU、新品标签不可同时为空");
-        return false;
-      }
     }
     return true;
   }
@@ -1241,7 +1255,7 @@
 
     if (!list.length) {
       tbody.innerHTML =
-        '<tr><td colspan="16" class="empty">暂无预算行，请点击「新增一行」；立项提交前至少须有一行有效预算。</td></tr>';
+        '<tr><td colspan="17" class="empty">暂无预算行，请点击「新增一行」；立项提交前至少须有一行有效预算。</td></tr>';
       updateBatchDelState(tbodyId, chkAllId, btnBatchDelId);
       return;
     }
@@ -1254,6 +1268,7 @@
         '<td><div class="js-budget-dr plan-row-dr-host"></div></td>' +
         "<td>" + marketingTypeSelectHtml(row.marketingType) + "</td>" +
         "<td>" + budgetTypeSelectHtml(row.budgetType) + "</td>" +
+        "<td>" + allocModeSelectHtml(row.allocMode) + "</td>" +
         "<td>" + departmentSelectHtml(row) + "</td>" +
         '<td><div class="js-budget-sc msf-plan-row"></div></td>' +
         '<td><div class="js-budget-model msf-plan-row msf-cell-narrow"></div></td>' +
@@ -1339,6 +1354,13 @@
           toast("已删除");
         });
       }
+      var allocSel = tr.querySelector(".js-budget-alloc-mode");
+      if (allocSel) {
+        allocSel.addEventListener("change", function () {
+          enforceRowAllocModeRules(id);
+          if (onChangeCb) onChangeCb(loadAll());
+        });
+      }
     });
   }
 
@@ -1367,6 +1389,7 @@
       revenueDateEnd: "2025-12-31",
       marketingType: "",
       budgetType: "",
+      allocMode: "",
       deptCode: "",
       dept: "",
       models: [],
@@ -1433,18 +1456,6 @@
       var chkAllId = opts.chkAllId || "budgetChkAll";
       var btnBatchDelId = opts.btnBatchDelId || "btnBudgetBatchDel";
       activeTbodyId = tbodyId;
-      allocMode = loadAllocMode();
-      updateAllocModeUi();
-
-      var allocSeg = document.getElementById("budgetAllocModeSeg");
-      if (allocSeg && !allocSeg.dataset.wired) {
-        allocSeg.dataset.wired = "1";
-        allocSeg.addEventListener("click", function (e) {
-          var btn = e.target.closest("button[data-mode]");
-          if (!btn) return;
-          setAllocMode(btn.dataset.mode);
-        });
-      }
 
       if (localStorage.getItem(STORAGE_KEY) == null) {
         saveAll(getDefaults(), true);
@@ -1512,12 +1523,6 @@
         },
         getTotal: function () {
           return getSummaryTotal(tbodyId);
-        },
-        getAllocMode: function () {
-          return getAllocMode();
-        },
-        setAllocMode: function (mode) {
-          setAllocMode(mode);
         },
         batchDelete: function () {
           batchDelete(tbodyId, chkAllId, btnBatchDelId);
