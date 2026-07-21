@@ -6,21 +6,18 @@
   const OBSERVER_STORE_KEY = "__prototypeAnnotationObserver";
   const RENDER_TIMER_KEY = "__prototypeAnnotationRenderTimer";
   const PORTAL_REPOSITION_KEY = "__prototypeAnnotationPortalReposition";
-  const SCROLL_PARENT_BOUND_KEY = "__prototypeAnnotationScrollParents";
-  const RESIZE_OBSERVER_KEY = "__prototypeAnnotationResizeObserver";
   const PORTAL_ENTRIES = [];
-  const boundScrollParents = new WeakSet();
-  const boundResizeTargets = new WeakSet();
-  let activeMount = null;
-  /** 对外 Pages 只读；作者 IP / 网段 / 本机浏览器信任 / 本地可编；见 Skill §Git Pages 编辑权限 */
+  /** 局域网分享只读；本机 127.0.0.1 / file:// 可编；见 Skill §局域网分享编辑权限 */
   const PA_POLICY_DEFAULT = {
-    viewOnlyHostnames: ["18501404120.github.io"],
-    allowIps: ["113.110.230.127", "113.110.229.118", "220.232.134.241", "113.110.228.174", "113.87.83.49", "113.110.230.92"],
-    allowIpPrefixes: ["113.110.230.", "113.110.228.", "113.110.229.", "113.87.83."],
+    viewOnlyHostnames: [],
+    allowIps: [],
+    allowIpPrefixes: [],
     allowTrustedBrowser: true,
     editToken: "",
     allowLocalhost: true,
-    allowOtherHosts: true
+    allowOtherHosts: false,
+    enforcePaView: true,
+    allowPrivateLanEdit: false
   };
   const TRUSTED_BROWSER_KEY = "prototypeAnnotation:trustedAuthorBrowser";
   let outsideCloseBound = false;
@@ -49,8 +46,32 @@
       allowLocalhost:
         fromConfig.allowLocalhost != null ? fromConfig.allowLocalhost : PA_POLICY_DEFAULT.allowLocalhost,
       allowOtherHosts:
-        fromConfig.allowOtherHosts != null ? fromConfig.allowOtherHosts : PA_POLICY_DEFAULT.allowOtherHosts
+        fromConfig.allowOtherHosts != null ? fromConfig.allowOtherHosts : PA_POLICY_DEFAULT.allowOtherHosts,
+      enforcePaView:
+        fromConfig.enforcePaView != null ? fromConfig.enforcePaView : PA_POLICY_DEFAULT.enforcePaView,
+      allowPrivateLanEdit:
+        fromConfig.allowPrivateLanEdit != null
+          ? fromConfig.allowPrivateLanEdit
+          : PA_POLICY_DEFAULT.allowPrivateLanEdit
     };
+  }
+
+  function isViewOnlyUrl() {
+    try {
+      return new URLSearchParams(location.search).get("paView") === "1";
+    } catch (_error) {
+      return false;
+    }
+  }
+
+  function isPrivateLanHost(hostname) {
+    if (!hostname) return false;
+    if (hostname === "localhost" || hostname === "127.0.0.1") return false;
+    if (/^10\./.test(hostname)) return true;
+    if (/^192\.168\./.test(hostname)) return true;
+    if (/^172\.(1[6-9]|2\d|3[0-1])\./.test(hostname)) return true;
+    if (/^169\.254\./.test(hostname)) return true;
+    return false;
   }
 
   function editTokenFromUrl() {
@@ -127,9 +148,19 @@
     const host = location.hostname || "";
     const trustBrowser = policy.allowTrustedBrowser !== false;
 
+    if (policy.enforcePaView !== false && isViewOnlyUrl()) {
+      return false;
+    }
+    if (location.protocol === "file:") {
+      if (trustBrowser) markTrustedBrowser();
+      return true;
+    }
     if (policy.allowLocalhost && (host === "localhost" || host === "127.0.0.1")) {
       if (trustBrowser) markTrustedBrowser();
       return true;
+    }
+    if (policy.allowPrivateLanEdit === false && isPrivateLanHost(host)) {
+      return false;
     }
     if (policy.editToken && editTokenFromUrl() === policy.editToken) {
       return true;
@@ -227,7 +258,7 @@
   }
 
   function syncPersistedStateToConfig(config, state) {
-    const script = document.getElementById("prototype-annotation-config");
+    const script = document.getElementById("prototype-annotation-002-config");
     if (!script) return;
     try {
       const cfg = JSON.parse(script.textContent);
@@ -238,36 +269,14 @@
     }
   }
 
-  function collectVersionedStates(config) {
-    const pageId = config.pageId || "page";
-    const prefix = `${STORAGE_PREFIX}${pageId}:`;
-    const mainKey = storageKey(config);
-    const states = [];
-    try {
-      for (let i = 0; i < localStorage.length; i += 1) {
-        const key = localStorage.key(i);
-        if (!key || key === mainKey || !key.startsWith(prefix)) continue;
-        const raw = localStorage.getItem(key);
-        if (!raw) continue;
-        states.push(JSON.parse(raw));
-      }
-    } catch (_error) {
-      /* ignore */
-    }
-    return states;
-  }
-
   function loadState(config) {
     try {
-      let merged = {};
-      const mainRaw = localStorage.getItem(storageKey(config));
-      if (mainRaw) merged = mergeStateLayers(merged, JSON.parse(mainRaw));
-      const currentLegacyRaw = localStorage.getItem(legacyStorageKey(config));
-      if (currentLegacyRaw) merged = mergeStateLayers(merged, JSON.parse(currentLegacyRaw));
-      collectVersionedStates(config).forEach((layer) => {
-        merged = mergeStateLayers(merged, layer);
-      });
-      return merged;
+      const key = storageKey(config);
+      let raw = localStorage.getItem(key);
+      if (!raw) {
+        raw = localStorage.getItem(legacyStorageKey(config));
+      }
+      return raw ? JSON.parse(raw) : {};
     } catch (_error) {
       return {};
     }
@@ -664,22 +673,16 @@
       .split("\n")
       .map((item) => item.trim())
       .filter(Boolean);
-    const lead = [];
     const numbered = [];
-    const trailing = [];
-    let seenNumbered = false;
+    const extra = [];
     lines.forEach((line) => {
       if (/^\d+[.、)]\s*/.test(line)) {
-        seenNumbered = true;
         numbered.push(line.replace(/^\d+[.、)]\s*/, ""));
-      } else if (!seenNumbered) {
-        // 编号列表之前的非编号行（如「新增预算行逻辑：」）作为正文小标题，须置顶
-        lead.push(line);
       } else {
-        trailing.push(line);
+        extra.push(line);
       }
     });
-    return { lead: lead, numbered: numbered, trailing: trailing, extra: trailing };
+    return { numbered, extra };
   }
 
   function normalizeContent(raw, defaultBody) {
@@ -829,19 +832,6 @@
 
   function fillContent(container, content, state) {
     const parsed = parseBody(content.body);
-    const leadLines = parsed.lead || [];
-    const trailingLines = parsed.trailing || parsed.extra || [];
-    // 渲染顺序：逻辑小标题 → 编号规则 → 补充说明 → 配图（小标题绝不可落到列表下方）
-    if (leadLines.length) {
-      const lead = document.createElement("div");
-      lead.className = "pa-pop-lead";
-      leadLines.forEach((item) => {
-        const p = document.createElement("p");
-        p.textContent = item;
-        lead.appendChild(p);
-      });
-      container.appendChild(lead);
-    }
     if (parsed.numbered.length) {
       const list = document.createElement("ol");
       list.className = "pa-pop-list";
@@ -852,10 +842,10 @@
       });
       container.appendChild(list);
     }
-    if (trailingLines.length) {
+    if (parsed.extra.length) {
       const extra = document.createElement("div");
       extra.className = "pa-pop-extra";
-      trailingLines.forEach((item) => {
+      parsed.extra.forEach((item) => {
         const p = document.createElement("p");
         p.textContent = item;
         extra.appendChild(p);
@@ -863,12 +853,7 @@
       container.appendChild(extra);
     }
     if (state) renderContentImages(container, content.images, state);
-    if (
-      !leadLines.length &&
-      !parsed.numbered.length &&
-      !trailingLines.length &&
-      !(content.images && content.images.length)
-    ) {
+    if (!parsed.numbered.length && !parsed.extra.length && !(content.images && content.images.length)) {
       const empty = document.createElement("div");
       empty.className = "pa-pop-extra";
       container.appendChild(empty);
@@ -1136,242 +1121,23 @@
   function isVisibleTarget(target) {
     if (!target) return false;
     if (target.closest("[hidden]")) return false;
-    const closedOverlay = target.closest(
-      ".modal-mask:not(.open), .drawer-mask:not(.open), [aria-modal='true'][aria-hidden='true']"
-    );
-    if (closedOverlay) return false;
+    if (target.closest('[aria-hidden="true"]')) return false;
     const rects = target.getClientRects();
     return rects.length > 0;
-  }
-
-  function removeAnnotationPortalByKey(key) {
-    const existing = document.querySelector(`[data-pa-item-key="${key}"]`);
-    if (!existing) return;
-    const idx = PORTAL_ENTRIES.findIndex((entry) => entry.icon === existing);
-    if (idx >= 0) PORTAL_ENTRIES.splice(idx, 1);
-    existing.remove();
-  }
-
-  function clearAnnotationPortalsOnly() {
-    document.querySelectorAll(".pa-dot.pa-icon-portal").forEach((node) => node.remove());
-    PORTAL_ENTRIES.length = 0;
-  }
-
-  function isPaOwnedNode(node) {
-    if (!node) return false;
-    const el = node.nodeType === 1 ? node : node.parentElement;
-    if (!el || !el.closest) return false;
-    return !!(el.closest(`[${ROOT_ATTR}]`) || el.closest(".pa-root") || el.closest(".pa-icon-portal"));
-  }
-
-  function mutationAffectsPageContent(mutations) {
-    for (let i = 0; i < mutations.length; i += 1) {
-      const m = mutations[i];
-      if (m.type === "attributes") {
-        if (!isPaOwnedNode(m.target)) return true;
-        continue;
-      }
-      const lists = [m.addedNodes, m.removedNodes];
-      for (let li = 0; li < lists.length; li += 1) {
-        const nodes = lists[li];
-        for (let ni = 0; ni < nodes.length; ni += 1) {
-          if (!isPaOwnedNode(nodes[ni])) return true;
-        }
-      }
-    }
-    return false;
-  }
-
-  function withObserverPaused(fn) {
-    const observer = window[OBSERVER_STORE_KEY];
-    if (observer && observer.disconnect) observer.disconnect();
-    try {
-      fn();
-    } finally {
-      if (observer && activeMount && observer.observe) {
-        observer.observe(document.body, {
-          childList: true,
-          subtree: true,
-          attributes: true,
-          attributeFilter: ["hidden", "style", "class", "aria-hidden"]
-        });
-      }
-    }
-  }
-
-  function renderAnnotations(config, state) {
-    const keepKeys = new Set();
-    const baseAnno = config.annotations || [];
-    const userAnno = (state.userAdded && state.userAdded.annotations) || [];
-    baseAnno.forEach((item, index) => {
-      const key = `annotation:${item.id || index}`;
-      if (state.hidden && state.hidden[key]) {
-        removeAnnotationPortalByKey(key);
-        return;
-      }
-      keepKeys.add(key);
-      addAnnotation(config, state, item, index, false);
-    });
-    userAnno.forEach((item, index) => {
-      const key = `userAnnotation:${item.id}`;
-      if (state.hidden && state.hidden[key]) {
-        removeAnnotationPortalByKey(key);
-        return;
-      }
-      keepKeys.add(key);
-      addAnnotation(config, state, item, baseAnno.length + index, true);
-    });
-    document.querySelectorAll(".pa-dot.pa-icon-portal[data-pa-item-key]").forEach((node) => {
-      const key = node.getAttribute("data-pa-item-key");
-      if (key && !keepKeys.has(key)) removeAnnotationPortalByKey(key);
-    });
-  }
-
-  function renderFieldTips(config, state) {
-    const baseTips = config.fieldTips || [];
-    const userTips = (state.userAdded && state.userAdded.fieldTips) || [];
-    baseTips.forEach((item, index) => addFieldTip(config, state, item, index, false));
-    userTips.forEach((item, index) => addFieldTip(config, state, item, index, true));
-  }
-
-  function resyncAnnotationsNow() {
-    if (!activeMount) return;
-    const { config, state } = activeMount;
-    withObserverPaused(() => {
-      renderAnnotations(config, state);
-      renderFieldTips(config, state);
-      repositionAllPortalIcons();
-    });
-  }
-
-  function queueAnnotationResync() {
-    if (!activeMount) return;
-    if (window[RENDER_TIMER_KEY]) clearTimeout(window[RENDER_TIMER_KEY]);
-    window[RENDER_TIMER_KEY] = setTimeout(() => {
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          resyncAnnotationsNow();
-        });
-      });
-    }, 60);
-  }
-
-  function getScrollableParents(el) {
-    const parents = [];
-    let node = el && el.parentElement;
-    while (node && node !== document.documentElement) {
-      const style = getComputedStyle(node);
-      const overflow = `${style.overflow} ${style.overflowX} ${style.overflowY}`;
-      if (/(auto|scroll|overlay)/.test(overflow)) parents.push(node);
-      node = node.parentElement;
-    }
-    return parents;
-  }
-
-  function repositionAllPortalIcons() {
-    PORTAL_ENTRIES.forEach((entry) => {
-      if (entry.icon && entry.icon.isConnected && entry.target && entry.target.isConnected) {
-        if (isVisibleTarget(entry.target)) entry.update();
-        else entry.icon.style.visibility = "hidden";
-      }
-    });
-    const buckets = new Map();
-    PORTAL_ENTRIES.forEach((entry) => {
-      if (!entry.icon || !entry.icon.isConnected || entry.icon.style.visibility === "hidden") return;
-      const rect = entry.icon.getBoundingClientRect();
-      const key = `${Math.round(rect.left / 10)}:${Math.round(rect.top / 10)}`;
-      if (!buckets.has(key)) buckets.set(key, []);
-      buckets.get(key).push(entry);
-    });
-    PORTAL_ENTRIES.forEach((entry) => {
-      if (entry.icon) entry.icon.style.transform = "";
-    });
-    buckets.forEach((entries) => {
-      if (entries.length < 2) return;
-      entries.forEach((entry, index) => {
-        entry.icon.style.transform = `translate(${index * 14}px, ${index * 12}px)`;
-      });
-    });
-  }
-
-  function bindResizeWatch(el) {
-    if (!el || !window.ResizeObserver || boundResizeTargets.has(el)) return;
-    boundResizeTargets.add(el);
-    if (!window[RESIZE_OBSERVER_KEY]) {
-      window[RESIZE_OBSERVER_KEY] = new ResizeObserver(() => repositionAllPortalIcons());
-    }
-    window[RESIZE_OBSERVER_KEY].observe(el);
-  }
-
-  function bindScrollableParents(el) {
-    if (!el) return;
-    if (!window[SCROLL_PARENT_BOUND_KEY]) window[SCROLL_PARENT_BOUND_KEY] = boundScrollParents;
-    getScrollableParents(el).forEach((parent) => {
-      if (boundScrollParents.has(parent)) return;
-      boundScrollParents.add(parent);
-      parent.addEventListener("scroll", repositionAllPortalIcons, { passive: true });
-      bindResizeWatch(parent);
-    });
-    const table = el.closest && el.closest("table");
-    if (table) bindResizeWatch(table);
-    bindResizeWatch(el);
   }
 
   function bindPortalReposition() {
     if (window[PORTAL_REPOSITION_KEY]) return;
     window[PORTAL_REPOSITION_KEY] = true;
-    window.addEventListener("scroll", repositionAllPortalIcons, true);
-    window.addEventListener("resize", repositionAllPortalIcons);
-    bindResizeWatch(document.body);
-  }
-
-  function shouldInlineAnnotation(target) {
-    if (!target) return false;
-    return (target.tagName || "").toUpperCase() === "TH" && !!target.closest("table");
-  }
-
-  function getThLabelText(target) {
-    if (!target) return "";
-    let text = "";
-    target.childNodes.forEach((node) => {
-      if (node.nodeType === 3) {
-        text += node.textContent;
-        return;
-      }
-      if (node.nodeType !== 1) return;
-      if (node.classList.contains("pa-dot")) return;
-      if (node.classList.contains("pa-tip-icon") || node.classList.contains("pa-tip-icon-portal")) return;
-      text += node.textContent;
-    });
-    return text.replace(/\s+/g, " ").trim();
-  }
-
-  function clearThExceptAnnotationDots(target) {
-    Array.from(target.childNodes).forEach((node) => {
-      if (node.nodeType === 1 && node.classList && node.classList.contains("pa-dot")) return;
-      target.removeChild(node);
-    });
-  }
-
-  function attachAnnotationInline(icon, target) {
-    if (!isVisibleTarget(target)) return false;
-    icon.classList.add("pa-dot-inline-th");
-    if (!target.classList.contains("pa-anno-host")) target.classList.add("pa-anno-host");
-    target.appendChild(icon);
-    return true;
-  }
-
-  function bindAnnotationActivate(node, handler) {
-    node.addEventListener("pointerdown", (event) => {
-      if (event.button !== 0) return;
-      event.preventDefault();
-      event.stopPropagation();
-      handler(event);
-    });
-    node.addEventListener("click", (event) => {
-      event.preventDefault();
-      event.stopPropagation();
-    });
+    const tick = () => {
+      PORTAL_ENTRIES.forEach((entry) => {
+        if (entry.icon && entry.icon.isConnected && entry.target && entry.target.isConnected) {
+          entry.update();
+        }
+      });
+    };
+    window.addEventListener("scroll", tick, true);
+    window.addEventListener("resize", tick);
   }
 
   /** 开发/测试编号点：固定叠在目标 getBoundingClientRect 右上角，不插入文档流 */
@@ -1396,51 +1162,6 @@
     update();
     PORTAL_ENTRIES.push({ icon, target, update });
     bindPortalReposition();
-    bindScrollableParents(target);
-    repositionAllPortalIcons();
-    return true;
-  }
-
-  function tableHasStickyColumns(table) {
-    return !!(
-      table &&
-      table.querySelector("th.actions, td.actions, th.chk-col, td.chk-col, .actions, .chk-col")
-    );
-  }
-
-  function shouldPortalFieldTip(target) {
-    const tag = (target && target.tagName) || "";
-    if (tag.toUpperCase() !== "TH") return false;
-    const table = target.closest("table");
-    if (!table) return false;
-    if (tableHasStickyColumns(table)) return true;
-    return getScrollableParents(target).length > 0;
-  }
-
-  function positionPortalFieldTip(icon, target) {
-    const wrap = target.querySelector(".pa-tip-label-wrap");
-    const anchor = wrap || target;
-    const rect = anchor.getBoundingClientRect();
-    if (rect.width <= 0 && rect.height <= 0) {
-      icon.style.visibility = "hidden";
-      return;
-    }
-    icon.style.visibility = "visible";
-    const h = icon.offsetHeight || 16;
-    icon.style.left = `${Math.round(rect.right + 2)}px`;
-    icon.style.top = `${Math.round(rect.top + Math.max(0, (rect.height - h) / 2))}px`;
-  }
-
-  function attachFieldTipPortal(icon, target) {
-    if (!isVisibleTarget(target)) return false;
-    icon.classList.add("pa-tip-icon-portal");
-    document.body.appendChild(icon);
-    const update = () => positionPortalFieldTip(icon, target);
-    update();
-    PORTAL_ENTRIES.push({ icon, target, update });
-    bindPortalReposition();
-    bindScrollableParents(target);
-    repositionAllPortalIcons();
     return true;
   }
 
@@ -1459,31 +1180,24 @@
   /** 用户字段 i：紧跟说明文字之后，参与行内排版（表头写在 th 内，不挤列宽） */
   function attachFieldTipInline(icon, target, item) {
     if (!isVisibleTarget(target)) return false;
+    icon.classList.add("pa-tip-inline");
     const inlineAnchor = (item && item.inlineAnchor) || "";
     if (inlineAnchor === "afterElement") {
-      icon.classList.add("pa-tip-inline");
       target.insertAdjacentElement("afterend", icon);
       return true;
     }
     const tag = (target.tagName || "").toUpperCase();
 
     if (tag === "TH") {
-      let wrap = target.querySelector(":scope > .pa-tip-label-wrap");
-      if (!wrap) {
-        const labelText = getThLabelText(target);
-        clearThExceptAnnotationDots(target);
-        wrap = document.createElement("span");
-        wrap.className = "pa-tip-label-wrap";
-        if (labelText) wrap.appendChild(document.createTextNode(labelText));
-        target.insertBefore(wrap, target.firstChild);
-      }
-      if (shouldPortalFieldTip(target)) return attachFieldTipPortal(icon, target);
-      icon.classList.add("pa-tip-inline");
+      const wrap = document.createElement("span");
+      wrap.className = "pa-tip-label-wrap";
+      const labelText = target.textContent.trim();
+      target.textContent = "";
+      if (labelText) wrap.appendChild(document.createTextNode(labelText));
       wrap.appendChild(icon);
+      target.appendChild(wrap);
       return true;
     }
-
-    icon.classList.add("pa-tip-inline");
 
     if (target.classList && target.classList.contains("th-inner")) {
       target.appendChild(icon);
@@ -1530,51 +1244,17 @@
     if (!target) return;
     const key = isUser ? `userAnnotation:${item.id}` : `annotation:${item.id || index}`;
     if (state.hidden && state.hidden[key]) return;
-    const wantInline = shouldInlineAnnotation(target);
-    const existing = document.querySelector(`[data-pa-item-key="${key}"]`);
-    if (existing) {
-      const entry = PORTAL_ENTRIES.find((row) => row.icon === existing);
-      const isInline = existing.classList.contains("pa-dot-inline-th");
-      if (wantInline !== isInline) {
-        removeAnnotationPortalByKey(key);
-      } else if (entry) {
-        if (entry.target === target && isVisibleTarget(target)) {
-          existing.textContent = String(index + 1);
-          existing.title = item.title || "说明";
-          entry.update();
-          return;
-        }
-        if (existing.isConnected && isVisibleTarget(target)) {
-          entry.target = target;
-          existing.textContent = String(index + 1);
-          existing.title = item.title || "说明";
-          entry.update();
-          return;
-        }
-        removeAnnotationPortalByKey(key);
-      } else if (isInline) {
-        if (existing.parentElement === target && isVisibleTarget(target)) {
-          existing.textContent = String(index + 1);
-          existing.title = item.title || "说明";
-          return;
-        }
-        removeAnnotationPortalByKey(key);
-      } else {
-        removeAnnotationPortalByKey(key);
-      }
-    }
-    if (!isVisibleTarget(target)) return;
-    const dot = document.createElement("button");
-    dot.type = "button";
+    if (document.querySelector(`[data-pa-item-key="${key}"]`)) return;
+    const dot = document.createElement("span");
     dot.className = "pa-root pa-dot";
     dot.setAttribute(ROOT_ATTR, "annotation");
     dot.setAttribute("data-pa-item-key", key);
     dot.textContent = String(index + 1);
     dot.title = item.title || "说明";
-    const attached = wantInline ? attachAnnotationInline(dot, target) : attachAnnotationPortal(dot, target);
-    if (!attached) return;
+    if (!attachAnnotationPortal(dot, target)) return;
     const meta = isUser ? { isUser: true, listKey: "annotations", itemId: item.id } : null;
-    bindAnnotationActivate(dot, () => {
+    dot.addEventListener("click", (event) => {
+      event.stopPropagation();
       editablePopover(
         config,
         state,
@@ -1785,20 +1465,31 @@
   }
 
   function renderAll(config, state) {
-    renderAnnotations(config, state);
-    renderFieldTips(config, state);
+    const baseAnno = config.annotations || [];
+    const userAnno = (state.userAdded && state.userAdded.annotations) || [];
+    baseAnno.forEach((item, index) => addAnnotation(config, state, item, index, false));
+    userAnno.forEach((item, index) => addAnnotation(config, state, item, baseAnno.length + index, true));
+
+    const baseTips = config.fieldTips || [];
+    const userTips = (state.userAdded && state.userAdded.fieldTips) || [];
+    baseTips.forEach((item, index) => addFieldTip(config, state, item, index, false));
+    userTips.forEach((item, index) => addFieldTip(config, state, item, index, true));
   }
 
   function scheduleRender(config, state) {
-    activeMount = { config, state };
-    queueAnnotationResync();
+    if (window[RENDER_TIMER_KEY]) clearTimeout(window[RENDER_TIMER_KEY]);
+    window[RENDER_TIMER_KEY] = setTimeout(() => {
+      renderAll(config, state);
+      PORTAL_ENTRIES.forEach((entry) => {
+        if (entry.icon && entry.icon.isConnected && entry.target && entry.target.isConnected) {
+          entry.update();
+        }
+      });
+    }, 80);
   }
 
   function bindDynamicObserver(config, state) {
-    const observer = new MutationObserver((mutations) => {
-      if (!mutationAffectsPageContent(mutations)) return;
-      scheduleRender(config, state);
-    });
+    const observer = new MutationObserver(() => scheduleRender(config, state));
     observer.observe(document.body, {
       childList: true,
       subtree: true,
@@ -1806,7 +1497,6 @@
       attributeFilter: ["hidden", "style", "class", "aria-hidden"]
     });
     window[OBSERVER_STORE_KEY] = observer;
-    document.addEventListener("pa:layout-change", () => scheduleRender(config, state));
   }
 
   async function mount(input) {
@@ -1815,7 +1505,6 @@
     exitPickMode();
     paCanEdit = await resolveCanEdit(config);
     const state = hydrateState(config);
-    activeMount = { config, state };
     const root = document.createElement("div");
     root.className = "pa-root pa-toolbar" + (paCanEdit ? "" : " pa-toolbar-readonly");
     root.setAttribute(ROOT_ATTR, "root");
@@ -1845,7 +1534,7 @@
   }
 
   async function mountFromScript() {
-    const script = document.getElementById("prototype-annotation-config");
+    const script = document.getElementById("prototype-annotation-002-config");
     if (!script) return;
     try {
       await mount(JSON.parse(script.textContent));
@@ -1854,30 +1543,7 @@
     }
   }
 
-  async function recoverUserAnnotations() {
-    const script = document.getElementById("prototype-annotation-config");
-    if (!script) return { recovered: false, reason: "no-config" };
-    try {
-      const config = JSON.parse(script.textContent);
-      const merged = loadState(config);
-      const count =
-        (merged.userAdded && merged.userAdded.annotations ? merged.userAdded.annotations.length : 0) +
-        (merged.userAdded && merged.userAdded.fieldTips ? merged.userAdded.fieldTips.length : 0);
-      await mount(config);
-      return { recovered: true, userAddedCount: count, userAdded: merged.userAdded };
-    } catch (error) {
-      return { recovered: false, reason: String(error) };
-    }
-  }
-
-  window.PrototypeAnnotation = {
-    mount,
-    mountFromScript,
-    resolveCanEdit,
-    resync: resyncAnnotationsNow,
-    recoverUserAnnotations,
-    loadState
-  };
+  window.PrototypeAnnotation = { mount, mountFromScript, resolveCanEdit };
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", mountFromScript);
   } else {

@@ -33,6 +33,8 @@ const floatingWindows = new Map();
 const sessionsByWindowId = new Map();
 /** @type {import('electron').Tray | null} */
 let tray = null;
+/** 退出中：禁止关窗后自动重建悬浮窗，否则关机/⌘Q 会卡住需强制退出 */
+let isQuitting = false;
 
 /** 转写 + 场景梳理串行队列，避免双窗口同时跑模型 */
 const transcribeQueue = [];
@@ -57,12 +59,44 @@ function syncDockWithWindow() {
   if (process.platform === 'darwin' && app.dock) app.dock.show();
 }
 
+function destroyAllFloatingWindows() {
+  const wins = [...floatingWindows.values()].map(({ win }) => win);
+  floatingWindows.clear();
+  sessionsByWindowId.clear();
+  for (const win of wins) {
+    if (win && !win.isDestroyed()) {
+      try {
+        win.removeAllListeners('closed');
+        win.destroy();
+      } catch (_) {
+        /* ignore */
+      }
+    }
+  }
+}
+
 function forceQuitApp() {
-  stopTranscribeService();
+  if (isQuitting) {
+    app.exit(0);
+    return;
+  }
+  isQuitting = true;
+  try {
+    globalShortcut.unregisterAll();
+  } catch (_) {
+    /* ignore */
+  }
+  stopTranscribeService({ force: true });
   if (tray) {
-    tray.destroy();
+    try {
+      tray.destroy();
+    } catch (_) {
+      /* ignore */
+    }
     tray = null;
   }
+  destroyAllFloatingWindows();
+  // 立刻退出，避免转写子进程/托盘拖住关机流程
   app.exit(0);
 }
 
@@ -174,7 +208,9 @@ function createFloatingWindow(options = {}) {
   win.on('closed', () => {
     floatingWindows.delete(win.id);
     sessionsByWindowId.delete(win.id);
+    if (isQuitting) return;
     updateTrayMenu();
+    // 仅在非退出态保持至少 1 个悬浮窗；退出/关机时绝不能重建，否则会卡死需强制退出
     if (floatingWindows.size === 0) {
       createFloatingWindow();
       updateTrayMenu();
@@ -357,7 +393,27 @@ if (!gotSingleInstanceLock) {
 
 app.whenReady().then(() => {
   applyAppBranding();
-  if (process.platform === 'darwin') app.dock.show();
+  if (process.platform === 'darwin') {
+    app.dock.show();
+    // Dock / 菜单栏「退出」走 before-quit；显式绑定到 forceQuit，避免关窗后重建导致挂起
+    const appMenu = Menu.buildFromTemplate([
+      {
+        label: app.name,
+        submenu: [
+          { role: 'about' },
+          { type: 'separator' },
+          {
+            label: '退出会议记录',
+            accelerator: 'Command+Q',
+            click: () => forceQuitApp(),
+          },
+        ],
+      },
+      { role: 'editMenu' },
+      { role: 'windowMenu' },
+    ]);
+    Menu.setApplicationMenu(appMenu);
+  }
   createFloatingWindow();
   createTray();
   warmTranscribeService(loadConfig());
@@ -367,22 +423,34 @@ app.whenReady().then(() => {
   });
 
   app.on('activate', () => {
+    if (isQuitting) return;
     if (floatingWindows.size === 0) createFloatingWindow();
     else showPrimaryWindow();
   });
 });
 
-app.on('before-quit', () => {
-  globalShortcut.unregisterAll();
-  stopTranscribeService();
+app.on('before-quit', (event) => {
+  if (isQuitting) return;
+  // 拦截默认退出，走统一清理（关窗不重建 + 强杀转写进程），再 exit
+  event.preventDefault();
+  forceQuitApp();
 });
 
 app.on('will-quit', () => {
-  globalShortcut.unregisterAll();
+  try {
+    globalShortcut.unregisterAll();
+  } catch (_) {
+    /* ignore */
+  }
+  stopTranscribeService({ force: true });
 });
 
-app.on('window-all-closed', (e) => {
-  e.preventDefault();
+app.on('window-all-closed', () => {
+  // macOS 托盘应用：非退出态保持进程；退出态由 forceQuitApp 处理
+  if (isQuitting) return;
+  if (process.platform !== 'darwin') {
+    forceQuitApp();
+  }
 });
 
 ipcMain.handle('meeting:get-config', async (event) => {

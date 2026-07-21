@@ -314,14 +314,32 @@ function resetTranscribeService() {
   pendingJobs.clear();
 }
 
-function stopTranscribeService() {
-  if (!serviceProcess) return;
+function stopTranscribeService({ force = false } = {}) {
+  const proc = serviceProcess;
+  if (!proc) return;
+  serviceProcess = null;
   try {
-    serviceProcess.stdin?.end();
+    proc.stdin?.end();
   } catch (_) {
     /* ignore */
   }
-  serviceProcess.kill();
+  try {
+    if (force) {
+      proc.kill('SIGKILL');
+    } else {
+      proc.kill('SIGTERM');
+      const pid = proc.pid;
+      setTimeout(() => {
+        try {
+          if (pid && !proc.killed) process.kill(pid, 'SIGKILL');
+        } catch (_) {
+          /* already gone */
+        }
+      }, 800).unref?.();
+    }
+  } catch (_) {
+    /* ignore */
+  }
   resetTranscribeService();
 }
 
