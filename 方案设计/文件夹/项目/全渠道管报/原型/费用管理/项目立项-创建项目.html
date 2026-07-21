@@ -274,6 +274,62 @@
     .table-toolbar {
       display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 12px;
     }
+    .table-toolbar .alloc-mode-field {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-left: 4px;
+      padding: 6px 12px;
+      border: 1px solid #dbe4f0;
+      border-radius: 8px;
+      background: #f8fafc;
+      flex: 1;
+      min-width: 320px;
+    }
+    .table-toolbar .alloc-mode-field > label {
+      font-size: 13px;
+      font-weight: 700;
+      color: #0f2f63;
+      white-space: nowrap;
+      margin: 0;
+    }
+    .table-toolbar .alloc-mode-field.mode-noalloc {
+      background: #fff7ed;
+      border-color: #fdba74;
+    }
+    .table-toolbar .alloc-mode-field .seg button {
+      padding: 0 16px;
+      font-weight: 600;
+    }
+    .table-toolbar .alloc-mode-hint {
+      margin: 0;
+      font-size: 12px;
+      color: #64748b;
+      flex: 1;
+      min-width: 0;
+      line-height: 1.5;
+    }
+    .seg {
+      display: inline-flex;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      overflow: hidden;
+      flex-shrink: 0;
+    }
+    .seg button {
+      height: 28px;
+      padding: 0 12px;
+      font-size: 13px;
+      border: none;
+      background: #fff;
+      color: var(--text);
+      cursor: pointer;
+      font-family: inherit;
+    }
+    .seg button.active {
+      background: var(--brand);
+      color: #fff;
+    }
     .btn {
       display: inline-flex; align-items: center; justify-content: center;
       height: 32px; padding: 0 15px; font-size: 13px; border-radius: 4px;
@@ -500,6 +556,14 @@
               <button type="button" class="btn" id="btnBudgetAdd" data-pa-key="btn-budget-add">新增一行</button>
               <button type="button" class="btn btn-danger-outline" id="btnBudgetBatchDel" data-pa-key="btn-budget-batch-del" disabled>批量删除</button>
               <button type="button" class="btn btn-primary" id="btnBudgetSave" data-pa-key="btn-budget-save">保存预算</button>
+              <div class="alloc-mode-field" id="budgetAllocModeField" data-pa-key="budget-alloc-mode">
+                <label><span class="req-mark">*</span>分摊模式</label>
+                <div class="seg" id="budgetAllocModeSeg" role="group" aria-label="分摊模式">
+                  <button type="button" class="active" data-mode="分摊">分摊</button>
+                  <button type="button" data-mode="不分摊">不分摊</button>
+                </div>
+                <p class="alloc-mode-hint" id="budgetAllocModeHint">分摊（规划）：记录后续将按渠道/产品范围拆分至各商品；此处仅做预算规划，不生成实际分摊结果。</p>
+              </div>
             </div>
             <div class="budget-table-wrap" data-pa-key="budget-table-wrap">
               <table class="data-table" id="tblBudget">
@@ -509,7 +573,7 @@
                     <th data-pa-key="col-revenue-date"><span class="req-mark">*</span> 收益日期范围</th>
                     <th data-pa-key="col-marketing-type"><span class="req-mark">*</span> 营销类型</th>
                     <th data-pa-key="col-budget-type"><span class="req-mark">*</span> 类型</th>
-                    <th data-pa-key="col-dept">费用部门</th>
+                    <th data-pa-key="col-dept"><span class="req-mark" id="budgetDeptReq" style="display:none">*</span> 费用部门</th>
                     <th data-pa-key="col-scene-cat">场景品类</th>
                     <th data-pa-key="col-model">model</th>
                     <th data-pa-key="col-sku">SKU</th>
@@ -538,7 +602,7 @@
   <script src="../../../../规范/assets/multi-select-filter.js"></script>
   <script src="../../../../规范/assets/scene-category-cascader.js?v=20260720-scc-v2"></script>
   <script src="fee-dept-master.js?v=20260721-dept-v1"></script>
-  <script src="./项目立项-budget-plan.js?v=20260721-fee-dept-v1"></script>
+  <script src="./项目立项-budget-plan.js?v=20260721-alloc-mode-v2"></script>
   <script>
     (function () {
       if (typeof ProjectBudgetPlan === "undefined") {
@@ -608,7 +672,13 @@
       "id": "btn-budget-save",
       "selector": "#btnBudgetSave",
       "title": "保存预算",
-      "body": "保存预算逻辑：\n1. 先校验：至少一行；每行须有完整收益日期、营销类型、类型；营销费用规划须大于 0。\n2. 规划对象：场景品类、SKU、新品标签三者不可同时为空（至少填一类）。\n3. 校验通过后写入浏览器本地缓存，并提示「预算已保存」及当前合计；刷新页面后仍保留。"
+      "body": "保存预算逻辑：\n1. 先校验：至少一行；每行须有完整收益日期、营销类型、类型；营销费用规划须大于 0。\n2. 分摊模式下：场景品类、SKU、新品标签三者不可同时为空（至少填一类）。\n3. 不分摊模式下：范围可全空（全公司通用预算），但每行费用部门必填。\n4. 分摊模式为项目级规划口径，此处不生成实际 MSKU 分摊结果。\n5. 校验通过后写入浏览器本地缓存，并提示「预算已保存」及当前合计；刷新页面后仍保留。"
+    },
+    {
+      "id": "budget-alloc-mode",
+      "selector": "#budgetAllocModeField",
+      "title": "分摊模式",
+      "body": "项目级规划口径，记录本项目后续费用的处理方式，不在预算页生成实际分摊结果。\n\n分摊：记录后续将按渠道/产品范围拆分至各商品；分摊模式下场景品类、SKU、新品标签至少填一类。\n\n不分摊：记录后续将整笔挂到指定维度；范围可全空（全公司通用预算），每行费用部门必填；渠道/产品范围每列仅可单选或不填。"
     },
     {
       "id": "nav-budget-tab",
@@ -626,13 +696,13 @@
       "id": "col-scene-cat",
       "selector": "th[data-pa-key=\"col-scene-cat\"]",
       "title": "场景品类",
-      "body": "场景品类选择逻辑：\n1. 两级级联多选：左列场景、右列品类；鼠标悬停场景时右列联动，两级均支持复选框多选。\n2. 勾选场景父级等于全选其下品类；部分勾选时父级呈半选态。\n3. 已选项以「场景 / 品类」展示，超过 2 项时合并为「已选 N 项」。\n4. 与 SKU、新品标签三者不可同时为空，至少维护一类商品范围方可保存。"
+      "body": "场景品类选择逻辑：\n1. 两级级联多选：左列场景、右列品类；鼠标悬停场景时右列联动，两级均支持复选框多选。\n2. 勾选场景父级等于全选其下品类；部分勾选时父级呈半选态。\n3. 已选项以「场景 / 品类」展示，超过 2 项时合并为「已选 N 项」。\n4. 分摊模式下与 SKU、新品标签不可同时为空；不分摊模式下可全空（全公司通用预算）。"
     },
     {
       "id": "col-np-tag",
       "selector": "th[data-pa-key=\"col-np-tag\"]",
       "title": "新品标签",
-      "body": "新品标签逻辑：\n1. 年份下拉单选，以当前年为中心前后各 3 年共 7 个选项，按年份降序展示。\n2. 可不填；但与场景品类、SKU 不可三者全空。\n3. 历史数据中的旧版「YYYY新品」文案加载时自动规范为对应年份。\n4. 选项随系统当前年份动态刷新，无需手工维护年份列表。"
+      "body": "新品标签逻辑：\n1. 年份下拉单选，以当前年为中心前后各 3 年共 7 个选项，按年份降序展示。\n2. 分摊模式下与场景品类、SKU 不可三者全空；不分摊模式下可全空。\n3. 历史数据中的旧版「YYYY新品」文案加载时自动规范为对应年份。\n4. 选项随系统当前年份动态刷新，无需手工维护年份列表。"
     }
   ],
   "fieldTips": [
@@ -658,13 +728,13 @@
       "id": "tip-dept",
       "selector": "th[data-pa-key=\"col-dept\"]",
       "title": "费用部门",
-      "body": "费用归属部门，单选。从公司费用部门主数据中选择，用于标识该笔预算由哪个部门承担；可不填。"
+      "body": "费用归属部门，单选。分摊模式下可不填；不分摊模式下必填，用于标识该笔预算由哪个部门承担。"
     },
     {
       "id": "tip-scene-cat",
       "selector": "th[data-pa-key=\"col-scene-cat\"]",
       "title": "场景品类",
-      "body": "按场景与品类界定预算覆盖的商品范围，可多选。与 SKU、新品标签三者至少填写一类。"
+      "body": "按场景与品类界定预算覆盖的商品范围，可多选。分摊模式下与 SKU、新品标签至少填写一类；不分摊模式下可全空。"
     },
     {
       "id": "tip-model",
@@ -676,7 +746,7 @@
       "id": "tip-sku",
       "selector": "th[data-pa-key=\"col-sku\"]",
       "title": "SKU",
-      "body": "生产 SKU，可多选。与场景品类、新品标签共同界定规划对象；三者至少填一类。"
+      "body": "生产 SKU，可多选。分摊模式下与场景品类、新品标签至少填一类；不分摊模式下可全空。"
     },
     {
       "id": "tip-np-tag",
@@ -724,15 +794,15 @@
   "pageGuide": {
     "dev": {
       "页面整体定位": "本页为 PMP「项目 → 预算」语境下的项目立项预算维护原型，用于在立项阶段按收益周期、营销类型、费用类型及商品/地理/渠道范围录入营销费用规划行，并汇总合计。模块归属全渠道管报费用管理链路中的立项预算入口。",
-      "页面核心业务逻辑": "预算以行为单位本地持久化。必填：收益日期范围、营销类型、类型、营销费用规划（>0）。规划对象：场景品类、SKU、新品标签不可同时为空。场景品类为两级级联多选（场景→品类，父子复选框联动），存 sceneCategories 数组；新品标签为当前年±3 年的年份下拉（对齐 MSKU基础信息页）。区域→国家、渠道→店铺存在级联清空。顶部「保存预算」校验全部行后落库；行内「保存」仅校验当前行。合计为各行金额直接相加（原型不折汇）。",
-      "关键规则说明": "1. 立项提交前至少一行有效预算。2. 批量删除依赖勾选，未勾选时禁用。3. 复制行生成新编号并带出全部字段。4. 费用部门可选可清。5. model/SKU 多选，选项来自销售主数据示例。6. 场景品类级联父级勾选=全选子级，数据存数组并兼容旧单选字段。7. 新品标签年份随当前时间动态生成，旧「YYYY新品」格式自动迁移。",
-      "测试验收要点": "1. 空表点保存应提示至少新增一行。2. 金额为 0 或规划对象三者全空应拦截。3. 改区域后国家应被清空；改渠道后店铺应被清空。4. 保存后刷新页面数据仍在，合计正确。5. 批量删除与单行删除均需确认。6. 场景品类级联：hover 切换右列、父级勾选全选子级、子级勾选不影响其它场景。7. 新品标签下拉显示当前年±3 年共 7 项，旧数据回显正确。",
+      "页面核心业务逻辑": "预算以行为单位本地持久化，分摊模式为项目级规划口径（不生成实际 MSKU 分摊结果）。必填：收益日期范围、营销类型、类型、营销费用规划（>0）。分摊模式下场景品类、SKU、新品标签不可同时为空；不分摊模式下范围可全空（全公司通用预算），但每行费用部门必填。场景品类为两级级联多选；新品标签为当前年±3 年下拉。区域→国家、渠道→店铺存在级联清空。顶部「保存预算」校验全部行后落库。",
+      "关键规则说明": "1. 立项提交前至少一行有效预算。2. 分摊模式项目级统一，切换后影响全部预算行的校验与范围填写规则。3. 不分摊时范围每列仅可单选或不填，可全空。4. 费用部门：分摊可空，不分摊必填。5. 本页仅记录规划，实际分摊在费用导入生效后执行。",
+      "测试验收要点": "1. 空表点保存应提示至少新增一行。2. 分摊模式下规划对象三者全空应拦截；不分摊模式下三者全空且部门已填应可保存。3. 不分摊模式下部门为空应拦截。4. 切换分摊模式后费用部门列星号联动。5. 改区域后国家清空；改渠道后店铺清空。",
       "关联上下游": "上游：销售主数据（model/SKU）、区域国家与渠道店铺主数据、场景品类。下游：立项预算可为后续营销费用规划/使用看板提供项目侧预算口径（原型阶段仅本地演示）。"
     },
     "user": {
-      "标准操作流程": "1. 进入项目后打开「预算」页签。2. 点击「新增一行」或在示例行上修改。3. 填写收益日期、营销类型、类型与营销费用规划；按需选择场景品类/SKU/新品标签及区域国家渠道店铺。4. 可点行内「保存」或顶部「保存预算」。5. 核对右上角合计后继续其他立项步骤。",
+      "标准操作流程": "1. 进入项目后打开「预算」页签。2. 选择项目级分摊模式（仅记录规划口径）。3. 点击「新增一行」或在示例行上修改。4. 填写收益日期、营销类型、类型与营销费用规划；按需选择范围字段。5. 点击「保存预算」保存全部行。",
       "关键按钮与场景": "「新增一行」用于追加预算；「批量删除」用于清理多行；「保存预算」一次性校验并保存全部行。「复制」适合在相似市场间微调金额或范围。",
-      "使用注意事项": "场景品类、SKU、新品标签至少填一类。金额必须大于 0。场景品类为两级级联多选，父级勾选会全选其下品类。新品标签为当前年±3 年的年份下拉（如 2026 年显示 2029～2023年新品）。本原型数据保存在当前浏览器本地，换设备或清缓存后需重新录入。合计不做多币种折算。"
+      "使用注意事项": "分摊模式为项目级统一设置。分摊模式下场景品类、SKU、新品标签至少填一类；不分摊模式下范围可全空，但费用部门必填。本页仅做预算规划，不生成实际 MSKU 分摊结果，实际分摊在费用导入生效后执行。合计不做多币种折算。"
     }
   },
   "statusFlow": {

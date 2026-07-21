@@ -427,6 +427,7 @@
 
       <section class="jd-card panel--filter">
         <div class="filter-panel" data-pa-key="list-filter-bar">
+          <div class="panel-sub" style="margin-bottom:12px;color:#6b7280;font-size:13px;">设置筛选条件后点击「查询」刷新下方列表</div>
           <div class="filter-grid">
             <div class="f-item">
               <label for="filterFee">费用项</label>
@@ -1410,12 +1411,43 @@
     });
     if (window.FeeMgmtCommon) window.FeeMgmtCommon.ensureHiddenModals();
   }
-  function buildSummary(sourceType, caliberText, detailCount) {
+  function resetModalFormFields() {
+    document.getElementById('fixedAmount').value = '85000';
+    document.getElementById('fixedRate').value = '8.50';
+    document.getElementById('fixedCurrency').value = 'CNY';
+    document.getElementById('rateBase').value = '当月实际营收';
+    document.getElementById('histWindow').selectedIndex = 0;
+    document.getElementById('histBase').selectedIndex = 0;
+    document.getElementById('yoyRateBase').selectedIndex = 0;
+    document.getElementById('yoyFallback').selectedIndex = 0;
+  }
+
+  function summarizeDetailValues(details) {
+    var nums = (details || []).map(function (item) { return Number(item.value); }).filter(function (v) { return Number.isFinite(v); });
+    if (!nums.length) return null;
+    var min = Math.min.apply(null, nums);
+    var max = Math.max.apply(null, nums);
+    var sum = nums.reduce(function (s, v) { return s + v; }, 0);
+    return { min: min, max: max, avg: sum / nums.length, count: nums.length };
+  }
+
+  function buildSummary(sourceType, caliberText, details) {
+    details = details || [];
+    var detailCount = details.length;
+    var stats = summarizeDetailValues(details);
     if (sourceType === 'fixedAmount') {
-      return '¥' + parseNumberField('fixedAmount').toLocaleString() + ' / 月 · ' + caliberText + ' · ' + detailCount + ' 条明细';
+      if (!stats) return '— · ' + caliberText + ' · 0 条明细';
+      var amtText = stats.min === stats.max
+        ? '¥' + stats.min.toLocaleString() + ' / 月'
+        : '¥' + stats.min.toLocaleString() + '–' + stats.max.toLocaleString() + ' / 月（均值 ¥' + Math.round(stats.avg).toLocaleString() + '）';
+      return amtText + ' · ' + caliberText + ' · ' + detailCount + ' 条明细';
     }
     if (sourceType === 'fixedRate') {
-      return parseNumberField('fixedRate') + '% × ' + document.getElementById('rateBase').value + ' · ' + caliberText + ' · ' + detailCount + ' 条明细';
+      if (!stats) return '— × ' + document.getElementById('rateBase').value + ' · ' + caliberText + ' · 0 条明细';
+      var rateText = stats.min === stats.max
+        ? stats.min.toFixed(2) + '%'
+        : stats.min.toFixed(2) + '%–' + stats.max.toFixed(2) + '%（均值 ' + stats.avg.toFixed(2) + '%）';
+      return rateText + ' × ' + document.getElementById('rateBase').value + ' · ' + caliberText + ' · ' + detailCount + ' 条明细';
     }
     if (sourceType === 'rollingRate') {
       return document.getElementById('histWindow').value + ' 滚动 · ' + document.getElementById('histBase').value + ' · ' + caliberText + ' · ' + detailCount + ' 条明细';
@@ -1436,18 +1468,35 @@
     return map;
   }
 
+  var appliedListFilter = null;
+
+  function readListFilter() {
+    return {
+      fee: document.getElementById('filterFee').value,
+      source: document.getElementById('filterSource').value,
+      channel: document.getElementById('filterChannel').value,
+      status: document.getElementById('filterStatus').value
+    };
+  }
+
+  function applyListFilter() {
+    appliedListFilter = readListFilter();
+  }
+
   function filtered() {
-    var fee = document.getElementById('filterFee').value;
-    var source = document.getElementById('filterSource').value;
-    var channel = document.getElementById('filterChannel').value;
-    var status = document.getElementById('filterStatus').value;
+    var f = appliedListFilter || readListFilter();
     return rows.filter(function (r) {
-      if (fee && r.feeCode !== fee) return false;
-      if (source && sourceName(r.sourceType) !== source) return false;
-      if (channel && (r.channels || []).indexOf(channel) < 0) return false;
-      if (status && r.status !== status) return false;
+      if (f.fee && r.feeCode !== f.fee) return false;
+      if (f.source && sourceName(r.sourceType) !== f.source) return false;
+      if (f.channel && (r.channels || []).indexOf(f.channel) < 0) return false;
+      if (f.status && r.status !== f.status) return false;
       return true;
     });
+  }
+
+  function queryList() {
+    applyListFilter();
+    renderTable();
   }
 
   function renderTable() {
@@ -1633,6 +1682,7 @@
       detailRows = [];
       detailRowsType = null;
       clearDetailFilters();
+      resetModalFormFields();
 
       if (isNew) {
         document.getElementById('feeItem').value = getDefaultFeeCode();
@@ -1647,8 +1697,9 @@
         document.getElementById('sourceType').value = row.sourceType === 'historyRate' ? 'rollingRate' : row.sourceType;
         document.getElementById('enabled').value = row.status;
         document.getElementById('remark').value = row.remark || '';
-        if (row.fixedAmount) document.getElementById('fixedAmount').value = row.fixedAmount;
-        if (row.fixedRate) document.getElementById('fixedRate').value = row.fixedRate;
+        if (row.fixedAmount != null) document.getElementById('fixedAmount').value = row.fixedAmount;
+        if (row.fixedRate != null) document.getElementById('fixedRate').value = row.fixedRate;
+        if (row.rateBase) document.getElementById('rateBase').value = row.rateBase;
         document.getElementById('caliberScope').value = row.caliberScope || 'channelCountry';
         if (row.yoyRateBase) document.getElementById('yoyRateBase').value = row.yoyRateBase;
         if (row.yoyFallback) document.getElementById('yoyFallback').value = row.yoyFallback;
@@ -1692,17 +1743,20 @@
     var sourceType = document.getElementById('sourceType').value;
     var status = document.getElementById('enabled').value;
     var channels = Array.from(selectedChannels);
+    var remark = (document.getElementById('remark').value || '').trim();
 
     if (!channels.length) {
       alert('请至少选择一个适用渠道');
       return;
     }
 
-    var occupied = getOccupied(feeCode, editingId);
-    for (var i = 0; i < channels.length; i++) {
-      if (occupied[channels[i]]) {
-        alert('渠道「' + channels[i] + '」已被该费用项的其它配置占用');
-        return;
+    if (status === '启用') {
+      var occupied = getOccupied(feeCode, editingId);
+      for (var i = 0; i < channels.length; i++) {
+        if (occupied[channels[i]]) {
+          alert('渠道「' + channels[i] + '」已被该费用项的其它启用配置占用');
+          return;
+        }
       }
     }
 
@@ -1723,7 +1777,7 @@
         alert('请补全并校验所有口径明细的维护值：' + maintainValueError(sourceType));
         return;
       }
-      summary = buildSummary(sourceType, caliberText, detailRows.length);
+      summary = buildSummary(sourceType, caliberText, detailRows);
     }
 
     if (editingId) {
@@ -1733,11 +1787,13 @@
         row.sourceType = sourceType;
         row.channels = channels;
         row.status = status;
+        row.remark = remark;
         row.summary = summary;
         row.maintainer = 'GTM-李四 · 2026-06-05';
         row.caliberScope = RULE_TYPES.indexOf(sourceType) >= 0 ? caliberScope : null;
         row.fixedAmount = sourceType === 'fixedAmount' ? parseNumberField('fixedAmount') : null;
         row.fixedRate = sourceType === 'fixedRate' ? parseNumberField('fixedRate') : null;
+        row.rateBase = sourceType === 'fixedRate' ? document.getElementById('rateBase').value : null;
         row.histWindow = sourceType === 'rollingRate' ? document.getElementById('histWindow').value : null;
         row.histBase = sourceType === 'rollingRate' ? document.getElementById('histBase').value : null;
         row.yoyRateBase = sourceType === 'yoyMonthRate' ? document.getElementById('yoyRateBase').value : null;
@@ -1752,10 +1808,12 @@
         channels: channels,
         summary: summary,
         status: status,
+        remark: remark,
         maintainer: 'GTM-李四 · 2026-06-05',
         caliberScope: RULE_TYPES.indexOf(sourceType) >= 0 ? caliberScope : null,
         fixedAmount: sourceType === 'fixedAmount' ? parseNumberField('fixedAmount') : null,
         fixedRate: sourceType === 'fixedRate' ? parseNumberField('fixedRate') : null,
+        rateBase: sourceType === 'fixedRate' ? document.getElementById('rateBase').value : null,
         histWindow: sourceType === 'rollingRate' ? document.getElementById('histWindow').value : null,
         histBase: sourceType === 'rollingRate' ? document.getElementById('histBase').value : null,
         yoyRateBase: sourceType === 'yoyMonthRate' ? document.getElementById('yoyRateBase').value : null,
@@ -1816,7 +1874,7 @@
   document.getElementById('editModal').addEventListener('click', function (e) {
     if (e.target.id === 'editModal') closeModal();
   });
-  document.getElementById('btnQuery').onclick = renderTable;
+  document.getElementById('btnQuery').onclick = queryList;
   document.getElementById('btnExportList').onclick = exportSourceList;
 
   function toggleSourceStatus(id) {
@@ -1856,7 +1914,7 @@
       return;
     }
     if (t.id === 'btnAdd') { e.preventDefault(); e.stopPropagation(); openModal(null); return; }
-    if (t.id === 'btnQuery') { e.preventDefault(); e.stopPropagation(); renderTable(); return; }
+    if (t.id === 'btnQuery') { e.preventDefault(); e.stopPropagation(); queryList(); return; }
     if (t.id === 'btnExportList') { e.preventDefault(); e.stopPropagation(); exportSourceList(); return; }
     if (t.dataset && t.dataset.act === 'edit') { e.preventDefault(); e.stopPropagation(); openModal(t.dataset.id); return; }
     if (t.dataset && t.dataset.act === 'view') { e.preventDefault(); e.stopPropagation(); openModal(t.dataset.id, { viewOnly: true }); return; }
@@ -1878,6 +1936,7 @@
       }
     }).then(function () {
       refreshFeeItemSelects();
+      applyListFilter();
       renderTable();
     });
     FeeItemMaster.onChange(function () {
@@ -1885,6 +1944,7 @@
       renderTable();
     });
   } else {
+    applyListFilter();
     renderTable();
   }
 
@@ -1958,13 +2018,13 @@
       "id": "list-query-rule",
       "selector": "[data-pa-key=\"list-filter-bar\"]",
       "title": "列表筛选",
-      "body": "列表筛选规则：\n1. 可按费用项、来源类型、渠道、状态组合筛选；「全部」表示不限该维度。\n2. 查询只影响当前列表展示，不修改任何来源配置。\n3. 状态筛选用于区分参与计提的启用规则与已停用规则。"
+      "body": "列表筛选规则：\n1. 可按费用项、来源类型、渠道、状态组合筛选；「全部」表示不限该维度。\n2. 修改筛选项后须点击「查询」刷新列表；未点查询前列表保持上一次结果。\n3. 导出与列表一致，按上一次查询的筛选条件取数。\n4. 状态筛选用于区分参与计提的启用规则与已停用规则；停用规则不占渠道。"
     },
     {
       "id": "list-export-rule",
       "selector": "#btnExportList",
       "title": "导出列表",
-      "body": "列表导出规则：\n1. 导出当前筛选结果下的费用来源列表（费用项、来源类型、渠道、摘要、状态等）。\n2. 导出的是配置摘要，不含口径明细维护值；明细须从编辑弹窗单独导出。\n3. 建议需求明确：导出文件格式、字段顺序及是否含停用规则。"
+      "body": "列表导出规则：\n1. 导出与列表展示一致，按上一次点击「查询」后的筛选结果导出（费用项、来源类型、渠道、摘要、状态等）。\n2. 导出的是配置摘要，不含口径明细维护值；明细须从编辑弹窗单独导出。\n3. 建议需求明确：导出文件格式、字段顺序及是否含停用规则。"
     },
     {
       "id": "create-source-entry",
@@ -2018,7 +2078,7 @@
       "id": "source-type-params-rule",
       "selector": ".source-block.active[data-pa-key=\"source-type-params\"]",
       "title": "类型参数",
-      "body": "来源类型参数规则：\n1. 固定金额/固定比例：顶部默认值为摘要展示参数；明细展开时各行有独立维护值，保存时以明细为准。\n2. 历史滚动占比：历史窗口与比例基数决定系统如何计算各明细行的滚动占比（只读）。\n3. 同期占比预估：比例基数与缺数处理决定同比月缺数时的降级策略。"
+      "body": "来源类型参数规则：\n1. 固定金额/固定比例：顶部默认值为批量编辑参考；列表摘要按明细维护值汇总展示（区间/均值）。\n2. 历史滚动占比：历史窗口与比例基数决定系统如何计算各明细行的滚动占比（只读）。\n3. 同期占比预估：比例基数与缺数处理决定同比月缺数时的降级策略。"
     },
     {
       "id": "rolling-rate-rule",
@@ -2066,13 +2126,13 @@
       "id": "edit-modal-footer-rule",
       "selector": "[data-pa-key=\"edit-modal-footer\"]",
       "title": "保存与取消",
-      "body": "弹窗底栏规则：\n1. 「取消」关闭弹窗且不保存本次修改。\n2. 「保存」校验：至少选一个渠道、渠道不重复占用、非自动取数须补全全部明细维护值。\n3. 保存成功后刷新列表摘要；新规则仅影响未运行月份，已运行月份与历史报表保留快照不重算。"
+      "body": "弹窗底栏规则：\n1. 「取消」关闭弹窗且不保存本次修改。\n2. 「保存」校验：至少选一个渠道；仅启用状态校验渠道占用（停用配置不占渠道）；非自动取数须补全全部明细维护值。\n3. 保存成功后刷新列表摘要（按明细汇总）；新规则仅影响未运行月份，已运行月份与历史报表保留快照不重算。"
     },
     {
       "id": "status-impact-rule",
       "selector": "[data-pa-key=\"source-status\"]",
       "title": "启停影响",
-      "body": "启停规则：\n1. 启用配置参与月度费用计提与管报取数，停用配置保留但不参与后续计提。\n2. 列表与弹窗启停须二次确认，并记录操作日志；须受权限控制。\n3. 已运行月份及历史报表按快照保留，不因启停回溯重算。"
+      "body": "启停规则：\n1. 启用配置参与月度费用计提与管报取数，停用配置保留但不参与后续计提，且不占渠道。\n2. 列表与弹窗启停须二次确认，并记录操作日志；须受权限控制。\n3. 已运行月份及历史报表按快照保留，不因启停回溯重算。"
     },
     {
       "id": "source-scope-column-rule",
@@ -2098,7 +2158,7 @@
       "id": "tip-source-summary",
       "selector": "[data-pa-key=\"source-summary\"]",
       "title": "来源摘要",
-      "body": "汇总当前来源的关键参数，如历史窗口、比例基数、口径范围和明细条数。用户可通过摘要快速判断该规则如何计算费用。"
+      "body": "汇总当前来源的关键参数：列表摘要按明细维护值汇总（固定金额/比例展示区间或均值），并附口径范围与明细条数。用户可通过摘要快速判断该规则如何计算费用。"
     },
     {
       "id": "tip-source-status",
@@ -2152,7 +2212,7 @@
         "需要批量维护时，先导出/下载当前口径模板，再导入覆盖或勾选后批量编辑。",
         "保存前确认来源摘要、启用状态和适用范围，避免后续月度计提口径错误。"
       ],
-      "关键字段说明": "「来源摘要」用于快速识别规则参数；「维护值」是明细层真正参与计算的金额或比例；「状态」决定该规则是否参与后续计提。",
+      "关键字段说明": "「来源摘要」按明细维护值汇总展示；「维护值」是明细层真正参与计算的金额或比例；「状态」决定该规则是否参与后续计提（停用不占渠道）。",
       "使用注意事项": "切换来源类型、口径范围或渠道会改变明细结构。历史滚动占比由系统计算，不需要手工填值。规则修改或启停仅影响未运行月份；已运行月份与历史报表保留快照。启停须二次确认。"
     }
   },

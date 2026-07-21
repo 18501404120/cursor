@@ -4,6 +4,8 @@
  */
 (function (global) {
   var STORAGE_KEY = "project_create_budget_v10";
+  var STORAGE_META_KEY = "project_create_budget_meta_v1";
+  var allocMode = "分摊";
   /** 旧版 BP 部门名，已废弃，加载时清空 */
   var LEGACY_BP_DEPT_NAMES = { "智能照明": true, "智能家电": true };
 
@@ -90,6 +92,99 @@
   var onChangeCb = null;
   var activeTbodyId = "tbodyBudget";
   var cachedDefaults = null;
+
+  function loadAllocMode() {
+    try {
+      var raw = localStorage.getItem(STORAGE_META_KEY);
+      if (raw) {
+        var meta = JSON.parse(raw);
+        if (meta.allocMode === "分摊" || meta.allocMode === "不分摊") return meta.allocMode;
+      }
+    } catch (e) {}
+    return "分摊";
+  }
+
+  function saveAllocMode(mode) {
+    try {
+      localStorage.setItem(STORAGE_META_KEY, JSON.stringify({ allocMode: mode }));
+    } catch (e) {}
+  }
+
+  function getAllocMode() {
+    return allocMode || "分摊";
+  }
+
+  function enforceSingleMsf(msf) {
+    if (!msf || getAllocMode() !== "不分摊") return;
+    var vals = msf.getValues ? msf.getValues() : [];
+    if (vals.length > 1) msf.setValues([vals[vals.length - 1]]);
+  }
+
+  function enforceSingleSc(sc) {
+    if (!sc || getAllocMode() !== "不分摊") return;
+    var vals = sc.getValues ? sc.getValues() : [];
+    if (vals.length > 1) sc.setValues([vals[vals.length - 1]]);
+  }
+
+  function applyAllocModeToRowMsfs() {
+    if (getAllocMode() !== "不分摊") return;
+    Object.keys(rowMsfs).forEach(function (id) {
+      var msf = rowMsfs[id];
+      if (!msf) return;
+      ["model", "sku", "region", "country", "channel", "store"].forEach(function (key) {
+        if (msf[key]) enforceSingleMsf(msf[key]);
+      });
+      if (msf.sc) enforceSingleSc(msf.sc);
+    });
+  }
+
+  function updateAllocModeUi() {
+    var mode = getAllocMode();
+    var seg = document.getElementById("budgetAllocModeSeg");
+    var field = document.getElementById("budgetAllocModeField");
+    var hint = document.getElementById("budgetAllocModeHint");
+    if (seg) {
+      seg.querySelectorAll("button").forEach(function (btn) {
+        btn.classList.toggle("active", btn.dataset.mode === mode);
+      });
+    }
+    if (field) field.classList.toggle("mode-noalloc", mode === "不分摊");
+    if (hint) {
+      hint.textContent =
+        mode === "分摊"
+          ? "分摊（规划）：记录后续将按渠道/产品范围拆分至各商品；此处仅做预算规划，不生成实际分摊结果。"
+          : "不分摊（规划）：记录后续将整笔挂到指定维度；范围可全空（全公司通用预算），费用部门必填。";
+    }
+    var deptReq = document.getElementById("budgetDeptReq");
+    if (deptReq) deptReq.style.display = mode === "不分摊" ? "" : "none";
+  }
+
+  function setAllocMode(mode) {
+    if (mode !== "分摊" && mode !== "不分摊") return;
+    allocMode = mode;
+    saveAllocMode(mode);
+    updateAllocModeUi();
+    applyAllocModeToRowMsfs();
+  }
+
+  function makeMsfOnChange(id, key, extraFn) {
+    return function () {
+      if (getAllocMode() === "不分摊" && rowMsfs[id] && rowMsfs[id][key]) {
+        enforceSingleMsf(rowMsfs[id][key]);
+      }
+      if (extraFn) extraFn();
+      if (onChangeCb) onChangeCb(loadAll());
+    };
+  }
+
+  function makeScOnChange(id) {
+    return function () {
+      if (getAllocMode() === "不分摊" && rowMsfs[id] && rowMsfs[id].sc) {
+        enforceSingleSc(rowMsfs[id].sc);
+      }
+      if (onChangeCb) onChangeCb(loadAll());
+    };
+  }
 
   function uid() {
     return "b" + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
@@ -924,9 +1019,7 @@
         useBodyPortal: true,
         options: sceneCategoryTreeOptions(),
         initialValues: initScPaths,
-        onChange: function () {
-          if (onChangeCb) onChangeCb(loadAll());
-        }
+        onChange: makeScOnChange(id)
       });
     }
 
@@ -941,9 +1034,7 @@
         getOptions: function () {
           return modelOptions();
         },
-        onChange: function () {
-          if (onChangeCb) onChangeCb(loadAll());
-        }
+        onChange: makeMsfOnChange(id, "model")
       });
     }
 
@@ -957,7 +1048,8 @@
         initialValues: row.skus || [],
         getOptions: function () {
           return SKU_OPTIONS;
-        }
+        },
+        onChange: makeMsfOnChange(id, "sku")
       });
     }
 
@@ -972,13 +1064,13 @@
         getOptions: function () {
           return regionOptions();
         },
-        onChange: function (vals) {
+        onChange: makeMsfOnChange(id, "region", function () {
           var countryMsf = rowMsfs[id].country;
           if (countryMsf) {
             countryMsf.setValues([]);
             countryMsf.refreshOptions();
           }
-        }
+        })
       });
     }
 
@@ -994,7 +1086,8 @@
           var rv = rowMsfs[id].region ? rowMsfs[id].region.getValues() : [];
           var code = rv[0] || row.region || "";
           return countryOptions(code);
-        }
+        },
+        onChange: makeMsfOnChange(id, "country")
       });
     }
 
@@ -1009,13 +1102,13 @@
         getOptions: function () {
           return channelOptions();
         },
-        onChange: function () {
+        onChange: makeMsfOnChange(id, "channel", function () {
           var storeMsf = rowMsfs[id].store;
           if (storeMsf) {
             storeMsf.setValues([]);
             storeMsf.refreshOptions();
           }
-        }
+        })
       });
     }
 
@@ -1030,7 +1123,8 @@
         getOptions: function () {
           var ch = rowMsfs[id].channel ? rowMsfs[id].channel.getValues() : row.channels || [];
           return storeOptions(ch);
-        }
+        },
+        onChange: makeMsfOnChange(id, "store")
       });
     }
   }
@@ -1103,15 +1197,21 @@
       if (!silent) toast(n + "：请选择类型");
       return false;
     }
+    if (getAllocMode() === "不分摊" && !row.deptCode) {
+      if (!silent) toast(n + "：不分摊模式下费用部门为必填项");
+      return false;
+    }
     if (!(row.amount > 0)) {
       if (!silent) toast(n + "：营销费用规划为必填，且须大于 0");
       return false;
     }
-    var hasSceneCategory = row.sceneCategories && row.sceneCategories.length;
-    var hasScope = hasSceneCategory || (row.scene && row.category) || (row.skus && row.skus.length) || row.npTag;
-    if (!hasScope) {
-      if (!silent) toast(n + "：场景品类、SKU、新品标签不可同时为空");
-      return false;
+    if (getAllocMode() === "分摊") {
+      var hasSceneCategory = row.sceneCategories && row.sceneCategories.length;
+      var hasScope = hasSceneCategory || (row.scene && row.category) || (row.skus && row.skus.length) || row.npTag;
+      if (!hasScope) {
+        if (!silent) toast(n + "：分摊模式下，场景品类、SKU、新品标签不可同时为空");
+        return false;
+      }
     }
     return true;
   }
@@ -1192,6 +1292,7 @@
     bindRowEvents(tbodyId, chkAllId, btnBatchDelId);
     wireDeptSelects(tbody);
     updateBatchDelState(tbodyId, chkAllId, btnBatchDelId);
+    applyAllocModeToRowMsfs();
   }
 
   function bindRowEvents(tbodyId, chkAllId, btnBatchDelId) {
@@ -1332,6 +1433,18 @@
       var chkAllId = opts.chkAllId || "budgetChkAll";
       var btnBatchDelId = opts.btnBatchDelId || "btnBudgetBatchDel";
       activeTbodyId = tbodyId;
+      allocMode = loadAllocMode();
+      updateAllocModeUi();
+
+      var allocSeg = document.getElementById("budgetAllocModeSeg");
+      if (allocSeg && !allocSeg.dataset.wired) {
+        allocSeg.dataset.wired = "1";
+        allocSeg.addEventListener("click", function (e) {
+          var btn = e.target.closest("button[data-mode]");
+          if (!btn) return;
+          setAllocMode(btn.dataset.mode);
+        });
+      }
 
       if (localStorage.getItem(STORAGE_KEY) == null) {
         saveAll(getDefaults(), true);
@@ -1399,6 +1512,12 @@
         },
         getTotal: function () {
           return getSummaryTotal(tbodyId);
+        },
+        getAllocMode: function () {
+          return getAllocMode();
+        },
+        setAllocMode: function (mode) {
+          setAllocMode(mode);
         },
         batchDelete: function () {
           batchDelete(tbodyId, chkAllId, btnBatchDelId);
