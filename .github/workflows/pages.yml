@@ -1,6 +1,8 @@
 # 发布到分支 gh-pages（避开 deploy-pages / configure-pages 触发的 git 128）
 # 推送成功后：Settings → Pages → Source 选「Deploy from a branch」→ Branch: gh-pages / folder: /(root)
 # 若仍选「GitHub Actions」为源，本分支不会生效，请改回「从分支发布」
+#
+# 仓库根目录为「本地/」，静态站点内容来自「方案设计/」子目录，以保持 Pages URL 不变。
 
 name: Deploy GitHub Pages
 
@@ -29,12 +31,17 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          SRC="方案设计"
+          if [[ ! -d "$SRC" ]]; then
+            echo "missing source directory: $SRC"
+            exit 1
+          fi
           mkdir -p _site
           touch _site/.nojekyll
           shopt -s dotglob nullglob
-          for path in *; do
+          for path in "$SRC"/*; do
             case "$path" in
-              .|..|.git|.github|_site|node_modules|.DS_Store|.cursor) continue ;;
+              .|..|$SRC/.git|$SRC/.github|_site|node_modules|.DS_Store|.cursor) continue ;;
             esac
             if [[ "$path" == *.log ]]; then continue; fi
             cp -a "$path" _site/
