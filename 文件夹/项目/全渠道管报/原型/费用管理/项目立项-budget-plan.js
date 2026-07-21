@@ -3,7 +3,9 @@
  * 挂载：ProjectBudgetPlan.init({ tbodyId, onChange })
  */
 (function (global) {
-  var STORAGE_KEY = "project_create_budget_v8";
+  var STORAGE_KEY = "project_create_budget_v10";
+  /** 旧版 BP 部门名，已废弃，加载时清空 */
+  var LEGACY_BP_DEPT_NAMES = { "智能照明": true, "智能家电": true };
 
   /** 部门树形下拉实例池 */
   var deptPickerInstances = [];
@@ -37,7 +39,13 @@
     { scene: "居家", categories: ["灯带", "吸顶灯"] },
     { scene: "户外", categories: ["户外灯带", "泛光灯"] },
     { scene: "季节", categories: ["瀑布灯", "圣诞树灯"] },
-    { scene: "游戏", categories: ["方块灯", "像素灯"] }
+    { scene: "游戏", categories: ["方块灯", "像素灯"] },
+    { scene: "环境电器", categories: ["塔扇", "台扇", "空净", "暖风机", "加湿器", "除湿机"] },
+    { scene: "厨房电器", categories: ["空气炸锅", "电烤箱", "料理机"] },
+    { scene: "清洁电器", categories: ["扫地机", "洗地机", "吸尘器"] },
+    { scene: "传感器及控制", categories: ["传感器", "控制器", "网关"] },
+    { scene: "管家", categories: ["传感器", "摄像头", "灯条", "插头"] },
+    { scene: "投影", categories: ["便携投影", "激光投影"] }
   ];
 
   var REGIONS = [
@@ -64,7 +72,18 @@
     { value: "B5040101", label: "B5040101" }
   ];
 
-  var NP_TAGS = ["", "2025新品", "2024新品", "老品"];
+  /** 新品标签：对齐 MSKU基础信息页 getYearRange() 逻辑（当前年±3年，降序） */
+  function getNpTagOptions() {
+    var year = new Date().getFullYear();
+    var range = 3;
+    var list = [];
+    for (var i = range; i >= -range; i--) {
+      var y = year + i;
+      list.push({ value: String(y), label: y + "年新品" });
+    }
+    return list;
+  }
+  var NP_TAG_OPTIONS = getNpTagOptions();
 
   var rowPickers = {};
   var rowMsfs = {};
@@ -86,12 +105,14 @@
           revenueDateEnd: "2025-12-31",
           marketingType: "自主营销-产品营销",
           budgetType: "海外社媒投放",
+          deptCode: "D102_AMZ",
           dept: "亚马逊平台 · Govee",
           models: ["H6065"],
           scene: "观影",
           category: "TV灯带",
+          sceneCategories: [{ scene: "观影", category: "TV灯带" }],
           skus: ["H6065301", "H6076113"],
-          npTag: "2025新品",
+          npTag: "2025",
           region: "NA",
           countries: ["美国", "加拿大"],
           channels: ["亚马逊"],
@@ -105,10 +126,12 @@
           revenueDateEnd: "2025-07-31",
           marketingType: "联合营销-品牌营销",
           budgetType: "大型展会",
+          deptCode: "D102_BRAND",
           dept: "品牌中心",
           models: ["H617E"],
           scene: "居家",
           category: "灯带",
+          sceneCategories: [{ scene: "居家", category: "灯带" }],
           skus: ["H617E3D1"],
           npTag: "",
           region: "EU",
@@ -116,6 +139,30 @@
           channels: ["亚马逊"],
           stores: ["亚马逊_DE", "亚马逊_FR"],
           amount: 800000,
+          currency: "USD"
+        },
+        {
+          id: "budget-sample-env-apac",
+          revenueDateStart: "2025-03-01",
+          revenueDateEnd: "2025-12-31",
+          marketingType: "自主营销-产品营销",
+          budgetType: "红人营销（KOL）",
+          deptCode: "D109_GL",
+          dept: "Goveelife",
+          models: ["H7170"],
+          scene: "环境电器",
+          category: "加湿器",
+          sceneCategories: [
+            { scene: "环境电器", category: "加湿器" },
+            { scene: "环境电器", category: "除湿机" }
+          ],
+          skus: ["H7170301", "H7170302"],
+          npTag: "2026",
+          region: "APAC",
+          countries: ["日本", "澳大利亚"],
+          channels: ["亚马逊", "Shopify"],
+          stores: ["亚马逊_JP", "Shopify_US"],
+          amount: 600000,
           currency: "USD"
         }
       ];
@@ -166,29 +213,114 @@
     );
   }
 
-  function departmentSelectHtml(value) {
-    var v = String(value || "");
+  function departmentSelectHtml(row) {
+    row = row || {};
+    var code = String(row.deptCode || "").trim();
+    var label = getDeptDisplayText(row) || "请选择";
+    var v = code;
     return (
-      '<span class="ctl-wrap budget-dept-wrap">' +
+      '<span class="ctl-wrap budget-dept-wrap' + (code ? " has-val" : "") + '">' +
       '<select class="js-budget-dept" hidden>' +
       '<option value="">请选择</option>' +
+      (code ? '<option value="' + escapeHtml(code) + '" selected>' + escapeHtml(label) + "</option>" : "") +
       "</select>" +
       '<div class="fee-tree-select is-compact js-budget-dept-picker" data-value="' + escapeHtml(v) + '">' +
       '<button type="button" class="fee-tree-select-trigger" aria-haspopup="listbox" aria-expanded="false">' +
-      escapeHtml(v || "请选择") +
+      escapeHtml(label) +
       "</button>" +
       "</div>" +
-      '<button type="button" class="ctl-clear" hidden aria-label="清除费用部门">×</button>' +
+      '<button type="button" class="ctl-clear"' + (code ? "" : " hidden") + ' aria-label="清除费用部门">×</button>' +
       "</span>"
     );
   }
 
   /* ---- 部门树形下拉单选组件（数据来源 FeeDeptMaster，可选任意层级） ---- */
   function getDeptNodes() {
-    if (global.FeeDeptMaster && typeof global.FeeDeptMaster.getAll === "function") {
-      return global.FeeDeptMaster.getAll();
+    if (global.FeeDeptMaster) {
+      if (typeof global.FeeDeptMaster.getSelectable === "function") {
+        return global.FeeDeptMaster.getSelectable();
+      }
+      if (typeof global.FeeDeptMaster.getAll === "function") {
+        return global.FeeDeptMaster.getAll().filter(function (n) {
+          return n.selectable !== false;
+        });
+      }
     }
     return [];
+  }
+
+  function formatDeptFullLabel(node) {
+    if (!node) return "";
+    var org = String(node.orgCode || "").trim();
+    var orgName = String(node.orgName || "").trim();
+    var name = String(node.name || "").trim();
+    var bmCode = String(node.bmCode || "").trim();
+    var orgPart = org ? (orgName ? org + "·" + orgName : org) : "";
+    var main = orgPart && name ? orgPart + " / " + name : name || orgPart || String(node.bmName || "").trim();
+    return bmCode && main ? main + " · " + bmCode : main;
+  }
+
+  function findDeptNodeByCode(code) {
+    var c = String(code || "").trim();
+    if (!c) return null;
+    var nodes = getDeptNodes();
+    for (var i = 0; i < nodes.length; i++) {
+      if (nodes[i].code === c) return nodes[i];
+    }
+    return null;
+  }
+
+  function findDeptNodeByValue(value) {
+    var v = String(value || "").trim();
+    if (!v) return null;
+    var nodes = getDeptNodes();
+    for (var i = 0; i < nodes.length; i++) {
+      var n = nodes[i];
+      if (n.code === v || n.name === v || formatDeptFullLabel(n) === v) return n;
+      if (n.bmCode === v || n.bmName === v) return n;
+    }
+    return null;
+  }
+
+  function getDeptDisplayText(row) {
+    row = row || {};
+    var code = String(row.deptCode || "").trim();
+    if (code) {
+      var byCode = findDeptNodeByCode(code);
+      if (byCode) return byCode.name;
+    }
+    var legacy = String(row.dept || "").trim();
+    if (!legacy) return "";
+    var byValue = findDeptNodeByValue(legacy);
+    return byValue ? byValue.name : legacy;
+  }
+
+  function normalizeDeptFields(row) {
+    if (!row) return row;
+    var code = String(row.deptCode || "").trim();
+    var name = String(row.dept || "").trim();
+    if (!code && name) {
+      if (LEGACY_BP_DEPT_NAMES[name]) {
+        row.dept = "";
+        row.deptCode = "";
+        return row;
+      }
+      var node = findDeptNodeByValue(name);
+      if (node) {
+        row.deptCode = node.code;
+        row.dept = node.name;
+      }
+      return row;
+    }
+    if (code) {
+      var matched = findDeptNodeByCode(code);
+      if (matched) row.dept = matched.name;
+      else {
+        row.deptCode = "";
+        row.dept = "";
+      }
+    }
+    return row;
   }
 
   function buildDeptTree(nodes) {
@@ -221,8 +353,14 @@
       entry.depth = depth;
       var name = entry.node.name || "";
       var code = entry.node.code || "";
-      var hit = !keyword || name.indexOf(keyword) >= 0 || code.indexOf(keyword) >= 0 ||
-        (entry.node.bmName || "").indexOf(keyword) >= 0;
+      var kw = keyword ? String(keyword).toLowerCase() : "";
+      var hit = !kw ||
+        name.toLowerCase().indexOf(kw) >= 0 ||
+        code.toLowerCase().indexOf(kw) >= 0 ||
+        String(entry.node.bmName || "").toLowerCase().indexOf(kw) >= 0 ||
+        String(entry.node.bmCode || "").toLowerCase().indexOf(kw) >= 0 ||
+        String(entry.node.orgCode || "").toLowerCase().indexOf(kw) >= 0 ||
+        String(entry.node.orgName || "").toLowerCase().indexOf(kw) >= 0;
       if (hit) out.push(entry);
       if (entry.children.length) {
         // 搜索时全部展开；非搜索时按 expandedSet 状态
@@ -237,28 +375,28 @@
 
   function syncDeptPickerTrigger(inst) {
     if (!inst || !inst.trigger) return;
-    var value = inst.value || "";
-    var nodes = getDeptNodes();
-    var node = null;
-    for (var i = 0; i < nodes.length; i++) {
-      if (nodes[i].name === value || nodes[i].code === value) { node = nodes[i]; break; }
-    }
-    var label = node ? node.name : (value || "请选择");
+    var code = inst.value || "";
+    var node = findDeptNodeByCode(code);
+    var label = node ? node.name : code || "请选择";
     inst.trigger.textContent = label;
-    inst.wrap.classList.toggle("has-value", !!value);
-    inst.wrap.classList.toggle("has-val", !!value);
-    var clearBtn = inst.wrap.parentElement.querySelector(".ctl-clear");
-    if (clearBtn) clearBtn.hidden = !value;
-    var sel = inst.wrap.parentElement.querySelector(".js-budget-dept");
+    inst.wrap.dataset.value = code;
+    inst.wrap.classList.toggle("has-value", !!code);
+    inst.wrap.classList.toggle("has-val", !!code);
+    var wrap = inst.wrap.closest(".ctl-wrap");
+    if (wrap) wrap.classList.toggle("has-val", !!code);
+    var clearBtn = wrap && wrap.querySelector(".ctl-clear");
+    if (clearBtn) clearBtn.hidden = !code;
+    var sel = wrap && wrap.querySelector(".js-budget-dept");
     if (sel) {
-      var opt = Array.from(sel.options).find(function (o) { return o.value === value; });
-      if (!opt) {
-        opt = document.createElement("option");
-        opt.value = value;
+      sel.innerHTML = '<option value="">请选择</option>';
+      if (code) {
+        var opt = document.createElement("option");
+        opt.value = code;
         opt.textContent = label;
+        opt.selected = true;
         sel.appendChild(opt);
       }
-      sel.value = value;
+      sel.value = code;
     }
   }
 
@@ -313,7 +451,7 @@
         ? '<span class="dept-tree-toggle" data-toggle="' + escapeHtml(n.code) + '" aria-label="' + (isExpanded ? "收起" : "展开") + '">' + (isExpanded ? "▾" : "▸") + "</span>"
         : '<span class="dept-tree-toggle-placeholder"></span>';
       var cls = "fee-tree-select-option dept-tree-option" +
-        (n.name === value || n.code === value ? " is-selected" : "") +
+        (n.code === value ? " is-selected" : "") +
         (entry.hasChildren ? " has-children" : "");
       var indent = 8 + entry.depth * 18;
       var label = escapeHtml(n.name || "");
@@ -323,7 +461,7 @@
         '<button type="button" class="dept-tree-label-btn" data-name="' + escapeHtml(n.name) + '" data-code="' + escapeHtml(n.code) + '">' +
         '<span class="fee-tree-select-label">' + label + "</span>" + codeHint +
         "</button></div>";
-    }).join("") : '<div class="fee-tree-select-empty">无匹配部门</div>';
+    }).join("") : '<motion></motion><div class="fee-tree-select-empty">' + (getDeptNodes().length ? "无匹配部门" : "费用部门主数据未加载，请确认 fee-dept-master.js 可访问") + "</div>".replace(/<\/?motion>/g, "");
     inst.panel.innerHTML =
       '<div class="fee-tree-select-search-wrap">' +
       '<input type="search" class="fee-tree-select-search" placeholder="搜索部门/BM/组织" value="' + escapeHtml(inst.keyword || "") + '">' +
@@ -355,7 +493,7 @@
     // 选择部门
     inst.panel.querySelectorAll(".dept-tree-label-btn").forEach(function (btn) {
       btn.addEventListener("click", function () {
-        inst.value = btn.dataset.name || "";
+        inst.value = btn.dataset.code || "";
         syncDeptPickerTrigger(inst);
         if (onChangeCb) onChangeCb(loadAll());
         closeDeptPicker(inst);
@@ -547,12 +685,30 @@
       var inferred = inferModelFromSkus(row.skus);
       if (inferred) row.models = [inferred];
     }
-    return row;
+    // 场景品类：迁移旧的单选字段到多选数组
+    if (!row.sceneCategories || !row.sceneCategories.length) {
+      if (row.scene && row.category) {
+        row.sceneCategories = [{ scene: row.scene, category: row.category }];
+      } else {
+        row.sceneCategories = [];
+      }
+    }
+    // 新品标签：迁移旧的 "2025新品" 格式为纯年份 "2025"
+    if (row.npTag && /年新品$/.test(String(row.npTag))) {
+      row.npTag = String(row.npTag).replace(/年新品$/, "");
+    }
+    return normalizeDeptFields(row);
   }
 
   function loadAll() {
     try {
       var raw = localStorage.getItem(STORAGE_KEY);
+      if (raw == null || raw === "") {
+        raw = localStorage.getItem("project_create_budget_v9");
+      }
+      if (raw == null || raw === "") {
+        raw = localStorage.getItem("project_create_budget_v8");
+      }
       if (raw == null || raw === "") {
         raw = localStorage.getItem("project_create_budget_v6");
       }
@@ -684,6 +840,19 @@
     return opts;
   }
 
+  /** 场景品类级联树（对齐 SKU信息页 el-cascader 数据结构：{value,label,children}） */
+  function sceneCategoryTreeOptions() {
+    return SCENES.map(function (s) {
+      return {
+        value: s.scene,
+        label: s.scene,
+        children: s.categories.map(function (c) {
+          return { value: c, label: c };
+        })
+      };
+    });
+  }
+
   function regionOptions() {
     return REGIONS.map(function (r) {
       return { value: r.code, label: r.name };
@@ -741,16 +910,20 @@
     }
 
     var scHost = tr.querySelector(".js-budget-sc");
-    if (scHost && global.MultiSelectFilter) {
-      rowMsfs[id].sc = global.MultiSelectFilter.mount(scHost, {
+    if (scHost && global.SceneCategoryCascader) {
+      var initScPaths = [];
+      if (row.sceneCategories && row.sceneCategories.length) {
+        initScPaths = row.sceneCategories.map(function (it) {
+          return [it.scene, it.category];
+        });
+      } else if (row.scene && row.category) {
+        initScPaths = [[row.scene, row.category]];
+      }
+      rowMsfs[id].sc = global.SceneCategoryCascader.mount(scHost, {
         placeholder: "请选择场景品类",
-        showSelectAll: false,
-        clearable: true,
         useBodyPortal: true,
-        initialValues: row.scene && row.category ? [row.scene + "|" + row.category] : [],
-        getOptions: function () {
-          return sceneCategoryOptions();
-        },
+        options: sceneCategoryTreeOptions(),
+        initialValues: initScPaths,
         onChange: function () {
           if (onChangeCb) onChangeCb(loadAll());
         }
@@ -875,23 +1048,34 @@
 
     row.marketingType = String((tr.querySelector(".js-marketing-type") || {}).value || "").trim();
     row.budgetType = String((tr.querySelector(".js-budget-type") || {}).value || "").trim();
+    row.deptCode = "";
     row.dept = "";
     var pickerEl = tr.querySelector(".js-budget-dept-picker");
     if (pickerEl && pickerEl._deptPickerInst) {
-      row.dept = String(pickerEl._deptPickerInst.value || "").trim();
+      row.deptCode = String(pickerEl._deptPickerInst.value || "").trim();
     } else if (pickerEl) {
-      row.dept = String(pickerEl.dataset.value || "").trim();
+      row.deptCode = String(pickerEl.dataset.value || "").trim();
     }
+    var deptNode = findDeptNodeByCode(row.deptCode);
+    row.dept = deptNode ? deptNode.name : "";
     row.amount = parseFloat((tr.querySelector(".js-budget-amt") || {}).value) || 0;
     row.currency = String((tr.querySelector(".js-budget-currency") || {}).value || "USD").trim() || "USD";
     row.npTag = String((tr.querySelector(".js-budget-np") || {}).value || "").trim();
 
     var msf = rowMsfs[id] || {};
     if (msf.sc) {
-      var scv = msf.sc.getValues()[0] || "";
-      var parts = scv.split("|");
-      row.scene = parts[0] || "";
-      row.category = parts[1] || "";
+      var scPaths = msf.sc.getValues() || [];
+      row.sceneCategories = scPaths.map(function (p) {
+        return { scene: p[0] || "", category: p[1] || "" };
+      });
+      // 兼容旧字段：取首个作为 scene/category
+      if (row.sceneCategories.length) {
+        row.scene = row.sceneCategories[0].scene;
+        row.category = row.sceneCategories[0].category;
+      } else {
+        row.scene = "";
+        row.category = "";
+      }
     }
     if (msf.model) row.models = msf.model.getValues();
     if (msf.sku) row.skus = msf.sku.getValues();
@@ -923,7 +1107,8 @@
       if (!silent) toast(n + "：营销费用规划为必填，且须大于 0");
       return false;
     }
-    var hasScope = (row.scene && row.category) || (row.skus && row.skus.length) || row.npTag;
+    var hasSceneCategory = row.sceneCategories && row.sceneCategories.length;
+    var hasScope = hasSceneCategory || (row.scene && row.category) || (row.skus && row.skus.length) || row.npTag;
     if (!hasScope) {
       if (!silent) toast(n + "：场景品类、SKU、新品标签不可同时为空");
       return false;
@@ -969,19 +1154,20 @@
         '<td><div class="js-budget-dr plan-row-dr-host"></div></td>' +
         "<td>" + marketingTypeSelectHtml(row.marketingType) + "</td>" +
         "<td>" + budgetTypeSelectHtml(row.budgetType) + "</td>" +
-        "<td>" + departmentSelectHtml(row.dept) + "</td>" +
+        "<td>" + departmentSelectHtml(row) + "</td>" +
         '<td><div class="js-budget-sc msf-plan-row"></div></td>' +
         '<td><div class="js-budget-model msf-plan-row msf-cell-narrow"></div></td>' +
         '<td><div class="js-budget-sku msf-plan-row"></div></td>' +
         '<td><select class="js-budget-np">' +
-        NP_TAGS.map(function (t) {
+        '<option value="">' + "请选择" + "</option>" +
+        NP_TAG_OPTIONS.map(function (t) {
           return (
             '<option value="' +
-            escapeHtml(t) +
+            escapeHtml(t.value) +
             '"' +
-            (t === (row.npTag || "") ? " selected" : "") +
+            (t.value === String(row.npTag || "") ? " selected" : "") +
             ">" +
-            (t ? escapeHtml(t) : "请选择") +
+            escapeHtml(t.label) +
             "</option>"
           );
         }).join("") +
@@ -1080,10 +1266,12 @@
       revenueDateEnd: "2025-12-31",
       marketingType: "",
       budgetType: "",
+      deptCode: "",
       dept: "",
       models: [],
       scene: base.scene,
       category: base.categories[0],
+      sceneCategories: [{ scene: base.scene, category: base.categories[0] }],
       skus: [],
       npTag: "",
       region: "NA",

@@ -6,6 +6,7 @@
   <title>费用来源定义</title>
   <link rel="stylesheet" href="fee-mgmt-common.css">
   <link rel="stylesheet" href="fee-item-master.css">
+  <link rel="stylesheet" href="fee-dept-master.css">
   <link rel="stylesheet" href="../../../../规范/assets/import-modal-kit.css">
   <style>
     :root {
@@ -230,6 +231,12 @@
       font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
       font-size: 11px;
       color: #4b5563;
+    }
+    .field-hint {
+      margin-top: 6px;
+      color: #6b7280;
+      font-size: 12px;
+      line-height: 1.6;
     }
     .detail-card {
       grid-column: 1 / -1;
@@ -476,6 +483,7 @@
         <div class="jd-card-hd" style="border-top:1px solid #eef0f5;">
           <span class="jd-card-title">费用来源列表</span>
           <div class="toolbar-line">
+            <button type="button" class="btn" id="btnManageFeeDepts" data-pa-key="btn-fee-dept-manage">费用部门管理</button>
             <button type="button" class="btn" id="btnManageFeeItems">费用项管理</button>
             <button type="button" class="btn" id="btnExportList">导出</button>
             <button type="button" class="btn btn-primary" id="btnAdd">新增来源</button>
@@ -623,8 +631,8 @@
           </div>
           <div class="source-block" data-panel="yoyMonthRate" data-pa-key="source-type-params">
             <div class="rule-tip" data-pa-key="yoy-rate-rule">
-              <strong>同期占比预估</strong>：统计过去 12 个月各月的「费用 ÷ 比例基数」占比序列；<strong>本月预估占比 = 去年同期同月占比</strong>（同比月对齐，保留季节性）。
-              <div class="formula">本月预估占比 = 去年同月费用 ÷ 去年同月基数；本月费用 = 当月比例基数 × 本月预估占比</div>
+              <strong>同期占比预估</strong>：优先取去年同期同月占比（同比月对齐，保留季节性）；若去年同月缺数，则降级为过去 12 个月各月「费用 ÷ 比例基数」占比的滚动均值（不足 12 个月按实际有数据月份计算）。
+              <div class="formula">本月预估占比 = 去年同月费用 ÷ 去年同月基数；缺数时 = 过去 N 个月占比均值（N ≤ 12）；本月费用 = 当月比例基数 × 本月预估占比</div>
             </div>
             <div class="form-field">
               <label><span class="req">*</span> 比例基数</label>
@@ -641,10 +649,10 @@
             </div>
             <div class="form-field">
               <label>缺数处理</label>
-              <select id="yoyFallback">
-                <option>取近12个月同月均值</option>
-                <option>标注未就绪</option>
+              <select id="yoyFallback" disabled title="去年同月缺数时的固定降级策略">
+                <option>取近12个月滚动均值</option>
               </select>
+              <div class="field-hint">首选去年同月占比；若去年同月缺费用或缺基数，则取过去 12 个月各月「费用÷基数」占比的算术平均值；历史不足 12 个月时，按实际有数据的月份数取均值。</div>
             </div>
           </div>
           <div class="detail-card" data-pa-key="source-detail-card">
@@ -729,6 +737,7 @@
 
 <script src="fee-mgmt-common.js?v=20260707-modal-resync"></script>
 <script src="fee-item-master.js?v=20260707-modal-resync"></script>
+<script src="fee-dept-master.js?v=20260717-dept-v1"></script>
 <script src="../../../../规范/assets/import-modal-kit.js"></script>
 <script src="../../../../规范/assets/multi-select-filter.js"></script>
 <script>
@@ -878,7 +887,7 @@
 
   var rows = [
     { id: 'R001', feeCode: 'F006', sourceType: 'rollingRate', caliberScope: 'channelCountry', channels: ['亚马逊'], summary: '近 12 月滚动 · 当月实际营收 · 渠道+国家 · 3 条明细', status: '启用', maintainer: 'GTM-李四 · 2026-06-05', fixedAmount: null, fixedRate: null, histWindow: '近 12 个月', histBase: '当月实际营收' },
-    { id: 'R002', feeCode: 'F006', sourceType: 'yoyMonthRate', caliberScope: 'channelCountryScene', channels: ['独立站'], summary: '同比月占比 · 当月实际营收 · 渠道+国家+场景 · 9 条明细', status: '启用', maintainer: 'GTM-李四 · 2026-06-04', fixedAmount: null, fixedRate: null, yoyRateBase: '当月实际营收', yoyFallback: '取近12个月同月均值' },
+    { id: 'R002', feeCode: 'F006', sourceType: 'yoyMonthRate', caliberScope: 'channelCountryScene', channels: ['独立站'], summary: '同比月占比 · 当月实际营收 · 渠道+国家+场景 · 9 条明细', status: '启用', maintainer: 'GTM-李四 · 2026-06-04', fixedAmount: null, fixedRate: null, yoyRateBase: '当月实际营收', yoyFallback: '取近12个月滚动均值' },
     { id: 'R003', feeCode: 'F007', sourceType: 'fixedAmount', caliberScope: 'channelCountry', channels: ['独立站'], summary: '¥85,000 / 月 · 渠道+国家 · 3 条明细', status: '启用', maintainer: 'GTM-李四 · 2026-06-05', fixedAmount: 85000, fixedRate: null },
     { id: 'R004', feeCode: 'F009', sourceType: 'fixedRate', caliberScope: 'channelCountrySceneRetailer', channels: ['线下商超'], summary: '8.5% × 当月实际营收 · 渠道+国家+场景+零售商 · 12 条明细', status: '启用', maintainer: 'GTM-王五 · 2026-06-04', fixedAmount: null, fixedRate: 8.5 },
     { id: 'R005', feeCode: 'F001', sourceType: 'auto', channels: ['亚马逊'], summary: '—', status: '启用', maintainer: '系统同步 · 2026-06-03', fixedAmount: null, fixedRate: null },
@@ -902,12 +911,12 @@
   }
   function refreshFeeItemSelects() {
     if (!window.FeeItemMaster) return;
-    FeeItemMaster.syncSelect('filterFee', { mode: 'name', includeAll: true, allLabel: '全部', forceShowCode: true });
+    FeeItemMaster.syncSelect('filterFee', { mode: 'code', includeAll: true, allLabel: '全部', showCode: true });
     FeeItemMaster.mountTreeSelect('filterFee', {
-      mode: 'name',
+      mode: 'code',
       includeAll: true,
       allLabel: '全部',
-      forceShowCode: true,
+      showCode: true,
       placeholder: '全部',
       zIndex: 1700
     });
@@ -973,6 +982,21 @@
       };
     }
     return { label: '预估占比（%）', step: '0.01', placeholder: '请输入占比', unit: '比例', readonly: false };
+  }
+  function parseNumberField(id) {
+    var el = document.getElementById(id);
+    var raw = el ? String(el.value || '').trim() : '';
+    if (raw === '') return NaN;
+    return Number(raw);
+  }
+  function isValidMaintainValue(type, value) {
+    if (!Number.isFinite(value)) return false;
+    if (type === 'fixedAmount') return value > 0;
+    return value >= 0 && value <= 100;
+  }
+  function maintainValueError(type) {
+    if (type === 'fixedAmount') return '金额必须为大于 0 的数字';
+    return '比例必须为 0 到 100 之间的数字';
   }
   function seedValue(key) {
     return Array.from(String(key)).reduce(function (sum, ch) {
@@ -1139,6 +1163,7 @@
     var readonly = isViewMode;
     document.querySelectorAll('#editModal select, #editModal input:not([type="search"]), #editModal textarea').forEach(function (el) {
       if (el.closest('#detailHead') || el.closest('#detailBody')) return;
+      if (el.closest('#detailFilterBar')) return;
       el.disabled = readonly;
     });
     var chTags = document.getElementById('chTags');
@@ -1147,15 +1172,15 @@
     var type = document.getElementById('sourceType').value;
     var computedValue = isComputedDetailValue(type);
     document.getElementById('btnBulkEdit').disabled = readonly || computedValue;
-    document.getElementById('btnDetailExport').disabled = readonly;
+    document.getElementById('btnDetailExport').disabled = false;
     document.getElementById('btnDetailImport').disabled = readonly || computedValue;
     document.getElementById('btnSave').hidden = readonly;
     document.getElementById('viewModeTip').hidden = !readonly;
     document.getElementById('editModalCancel').textContent = readonly ? '关闭' : '取消';
     var filterBar = document.getElementById('detailFilterBar');
     if (filterBar) {
-      filterBar.style.pointerEvents = readonly ? 'none' : '';
-      filterBar.style.opacity = readonly ? '0.72' : '';
+      filterBar.style.pointerEvents = '';
+      filterBar.style.opacity = '';
     }
   }
   function getSelectedDetailRows() {
@@ -1202,12 +1227,18 @@
       alert('请先输入维护值');
       return;
     }
+    var type = document.getElementById('sourceType').value;
+    var num = Number(value);
+    if (!isValidMaintainValue(type, num)) {
+      alert(maintainValueError(type));
+      return;
+    }
     var targets = getSelectedDetailRows();
     if (!targets.length) {
       alert('当前没有可批量编辑的明细行');
       return;
     }
-    targets.forEach(function (item) { item.value = Number(value); });
+    targets.forEach(function (item) { item.value = num; });
     closeBatchEditModal();
     renderDetailTable();
     alert('已批量更新 ' + targets.length + ' 条口径明细');
@@ -1381,10 +1412,10 @@
   }
   function buildSummary(sourceType, caliberText, detailCount) {
     if (sourceType === 'fixedAmount') {
-      return '¥' + Number(document.getElementById('fixedAmount').value).toLocaleString() + ' / 月 · ' + caliberText + ' · ' + detailCount + ' 条明细';
+      return '¥' + parseNumberField('fixedAmount').toLocaleString() + ' / 月 · ' + caliberText + ' · ' + detailCount + ' 条明细';
     }
     if (sourceType === 'fixedRate') {
-      return document.getElementById('fixedRate').value + '% × ' + document.getElementById('rateBase').value + ' · ' + caliberText + ' · ' + detailCount + ' 条明细';
+      return parseNumberField('fixedRate') + '% × ' + document.getElementById('rateBase').value + ' · ' + caliberText + ' · ' + detailCount + ' 条明细';
     }
     if (sourceType === 'rollingRate') {
       return document.getElementById('histWindow').value + ' 滚动 · ' + document.getElementById('histBase').value + ' · ' + caliberText + ' · ' + detailCount + ' 条明细';
@@ -1399,6 +1430,7 @@
     var map = {};
     rows.forEach(function (r) {
       if (r.feeCode !== feeCode || r.id === excludeId) return;
+      if (r.status !== '启用') return;
       (r.channels || []).forEach(function (ch) { map[ch] = r.id; });
     });
     return map;
@@ -1410,7 +1442,7 @@
     var channel = document.getElementById('filterChannel').value;
     var status = document.getElementById('filterStatus').value;
     return rows.filter(function (r) {
-      if (fee && feeName(r.feeCode) !== fee) return false;
+      if (fee && r.feeCode !== fee) return false;
       if (source && sourceName(r.sourceType) !== source) return false;
       if (channel && (r.channels || []).indexOf(channel) < 0) return false;
       if (status && r.status !== status) return false;
@@ -1504,7 +1536,7 @@
       if (isDisabled) {
         var hint = document.createElement('span');
         hint.className = 'hint';
-        hint.textContent = '已被占用';
+        hint.textContent = '已被启用配置占用';
         row.appendChild(hint);
       } else if (isSelected) {
         var tick = document.createElement('span');
@@ -1678,9 +1710,17 @@
     var caliberScope = document.getElementById('caliberScope').value;
     var caliberText = CALIBER_LABEL[caliberScope] || caliberScope;
     if (RULE_TYPES.indexOf(sourceType) >= 0) {
-      var invalid = detailRows.find(function (item) { return Number.isNaN(Number(item.value)); });
+      if (sourceType === 'fixedAmount' && !isValidMaintainValue(sourceType, parseNumberField('fixedAmount'))) {
+        alert('默认月固定金额：' + maintainValueError(sourceType));
+        return;
+      }
+      if (sourceType === 'fixedRate' && !isValidMaintainValue(sourceType, parseNumberField('fixedRate'))) {
+        alert('默认比例值：' + maintainValueError(sourceType));
+        return;
+      }
+      var invalid = detailRows.find(function (item) { return !isValidMaintainValue(sourceType, Number(item.value)); });
       if (invalid) {
-        alert('请补全所有口径明细的维护值后再保存');
+        alert('请补全并校验所有口径明细的维护值：' + maintainValueError(sourceType));
         return;
       }
       summary = buildSummary(sourceType, caliberText, detailRows.length);
@@ -1696,8 +1736,8 @@
         row.summary = summary;
         row.maintainer = 'GTM-李四 · 2026-06-05';
         row.caliberScope = RULE_TYPES.indexOf(sourceType) >= 0 ? caliberScope : null;
-        row.fixedAmount = sourceType === 'fixedAmount' ? Number(document.getElementById('fixedAmount').value) : null;
-        row.fixedRate = sourceType === 'fixedRate' ? Number(document.getElementById('fixedRate').value) : null;
+        row.fixedAmount = sourceType === 'fixedAmount' ? parseNumberField('fixedAmount') : null;
+        row.fixedRate = sourceType === 'fixedRate' ? parseNumberField('fixedRate') : null;
         row.histWindow = sourceType === 'rollingRate' ? document.getElementById('histWindow').value : null;
         row.histBase = sourceType === 'rollingRate' ? document.getElementById('histBase').value : null;
         row.yoyRateBase = sourceType === 'yoyMonthRate' ? document.getElementById('yoyRateBase').value : null;
@@ -1714,8 +1754,8 @@
         status: status,
         maintainer: 'GTM-李四 · 2026-06-05',
         caliberScope: RULE_TYPES.indexOf(sourceType) >= 0 ? caliberScope : null,
-        fixedAmount: sourceType === 'fixedAmount' ? Number(document.getElementById('fixedAmount').value) : null,
-        fixedRate: sourceType === 'fixedRate' ? Number(document.getElementById('fixedRate').value) : null,
+        fixedAmount: sourceType === 'fixedAmount' ? parseNumberField('fixedAmount') : null,
+        fixedRate: sourceType === 'fixedRate' ? parseNumberField('fixedRate') : null,
         histWindow: sourceType === 'rollingRate' ? document.getElementById('histWindow').value : null,
         histBase: sourceType === 'rollingRate' ? document.getElementById('histBase').value : null,
         yoyRateBase: sourceType === 'yoyMonthRate' ? document.getElementById('yoyRateBase').value : null,
@@ -1762,7 +1802,7 @@
     }
     if (e.target.dataset.detailValue) {
       var target = detailRows.find(function (item) { return item.key === e.target.dataset.detailValue; });
-      if (target) target.value = Number(e.target.value);
+      if (target) target.value = e.target.value === '' ? NaN : Number(e.target.value);
     }
   });
   document.getElementById('btnBulkEdit').addEventListener('click', openBatchEditModal);
@@ -1779,10 +1819,35 @@
   document.getElementById('btnQuery').onclick = renderTable;
   document.getElementById('btnExportList').onclick = exportSourceList;
 
+  function toggleSourceStatus(id) {
+    var row = rows.find(function (r) { return r.id === id; });
+    if (!row) return;
+    var nextStatus = row.status === '启用' ? '停用' : '启用';
+    if (!confirm('确定将来源配置 ' + id + ' ' + nextStatus + '？')) return;
+    if (nextStatus === '启用') {
+      var occupied = getOccupied(row.feeCode, row.id);
+      var conflict = (row.channels || []).find(function (ch) { return occupied[ch]; });
+      if (conflict) {
+        alert('渠道「' + conflict + '」已被该费用项的其它启用配置占用，不能启用。');
+        return;
+      }
+    }
+    row.status = nextStatus;
+    row.maintainer = 'GTM-李四 · 2026-06-05';
+    renderTable();
+  }
+
   /* 列表页按钮委托（capture）：避免遮罩层拦截导致编辑/查看无响应 */
   function handleListPageAction(e) {
-    var t = e.target.closest('#btnAdd, #btnManageFeeItems, #btnQuery, #btnExportList, [data-act], [data-fee-item-act]');
+    var t = e.target.closest('#btnAdd, #btnManageFeeDepts, #btnManageFeeItems, #btnQuery, #btnExportList, [data-act], [data-fee-item-act]');
     if (!t) return;
+    if (t.id === 'btnManageFeeDepts') {
+      e.preventDefault();
+      e.stopPropagation();
+      if (window.FeeDeptMaster && typeof FeeDeptMaster.openManage === 'function') FeeDeptMaster.openManage();
+      else alert('费用部门管理脚本未加载，请通过仓库 HTTP 预览本页。');
+      return;
+    }
     if (t.id === 'btnManageFeeItems') {
       e.preventDefault();
       e.stopPropagation();
@@ -1795,9 +1860,13 @@
     if (t.id === 'btnExportList') { e.preventDefault(); e.stopPropagation(); exportSourceList(); return; }
     if (t.dataset && t.dataset.act === 'edit') { e.preventDefault(); e.stopPropagation(); openModal(t.dataset.id); return; }
     if (t.dataset && t.dataset.act === 'view') { e.preventDefault(); e.stopPropagation(); openModal(t.dataset.id, { viewOnly: true }); return; }
-    if (t.dataset && t.dataset.act === 'toggle') { e.preventDefault(); e.stopPropagation(); alert('状态切换（原型示意）'); }
+    if (t.dataset && t.dataset.act === 'toggle') { e.preventDefault(); e.stopPropagation(); toggleSourceStatus(t.dataset.id); return; }
   }
   document.addEventListener('click', handleListPageAction, true);
+
+  if (window.FeeDeptMaster) {
+    FeeDeptMaster.init();
+  }
 
   if (window.FeeItemMaster) {
     FeeItemMaster.init({
@@ -1861,6 +1930,12 @@
   "version": "2026-07-07T12:00:00+08:00",
   "pageTitle": "费用来源定义",
   "annotations": [
+    {
+      "id": "fee-dept-master",
+      "selector": "#btnManageFeeDepts",
+      "title": "费用部门管理",
+      "body": "费用部门树规则：\n1. 最上层为金蝶组织（102/109/110/127），其下按部门层级展开。\n2. 费用可选中间层级（如销售中心、新渠道），也可选末级渠道/部门（含 OC（全渠道）等独立部门）。\n3. 右侧展示金蝶组织、BM 编码与名称，便于与财务对账。\n4. 支持新增、修改、删除、导出；有下级时须先删下级再删父节点。\n5. 级联禁用规则：当上级部门被设为「禁用不可选」时，其所有下级部门自动级联设为「禁用不可选」，无需逐个手动设置。\n6. 禁用部门在业务页面的部门下拉中不显示，避免误选。"
+    },
     {
       "id": "fee-item-master",
       "selector": "#btnManageFeeItems",
@@ -1955,13 +2030,13 @@
       "id": "yoy-rate-rule",
       "selector": "[data-pa-key=\"yoy-rate-rule\"]",
       "title": "同期占比预估",
-      "body": "同期占比预估规则：\n1. 取去年同月费用 ÷ 去年同月基数，作为本月预估占比。\n2. 本月费用 = 当月比例基数 × 本月预估占比。\n3. 若去年同月缺数，原型提供“近12个月同月均值/标注未就绪”选择；建议需求明确正式缺数降级口径。"
+      "body": "同期占比预估规则：\n1. 优先取去年同月费用 ÷ 去年同月基数，作为本月预估占比。\n2. 本月费用 = 当月比例基数 × 本月预估占比。\n3. 若去年同月缺数，降级为过去 12 个月各月占比的滚动均值；不足 12 个月按实际有数据月份取均值。"
     },
     {
       "id": "yoy-fallback-rule",
       "selector": "#yoyFallback",
       "title": "缺数处理",
-      "body": "同期缺数处理规则：\n1. 「取近12个月同月均值」：去年同月无数据时，用近12个月同月占比均值替代。\n2. 「标注未就绪」：缺数时不自动估算，计提结果标记为未就绪待人工处理。\n3. 建议需求明确：缺数时是否阻断月度运行、是否发通知及补数后是否回溯重算。"
+      "body": "同期缺数处理规则：\n1. 正常：本月预估占比 = 去年同月费用 ÷ 去年同月基数。\n2. 缺数降级：去年同月缺费用或缺基数时，取过去 12 个月各月「费用÷基数」占比的算术平均值。\n3. 历史不足 12 个月时，按实际有数据的月份数取均值；示例：仅 3 个月历史则取 3 个月占比均值。"
     },
     {
       "id": "detail-expand-rule",
@@ -2063,7 +2138,7 @@
         "同一费用项是否允许多条不同来源类型的配置并存。",
         "已保存规则变更口径后，旧明细值如何迁移或是否重新维护。",
         "历史滚动占比缺历史数据、异常月份和补录数据的处理。",
-        "同期占比正式缺数降级口径，以及缺数时是否阻断月度运行、是否发通知、补数后是否回溯重算。",
+        "同期占比正式缺数降级为近12个月滚动均值；不足12个月按实际月份计算，以及补数后是否回溯重算。",
         "列表导出文件格式、字段顺序及是否含停用规则。"
       ],
       "关联上下游": "上游依赖费用项主数据、渠道/国家/场景/零售商主数据、历史费用和比例基数；下游供月度费用运行、管报费用汇总与费用填报对账使用。"
