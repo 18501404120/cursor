@@ -7,7 +7,9 @@ import argparse
 import json
 import mimetypes
 import os
+import re
 import socket
+import subprocess
 import urllib.parse
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -19,6 +21,17 @@ DEFAULT_DESIGN_FOLDER = ROOT.parent / "文件夹"
 SKIP_DIR_NAMES = {".git", ".github", "__pycache__", ".DS_Store", "node_modules"}
 SHAREABLE_EXTS = {".html", ".htm", ".md", ".png", ".jpg", ".jpeg", ".gif", ".svg", ".webp", ".pdf", ".js", ".css", ".json"}
 DEFAULT_MOUNT_ALIAS = "ERP_product"
+LOCAL_REPO_ROOT = ROOT.parent.parent
+DESIGN_PREFIX_IN_REPO = "方案设计/"
+CONFIG_SCRIPT_RE = re.compile(
+    r'(<script\s+id="prototype-annotation-config"\s+type="application/json"\s*>\s*)(\{.*?\})(\s*</script>)',
+    re.DOTALL | re.IGNORECASE,
+)
+PA_PUBLISH_ALLOWED_ORIGINS = {
+    "https://18501404120.github.io",
+    "http://127.0.0.1:8787",
+    "http://localhost:8787",
+}
 
 
 class RootMount:
@@ -192,20 +205,163 @@ def scan_demands() -> list[dict]:
     return demands
 
 
+def find_git_root(start: Path) -> Path | None:
+    current = start.resolve()
+    for parent in [current, *current.parents]:
+        if (parent / ".git").exists():
+            return parent
+    return None
+
+
+def load_github_token() -> str:
+    env_path = LOCAL_REPO_ROOT / "config" / "daily-kb-sync.env"
+    if not env_path.is_file():
+        return os.environ.get("GITHUB_TOKEN", "")
+    for line in env_path.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if line.startswith("GITHUB_TOKEN="):
+            return line.split("=", 1)[1].strip()
+    return os.environ.get("GITHUB_TOKEN", "")
+
+
+def apply_config_to_html(html_path: Path, config: dict) -> bool:
+    html = html_path.read_text(encoding="utf-8")
+    match = CONFIG_SCRIPT_RE.search(html)
+    if not match:
+        raise ValueError(f"未找到 prototype-annotation-config: {html_path}")
+    payload = json.dumps(config, ensure_ascii=False, indent=2)
+    updated = html[: match.start(2)] + payload + html[match.end(2) :]
+    if updated == html:
+        return False
+    html_path.write_text(updated, encoding="utf-8")
+    return True
+
+
+def resolve_repo_html_path(repo_path: str) -> Path:
+    rel = urllib.parse.unquote(repo_path or "").strip().lstrip("/").replace("\\", "/")
+    if not rel:
+        raise ValueError("缺少 repoPath")
+    if rel.startswith("cursor/"):
+        rel = rel[len("cursor/") :]
+    if not rel.startswith(DESIGN_PREFIX_IN_REPO):
+        if rel.startswith("文件夹/"):
+            rel = DESIGN_PREFIX_IN_REPO + rel
+        else:
+            rel = DESIGN_PREFIX_IN_REPO + rel
+    target = (LOCAL_REPO_ROOT / rel).resolve()
+    try:
+        target.relative_to(LOCAL_REPO_ROOT.resolve())
+    except ValueError as exc:
+        raise ValueError("非法路径") from exc
+    if not target.is_file():
+        raise ValueError(f"文件不存在: {rel}")
+    return target
+
+
+def git_publish_file(html_path: Path, message: str) -> None:
+    git_root = find_git_root(html_path)
+    if git_root is None:
+        raise RuntimeError("未找到 Git 仓库")
+    rel = html_path.resolve().relative_to(git_root.resolve()).as_posix()
+    env = os.environ.copy()
+    env["SKIP_AUTO_PUSH"] = "1"
+    subprocess.run(["git", "add", rel], cwd=git_root, check=True)
+    status = subprocess.run(["git", "diff", "--cached", "--quiet"], cwd=git_root)
+    if status.returncode == 0:
+        return
+    subprocess.run(["git", "commit", "-m", message], cwd=git_root, check=True, env=env)
+    push = subprocess.run(
+        ["git", "-c", "http.version=HTTP/1.1", "push", "origin", "HEAD"],
+        cwd=git_root,
+        capture_output=True,
+        text=True,
+    )
+    if push.returncode != 0:
+        raise RuntimeError(push.stderr.strip() or push.stdout.strip() or "git push 失败")
+
+
+def preview_url_for_repo_path(repo_path: str) -> str:
+    rel = repo_path.replace("\\", "/").lstrip("/")
+    if rel.startswith("cursor/"):
+        rel = rel[len("cursor/") :]
+    if rel.startswith(DESIGN_PREFIX_IN_REPO):
+        rel = rel[len(DESIGN_PREFIX_IN_REPO) :]
+    return "https://18501404120.github.io/cursor/" + urllib.parse.quote(rel, safe="/")
+
+
 class ProtoShareHandler(BaseHTTPRequestHandler):
     port: int = 8787
 
     def log_message(self, fmt: str, *args) -> None:
         print(f"[share] {self.address_string()} - {fmt % args}")
 
-    def _send_json(self, data, status: int = 200) -> None:
+    def _send_json(self, data, status: int = 200, extra_headers: dict | None = None) -> None:
         body = json.dumps(data, ensure_ascii=False).encode("utf-8")
         self.send_response(status)
         self.send_header("Content-Type", "application/json; charset=utf-8")
         self.send_header("Content-Length", str(len(body)))
         self.send_header("Cache-Control", "no-store")
+        if extra_headers:
+            for key, value in extra_headers.items():
+                self.send_header(key, value)
         self.end_headers()
         self.wfile.write(body)
+
+    def _cors_headers(self) -> dict[str, str]:
+        origin = self.headers.get("Origin", "")
+        if origin in PA_PUBLISH_ALLOWED_ORIGINS:
+            return {
+                "Access-Control-Allow-Origin": origin,
+                "Access-Control-Allow-Methods": "POST, OPTIONS",
+                "Access-Control-Allow-Headers": "Content-Type",
+                "Vary": "Origin",
+            }
+        return {}
+
+    def _read_json_body(self) -> dict:
+        length = int(self.headers.get("Content-Length") or "0")
+        raw = self.rfile.read(length) if length > 0 else b"{}"
+        try:
+            data = json.loads(raw.decode("utf-8"))
+        except json.JSONDecodeError as exc:
+            raise ValueError("请求体不是合法 JSON") from exc
+        if not isinstance(data, dict):
+            raise ValueError("请求体必须是 JSON 对象")
+        return data
+
+    def do_OPTIONS(self) -> None:
+        if self.path == "/api/pa-publish":
+            self._send_json({"ok": True}, extra_headers=self._cors_headers())
+            return
+        self._send_json({"error": "not found"}, 404)
+
+    def do_POST(self) -> None:
+        if self.path != "/api/pa-publish":
+            self._send_json({"error": "not found"}, 404)
+            return
+        cors = self._cors_headers()
+        try:
+            payload = self._read_json_body()
+            repo_path = str(payload.get("repoPath") or "")
+            config = payload.get("config")
+            if not isinstance(config, dict):
+                raise ValueError("缺少 config")
+            html_path = resolve_repo_html_path(repo_path)
+            changed = apply_config_to_html(html_path, config)
+            if changed:
+                page_title = str(config.get("pageTitle") or html_path.name)
+                git_publish_file(html_path, f"chore(管报): 发布原型标注 {page_title}")
+            self._send_json(
+                {
+                    "ok": True,
+                    "repoPath": repo_path,
+                    "changed": changed,
+                    "previewUrl": preview_url_for_repo_path(repo_path),
+                },
+                extra_headers=cors,
+            )
+        except Exception as exc:  # noqa: BLE001 - return message to UI
+            self._send_json({"ok": False, "error": str(exc)}, 400, extra_headers=cors)
 
     def _send_bytes(self, data: bytes, content_type: str, status: int = 200) -> None:
         self.send_response(status)
@@ -251,6 +407,9 @@ class ProtoShareHandler(BaseHTTPRequestHandler):
             return
         if path == "/share" or path.startswith("/share/"):
             self._send_static("share.html")
+            return
+        if path == "/publish-bridge.html":
+            self._send_static("publish-bridge.html")
             return
         if path == "/api/info":
             self._send_json(

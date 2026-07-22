@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <title>发布标注到预览</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", sans-serif; margin: 24px; color: #1e293b; }
+    .status { margin-top: 12px; line-height: 1.6; white-space: pre-wrap; }
+    .ok { color: #047857; }
+    .err { color: #b91c1c; }
+  </style>
+</head>
+<body>
+  <h1>正在发布标注…</h1>
+  <p class="status" id="status">等待在线页面传递配置…</p>
+  <script>
+    const statusEl = document.getElementById("status");
+    const ALLOWED_ORIGINS = [
+      "https://18501404120.github.io",
+      "http://127.0.0.1:8787",
+      "http://localhost:8787"
+    ];
+
+    function setStatus(text, cls) {
+      statusEl.textContent = text;
+      statusEl.className = "status " + (cls || "");
+    }
+
+    async function publish(payload) {
+      setStatus("正在写入仓库并推送…");
+      const res = await fetch("/api/pa-publish", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.ok) {
+        throw new Error(data.error || ("HTTP " + res.status));
+      }
+      setStatus(
+        "发布成功！\n预览约 1～2 分钟后更新：\n" + (data.previewUrl || ""),
+        "ok"
+      );
+      if (window.opener) {
+        window.opener.postMessage({ type: "pa-publish-done", ok: true, data }, "*");
+      }
+      setTimeout(() => window.close(), 2500);
+    }
+
+    window.addEventListener("message", async (event) => {
+      if (!event.data || event.data.type !== "pa-publish") return;
+      if (event.origin && !ALLOWED_ORIGINS.some((o) => event.origin === o || event.origin.startsWith(o))) {
+        return;
+      }
+      try {
+        await publish(event.data.payload);
+      } catch (error) {
+        setStatus("发布失败：\n" + (error && error.message ? error.message : String(error)), "err");
+        if (window.opener) {
+          window.opener.postMessage({ type: "pa-publish-done", ok: false, error: String(error) }, "*");
+        }
+      }
+    });
+
+    if (window.opener) {
+      window.opener.postMessage({ type: "pa-publish-ready" }, "*");
+    } else {
+      setStatus("请从 GitHub Pages 预览页点击「发布到预览」打开本页。", "err");
+    }
+  </script>
+</body>
+</html>

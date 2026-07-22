@@ -49,7 +49,11 @@
       allowLocalhost:
         fromConfig.allowLocalhost != null ? fromConfig.allowLocalhost : PA_POLICY_DEFAULT.allowLocalhost,
       allowOtherHosts:
-        fromConfig.allowOtherHosts != null ? fromConfig.allowOtherHosts : PA_POLICY_DEFAULT.allowOtherHosts
+        fromConfig.allowOtherHosts != null ? fromConfig.allowOtherHosts : PA_POLICY_DEFAULT.allowOtherHosts,
+      publishBridgeUrl:
+        fromConfig.publishBridgeUrl != null
+          ? fromConfig.publishBridgeUrl
+          : "http://127.0.0.1:8787/publish-bridge.html"
     };
   }
 
@@ -304,7 +308,7 @@
       document.body.appendChild(toast);
     }
     toast.textContent =
-      "已保存到本机。他人预览链接看不到，请点「复制配置」发给 Cursor，或说「同步落盘并推送」。";
+      "已保存到本机。他人预览还看不到，请点「发布到预览」（需先启动原型分享服务）。";
     toast.classList.add("is-visible");
     if (toast._hideTimer) clearTimeout(toast._hideTimer);
     toast._hideTimer = setTimeout(() => toast.classList.remove("is-visible"), 6000);
@@ -316,13 +320,118 @@
     return JSON.stringify(out, null, 2);
   }
 
+  function inferRepoPathFromLocation() {
+    let p = decodeURIComponent(location.pathname || "");
+    if (p.startsWith("/files/")) p = p.slice("/files/".length);
+    if (p.startsWith("/cursor/")) p = p.slice("/cursor/".length);
+    p = p.replace(/^\//, "");
+    if (p.startsWith("方案设计/")) return p;
+    if (p.startsWith("文件夹/")) return "方案设计/" + p;
+    return "方案设计/" + p;
+  }
+
+  function buildPublishPayload(config, state) {
+    const out = clone(config);
+    out.persistedState = stateToPersisted(state);
+    return {
+      repoPath: inferRepoPathFromLocation(),
+      config: out
+    };
+  }
+
+  function showPaPublishToast(message, isError) {
+    let toast = document.getElementById("pa-sync-toast");
+    if (!toast) {
+      toast = document.createElement("div");
+      toast.id = "pa-sync-toast";
+      toast.className = "pa-sync-toast";
+      document.body.appendChild(toast);
+    }
+    toast.textContent = message;
+    toast.classList.toggle("is-error", !!isError);
+    toast.classList.add("is-visible");
+    if (toast._hideTimer) clearTimeout(toast._hideTimer);
+    toast._hideTimer = setTimeout(() => toast.classList.remove("is-visible"), 8000);
+  }
+
+  async function publishToPreview(config, state, button) {
+    const payload = buildPublishPayload(config, state);
+    const policy = mergeEditPolicy(config);
+    const bridgeUrl = policy.publishBridgeUrl || "http://127.0.0.1:8787/publish-bridge.html";
+    const isShareServer =
+      (location.hostname === "127.0.0.1" || location.hostname === "localhost") &&
+      location.port === "8787";
+
+    if (button) {
+      button.disabled = true;
+      button.textContent = "发布中…";
+    }
+
+    try {
+      if (isShareServer) {
+        const res = await fetch("/api/pa-publish", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || !data.ok) throw new Error(data.error || "发布失败");
+        showPaPublishToast("发布成功！约 1～2 分钟后预览链接更新。\n" + (data.previewUrl || ""), false);
+        return;
+      }
+
+      const bridge = window.open(bridgeUrl, "pa-publish-bridge", "width=520,height=360");
+      if (!bridge) {
+        throw new Error("浏览器拦截了弹窗，请允许弹窗后重试。");
+      }
+
+      await new Promise((resolve, reject) => {
+        const timer = setTimeout(() => {
+          cleanup();
+          reject(new Error("发布超时。请先启动「原型分享服务.command」再重试。"));
+        }, 60000);
+
+        function onMessage(event) {
+          if (event.source !== bridge || !event.data) return;
+          if (event.data.type === "pa-publish-ready") {
+            bridge.postMessage({ type: "pa-publish", payload: payload }, "*");
+            return;
+          }
+          if (event.data.type === "pa-publish-done") {
+            cleanup();
+            if (event.data.ok) resolve(event.data.data);
+            else reject(new Error(event.data.error || "发布失败"));
+          }
+        }
+
+        function cleanup() {
+          clearTimeout(timer);
+          window.removeEventListener("message", onMessage);
+        }
+
+        window.addEventListener("message", onMessage);
+      });
+
+      showPaPublishToast("发布成功！约 1～2 分钟后 GitHub Pages 预览链接将更新。", false);
+    } catch (error) {
+      showPaPublishToast(
+        (error && error.message ? error.message : String(error)) +
+          "\n\n提示：先双击启动「原型分享服务.command」，再回到本页点「发布到预览」。",
+        true
+      );
+    } finally {
+      if (button) {
+        button.disabled = false;
+        button.textContent = "发布到预览";
+      }
+    }
+  }
+
   async function copyConfigForSync(config, state) {
     const payload = exportConfigForSync(config, state);
     try {
       await navigator.clipboard.writeText(payload);
-      showPaSyncToast();
-      const toast = document.getElementById("pa-sync-toast");
-      if (toast) toast.textContent = "标注配置已复制。发给 Cursor：「同步落盘并推送」。";
+      showPaPublishToast("标注配置已复制。可发给 Cursor：「同步落盘并推送」。", false);
     } catch (_error) {
       window.prompt("复制以下 JSON 发给 Cursor：", payload);
     }
@@ -2013,16 +2122,16 @@
         event.stopPropagation();
         enterPickMode(config, state);
       });
-      const copyButton = document.createElement("button");
-      copyButton.type = "button";
-      copyButton.className = "pa-copy-button";
-      copyButton.textContent = "复制配置";
-      copyButton.title = "复制标注配置，发给 Cursor 同步到 Git 后他人可见";
-      copyButton.addEventListener("click", (event) => {
+      const publishButton = document.createElement("button");
+      publishButton.type = "button";
+      publishButton.className = "pa-publish-button";
+      publishButton.textContent = "发布到预览";
+      publishButton.title = "写入 Git 并推送，约 1～2 分钟后在线预览链接更新（需先启动原型分享服务）";
+      publishButton.addEventListener("click", (event) => {
         event.stopPropagation();
-        copyConfigForSync(config, state);
+        publishToPreview(config, state, publishButton);
       });
-      root.append(pageButton, addButton, copyButton);
+      root.append(pageButton, addButton, publishButton);
     } else {
       root.append(pageButton);
     }
@@ -2067,7 +2176,9 @@
     recoverUserAnnotations,
     loadState,
     exportConfigForSync,
-    copyConfigForSync
+    copyConfigForSync,
+    publishToPreview,
+    inferRepoPathFromLocation
   };
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", mountFromScript);
