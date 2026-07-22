@@ -273,9 +273,12 @@
     }
   }
 
-  function saveState(config, state) {
+  function saveState(config, state, options) {
     localStorage.setItem(storageKey(config), JSON.stringify(state));
     syncPersistedStateToConfig(config, state);
+    if (options && options.notify) {
+      showPaSyncToast();
+    }
   }
 
   function hydrateState(config) {
@@ -290,6 +293,39 @@
 
   function text(value) {
     return value == null ? "" : String(value);
+  }
+
+  function showPaSyncToast() {
+    let toast = document.getElementById("pa-sync-toast");
+    if (!toast) {
+      toast = document.createElement("div");
+      toast.id = "pa-sync-toast";
+      toast.className = "pa-sync-toast";
+      document.body.appendChild(toast);
+    }
+    toast.textContent =
+      "已保存到本机。他人预览链接看不到，请点「复制配置」发给 Cursor，或说「同步落盘并推送」。";
+    toast.classList.add("is-visible");
+    if (toast._hideTimer) clearTimeout(toast._hideTimer);
+    toast._hideTimer = setTimeout(() => toast.classList.remove("is-visible"), 6000);
+  }
+
+  function exportConfigForSync(config, state) {
+    const out = clone(config);
+    out.persistedState = stateToPersisted(state);
+    return JSON.stringify(out, null, 2);
+  }
+
+  async function copyConfigForSync(config, state) {
+    const payload = exportConfigForSync(config, state);
+    try {
+      await navigator.clipboard.writeText(payload);
+      showPaSyncToast();
+      const toast = document.getElementById("pa-sync-toast");
+      if (toast) toast.textContent = "标注配置已复制。发给 Cursor：「同步落盘并推送」。";
+    } catch (_error) {
+      window.prompt("复制以下 JSON 发给 Cursor：", payload);
+    }
   }
 
   function removeOld() {
@@ -737,10 +773,7 @@
       } else {
         state.userAdded.annotations.push(item);
       }
-      saveState(config, state);
-      closePopovers();
-      scheduleRender(config, state);
-      if (onDone) onDone(true);
+      saveState(config, state, { notify: true });
     });
     schedulePlacePopover(popover, target);
   }
@@ -1228,7 +1261,7 @@
         }
         state.edits = state.edits || {};
         state.edits[key] = { body: nextBody, images: nextImages };
-        saveState(config, state);
+        saveState(config, state, { notify: true });
         renderView(normalizeContent(state.edits[key], body));
       });
       schedulePlacePopover(popover, anchor);
@@ -1266,7 +1299,7 @@
           state.hidden = state.hidden || {};
           state.hidden[key] = true;
         }
-        saveState(config, state);
+        saveState(config, state, { notify: true });
         if (anchor && anchor.remove) anchor.remove();
         closePopovers();
         scheduleRender(config, state);
@@ -1980,7 +2013,16 @@
         event.stopPropagation();
         enterPickMode(config, state);
       });
-      root.append(pageButton, addButton);
+      const copyButton = document.createElement("button");
+      copyButton.type = "button";
+      copyButton.className = "pa-copy-button";
+      copyButton.textContent = "复制配置";
+      copyButton.title = "复制标注配置，发给 Cursor 同步到 Git 后他人可见";
+      copyButton.addEventListener("click", (event) => {
+        event.stopPropagation();
+        copyConfigForSync(config, state);
+      });
+      root.append(pageButton, addButton, copyButton);
     } else {
       root.append(pageButton);
     }
@@ -2023,7 +2065,9 @@
     resolveCanEdit,
     resync: resyncAnnotationsNow,
     recoverUserAnnotations,
-    loadState
+    loadState,
+    exportConfigForSync,
+    copyConfigForSync
   };
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", mountFromScript);
