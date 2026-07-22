@@ -1,7 +1,7 @@
 #!/bin/sh
-# commit 成功后：仅当本次提交包含「文件夹/项目/」或「文件夹/需求/」下文件时，自动 push 到 origin（当前分支）
+# commit 成功后：仅当本次提交包含「方案设计/文件夹/项目/」或「方案设计/文件夹/需求/」下文件时，自动 push 到 origin（当前分支）
 #
-# 启用（在本仓库根目录执行一次）：
+# 启用（在本仓库根目录「本地/」执行一次）：
 #   git config core.hooksPath .githooks
 #   chmod +x .githooks/post-commit
 #
@@ -29,15 +29,15 @@ if [ "$branch" = "HEAD" ]; then
 fi
 
 # 仅当 HEAD 提交改动了以下前缀之一时才 push（含子路径）
-# 使用 diff-tree 列出本次提交涉及的路径，兼容改名
-# core.quotePath=false 否则中文路径被转义，无法匹配 文件夹/项目 前缀
+# 仓库根为「本地/」，原型与需求路径在「方案设计/文件夹/」下
+# core.quotePath=false 否则中文路径被转义，无法匹配前缀
 if ! git -c core.quotePath=false diff-tree --no-commit-id --name-only -r HEAD |
-  grep -qE '^文件夹/项目(/|$)|^文件夹/需求(/|$)'; then
-  echo "[post-commit] 本次提交未涉及 文件夹/项目/ 或 文件夹/需求/，跳过自动 push"
+  grep -qE '^方案设计/文件夹/项目(/|$)|^方案设计/文件夹/需求(/|$)'; then
+  echo "[post-commit] 本次提交未涉及 方案设计/文件夹/项目/ 或 方案设计/文件夹/需求/，跳过自动 push"
   exit 0
 fi
 
-echo "[post-commit] 本次提交含 文件夹/项目/ 或 文件夹/需求/，正在推送分支: $branch → origin ..."
+echo "[post-commit] 本次提交含 方案设计/文件夹/项目/ 或 方案设计/文件夹/需求/，正在推送分支: $branch → origin ..."
 # 单次 push 强制 HTTP/1.1，减少部分网络下 HTTP/2 framing 报错
 git -c http.version=HTTP/1.1 push origin "$branch"
 status=$?
