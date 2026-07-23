@@ -427,7 +427,6 @@
 
       <section class="jd-card panel--filter">
         <div class="filter-panel" data-pa-key="list-filter-bar">
-          <div class="panel-sub" style="margin-bottom:12px;color:#6b7280;font-size:13px;">设置筛选条件后点击「查询」刷新下方列表</div>
           <div class="filter-grid">
             <div class="f-item">
               <label for="filterFee">费用项</label>
@@ -458,9 +457,11 @@
                 <select id="filterChannel" class="ctl">
                   <option value="">全部</option>
                   <option>亚马逊</option>
-                  <option>独立站</option>
+                  <option>shopify</option>
+                  <option>App商城</option>
                   <option>线下商超</option>
-                  <option>分销</option>
+                  <option>商超3P</option>
+                  <option>线下分销</option>
                 </select>
                 <button type="button" class="ctl-clear" aria-label="清除渠道">×</button>
               </span>
@@ -762,17 +763,21 @@
   var MASTER_JSON_BASE = '../../../../规范/基础数据/';
   var PAGE_CHANNEL_MASTER = {
     '亚马逊': ['Govee', 'Govee EU', 'GoveeLife', 'Govee_VC', 'TTS'],
-    '独立站': ['独立站', 'APP商城'],
-    '线下商超': ['Offline', 'Wayfair-US', 'WM 3P', 'BBY 3P', 'Lowes 3P'],
-    '分销': ['线下分销', '京东']
+    'shopify': ['独立站'],
+    'App商城': ['APP商城'],
+    '线下商超': ['Offline', 'Wayfair-US'],
+    '商超3P': ['WM 3P', 'BBY 3P', 'Lowes 3P'],
+    '线下分销': ['线下分销', '京东']
   };
-  var ALL_CHANNELS = ['亚马逊', '独立站', '线下商超', '分销'];
+  var ALL_CHANNELS = ['亚马逊', 'shopify', 'App商城', '线下商超', '商超3P', '线下分销'];
   /** 零售商 = 具体客户（非店铺 MSKU 店铺名），对齐补充费用导入原型 RETAILER_NAMES */
   var RETAILER_BY_PAGE_CHANNEL = {
     '亚马逊': ['Best Buy', 'Target', 'MediaMarkt', 'Yodobashi'],
-    '独立站': ['企业客户', '战略合作渠道', 'DTC 大客户'],
+    'shopify': ['企业客户', '战略合作渠道', 'DTC 大客户'],
+    'App商城': ['App 会员', 'App 活动客户'],
     '线下商超': ['沃尔玛', 'Costco', 'Best Buy', 'Target', 'Wayfair', 'MediaMarkt'],
-    '分销': ['Ingram Micro', 'Tech Data', '华东总代', '华南总代', '跨境分销商']
+    '商超3P': ['Walmart 3P', 'Best Buy 3P', 'Lowes 3P'],
+    '线下分销': ['Ingram Micro', 'Tech Data', '华东总代', '华南总代', '跨境分销商']
   };
   var DIMENSION_OPTIONS = {};
   var masterDataReady = false;
@@ -888,11 +893,11 @@
 
   var rows = [
     { id: 'R001', feeCode: 'F006', sourceType: 'rollingRate', caliberScope: 'channelCountry', channels: ['亚马逊'], summary: '近 12 月滚动 · 当月实际营收 · 渠道+国家 · 3 条明细', status: '启用', maintainer: 'GTM-李四 · 2026-06-05', fixedAmount: null, fixedRate: null, histWindow: '近 12 个月', histBase: '当月实际营收' },
-    { id: 'R002', feeCode: 'F006', sourceType: 'yoyMonthRate', caliberScope: 'channelCountryScene', channels: ['独立站'], summary: '同比月占比 · 当月实际营收 · 渠道+国家+场景 · 9 条明细', status: '启用', maintainer: 'GTM-李四 · 2026-06-04', fixedAmount: null, fixedRate: null, yoyRateBase: '当月实际营收', yoyFallback: '取近12个月滚动均值' },
-    { id: 'R003', feeCode: 'F007', sourceType: 'fixedAmount', caliberScope: 'channelCountry', channels: ['独立站'], summary: '¥85,000 / 月 · 渠道+国家 · 3 条明细', status: '启用', maintainer: 'GTM-李四 · 2026-06-05', fixedAmount: 85000, fixedRate: null },
+    { id: 'R002', feeCode: 'F006', sourceType: 'yoyMonthRate', caliberScope: 'channelCountryScene', channels: ['shopify'], summary: '同比月占比 · 当月实际营收 · 渠道+国家+场景 · 9 条明细', status: '启用', maintainer: 'GTM-李四 · 2026-06-04', fixedAmount: null, fixedRate: null, yoyRateBase: '当月实际营收', yoyFallback: '取近12个月滚动均值' },
+    { id: 'R003', feeCode: 'F007', sourceType: 'fixedAmount', caliberScope: 'channelCountry', channels: ['App商城'], summary: '¥85,000 / 月 · 渠道+国家 · 3 条明细', status: '启用', maintainer: 'GTM-李四 · 2026-06-05', fixedAmount: 85000, fixedRate: null },
     { id: 'R004', feeCode: 'F009', sourceType: 'fixedRate', caliberScope: 'channelCountrySceneRetailer', channels: ['线下商超'], summary: '8.5% × 当月实际营收 · 渠道+国家+场景+零售商 · 12 条明细', status: '启用', maintainer: 'GTM-王五 · 2026-06-04', fixedAmount: null, fixedRate: 8.5 },
-    { id: 'R005', feeCode: 'F001', sourceType: 'auto', channels: ['亚马逊'], summary: '—', status: '启用', maintainer: '系统同步 · 2026-06-03', fixedAmount: null, fixedRate: null },
-    { id: 'R006', feeCode: 'F016', sourceType: 'fixedAmount', caliberScope: 'channelCountryRetailer', channels: ['分销'], summary: '¥445,000 / 月 · 渠道+国家+零售商 · 4 条明细', status: '停用', maintainer: 'GTM-李四 · 2026-05-28', fixedAmount: 445000, fixedRate: null }
+    { id: 'R005', feeCode: 'F001', sourceType: 'auto', channels: ['商超3P'], summary: '—', status: '启用', maintainer: '系统同步 · 2026-06-03', fixedAmount: null, fixedRate: null },
+    { id: 'R006', feeCode: 'F016', sourceType: 'fixedAmount', caliberScope: 'channelCountryRetailer', channels: ['线下分销'], summary: '¥445,000 / 月 · 渠道+国家+零售商 · 4 条明细', status: '停用', maintainer: 'GTM-李四 · 2026-05-28', fixedAmount: 445000, fixedRate: null }
   ];
 
   var editingId = null;
@@ -1897,6 +1902,9 @@
 
   /* 列表页按钮委托（capture）：避免遮罩层拦截导致编辑/查看无响应 */
   function handleListPageAction(e) {
+    if (window.PrototypeAnnotation && typeof window.PrototypeAnnotation.isPickModeActive === 'function' && window.PrototypeAnnotation.isPickModeActive()) {
+      return;
+    }
     var t = e.target.closest('#btnAdd, #btnManageFeeDepts, #btnManageFeeItems, #btnQuery, #btnExportList, [data-act], [data-fee-item-act]');
     if (!t) return;
     if (t.id === 'btnManageFeeDepts') {
@@ -1983,7 +1991,7 @@
 
 
 <!-- prototype-annotation:start -->
-<link rel="stylesheet" href="../prototype-annotation/prototype-annotation.css">
+<link rel="stylesheet" href="../prototype-annotation/prototype-annotation.css?v=20260723pick3">
 <script id="prototype-annotation-config" type="application/json">
 {
   "pageId": "fee-source-definition",
@@ -2250,23 +2258,36 @@
     "viewOnlyHostnames": [
       "18501404120.github.io"
     ],
-    "allowIps": [
-      "113.110.230.127",
-      "220.232.134.241",
-      "113.110.228.174",
-      "113.110.229.118",
-      "113.87.83.49",
-      "113.110.230.92"
-    ],
-    "allowIpPrefixes": ["113.110.230.", "113.110.228.", "113.110.229.", "113.87.83."],
-    "allowTrustedBrowser": true,
+    "allowIps": [],
+    "allowIpPrefixes": [],
+    "allowTrustedBrowser": false,
     "editToken": "",
     "allowLocalhost": true,
-    "allowOtherHosts": true
+    "allowOtherHosts": true,
+    "pagesForceReadonly": true,
+    "autoPublishOnSave": false
+  },
+  "persistedState": {
+    "edits": {},
+    "hidden": {},
+    "guides": {},
+    "assets": {},
+    "userAdded": {
+      "annotations": [
+        {
+          "id": "user-mrx670r9-27yr",
+          "selector": "#filterStatus",
+          "title": "1",
+          "body": "1"
+        }
+      ],
+      "fieldTips": []
+    },
+    "persistedAt": "2026-07-23T07:09:00.952Z"
   }
 }
 </script>
-<script src="../prototype-annotation/prototype-annotation-runtime.js?v=20260707-modal-resync"></script>
+<script src="../prototype-annotation/prototype-annotation-runtime.js?v=20260723pick3"></script>
 <!-- prototype-annotation:end -->
 </body>
 </html>
