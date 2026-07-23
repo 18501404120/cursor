@@ -12,22 +12,38 @@
   const boundScrollParents = new WeakSet();
   const boundResizeTargets = new WeakSet();
   let activeMount = null;
-  /** 对外 Pages 只读；作者 IP / 网段 / 本机浏览器信任 / 本地可编；见 Skill §Git Pages 编辑权限 */
+  /**
+   * 协作约定：本地（8787/localhost）可新增/编辑并「发布到预览」推 Git；
+   * GitHub Pages 预览页强制只读，只展示标注与「查看页面说明」。
+   */
   const PA_POLICY_DEFAULT = {
     viewOnlyHostnames: ["18501404120.github.io"],
-    allowIps: ["113.110.230.127", "113.110.229.118", "220.232.134.241", "113.110.228.174", "113.87.83.49", "113.110.230.92"],
-    allowIpPrefixes: ["113.110.230.", "113.110.228.", "113.110.229.", "113.87.83."],
-    allowTrustedBrowser: true,
+    allowIps: [],
+    allowIpPrefixes: [],
+    allowTrustedBrowser: false,
     editToken: "",
     allowLocalhost: true,
-    allowOtherHosts: true
+    allowOtherHosts: true,
+    /** Pages / viewOnlyHostnames 一律只读，忽略 IP、信任浏览器、paEdit */
+    pagesForceReadonly: true,
+    /** 默认不自动推送；本地点「发布到预览」再推 Git */
+    autoPublishOnSave: false
   };
   const TRUSTED_BROWSER_KEY = "prototypeAnnotation:trustedAuthorBrowser";
   let outsideCloseBound = false;
+  let suppressOutsideCloseUntil = 0;
   let pickModeActive = false;
   let pickHighlightEl = null;
+  let pickOverlayEl = null;
   let pickHandlers = null;
+  let pickDelegatedIframe = null;
+  let pickDelegatedFromParent = false;
+  let pickHintEl = null;
+  let pickCommitLock = false;
   let paCanEdit = true;
+  let autoPublishTimer = null;
+  let autoPublishInFlight = false;
+  let autoPublishQueued = null;
 
   function mergeEditPolicy(config) {
     const fromConfig = (config && config.editPolicy) || {};
@@ -53,8 +69,40 @@
       publishBridgeUrl:
         fromConfig.publishBridgeUrl != null
           ? fromConfig.publishBridgeUrl
-          : "http://127.0.0.1:8787/publish-bridge.html"
+          : "http://127.0.0.1:8787/static/publish-bridge.html",
+      pagesForceReadonly:
+        fromConfig.pagesForceReadonly != null
+          ? !!fromConfig.pagesForceReadonly
+          : PA_POLICY_DEFAULT.pagesForceReadonly !== false,
+      autoPublishOnSave:
+        fromConfig.autoPublishOnSave != null
+          ? !!fromConfig.autoPublishOnSave
+          : !!PA_POLICY_DEFAULT.autoPublishOnSave,
+      githubPublish:
+        fromConfig.githubPublish != null
+          ? fromConfig.githubPublish
+          : fromConfig.publishEndpoint
+            ? { endpoint: fromConfig.publishEndpoint, token: fromConfig.publishToken || "" }
+            : null
     };
+  }
+
+  function isPagesPreviewHost() {
+    const host = location.hostname || "";
+    return host === "18501404120.github.io" || /\.github\.io$/i.test(host);
+  }
+
+  function isShareServerHost() {
+    return (
+      (location.hostname === "127.0.0.1" || location.hostname === "localhost") &&
+      String(location.port || "") === "8787"
+    );
+  }
+
+  function getPublishEndpoint(config) {
+    const policy = mergeEditPolicy(config);
+    const githubPublish = policy.githubPublish || {};
+    return String(githubPublish.endpoint || "").replace(/\/$/, "");
   }
 
   function editTokenFromUrl() {
@@ -126,42 +174,44 @@
     }
   }
 
+  function isConfiguredViewOnlyHost(policy) {
+    const host = location.hostname || "";
+    if (isPagesPreviewHost()) return true;
+    return (policy.viewOnlyHostnames || []).some(
+      (name) => name && (host === name || host.endsWith("." + name))
+    );
+  }
+
   async function resolveCanEdit(config) {
     const policy = mergeEditPolicy(config);
     const host = location.hostname || "";
-    const trustBrowser = policy.allowTrustedBrowser !== false;
+
+    // Pages 预览：强制只读（不显示「新增标注 / 发布到预览」，弹层无编辑删除）
+    if (policy.pagesForceReadonly !== false && isConfiguredViewOnlyHost(policy)) {
+      return false;
+    }
 
     if (policy.allowLocalhost && (host === "localhost" || host === "127.0.0.1")) {
-      if (trustBrowser) markTrustedBrowser();
       return true;
     }
     if (policy.editToken && editTokenFromUrl() === policy.editToken) {
       return true;
     }
-    const isViewOnlyHost = (policy.viewOnlyHostnames || []).some(
-      (name) => name && (host === name || host.endsWith("." + name))
-    );
-    if (!isViewOnlyHost) {
+    if (!isConfiguredViewOnlyHost(policy)) {
       return policy.allowOtherHosts !== false;
     }
-    if (trustBrowser && isTrustedBrowser()) {
-      return true;
-    }
+    // 未强制只读时的兼容路径（一般不再使用）
+    const trustBrowser = policy.allowTrustedBrowser === true;
+    if (trustBrowser && isTrustedBrowser()) return true;
     const hasIpRule =
       (policy.allowIps && policy.allowIps.length) ||
       (policy.allowIpPrefixes && policy.allowIpPrefixes.length);
-    if (!hasIpRule && !policy.editToken) {
-      return false;
-    }
+    if (!hasIpRule) return false;
     try {
       const ip = await fetchPublicIp();
-      if (ipMatchesPolicy(ip, policy)) {
-        if (trustBrowser) markTrustedBrowser();
-        return true;
-      }
-      return false;
+      return ipMatchesPolicy(ip, policy);
     } catch (_error) {
-      return trustBrowser && isTrustedBrowser();
+      return false;
     }
   }
 
@@ -280,9 +330,20 @@
   function saveState(config, state, options) {
     localStorage.setItem(storageKey(config), JSON.stringify(state));
     syncPersistedStateToConfig(config, state);
-    if (options && options.notify) {
+    if (!(options && options.notify)) return;
+    // Pages 只读；本地默认点「发布到预览」再推送（autoPublishOnSave 默认 false）
+    if (!paCanEdit || isPagesPreviewHost()) return;
+    const policy = mergeEditPolicy(config);
+    if (!policy.autoPublishOnSave) {
       showPaSyncToast();
+      return;
     }
+    if (isShareServerHost() || getPublishEndpoint(config)) {
+      showPaPublishToast("已保存，正在同步给他人…", false);
+      scheduleAutoPublish(config, state);
+      return;
+    }
+    showPaSyncToast();
   }
 
   function hydrateState(config) {
@@ -307,11 +368,56 @@
       toast.className = "pa-sync-toast";
       document.body.appendChild(toast);
     }
-    toast.textContent =
-      "已保存到本机。他人预览还看不到，请点「发布到预览」（需先启动原型分享服务）。";
+    toast.classList.remove("is-error");
+    toast.textContent = "已保存到本机。点「发布到预览」后同事才能在 Pages 看到。";
     toast.classList.add("is-visible");
     if (toast._hideTimer) clearTimeout(toast._hideTimer);
-    toast._hideTimer = setTimeout(() => toast.classList.remove("is-visible"), 6000);
+    toast._hideTimer = setTimeout(() => toast.classList.remove("is-visible"), 5000);
+  }
+
+  async function fetchLivePersistedState(config) {
+    const endpoint = getPublishEndpoint(config);
+    if (!endpoint) return null;
+    const repoPath = inferRepoPathFromLocation();
+    const url = `${endpoint}?path=${encodeURIComponent(repoPath)}`;
+    const res = await fetch(url, {
+      method: "GET",
+      headers: { Accept: "application/json" },
+      cache: "no-store"
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || !data.ok) {
+      throw new Error((data && data.error) || "读取在线标注失败");
+    }
+    return normalizePersistedState(data.persistedState);
+  }
+
+  async function hydrateStateWithLive(config) {
+    let basePersisted = normalizePersistedState(config.persistedState);
+    let liveOk = false;
+    try {
+      const live = await fetchLivePersistedState(config);
+      if (live) {
+        basePersisted = mergeStateLayers(basePersisted, live);
+        liveOk = true;
+        config.persistedState = stateToPersisted(basePersisted);
+        syncPersistedStateToConfig(config, basePersisted);
+      }
+    } catch (error) {
+      console.warn("[prototype-annotation] live annotation fetch skipped:", error);
+    }
+    const local = loadState(config);
+    // Pages + 线上已读到：只读者完全以 Git 为准；作者保留本机未同步草稿
+    let merged;
+    if (liveOk && isPagesPreviewHost() && !paCanEdit) {
+      merged = basePersisted;
+    } else {
+      merged = mergeStateLayers(basePersisted, local);
+    }
+    if (!merged.userAdded) merged.userAdded = emptyUserAdded();
+    if (!merged.assets) merged.assets = {};
+    saveState(config, merged);
+    return merged;
   }
 
   function exportConfigForSync(config, state) {
@@ -354,13 +460,102 @@
     toast._hideTimer = setTimeout(() => toast.classList.remove("is-visible"), 8000);
   }
 
-  async function publishToPreview(config, state, button) {
-    const payload = buildPublishPayload(config, state);
+  function scheduleAutoPublish(config, state) {
+    autoPublishQueued = { config, state: clone(state) };
+    if (autoPublishTimer) clearTimeout(autoPublishTimer);
+    autoPublishTimer = setTimeout(() => {
+      autoPublishTimer = null;
+      flushAutoPublish();
+    }, 600);
+  }
+
+  async function flushAutoPublish() {
+    if (autoPublishInFlight) return;
+    const queued = autoPublishQueued;
+    if (!queued) return;
+    autoPublishQueued = null;
+    autoPublishInFlight = true;
+    try {
+      await publishToPreview(queued.config, queued.state, null, { silentSuccess: false, fromAuto: true });
+    } catch (_error) {
+      /* toast 已提示 */
+    } finally {
+      autoPublishInFlight = false;
+      if (autoPublishQueued) flushAutoPublish();
+    }
+  }
+
+  function publishViaLocalBridge(config, state, policy) {
+    return new Promise((resolve, reject) => {
+      const bridgeUrl =
+        (policy && policy.publishBridgeUrl) || "http://127.0.0.1:8787/static/publish-bridge.html";
+      const payload = buildPublishPayload(config, state);
+      // 必须在用户手势同步调用栈内打开，否则会被浏览器拦截
+      const popup = window.open(bridgeUrl, "pa-publish-bridge", "width=560,height=400");
+      if (!popup) {
+        reject(
+          new Error(
+            "浏览器拦截了弹窗。请允许本站弹窗后重试；并确认已启动「原型分享服务」（8787）。"
+          )
+        );
+        return;
+      }
+
+      let settled = false;
+      const timer = setTimeout(() => {
+        finish(() =>
+          reject(
+            new Error(
+              "发布超时。请双击启动「原型分享服务」，保持 8787 运行后再保存/发布。"
+            )
+          )
+        );
+      }, 90000);
+
+      function finish(fn) {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        window.removeEventListener("message", onMessage);
+        try {
+          fn();
+        } catch (_error) {
+          /* ignore */
+        }
+      }
+
+      function onMessage(event) {
+        const data = event && event.data;
+        if (!data || typeof data !== "object") return;
+        if (data.type === "pa-publish-ready") {
+          try {
+            popup.postMessage({ type: "pa-publish", payload: payload }, event.origin || "*");
+          } catch (error) {
+            finish(() => reject(error));
+          }
+          return;
+        }
+        if (data.type === "pa-publish-done") {
+          if (data.ok) finish(() => resolve(data.data || { ok: true }));
+          else finish(() => reject(new Error(data.error || "发布失败")));
+        }
+      }
+
+      window.addEventListener("message", onMessage);
+    });
+  }
+
+  async function publishToPreview(config, state, button, options) {
+    const opts = options || {};
+    if (!paCanEdit || isPagesPreviewHost()) {
+      showPaPublishToast("预览页为只读。请在本地 8787 打开原型，点「发布到预览」。", true);
+      return null;
+    }
+
     const policy = mergeEditPolicy(config);
-    const bridgeUrl = policy.publishBridgeUrl || "http://127.0.0.1:8787/publish-bridge.html";
-    const isShareServer =
-      (location.hostname === "127.0.0.1" || location.hostname === "localhost") &&
-      location.port === "8787";
+    const githubPublish = policy.githubPublish || {};
+    const endpoint = String(githubPublish.endpoint || "").replace(/\/$/, "");
+    const publishToken = githubPublish.token || "";
 
     if (button) {
       button.disabled = true;
@@ -368,57 +563,42 @@
     }
 
     try {
-      if (isShareServer) {
+      let data = null;
+      const payload = buildPublishPayload(config, state);
+
+      if (isShareServerHost()) {
         const res = await fetch("/api/pa-publish", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload)
         });
-        const data = await res.json().catch(() => ({}));
+        data = await res.json().catch(() => ({}));
         if (!res.ok || !data.ok) throw new Error(data.error || "发布失败");
-        showPaPublishToast("发布成功！约 1～2 分钟后预览链接更新。\n" + (data.previewUrl || ""), false);
-        return;
+      } else if (endpoint) {
+        const res = await fetch(endpoint, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-Pa-Publish-Token": publishToken
+          },
+          body: JSON.stringify(payload)
+        });
+        data = await res.json().catch(() => ({}));
+        if (!res.ok || !data.ok) throw new Error(data.error || "发布失败");
+      } else {
+        data = await publishViaLocalBridge(config, state, policy);
       }
 
-      const bridge = window.open(bridgeUrl, "pa-publish-bridge", "width=520,height=360");
-      if (!bridge) {
-        throw new Error("浏览器拦截了弹窗，请允许弹窗后重试。");
+      if (!opts.silentSuccess) {
+        showPaPublishToast(
+          "发布成功，已推送到 Git。他人约 1～2 分钟后刷新 Pages 即可看到。",
+          false
+        );
       }
-
-      await new Promise((resolve, reject) => {
-        const timer = setTimeout(() => {
-          cleanup();
-          reject(new Error("发布超时。请先启动「原型分享服务.command」再重试。"));
-        }, 60000);
-
-        function onMessage(event) {
-          if (event.source !== bridge || !event.data) return;
-          if (event.data.type === "pa-publish-ready") {
-            bridge.postMessage({ type: "pa-publish", payload: payload }, "*");
-            return;
-          }
-          if (event.data.type === "pa-publish-done") {
-            cleanup();
-            if (event.data.ok) resolve(event.data.data);
-            else reject(new Error(event.data.error || "发布失败"));
-          }
-        }
-
-        function cleanup() {
-          clearTimeout(timer);
-          window.removeEventListener("message", onMessage);
-        }
-
-        window.addEventListener("message", onMessage);
-      });
-
-      showPaPublishToast("发布成功！约 1～2 分钟后 GitHub Pages 预览链接将更新。", false);
+      return data;
     } catch (error) {
-      showPaPublishToast(
-        (error && error.message ? error.message : String(error)) +
-          "\n\n提示：先双击启动「原型分享服务.command」，再回到本页点「发布到预览」。",
-        true
-      );
+      showPaPublishToast(error && error.message ? error.message : String(error), true);
+      throw error;
     } finally {
       if (button) {
         button.disabled = false;
@@ -543,9 +723,12 @@
     outsideCloseBound = true;
     document.addEventListener("click", (event) => {
       if (pickModeActive) return;
+      // 拾取完成后同一手势的 click 会落到原控件上，短暂抑制以免弹窗刚打开就被关掉
+      if (Date.now() < suppressOutsideCloseUntil) return;
       if (event.target.closest(".pa-popover")) return;
       if (event.target.closest(".pa-dot")) return;
       if (event.target.closest(".pa-tip-icon")) return;
+      if (event.target.closest(".pa-toolbar")) return;
       closePopovers();
     });
   }
@@ -727,28 +910,63 @@
     return target;
   }
 
+  function isIgnorablePickLayer(el) {
+    if (!el || el.nodeType !== 1) return true;
+    if (el.classList) {
+      if (
+        el.classList.contains("modal-mask") ||
+        el.classList.contains("drawer-mask") ||
+        el.classList.contains("pa-pick-rect") ||
+        el.classList.contains("pa-pick-hint")
+      ) {
+        return true;
+      }
+      if (
+        el.classList.contains("pa-dot") ||
+        el.classList.contains("pa-tip-icon") ||
+        el.classList.contains("pa-icon-portal") ||
+        el.classList.contains("pa-tip-icon-portal")
+      ) {
+        return true;
+      }
+    }
+    try {
+      if (window.getComputedStyle(el).pointerEvents === "none" && el.classList && el.classList.contains("modal-mask")) {
+        return true;
+      }
+    } catch (_e) {
+      /* ignore */
+    }
+    return false;
+  }
+
   function pickTargetFromEvent(event) {
+    const x = event.clientX;
+    const y = event.clientY;
     const stack =
       typeof document.elementsFromPoint === "function"
-        ? document.elementsFromPoint(event.clientX, event.clientY)
-        : [document.elementFromPoint(event.clientX, event.clientY)];
+        ? document.elementsFromPoint(x, y)
+        : [document.elementFromPoint(x, y)];
+    let fallback = null;
     for (let i = 0; i < stack.length; i++) {
       const raw = stack[i];
       if (!raw || raw.nodeType !== 1) continue;
       if (isPaInternal(raw)) continue;
-      if (
-        raw.classList &&
-        (raw.classList.contains("pa-dot") ||
-          raw.classList.contains("pa-tip-icon") ||
-          raw.classList.contains("pa-icon-portal") ||
-          raw.classList.contains("pa-tip-icon-portal"))
-      ) {
-        continue;
-      }
+      if (isIgnorablePickLayer(raw)) continue;
       const normalized = normalizePickTarget(raw);
       if (normalized) return normalized;
+      if (!fallback && !isOverbroadPickContainer(raw)) fallback = raw;
     }
-    return null;
+    return fallback;
+  }
+
+  function ensurePickOverlay() {
+    if (pickOverlayEl && pickOverlayEl.parentNode) return pickOverlayEl;
+    pickOverlayEl = document.createElement("div");
+    pickOverlayEl.className = "pa-root pa-pick-rect";
+    pickOverlayEl.setAttribute(ROOT_ATTR, "pick-rect");
+    document.body.appendChild(pickOverlayEl);
+    return pickOverlayEl;
   }
 
   function highlightPickTarget(el) {
@@ -756,6 +974,13 @@
     if (!el) return;
     pickHighlightEl = el;
     el.classList.add("pa-pick-highlight");
+    const overlay = ensurePickOverlay();
+    const rect = el.getBoundingClientRect();
+    overlay.style.display = "block";
+    overlay.style.left = Math.round(rect.left - 2) + "px";
+    overlay.style.top = Math.round(rect.top - 2) + "px";
+    overlay.style.width = Math.round(Math.max(rect.width, 4) + 4) + "px";
+    overlay.style.height = Math.round(Math.max(rect.height, 4) + 4) + "px";
   }
 
   function clearPickHighlight() {
@@ -763,30 +988,201 @@
       pickHighlightEl.classList.remove("pa-pick-highlight");
       pickHighlightEl = null;
     }
+    if (pickOverlayEl) {
+      pickOverlayEl.style.display = "none";
+    }
   }
 
-  function exitPickMode() {
+  function syncAddButtons(active) {
+    document.querySelectorAll(".pa-add-button").forEach((btn) => {
+      if (active) {
+        btn.classList.add("is-active");
+        btn.textContent = "取消新增";
+      } else {
+        btn.classList.remove("is-active");
+        btn.textContent = "新增标注";
+      }
+    });
+  }
+
+  function notifyParentPickExit() {
+    if (!pickDelegatedFromParent || window.parent === window) return;
+    try {
+      if (window.parent.PrototypeAnnotation && window.parent.PrototypeAnnotation._onChildPickExit) {
+        window.parent.PrototypeAnnotation._onChildPickExit();
+      }
+    } catch (_error) {
+      /* cross-origin parent */
+    }
+  }
+
+  function showPickHint(message) {
+    hidePickHint();
+    pickHintEl = document.createElement("div");
+    pickHintEl.className = "pa-root pa-pick-hint";
+    pickHintEl.setAttribute(ROOT_ATTR, "pick-hint");
+    pickHintEl.textContent = message || "请在页面内点击要标注的元素（Esc 取消）";
+    document.body.appendChild(pickHintEl);
+  }
+
+  function hidePickHint() {
+    if (pickHintEl && pickHintEl.parentNode) pickHintEl.parentNode.removeChild(pickHintEl);
+    pickHintEl = null;
+  }
+
+  function findAnnotationIframe() {
+    const iframes = Array.from(document.querySelectorAll("iframe"));
+    for (let i = 0; i < iframes.length; i++) {
+      const iframe = iframes[i];
+      try {
+        const doc = iframe.contentDocument;
+        if (doc && doc.getElementById("prototype-annotation-config")) return iframe;
+      } catch (_error) {
+        /* cross-origin iframe */
+      }
+    }
+    return null;
+  }
+
+  function tryStartDelegatedPick() {
+    const iframe = findDelegatableIframe();
+    if (!iframe) return false;
+    pickDelegatedIframe = iframe;
+    iframe.contentWindow.PrototypeAnnotation.enterPickMode(null, null, { skipDelegate: true, fromParent: true });
+    return true;
+  }
+
+  function findDelegatableIframe() {
+    const iframes = Array.from(document.querySelectorAll("iframe"));
+    for (let i = 0; i < iframes.length; i++) {
+      const iframe = iframes[i];
+      try {
+        const win = iframe.contentWindow;
+        const doc = iframe.contentDocument;
+        if (!win || !doc || !doc.getElementById("prototype-annotation-config")) continue;
+        if (!win.PrototypeAnnotation || typeof win.PrototypeAnnotation.enterPickMode !== "function") continue;
+        return iframe;
+      } catch (_error) {
+        /* cross-origin iframe */
+      }
+    }
+    return null;
+  }
+
+  function exitPickMode(skipParentNotify) {
+    const wasDelegatedFromParent = pickDelegatedFromParent;
+    hidePickHint();
+    if (pickDelegatedIframe) {
+      try {
+        const win = pickDelegatedIframe.contentWindow;
+        if (win && win.PrototypeAnnotation && win.PrototypeAnnotation.exitPickMode) {
+          win.PrototypeAnnotation.exitPickMode(true);
+        }
+      } catch (_error) {
+        /* ignore */
+      }
+      pickDelegatedIframe = null;
+    }
     pickModeActive = false;
+    pickDelegatedFromParent = false;
     document.body.classList.remove("pa-pick-mode");
     clearPickHighlight();
+    pickCommitLock = false;
     if (pickHandlers) {
       document.removeEventListener("mousemove", pickHandlers.move, true);
-      document.removeEventListener("click", pickHandlers.click, true);
+      document.removeEventListener("pointerdown", pickHandlers.down, true);
+      document.removeEventListener("mousedown", pickHandlers.down, true);
+      if (pickHandlers.click) document.removeEventListener("click", pickHandlers.click, true);
       document.removeEventListener("keydown", pickHandlers.key, true);
       pickHandlers = null;
     }
-    document.querySelectorAll(".pa-add-button").forEach((btn) => {
-      btn.classList.remove("is-active");
-      btn.textContent = "新增标注";
-    });
+    if (pickOverlayEl && pickOverlayEl.parentNode) {
+      pickOverlayEl.parentNode.removeChild(pickOverlayEl);
+    }
+    pickOverlayEl = null;
+    syncAddButtons(false);
+    if (!skipParentNotify && wasDelegatedFromParent) notifyParentPickExit();
+  }
+
+  function beginLocalPickMode(mountConfig, mountState, options) {
+    pickModeActive = true;
+    pickCommitLock = false;
+    document.body.classList.add("pa-pick-mode");
+    syncAddButtons(true);
+    showPickHint();
+    ensurePickOverlay();
+
+    const move = (event) => {
+      if (!pickModeActive) return;
+      highlightPickTarget(pickTargetFromEvent(event));
+    };
+
+    const commitPick = (event) => {
+      if (!pickModeActive || pickCommitLock) return;
+      const target = event.target;
+      if (target && target.nodeType === 1) {
+        if (
+          target.closest(".pa-toolbar") ||
+          target.closest(".pa-popover") ||
+          target.closest(".pa-add-form") ||
+          target.closest(".pa-pick-hint")
+        ) {
+          return;
+        }
+      }
+      const el = pickTargetFromEvent(event);
+      if (!el) return;
+      pickCommitLock = true;
+      try {
+        event.preventDefault();
+        event.stopPropagation();
+        if (typeof event.stopImmediatePropagation === "function") event.stopImmediatePropagation();
+      } catch (_e) {
+        /* ignore */
+      }
+      const selector = generateSelector(el);
+      if (!selector) {
+        pickCommitLock = false;
+        return;
+      }
+      const wasDelegatedFromParent = pickDelegatedFromParent;
+      // 先抑制 outside-close，再退出拾取并打开表单，避免同一手势的 click 立刻关掉弹窗
+      suppressOutsideCloseUntil = Date.now() + 1200;
+      exitPickMode(true);
+      openAddFormPopover(mountConfig, mountState, el, selector, (saved) => {
+        if (!saved) {
+          beginLocalPickMode(
+            mountConfig,
+            mountState,
+            wasDelegatedFromParent ? { skipDelegate: true, fromParent: true } : options
+          );
+          if (wasDelegatedFromParent) pickDelegatedFromParent = true;
+          return;
+        }
+        if (wasDelegatedFromParent) notifyParentPickExit();
+      });
+    };
+
+    const key = (event) => {
+      if (event.key === "Escape") exitPickMode();
+    };
+
+    // 只用 pointerdown/mousedown 提交，避免随后的 click 与 outside-close 竞态
+    pickHandlers = { move: move, down: commitPick, key: key };
+    document.addEventListener("mousemove", move, true);
+    document.addEventListener("pointerdown", commitPick, true);
+    document.addEventListener("mousedown", commitPick, true);
+    document.addEventListener("keydown", key, true);
   }
 
   function openAddFormPopover(config, state, target, selector, onDone) {
     closePopovers();
+    suppressOutsideCloseUntil = Math.max(suppressOutsideCloseUntil, Date.now() + 1200);
     const popover = document.createElement("div");
     popover.className = "pa-root pa-popover pa-add-form";
     popover.setAttribute(ROOT_ATTR, "popover");
     document.body.appendChild(popover);
+    popover.addEventListener("pointerdown", (event) => event.stopPropagation());
     popover.addEventListener("click", (event) => event.stopPropagation());
 
     const head = document.createElement("div");
@@ -887,48 +1283,54 @@
     schedulePlacePopover(popover, target);
   }
 
-  function enterPickMode(config, state) {
+  function enterPickMode(config, state, options) {
     if (!paCanEdit) return;
     if (pickModeActive) {
       exitPickMode();
       return;
     }
     closePopovers();
-    pickModeActive = true;
-    document.body.classList.add("pa-pick-mode");
-    document.querySelectorAll(".pa-add-button").forEach((btn) => {
-      btn.classList.add("is-active");
-      btn.textContent = "取消新增";
-    });
 
-    const move = (event) => {
-      if (!pickModeActive) return;
-      highlightPickTarget(pickTargetFromEvent(event));
-    };
+    if (options && options.fromParent) {
+      pickDelegatedFromParent = true;
+    }
 
-    const click = (event) => {
-      if (!pickModeActive) return;
-      if (event.target.closest(".pa-toolbar") || event.target.closest(".pa-popover")) return;
-      const el = pickTargetFromEvent(event);
-      if (!el) return;
-      event.preventDefault();
-      event.stopPropagation();
-      const selector = generateSelector(el);
-      if (!selector) return;
-      exitPickMode();
-      openAddFormPopover(config, state, el, selector, (saved) => {
-        if (!saved) enterPickMode(config, state);
-      });
-    };
+    const shouldDelegate = !(options && options.skipDelegate) && !pickDelegatedFromParent;
+    if (shouldDelegate) {
+      const annotationIframe = findAnnotationIframe();
+      if (annotationIframe) {
+        pickModeActive = true;
+        syncAddButtons(true);
+        const startDelegated = () => {
+          if (!pickModeActive || pickDelegatedIframe) return;
+          if (tryStartDelegatedPick()) {
+            hidePickHint();
+            return;
+          }
+          exitPickMode();
+          window.alert(
+            "无法在嵌入页面中启动标注选取。\n请强制刷新页面（Cmd+Shift+R），或直接打开「费用分摊导入.html」子页后使用右上角「新增标注」。"
+          );
+        };
+        if (findDelegatableIframe()) {
+          startDelegated();
+        } else {
+          showPickHint("等待下方页面加载完成，然后在页面内点击要标注的元素");
+          if (annotationIframe.contentDocument && annotationIframe.contentDocument.readyState === "complete") {
+            window.setTimeout(startDelegated, 50);
+          } else {
+            annotationIframe.addEventListener("load", startDelegated, { once: true });
+            window.setTimeout(startDelegated, 1500);
+          }
+        }
+        return;
+      }
+    }
 
-    const key = (event) => {
-      if (event.key === "Escape") exitPickMode();
-    };
-
-    pickHandlers = { move: move, click: click, key: key };
-    document.addEventListener("mousemove", move, true);
-    document.addEventListener("click", click, true);
-    document.addEventListener("keydown", key, true);
+    const mountConfig = config || (activeMount && activeMount.config);
+    const mountState = state || (activeMount && activeMount.state);
+    if (!mountConfig || !mountState) return;
+    beginLocalPickMode(mountConfig, mountState, options);
   }
 
   function button(label, className) {
@@ -1649,6 +2051,7 @@
 
   function bindAnnotationActivate(node, handler) {
     node.addEventListener("pointerdown", (event) => {
+      if (pickModeActive) return;
       if (event.button !== 0) return;
       event.preventDefault();
       event.stopPropagation();
@@ -1893,6 +2296,7 @@
     if (!attachFieldTipInline(icon, target, item)) return;
     const meta = isUser ? { isUser: true, listKey: "fieldTips", itemId: item.id } : null;
     icon.addEventListener("click", (event) => {
+      if (pickModeActive) return;
       event.stopPropagation();
       editablePopover(
         config,
@@ -2103,7 +2507,16 @@
     removeOld();
     exitPickMode();
     paCanEdit = await resolveCanEdit(config);
-    const state = hydrateState(config);
+    // Pages 只读：以 HTML 内已发布的 persistedState 为准，避免本机旧 localStorage 盖住线上
+    const state =
+      !paCanEdit && isPagesPreviewHost()
+        ? (() => {
+            const persisted = normalizePersistedState(config.persistedState);
+            if (!persisted.userAdded) persisted.userAdded = emptyUserAdded();
+            if (!persisted.assets) persisted.assets = {};
+            return persisted;
+          })()
+        : hydrateState(config);
     activeMount = { config, state };
     const root = document.createElement("div");
     root.className = "pa-root pa-toolbar" + (paCanEdit ? "" : " pa-toolbar-readonly");
@@ -2126,10 +2539,11 @@
       publishButton.type = "button";
       publishButton.className = "pa-publish-button";
       publishButton.textContent = "发布到预览";
-      publishButton.title = "写入 Git 并推送，约 1～2 分钟后在线预览链接更新（需先启动原型分享服务）";
+      publishButton.title =
+        "推送到 Git，约 1～2 分钟后 GitHub Pages 全员可见。请先启动本机原型分享服务（8787）。";
       publishButton.addEventListener("click", (event) => {
         event.stopPropagation();
-        publishToPreview(config, state, publishButton);
+        publishToPreview(config, state, publishButton).catch(() => {});
       });
       root.append(pageButton, addButton, publishButton);
     } else {
@@ -2168,6 +2582,12 @@
     }
   }
 
+  function onChildPickExit() {
+    pickDelegatedIframe = null;
+    pickModeActive = false;
+    syncAddButtons(false);
+  }
+
   window.PrototypeAnnotation = {
     mount,
     mountFromScript,
@@ -2178,7 +2598,11 @@
     exportConfigForSync,
     copyConfigForSync,
     publishToPreview,
-    inferRepoPathFromLocation
+    inferRepoPathFromLocation,
+    enterPickMode,
+    exitPickMode,
+    isPickModeActive: () => pickModeActive,
+    _onChildPickExit: onChildPickExit
   };
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", mountFromScript);

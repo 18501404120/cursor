@@ -287,7 +287,7 @@
       <div class="breadcrumb"><a href="index.html">费用管理</a> / 费用填报管理</div>
 
       <div class="import-alloc-wrap">
-        <iframe class="import-alloc-frame" src="费用分摊导入.html?embed=1&v=20260721" title="导入费用分摊"></iframe>
+        <iframe class="import-alloc-frame" src="费用分摊导入.html?embed=1&v=20260723pick3" title="导入费用分摊"></iframe>
       </div>
     </div>
   </main>
@@ -295,40 +295,42 @@
 
 <script src="fee-mgmt-common.js"></script>
 <script src="fee-item-master.js"></script>
-<script src="fee-dept-master.js"></script>
+<script src="fee-dept-master.js?v=20260723-dept-v3"></script>
 <script src="../../../../规范/assets/month-range-picker.js"></script>
 <script src="../../../../规范/assets/searchable-select.js"></script>
 
 
 
 
+
+
 <!-- prototype-annotation:start -->
-<link rel="stylesheet" href="../prototype-annotation/prototype-annotation.css">
+<link rel="stylesheet" href="../prototype-annotation/prototype-annotation.css?v=20260723pick3">
 <script id="prototype-annotation-config" type="application/json">
 {
   "pageId": "fee-manual-entry-management",
-  "version": "2026-07-20T17:30:00+08:00",
+  "version": "2026-07-23T12:00:00+08:00",
   "pageTitle": "费用填报管理",
   "annotations": [
     {
       "id": "import-alloc-frame",
       "selector": ".import-alloc-wrap",
-      "title": "导入费用分摊",
-      "body": "嵌入业务费用批次导入与分摊管理子页。用于补充导入类费用、按部门维度筛选、预览分摊并按批次生效纳入管报。"
+      "title": "费用填报主区",
+      "body": "费用填报主区逻辑：\n1. 嵌入「导入费用分摊」子页，承载全部业务操作（筛选、新增、导入、预览、生效/失效）。\n2. 壳页无独立业务逻辑，标注与页面说明以子页为准。\n3. 子页内红点标注关键逻辑，蓝 i 标注列表字段口径。"
     }
   ],
   "fieldTips": [],
   "pageGuide": {
     "dev": {
-      "页面整体定位": "费用填报管理页嵌入「导入费用分摊」子页，用于业务费用批次导入、按部门维度筛选与分摊，并按批次生效纳入管报。",
-      "页面核心业务逻辑": "新增或导入形成费用批次。命中逻辑：MSKU 优先 > SKU 范围内匹配 > 范围自动命中。状态机：待生效→已生效纳入管报；任意阶段可失效；仅失效可删除。",
-      "关键规则说明": "导入与新增共用同一命中规则与模版列。新增/导入默认待生效。筛选条件须点击「查询」后生效。部门展示统一为「组织·组织名 / 管报部门」格式（如 102·Govee / APP商城）。不分摊模式下部门必填。",
-      "关联上下游": "上游：销售主数据（SKU/MSKU）、渠道国家主数据、费用部门主数据；下游：全渠道管报费用汇总。"
+      "页面整体定位": "费用填报管理壳页，通过 iframe 嵌入「导入费用分摊」子页。用于业务费用批次导入、按部门维度筛选与分摊，经生效后纳入管报。",
+      "页面核心业务逻辑": "子页管理费用批次全生命周期：新增/导入→待生效→已生效纳入管报→失效。分摊模式按 MSKU 营收占比拆分；不分摊模式整笔归属维度组合。",
+      "关键规则说明": "筛选须点击查询生效；仅已生效纳入管报；失效批次可删除不可重生效。部门展示统一为「组织·组织名 / 管报部门」格式。新增须先预览分摊再写入。",
+      "关联上下游": "上游：费用项主数据、费用部门主数据、渠道/产品主数据、营收权重、钉钉导入模版。下游：全渠道管报费用汇总。"
     },
     "user": {
-      "标准操作流程": "1. 设置部门、费用项、归属月等筛选条件并点击「查询」。2. 新增或导入填写费用与范围；不分摊时部门必填。3. 新增时预览分摊（与正式口径一致）。4. 保存为待生效。5. 列表中对批次执行生效。",
-      "关键按钮与场景": "批量导入适合多条维护；新增填报适合单条带附件。预览分摊为提交前必做步骤。",
-      "使用注意事项": "部门展示统一为「组织·组织名 / 管报部门」格式（如 102·Govee / APP商城）。批次默认待生效，须人工生效后才纳入管报。"
+      "标准操作流程": "1. 在下方主区设置筛选条件并查询。2. 新增或导入填写费用与范围；不分摊时部门必填。3. 新增时先预览分摊再确认写入。4. 对批次执行生效后纳入管报。5. 打开明细核对分摊结果。",
+      "关键按钮与场景": "新增适合单条录入；导入适合批量维护。预览分摊为写入前必做。批量生效/失效/删除用于集中处理。明细用于验收纳入口径。",
+      "使用注意事项": "新增或导入后默认待生效，须人工生效。列表状态与明细「纳入管报计算」须一致。部门展示如 102·Govee / APP商城。"
     }
   },
   "statusFlow": {
@@ -341,7 +343,7 @@
       {
         "id": "active",
         "label": "已生效",
-        "description": "业务生效后纳入管报，费用按 MSKU 营收占比分摊。"
+        "description": "业务生效后纳入管报，费用按规则分摊至 MSKU。"
       },
       {
         "id": "void",
@@ -377,23 +379,18 @@
     "viewOnlyHostnames": [
       "18501404120.github.io"
     ],
-    "allowIps": [
-      "113.110.230.127",
-      "220.232.134.241",
-      "113.110.228.174",
-      "113.110.229.118",
-      "113.87.83.49",
-      "113.110.230.92"
-    ],
-    "allowIpPrefixes": ["113.110.230.", "113.110.228.", "113.110.229.", "113.87.83."],
-    "allowTrustedBrowser": true,
+    "allowIps": [],
+    "allowIpPrefixes": [],
+    "allowTrustedBrowser": false,
     "editToken": "",
     "allowLocalhost": true,
-    "allowOtherHosts": true
+    "allowOtherHosts": true,
+    "pagesForceReadonly": true,
+    "autoPublishOnSave": false
   }
 }
 </script>
-<script src="../prototype-annotation/prototype-annotation-runtime.js"></script>
+<script src="../prototype-annotation/prototype-annotation-runtime.js?v=20260723pick3"></script>
 <!-- prototype-annotation:end -->
 </body>
 </html>

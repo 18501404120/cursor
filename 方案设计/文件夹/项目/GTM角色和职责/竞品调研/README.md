@@ -9,42 +9,6 @@
 |------|------|
 | **M01–M07、M11、M13 + 框架节选合并（单 Markdown；不含 M8/M9/M10/M12 成稿）** | [全渠道模块竞品分析-合并版.md](./全渠道模块竞品分析-合并版.md) |
 
-### 同步 Markdown 到钉钉知识库（含「竞品分析」文件夹 · v4.0）
-
-本仓库**无法代你登录钉钉**；通过开放平台将本地 Markdown **作为知识库文件上传**到指定文件夹后，在钉钉内可**预览/打开**（与在知识库中上传文件的手动效果一致）。  
-**说明**：这与在钉钉里手动点「上传」等价；若你指的「钉钉文档」是**空白在线协作文档**，需在钉钉内新建文档后粘贴，或使用「创建知识库文档」等**另一套**接口（本脚本未封装）。
-
-脚本：[scripts/sync_merged_to_dingtalk_kb.py](./scripts/sync_merged_to_dingtalk_kb.py)（钉钉「知识库上传文件」三步接口）。
-
-1. 在钉钉开放平台创建**企业内部应用**，开通知识库/企业存储相关权限，取得 `appKey`、`appSecret`。  
-2. 准备操作者 `unionId`，以及目标文件夹的 `dentryUuid`（在钉钉网页打开**竞品分析**等目标文件夹后，从开发者工具网络请求或列举接口中获取，写入 `DINGTALK_PARENT_DENTRY_UUID`）。  
-3. 在 **`竞品调研/` 目录下**执行（勿将密钥提交到 Git）：
-
-**示例 A：上传合并版（默认）**
-
-```bash
-export DINGTALK_APP_KEY="你的ClientId"
-export DINGTALK_APP_SECRET="你的ClientSecret"
-export DINGTALK_UNION_ID="操作者unionId"
-export DINGTALK_PARENT_DENTRY_UUID="目标文件夹的dentryUuid（如 竞品分析）"
-python3 scripts/sync_merged_to_dingtalk_kb.py
-```
-
-**示例 B：上传《全渠道扩展能力竞品分析-目标管报PLM预测-v4.0.md》到「竞品分析」文件夹**
-
-```bash
-export DINGTALK_APP_KEY="你的ClientId"
-export DINGTALK_APP_SECRET="你的ClientSecret"
-export DINGTALK_UNION_ID="操作者unionId"
-export DINGTALK_PARENT_DENTRY_UUID="钉钉知识库中「竞品分析」文件夹的dentryUuid"
-export DINGTALK_LOCAL_FILE="$(pwd)/全渠道扩展能力竞品分析-目标管报PLM预测-v4.0.md"
-# 可选：钉钉列表里显示的文件名（默认与本地文件名一致）
-export DINGTALK_COMMIT_NAME="全渠道扩展能力竞品分析-目标管报PLM预测-v4.0.md"
-python3 scripts/sync_merged_to_dingtalk_kb.py
-```
-
-若接口字段与当前开放平台文档不一致，以 [钉钉开放平台 · 知识库上传文件](https://developers.dingtalk.com/document/development/upload-files-to-the-knowledge-base) 为准并调整脚本。
-
 ## 图文汇总（推荐演示）
 
 | 类型 | 链接 |
@@ -72,4 +36,4 @@ python3 scripts/sync_merged_to_dingtalk_kb.py
 | M12 集成与连接（iPaaS） | [M12-集成与连接iPaaS-竞品分析.md](./M12-集成与连接iPaaS-竞品分析.md) |
 | M13 B2B/经销与渠道政策 | [M13-B2B经销与渠道政策-竞品分析.md](./M13-B2B经销与渠道政策-竞品分析.md) |
 
-**版本**：v1.6 · 2026-04-20（README：钉钉上传支持指定 v4.0、`DINGTALK_COMMIT_NAME`；说明与「在线协作文档」区别）
+**版本**：v1.7 · 2026-07-22（移除已废弃的钉钉知识库同步脚本说明）

@@ -25,6 +25,5 @@ npx --yes serve -p 5174
 
 - **`原型/`**：自包含 HTML + `prototype-anno-*.js` 红点说明脚本。
 - **`需求文档/`**：PRD 与规则类 Markdown。
-- **`scripts/`**：钉钉知识库同步等辅助脚本（若存在）。
 
 将本目录变更推送到远程：`git add` 本目录下所需路径后 `git commit`，再在仓库根执行 `git push origin HEAD`。

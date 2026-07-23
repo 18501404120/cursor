@@ -2,6 +2,7 @@ const state = {
   info: null,
   selectedPath: "",
   filter: "",
+  prototypeOnly: false,
   /** path -> { item, childrenLoaded, children, expanded, el } */
   nodes: new Map(),
 };
@@ -60,6 +61,11 @@ function depthOf(path) {
   return path.split("/").filter(Boolean).length;
 }
 
+function isPrototypeFile(item) {
+  const ext = (item.ext || "").toLowerCase();
+  return item.type === "file" && (ext === ".html" || ext === ".htm");
+}
+
 function iconFor(item) {
   if (item.type === "dir") return item.is_demand ? "▣" : "▤";
   const ext = (item.ext || "").toLowerCase();
@@ -74,6 +80,12 @@ function matchesFilter(item) {
   return item.name.toLowerCase().includes(q) || item.path.toLowerCase().includes(q);
 }
 
+function shouldShowItem(item) {
+  if (item.type === "dir") return true;
+  if (state.prototypeOnly && !isPrototypeFile(item)) return false;
+  return matchesFilter(item);
+}
+
 function setSelected(path) {
   state.selectedPath = path || "";
   document.querySelectorAll(".tree-item.selected").forEach((el) => el.classList.remove("selected"));
@@ -82,7 +94,9 @@ function setSelected(path) {
 }
 
 async function fetchBrowse(path) {
-  const res = await fetch(`/api/browse?path=${encodeURIComponent(path || "")}`);
+  const params = new URLSearchParams({ path: path || "" });
+  if (state.prototypeOnly) params.set("prototypeOnly", "1");
+  const res = await fetch(`/api/browse?${params}`);
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || "加载失败");
   return data;
@@ -114,7 +128,7 @@ function createTreeRow(item, depth) {
   const actions = document.createElement("div");
   actions.className = "tree-actions";
 
-  const isHtml = item.type === "file" && (item.ext === ".html" || item.ext === ".htm");
+  const isHtml = isPrototypeFile(item);
 
   if (isHtml) {
     const openBtn = document.createElement("button");
@@ -191,12 +205,7 @@ async function renderChildren(parentPath, container, depth) {
   const data = await fetchBrowse(parentPath);
   container.innerHTML = "";
 
-  const items = (data.items || []).filter((it) => {
-    // 筛选时：目录若子孙可能匹配则仍显示，这里做简单名称过滤；展开后由子级再滤
-    if (!state.filter.trim()) return true;
-    if (it.type === "dir") return true;
-    return matchesFilter(it);
-  });
+  const items = (data.items || []).filter((it) => shouldShowItem(it));
 
   items.forEach((item) => {
     if (state.filter.trim() && item.type === "file" && !matchesFilter(item)) return;
@@ -222,9 +231,7 @@ async function renderChildren(parentPath, container, depth) {
       wrap.appendChild(childrenEl);
     }
 
-    // 筛选时隐藏完全不匹配的叶子目录名
     if (state.filter.trim() && item.type === "dir" && !matchesFilter(item)) {
-      // 仍渲染，允许展开后找子项；名称不匹配时降低存在感
       row.style.opacity = "0.55";
     }
 
@@ -234,13 +241,13 @@ async function renderChildren(parentPath, container, depth) {
   return items;
 }
 
-async function toggleExpand(path) {
+async function toggleExpand(path, { forceOpen = false } = {}) {
   const node = state.nodes.get(path);
   if (!node || node.item.type !== "dir") return;
 
   if (!node.childrenEl) return;
 
-  if (node.expanded) {
+  if (node.expanded && !forceOpen) {
     node.expanded = false;
     node.childrenEl.classList.remove("open");
     const twistie = node.row?.querySelector(".twistie");
@@ -258,6 +265,43 @@ async function toggleExpand(path) {
   if (twistie) twistie.textContent = "▼";
 }
 
+async function expandAll() {
+  let expanded = 0;
+  let guard = 0;
+  while (guard < 50) {
+    guard += 1;
+    const pending = [...state.nodes.values()]
+      .filter((n) => n.item.type === "dir" && !n.expanded && n.childrenEl)
+      .sort((a, b) => depthOf(a.item.path) - depthOf(b.item.path));
+    if (!pending.length) break;
+    for (const node of pending) {
+      await toggleExpand(node.item.path, { forceOpen: true });
+      expanded += 1;
+    }
+  }
+  toast(expanded ? "已全部展开" : "没有可展开项");
+}
+
+function collapseAll() {
+  const dirs = [...state.nodes.values()]
+    .filter((n) => n.item.type === "dir" && n.expanded)
+    .sort((a, b) => depthOf(b.item.path) - depthOf(a.item.path));
+  dirs.forEach((node) => {
+    node.expanded = false;
+    node.childrenEl?.classList.remove("open");
+    const twistie = node.row?.querySelector(".twistie");
+    if (twistie) twistie.textContent = "▶";
+  });
+  toast(dirs.length ? "已全部收拢" : "没有可收拢项");
+}
+
+async function expandPrototypeRoots() {
+  const roots = [...state.nodes.values()].filter((n) => n.item.type === "dir" && depthOf(n.item.path) === 1);
+  for (const n of roots) {
+    await toggleExpand(n.item.path, { forceOpen: true });
+  }
+}
+
 async function selectDirectory(path) {
   setSelected(path);
   if (!path) {
@@ -273,7 +317,9 @@ async function selectDirectory(path) {
 
   $("detailShareBtn").onclick = () => copyText(shareFolderUrl(path));
 
-  const res = await fetch(`/api/folder?path=${encodeURIComponent(path)}`);
+  const params = new URLSearchParams({ path });
+  if (state.prototypeOnly) params.set("prototypeOnly", "1");
+  const res = await fetch(`/api/folder?${params}`);
   const data = await res.json();
   if (!res.ok) {
     $("detailFiles").innerHTML = `<p class="empty">${data.error || "无法打开"}</p>`;
@@ -291,9 +337,15 @@ async function selectDirectory(path) {
 
   const box = $("detailFiles");
   box.innerHTML = "";
-  const files = data.files || [];
+  let files = data.files || [];
+  if (state.prototypeOnly) {
+    files = files.filter((f) => {
+      const ext = (f.ext || "").toLowerCase();
+      return ext === ".html" || ext === ".htm";
+    });
+  }
   if (!files.length) {
-    box.innerHTML = `<p class="empty">此目录下没有可分享文件（可继续在左侧展开子目录）</p>`;
+    box.innerHTML = `<p class="empty">${state.prototypeOnly ? "此目录下没有 HTML 原型文件" : "此目录下没有可分享文件（可继续在左侧展开子目录）"}</p>`;
     return;
   }
 
@@ -342,30 +394,39 @@ async function loadRoot() {
   await renderChildren("", tree, 0);
 }
 
+async function reloadTree({ expandRoots = false } = {}) {
+  const selected = state.selectedPath;
+  await loadRoot();
+  if (expandRoots || state.filter.trim()) {
+    await expandPrototypeRoots();
+  }
+  if (selected && state.nodes.has(selected)) {
+    setSelected(selected);
+  }
+}
+
 async function loadInfo() {
   const res = await fetch("/api/info");
   state.info = await res.json();
   $("lanUrl").textContent = state.info.lan_url;
 }
 
-$("refreshBtn").onclick = () => loadRoot().then(() => toast("已刷新"));
+$("refreshBtn").onclick = () => reloadTree().then(() => toast("已刷新"));
 $("copyLanBtn").onclick = () => copyText(state.info?.lan_url || window.location.origin);
+$("expandAllBtn").onclick = () => expandAll();
+$("collapseAllBtn").onclick = () => collapseAll();
+
+$("prototypeOnlyCheck").addEventListener("change", async (e) => {
+  state.prototypeOnly = e.target.checked;
+  await reloadTree({ expandRoots: true });
+});
 
 let filterTimer = null;
 $("filterInput").addEventListener("input", (e) => {
   clearTimeout(filterTimer);
   filterTimer = setTimeout(async () => {
     state.filter = e.target.value || "";
-    // 有筛选时重新渲染根，并自动展开第一层系统目录以便查找
-    await loadRoot();
-    if (state.filter.trim()) {
-      const roots = [...state.nodes.values()].filter((n) => n.item.type === "dir" && depthOf(n.item.path) === 1);
-      for (const n of roots) {
-        if (matchesFilter(n.item) || state.filter) {
-          await toggleExpand(n.item.path);
-        }
-      }
-    }
+    await reloadTree({ expandRoots: Boolean(state.filter.trim()) });
   }, 200);
 });
 

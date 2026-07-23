@@ -4,8 +4,8 @@
 (function (global) {
   'use strict';
 
-  var STORAGE_KEY = 'gb-fee-mgmt-fee-items-v3';
-  var LEGACY_STORAGE_KEYS = ['gb-fee-mgmt-fee-items-v2', 'gb-fee-mgmt-fee-items-v1'];
+  var STORAGE_KEY = 'gb-fee-mgmt-fee-items-v5';
+  var LEGACY_STORAGE_KEYS = ['gb-fee-mgmt-fee-items-v4', 'gb-fee-mgmt-fee-items-v3', 'gb-fee-mgmt-fee-items-v2', 'gb-fee-mgmt-fee-items-v1'];
   var SEED_URL = 'fee-item-master-data.json';
   var items = [];
   var usageResolver = null;
@@ -18,28 +18,141 @@
   var treeSelectInstances = [];
 
   var DEFAULT_ITEMS = [
-    { code: 'CAT01', name: '平台与交易费用', remark: '平台扣点、杂费等', parentCode: null, sortOrder: 10 },
-    { code: 'F001', name: '平台佣金', remark: '平台扣点，系统自动取数', parentCode: 'CAT01', sortOrder: 11 },
-    { code: 'F014', name: '其它平台杂费', remark: '平台账单杂费', parentCode: 'CAT01', sortOrder: 12 },
-    { code: 'CAT02', name: '物流费用', remark: '尾程、退运、运杂等', parentCode: null, sortOrder: 20 },
-    { code: 'F006', name: '退货运费', remark: '买家退货产生的物流费用', parentCode: 'CAT02', sortOrder: 21 },
-    { code: 'F007', name: '尾程运费（FBM）', remark: 'FBM 订单尾程配送', parentCode: 'CAT02', sortOrder: 22 },
-    { code: 'F019', name: '运杂费', remark: '', parentCode: 'CAT02', sortOrder: 23 },
-    { code: 'CAT03', name: '商超渠道费用', remark: '线下商超相关', parentCode: null, sortOrder: 30 },
-    { code: 'F008', name: '线下商超销售退款', remark: '', parentCode: 'CAT03', sortOrder: 31 },
-    { code: 'F009', name: '线下商超推广费', remark: '商超渠道联合促销', parentCode: 'CAT03', sortOrder: 32 },
-    { code: 'CAT04', name: '营销推广费用', remark: '广告、品牌、推广、样品等', parentCode: null, sortOrder: 40 },
-    { code: 'F010', name: '广告费', remark: '站内广告投放', parentCode: 'CAT04', sortOrder: 41 },
-    { code: 'F011', name: '品牌营销费', remark: '品牌联合投放与营销', parentCode: 'CAT04', sortOrder: 42 },
-    { code: 'F015', name: '渠道临时推广费', remark: '临时推广活动', parentCode: 'CAT04', sortOrder: 43 },
-    { code: 'F016', name: '品牌联合投放', remark: '跨界品牌联合营销', parentCode: 'CAT04', sortOrder: 44 },
-    { code: 'F017', name: '推广费', remark: '', parentCode: 'CAT04', sortOrder: 45 },
-    { code: 'F018', name: '样品费', remark: '样品寄送与测评', parentCode: 'CAT04', sortOrder: 46 },
-    { code: 'CAT05', name: '内容与活动', remark: '内容制作、展会物料等', parentCode: null, sortOrder: 50 },
-    { code: 'F012', name: '内容制作费', remark: '图文/视频等内容制作', parentCode: 'CAT05', sortOrder: 51 },
-    { code: 'F013', name: '展会物料费', remark: '展会与线下物料', parentCode: 'CAT05', sortOrder: 52 },
-    { code: 'CAT06', name: '其他', remark: '未归类补充', parentCode: null, sortOrder: 60 },
-    { code: 'F020', name: '其他补充费用', remark: '未归类补充费用', parentCode: 'CAT06', sortOrder: 61 }
+    { code: "T01", name: "收入", remark: "收入", parentCode: null, sortOrder: 10 },
+    { code: "T0101", name: "零售销售额", remark: "收入 / 零售销售额", parentCode: "T01", sortOrder: 20 },
+    { code: "T02", name: "成本", remark: "成本", parentCode: null, sortOrder: 30 },
+    { code: "T0201", name: "出货授权成本", remark: "成本 / 出货授权成本", parentCode: "T02", sortOrder: 40 },
+    { code: "T0202", name: "退货成本", remark: "成本 / 退货成本", parentCode: "T02", sortOrder: 50 },
+    { code: "T03", name: "毛利", remark: "毛利", parentCode: null, sortOrder: 60 },
+    { code: "T04", name: "费用", remark: "费用", parentCode: null, sortOrder: 70 },
+    { code: "T0401", name: "管报费用", remark: "费用 / 管报费用", parentCode: "T04", sortOrder: 80 },
+    { code: "T0402", name: "市场投入", remark: "费用 / 市场投入", parentCode: "T04", sortOrder: 90 },
+    { code: "T040201", name: "营销投入", remark: "费用 / 市场投入 / 营销投入", parentCode: "T0402", sortOrder: 100 },
+    { code: "T04020101", name: "自主营销", remark: "费用 / 市场投入 / 营销投入 / 自主营销", parentCode: "T040201", sortOrder: 110 },
+    { code: "T0402010101", name: "产品营销", remark: "费用 / 市场投入 / 营销投入 / 自主营销 / 产品营销", parentCode: "T04020101", sortOrder: 120 },
+    { code: "T040201010101", name: "海外社媒投放", remark: "费用 / 市场投入 / 营销投入 / 自主营销 / 产品营销 / 海外社媒投放", parentCode: "T0402010101", sortOrder: 130 },
+    { code: "T040201010102", name: "红人营销（KOL）", remark: "费用 / 市场投入 / 营销投入 / 自主营销 / 产品营销 / 红人营销（KOL）", parentCode: "T0402010101", sortOrder: 140 },
+    { code: "T040201010103", name: "媒体公关（PR）", remark: "费用 / 市场投入 / 营销投入 / 自主营销 / 产品营销 / 媒体公关（PR）", parentCode: "T0402010101", sortOrder: 150 },
+    { code: "T040201010104", name: "视觉素材制作", remark: "费用 / 市场投入 / 营销投入 / 自主营销 / 产品营销 / 视觉素材制作", parentCode: "T0402010101", sortOrder: 160 },
+    { code: "T040201010105", name: "地标广告", remark: "费用 / 市场投入 / 营销投入 / 自主营销 / 产品营销 / 地标广告", parentCode: "T0402010101", sortOrder: 170 },
+    { code: "T040201010106", name: "大型展会", remark: "费用 / 市场投入 / 营销投入 / 自主营销 / 产品营销 / 大型展会", parentCode: "T0402010101", sortOrder: 180 },
+    { code: "T040201010107", name: "代言与赞助", remark: "费用 / 市场投入 / 营销投入 / 自主营销 / 产品营销 / 代言与赞助", parentCode: "T0402010101", sortOrder: 190 },
+    { code: "T040201010108", name: "发布会", remark: "费用 / 市场投入 / 营销投入 / 自主营销 / 产品营销 / 发布会", parentCode: "T0402010101", sortOrder: 200 },
+    { code: "T0402010102", name: "品牌营销", remark: "费用 / 市场投入 / 营销投入 / 自主营销 / 品牌营销", parentCode: "T04020101", sortOrder: 210 },
+    { code: "T040201010201", name: "海外社媒投放", remark: "费用 / 市场投入 / 营销投入 / 自主营销 / 品牌营销 / 海外社媒投放", parentCode: "T0402010102", sortOrder: 220 },
+    { code: "T040201010202", name: "红人营销（KOL）", remark: "费用 / 市场投入 / 营销投入 / 自主营销 / 品牌营销 / 红人营销（KOL）", parentCode: "T0402010102", sortOrder: 230 },
+    { code: "T040201010203", name: "媒体公关（PR）", remark: "费用 / 市场投入 / 营销投入 / 自主营销 / 品牌营销 / 媒体公关（PR）", parentCode: "T0402010102", sortOrder: 240 },
+    { code: "T040201010204", name: "视觉素材制作", remark: "费用 / 市场投入 / 营销投入 / 自主营销 / 品牌营销 / 视觉素材制作", parentCode: "T0402010102", sortOrder: 250 },
+    { code: "T040201010205", name: "地标广告", remark: "费用 / 市场投入 / 营销投入 / 自主营销 / 品牌营销 / 地标广告", parentCode: "T0402010102", sortOrder: 260 },
+    { code: "T040201010206", name: "大型展会", remark: "费用 / 市场投入 / 营销投入 / 自主营销 / 品牌营销 / 大型展会", parentCode: "T0402010102", sortOrder: 270 },
+    { code: "T040201010207", name: "代言与赞助", remark: "费用 / 市场投入 / 营销投入 / 自主营销 / 品牌营销 / 代言与赞助", parentCode: "T0402010102", sortOrder: 280 },
+    { code: "T040201010208", name: "发布会", remark: "费用 / 市场投入 / 营销投入 / 自主营销 / 品牌营销 / 发布会", parentCode: "T0402010102", sortOrder: 290 },
+    { code: "T04020102", name: "联合营销", remark: "费用 / 市场投入 / 营销投入 / 联合营销", parentCode: "T040201", sortOrder: 300 },
+    { code: "T0402010201", name: "产品营销", remark: "费用 / 市场投入 / 营销投入 / 联合营销 / 产品营销", parentCode: "T04020102", sortOrder: 310 },
+    { code: "T040201020101", name: "海外社媒投放", remark: "费用 / 市场投入 / 营销投入 / 联合营销 / 产品营销 / 海外社媒投放", parentCode: "T0402010201", sortOrder: 320 },
+    { code: "T040201020102", name: "红人营销（KOL）", remark: "费用 / 市场投入 / 营销投入 / 联合营销 / 产品营销 / 红人营销（KOL）", parentCode: "T0402010201", sortOrder: 330 },
+    { code: "T040201020103", name: "媒体公关（PR）", remark: "费用 / 市场投入 / 营销投入 / 联合营销 / 产品营销 / 媒体公关（PR）", parentCode: "T0402010201", sortOrder: 340 },
+    { code: "T040201020104", name: "视觉素材制作", remark: "费用 / 市场投入 / 营销投入 / 联合营销 / 产品营销 / 视觉素材制作", parentCode: "T0402010201", sortOrder: 350 },
+    { code: "T040201020105", name: "地标广告", remark: "费用 / 市场投入 / 营销投入 / 联合营销 / 产品营销 / 地标广告", parentCode: "T0402010201", sortOrder: 360 },
+    { code: "T040201020106", name: "大型展会", remark: "费用 / 市场投入 / 营销投入 / 联合营销 / 产品营销 / 大型展会", parentCode: "T0402010201", sortOrder: 370 },
+    { code: "T040201020107", name: "代言与赞助", remark: "费用 / 市场投入 / 营销投入 / 联合营销 / 产品营销 / 代言与赞助", parentCode: "T0402010201", sortOrder: 380 },
+    { code: "T040201020108", name: "发布会", remark: "费用 / 市场投入 / 营销投入 / 联合营销 / 产品营销 / 发布会", parentCode: "T0402010201", sortOrder: 390 },
+    { code: "T0402010202", name: "品牌营销", remark: "费用 / 市场投入 / 营销投入 / 联合营销 / 品牌营销", parentCode: "T04020102", sortOrder: 400 },
+    { code: "T040201020201", name: "海外社媒投放", remark: "费用 / 市场投入 / 营销投入 / 联合营销 / 品牌营销 / 海外社媒投放", parentCode: "T0402010202", sortOrder: 410 },
+    { code: "T040201020202", name: "红人营销（KOL）", remark: "费用 / 市场投入 / 营销投入 / 联合营销 / 品牌营销 / 红人营销（KOL）", parentCode: "T0402010202", sortOrder: 420 },
+    { code: "T040201020203", name: "媒体公关（PR）", remark: "费用 / 市场投入 / 营销投入 / 联合营销 / 品牌营销 / 媒体公关（PR）", parentCode: "T0402010202", sortOrder: 430 },
+    { code: "T040201020204", name: "视觉素材制作", remark: "费用 / 市场投入 / 营销投入 / 联合营销 / 品牌营销 / 视觉素材制作", parentCode: "T0402010202", sortOrder: 440 },
+    { code: "T040201020205", name: "地标广告", remark: "费用 / 市场投入 / 营销投入 / 联合营销 / 品牌营销 / 地标广告", parentCode: "T0402010202", sortOrder: 450 },
+    { code: "T040201020206", name: "大型展会", remark: "费用 / 市场投入 / 营销投入 / 联合营销 / 品牌营销 / 大型展会", parentCode: "T0402010202", sortOrder: 460 },
+    { code: "T040201020207", name: "代言与赞助", remark: "费用 / 市场投入 / 营销投入 / 联合营销 / 品牌营销 / 代言与赞助", parentCode: "T0402010202", sortOrder: 470 },
+    { code: "T040201020208", name: "发布会", remark: "费用 / 市场投入 / 营销投入 / 联合营销 / 品牌营销 / 发布会", parentCode: "T0402010202", sortOrder: 480 },
+    { code: "T040202", name: "渠道投入", remark: "费用 / 市场投入 / 渠道投入", parentCode: "T0402", sortOrder: 490 },
+    { code: "T04020201", name: "渠道激励", remark: "费用 / 市场投入 / 渠道投入 / 渠道激励", parentCode: "T040202", sortOrder: 500 },
+    { code: "T0402020101", name: "价保", remark: "费用 / 市场投入 / 渠道投入 / 渠道激励 / 价保", parentCode: "T04020201", sortOrder: 510 },
+    { code: "T0402020102", name: "返利", remark: "费用 / 市场投入 / 渠道投入 / 渠道激励 / 返利", parentCode: "T04020201", sortOrder: 520 },
+    { code: "T040202010201", name: "前返", remark: "费用 / 市场投入 / 渠道投入 / 渠道激励 / 返利 / 前返", parentCode: "T0402020102", sortOrder: 530 },
+    { code: "T040202010202", name: "后返", remark: "费用 / 市场投入 / 渠道投入 / 渠道激励 / 返利 / 后返", parentCode: "T0402020102", sortOrder: 540 },
+    { code: "T0402020103", name: "临时激励", remark: "费用 / 市场投入 / 渠道投入 / 渠道激励 / 临时激励", parentCode: "T04020201", sortOrder: 550 },
+    { code: "T04020202", name: "自主营销（渠道投入)", remark: "费用 / 市场投入 / 渠道投入 / 自主营销（渠道投入)", parentCode: "T040202", sortOrder: 560 },
+    { code: "T0402020201", name: "平台费用", remark: "费用 / 市场投入 / 渠道投入 / 自主营销（渠道投入) / 平台费用", parentCode: "T04020202", sortOrder: 570 },
+    { code: "T040202020101", name: "平台佣金", remark: "费用 / 市场投入 / 渠道投入 / 自主营销（渠道投入) / 平台费用 / 平台佣金", parentCode: "T0402020201", sortOrder: 580 },
+    { code: "T040202020102", name: "进场费", remark: "费用 / 市场投入 / 渠道投入 / 自主营销（渠道投入) / 平台费用 / 进场费", parentCode: "T0402020201", sortOrder: 590 },
+    { code: "T040202020103", name: "平台赔偿及罚款", remark: "费用 / 市场投入 / 渠道投入 / 自主营销（渠道投入) / 平台费用 / 平台赔偿及罚款", parentCode: "T0402020201", sortOrder: 600 },
+    { code: "T040202020104", name: "销售样机", remark: "费用 / 市场投入 / 渠道投入 / 自主营销（渠道投入) / 平台费用 / 销售样机", parentCode: "T0402020201", sortOrder: 610 },
+    { code: "T0402020202", name: "广告投放", remark: "费用 / 市场投入 / 渠道投入 / 自主营销（渠道投入) / 广告投放", parentCode: "T04020202", sortOrder: 620 },
+    { code: "T040202020201", name: "营销样机", remark: "费用 / 市场投入 / 渠道投入 / 自主营销（渠道投入) / 广告投放 / 营销样机", parentCode: "T0402020202", sortOrder: 630 },
+    { code: "T040202020202", name: "零售陈列物料", remark: "费用 / 市场投入 / 渠道投入 / 自主营销（渠道投入) / 广告投放 / 零售陈列物料", parentCode: "T0402020202", sortOrder: 640 },
+    { code: "T040202020203", name: "KA站外投放", remark: "费用 / 市场投入 / 渠道投入 / 自主营销（渠道投入) / 广告投放 / KA站外投放", parentCode: "T0402020202", sortOrder: 650 },
+    { code: "T04020203", name: "联合营销（渠道投入）", remark: "费用 / 市场投入 / 渠道投入 / 联合营销（渠道投入）", parentCode: "T040202", sortOrder: 660 },
+    { code: "T0402020301", name: "广告投放", remark: "费用 / 市场投入 / 渠道投入 / 联合营销（渠道投入） / 广告投放", parentCode: "T04020203", sortOrder: 670 },
+    { code: "T040202030101", name: "展会", remark: "费用 / 市场投入 / 渠道投入 / 联合营销（渠道投入） / 广告投放 / 展会", parentCode: "T0402020301", sortOrder: 680 },
+    { code: "T040202030102", name: "KA站内投放", remark: "费用 / 市场投入 / 渠道投入 / 联合营销（渠道投入） / 广告投放 / KA站内投放", parentCode: "T0402020301", sortOrder: 690 },
+    { code: "T040202030103", name: "分销站内投放", remark: "费用 / 市场投入 / 渠道投入 / 联合营销（渠道投入） / 广告投放 / 分销站内投放", parentCode: "T0402020301", sortOrder: 700 },
+    { code: "T040202030104", name: "KOL费用", remark: "费用 / 市场投入 / 渠道投入 / 联合营销（渠道投入） / 广告投放 / KOL费用", parentCode: "T0402020301", sortOrder: 710 },
+    { code: "T040202030105", name: "PR费用", remark: "费用 / 市场投入 / 渠道投入 / 联合营销（渠道投入） / 广告投放 / PR费用", parentCode: "T0402020301", sortOrder: 720 },
+    { code: "T040202030106", name: "营销样机", remark: "费用 / 市场投入 / 渠道投入 / 联合营销（渠道投入） / 广告投放 / 营销样机", parentCode: "T0402020301", sortOrder: 730 },
+    { code: "T040202030107", name: "零售陈列物料", remark: "费用 / 市场投入 / 渠道投入 / 联合营销（渠道投入） / 广告投放 / 零售陈列物料", parentCode: "T0402020301", sortOrder: 740 },
+    { code: "T04020204", name: "其他渠道费用", remark: "费用 / 市场投入 / 渠道投入 / 其他渠道费用", parentCode: "T040202", sortOrder: 750 },
+    { code: "T0402020401", name: "渠道客情维护", remark: "费用 / 市场投入 / 渠道投入 / 其他渠道费用 / 渠道客情维护", parentCode: "T04020204", sortOrder: 760 },
+    { code: "T0402020402", name: "终端人员薪酬", remark: "费用 / 市场投入 / 渠道投入 / 其他渠道费用 / 终端人员薪酬", parentCode: "T04020204", sortOrder: 770 },
+    { code: "T040203", name: "销售投入", remark: "费用 / 市场投入 / 销售投入", parentCode: "T0402", sortOrder: 780 },
+    { code: "T04020301", name: "渠道激励", remark: "费用 / 市场投入 / 销售投入 / 渠道激励", parentCode: "T040203", sortOrder: 790 },
+    { code: "T0402030101", name: "价保", remark: "费用 / 市场投入 / 销售投入 / 渠道激励 / 价保", parentCode: "T04020301", sortOrder: 800 },
+    { code: "T0402030102", name: "临时激励", remark: "费用 / 市场投入 / 销售投入 / 渠道激励 / 临时激励", parentCode: "T04020301", sortOrder: 810 },
+    { code: "T040203010201", name: "划线价折扣", remark: "费用 / 市场投入 / 销售投入 / 渠道激励 / 临时激励 / 划线价折扣", parentCode: "T0402030102", sortOrder: 820 },
+    { code: "T040203010202", name: "常规折扣", remark: "费用 / 市场投入 / 销售投入 / 渠道激励 / 临时激励 / 常规折扣", parentCode: "T0402030102", sortOrder: 830 },
+    { code: "T04020302", name: "自主营销（销售投入）", remark: "费用 / 市场投入 / 销售投入 / 自主营销（销售投入）", parentCode: "T040203", sortOrder: 840 },
+    { code: "T0402030201", name: "平台费用", remark: "费用 / 市场投入 / 销售投入 / 自主营销（销售投入） / 平台费用", parentCode: "T04020302", sortOrder: 850 },
+    { code: "T040203020101", name: "平台佣金", remark: "费用 / 市场投入 / 销售投入 / 自主营销（销售投入） / 平台费用 / 平台佣金", parentCode: "T0402030201", sortOrder: 860 },
+    { code: "T04020302010101", name: "发货佣金", remark: "费用 / 市场投入 / 销售投入 / 自主营销（销售投入） / 平台费用 / 平台佣金 / 发货佣金", parentCode: "T040203020101", sortOrder: 870 },
+    { code: "T04020302010102", name: "退货佣金", remark: "费用 / 市场投入 / 销售投入 / 自主营销（销售投入） / 平台费用 / 平台佣金 / 退货佣金", parentCode: "T040203020101", sortOrder: 880 },
+    { code: "T040203020102", name: "平台服务", remark: "费用 / 市场投入 / 销售投入 / 自主营销（销售投入） / 平台费用 / 平台服务", parentCode: "T0402030201", sortOrder: 890 },
+    { code: "T040203020103", name: "平台赔偿及罚款", remark: "费用 / 市场投入 / 销售投入 / 自主营销（销售投入） / 平台费用 / 平台赔偿及罚款", parentCode: "T0402030201", sortOrder: 900 },
+    { code: "T040203020104", name: "支付通道手续费", remark: "费用 / 市场投入 / 销售投入 / 自主营销（销售投入） / 平台费用 / 支付通道手续费", parentCode: "T0402030201", sortOrder: 910 },
+    { code: "T040203020105", name: "平台其他", remark: "费用 / 市场投入 / 销售投入 / 自主营销（销售投入） / 平台费用 / 平台其他", parentCode: "T0402030201", sortOrder: 920 },
+    { code: "T040203020106", name: "销售样机", remark: "费用 / 市场投入 / 销售投入 / 自主营销（销售投入） / 平台费用 / 销售样机", parentCode: "T0402030201", sortOrder: 930 },
+    { code: "T0402030202", name: "广告投放", remark: "费用 / 市场投入 / 销售投入 / 自主营销（销售投入） / 广告投放", parentCode: "T04020302", sortOrder: 940 },
+    { code: "T040203020201", name: "电商站内投放", remark: "费用 / 市场投入 / 销售投入 / 自主营销（销售投入） / 广告投放 / 电商站内投放", parentCode: "T0402030202", sortOrder: 950 },
+    { code: "T040203020202", name: "电商站外投放", remark: "费用 / 市场投入 / 销售投入 / 自主营销（销售投入） / 广告投放 / 电商站外投放", parentCode: "T0402030202", sortOrder: 960 },
+    { code: "T040203020203", name: "营销样机", remark: "费用 / 市场投入 / 销售投入 / 自主营销（销售投入） / 广告投放 / 营销样机", parentCode: "T0402030202", sortOrder: 970 },
+    { code: "T0403", name: "公共费用", remark: "费用 / 公共费用", parentCode: "T04", sortOrder: 980 },
+    { code: "T040301", name: "公共费用", remark: "费用 / 公共费用 / 公共费用", parentCode: "T0403", sortOrder: 990 },
+    { code: "T04030101", name: "仓储物流", remark: "费用 / 公共费用 / 公共费用 / 仓储物流", parentCode: "T040301", sortOrder: 1000 },
+    { code: "T0403010101", name: "物流费用", remark: "费用 / 公共费用 / 公共费用 / 仓储物流 / 物流费用", parentCode: "T04030101", sortOrder: 1010 },
+    { code: "T040301010101", name: "头程", remark: "费用 / 公共费用 / 公共费用 / 仓储物流 / 物流费用 / 头程", parentCode: "T0403010101", sortOrder: 1020 },
+    { code: "T040301010102", name: "尾程", remark: "费用 / 公共费用 / 公共费用 / 仓储物流 / 物流费用 / 尾程", parentCode: "T0403010101", sortOrder: 1030 },
+    { code: "T0403010102", name: "仓储费用", remark: "费用 / 公共费用 / 公共费用 / 仓储物流 / 仓储费用", parentCode: "T04030101", sortOrder: 1040 },
+    { code: "T040301010201", name: "仓储租金", remark: "费用 / 公共费用 / 公共费用 / 仓储物流 / 仓储费用 / 仓储租金", parentCode: "T0403010102", sortOrder: 1050 },
+    { code: "T040301010202", name: "仓储其他", remark: "费用 / 公共费用 / 公共费用 / 仓储物流 / 仓储费用 / 仓储其他", parentCode: "T0403010102", sortOrder: 1060 },
+    { code: "T04030102", name: "售后服务", remark: "费用 / 公共费用 / 公共费用 / 售后服务", parentCode: "T040301", sortOrder: 1070 },
+    { code: "T0403010201", name: "品质问题", remark: "费用 / 公共费用 / 公共费用 / 售后服务 / 品质问题", parentCode: "T04030102", sortOrder: 1080 },
+    { code: "T0403010202", name: "物流问题", remark: "费用 / 公共费用 / 公共费用 / 售后服务 / 物流问题", parentCode: "T04030102", sortOrder: 1090 },
+    { code: "T0403010203", name: "其他问题", remark: "费用 / 公共费用 / 公共费用 / 售后服务 / 其他问题", parentCode: "T04030102", sortOrder: 1100 },
+    { code: "T04030103", name: "其它费用", remark: "费用 / 公共费用 / 公共费用 / 其它费用", parentCode: "T040301", sortOrder: 1110 },
+    { code: "T0403010301", name: "运费收入", remark: "费用 / 公共费用 / 公共费用 / 其它费用 / 运费收入", parentCode: "T04030103", sortOrder: 1120 },
+    { code: "T040301030101", name: "发货运费收入", remark: "费用 / 公共费用 / 公共费用 / 其它费用 / 运费收入 / 发货运费收入", parentCode: "T0403010301", sortOrder: 1130 },
+    { code: "T040301030102", name: "退货运费收入", remark: "费用 / 公共费用 / 公共费用 / 其它费用 / 运费收入 / 退货运费收入", parentCode: "T0403010301", sortOrder: 1140 },
+    { code: "T0403010302", name: "运费收入扣减", remark: "费用 / 公共费用 / 公共费用 / 其它费用 / 运费收入扣减", parentCode: "T04030103", sortOrder: 1150 },
+    { code: "T040301030201", name: "发货运费收入扣减", remark: "费用 / 公共费用 / 公共费用 / 其它费用 / 运费收入扣减 / 发货运费收入扣减", parentCode: "T0403010302", sortOrder: 1160 },
+    { code: "T040301030202", name: "退货运费收入扣减", remark: "费用 / 公共费用 / 公共费用 / 其它费用 / 运费收入扣减 / 退货运费收入扣减", parentCode: "T0403010302", sortOrder: 1170 },
+    { code: "T0403010303", name: "包装收入", remark: "费用 / 公共费用 / 公共费用 / 其它费用 / 包装收入", parentCode: "T04030103", sortOrder: 1180 },
+    { code: "T040301030301", name: "发货包装收入", remark: "费用 / 公共费用 / 公共费用 / 其它费用 / 包装收入 / 发货包装收入", parentCode: "T0403010303", sortOrder: 1190 },
+    { code: "T040301030302", name: "退货包装收入", remark: "费用 / 公共费用 / 公共费用 / 其它费用 / 包装收入 / 退货包装收入", parentCode: "T0403010303", sortOrder: 1200 },
+    { code: "T0403010304", name: "包装收入扣减", remark: "费用 / 公共费用 / 公共费用 / 其它费用 / 包装收入扣减", parentCode: "T04030103", sortOrder: 1210 },
+    { code: "T040301030401", name: "发货包装收入扣减", remark: "费用 / 公共费用 / 公共费用 / 其它费用 / 包装收入扣减 / 发货包装收入扣减", parentCode: "T0403010304", sortOrder: 1220 },
+    { code: "T040301030402", name: "退货包装收入扣减", remark: "费用 / 公共费用 / 公共费用 / 其它费用 / 包装收入扣减 / 退货包装收入扣减", parentCode: "T0403010304", sortOrder: 1230 },
+    { code: "T0403010305", name: "透明标签费", remark: "费用 / 公共费用 / 公共费用 / 其它费用 / 透明标签费", parentCode: "T04030103", sortOrder: 1240 },
+    { code: "T0403010306", name: "运杂费", remark: "费用 / 公共费用 / 公共费用 / 其它费用 / 运杂费", parentCode: "T04030103", sortOrder: 1250 },
+    { code: "T0403010307", name: "包裹险收入", remark: "费用 / 公共费用 / 公共费用 / 其它费用 / 包裹险收入", parentCode: "T04030103", sortOrder: 1260 },
+    { code: "T0403010308", name: "包裹险扣减", remark: "费用 / 公共费用 / 公共费用 / 其它费用 / 包裹险扣减", parentCode: "T04030103", sortOrder: 1270 },
+    { code: "T0403010309", name: "售后手续费", remark: "费用 / 公共费用 / 公共费用 / 其它费用 / 售后手续费", parentCode: "T04030103", sortOrder: 1280 },
+    { code: "T0403010310", name: "售后未影响部分", remark: "费用 / 公共费用 / 公共费用 / 其它费用 / 售后未影响部分", parentCode: "T04030103", sortOrder: 1290 },
+    { code: "T0403010311", name: "渠道商利润", remark: "费用 / 公共费用 / 公共费用 / 其它费用 / 渠道商利润", parentCode: "T04030103", sortOrder: 1300 },
+    { code: "T0403010312", name: "销售退款", remark: "费用 / 公共费用 / 公共费用 / 其它费用 / 销售退款", parentCode: "T04030103", sortOrder: 1310 },
+    { code: "T0403010313", name: "税", remark: "费用 / 公共费用 / 公共费用 / 其它费用 / 税", parentCode: "T04030103", sortOrder: 1320 },
+    { code: "T05", name: "营业利润", remark: "营业利润", parentCode: null, sortOrder: 1330 },
+    { code: "T06", name: "销量", remark: "销量", parentCode: null, sortOrder: 1340 },
+    { code: "T07", name: "退货数量", remark: "退货数量", parentCode: null, sortOrder: 1350 }
   ];
 
   function escapeHtml(text) {
@@ -71,13 +184,31 @@
     }
   }
 
+  /** 带「-」的历史编码或旧 CAT/F 种子视为失效，强制回落默认树 */
+  function isObsoleteSeed(list) {
+    if (!list || !list.length) return true;
+    for (var i = 0; i < list.length; i++) {
+      var c = String(list[i].code || '');
+      if (!c) continue;
+      if (c.indexOf('-') >= 0) return true;
+      if (/^(CAT|F)\d+/i.test(c)) return true;
+    }
+    return false;
+  }
+
+  function clearLegacyStorage() {
+    try {
+      for (var i = 0; i < LEGACY_STORAGE_KEYS.length; i++) {
+        localStorage.removeItem(LEGACY_STORAGE_KEYS[i]);
+      }
+    } catch (e) { /* ignore */ }
+  }
+
   function loadFromStorage() {
     var stored = loadRawStorage(STORAGE_KEY);
-    if (stored && stored.length) return stored;
-    for (var i = 0; i < LEGACY_STORAGE_KEYS.length; i++) {
-      stored = loadRawStorage(LEGACY_STORAGE_KEYS[i]);
-      if (stored && stored.length) return stored;
-    }
+    if (stored && stored.length && !isObsoleteSeed(stored)) return stored;
+    // 编码规则变更后不再迁移旧版 localStorage，避免残留 CAT/F 或带「-」编码
+    clearLegacyStorage();
     return null;
   }
 
@@ -114,7 +245,7 @@
   function nextCode() {
     var max = 0;
     items.forEach(function (item) {
-      var m = /^[A-Z]+(\d+)$/.exec(item.code);
+      var m = /^N(\d+)$/.exec(item.code);
       if (m) max = Math.max(max, parseInt(m[1], 10));
     });
     return 'N' + String(max + 1).padStart(3, '0');
@@ -802,6 +933,22 @@
     return item ? item.name : code;
   }
 
+  /** 费用项名称全称：自根到当前节点，用「 / 」连接 */
+  function getFullName(code) {
+    var item = getByCode(code);
+    if (!item) return code || '';
+    if (item.remark && item.remark.indexOf(' / ') >= 0) return item.remark;
+    var parts = [];
+    var cur = item;
+    var guard = 0;
+    while (cur && guard < 20) {
+      parts.unshift(cur.name);
+      cur = cur.parentCode ? getByCode(cur.parentCode) : null;
+      guard += 1;
+    }
+    return parts.join(' / ');
+  }
+
   function buildSelectOptions(opts) {
     opts = opts || {};
     var leavesOnly = opts.leavesOnly !== false;
@@ -1144,6 +1291,7 @@
     getByCode: getByCode,
     getByName: getByName,
     getName: getName,
+    getFullName: getFullName,
     syncSelect: syncSelect,
     mountTreeSelect: mountTreeSelect,
     openManage: openManage,

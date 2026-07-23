@@ -5,7 +5,7 @@
 (function (global) {
   'use strict';
 
-  var STORAGE_KEY = 'gb-fee-mgmt-fee-depts-v2';
+  var STORAGE_KEY = 'gb-fee-mgmt-fee-depts-v3';
   var nodes = [];
   var expandedNodes = new Set();
   var modalsReady = false;
@@ -14,75 +14,75 @@
   var selectedCode = null;
 
   var DEFAULT_NODES = [
-    { code: 'ORG102', name: '102 · Govee', parentCode: null, nodeType: 'org', orgCode: '102', orgName: 'Govee', bmCode: '', bmName: '', attrType: '—', channelPL: '—', selectable: true, sortOrder: 10, remark: '金蝶组织（账套）' },
-    { code: 'G102_SALES', name: '销售中心', parentCode: 'ORG102', nodeType: 'group', orgCode: '102', orgName: 'Govee', bmCode: 'BM102000003', bmName: '销售中心', attrType: '渠道经营', channelPL: '是', selectable: true, sortOrder: 11, remark: '中间层级可选；费用可归到销售中心或下级渠道' },
-    { code: 'D102_AMZ', name: '亚马逊平台 · Govee', parentCode: 'G102_SALES', nodeType: 'dept', orgCode: '102', orgName: 'Govee', bmCode: 'BM102000010', bmName: '亚马逊', attrType: '渠道经营', channelPL: '是', selectable: true, sortOrder: 12, remark: '管报渠道：亚马逊平台 / 子部门 Govee' },
-    { code: 'D102_SITE', name: '独立站', parentCode: 'G102_SALES', nodeType: 'dept', orgCode: '102', orgName: 'Govee', bmCode: 'BM102001', bmName: '新渠道', attrType: '渠道经营', channelPL: '是', selectable: true, sortOrder: 13, remark: '金蝶部门名「新渠道」，管报对象为独立站' },
-    { code: 'D102_TT', name: 'TikTok平台', parentCode: 'G102_SALES', nodeType: 'dept', orgCode: '102', orgName: 'Govee', bmCode: 'BM102003', bmName: 'Tiktok', attrType: '渠道经营', channelPL: '是', selectable: true, sortOrder: 14, remark: '' },
-    { code: 'D102_APP', name: 'APP商城', parentCode: 'G102_SALES', nodeType: 'dept', orgCode: '102', orgName: 'Govee', bmCode: 'BM102002', bmName: 'APP MALL', attrType: '渠道经营', channelPL: '是', selectable: true, sortOrder: 15, remark: '' },
-    { code: 'D102_OC', name: 'OC（全渠道）', parentCode: 'G102_SALES', nodeType: 'dept', orgCode: '102', orgName: 'Govee', bmCode: 'BM102005', bmName: 'OC（全渠道）', attrType: '渠道经营', channelPL: '是', selectable: true, sortOrder: 16, remark: '金蝶独立部门，与品牌中心等同级，可作为费用归属' },
-    { code: 'D102_BRAND', name: '品牌中心', parentCode: 'ORG102', nodeType: 'dept', orgCode: '102', orgName: 'Govee', bmCode: 'BM102000012', bmName: '品牌中心', attrType: '公司共享', channelPL: '否', selectable: true, sortOrder: 20, remark: '' },
-    { code: 'D102_USER', name: '用户中心', parentCode: 'ORG102', nodeType: 'dept', orgCode: '102', orgName: 'Govee', bmCode: 'BM102000004', bmName: '用户中心', attrType: '公司共享', channelPL: '否', selectable: true, sortOrder: 21, remark: '' },
-    { code: 'D102_RD', name: '研发中心', parentCode: 'ORG102', nodeType: 'dept', orgCode: '102', orgName: 'Govee', bmCode: 'BM102000005', bmName: '研发中心', attrType: '公司共享', channelPL: '否', selectable: true, sortOrder: 22, remark: '' },
-    { code: 'D102_QA', name: '品质中心', parentCode: 'ORG102', nodeType: 'dept', orgCode: '102', orgName: 'Govee', bmCode: 'BM102000006', bmName: '品质中心', attrType: '公司共享', channelPL: '否', selectable: true, sortOrder: 23, remark: '' },
-    { code: 'D102_DELIV', name: '交付中心', parentCode: 'ORG102', nodeType: 'dept', orgCode: '102', orgName: 'Govee', bmCode: 'BM102000007', bmName: '交付中心', attrType: '公司共享', channelPL: '否', selectable: true, sortOrder: 24, remark: '' },
-    { code: 'D102_HQ', name: '总办', parentCode: 'ORG102', nodeType: 'dept', orgCode: '102', orgName: 'Govee', bmCode: 'BM102000008', bmName: '总办', attrType: '公司共享', channelPL: '否', selectable: true, sortOrder: 25, remark: '' },
-    { code: 'D102_PUB', name: '公共部门', parentCode: 'ORG102', nodeType: 'dept', orgCode: '102', orgName: 'Govee', bmCode: 'BM102000009', bmName: '公共部门', attrType: '公司共享', channelPL: '否', selectable: true, sortOrder: 26, remark: '' },
-    { code: 'D102_LOG', name: '物流部', parentCode: 'ORG102', nodeType: 'dept', orgCode: '102', orgName: 'Govee', bmCode: 'BM102000011', bmName: '物流部', attrType: '公司共享', channelPL: '否', selectable: true, sortOrder: 27, remark: '' },
-    { code: 'D102_CS', name: '客服&运营', parentCode: 'ORG102', nodeType: 'dept', orgCode: '102', orgName: 'Govee', bmCode: 'BM102000013', bmName: '客服&运营', attrType: '公司共享', channelPL: '否', selectable: true, sortOrder: 28, remark: '' },
-    { code: 'D102_PD', name: '产品&开发', parentCode: 'ORG102', nodeType: 'dept', orgCode: '102', orgName: 'Govee', bmCode: 'BM102000014', bmName: '产品&开发', attrType: '公司共享', channelPL: '否', selectable: true, sortOrder: 29, remark: '' },
-    { code: 'D102_HR', name: '人事部', parentCode: 'ORG102', nodeType: 'dept', orgCode: '102', orgName: 'Govee', bmCode: 'BM102000015', bmName: '人事部', attrType: '公司共享', channelPL: '否', selectable: true, sortOrder: 30, remark: '' },
-    { code: 'D102_LW', name: '蓝鲸软件', parentCode: 'ORG102', nodeType: 'dept', orgCode: '102', orgName: 'Govee', bmCode: 'BM102000016', bmName: '蓝鲸软件', attrType: '公司共享', channelPL: '否', selectable: true, sortOrder: 31, remark: '' },
-    { code: 'D102_FIN', name: '财务部', parentCode: 'ORG102', nodeType: 'dept', orgCode: '102', orgName: 'Govee', bmCode: 'BM102000017', bmName: '财务部', attrType: '公司共享', channelPL: '否', selectable: true, sortOrder: 32, remark: '' },
-    { code: 'D102_DES', name: '设计部', parentCode: 'ORG102', nodeType: 'dept', orgCode: '102', orgName: 'Govee', bmCode: 'BM102000018', bmName: '设计部', attrType: '公司共享', channelPL: '否', selectable: true, sortOrder: 33, remark: '' },
-    { code: 'D102_HA', name: '家电事业', parentCode: 'ORG102', nodeType: 'dept', orgCode: '102', orgName: 'Govee', bmCode: 'BM102000019', bmName: '家电事业', attrType: '公司共享', channelPL: '否', selectable: true, sortOrder: 34, remark: '' },
-    { code: 'D102_GTM', name: 'GTM', parentCode: 'ORG102', nodeType: 'dept', orgCode: '102', orgName: 'Govee', bmCode: 'BM102004', bmName: 'GTM', attrType: '公司共享', channelPL: '否', selectable: true, sortOrder: 35, remark: '一期不进渠道贡献利润' },
+    { code: 'ORG102', name: '102 · Govee', parentCode: null, nodeType: 'org', orgCode: '102', orgName: 'Govee', bmCode: '', bmName: '', channelPL: '—', selectable: true, sortOrder: 10, remark: '金蝶组织（账套）' },
+    { code: 'G102_SALES', name: '销售中心', parentCode: 'ORG102', nodeType: 'group', orgCode: '102', orgName: 'Govee', bmCode: 'BM102000003', bmName: '销售中心', channelPL: '是', selectable: true, sortOrder: 11, remark: '中间层级可选；费用可归到销售中心或下级渠道' },
+    { code: 'D102_AMZ', name: '亚马逊平台 · Govee', parentCode: 'G102_SALES', nodeType: 'dept', orgCode: '102', orgName: 'Govee', bmCode: 'BM102000010', bmName: '亚马逊', channelPL: '是', selectable: true, sortOrder: 12, remark: '管报渠道：亚马逊平台 / 子部门 Govee' },
+    { code: 'D102_SITE', name: '独立站', parentCode: 'G102_SALES', nodeType: 'dept', orgCode: '102', orgName: 'Govee', bmCode: 'BM102001', bmName: '新渠道', channelPL: '是', selectable: true, sortOrder: 13, remark: '金蝶部门名「新渠道」，管报对象为独立站' },
+    { code: 'D102_TT', name: 'TikTok平台', parentCode: 'G102_SALES', nodeType: 'dept', orgCode: '102', orgName: 'Govee', bmCode: 'BM102003', bmName: 'Tiktok', channelPL: '是', selectable: true, sortOrder: 14, remark: '' },
+    { code: 'D102_APP', name: 'APP商城', parentCode: 'G102_SALES', nodeType: 'dept', orgCode: '102', orgName: 'Govee', bmCode: 'BM102002', bmName: 'APP MALL', channelPL: '是', selectable: true, sortOrder: 15, remark: '' },
+    { code: 'D102_OC', name: 'OC（全渠道）', parentCode: 'G102_SALES', nodeType: 'dept', orgCode: '102', orgName: 'Govee', bmCode: 'BM102005', bmName: 'OC（全渠道）', channelPL: '是', selectable: true, sortOrder: 16, remark: '金蝶独立部门，与品牌中心等同级，可作为费用归属' },
+    { code: 'D102_BRAND', name: '品牌中心', parentCode: 'ORG102', nodeType: 'dept', orgCode: '102', orgName: 'Govee', bmCode: 'BM102000012', bmName: '品牌中心', channelPL: '否', selectable: true, sortOrder: 20, remark: '' },
+    { code: 'D102_USER', name: '用户中心', parentCode: 'ORG102', nodeType: 'dept', orgCode: '102', orgName: 'Govee', bmCode: 'BM102000004', bmName: '用户中心', channelPL: '否', selectable: true, sortOrder: 21, remark: '' },
+    { code: 'D102_RD', name: '研发中心', parentCode: 'ORG102', nodeType: 'dept', orgCode: '102', orgName: 'Govee', bmCode: 'BM102000005', bmName: '研发中心', channelPL: '否', selectable: true, sortOrder: 22, remark: '' },
+    { code: 'D102_QA', name: '品质中心', parentCode: 'ORG102', nodeType: 'dept', orgCode: '102', orgName: 'Govee', bmCode: 'BM102000006', bmName: '品质中心', channelPL: '否', selectable: true, sortOrder: 23, remark: '' },
+    { code: 'D102_DELIV', name: '交付中心', parentCode: 'ORG102', nodeType: 'dept', orgCode: '102', orgName: 'Govee', bmCode: 'BM102000007', bmName: '交付中心', channelPL: '否', selectable: true, sortOrder: 24, remark: '' },
+    { code: 'D102_HQ', name: '总办', parentCode: 'ORG102', nodeType: 'dept', orgCode: '102', orgName: 'Govee', bmCode: 'BM102000008', bmName: '总办', channelPL: '否', selectable: true, sortOrder: 25, remark: '' },
+    { code: 'D102_PUB', name: '公共部门', parentCode: 'ORG102', nodeType: 'dept', orgCode: '102', orgName: 'Govee', bmCode: 'BM102000009', bmName: '公共部门', channelPL: '否', selectable: true, sortOrder: 26, remark: '' },
+    { code: 'D102_LOG', name: '物流部', parentCode: 'ORG102', nodeType: 'dept', orgCode: '102', orgName: 'Govee', bmCode: 'BM102000011', bmName: '物流部', channelPL: '否', selectable: true, sortOrder: 27, remark: '' },
+    { code: 'D102_CS', name: '客服&运营', parentCode: 'ORG102', nodeType: 'dept', orgCode: '102', orgName: 'Govee', bmCode: 'BM102000013', bmName: '客服&运营', channelPL: '否', selectable: true, sortOrder: 28, remark: '' },
+    { code: 'D102_PD', name: '产品&开发', parentCode: 'ORG102', nodeType: 'dept', orgCode: '102', orgName: 'Govee', bmCode: 'BM102000014', bmName: '产品&开发', channelPL: '否', selectable: true, sortOrder: 29, remark: '' },
+    { code: 'D102_HR', name: '人事部', parentCode: 'ORG102', nodeType: 'dept', orgCode: '102', orgName: 'Govee', bmCode: 'BM102000015', bmName: '人事部', channelPL: '否', selectable: true, sortOrder: 30, remark: '' },
+    { code: 'D102_LW', name: '蓝鲸软件', parentCode: 'ORG102', nodeType: 'dept', orgCode: '102', orgName: 'Govee', bmCode: 'BM102000016', bmName: '蓝鲸软件', channelPL: '否', selectable: true, sortOrder: 31, remark: '' },
+    { code: 'D102_FIN', name: '财务部', parentCode: 'ORG102', nodeType: 'dept', orgCode: '102', orgName: 'Govee', bmCode: 'BM102000017', bmName: '财务部', channelPL: '否', selectable: true, sortOrder: 32, remark: '' },
+    { code: 'D102_DES', name: '设计部', parentCode: 'ORG102', nodeType: 'dept', orgCode: '102', orgName: 'Govee', bmCode: 'BM102000018', bmName: '设计部', channelPL: '否', selectable: true, sortOrder: 33, remark: '' },
+    { code: 'D102_HA', name: '家电事业', parentCode: 'ORG102', nodeType: 'dept', orgCode: '102', orgName: 'Govee', bmCode: 'BM102000019', bmName: '家电事业', channelPL: '否', selectable: true, sortOrder: 34, remark: '' },
+    { code: 'D102_GTM', name: 'GTM', parentCode: 'ORG102', nodeType: 'dept', orgCode: '102', orgName: 'Govee', bmCode: 'BM102004', bmName: 'GTM', channelPL: '否', selectable: true, sortOrder: 35, remark: '一期不进渠道贡献利润' },
 
-    { code: 'ORG109', name: '109 · Trading', parentCode: null, nodeType: 'org', orgCode: '109', orgName: 'Trading', bmCode: '', bmName: '', attrType: '—', channelPL: '—', selectable: true, sortOrder: 100, remark: '金蝶组织（账套）' },
-    { code: 'G109_SALES', name: '销售中心', parentCode: 'ORG109', nodeType: 'group', orgCode: '109', orgName: 'Trading', bmCode: 'BM109003', bmName: '销售中心', attrType: '渠道经营', channelPL: '是', selectable: true, sortOrder: 101, remark: '中间层级可选' },
-    { code: 'G109_NEW', name: '新渠道', parentCode: 'G109_SALES', nodeType: 'group', orgCode: '109', orgName: 'Trading', bmCode: 'BM109005', bmName: '新渠道', attrType: '渠道经营', channelPL: '是', selectable: true, sortOrder: 102, remark: '中间层可选；建议费用尽量落到下级具体渠道' },
-    { code: 'D109_SITE', name: '独立站', parentCode: 'G109_NEW', nodeType: 'dept', orgCode: '109', orgName: 'Trading', bmCode: 'BM109005', bmName: '新渠道', attrType: '渠道经营', channelPL: '是', selectable: true, sortOrder: 103, remark: '落账 BM 与新渠道同码，管报对象为独立站' },
-    { code: 'D109_TT', name: 'TikTok平台', parentCode: 'G109_NEW', nodeType: 'dept', orgCode: '109', orgName: 'Trading', bmCode: 'BM109017', bmName: 'tiktok', attrType: '渠道经营', channelPL: '是', selectable: true, sortOrder: 104, remark: '' },
-    { code: 'D109_TEMU', name: 'Temu', parentCode: 'G109_NEW', nodeType: 'dept', orgCode: '109', orgName: 'Trading', bmCode: 'BM109020', bmName: 'Temu', attrType: '渠道经营', channelPL: '是', selectable: true, sortOrder: 105, remark: '' },
-    { code: 'D109_SHEIN', name: 'Shein', parentCode: 'G109_NEW', nodeType: 'dept', orgCode: '109', orgName: 'Trading', bmCode: 'BM109021', bmName: 'Shein', attrType: '渠道经营', channelPL: '是', selectable: true, sortOrder: 106, remark: '' },
-    { code: 'D109_WAY', name: 'Wayfair', parentCode: 'G109_NEW', nodeType: 'dept', orgCode: '109', orgName: 'Trading', bmCode: 'BM109022', bmName: 'Wayfair', attrType: '渠道经营', channelPL: '是', selectable: true, sortOrder: 107, remark: '' },
-    { code: 'G109_AMZ', name: '亚马逊平台', parentCode: 'G109_SALES', nodeType: 'group', orgCode: '109', orgName: 'Trading', bmCode: '', bmName: '', attrType: '渠道经营', channelPL: '是', selectable: true, sortOrder: 110, remark: '中间层；下级含 Goveelife' },
-    { code: 'D109_GL', name: 'Goveelife', parentCode: 'G109_AMZ', nodeType: 'dept', orgCode: '109', orgName: 'Trading', bmCode: 'BM109013', bmName: 'Goveelife', attrType: '渠道经营', channelPL: '是', selectable: true, sortOrder: 111, remark: '管报渠道：亚马逊平台 / 子部门 Goveelife' },
-    { code: 'D109_APP', name: 'APP商城', parentCode: 'G109_SALES', nodeType: 'dept', orgCode: '109', orgName: 'Trading', bmCode: 'BM109011', bmName: 'APP商城', attrType: '渠道经营', channelPL: '是', selectable: true, sortOrder: 112, remark: '' },
-    { code: 'D109_SM', name: '商超', parentCode: 'G109_SALES', nodeType: 'dept', orgCode: '109', orgName: 'Trading', bmCode: 'BM109010', bmName: '线下商超', attrType: '渠道经营', channelPL: '是', selectable: true, sortOrder: 113, remark: '1P/3P 共用渠道「商超」' },
-    { code: 'D109_DIST', name: '分销', parentCode: 'G109_SALES', nodeType: 'dept', orgCode: '109', orgName: 'Trading', bmCode: 'BM109009', bmName: '分销', attrType: '渠道经营', channelPL: '是', selectable: true, sortOrder: 114, remark: '' },
-    { code: 'D109_CS', name: '客服售后平台', parentCode: 'G109_SALES', nodeType: 'dept', orgCode: '109', orgName: 'Trading', bmCode: 'BM109014', bmName: '客服部', attrType: '渠道经营', channelPL: '是', selectable: true, sortOrder: 115, remark: '' },
-    { code: 'D109_PUB', name: '公共部门', parentCode: 'ORG109', nodeType: 'dept', orgCode: '109', orgName: 'Trading', bmCode: 'BM109001', bmName: '公共部门', attrType: '公司共享', channelPL: '否', selectable: true, sortOrder: 120, remark: '' },
-    { code: 'D109_BRAND', name: '品牌中心', parentCode: 'ORG109', nodeType: 'dept', orgCode: '109', orgName: 'Trading', bmCode: 'BM109002', bmName: '品牌中心', attrType: '公司共享', channelPL: '否', selectable: true, sortOrder: 121, remark: '' },
-    { code: 'D109_LW', name: '蓝鲸', parentCode: 'ORG109', nodeType: 'dept', orgCode: '109', orgName: 'Trading', bmCode: 'BM109004', bmName: '蓝鲸', attrType: '公司共享', channelPL: '否', selectable: true, sortOrder: 122, remark: '' },
-    { code: 'D109_USER', name: '用户中心', parentCode: 'ORG109', nodeType: 'dept', orgCode: '109', orgName: 'Trading', bmCode: 'BM109006', bmName: '用户中心', attrType: '公司共享', channelPL: '否', selectable: true, sortOrder: 123, remark: '' },
-    { code: 'D109_RD', name: '研发中心', parentCode: 'ORG109', nodeType: 'dept', orgCode: '109', orgName: 'Trading', bmCode: 'BM109007', bmName: '研发中心', attrType: '公司共享', channelPL: '否', selectable: true, sortOrder: 124, remark: '' },
-    { code: 'D109_LOG', name: '物流部', parentCode: 'ORG109', nodeType: 'dept', orgCode: '109', orgName: 'Trading', bmCode: 'BM109008', bmName: '物流部', attrType: '公司共享', channelPL: '否', selectable: true, sortOrder: 125, remark: '' },
-    { code: 'D109_LBU', name: '照明事业部-产品', parentCode: 'ORG109', nodeType: 'dept', orgCode: '109', orgName: 'Trading', bmCode: 'BM109012', bmName: '照明事业部-产品', attrType: '公司共享', channelPL: '否', selectable: true, sortOrder: 126, remark: '' },
-    { code: 'D109_DES', name: '设计部', parentCode: 'ORG109', nodeType: 'dept', orgCode: '109', orgName: 'Trading', bmCode: 'BM109015', bmName: '设计部', attrType: '公司共享', channelPL: '否', selectable: true, sortOrder: 127, remark: '' },
-    { code: 'D109_CA', name: '商超CA', parentCode: 'ORG109', nodeType: 'dept', orgCode: '109', orgName: 'Trading', bmCode: 'BM109016', bmName: '商超CA', attrType: '公司共享', channelPL: '否', selectable: true, sortOrder: 128, remark: '' },
-    { code: 'D109_QA', name: '质量平台', parentCode: 'ORG109', nodeType: 'dept', orgCode: '109', orgName: 'Trading', bmCode: 'BM109018', bmName: '质量平台', attrType: '公司共享', channelPL: '否', selectable: true, sortOrder: 129, remark: '' },
-    { code: 'D109_GTM', name: 'GTM', parentCode: 'ORG109', nodeType: 'dept', orgCode: '109', orgName: 'Trading', bmCode: 'BM109019', bmName: 'GTM', attrType: '公司共享', channelPL: '否', selectable: true, sortOrder: 130, remark: '' },
-    { code: 'D109_ABU', name: '家电事业部-产品', parentCode: 'ORG109', nodeType: 'dept', orgCode: '109', orgName: 'Trading', bmCode: 'BM109023', bmName: '家电事业部-产品', attrType: '公司共享', channelPL: '否', selectable: true, sortOrder: 131, remark: '' },
-    { code: 'D109_DT', name: 'Designtechnica', parentCode: 'ORG109', nodeType: 'dept', orgCode: '109', orgName: 'Trading', bmCode: 'BM109024', bmName: 'Designtechnica Corporation dba Digital Trends', attrType: '公司共享', channelPL: '否', selectable: true, sortOrder: 132, remark: '个案共享' },
+    { code: 'ORG109', name: '109 · Trading', parentCode: null, nodeType: 'org', orgCode: '109', orgName: 'Trading', bmCode: '', bmName: '', channelPL: '—', selectable: true, sortOrder: 100, remark: '金蝶组织（账套）' },
+    { code: 'G109_SALES', name: '销售中心', parentCode: 'ORG109', nodeType: 'group', orgCode: '109', orgName: 'Trading', bmCode: 'BM109003', bmName: '销售中心', channelPL: '是', selectable: true, sortOrder: 101, remark: '中间层级可选' },
+    { code: 'G109_NEW', name: '新渠道', parentCode: 'G109_SALES', nodeType: 'group', orgCode: '109', orgName: 'Trading', bmCode: 'BM109005', bmName: '新渠道', channelPL: '是', selectable: true, sortOrder: 102, remark: '中间层可选；建议费用尽量落到下级具体渠道' },
+    { code: 'D109_SITE', name: '独立站', parentCode: 'G109_NEW', nodeType: 'dept', orgCode: '109', orgName: 'Trading', bmCode: 'BM109005', bmName: '新渠道', channelPL: '是', selectable: true, sortOrder: 103, remark: '落账 BM 与新渠道同码，管报对象为独立站' },
+    { code: 'D109_TT', name: 'TikTok平台', parentCode: 'G109_NEW', nodeType: 'dept', orgCode: '109', orgName: 'Trading', bmCode: 'BM109017', bmName: 'tiktok', channelPL: '是', selectable: true, sortOrder: 104, remark: '' },
+    { code: 'D109_TEMU', name: 'Temu', parentCode: 'G109_NEW', nodeType: 'dept', orgCode: '109', orgName: 'Trading', bmCode: 'BM109020', bmName: 'Temu', channelPL: '是', selectable: true, sortOrder: 105, remark: '' },
+    { code: 'D109_SHEIN', name: 'Shein', parentCode: 'G109_NEW', nodeType: 'dept', orgCode: '109', orgName: 'Trading', bmCode: 'BM109021', bmName: 'Shein', channelPL: '是', selectable: true, sortOrder: 106, remark: '' },
+    { code: 'D109_WAY', name: 'Wayfair', parentCode: 'G109_NEW', nodeType: 'dept', orgCode: '109', orgName: 'Trading', bmCode: 'BM109022', bmName: 'Wayfair', channelPL: '是', selectable: true, sortOrder: 107, remark: '' },
+    { code: 'G109_AMZ', name: '亚马逊平台', parentCode: 'G109_SALES', nodeType: 'group', orgCode: '109', orgName: 'Trading', bmCode: '', bmName: '', channelPL: '是', selectable: true, sortOrder: 110, remark: '中间层；下级含 Goveelife' },
+    { code: 'D109_GL', name: 'Goveelife', parentCode: 'G109_AMZ', nodeType: 'dept', orgCode: '109', orgName: 'Trading', bmCode: 'BM109013', bmName: 'Goveelife', channelPL: '是', selectable: true, sortOrder: 111, remark: '管报渠道：亚马逊平台 / 子部门 Goveelife' },
+    { code: 'D109_APP', name: 'APP商城', parentCode: 'G109_SALES', nodeType: 'dept', orgCode: '109', orgName: 'Trading', bmCode: 'BM109011', bmName: 'APP商城', channelPL: '是', selectable: true, sortOrder: 112, remark: '' },
+    { code: 'D109_SM', name: '商超', parentCode: 'G109_SALES', nodeType: 'dept', orgCode: '109', orgName: 'Trading', bmCode: 'BM109010', bmName: '线下商超', channelPL: '是', selectable: true, sortOrder: 113, remark: '1P/3P 共用渠道「商超」' },
+    { code: 'D109_DIST', name: '分销', parentCode: 'G109_SALES', nodeType: 'dept', orgCode: '109', orgName: 'Trading', bmCode: 'BM109009', bmName: '分销', channelPL: '是', selectable: true, sortOrder: 114, remark: '' },
+    { code: 'D109_CS', name: '客服售后平台', parentCode: 'G109_SALES', nodeType: 'dept', orgCode: '109', orgName: 'Trading', bmCode: 'BM109014', bmName: '客服部', channelPL: '是', selectable: true, sortOrder: 115, remark: '' },
+    { code: 'D109_PUB', name: '公共部门', parentCode: 'ORG109', nodeType: 'dept', orgCode: '109', orgName: 'Trading', bmCode: 'BM109001', bmName: '公共部门', channelPL: '否', selectable: true, sortOrder: 120, remark: '' },
+    { code: 'D109_BRAND', name: '品牌中心', parentCode: 'ORG109', nodeType: 'dept', orgCode: '109', orgName: 'Trading', bmCode: 'BM109002', bmName: '品牌中心', channelPL: '否', selectable: true, sortOrder: 121, remark: '' },
+    { code: 'D109_LW', name: '蓝鲸', parentCode: 'ORG109', nodeType: 'dept', orgCode: '109', orgName: 'Trading', bmCode: 'BM109004', bmName: '蓝鲸', channelPL: '否', selectable: true, sortOrder: 122, remark: '' },
+    { code: 'D109_USER', name: '用户中心', parentCode: 'ORG109', nodeType: 'dept', orgCode: '109', orgName: 'Trading', bmCode: 'BM109006', bmName: '用户中心', channelPL: '否', selectable: true, sortOrder: 123, remark: '' },
+    { code: 'D109_RD', name: '研发中心', parentCode: 'ORG109', nodeType: 'dept', orgCode: '109', orgName: 'Trading', bmCode: 'BM109007', bmName: '研发中心', channelPL: '否', selectable: true, sortOrder: 124, remark: '' },
+    { code: 'D109_LOG', name: '物流部', parentCode: 'ORG109', nodeType: 'dept', orgCode: '109', orgName: 'Trading', bmCode: 'BM109008', bmName: '物流部', channelPL: '否', selectable: true, sortOrder: 125, remark: '' },
+    { code: 'D109_LBU', name: '照明事业部-产品', parentCode: 'ORG109', nodeType: 'dept', orgCode: '109', orgName: 'Trading', bmCode: 'BM109012', bmName: '照明事业部-产品', channelPL: '否', selectable: true, sortOrder: 126, remark: '' },
+    { code: 'D109_DES', name: '设计部', parentCode: 'ORG109', nodeType: 'dept', orgCode: '109', orgName: 'Trading', bmCode: 'BM109015', bmName: '设计部', channelPL: '否', selectable: true, sortOrder: 127, remark: '' },
+    { code: 'D109_CA', name: '商超CA', parentCode: 'ORG109', nodeType: 'dept', orgCode: '109', orgName: 'Trading', bmCode: 'BM109016', bmName: '商超CA', channelPL: '否', selectable: true, sortOrder: 128, remark: '' },
+    { code: 'D109_QA', name: '质量平台', parentCode: 'ORG109', nodeType: 'dept', orgCode: '109', orgName: 'Trading', bmCode: 'BM109018', bmName: '质量平台', channelPL: '否', selectable: true, sortOrder: 129, remark: '' },
+    { code: 'D109_GTM', name: 'GTM', parentCode: 'ORG109', nodeType: 'dept', orgCode: '109', orgName: 'Trading', bmCode: 'BM109019', bmName: 'GTM', channelPL: '否', selectable: true, sortOrder: 130, remark: '' },
+    { code: 'D109_ABU', name: '家电事业部-产品', parentCode: 'ORG109', nodeType: 'dept', orgCode: '109', orgName: 'Trading', bmCode: 'BM109023', bmName: '家电事业部-产品', channelPL: '否', selectable: true, sortOrder: 131, remark: '' },
+    { code: 'D109_DT', name: 'Designtechnica', parentCode: 'ORG109', nodeType: 'dept', orgCode: '109', orgName: 'Trading', bmCode: 'BM109024', bmName: 'Designtechnica Corporation dba Digital Trends', channelPL: '否', selectable: true, sortOrder: 132, remark: '个案共享' },
 
-    { code: 'ORG110', name: '110 · Trading US', parentCode: null, nodeType: 'org', orgCode: '110', orgName: 'Trading US', bmCode: '', bmName: '', attrType: '—', channelPL: '—', selectable: true, sortOrder: 200, remark: '' },
-    { code: 'G110_SALES', name: '销售中心', parentCode: 'ORG110', nodeType: 'group', orgCode: '110', orgName: 'Trading US', bmCode: '', bmName: '', attrType: '渠道经营', channelPL: '是', selectable: true, sortOrder: 201, remark: '中间层级可选' },
-    { code: 'D110_SITE', name: '独立站', parentCode: 'G110_SALES', nodeType: 'dept', orgCode: '110', orgName: 'Trading US', bmCode: 'BM110002', bmName: '新渠道', attrType: '渠道经营', channelPL: '是', selectable: true, sortOrder: 202, remark: '' },
-    { code: 'D110_SM', name: '商超', parentCode: 'G110_SALES', nodeType: 'dept', orgCode: '110', orgName: 'Trading US', bmCode: 'BM110004', bmName: '线下商超', attrType: '渠道经营', channelPL: '是', selectable: true, sortOrder: 203, remark: '与 BM109010 同渠道、不同组织' },
-    { code: 'D110_PUB', name: '公共部门', parentCode: 'ORG110', nodeType: 'dept', orgCode: '110', orgName: 'Trading US', bmCode: 'BM110001', bmName: '公共部门', attrType: '公司共享', channelPL: '否', selectable: true, sortOrder: 210, remark: '' },
-    { code: 'D110_HQ', name: '总办', parentCode: 'ORG110', nodeType: 'dept', orgCode: '110', orgName: 'Trading US', bmCode: 'BM110003', bmName: '总办', attrType: '公司共享', channelPL: '否', selectable: true, sortOrder: 211, remark: '' },
-    { code: 'D110_SALES_FN', name: '销售部', parentCode: 'ORG110', nodeType: 'dept', orgCode: '110', orgName: 'Trading US', bmCode: 'BM110005', bmName: '销售部', attrType: '公司共享', channelPL: '否', selectable: true, sortOrder: 212, remark: '' },
-    { code: 'D110_BRAND', name: '品牌部', parentCode: 'ORG110', nodeType: 'dept', orgCode: '110', orgName: 'Trading US', bmCode: 'BM110006', bmName: '品牌部', attrType: '公司共享', channelPL: '否', selectable: true, sortOrder: 213, remark: '' },
-    { code: 'D110_RD', name: '研发部', parentCode: 'ORG110', nodeType: 'dept', orgCode: '110', orgName: 'Trading US', bmCode: 'BM110007', bmName: '研发部', attrType: '公司共享', channelPL: '否', selectable: true, sortOrder: 214, remark: '' },
-    { code: 'D110_WH', name: '海外仓储部', parentCode: 'ORG110', nodeType: 'dept', orgCode: '110', orgName: 'Trading US', bmCode: 'BM110008', bmName: '海外仓储部', attrType: '公司共享', channelPL: '否', selectable: true, sortOrder: 215, remark: '' },
-    { code: 'D110_LOG', name: '物流部', parentCode: 'ORG110', nodeType: 'dept', orgCode: '110', orgName: 'Trading US', bmCode: 'BM110009', bmName: '物流部', attrType: '公司共享', channelPL: '否', selectable: true, sortOrder: 216, remark: '' },
-    { code: 'D110_USER', name: '用户中心', parentCode: 'ORG110', nodeType: 'dept', orgCode: '110', orgName: 'Trading US', bmCode: 'BM110010', bmName: '用户中心', attrType: '公司共享', channelPL: '否', selectable: true, sortOrder: 217, remark: '' },
-    { code: 'D110_GTM', name: 'GTM', parentCode: 'ORG110', nodeType: 'dept', orgCode: '110', orgName: 'Trading US', bmCode: 'BM110011', bmName: 'GTM', attrType: '公司共享', channelPL: '否', selectable: true, sortOrder: 218, remark: '' },
+    { code: 'ORG110', name: '110 · Trading US', parentCode: null, nodeType: 'org', orgCode: '110', orgName: 'Trading US', bmCode: '', bmName: '', channelPL: '—', selectable: true, sortOrder: 200, remark: '' },
+    { code: 'G110_SALES', name: '销售中心', parentCode: 'ORG110', nodeType: 'group', orgCode: '110', orgName: 'Trading US', bmCode: '', bmName: '', channelPL: '是', selectable: true, sortOrder: 201, remark: '中间层级可选' },
+    { code: 'D110_SITE', name: '独立站', parentCode: 'G110_SALES', nodeType: 'dept', orgCode: '110', orgName: 'Trading US', bmCode: 'BM110002', bmName: '新渠道', channelPL: '是', selectable: true, sortOrder: 202, remark: '' },
+    { code: 'D110_SM', name: '商超', parentCode: 'G110_SALES', nodeType: 'dept', orgCode: '110', orgName: 'Trading US', bmCode: 'BM110004', bmName: '线下商超', channelPL: '是', selectable: true, sortOrder: 203, remark: '与 BM109010 同渠道、不同组织' },
+    { code: 'D110_PUB', name: '公共部门', parentCode: 'ORG110', nodeType: 'dept', orgCode: '110', orgName: 'Trading US', bmCode: 'BM110001', bmName: '公共部门', channelPL: '否', selectable: true, sortOrder: 210, remark: '' },
+    { code: 'D110_HQ', name: '总办', parentCode: 'ORG110', nodeType: 'dept', orgCode: '110', orgName: 'Trading US', bmCode: 'BM110003', bmName: '总办', channelPL: '否', selectable: true, sortOrder: 211, remark: '' },
+    { code: 'D110_SALES_FN', name: '销售部', parentCode: 'ORG110', nodeType: 'dept', orgCode: '110', orgName: 'Trading US', bmCode: 'BM110005', bmName: '销售部', channelPL: '否', selectable: true, sortOrder: 212, remark: '' },
+    { code: 'D110_BRAND', name: '品牌部', parentCode: 'ORG110', nodeType: 'dept', orgCode: '110', orgName: 'Trading US', bmCode: 'BM110006', bmName: '品牌部', channelPL: '否', selectable: true, sortOrder: 213, remark: '' },
+    { code: 'D110_RD', name: '研发部', parentCode: 'ORG110', nodeType: 'dept', orgCode: '110', orgName: 'Trading US', bmCode: 'BM110007', bmName: '研发部', channelPL: '否', selectable: true, sortOrder: 214, remark: '' },
+    { code: 'D110_WH', name: '海外仓储部', parentCode: 'ORG110', nodeType: 'dept', orgCode: '110', orgName: 'Trading US', bmCode: 'BM110008', bmName: '海外仓储部', channelPL: '否', selectable: true, sortOrder: 215, remark: '' },
+    { code: 'D110_LOG', name: '物流部', parentCode: 'ORG110', nodeType: 'dept', orgCode: '110', orgName: 'Trading US', bmCode: 'BM110009', bmName: '物流部', channelPL: '否', selectable: true, sortOrder: 216, remark: '' },
+    { code: 'D110_USER', name: '用户中心', parentCode: 'ORG110', nodeType: 'dept', orgCode: '110', orgName: 'Trading US', bmCode: 'BM110010', bmName: '用户中心', channelPL: '否', selectable: true, sortOrder: 217, remark: '' },
+    { code: 'D110_GTM', name: 'GTM', parentCode: 'ORG110', nodeType: 'dept', orgCode: '110', orgName: 'Trading US', bmCode: 'BM110011', bmName: 'GTM', channelPL: '否', selectable: true, sortOrder: 218, remark: '' },
 
-    { code: 'ORG127', name: '127 · 分销相关', parentCode: null, nodeType: 'org', orgCode: '127', orgName: '分销相关', bmCode: '', bmName: '', attrType: '—', channelPL: '—', selectable: true, sortOrder: 300, remark: '' },
-    { code: 'D127_PUB', name: '公共部门', parentCode: 'ORG127', nodeType: 'dept', orgCode: '127', orgName: '分销相关', bmCode: 'BM127001', bmName: '公共部门', attrType: '公司共享', channelPL: '否', selectable: true, sortOrder: 301, remark: '' },
-    { code: 'D127_DIST', name: '分销', parentCode: 'ORG127', nodeType: 'dept', orgCode: '127', orgName: '分销相关', bmCode: 'BM127002', bmName: '线下分销', attrType: '渠道经营', channelPL: '是', selectable: true, sortOrder: 302, remark: '' }
+    { code: 'ORG127', name: '127 · 分销相关', parentCode: null, nodeType: 'org', orgCode: '127', orgName: '分销相关', bmCode: '', bmName: '', channelPL: '—', selectable: true, sortOrder: 300, remark: '' },
+    { code: 'D127_PUB', name: '公共部门', parentCode: 'ORG127', nodeType: 'dept', orgCode: '127', orgName: '分销相关', bmCode: 'BM127001', bmName: '公共部门', channelPL: '否', selectable: true, sortOrder: 301, remark: '' },
+    { code: 'D127_DIST', name: '分销', parentCode: 'ORG127', nodeType: 'dept', orgCode: '127', orgName: '分销相关', bmCode: 'BM127002', bmName: '线下分销', channelPL: '是', selectable: true, sortOrder: 302, remark: '' }
   ];
 
   function escapeHtml(text) {
@@ -105,8 +105,15 @@
 
   function loadFromStorage() {
     try {
-      var raw = localStorage.getItem(STORAGE_KEY) || localStorage.getItem('gb-fee-mgmt-fee-depts-v2');
-      if (!raw) return null;
+      var raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) {
+        // 不迁移旧版存储，统一以 v3 种子加载
+        try {
+          localStorage.removeItem('gb-fee-mgmt-fee-depts-v2');
+          localStorage.removeItem('gb-fee-mgmt-fee-depts-v1');
+        } catch (e2) { /* ignore */ }
+        return null;
+      }
       var parsed = JSON.parse(raw);
       return Array.isArray(parsed) ? parsed : null;
     } catch (e) {
@@ -125,7 +132,7 @@
 
   function normalizeNode(item) {
     return {
-      code: String(item.code || '').trim(),
+      code: String(item.code || '').trim(), // 仅内部树关联用，不在 UI / 初始化文档展示
       name: String(item.name || '').trim(),
       parentCode: item.parentCode ? String(item.parentCode).trim() : null,
       nodeType: item.nodeType || 'dept',
@@ -133,7 +140,6 @@
       orgName: String(item.orgName || '').trim(),
       bmCode: String(item.bmCode || '').trim(),
       bmName: String(item.bmName || '').trim(),
-      attrType: item.attrType || '—',
       channelPL: item.channelPL || '—',
       selectable: item.selectable !== false,
       sortOrder: typeof item.sortOrder === 'number' ? item.sortOrder : 0,
@@ -223,7 +229,7 @@
     var kw = String(keyword || '').trim().toLowerCase();
     if (!kw) return treeNodes;
     function match(n) {
-      return [n.name, n.code, n.bmCode, n.bmName, n.orgCode, n.orgName, n.remark]
+      return [n.name, n.bmCode, n.bmName, n.orgCode, n.orgName, n.remark]
         .join(' ').toLowerCase().indexOf(kw) >= 0;
     }
     function walk(list) {
@@ -286,10 +292,6 @@
           '</div>' +
           '<div class="modal-bd">' +
             '<div class="form-grid fee-dept-form-grid">' +
-              '<div class="form-field" id="feeDeptCodeField" hidden>' +
-                '<label for="feeDeptCodeDisplay">节点编码</label>' +
-                '<input id="feeDeptCodeDisplay" type="text" readonly>' +
-              '</div>' +
               '<div class="form-field">' +
                 '<label for="feeDeptParent">上级节点</label>' +
                 '<select id="feeDeptParent"><option value="">无（顶级组织）</option></select>' +
@@ -338,9 +340,12 @@
   }
 
   function stripHiddenFieldsFromEditModal() {
-    ['feeDeptNodeType', 'feeDeptAttrType', 'feeDeptChannelPL'].forEach(function (id) {
+    ['feeDeptNodeType', 'feeDeptAttrType', 'feeDeptChannelPL', 'feeDeptCodeDisplay', 'feeDeptCodeField'].forEach(function (id) {
       var el = document.getElementById(id);
-      if (el && el.closest('.form-field')) el.closest('.form-field').remove();
+      if (!el) return;
+      var field = el.classList && el.classList.contains('form-field') ? el : el.closest('.form-field');
+      if (field) field.remove();
+      else el.remove();
     });
   }
 
@@ -493,7 +498,6 @@
         '<div><dt>金蝶组织</dt><dd>' + escapeHtml(n.orgCode + ' · ' + n.orgName) + '</dd></div>' +
         '<div><dt>金蝶部门编码 BM</dt><dd><code>' + escapeHtml(n.bmCode || '（无）') + '</code></dd></div>' +
         '<div><dt>金蝶部门名称</dt><dd>' + escapeHtml(n.bmName || '（无）') + '</dd></div>' +
-        '<div><dt>节点编码</dt><dd><code>' + escapeHtml(n.code) + '</code></dd></div>' +
         '<div class="full"><dt>备注</dt><dd>' + escapeHtml(n.remark || '—') + '</dd></div>' +
       '</dl>' +
       '<div class="fee-dept-detail-actions">' +
@@ -552,12 +556,9 @@
     ensureModals();
     editingCode = code || null;
     var title = document.getElementById('feeDeptEditTitle');
-    var codeField = document.getElementById('feeDeptCodeField');
     var n = code ? getByCode(code) : null;
     if (n) {
       title.textContent = '修改部门节点';
-      codeField.hidden = false;
-      document.getElementById('feeDeptCodeDisplay').value = n.code;
       fillParentSelect(n.code, n.parentCode);
       document.getElementById('feeDeptName').value = n.name;
       document.getElementById('feeDeptSelectable').value = n.selectable ? '1' : '0';
@@ -567,7 +568,6 @@
       document.getElementById('feeDeptRemark').value = n.remark || '';
     } else {
       title.textContent = '新增部门节点';
-      codeField.hidden = true;
       var parent = opts.parentCode || selectedCode || '';
       var parentNode = parent ? getByCode(parent) : null;
       fillParentSelect(null, parent);
@@ -608,7 +608,6 @@
       orgName: orgNameByCode(orgCode),
       bmCode: bmCode,
       bmName: document.getElementById('feeDeptBmName').value.trim(),
-      attrType: existing ? existing.attrType : '—',
       channelPL: existing ? existing.channelPL : '—',
       selectable: document.getElementById('feeDeptSelectable').value === '1',
       sortOrder: existing ? existing.sortOrder : (Date.now() % 100000),
@@ -654,13 +653,14 @@
 
   function exportAll() {
     var rows = [
-      ['节点编码', '名称', '上级编码', '费用可选', '金蝶组织', '组织名称', '金蝶BM', '金蝶部门名称', '备注', '路径']
+      ['名称', '上级名称', '费用可选', '金蝶组织', '组织名称', '金蝶BM', '金蝶部门名称', '备注', '路径']
     ];
     function walk(list, path) {
       list.forEach(function (n) {
         var p = path.concat(n.name);
+        var parentName = n.parentCode ? (getByCode(n.parentCode) || {}).name || '' : '';
         rows.push([
-          n.code, n.name, n.parentCode || '', n.selectable ? '是' : '否',
+          n.name, parentName, n.selectable ? '是' : '否',
           n.orgCode, n.orgName, n.bmCode, n.bmName, n.remark, p.join(' / ')
         ]);
         if (n.children && n.children.length) walk(n.children, p);
@@ -716,7 +716,6 @@
           orgName: 'Govee',
           bmCode: 'BM102005',
           bmName: 'OC（全渠道）',
-          attrType: '渠道经营',
           channelPL: '是',
           selectable: true,
           sortOrder: n.sortOrder || 16,

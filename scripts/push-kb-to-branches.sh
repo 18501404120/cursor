@@ -37,10 +37,9 @@ trap cleanup EXIT
 
 echo "==> Push KB changes to system branches"
 
-# 检查 GitHub Token
+# GITHUB_TOKEN 可选：有有效 token 时自动建 PR；否则只推送并输出手动 PR 链接
 if [[ -z "${GITHUB_TOKEN:-}" ]]; then
-  echo "Missing GITHUB_TOKEN. Skip pushing to branches."
-  exit 0
+  echo "GITHUB_TOKEN empty: will push commits and print manual PR links."
 fi
 
 # 检查是否在 ERP_product 仓库
@@ -130,6 +129,42 @@ for mapping in "${SYSTEM_BRANCH_MAP[@]}"; do
     continue
   fi
 
+  # 推送前合并 main，提前解决 PR 冲突（不用管道判断退出码，避免误判）
+  set +e
+  git merge --no-edit origin/main >/tmp/erp-kb-merge-${target_branch}.log 2>&1
+  merge_rc=$?
+  set -e
+  if [[ ${merge_rc} -ne 0 ]]; then
+    echo "  Merge origin/main has conflicts, resolving..."
+    conflict_files="$(git diff --name-only --diff-filter=U 2>/dev/null || true)"
+    while IFS= read -r f; do
+      [[ -z "${f}" ]] && continue
+      case "${f}" in
+        "${system_dir}"/*)
+          # 系统目录冲突：稍后用同步备份覆盖，先占位
+          git checkout --ours -- "${f}" 2>/dev/null || true
+          git add -- "${f}" 2>/dev/null || true
+          ;;
+        *)
+          # 共享文件（README/CODEOWNERS 等）：取 main
+          git checkout --theirs -- "${f}" 2>/dev/null || true
+          git add -- "${f}" 2>/dev/null || true
+          ;;
+      esac
+    done <<< "${conflict_files}"
+
+    if git diff --name-only --diff-filter=U | grep -q .; then
+      echo "  Unresolved conflicts remain, abort merge and skip"
+      git diff --name-only --diff-filter=U || true
+      git merge --abort 2>/dev/null || true
+      continue
+    fi
+    git commit --no-edit -m "merge origin/main into ${target_branch}: resolve conflicts before KB push" >/dev/null
+    echo "  Merge conflicts resolved"
+  else
+    echo "  Merge origin/main: clean or already up to date"
+  fi
+
   # 删除目标分支上的该系统目录，用备份覆盖
   rm -rf "${ERP_PRODUCT_DIR}/${system_dir}"
   cp -r "${backup_path}" "${ERP_PRODUCT_DIR}/${system_dir}"
@@ -137,7 +172,14 @@ for mapping in "${SYSTEM_BRANCH_MAP[@]}"; do
   # 检查是否有实际变更
   changes="$(git status --short -- "${system_dir}/")"
   if [[ -z "${changes}" ]]; then
-    echo "  No actual diff after overlay, skip"
+    echo "  No actual system diff after overlay"
+    # 仍可能需要推送 merge commit
+    if git push origin "${target_branch}" 2>&1; then
+      echo "  Pushed ${target_branch} (merge-only or already up to date)"
+      echo "  >>> 手动创建 PR: https://github.com/${GITHUB_OWNER}/${GITHUB_REPO}/compare/main...${target_branch}"
+    else
+      echo "  Push failed for ${target_branch}"
+    fi
     continue
   fi
 

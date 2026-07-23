@@ -20,6 +20,7 @@ DEFAULT_PRODUCT_ROOT = ROOT.parent.parent.parent / "ERP_product"
 DEFAULT_DESIGN_FOLDER = ROOT.parent / "文件夹"
 SKIP_DIR_NAMES = {".git", ".github", "__pycache__", ".DS_Store", "node_modules"}
 SHAREABLE_EXTS = {".html", ".htm", ".md", ".png", ".jpg", ".jpeg", ".gif", ".svg", ".webp", ".pdf", ".js", ".css", ".json"}
+PROTOTYPE_EXTS = {".html", ".htm"}
 DEFAULT_MOUNT_ALIAS = "ERP_product"
 LOCAL_REPO_ROOT = ROOT.parent.parent
 DESIGN_PREFIX_IN_REPO = "方案设计/"
@@ -112,14 +113,35 @@ def default_mount() -> RootMount:
 def collect_htmls(dir_path: Path) -> list[Path]:
     named = sorted(dir_path.glob("原型*.html"))
     others = sorted(p for p in dir_path.glob("*.html") if not p.name.startswith("原型"))
+    htm = sorted(dir_path.glob("*.htm"))
     seen: set[str] = set()
     result: list[Path] = []
-    for p in named + others:
+    for p in named + others + htm:
         if p.name in seen:
             continue
         seen.add(p.name)
         result.append(p)
     return result
+
+
+def dir_has_prototype_recursive(dir_path: Path) -> bool:
+    if not dir_path.is_dir():
+        return False
+    if collect_htmls(dir_path):
+        return True
+    try:
+        for child in dir_path.iterdir():
+            if child.name in SKIP_DIR_NAMES or child.name.startswith("."):
+                continue
+            if child.is_dir() and dir_has_prototype_recursive(child):
+                return True
+    except OSError:
+        return False
+    return False
+
+
+def is_prototype_query(value: str) -> bool:
+    return (value or "").strip().lower() in {"1", "true", "yes", "on"}
 
 
 def list_entry(path: Path, mount: RootMount) -> dict:
@@ -444,13 +466,16 @@ class ProtoShareHandler(BaseHTTPRequestHandler):
         if path == "/api/browse":
             rel = (qs.get("path") or [""])[0]
             rel = (rel or "").strip().lstrip("/").replace("\\", "/")
+            prototype_only = is_prototype_query((qs.get("prototypeOnly") or [""])[0])
             if not rel:
                 children = []
                 for mount in ROOT_MOUNTS:
                     if not mount.path.is_dir():
                         continue
+                    if prototype_only and not dir_has_prototype_recursive(mount.path):
+                        continue
                     children.append(list_entry(mount.path, mount))
-                self._send_json({"path": "", "crumbs": [], "items": children})
+                self._send_json({"path": "", "crumbs": [], "items": children, "prototypeOnly": prototype_only})
                 return
 
             resolved = resolve_virtual_path(rel)
@@ -468,7 +493,16 @@ class ProtoShareHandler(BaseHTTPRequestHandler):
             for child in sorted(target.iterdir(), key=lambda p: (not p.is_dir(), p.name.lower())):
                 if child.name in SKIP_DIR_NAMES or child.name.startswith("."):
                     continue
-                if child.is_file() and child.suffix.lower() not in SHAREABLE_EXTS:
+                if child.is_file():
+                    if prototype_only:
+                        if child.suffix.lower() not in PROTOTYPE_EXTS:
+                            continue
+                    elif child.suffix.lower() not in SHAREABLE_EXTS:
+                        continue
+                elif child.is_dir():
+                    if prototype_only and not dir_has_prototype_recursive(child):
+                        continue
+                else:
                     continue
                 children.append(list_entry(child, mount))
             parts = [p for p in rel.split("/") if p]
@@ -482,11 +516,13 @@ class ProtoShareHandler(BaseHTTPRequestHandler):
                     "path": rel,
                     "crumbs": crumbs,
                     "items": children,
+                    "prototypeOnly": prototype_only,
                 }
             )
             return
         if path == "/api/folder":
             rel = (qs.get("path") or [""])[0]
+            prototype_only = is_prototype_query((qs.get("prototypeOnly") or [""])[0])
             resolved = resolve_virtual_path(rel or "")
             if resolved is None:
                 self._send_json({"error": "目录不存在"}, 404)
@@ -499,7 +535,10 @@ class ProtoShareHandler(BaseHTTPRequestHandler):
             for child in sorted(target.iterdir(), key=lambda p: p.name.lower()):
                 if not child.is_file():
                     continue
-                if child.suffix.lower() not in SHAREABLE_EXTS:
+                if prototype_only:
+                    if child.suffix.lower() not in PROTOTYPE_EXTS:
+                        continue
+                elif child.suffix.lower() not in SHAREABLE_EXTS:
                     continue
                 files.append(list_entry(child, mount))
             htmls = collect_htmls(target)

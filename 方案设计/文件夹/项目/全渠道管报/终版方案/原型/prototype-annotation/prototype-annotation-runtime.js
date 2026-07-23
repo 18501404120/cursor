@@ -6,23 +6,44 @@
   const OBSERVER_STORE_KEY = "__prototypeAnnotationObserver";
   const RENDER_TIMER_KEY = "__prototypeAnnotationRenderTimer";
   const PORTAL_REPOSITION_KEY = "__prototypeAnnotationPortalReposition";
+  const SCROLL_PARENT_BOUND_KEY = "__prototypeAnnotationScrollParents";
+  const RESIZE_OBSERVER_KEY = "__prototypeAnnotationResizeObserver";
   const PORTAL_ENTRIES = [];
-  /** 对外 Pages 只读；作者 IP / 网段 / 本机浏览器信任 / 本地可编；见 Skill §Git Pages 编辑权限 */
+  const boundScrollParents = new WeakSet();
+  const boundResizeTargets = new WeakSet();
+  let activeMount = null;
+  /**
+   * 协作约定：本地（8787/localhost）可新增/编辑并「发布到预览」推 Git；
+   * GitHub Pages 预览页强制只读，只展示标注与「查看页面说明」。
+   */
   const PA_POLICY_DEFAULT = {
     viewOnlyHostnames: ["18501404120.github.io"],
-    allowIps: ["113.110.230.127", "113.110.229.118", "220.232.134.241", "113.110.228.174", "113.87.83.49", "113.110.230.92"],
-    allowIpPrefixes: ["113.110.230.", "113.110.228.", "113.110.229.", "113.87.83."],
-    allowTrustedBrowser: true,
+    allowIps: [],
+    allowIpPrefixes: [],
+    allowTrustedBrowser: false,
     editToken: "",
     allowLocalhost: true,
-    allowOtherHosts: true
+    allowOtherHosts: true,
+    /** Pages / viewOnlyHostnames 一律只读，忽略 IP、信任浏览器、paEdit */
+    pagesForceReadonly: true,
+    /** 默认不自动推送；本地点「发布到预览」再推 Git */
+    autoPublishOnSave: false
   };
   const TRUSTED_BROWSER_KEY = "prototypeAnnotation:trustedAuthorBrowser";
   let outsideCloseBound = false;
+  let suppressOutsideCloseUntil = 0;
   let pickModeActive = false;
   let pickHighlightEl = null;
+  let pickOverlayEl = null;
   let pickHandlers = null;
+  let pickDelegatedIframe = null;
+  let pickDelegatedFromParent = false;
+  let pickHintEl = null;
+  let pickCommitLock = false;
   let paCanEdit = true;
+  let autoPublishTimer = null;
+  let autoPublishInFlight = false;
+  let autoPublishQueued = null;
 
   function mergeEditPolicy(config) {
     const fromConfig = (config && config.editPolicy) || {};
@@ -44,8 +65,44 @@
       allowLocalhost:
         fromConfig.allowLocalhost != null ? fromConfig.allowLocalhost : PA_POLICY_DEFAULT.allowLocalhost,
       allowOtherHosts:
-        fromConfig.allowOtherHosts != null ? fromConfig.allowOtherHosts : PA_POLICY_DEFAULT.allowOtherHosts
+        fromConfig.allowOtherHosts != null ? fromConfig.allowOtherHosts : PA_POLICY_DEFAULT.allowOtherHosts,
+      publishBridgeUrl:
+        fromConfig.publishBridgeUrl != null
+          ? fromConfig.publishBridgeUrl
+          : "http://127.0.0.1:8787/static/publish-bridge.html",
+      pagesForceReadonly:
+        fromConfig.pagesForceReadonly != null
+          ? !!fromConfig.pagesForceReadonly
+          : PA_POLICY_DEFAULT.pagesForceReadonly !== false,
+      autoPublishOnSave:
+        fromConfig.autoPublishOnSave != null
+          ? !!fromConfig.autoPublishOnSave
+          : !!PA_POLICY_DEFAULT.autoPublishOnSave,
+      githubPublish:
+        fromConfig.githubPublish != null
+          ? fromConfig.githubPublish
+          : fromConfig.publishEndpoint
+            ? { endpoint: fromConfig.publishEndpoint, token: fromConfig.publishToken || "" }
+            : null
     };
+  }
+
+  function isPagesPreviewHost() {
+    const host = location.hostname || "";
+    return host === "18501404120.github.io" || /\.github\.io$/i.test(host);
+  }
+
+  function isShareServerHost() {
+    return (
+      (location.hostname === "127.0.0.1" || location.hostname === "localhost") &&
+      String(location.port || "") === "8787"
+    );
+  }
+
+  function getPublishEndpoint(config) {
+    const policy = mergeEditPolicy(config);
+    const githubPublish = policy.githubPublish || {};
+    return String(githubPublish.endpoint || "").replace(/\/$/, "");
   }
 
   function editTokenFromUrl() {
@@ -117,42 +174,44 @@
     }
   }
 
+  function isConfiguredViewOnlyHost(policy) {
+    const host = location.hostname || "";
+    if (isPagesPreviewHost()) return true;
+    return (policy.viewOnlyHostnames || []).some(
+      (name) => name && (host === name || host.endsWith("." + name))
+    );
+  }
+
   async function resolveCanEdit(config) {
     const policy = mergeEditPolicy(config);
     const host = location.hostname || "";
-    const trustBrowser = policy.allowTrustedBrowser !== false;
+
+    // Pages 预览：强制只读（不显示「新增标注 / 发布到预览」，弹层无编辑删除）
+    if (policy.pagesForceReadonly !== false && isConfiguredViewOnlyHost(policy)) {
+      return false;
+    }
 
     if (policy.allowLocalhost && (host === "localhost" || host === "127.0.0.1")) {
-      if (trustBrowser) markTrustedBrowser();
       return true;
     }
     if (policy.editToken && editTokenFromUrl() === policy.editToken) {
       return true;
     }
-    const isViewOnlyHost = (policy.viewOnlyHostnames || []).some(
-      (name) => name && (host === name || host.endsWith("." + name))
-    );
-    if (!isViewOnlyHost) {
+    if (!isConfiguredViewOnlyHost(policy)) {
       return policy.allowOtherHosts !== false;
     }
-    if (trustBrowser && isTrustedBrowser()) {
-      return true;
-    }
+    // 未强制只读时的兼容路径（一般不再使用）
+    const trustBrowser = policy.allowTrustedBrowser === true;
+    if (trustBrowser && isTrustedBrowser()) return true;
     const hasIpRule =
       (policy.allowIps && policy.allowIps.length) ||
       (policy.allowIpPrefixes && policy.allowIpPrefixes.length);
-    if (!hasIpRule && !policy.editToken) {
-      return false;
-    }
+    if (!hasIpRule) return false;
     try {
       const ip = await fetchPublicIp();
-      if (ipMatchesPolicy(ip, policy)) {
-        if (trustBrowser) markTrustedBrowser();
-        return true;
-      }
-      return false;
+      return ipMatchesPolicy(ip, policy);
     } catch (_error) {
-      return trustBrowser && isTrustedBrowser();
+      return false;
     }
   }
 
@@ -233,22 +292,58 @@
     }
   }
 
+  function collectVersionedStates(config) {
+    const pageId = config.pageId || "page";
+    const prefix = `${STORAGE_PREFIX}${pageId}:`;
+    const mainKey = storageKey(config);
+    const states = [];
+    try {
+      for (let i = 0; i < localStorage.length; i += 1) {
+        const key = localStorage.key(i);
+        if (!key || key === mainKey || !key.startsWith(prefix)) continue;
+        const raw = localStorage.getItem(key);
+        if (!raw) continue;
+        states.push(JSON.parse(raw));
+      }
+    } catch (_error) {
+      /* ignore */
+    }
+    return states;
+  }
+
   function loadState(config) {
     try {
-      const key = storageKey(config);
-      let raw = localStorage.getItem(key);
-      if (!raw) {
-        raw = localStorage.getItem(legacyStorageKey(config));
-      }
-      return raw ? JSON.parse(raw) : {};
+      let merged = {};
+      const mainRaw = localStorage.getItem(storageKey(config));
+      if (mainRaw) merged = mergeStateLayers(merged, JSON.parse(mainRaw));
+      const currentLegacyRaw = localStorage.getItem(legacyStorageKey(config));
+      if (currentLegacyRaw) merged = mergeStateLayers(merged, JSON.parse(currentLegacyRaw));
+      collectVersionedStates(config).forEach((layer) => {
+        merged = mergeStateLayers(merged, layer);
+      });
+      return merged;
     } catch (_error) {
       return {};
     }
   }
 
-  function saveState(config, state) {
+  function saveState(config, state, options) {
     localStorage.setItem(storageKey(config), JSON.stringify(state));
     syncPersistedStateToConfig(config, state);
+    if (!(options && options.notify)) return;
+    // Pages 只读；本地默认点「发布到预览」再推送（autoPublishOnSave 默认 false）
+    if (!paCanEdit || isPagesPreviewHost()) return;
+    const policy = mergeEditPolicy(config);
+    if (!policy.autoPublishOnSave) {
+      showPaSyncToast();
+      return;
+    }
+    if (isShareServerHost() || getPublishEndpoint(config)) {
+      showPaPublishToast("已保存，正在同步给他人…", false);
+      scheduleAutoPublish(config, state);
+      return;
+    }
+    showPaSyncToast();
   }
 
   function hydrateState(config) {
@@ -263,6 +358,263 @@
 
   function text(value) {
     return value == null ? "" : String(value);
+  }
+
+  function showPaSyncToast() {
+    let toast = document.getElementById("pa-sync-toast");
+    if (!toast) {
+      toast = document.createElement("div");
+      toast.id = "pa-sync-toast";
+      toast.className = "pa-sync-toast";
+      document.body.appendChild(toast);
+    }
+    toast.classList.remove("is-error");
+    toast.textContent = "已保存到本机。点「发布到预览」后同事才能在 Pages 看到。";
+    toast.classList.add("is-visible");
+    if (toast._hideTimer) clearTimeout(toast._hideTimer);
+    toast._hideTimer = setTimeout(() => toast.classList.remove("is-visible"), 5000);
+  }
+
+  async function fetchLivePersistedState(config) {
+    const endpoint = getPublishEndpoint(config);
+    if (!endpoint) return null;
+    const repoPath = inferRepoPathFromLocation();
+    const url = `${endpoint}?path=${encodeURIComponent(repoPath)}`;
+    const res = await fetch(url, {
+      method: "GET",
+      headers: { Accept: "application/json" },
+      cache: "no-store"
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || !data.ok) {
+      throw new Error((data && data.error) || "读取在线标注失败");
+    }
+    return normalizePersistedState(data.persistedState);
+  }
+
+  async function hydrateStateWithLive(config) {
+    let basePersisted = normalizePersistedState(config.persistedState);
+    let liveOk = false;
+    try {
+      const live = await fetchLivePersistedState(config);
+      if (live) {
+        basePersisted = mergeStateLayers(basePersisted, live);
+        liveOk = true;
+        config.persistedState = stateToPersisted(basePersisted);
+        syncPersistedStateToConfig(config, basePersisted);
+      }
+    } catch (error) {
+      console.warn("[prototype-annotation] live annotation fetch skipped:", error);
+    }
+    const local = loadState(config);
+    // Pages + 线上已读到：只读者完全以 Git 为准；作者保留本机未同步草稿
+    let merged;
+    if (liveOk && isPagesPreviewHost() && !paCanEdit) {
+      merged = basePersisted;
+    } else {
+      merged = mergeStateLayers(basePersisted, local);
+    }
+    if (!merged.userAdded) merged.userAdded = emptyUserAdded();
+    if (!merged.assets) merged.assets = {};
+    saveState(config, merged);
+    return merged;
+  }
+
+  function exportConfigForSync(config, state) {
+    const out = clone(config);
+    out.persistedState = stateToPersisted(state);
+    return JSON.stringify(out, null, 2);
+  }
+
+  function inferRepoPathFromLocation() {
+    let p = decodeURIComponent(location.pathname || "");
+    if (p.startsWith("/files/")) p = p.slice("/files/".length);
+    if (p.startsWith("/cursor/")) p = p.slice("/cursor/".length);
+    p = p.replace(/^\//, "");
+    if (p.startsWith("方案设计/")) return p;
+    if (p.startsWith("文件夹/")) return "方案设计/" + p;
+    return "方案设计/" + p;
+  }
+
+  function buildPublishPayload(config, state) {
+    const out = clone(config);
+    out.persistedState = stateToPersisted(state);
+    return {
+      repoPath: inferRepoPathFromLocation(),
+      config: out
+    };
+  }
+
+  function showPaPublishToast(message, isError) {
+    let toast = document.getElementById("pa-sync-toast");
+    if (!toast) {
+      toast = document.createElement("div");
+      toast.id = "pa-sync-toast";
+      toast.className = "pa-sync-toast";
+      document.body.appendChild(toast);
+    }
+    toast.textContent = message;
+    toast.classList.toggle("is-error", !!isError);
+    toast.classList.add("is-visible");
+    if (toast._hideTimer) clearTimeout(toast._hideTimer);
+    toast._hideTimer = setTimeout(() => toast.classList.remove("is-visible"), 8000);
+  }
+
+  function scheduleAutoPublish(config, state) {
+    autoPublishQueued = { config, state: clone(state) };
+    if (autoPublishTimer) clearTimeout(autoPublishTimer);
+    autoPublishTimer = setTimeout(() => {
+      autoPublishTimer = null;
+      flushAutoPublish();
+    }, 600);
+  }
+
+  async function flushAutoPublish() {
+    if (autoPublishInFlight) return;
+    const queued = autoPublishQueued;
+    if (!queued) return;
+    autoPublishQueued = null;
+    autoPublishInFlight = true;
+    try {
+      await publishToPreview(queued.config, queued.state, null, { silentSuccess: false, fromAuto: true });
+    } catch (_error) {
+      /* toast 已提示 */
+    } finally {
+      autoPublishInFlight = false;
+      if (autoPublishQueued) flushAutoPublish();
+    }
+  }
+
+  function publishViaLocalBridge(config, state, policy) {
+    return new Promise((resolve, reject) => {
+      const bridgeUrl =
+        (policy && policy.publishBridgeUrl) || "http://127.0.0.1:8787/static/publish-bridge.html";
+      const payload = buildPublishPayload(config, state);
+      // 必须在用户手势同步调用栈内打开，否则会被浏览器拦截
+      const popup = window.open(bridgeUrl, "pa-publish-bridge", "width=560,height=400");
+      if (!popup) {
+        reject(
+          new Error(
+            "浏览器拦截了弹窗。请允许本站弹窗后重试；并确认已启动「原型分享服务」（8787）。"
+          )
+        );
+        return;
+      }
+
+      let settled = false;
+      const timer = setTimeout(() => {
+        finish(() =>
+          reject(
+            new Error(
+              "发布超时。请双击启动「原型分享服务」，保持 8787 运行后再保存/发布。"
+            )
+          )
+        );
+      }, 90000);
+
+      function finish(fn) {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        window.removeEventListener("message", onMessage);
+        try {
+          fn();
+        } catch (_error) {
+          /* ignore */
+        }
+      }
+
+      function onMessage(event) {
+        const data = event && event.data;
+        if (!data || typeof data !== "object") return;
+        if (data.type === "pa-publish-ready") {
+          try {
+            popup.postMessage({ type: "pa-publish", payload: payload }, event.origin || "*");
+          } catch (error) {
+            finish(() => reject(error));
+          }
+          return;
+        }
+        if (data.type === "pa-publish-done") {
+          if (data.ok) finish(() => resolve(data.data || { ok: true }));
+          else finish(() => reject(new Error(data.error || "发布失败")));
+        }
+      }
+
+      window.addEventListener("message", onMessage);
+    });
+  }
+
+  async function publishToPreview(config, state, button, options) {
+    const opts = options || {};
+    if (!paCanEdit || isPagesPreviewHost()) {
+      showPaPublishToast("预览页为只读。请在本地 8787 打开原型，点「发布到预览」。", true);
+      return null;
+    }
+
+    const policy = mergeEditPolicy(config);
+    const githubPublish = policy.githubPublish || {};
+    const endpoint = String(githubPublish.endpoint || "").replace(/\/$/, "");
+    const publishToken = githubPublish.token || "";
+
+    if (button) {
+      button.disabled = true;
+      button.textContent = "发布中…";
+    }
+
+    try {
+      let data = null;
+      const payload = buildPublishPayload(config, state);
+
+      if (isShareServerHost()) {
+        const res = await fetch("/api/pa-publish", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+        data = await res.json().catch(() => ({}));
+        if (!res.ok || !data.ok) throw new Error(data.error || "发布失败");
+      } else if (endpoint) {
+        const res = await fetch(endpoint, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-Pa-Publish-Token": publishToken
+          },
+          body: JSON.stringify(payload)
+        });
+        data = await res.json().catch(() => ({}));
+        if (!res.ok || !data.ok) throw new Error(data.error || "发布失败");
+      } else {
+        data = await publishViaLocalBridge(config, state, policy);
+      }
+
+      if (!opts.silentSuccess) {
+        showPaPublishToast(
+          "发布成功，已推送到 Git。他人约 1～2 分钟后刷新 Pages 即可看到。",
+          false
+        );
+      }
+      return data;
+    } catch (error) {
+      showPaPublishToast(error && error.message ? error.message : String(error), true);
+      throw error;
+    } finally {
+      if (button) {
+        button.disabled = false;
+        button.textContent = "发布到预览";
+      }
+    }
+  }
+
+  async function copyConfigForSync(config, state) {
+    const payload = exportConfigForSync(config, state);
+    try {
+      await navigator.clipboard.writeText(payload);
+      showPaPublishToast("标注配置已复制。可发给 Cursor：「同步落盘并推送」。", false);
+    } catch (_error) {
+      window.prompt("复制以下 JSON 发给 Cursor：", payload);
+    }
   }
 
   function removeOld() {
@@ -287,15 +639,79 @@
     }
   }
 
+  /**
+   * 将标注弹层固定在视口内：按实际宽高钳制，避免贴右边/底边时被裁切。
+   * 带配图时宽度可达 420px，不可再用固定 340 估算。
+   */
   function placePopover(popover, anchor) {
+    if (!popover || !anchor) return;
+    const margin = 14;
+    const gap = 8;
+    const vw = window.innerWidth || document.documentElement.clientWidth || 0;
+    const vh = window.innerHeight || document.documentElement.clientHeight || 0;
+    if (!vw || !vh) return;
+
+    const maxW = Math.max(160, vw - margin * 2);
+    const maxH = Math.max(120, vh - margin * 2);
+    popover.style.maxWidth = maxW + "px";
+    popover.style.maxHeight = maxH + "px";
+    popover.style.boxSizing = "border-box";
+    popover.style.overflowY = "auto";
+
     const rect = anchor.getBoundingClientRect();
-    const width = Math.min(340, window.innerWidth - 28);
+    const hasImages = popover.classList.contains("has-images");
+    let width = popover.offsetWidth;
+    if (!width || width < 40) {
+      width = Math.min(hasImages ? 420 : 340, maxW);
+    }
+    width = Math.min(width, maxW);
+
+    let height = popover.offsetHeight;
+    if (!height || height < 40) height = Math.min(240, maxH);
+    height = Math.min(height, maxH);
+
+    // 水平：优先与锚点左对齐；右侧空间不足则右对齐锚点或贴视口右边
     let left = rect.left;
-    let top = rect.bottom + 8;
-    if (left + width > window.innerWidth - 14) left = window.innerWidth - width - 14;
-    if (top + 180 > window.innerHeight) top = Math.max(14, rect.top - 190);
-    popover.style.left = `${Math.max(14, left)}px`;
-    popover.style.top = `${Math.max(14, top)}px`;
+    if (rect.left > vw * 0.55) {
+      left = rect.right - width;
+    }
+    if (left + width > vw - margin) left = vw - margin - width;
+    if (left < margin) left = margin;
+
+    // 垂直：优先在锚点下方；下方不够则翻到上方；仍不够则钳在视口内滚动
+    let top = rect.bottom + gap;
+    if (top + height > vh - margin) {
+      const above = rect.top - gap - height;
+      if (above >= margin) top = above;
+      else top = Math.max(margin, vh - margin - height);
+    }
+    if (top < margin) top = margin;
+
+    popover.style.left = left + "px";
+    popover.style.top = top + "px";
+
+    // 内容渲染后再量一次，修正 has-images / 长文案导致的偏差
+    const pr = popover.getBoundingClientRect();
+    if (pr.width > 0) {
+      let l = pr.left;
+      let t = pr.top;
+      if (pr.right > vw - margin) l = Math.max(margin, vw - margin - pr.width);
+      if (pr.bottom > vh - margin) t = Math.max(margin, vh - margin - pr.height);
+      if (l < margin) l = margin;
+      if (t < margin) t = margin;
+      popover.style.left = l + "px";
+      popover.style.top = t + "px";
+    }
+  }
+
+  function schedulePlacePopover(popover, anchor) {
+    placePopover(popover, anchor);
+    requestAnimationFrame(function () {
+      placePopover(popover, anchor);
+      requestAnimationFrame(function () {
+        placePopover(popover, anchor);
+      });
+    });
   }
 
   function closePopovers() {
@@ -307,9 +723,12 @@
     outsideCloseBound = true;
     document.addEventListener("click", (event) => {
       if (pickModeActive) return;
+      // 拾取完成后同一手势的 click 会落到原控件上，短暂抑制以免弹窗刚打开就被关掉
+      if (Date.now() < suppressOutsideCloseUntil) return;
       if (event.target.closest(".pa-popover")) return;
       if (event.target.closest(".pa-dot")) return;
       if (event.target.closest(".pa-tip-icon")) return;
+      if (event.target.closest(".pa-toolbar")) return;
       closePopovers();
     });
   }
@@ -343,20 +762,85 @@
     const label = el.closest("label");
     if (label && !isPaInternal(label)) return label;
 
+    // 含顶栏 nav 链接（如「预算」tab）：须落到具体 <a>，不能升到整段 #topModuleNav
     const interactive = el.closest(
-      "button, select, textarea, input, a.btn, .btn, .sc-cat-trigger, .mrp-trigger, .ctl-host, [role='button']"
+      "button, select, textarea, input, a, .btn, [role='button'], .sc-cat-trigger, .mrp-trigger, .drp-trigger, .fee-tree-select-trigger, .msf-trigger, .ctl-host"
     );
-    if (interactive && !interactive.closest(".pa-toolbar")) return interactive;
+    if (interactive && !interactive.closest(".pa-toolbar") && !isPaInternal(interactive)) {
+      return interactive;
+    }
 
     const filterItem = el.closest(".f, .f-item, .filter-field");
     if (filterItem) {
       const withId = filterItem.querySelector("[id]");
       if (withId && withId.id) return withId;
-      const ctl = filterItem.querySelector("select, .sc-cat-wrap, .sku-group, button");
+      const ctl = filterItem.querySelector("select, .sc-cat-wrap, .sku-group, button, a");
       if (ctl) return ctl;
     }
 
+    // 过宽容器不可作为标注锚点（红点会跑到容器右上角）
+    if (isOverbroadPickContainer(el)) return null;
+
     return el;
+  }
+
+  function isCompactPickTarget(el) {
+    if (!el || el.nodeType !== 1) return false;
+    const tag = (el.tagName || "").toUpperCase();
+    if (["A", "BUTTON", "SELECT", "INPUT", "TEXTAREA", "LABEL", "TH", "TD"].indexOf(tag) >= 0) return true;
+    try {
+      return el.matches(".btn, [role='button'], .msf-trigger, .fee-tree-select-trigger, .drp-trigger, .sc-cat-trigger");
+    } catch (_e) {
+      return false;
+    }
+  }
+
+  /** 整段导航/页头等过宽节点：不可单独作为 selector，否则红点落在右上角 */
+  function isOverbroadPickContainer(el) {
+    if (!el || el.nodeType !== 1) return true;
+    const tag = (el.tagName || "").toUpperCase();
+    if (["NAV", "HEADER", "MAIN", "FOOTER", "BODY", "HTML", "FORM", "TABLE", "THEAD", "TBODY"].indexOf(tag) >= 0) {
+      return true;
+    }
+    if (el.id === "topModuleNav" || el.id === "sectionBudget") return true;
+    if (el.classList) {
+      if (
+        el.classList.contains("pmp-top-nav") ||
+        el.classList.contains("pmp-top") ||
+        el.classList.contains("app-main") ||
+        el.classList.contains("page-wrap") ||
+        el.classList.contains("app-layout") ||
+        el.classList.contains("budget-table-wrap") ||
+        el.classList.contains("table-toolbar")
+      ) {
+        return true;
+      }
+    }
+    const rect = el.getBoundingClientRect();
+    if (rect.width > Math.min((window.innerWidth || 1200) * 0.45, 520)) return true;
+    return false;
+  }
+
+  function scopedChildSelector(el) {
+    const parent = el && el.parentElement;
+    if (!parent) return null;
+    const tag = (el.tagName || "").toLowerCase();
+    if (!tag) return null;
+    const sameTag = Array.prototype.filter.call(parent.children, function (c) {
+      return c.tagName === el.tagName;
+    });
+    const idx = sameTag.indexOf(el) + 1;
+    if (idx <= 0) return null;
+    if (parent.id && !/^\d/.test(parent.id)) {
+      try {
+        return `#${CSS.escape(parent.id)} > ${tag}:nth-of-type(${idx})`;
+      } catch (_e) {
+        return `#${parent.id} > ${tag}:nth-of-type(${idx})`;
+      }
+    }
+    const pkey = parent.getAttribute("data-pa-key");
+    if (pkey) return `[data-pa-key="${escapeAttr(pkey)}"] > ${tag}:nth-of-type(${idx})`;
+    return null;
   }
 
   function generateSelector(el) {
@@ -364,7 +848,7 @@
     el = normalizePickTarget(el);
     if (!el) return null;
 
-    if (el.id && !/^\d/.test(el.id)) {
+    if (el.id && !/^\d/.test(el.id) && !isOverbroadPickContainer(el)) {
       try {
         return `#${CSS.escape(el.id)}`;
       } catch (_e) {
@@ -391,30 +875,18 @@
       }
     }
 
-    let node = el.parentElement;
-    for (let depth = 0; depth < 6 && node; depth += 1) {
-      const nt = (node.tagName || "").toUpperCase();
-      if (nt === "TABLE" || nt === "THEAD" || nt === "TBODY" || nt === "TR") {
-        node = node.parentElement;
-        continue;
-      }
-      if (node.id && !/^\d/.test(node.id)) {
-        try {
-          return `#${CSS.escape(node.id)}`;
-        } catch (_e) {
-          return `#${node.id}`;
-        }
-      }
-      const key = node.getAttribute("data-pa-key");
-      if (key) return `[data-pa-key="${escapeAttr(key)}"]`;
-      node = node.parentElement;
+    // 紧凑控件：用「父级 id > 子:nth-of-type」保留具体节点（如 #topModuleNav > a:nth-of-type(13)）
+    // 禁止只返回父级 #topModuleNav，否则红点会跑到导航栏右上角
+    if (isCompactPickTarget(el)) {
+      const scoped = scopedChildSelector(el);
+      if (scoped) return scoped;
     }
 
     let autoKey = "pa-pick-" + Date.now().toString(36);
-    if (tag === "TH" || tag === "TD") {
+    if (tag === "TH" || tag === "TD" || tag === "A" || tag === "BUTTON") {
       const label = el.textContent.trim().replace(/\s+/g, " ").slice(0, 24);
       if (label) {
-        autoKey = "pa-col-" + label.replace(/[^\u4e00-\u9fa5a-zA-Z0-9_-]/g, "");
+        autoKey = "pa-" + (tag === "A" ? "nav-" : tag === "BUTTON" ? "btn-" : "col-") + label.replace(/[^\u4e00-\u9fa5a-zA-Z0-9_-]/g, "");
       }
     }
     el.setAttribute("data-pa-key", autoKey);
@@ -429,12 +901,72 @@
     if (target.classList && target.classList.contains("th-inner")) {
       return target.closest("th") || target;
     }
+    // 若历史错误 selector 指向过宽容器，尝试落到 active / 首个可点子节点
+    if (isOverbroadPickContainer(target)) {
+      const active = target.querySelector("a.active, .active, [aria-current='page']");
+      if (active) return active;
+      return null;
+    }
     return target;
   }
 
+  function isIgnorablePickLayer(el) {
+    if (!el || el.nodeType !== 1) return true;
+    if (el.classList) {
+      if (
+        el.classList.contains("modal-mask") ||
+        el.classList.contains("drawer-mask") ||
+        el.classList.contains("pa-pick-rect") ||
+        el.classList.contains("pa-pick-hint")
+      ) {
+        return true;
+      }
+      if (
+        el.classList.contains("pa-dot") ||
+        el.classList.contains("pa-tip-icon") ||
+        el.classList.contains("pa-icon-portal") ||
+        el.classList.contains("pa-tip-icon-portal")
+      ) {
+        return true;
+      }
+    }
+    try {
+      if (window.getComputedStyle(el).pointerEvents === "none" && el.classList && el.classList.contains("modal-mask")) {
+        return true;
+      }
+    } catch (_e) {
+      /* ignore */
+    }
+    return false;
+  }
+
   function pickTargetFromEvent(event) {
-    const raw = document.elementFromPoint(event.clientX, event.clientY);
-    return normalizePickTarget(raw);
+    const x = event.clientX;
+    const y = event.clientY;
+    const stack =
+      typeof document.elementsFromPoint === "function"
+        ? document.elementsFromPoint(x, y)
+        : [document.elementFromPoint(x, y)];
+    let fallback = null;
+    for (let i = 0; i < stack.length; i++) {
+      const raw = stack[i];
+      if (!raw || raw.nodeType !== 1) continue;
+      if (isPaInternal(raw)) continue;
+      if (isIgnorablePickLayer(raw)) continue;
+      const normalized = normalizePickTarget(raw);
+      if (normalized) return normalized;
+      if (!fallback && !isOverbroadPickContainer(raw)) fallback = raw;
+    }
+    return fallback;
+  }
+
+  function ensurePickOverlay() {
+    if (pickOverlayEl && pickOverlayEl.parentNode) return pickOverlayEl;
+    pickOverlayEl = document.createElement("div");
+    pickOverlayEl.className = "pa-root pa-pick-rect";
+    pickOverlayEl.setAttribute(ROOT_ATTR, "pick-rect");
+    document.body.appendChild(pickOverlayEl);
+    return pickOverlayEl;
   }
 
   function highlightPickTarget(el) {
@@ -442,6 +974,13 @@
     if (!el) return;
     pickHighlightEl = el;
     el.classList.add("pa-pick-highlight");
+    const overlay = ensurePickOverlay();
+    const rect = el.getBoundingClientRect();
+    overlay.style.display = "block";
+    overlay.style.left = Math.round(rect.left - 2) + "px";
+    overlay.style.top = Math.round(rect.top - 2) + "px";
+    overlay.style.width = Math.round(Math.max(rect.width, 4) + 4) + "px";
+    overlay.style.height = Math.round(Math.max(rect.height, 4) + 4) + "px";
   }
 
   function clearPickHighlight() {
@@ -449,31 +988,199 @@
       pickHighlightEl.classList.remove("pa-pick-highlight");
       pickHighlightEl = null;
     }
+    if (pickOverlayEl) {
+      pickOverlayEl.style.display = "none";
+    }
   }
 
-  function exitPickMode() {
+  function syncAddButtons(active) {
+    document.querySelectorAll(".pa-add-button").forEach((btn) => {
+      if (active) {
+        btn.classList.add("is-active");
+        btn.textContent = "取消新增";
+      } else {
+        btn.classList.remove("is-active");
+        btn.textContent = "新增标注";
+      }
+    });
+  }
+
+  function notifyParentPickExit() {
+    if (!pickDelegatedFromParent || window.parent === window) return;
+    try {
+      if (window.parent.PrototypeAnnotation && window.parent.PrototypeAnnotation._onChildPickExit) {
+        window.parent.PrototypeAnnotation._onChildPickExit();
+      }
+    } catch (_error) {
+      /* cross-origin parent */
+    }
+  }
+
+  function showPickHint(message) {
+    hidePickHint();
+    pickHintEl = document.createElement("div");
+    pickHintEl.className = "pa-root pa-pick-hint";
+    pickHintEl.setAttribute(ROOT_ATTR, "pick-hint");
+    pickHintEl.textContent = message || "请在页面内点击要标注的元素（Esc 取消）";
+    document.body.appendChild(pickHintEl);
+  }
+
+  function hidePickHint() {
+    if (pickHintEl && pickHintEl.parentNode) pickHintEl.parentNode.removeChild(pickHintEl);
+    pickHintEl = null;
+  }
+
+  function findAnnotationIframe() {
+    const iframes = Array.from(document.querySelectorAll("iframe"));
+    for (let i = 0; i < iframes.length; i++) {
+      const iframe = iframes[i];
+      try {
+        const doc = iframe.contentDocument;
+        if (doc && doc.getElementById("prototype-annotation-config")) return iframe;
+      } catch (_error) {
+        /* cross-origin iframe */
+      }
+    }
+    return null;
+  }
+
+  function tryStartDelegatedPick() {
+    const iframe = findDelegatableIframe();
+    if (!iframe) return false;
+    pickDelegatedIframe = iframe;
+    iframe.contentWindow.PrototypeAnnotation.enterPickMode(null, null, { skipDelegate: true, fromParent: true });
+    return true;
+  }
+
+  function findDelegatableIframe() {
+    const iframes = Array.from(document.querySelectorAll("iframe"));
+    for (let i = 0; i < iframes.length; i++) {
+      const iframe = iframes[i];
+      try {
+        const win = iframe.contentWindow;
+        const doc = iframe.contentDocument;
+        if (!win || !doc || !doc.getElementById("prototype-annotation-config")) continue;
+        if (!win.PrototypeAnnotation || typeof win.PrototypeAnnotation.enterPickMode !== "function") continue;
+        return iframe;
+      } catch (_error) {
+        /* cross-origin iframe */
+      }
+    }
+    return null;
+  }
+
+  function exitPickMode(skipParentNotify) {
+    const wasDelegatedFromParent = pickDelegatedFromParent;
+    hidePickHint();
+    if (pickDelegatedIframe) {
+      try {
+        const win = pickDelegatedIframe.contentWindow;
+        if (win && win.PrototypeAnnotation && win.PrototypeAnnotation.exitPickMode) {
+          win.PrototypeAnnotation.exitPickMode(true);
+        }
+      } catch (_error) {
+        /* ignore */
+      }
+      pickDelegatedIframe = null;
+    }
     pickModeActive = false;
+    pickDelegatedFromParent = false;
     document.body.classList.remove("pa-pick-mode");
     clearPickHighlight();
+    pickCommitLock = false;
     if (pickHandlers) {
       document.removeEventListener("mousemove", pickHandlers.move, true);
-      document.removeEventListener("click", pickHandlers.click, true);
+      document.removeEventListener("pointerdown", pickHandlers.down, true);
+      document.removeEventListener("mousedown", pickHandlers.down, true);
+      document.removeEventListener("click", pickHandlers.click || pickHandlers.down, true);
       document.removeEventListener("keydown", pickHandlers.key, true);
       pickHandlers = null;
     }
-    document.querySelectorAll(".pa-add-button").forEach((btn) => {
-      btn.classList.remove("is-active");
-      btn.textContent = "新增标注";
-    });
+    if (pickOverlayEl && pickOverlayEl.parentNode) {
+      pickOverlayEl.parentNode.removeChild(pickOverlayEl);
+    }
+    pickOverlayEl = null;
+    syncAddButtons(false);
+    if (!skipParentNotify && wasDelegatedFromParent) notifyParentPickExit();
+  }
+
+  function beginLocalPickMode(mountConfig, mountState, options) {
+    pickModeActive = true;
+    pickCommitLock = false;
+    document.body.classList.add("pa-pick-mode");
+    syncAddButtons(true);
+    showPickHint();
+    ensurePickOverlay();
+
+    const move = (event) => {
+      if (!pickModeActive) return;
+      highlightPickTarget(pickTargetFromEvent(event));
+    };
+
+    const commitPick = (event) => {
+      if (!pickModeActive || pickCommitLock) return;
+      const target = event.target;
+      if (target && target.nodeType === 1) {
+        if (
+          target.closest(".pa-toolbar") ||
+          target.closest(".pa-popover") ||
+          target.closest(".pa-add-form") ||
+          target.closest(".pa-pick-hint")
+        ) {
+          return;
+        }
+      }
+      const el = pickTargetFromEvent(event);
+      if (!el) return;
+      pickCommitLock = true;
+      try {
+        event.preventDefault();
+        event.stopPropagation();
+        if (typeof event.stopImmediatePropagation === "function") event.stopImmediatePropagation();
+      } catch (_e) {
+        /* ignore */
+      }
+      const selector = generateSelector(el);
+      if (!selector) {
+        pickCommitLock = false;
+        return;
+      }
+      const wasDelegatedFromParent = pickDelegatedFromParent;
+      exitPickMode(true);
+      openAddFormPopover(mountConfig, mountState, el, selector, (saved) => {
+        if (!saved) {
+          beginLocalPickMode(
+            mountConfig,
+            mountState,
+            wasDelegatedFromParent ? { skipDelegate: true, fromParent: true } : options
+          );
+          if (wasDelegatedFromParent) pickDelegatedFromParent = true;
+          return;
+        }
+        if (wasDelegatedFromParent) notifyParentPickExit();
+      });
+    };
+
+    const key = (event) => {
+      if (event.key === "Escape") exitPickMode();
+    };
+
+    pickHandlers = { move: move, down: commitPick, click: commitPick, key: key };
+    document.addEventListener("mousemove", move, true);
+    document.addEventListener("pointerdown", commitPick, true);
+    document.addEventListener("mousedown", commitPick, true);
+    document.addEventListener("click", commitPick, true);
+    document.addEventListener("keydown", key, true);
   }
 
   function openAddFormPopover(config, state, target, selector, onDone) {
     closePopovers();
+    suppressOutsideCloseUntil = Date.now() + 500;
     const popover = document.createElement("div");
     popover.className = "pa-root pa-popover pa-add-form";
     popover.setAttribute(ROOT_ATTR, "popover");
     document.body.appendChild(popover);
-    placePopover(popover, target);
+    popover.addEventListener("pointerdown", (event) => event.stopPropagation());
     popover.addEventListener("click", (event) => event.stopPropagation());
 
     const head = document.createElement("div");
@@ -569,55 +1276,59 @@
       } else {
         state.userAdded.annotations.push(item);
       }
-      saveState(config, state);
-      closePopovers();
-      scheduleRender(config, state);
-      if (onDone) onDone(true);
+      saveState(config, state, { notify: true });
     });
+    schedulePlacePopover(popover, target);
   }
 
-  function enterPickMode(config, state) {
+  function enterPickMode(config, state, options) {
     if (!paCanEdit) return;
     if (pickModeActive) {
       exitPickMode();
       return;
     }
     closePopovers();
-    pickModeActive = true;
-    document.body.classList.add("pa-pick-mode");
-    document.querySelectorAll(".pa-add-button").forEach((btn) => {
-      btn.classList.add("is-active");
-      btn.textContent = "取消新增";
-    });
 
-    const move = (event) => {
-      if (!pickModeActive) return;
-      highlightPickTarget(pickTargetFromEvent(event));
-    };
+    if (options && options.fromParent) {
+      pickDelegatedFromParent = true;
+    }
 
-    const click = (event) => {
-      if (!pickModeActive) return;
-      if (event.target.closest(".pa-toolbar") || event.target.closest(".pa-popover")) return;
-      const el = pickTargetFromEvent(event);
-      if (!el) return;
-      event.preventDefault();
-      event.stopPropagation();
-      const selector = generateSelector(el);
-      if (!selector) return;
-      exitPickMode();
-      openAddFormPopover(config, state, el, selector, (saved) => {
-        if (!saved) enterPickMode(config, state);
-      });
-    };
+    const shouldDelegate = !(options && options.skipDelegate) && !pickDelegatedFromParent;
+    if (shouldDelegate) {
+      const annotationIframe = findAnnotationIframe();
+      if (annotationIframe) {
+        pickModeActive = true;
+        syncAddButtons(true);
+        const startDelegated = () => {
+          if (!pickModeActive || pickDelegatedIframe) return;
+          if (tryStartDelegatedPick()) {
+            hidePickHint();
+            return;
+          }
+          exitPickMode();
+          window.alert(
+            "无法在嵌入页面中启动标注选取。\n请强制刷新页面（Cmd+Shift+R），或直接打开「费用分摊导入.html」子页后使用右上角「新增标注」。"
+          );
+        };
+        if (findDelegatableIframe()) {
+          startDelegated();
+        } else {
+          showPickHint("等待下方页面加载完成，然后在页面内点击要标注的元素");
+          if (annotationIframe.contentDocument && annotationIframe.contentDocument.readyState === "complete") {
+            window.setTimeout(startDelegated, 50);
+          } else {
+            annotationIframe.addEventListener("load", startDelegated, { once: true });
+            window.setTimeout(startDelegated, 1500);
+          }
+        }
+        return;
+      }
+    }
 
-    const key = (event) => {
-      if (event.key === "Escape") exitPickMode();
-    };
-
-    pickHandlers = { move: move, click: click, key: key };
-    document.addEventListener("mousemove", move, true);
-    document.addEventListener("click", click, true);
-    document.addEventListener("keydown", key, true);
+    const mountConfig = config || (activeMount && activeMount.config);
+    const mountState = state || (activeMount && activeMount.state);
+    if (!mountConfig || !mountState) return;
+    beginLocalPickMode(mountConfig, mountState, options);
   }
 
   function button(label, className) {
@@ -637,16 +1348,22 @@
       .split("\n")
       .map((item) => item.trim())
       .filter(Boolean);
+    const lead = [];
     const numbered = [];
-    const extra = [];
+    const trailing = [];
+    let seenNumbered = false;
     lines.forEach((line) => {
       if (/^\d+[.、)]\s*/.test(line)) {
+        seenNumbered = true;
         numbered.push(line.replace(/^\d+[.、)]\s*/, ""));
+      } else if (!seenNumbered) {
+        // 编号列表之前的非编号行（如「新增预算行逻辑：」）作为正文小标题，须置顶
+        lead.push(line);
       } else {
-        extra.push(line);
+        trailing.push(line);
       }
     });
-    return { numbered, extra };
+    return { lead: lead, numbered: numbered, trailing: trailing, extra: trailing };
   }
 
   function normalizeContent(raw, defaultBody) {
@@ -796,6 +1513,19 @@
 
   function fillContent(container, content, state) {
     const parsed = parseBody(content.body);
+    const leadLines = parsed.lead || [];
+    const trailingLines = parsed.trailing || parsed.extra || [];
+    // 渲染顺序：逻辑小标题 → 编号规则 → 补充说明 → 配图（小标题绝不可落到列表下方）
+    if (leadLines.length) {
+      const lead = document.createElement("div");
+      lead.className = "pa-pop-lead";
+      leadLines.forEach((item) => {
+        const p = document.createElement("p");
+        p.textContent = item;
+        lead.appendChild(p);
+      });
+      container.appendChild(lead);
+    }
     if (parsed.numbered.length) {
       const list = document.createElement("ol");
       list.className = "pa-pop-list";
@@ -806,10 +1536,10 @@
       });
       container.appendChild(list);
     }
-    if (parsed.extra.length) {
+    if (trailingLines.length) {
       const extra = document.createElement("div");
       extra.className = "pa-pop-extra";
-      parsed.extra.forEach((item) => {
+      trailingLines.forEach((item) => {
         const p = document.createElement("p");
         p.textContent = item;
         extra.appendChild(p);
@@ -817,7 +1547,12 @@
       container.appendChild(extra);
     }
     if (state) renderContentImages(container, content.images, state);
-    if (!parsed.numbered.length && !parsed.extra.length && !(content.images && content.images.length)) {
+    if (
+      !leadLines.length &&
+      !parsed.numbered.length &&
+      !trailingLines.length &&
+      !(content.images && content.images.length)
+    ) {
       const empty = document.createElement("div");
       empty.className = "pa-pop-extra";
       container.appendChild(empty);
@@ -944,7 +1679,6 @@
     popover.className = "pa-root pa-popover";
     popover.setAttribute(ROOT_ATTR, "popover");
     document.body.appendChild(popover);
-    placePopover(popover, anchor);
     popover.addEventListener("click", (event) => event.stopPropagation());
 
     function currentContent() {
@@ -1000,6 +1734,7 @@
         event.stopPropagation();
         closePopovers();
       });
+      schedulePlacePopover(popover, anchor);
     }
 
     function renderEdit(content) {
@@ -1035,9 +1770,10 @@
         }
         state.edits = state.edits || {};
         state.edits[key] = { body: nextBody, images: nextImages };
-        saveState(config, state);
+        saveState(config, state, { notify: true });
         renderView(normalizeContent(state.edits[key], body));
       });
+      schedulePlacePopover(popover, anchor);
     }
 
     function renderDeleteConfirm(content) {
@@ -1072,11 +1808,12 @@
           state.hidden = state.hidden || {};
           state.hidden[key] = true;
         }
-        saveState(config, state);
+        saveState(config, state, { notify: true });
         if (anchor && anchor.remove) anchor.remove();
         closePopovers();
         scheduleRender(config, state);
       });
+      schedulePlacePopover(popover, anchor);
     }
 
     renderView(currentContent());
@@ -1085,23 +1822,243 @@
   function isVisibleTarget(target) {
     if (!target) return false;
     if (target.closest("[hidden]")) return false;
-    if (target.closest('[aria-hidden="true"]')) return false;
+    const closedOverlay = target.closest(
+      ".modal-mask:not(.open), .drawer-mask:not(.open), [aria-modal='true'][aria-hidden='true']"
+    );
+    if (closedOverlay) return false;
     const rects = target.getClientRects();
     return rects.length > 0;
+  }
+
+  function removeAnnotationPortalByKey(key) {
+    const existing = document.querySelector(`[data-pa-item-key="${key}"]`);
+    if (!existing) return;
+    const idx = PORTAL_ENTRIES.findIndex((entry) => entry.icon === existing);
+    if (idx >= 0) PORTAL_ENTRIES.splice(idx, 1);
+    existing.remove();
+  }
+
+  function clearAnnotationPortalsOnly() {
+    document.querySelectorAll(".pa-dot.pa-icon-portal").forEach((node) => node.remove());
+    PORTAL_ENTRIES.length = 0;
+  }
+
+  function isPaOwnedNode(node) {
+    if (!node) return false;
+    const el = node.nodeType === 1 ? node : node.parentElement;
+    if (!el || !el.closest) return false;
+    return !!(el.closest(`[${ROOT_ATTR}]`) || el.closest(".pa-root") || el.closest(".pa-icon-portal"));
+  }
+
+  function mutationAffectsPageContent(mutations) {
+    for (let i = 0; i < mutations.length; i += 1) {
+      const m = mutations[i];
+      if (m.type === "attributes") {
+        if (!isPaOwnedNode(m.target)) return true;
+        continue;
+      }
+      const lists = [m.addedNodes, m.removedNodes];
+      for (let li = 0; li < lists.length; li += 1) {
+        const nodes = lists[li];
+        for (let ni = 0; ni < nodes.length; ni += 1) {
+          if (!isPaOwnedNode(nodes[ni])) return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  function withObserverPaused(fn) {
+    const observer = window[OBSERVER_STORE_KEY];
+    if (observer && observer.disconnect) observer.disconnect();
+    try {
+      fn();
+    } finally {
+      if (observer && activeMount && observer.observe) {
+        observer.observe(document.body, {
+          childList: true,
+          subtree: true,
+          attributes: true,
+          attributeFilter: ["hidden", "style", "class", "aria-hidden"]
+        });
+      }
+    }
+  }
+
+  function renderAnnotations(config, state) {
+    const keepKeys = new Set();
+    const baseAnno = config.annotations || [];
+    const userAnno = (state.userAdded && state.userAdded.annotations) || [];
+    baseAnno.forEach((item, index) => {
+      const key = `annotation:${item.id || index}`;
+      if (state.hidden && state.hidden[key]) {
+        removeAnnotationPortalByKey(key);
+        return;
+      }
+      keepKeys.add(key);
+      addAnnotation(config, state, item, index, false);
+    });
+    userAnno.forEach((item, index) => {
+      const key = `userAnnotation:${item.id}`;
+      if (state.hidden && state.hidden[key]) {
+        removeAnnotationPortalByKey(key);
+        return;
+      }
+      keepKeys.add(key);
+      addAnnotation(config, state, item, baseAnno.length + index, true);
+    });
+    document.querySelectorAll(".pa-dot.pa-icon-portal[data-pa-item-key]").forEach((node) => {
+      const key = node.getAttribute("data-pa-item-key");
+      if (key && !keepKeys.has(key)) removeAnnotationPortalByKey(key);
+    });
+  }
+
+  function renderFieldTips(config, state) {
+    const baseTips = config.fieldTips || [];
+    const userTips = (state.userAdded && state.userAdded.fieldTips) || [];
+    baseTips.forEach((item, index) => addFieldTip(config, state, item, index, false));
+    userTips.forEach((item, index) => addFieldTip(config, state, item, index, true));
+  }
+
+  function resyncAnnotationsNow() {
+    if (!activeMount) return;
+    const { config, state } = activeMount;
+    withObserverPaused(() => {
+      renderAnnotations(config, state);
+      renderFieldTips(config, state);
+      repositionAllPortalIcons();
+    });
+  }
+
+  function queueAnnotationResync() {
+    if (!activeMount) return;
+    if (window[RENDER_TIMER_KEY]) clearTimeout(window[RENDER_TIMER_KEY]);
+    window[RENDER_TIMER_KEY] = setTimeout(() => {
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          resyncAnnotationsNow();
+        });
+      });
+    }, 60);
+  }
+
+  function getScrollableParents(el) {
+    const parents = [];
+    let node = el && el.parentElement;
+    while (node && node !== document.documentElement) {
+      const style = getComputedStyle(node);
+      const overflow = `${style.overflow} ${style.overflowX} ${style.overflowY}`;
+      if (/(auto|scroll|overlay)/.test(overflow)) parents.push(node);
+      node = node.parentElement;
+    }
+    return parents;
+  }
+
+  function repositionAllPortalIcons() {
+    PORTAL_ENTRIES.forEach((entry) => {
+      if (entry.icon && entry.icon.isConnected && entry.target && entry.target.isConnected) {
+        if (isVisibleTarget(entry.target)) entry.update();
+        else entry.icon.style.visibility = "hidden";
+      }
+    });
+    const buckets = new Map();
+    PORTAL_ENTRIES.forEach((entry) => {
+      if (!entry.icon || !entry.icon.isConnected || entry.icon.style.visibility === "hidden") return;
+      const rect = entry.icon.getBoundingClientRect();
+      const key = `${Math.round(rect.left / 10)}:${Math.round(rect.top / 10)}`;
+      if (!buckets.has(key)) buckets.set(key, []);
+      buckets.get(key).push(entry);
+    });
+    PORTAL_ENTRIES.forEach((entry) => {
+      if (entry.icon) entry.icon.style.transform = "";
+    });
+    buckets.forEach((entries) => {
+      if (entries.length < 2) return;
+      entries.forEach((entry, index) => {
+        entry.icon.style.transform = `translate(${index * 14}px, ${index * 12}px)`;
+      });
+    });
+  }
+
+  function bindResizeWatch(el) {
+    if (!el || !window.ResizeObserver || boundResizeTargets.has(el)) return;
+    boundResizeTargets.add(el);
+    if (!window[RESIZE_OBSERVER_KEY]) {
+      window[RESIZE_OBSERVER_KEY] = new ResizeObserver(() => repositionAllPortalIcons());
+    }
+    window[RESIZE_OBSERVER_KEY].observe(el);
+  }
+
+  function bindScrollableParents(el) {
+    if (!el) return;
+    if (!window[SCROLL_PARENT_BOUND_KEY]) window[SCROLL_PARENT_BOUND_KEY] = boundScrollParents;
+    getScrollableParents(el).forEach((parent) => {
+      if (boundScrollParents.has(parent)) return;
+      boundScrollParents.add(parent);
+      parent.addEventListener("scroll", repositionAllPortalIcons, { passive: true });
+      bindResizeWatch(parent);
+    });
+    const table = el.closest && el.closest("table");
+    if (table) bindResizeWatch(table);
+    bindResizeWatch(el);
   }
 
   function bindPortalReposition() {
     if (window[PORTAL_REPOSITION_KEY]) return;
     window[PORTAL_REPOSITION_KEY] = true;
-    const tick = () => {
-      PORTAL_ENTRIES.forEach((entry) => {
-        if (entry.icon && entry.icon.isConnected && entry.target && entry.target.isConnected) {
-          entry.update();
-        }
-      });
-    };
-    window.addEventListener("scroll", tick, true);
-    window.addEventListener("resize", tick);
+    window.addEventListener("scroll", repositionAllPortalIcons, true);
+    window.addEventListener("resize", repositionAllPortalIcons);
+    bindResizeWatch(document.body);
+  }
+
+  function shouldInlineAnnotation(target) {
+    if (!target) return false;
+    return (target.tagName || "").toUpperCase() === "TH" && !!target.closest("table");
+  }
+
+  function getThLabelText(target) {
+    if (!target) return "";
+    let text = "";
+    target.childNodes.forEach((node) => {
+      if (node.nodeType === 3) {
+        text += node.textContent;
+        return;
+      }
+      if (node.nodeType !== 1) return;
+      if (node.classList.contains("pa-dot")) return;
+      if (node.classList.contains("pa-tip-icon") || node.classList.contains("pa-tip-icon-portal")) return;
+      text += node.textContent;
+    });
+    return text.replace(/\s+/g, " ").trim();
+  }
+
+  function clearThExceptAnnotationDots(target) {
+    Array.from(target.childNodes).forEach((node) => {
+      if (node.nodeType === 1 && node.classList && node.classList.contains("pa-dot")) return;
+      target.removeChild(node);
+    });
+  }
+
+  function attachAnnotationInline(icon, target) {
+    if (!isVisibleTarget(target)) return false;
+    icon.classList.add("pa-dot-inline-th");
+    if (!target.classList.contains("pa-anno-host")) target.classList.add("pa-anno-host");
+    target.appendChild(icon);
+    return true;
+  }
+
+  function bindAnnotationActivate(node, handler) {
+    node.addEventListener("pointerdown", (event) => {
+      if (pickModeActive) return;
+      if (event.button !== 0) return;
+      event.preventDefault();
+      event.stopPropagation();
+      handler(event);
+    });
+    node.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+    });
   }
 
   /** 开发/测试编号点：固定叠在目标 getBoundingClientRect 右上角，不插入文档流 */
@@ -1114,7 +2071,10 @@
     icon.style.visibility = "visible";
     const w = icon.offsetWidth || 16;
     const h = icon.offsetHeight || 16;
-    icon.style.left = `${Math.round(rect.right - w * 0.55)}px`;
+    // 过宽目标（误绑到整段 nav 时）钉在左侧一小段，避免红点飞到屏幕右上角
+    const maxPinSpan = 140;
+    const pinRight = rect.width > maxPinSpan ? rect.left + maxPinSpan : rect.right;
+    icon.style.left = `${Math.round(pinRight - w * 0.55)}px`;
     icon.style.top = `${Math.round(rect.top - h * 0.35)}px`;
   }
 
@@ -1126,6 +2086,51 @@
     update();
     PORTAL_ENTRIES.push({ icon, target, update });
     bindPortalReposition();
+    bindScrollableParents(target);
+    repositionAllPortalIcons();
+    return true;
+  }
+
+  function tableHasStickyColumns(table) {
+    return !!(
+      table &&
+      table.querySelector("th.actions, td.actions, th.chk-col, td.chk-col, .actions, .chk-col")
+    );
+  }
+
+  function shouldPortalFieldTip(target) {
+    const tag = (target && target.tagName) || "";
+    if (tag.toUpperCase() !== "TH") return false;
+    const table = target.closest("table");
+    if (!table) return false;
+    if (tableHasStickyColumns(table)) return true;
+    return getScrollableParents(target).length > 0;
+  }
+
+  function positionPortalFieldTip(icon, target) {
+    const wrap = target.querySelector(".pa-tip-label-wrap");
+    const anchor = wrap || target;
+    const rect = anchor.getBoundingClientRect();
+    if (rect.width <= 0 && rect.height <= 0) {
+      icon.style.visibility = "hidden";
+      return;
+    }
+    icon.style.visibility = "visible";
+    const h = icon.offsetHeight || 16;
+    icon.style.left = `${Math.round(rect.right + 2)}px`;
+    icon.style.top = `${Math.round(rect.top + Math.max(0, (rect.height - h) / 2))}px`;
+  }
+
+  function attachFieldTipPortal(icon, target) {
+    if (!isVisibleTarget(target)) return false;
+    icon.classList.add("pa-tip-icon-portal");
+    document.body.appendChild(icon);
+    const update = () => positionPortalFieldTip(icon, target);
+    update();
+    PORTAL_ENTRIES.push({ icon, target, update });
+    bindPortalReposition();
+    bindScrollableParents(target);
+    repositionAllPortalIcons();
     return true;
   }
 
@@ -1144,24 +2149,31 @@
   /** 用户字段 i：紧跟说明文字之后，参与行内排版（表头写在 th 内，不挤列宽） */
   function attachFieldTipInline(icon, target, item) {
     if (!isVisibleTarget(target)) return false;
-    icon.classList.add("pa-tip-inline");
     const inlineAnchor = (item && item.inlineAnchor) || "";
     if (inlineAnchor === "afterElement") {
+      icon.classList.add("pa-tip-inline");
       target.insertAdjacentElement("afterend", icon);
       return true;
     }
     const tag = (target.tagName || "").toUpperCase();
 
     if (tag === "TH") {
-      const wrap = document.createElement("span");
-      wrap.className = "pa-tip-label-wrap";
-      const labelText = target.textContent.trim();
-      target.textContent = "";
-      if (labelText) wrap.appendChild(document.createTextNode(labelText));
+      let wrap = target.querySelector(":scope > .pa-tip-label-wrap");
+      if (!wrap) {
+        const labelText = getThLabelText(target);
+        clearThExceptAnnotationDots(target);
+        wrap = document.createElement("span");
+        wrap.className = "pa-tip-label-wrap";
+        if (labelText) wrap.appendChild(document.createTextNode(labelText));
+        target.insertBefore(wrap, target.firstChild);
+      }
+      if (shouldPortalFieldTip(target)) return attachFieldTipPortal(icon, target);
+      icon.classList.add("pa-tip-inline");
       wrap.appendChild(icon);
-      target.appendChild(wrap);
       return true;
     }
+
+    icon.classList.add("pa-tip-inline");
 
     if (target.classList && target.classList.contains("th-inner")) {
       target.appendChild(icon);
@@ -1208,17 +2220,51 @@
     if (!target) return;
     const key = isUser ? `userAnnotation:${item.id}` : `annotation:${item.id || index}`;
     if (state.hidden && state.hidden[key]) return;
-    if (document.querySelector(`[data-pa-item-key="${key}"]`)) return;
-    const dot = document.createElement("span");
+    const wantInline = shouldInlineAnnotation(target);
+    const existing = document.querySelector(`[data-pa-item-key="${key}"]`);
+    if (existing) {
+      const entry = PORTAL_ENTRIES.find((row) => row.icon === existing);
+      const isInline = existing.classList.contains("pa-dot-inline-th");
+      if (wantInline !== isInline) {
+        removeAnnotationPortalByKey(key);
+      } else if (entry) {
+        if (entry.target === target && isVisibleTarget(target)) {
+          existing.textContent = String(index + 1);
+          existing.title = item.title || "说明";
+          entry.update();
+          return;
+        }
+        if (existing.isConnected && isVisibleTarget(target)) {
+          entry.target = target;
+          existing.textContent = String(index + 1);
+          existing.title = item.title || "说明";
+          entry.update();
+          return;
+        }
+        removeAnnotationPortalByKey(key);
+      } else if (isInline) {
+        if (existing.parentElement === target && isVisibleTarget(target)) {
+          existing.textContent = String(index + 1);
+          existing.title = item.title || "说明";
+          return;
+        }
+        removeAnnotationPortalByKey(key);
+      } else {
+        removeAnnotationPortalByKey(key);
+      }
+    }
+    if (!isVisibleTarget(target)) return;
+    const dot = document.createElement("button");
+    dot.type = "button";
     dot.className = "pa-root pa-dot";
     dot.setAttribute(ROOT_ATTR, "annotation");
     dot.setAttribute("data-pa-item-key", key);
     dot.textContent = String(index + 1);
     dot.title = item.title || "说明";
-    if (!attachAnnotationPortal(dot, target)) return;
+    const attached = wantInline ? attachAnnotationInline(dot, target) : attachAnnotationPortal(dot, target);
+    if (!attached) return;
     const meta = isUser ? { isUser: true, listKey: "annotations", itemId: item.id } : null;
-    dot.addEventListener("click", (event) => {
-      event.stopPropagation();
+    bindAnnotationActivate(dot, () => {
       editablePopover(
         config,
         state,
@@ -1248,6 +2294,7 @@
     if (!attachFieldTipInline(icon, target, item)) return;
     const meta = isUser ? { isUser: true, listKey: "fieldTips", itemId: item.id } : null;
     icon.addEventListener("click", (event) => {
+      if (pickModeActive) return;
       event.stopPropagation();
       editablePopover(
         config,
@@ -1429,31 +2476,20 @@
   }
 
   function renderAll(config, state) {
-    const baseAnno = config.annotations || [];
-    const userAnno = (state.userAdded && state.userAdded.annotations) || [];
-    baseAnno.forEach((item, index) => addAnnotation(config, state, item, index, false));
-    userAnno.forEach((item, index) => addAnnotation(config, state, item, baseAnno.length + index, true));
-
-    const baseTips = config.fieldTips || [];
-    const userTips = (state.userAdded && state.userAdded.fieldTips) || [];
-    baseTips.forEach((item, index) => addFieldTip(config, state, item, index, false));
-    userTips.forEach((item, index) => addFieldTip(config, state, item, index, true));
+    renderAnnotations(config, state);
+    renderFieldTips(config, state);
   }
 
   function scheduleRender(config, state) {
-    if (window[RENDER_TIMER_KEY]) clearTimeout(window[RENDER_TIMER_KEY]);
-    window[RENDER_TIMER_KEY] = setTimeout(() => {
-      renderAll(config, state);
-      PORTAL_ENTRIES.forEach((entry) => {
-        if (entry.icon && entry.icon.isConnected && entry.target && entry.target.isConnected) {
-          entry.update();
-        }
-      });
-    }, 80);
+    activeMount = { config, state };
+    queueAnnotationResync();
   }
 
   function bindDynamicObserver(config, state) {
-    const observer = new MutationObserver(() => scheduleRender(config, state));
+    const observer = new MutationObserver((mutations) => {
+      if (!mutationAffectsPageContent(mutations)) return;
+      scheduleRender(config, state);
+    });
     observer.observe(document.body, {
       childList: true,
       subtree: true,
@@ -1461,6 +2497,7 @@
       attributeFilter: ["hidden", "style", "class", "aria-hidden"]
     });
     window[OBSERVER_STORE_KEY] = observer;
+    document.addEventListener("pa:layout-change", () => scheduleRender(config, state));
   }
 
   async function mount(input) {
@@ -1468,7 +2505,17 @@
     removeOld();
     exitPickMode();
     paCanEdit = await resolveCanEdit(config);
-    const state = hydrateState(config);
+    // Pages 只读：以 HTML 内已发布的 persistedState 为准，避免本机旧 localStorage 盖住线上
+    const state =
+      !paCanEdit && isPagesPreviewHost()
+        ? (() => {
+            const persisted = normalizePersistedState(config.persistedState);
+            if (!persisted.userAdded) persisted.userAdded = emptyUserAdded();
+            if (!persisted.assets) persisted.assets = {};
+            return persisted;
+          })()
+        : hydrateState(config);
+    activeMount = { config, state };
     const root = document.createElement("div");
     root.className = "pa-root pa-toolbar" + (paCanEdit ? "" : " pa-toolbar-readonly");
     root.setAttribute(ROOT_ATTR, "root");
@@ -1486,7 +2533,17 @@
         event.stopPropagation();
         enterPickMode(config, state);
       });
-      root.append(pageButton, addButton);
+      const publishButton = document.createElement("button");
+      publishButton.type = "button";
+      publishButton.className = "pa-publish-button";
+      publishButton.textContent = "发布到预览";
+      publishButton.title =
+        "推送到 Git，约 1～2 分钟后 GitHub Pages 全员可见。请先启动本机原型分享服务（8787）。";
+      publishButton.addEventListener("click", (event) => {
+        event.stopPropagation();
+        publishToPreview(config, state, publishButton).catch(() => {});
+      });
+      root.append(pageButton, addButton, publishButton);
     } else {
       root.append(pageButton);
     }
@@ -1507,7 +2564,44 @@
     }
   }
 
-  window.PrototypeAnnotation = { mount, mountFromScript, resolveCanEdit };
+  async function recoverUserAnnotations() {
+    const script = document.getElementById("prototype-annotation-config");
+    if (!script) return { recovered: false, reason: "no-config" };
+    try {
+      const config = JSON.parse(script.textContent);
+      const merged = loadState(config);
+      const count =
+        (merged.userAdded && merged.userAdded.annotations ? merged.userAdded.annotations.length : 0) +
+        (merged.userAdded && merged.userAdded.fieldTips ? merged.userAdded.fieldTips.length : 0);
+      await mount(config);
+      return { recovered: true, userAddedCount: count, userAdded: merged.userAdded };
+    } catch (error) {
+      return { recovered: false, reason: String(error) };
+    }
+  }
+
+  function onChildPickExit() {
+    pickDelegatedIframe = null;
+    pickModeActive = false;
+    syncAddButtons(false);
+  }
+
+  window.PrototypeAnnotation = {
+    mount,
+    mountFromScript,
+    resolveCanEdit,
+    resync: resyncAnnotationsNow,
+    recoverUserAnnotations,
+    loadState,
+    exportConfigForSync,
+    copyConfigForSync,
+    publishToPreview,
+    inferRepoPathFromLocation,
+    enterPickMode,
+    exitPickMode,
+    isPickModeActive: () => pickModeActive,
+    _onChildPickExit: onChildPickExit
+  };
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", mountFromScript);
   } else {
