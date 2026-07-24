@@ -54,12 +54,19 @@
     return shortened.length > 4 ? shortened.slice(0, 4) : shortened;
   }
 
+  function pctCompact(value) {
+    var num = Number(value || 0) * 100;
+    if (!Number.isFinite(num)) return '0%';
+    if (Math.abs(num - Math.round(num)) < 1e-6) return Math.round(num) + '%';
+    return num.toFixed(2).replace(/0+$/, '').replace(/\.$/, '') + '%';
+  }
+
   function formatDeptMiniBar(deptItems) {
-    var list = (deptItems || []).slice();
+    var list = (deptItems || []).slice(0, 5);
     if (!list.length) return '';
-    // 列表只展示部门简称，不展示具体比例；最多 5 个，超出部分不展示
-    return list.slice(0, 5).map(function (item) {
-      return shortDeptName(item.name);
+    // 客户计提规则列表：部门简称 + 具体比例，最多 5 个
+    return list.map(function (item) {
+      return shortDeptName(item.name) + ' ' + pctCompact(item.ratio || 0);
     }).join(' | ');
   }
 
