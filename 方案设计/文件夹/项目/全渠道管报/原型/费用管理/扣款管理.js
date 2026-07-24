@@ -188,17 +188,51 @@
     };
   }
 
+  function shortDeptName(name) {
+    var raw = String(name || '').trim();
+    if (!raw) return '部门';
+    if (/电商/.test(raw)) return '电商';
+    if (/商超大客户|大客户/.test(raw)) return '商超';
+    if (/北美商超/.test(raw)) return '北美商超';
+    if (/商超/.test(raw)) return '商超';
+    if (/北美/.test(raw)) return '北美';
+    var shortened = raw.replace(/(事业部|业务部|中心|部|团队)$/g, '');
+    if (!shortened) return raw.length > 4 ? raw.slice(0, 4) : raw;
+    return shortened.length > 4 ? shortened.slice(0, 4) : shortened;
+  }
+
+  function formatDeptNamesMini(deptItems) {
+    var list = (deptItems || []).slice();
+    if (!list.length) return '';
+    // 详情列表只展示部门简称，不展示具体比例；最多 5 个
+    return list.slice(0, 5).map(function (item) {
+      return shortDeptName(item.name);
+    }).join(' | ');
+  }
+
   function ratioDisplay(row) {
     if (isSalesExpenseRule(row)) {
       return row.ruleMethodLabel || '销售费用';
     }
     if (isMonthlyFixed(row)) return '月固定额';
-    if (isDeptFixedFee(row)) return pct(row.ruleRatio) + ' · 部门';
+    if (isDeptFixedFee(row)) {
+      return formatDeptNamesMini(row.ruleDeptItems) || '部门';
+    }
     return pct(row.ruleRatio);
   }
 
   function calcButton(row, field, text) {
     return '<button type="button" class="calc-link" data-action="calc" data-field="' + esc(field) + '" data-id="' + esc(row.id) + '">' + esc(text) + '</button>';
+  }
+
+  function ratioCalcButton(row) {
+    if (isDeptFixedFee(row)) {
+      var mini = formatDeptNamesMini(row.ruleDeptItems) || '部门';
+      return '<button type="button" class="calc-link calc-link--dept" data-action="calc" data-field="ratio" data-id="' + esc(row.id) + '" title="查看部门计提详情（只读）">' +
+        '<span class="ratio-mini-bar">' + esc(mini) + '</span>' +
+      '</button>';
+    }
+    return calcButton(row, isRatioBasedFee(row) ? 'ratio' : 'accrual', ratioDisplay(row));
   }
 
   function populateOptions() {
@@ -271,9 +305,11 @@
     body.innerHTML = rows.map(function (row) {
       var state = stateOf(row);
       var delta = diff(row.actualDeduction, row.accrualDeduction);
-      var ratioCell = isRatioBasedFee(row)
-        ? calcButton(row, 'ratio', ratioDisplay(row))
-        : calcButton(row, 'accrual', ratioDisplay(row));
+      var ratioCell = isDeptFixedFee(row)
+        ? ratioCalcButton(row)
+        : (isRatioBasedFee(row)
+          ? calcButton(row, 'ratio', ratioDisplay(row))
+          : calcButton(row, 'accrual', ratioDisplay(row)));
 
       return '' +
         '<tr>' +
@@ -410,10 +446,12 @@
     if (!scenario.budgetFee && !scenario.monthlyFixed) {
       var ratioName = row.feeType === '促销扣款' ? '促销扣款比例' : (row.feeType === '销售折扣' ? '销售折扣比例' : (row.feeType === '现金折扣' ? '现金折扣比例' : '计提比例'));
       if (scenario.kingdeeDoc) {
-        var deptLines = (scenario.deptRatioRows || []).map(function (item) {
-          return esc(item.name) + ' ' + money(item.orderAmountExTax) + ' × ' + pct(item.ratio) + ' = ' + money(item.accrual);
+        var deptNames = formatDeptNamesMini(row.ruleDeptItems || scenario.deptRatioRows || []);
+        var deptLines = (scenario.deptRatioRows || []).slice(0, 5).map(function (item) {
+          return esc(item.name) + '：订单净额 ' + money(item.orderAmountExTax) + ' → 计提 ' + money(item.accrual);
         }).join('；');
         document.getElementById('ratioFormula').textContent =
+          '部门（只读，最多展示 5 个）：' + (deptNames || '—') + '。' +
           row.feeType + ' 计提扣款 = Σ（部门订单金额不含税并减去退款金额 × 部门固定比例）' +
           (deptLines ? '（' + deptLines + '）' : '') +
           ' = ' + money(scenario.computedAccrual);

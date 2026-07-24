@@ -41,13 +41,6 @@
     return (num * 100).toFixed(4).replace(/0+$/, '').replace(/\.$/, '') + '%';
   }
 
-  function pctCompact(value) {
-    var num = Number(value || 0) * 100;
-    if (!Number.isFinite(num)) return '0%';
-    if (Math.abs(num - Math.round(num)) < 1e-6) return Math.round(num) + '%';
-    return num.toFixed(2).replace(/0+$/, '').replace(/\.$/, '') + '%';
-  }
-
   function shortDeptName(name) {
     var raw = String(name || '').trim();
     if (!raw) return '部门';
@@ -62,17 +55,12 @@
   }
 
   function formatDeptMiniBar(deptItems) {
-    var parts = (deptItems || [])
-      .filter(function (item) { return Number(item.ratio || 0) > 0 || (deptItems || []).length <= 3; })
-      .map(function (item) {
-        return shortDeptName(item.name) + ' ' + pctCompact(item.ratio || 0);
-      });
-    if (!parts.length) {
-      parts = (deptItems || []).map(function (item) {
-        return shortDeptName(item.name) + ' ' + pctCompact(item.ratio || 0);
-      });
-    }
-    return parts.join(' | ');
+    var list = (deptItems || []).slice();
+    if (!list.length) return '';
+    // 列表只展示部门简称，不展示具体比例；最多 5 个，超出部分不展示
+    return list.slice(0, 5).map(function (item) {
+      return shortDeptName(item.name);
+    }).join(' | ');
   }
 
   function methodLabel(method) {
