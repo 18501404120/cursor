@@ -97,11 +97,7 @@
     var deptItems = rule && Array.isArray(rule.deptItems) ? rule.deptItems : [];
     if (method === 'dept_fixed_ratio' && deptItems.length) {
       var miniBar = formatDeptMiniBar(deptItems);
-      return '' +
-        '<div class="ratio-cell-stack">' +
-          '<div class="ratio-cell-total">' + esc(pct(ratio)) + '</div>' +
-          '<div class="ratio-mini-bar" title="' + esc(miniBar) + '">' + esc(miniBar) + '</div>' +
-        '</div>';
+      return '<div class="ratio-mini-bar" title="' + esc(miniBar) + '">' + esc(miniBar) + '</div>';
     }
     return esc(ratioCellDisplay(ratio));
   }
@@ -112,7 +108,7 @@
     var method = rule ? normalizeRatioMethod(rule.method) : 'fixed_ratio';
     var deptItems = rule && Array.isArray(rule.deptItems) ? rule.deptItems : [];
     if (method === 'dept_fixed_ratio' && deptItems.length) {
-      return pct(ratio) + '（' + formatDeptMiniBar(deptItems) + '）';
+      return formatDeptMiniBar(deptItems);
     }
     return ratioCellDisplay(ratio);
   }
