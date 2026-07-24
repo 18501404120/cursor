@@ -41,6 +41,40 @@
     return (num * 100).toFixed(4).replace(/0+$/, '').replace(/\.$/, '') + '%';
   }
 
+  function pctCompact(value) {
+    var num = Number(value || 0) * 100;
+    if (!Number.isFinite(num)) return '0%';
+    if (Math.abs(num - Math.round(num)) < 1e-6) return Math.round(num) + '%';
+    return num.toFixed(2).replace(/0+$/, '').replace(/\.$/, '') + '%';
+  }
+
+  function shortDeptName(name) {
+    var raw = String(name || '').trim();
+    if (!raw) return '部门';
+    if (/电商/.test(raw)) return '电商';
+    if (/商超大客户|大客户/.test(raw)) return '商超';
+    if (/北美商超/.test(raw)) return '北美商超';
+    if (/商超/.test(raw)) return '商超';
+    if (/北美/.test(raw)) return '北美';
+    var shortened = raw.replace(/(事业部|业务部|中心|部|团队)$/g, '');
+    if (!shortened) return raw.length > 4 ? raw.slice(0, 4) : raw;
+    return shortened.length > 4 ? shortened.slice(0, 4) : shortened;
+  }
+
+  function formatDeptMiniBar(deptItems) {
+    var parts = (deptItems || [])
+      .filter(function (item) { return Number(item.ratio || 0) > 0 || (deptItems || []).length <= 3; })
+      .map(function (item) {
+        return shortDeptName(item.name) + ' ' + pctCompact(item.ratio || 0);
+      });
+    if (!parts.length) {
+      parts = (deptItems || []).map(function (item) {
+        return shortDeptName(item.name) + ' ' + pctCompact(item.ratio || 0);
+      });
+    }
+    return parts.join(' | ');
+  }
+
   function methodLabel(method) {
     var map = {
       monthly_fixed: '月固定金额',
@@ -54,6 +88,33 @@
 
   function ratioCellDisplay(ratio) {
     return pct(ratio);
+  }
+
+  function ratioCellHtml(ruleId, fallbackRatio) {
+    var rule = findFixedById(ruleId);
+    var ratio = rule ? Number(rule.ratio || 0) : Number(fallbackRatio || 0);
+    var method = rule ? normalizeRatioMethod(rule.method) : 'fixed_ratio';
+    var deptItems = rule && Array.isArray(rule.deptItems) ? rule.deptItems : [];
+    if (method === 'dept_fixed_ratio' && deptItems.length) {
+      var miniBar = formatDeptMiniBar(deptItems);
+      return '' +
+        '<div class="ratio-cell-stack">' +
+          '<div class="ratio-cell-total">' + esc(pct(ratio)) + '</div>' +
+          '<div class="ratio-mini-bar" title="' + esc(miniBar) + '">' + esc(miniBar) + '</div>' +
+        '</div>';
+    }
+    return esc(ratioCellDisplay(ratio));
+  }
+
+  function ratioExportText(ruleId, fallbackRatio) {
+    var rule = findFixedById(ruleId);
+    var ratio = rule ? Number(rule.ratio || 0) : Number(fallbackRatio || 0);
+    var method = rule ? normalizeRatioMethod(rule.method) : 'fixed_ratio';
+    var deptItems = rule && Array.isArray(rule.deptItems) ? rule.deptItems : [];
+    if (method === 'dept_fixed_ratio' && deptItems.length) {
+      return pct(ratio) + '（' + formatDeptMiniBar(deptItems) + '）';
+    }
+    return ratioCellDisplay(ratio);
   }
 
   function getAnchorPeriod() {
@@ -130,9 +191,9 @@
       return '' +
         '<tr>' +
           '<td>' + esc(row.customer) + '</td>' +
-          '<td class="num clickable-cell" data-action="ratio" data-id="' + esc(row.promoRuleId) + '" title="点击调整促销扣款">' + ratioCellDisplay(row.promoRatio) + '</td>' +
-          '<td class="num clickable-cell" data-action="ratio" data-id="' + esc(row.salesRuleId) + '" title="点击调整销售折扣">' + ratioCellDisplay(row.salesDiscountRatio) + '</td>' +
-          '<td class="num clickable-cell" data-action="ratio" data-id="' + esc(row.cashRuleId) + '" title="点击调整现金折扣">' + ratioCellDisplay(row.cashDiscountRatio) + '</td>' +
+          '<td class="num clickable-cell" data-action="ratio" data-id="' + esc(row.promoRuleId) + '" title="点击调整促销扣款">' + ratioCellHtml(row.promoRuleId, row.promoRatio) + '</td>' +
+          '<td class="num clickable-cell" data-action="ratio" data-id="' + esc(row.salesRuleId) + '" title="点击调整销售折扣">' + ratioCellHtml(row.salesRuleId, row.salesDiscountRatio) + '</td>' +
+          '<td class="num clickable-cell" data-action="ratio" data-id="' + esc(row.cashRuleId) + '" title="点击调整现金折扣">' + ratioCellHtml(row.cashRuleId, row.cashDiscountRatio) + '</td>' +
           '<td class="clickable-cell" data-action="expense" data-id="' + esc(row.expenseRuleId) + '" title="点击调整销售费用">' + esc(row.salesExpenseMethod) + '</td>' +
           '<td class="clickable-cell" data-action="expense" data-id="' + esc(row.expenseRuleId) + '" title="点击调整销售费用">' + esc((row.salesExpenseRuleDesc || '—').slice(0, 48)) + '</td>' +
           '<td><span class="ops">' +
@@ -157,9 +218,9 @@
     ].concat(rows.map(function (row) {
       return [
         row.customer,
-        ratioCellDisplay(row.promoRatio),
-        ratioCellDisplay(row.salesDiscountRatio),
-        ratioCellDisplay(row.cashDiscountRatio),
+        ratioExportText(row.promoRuleId, row.promoRatio),
+        ratioExportText(row.salesRuleId, row.salesDiscountRatio),
+        ratioExportText(row.cashRuleId, row.cashDiscountRatio),
         row.salesExpenseMethod,
         row.salesExpenseRuleDesc || '—'
       ];
