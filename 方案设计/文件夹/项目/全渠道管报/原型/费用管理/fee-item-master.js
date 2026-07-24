@@ -387,15 +387,12 @@
             '</div>' +
           '</div>' +
           '<div class="modal-bd">' +
-            '<p class="fee-item-master-lead">维护费用项树形结构：任意节点可新增下级；同一父节点下的子节点即为一组。业务配置仅可选无下级的末级节点。备注通过操作栏「备注」维护。已启用的节点不可删除。</p>' +
+            '<p class="fee-item-master-lead">费用项树由初始化主数据提供（只读浏览）。支持搜索、全部展开/收拢；业务配置仅可选无下级的末级节点。本页仅可维护节点「备注」。</p>' +
             '<div class="fee-item-toolbar" data-pa-key="fee-item-toolbar">' +
               '<div class="fee-item-toolbar-main">' +
                 '<input type="search" class="fee-item-tree-search" id="feeItemTreeSearch" placeholder="搜索费用项/编码">' +
                 '<button type="button" class="btn" id="btnFeeTreeExpandAll">全部展开</button>' +
                 '<button type="button" class="btn" id="btnFeeTreeCollapseAll">全部收拢</button>' +
-              '</div>' +
-              '<div class="fee-item-toolbar-actions">' +
-                '<button type="button" class="btn btn-primary" id="btnFeeNodeAdd">新增节点</button>' +
               '</div>' +
             '</div>' +
             '<div class="fee-item-tree-wrap" id="feeItemTreeRoot"></div>' +
@@ -465,25 +462,18 @@
 
     var lead = modal.querySelector('.fee-item-master-lead');
     if (lead) {
-      lead.textContent = '维护费用项树形结构：任意节点可新增下级；同一父节点下的子节点即为一组。业务配置仅可选无下级的末级节点。备注通过操作栏「备注」维护。已启用的节点不可删除。';
+      lead.textContent = '费用项树由初始化主数据提供（只读浏览）。支持搜索、全部展开/收拢；业务配置仅可选无下级的末级节点。本页仅可维护节点「备注」。';
     }
 
     var groupBtn = document.getElementById('btnFeeGroupAdd');
     if (groupBtn) groupBtn.remove();
 
-    var addBtn = document.getElementById('btnFeeItemAdd');
-    if (addBtn) {
-      addBtn.id = 'btnFeeNodeAdd';
-      addBtn.textContent = '新增节点';
-    }
-    if (!document.getElementById('btnFeeNodeAdd') && modal.querySelector('.fee-item-toolbar-actions')) {
-      var btn = document.createElement('button');
-      btn.type = 'button';
-      btn.className = 'btn btn-primary';
-      btn.id = 'btnFeeNodeAdd';
-      btn.textContent = '新增节点';
-      modal.querySelector('.fee-item-toolbar-actions').appendChild(btn);
-    }
+    ['btnFeeItemAdd', 'btnFeeNodeAdd'].forEach(function (id) {
+      var el = document.getElementById(id);
+      if (el) el.remove();
+    });
+    var addActions = modal.querySelector('.fee-item-toolbar-actions');
+    if (addActions && !addActions.children.length) addActions.remove();
 
     var toolbar = modal.querySelector('.fee-item-toolbar');
     if (toolbar && !toolbar.getAttribute('data-pa-key')) {
@@ -594,12 +584,6 @@
   }
 
   function wireManageToolbarEvents() {
-    var nodeAdd = document.getElementById('btnFeeNodeAdd');
-    if (nodeAdd && !nodeAdd.dataset.feeNodeWired) {
-      nodeAdd.dataset.feeNodeWired = '1';
-      nodeAdd.addEventListener('click', function () { openEdit(null, {}); });
-    }
-
     var expand = document.getElementById('btnFeeTreeExpandAll');
     if (expand && !expand.dataset.feeTreeWired) {
       expand.dataset.feeTreeWired = '1';
@@ -637,10 +621,7 @@
     if (!btn || btn.disabled || btn.classList.contains('is-disabled')) return;
     e.preventDefault();
     e.stopPropagation();
-    if (btn.dataset.feeItemAct === 'edit') openEdit(btn.dataset.code);
     if (btn.dataset.feeItemAct === 'remark') openRemark(btn.dataset.code);
-    if (btn.dataset.feeItemAct === 'add-child') openEdit(null, { parentCode: btn.dataset.code });
-    if (btn.dataset.feeItemAct === 'delete') deleteItem(btn.dataset.code);
   }
 
   function bindTreeEvents() {
@@ -671,13 +652,6 @@
     return '<span class="' + cls + '" title="' + escapeHtml(blockReason) + '">' + label + '</span>';
   }
 
-  function renderDeleteAction(node, blockReason) {
-    if (blockReason) {
-      return '<button type="button" class="op-link is-disabled" disabled title="' + escapeHtml(blockReason) + '">删除</button>';
-    }
-    return '<button type="button" class="op-link" data-fee-item-act="delete" data-code="' + escapeHtml(node.code) + '">删除</button>';
-  }
-
   function renderTreeNode(node) {
     var nodeHasChildren = node.children && node.children.length > 0;
     var expanded = manageTreeKeyword ? true : expandedNodes.has(node.code);
@@ -700,9 +674,6 @@
         '</div>' +
         '<div class="fee-item-tree-actions">' +
           '<button type="button" class="op-link' + remarkCls + '" data-fee-item-act="remark" data-code="' + escapeHtml(node.code) + '">备注</button>' +
-          '<button type="button" class="op-link" data-fee-item-act="add-child" data-code="' + escapeHtml(node.code) + '">新增下级</button>' +
-          '<button type="button" class="op-link" data-fee-item-act="edit" data-code="' + escapeHtml(node.code) + '">编辑</button>' +
-          renderDeleteAction(node, blockReason) +
         '</div>' +
       '</div>' +
       childrenHtml +
@@ -711,7 +682,7 @@
 
   function renderTreeNodes(nodes) {
     if (!nodes.length) {
-      return '<div class="fee-item-tree-empty">' + (manageTreeKeyword ? '无匹配费用项' : '暂无节点，请点击「新增节点」') + '</div>';
+      return '<div class="fee-item-tree-empty">' + (manageTreeKeyword ? '无匹配费用项' : '暂无费用项数据') + '</div>';
     }
     return '<ul class="fee-item-tree">' + nodes.map(renderTreeNode).join('') + '</ul>';
   }

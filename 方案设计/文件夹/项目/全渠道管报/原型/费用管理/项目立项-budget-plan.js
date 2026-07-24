@@ -3,9 +3,10 @@
  * 挂载：ProjectBudgetPlan.init({ tbodyId, onChange })
  */
 (function (global) {
-  var STORAGE_KEY = "project_create_budget_v12";
+  var STORAGE_KEY = "project_create_budget_v13";
   /** 旧版 BP 部门名，已废弃，加载时清空 */
   var LEGACY_BP_DEPT_NAMES = { "智能照明": true, "智能家电": true };
+  var FUTURE_ALLOC_LOCK_TITLE = "收益日期范围含未来日期，已自动设为不分摊且不可修改";
 
   /** 部门树形下拉实例池 */
   var deptPickerInstances = [];
@@ -92,10 +93,52 @@
   var activeTbodyId = "tbodyBudget";
   var cachedDefaults = null;
 
+  /** 当天 YYYY-MM-DD（本地时区），用于判定收益区间是否含未来 */
+  function todayYmd() {
+    var d = new Date();
+    var m = d.getMonth() + 1;
+    var day = d.getDate();
+    return (
+      d.getFullYear() +
+      "-" +
+      (m < 10 ? "0" : "") +
+      m +
+      "-" +
+      (day < 10 ? "0" : "") +
+      day
+    );
+  }
+
+  function currentYearDateRange() {
+    var y = new Date().getFullYear();
+    return { start: y + "-01-01", end: y + "-12-31" };
+  }
+
+  /**
+   * 收益日期范围是否含未来日：结束日晚于今天则视为未来区间。
+   * 仅本预算页生效；日期未填完整时不锁定。
+   */
+  function isFutureRevenueRange(start, end) {
+    var s = String(start || "").trim();
+    var e = String(end || "").trim();
+    if (!s || !e) return false;
+    return e > todayYmd();
+  }
+
   function getRowAllocMode(row) {
     if (!row) return "";
     var m = String(row.allocMode || "").trim();
     return m === "分摊" || m === "不分摊" ? m : "";
+  }
+
+  /** 本页默认不分摊；含未来收益日时强制不分摊 */
+  function resolveAllocMode(start, end, current) {
+    if (isFutureRevenueRange(start, end)) {
+      return { mode: "不分摊", locked: true };
+    }
+    var m = String(current || "").trim();
+    if (m !== "分摊" && m !== "不分摊") m = "不分摊";
+    return { mode: m, locked: false };
   }
 
   function getAllocModeFromTr(tr) {
@@ -106,18 +149,53 @@
     return m === "分摊" || m === "不分摊" ? m : "";
   }
 
-  function allocModeSelectHtml(value) {
+  function allocModeSelectHtml(value, locked) {
     var v = String(value || "").trim();
+    if (v !== "分摊" && v !== "不分摊") v = "不分摊";
     var isAlloc = v === "分摊";
     var isNoAlloc = v === "不分摊";
-    // 「请选择」仅作空值占位展示，不出现在下拉选项中；真实选项仅「分摊」「不分摊」
+    var lockAttr = locked
+      ? ' disabled title="' + FUTURE_ALLOC_LOCK_TITLE + '"'
+      : "";
     return (
-      '<select class="js-budget-alloc-mode" aria-required="true" aria-label="分摊模式">' +
-      '<option value="" disabled hidden' + (!isAlloc && !isNoAlloc ? " selected" : "") + ">请选择</option>" +
+      '<select class="js-budget-alloc-mode" aria-required="true" aria-label="分摊模式"' +
+      lockAttr +
+      ">" +
       '<option value="分摊"' + (isAlloc ? " selected" : "") + ">分摊</option>" +
       '<option value="不分摊"' + (isNoAlloc ? " selected" : "") + ">不分摊</option>" +
       "</select>"
     );
+  }
+
+  /** 按收益日期同步分摊模式锁定（含未来 → 强制不分摊且不可改） */
+  function applyRevenueDateAllocRules(tr, opts) {
+    opts = opts || {};
+    if (!tr) return;
+    var id = tr.dataset.id;
+    var start = "";
+    var end = "";
+    if (id && rowPickers[id] && rowPickers[id].get) {
+      var dr = rowPickers[id].get();
+      start = dr.start || "";
+      end = dr.end || "";
+    }
+    var sel = tr.querySelector(".js-budget-alloc-mode");
+    if (!sel) return;
+    var resolved = resolveAllocMode(start, end, sel.value);
+    var prev = String(sel.value || "").trim();
+    if (resolved.locked) {
+      if (opts.notify && prev === "分摊") {
+        toast("收益日期含未来区间，已自动切换为不分摊且不可修改");
+      }
+      sel.value = "不分摊";
+      sel.disabled = true;
+      sel.title = FUTURE_ALLOC_LOCK_TITLE;
+    } else {
+      sel.disabled = false;
+      sel.removeAttribute("title");
+      if (prev !== "分摊" && prev !== "不分摊") sel.value = "不分摊";
+    }
+    if (id) enforceRowAllocModeRules(id);
   }
 
   function enforceSingleMsf(msf, mode) {
@@ -191,7 +269,7 @@
           revenueDateEnd: "2025-12-31",
           marketingType: "自主营销-产品营销",
           budgetType: "海外社媒投放",
-          allocMode: "",
+          allocMode: "不分摊",
           deptCode: "D102_AMZ",
           dept: "亚马逊平台 · Govee",
           models: ["H6065"],
@@ -213,7 +291,7 @@
           revenueDateEnd: "2025-07-31",
           marketingType: "联合营销-品牌营销",
           budgetType: "大型展会",
-          allocMode: "",
+          allocMode: "不分摊",
           deptCode: "D102_BRAND",
           dept: "品牌中心",
           models: ["H617E"],
@@ -235,7 +313,7 @@
           revenueDateEnd: "2025-12-31",
           marketingType: "自主营销-产品营销",
           budgetType: "红人营销（KOL）",
-          allocMode: "",
+          allocMode: "不分摊",
           deptCode: "D109_GL",
           dept: "Goveelife",
           models: ["H7170"],
@@ -800,7 +878,10 @@
       row.npTag = String(row.npTag).replace(/年新品$/, "");
     }
     if (row.allocMode !== "分摊" && row.allocMode !== "不分摊") {
-      row.allocMode = "";
+      row.allocMode = "不分摊";
+    }
+    if (isFutureRevenueRange(row.revenueDateStart, row.revenueDateEnd)) {
+      row.allocMode = "不分摊";
     }
     return normalizeDeptFields(row);
   }
@@ -808,6 +889,9 @@
   function loadAll() {
     try {
       var raw = localStorage.getItem(STORAGE_KEY);
+      if (raw == null || raw === "") {
+        raw = localStorage.getItem("project_create_budget_v12");
+      }
       if (raw == null || raw === "") {
         raw = localStorage.getItem("project_create_budget_v11");
       }
@@ -1015,7 +1099,8 @@
         end: row.revenueDateEnd,
         useBodyPortal: true,
         onChange: function () {
-          if (onChangeCb) onChangeCb(loadAll());
+          applyRevenueDateAllocRules(tr, { notify: true });
+          if (onChangeCb) onChangeCb(syncListFromDom(activeTbodyId));
         }
       });
     }
@@ -1159,6 +1244,8 @@
     row.marketingType = String((tr.querySelector(".js-marketing-type") || {}).value || "").trim();
     row.budgetType = String((tr.querySelector(".js-budget-type") || {}).value || "").trim();
     row.allocMode = String((tr.querySelector(".js-budget-alloc-mode") || {}).value || "").trim();
+    var resolvedAlloc = resolveAllocMode(row.revenueDateStart, row.revenueDateEnd, row.allocMode);
+    row.allocMode = resolvedAlloc.mode;
     row.deptCode = "";
     row.dept = "";
     var pickerEl = tr.querySelector(".js-budget-dept-picker");
@@ -1261,6 +1348,8 @@
     }
 
     list.forEach(function (row) {
+      var resolvedAlloc = resolveAllocMode(row.revenueDateStart, row.revenueDateEnd, row.allocMode);
+      row.allocMode = resolvedAlloc.mode;
       var tr = document.createElement("tr");
       tr.dataset.id = row.id;
       tr.innerHTML =
@@ -1268,7 +1357,7 @@
         '<td><div class="js-budget-dr plan-row-dr-host"></div></td>' +
         "<td>" + marketingTypeSelectHtml(row.marketingType) + "</td>" +
         "<td>" + budgetTypeSelectHtml(row.budgetType) + "</td>" +
-        "<td>" + allocModeSelectHtml(row.allocMode) + "</td>" +
+        "<td>" + allocModeSelectHtml(row.allocMode, resolvedAlloc.locked) + "</td>" +
         "<td>" + departmentSelectHtml(row) + "</td>" +
         '<td><div class="js-budget-sc msf-plan-row"></div></td>' +
         '<td><div class="js-budget-model msf-plan-row msf-cell-narrow"></div></td>' +
@@ -1383,13 +1472,15 @@
     tbodyId = tbodyId || activeTbodyId;
     var list = loadAll();
     var base = SCENES[0];
+    var yearRange = currentYearDateRange();
+    var resolvedAlloc = resolveAllocMode(yearRange.start, yearRange.end, "不分摊");
     list.push({
       id: uid(),
-      revenueDateStart: "2025-01-01",
-      revenueDateEnd: "2025-12-31",
+      revenueDateStart: yearRange.start,
+      revenueDateEnd: yearRange.end,
       marketingType: "",
       budgetType: "",
-      allocMode: "",
+      allocMode: resolvedAlloc.mode,
       deptCode: "",
       dept: "",
       models: [],
