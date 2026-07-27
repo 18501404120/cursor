@@ -20,6 +20,47 @@ function parseTranscriptMeta(text) {
   return { startedAt, durationMs };
 }
 
+function probeDurationMs(mediaPath) {
+  try {
+    const ffmpegStatic = require('ffmpeg-static');
+    const { execFileSync } = require('child_process');
+    const out = execFileSync(
+      ffmpegStatic,
+      ['-i', mediaPath],
+      { encoding: 'utf8', stdio: ['ignore', 'ignore', 'pipe'] }
+    );
+    // ffmpeg writes probe info to stderr; execFileSync throws on non-zero — catch below
+    void out;
+  } catch (err) {
+    const text = `${err.stderr || ''}${err.message || ''}`;
+    const m = text.match(/Duration:\s*(\d+):(\d+):(\d+(?:\.\d+)?)/);
+    if (m) {
+      return (Number(m[1]) * 3600 + Number(m[2]) * 60 + Number(m[3])) * 1000;
+    }
+  }
+  return 0;
+}
+
+function cleanupTempWav(tempWav, sessionDir) {
+  const name = path.basename(tempWav);
+  const candidates = new Set([tempWav, path.join(sessionDir, name)]);
+  try {
+    const parent = path.dirname(sessionDir);
+    for (const entry of fs.readdirSync(parent)) {
+      candidates.add(path.join(parent, entry, name));
+    }
+  } catch (_) {
+    /* ignore */
+  }
+  for (const p of candidates) {
+    try {
+      if (fs.existsSync(p)) fs.unlinkSync(p);
+    } catch (_) {
+      /* ignore */
+    }
+  }
+}
+
 async function retranscribeOne(m4aPath, config) {
   const sessionDir = path.dirname(m4aPath);
   const baseName = path.basename(m4aPath, '.m4a');
@@ -40,12 +81,20 @@ async function retranscribeOne(m4aPath, config) {
     const speakers = new Set(lines.map((l) => l.speaker));
     let startedAt = new Date();
     let durationMs = 0;
+    let hadValidMeta = false;
     if (fs.existsSync(txtPath)) {
       const meta = parseTranscriptMeta(fs.readFileSync(txtPath, 'utf8'));
       startedAt = meta.startedAt;
       durationMs = meta.durationMs;
+      hadValidMeta = durationMs > 0;
     }
     if (!durationMs && result.duration_ms) durationMs = result.duration_ms;
+    if (!durationMs) durationMs = probeDurationMs(m4aPath);
+    // 无有效历史时长时：用录音结束时间回推会议开始
+    if (!hadValidMeta && durationMs > 0) {
+      const endedAt = fs.statSync(m4aPath).mtime;
+      startedAt = new Date(endedAt.getTime() - durationMs);
+    }
 
     const transcript = buildTranscriptText({
       startedAt,
@@ -71,7 +120,8 @@ async function retranscribeOne(m4aPath, config) {
       console.log(`   目录: ${scenario.sessionDir}`);
     }
   } finally {
-    if (fs.existsSync(tempWav)) fs.unlinkSync(tempWav);
+    // 场景生成可能重命名会议目录，临时 wav 会随目录搬走
+    cleanupTempWav(tempWav, sessionDir);
   }
 }
 

@@ -256,7 +256,7 @@
             '</div>' +
           '</div>' +
           '<div class="modal-bd">' +
-            '<p class="fee-dept-lead">按<strong>组织 → 部门层级</strong>维护费用归属树。费用可选<strong>中间层级</strong>（如销售中心、新渠道），也可选末级渠道/部门。右侧展示对应<strong>金蝶组织 / BM</strong>财务对照。禁止选择节点（如 OC）不可作为费用归属。</p>' +
+            '<p class="fee-dept-lead">按<strong>组织 → 部门层级</strong>维护费用归属树。费用可选<strong>中间层级</strong>（如销售中心、新渠道），也可选末级渠道/部门。右侧展示对应<strong>金蝶组织 / BM</strong>财务对照。</p>' +
             '<div class="fee-dept-layout">' +
               '<div class="fee-dept-tree-pane">' +
                 '<div class="fee-item-toolbar">' +
