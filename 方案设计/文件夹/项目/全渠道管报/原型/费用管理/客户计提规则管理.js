@@ -30,10 +30,34 @@
       .replace(/"/g, '&quot;');
   }
 
-  function money(value) {
+  function money(value, customer) {
+    if (window.FeeMgmtCommon && window.FeeMgmtCommon.formatMoney) {
+      return window.FeeMgmtCommon.formatMoney(value, customer);
+    }
     var num = Number(value || 0);
     var prefix = num < 0 ? '-$' : '$';
     return prefix + Math.abs(num).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+
+  function getIncomeCurrency(customer) {
+    if (window.FeeMgmtCommon && window.FeeMgmtCommon.getCustomerCurrency) {
+      return window.FeeMgmtCommon.getCustomerCurrency(customer);
+    }
+    return 'USD';
+  }
+
+  function updateExpenseCurrencyLabel(customer) {
+    var code = getIncomeCurrency(customer);
+    ['fExpenseMonthlyFixed', 'fExpenseAnnualTotal'].forEach(function (id) {
+      var input = document.getElementById(id);
+      if (!input) return;
+      var field = input.closest('.form-field');
+      if (!field) return;
+      var label = field.querySelector('label');
+      if (!label) return;
+      var base = id === 'fExpenseAnnualTotal' ? '年总金额' : '月固定金额';
+      label.textContent = base + '（' + code + '）';
+    });
   }
 
   function pct(value) {
@@ -171,7 +195,7 @@
   function renderMatrixTable() {
     var rows = getMatrixRows();
     var body = document.getElementById('matrixBody');
-    document.getElementById('matrixTip').textContent = '共 ' + rows.length + ' 条 · 金额单位 USD';
+    document.getElementById('matrixTip').textContent = '共 ' + rows.length + ' 条';
 
     if (!rows.length) {
       body.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#6b7280;padding:32px;">暂无零售商计提规则</td></tr>';
@@ -647,6 +671,7 @@
     document.getElementById('fExpenseAnnualTotal').value = Number(row.baseAmount || 0);
     document.getElementById('fExpenseRatio').value = Number(row.ratio || 0);
     document.getElementById('fExpenseNote').value = row.note || '';
+    updateExpenseCurrencyLabel(row.customer);
     toggleExpenseFields();
     window.FeeMgmtCommon.openModalMask('expenseModal');
   }

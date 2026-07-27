@@ -29,10 +29,33 @@
       .replace(/"/g, '&quot;');
   }
 
-  function money(value) {
+  function money(value, customer) {
+    if (window.FeeMgmtCommon && window.FeeMgmtCommon.formatMoney) {
+      return window.FeeMgmtCommon.formatMoney(value, customer);
+    }
     var num = Number(value || 0);
     var prefix = num < 0 ? '-$' : '$';
     return prefix + Math.abs(num).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+
+  function getIncomeCurrency(customer) {
+    if (window.FeeMgmtCommon && window.FeeMgmtCommon.getCustomerCurrency) {
+      return window.FeeMgmtCommon.getCustomerCurrency(customer);
+    }
+    return 'USD';
+  }
+
+  function formatCurrencyAmount(amount, currency) {
+    if (window.FeeMgmtCommon && window.FeeMgmtCommon.formatCurrencyAmount) {
+      return window.FeeMgmtCommon.formatCurrencyAmount(amount, currency);
+    }
+    return 'USD ' + Number(amount || 0).toFixed(2);
+  }
+
+  function setCurrencyDisplay(customer) {
+    var input = document.getElementById('fCurrency');
+    if (!input) return;
+    input.value = getIncomeCurrency(customer);
   }
 
   function exportText(value) {
@@ -250,6 +273,10 @@
     var opening = 0;
     var actual = 0;
     var closing = 0;
+    var selectedCustomer = document.getElementById('qCustomer').value;
+    var statsCurrency = window.FeeMgmtCommon && window.FeeMgmtCommon.resolveStatsCurrency
+      ? window.FeeMgmtCommon.resolveStatsCurrency(list, selectedCustomer)
+      : 'USD';
 
     list.forEach(function (row) {
       opening += Number(row.openingBalance || 0);
@@ -258,9 +285,9 @@
     });
 
     document.getElementById('statCount').textContent = list.length;
-    document.getElementById('statOpening').textContent = money(opening);
-    document.getElementById('statActual').textContent = money(actual);
-    document.getElementById('statClosing').textContent = money(closing);
+    document.getElementById('statOpening').textContent = money(opening, statsCurrency);
+    document.getElementById('statActual').textContent = money(actual, statsCurrency);
+    document.getElementById('statClosing').textContent = money(closing, statsCurrency);
   }
 
   function calcButton(row, field, text) {
@@ -276,7 +303,7 @@
     var body = document.getElementById('refundBody');
 
     renderStats(rows);
-    document.getElementById('resultTip').textContent = '共 ' + rows.length + ' 条' + getFilterTipText() + ' · 金额单位 USD';
+    document.getElementById('resultTip').textContent = '共 ' + rows.length + ' 条' + getFilterTipText();
 
     if (!rows.length) {
       body.innerHTML = '<tr><td colspan="13" style="text-align:center;color:#6b7280;padding:32px;">暂无退款记录</td></tr>';
@@ -285,18 +312,19 @@
 
     body.innerHTML = rows.map(function (row) {
       var salesIncome = row.salesIncome != null ? row.salesIncome : getCurrentSales(row.customer, row.period);
+      var customer = row.customer;
       return '' +
         '<tr>' +
           '<td>' + esc(row.period) + '</td>' +
-          '<td>' + esc(row.customer) + '</td>' +
-          '<td class="num">' + money(salesIncome) + '</td>' +
-          '<td class="num">' + calcButton(row, 'opening', money(row.openingBalance)) + '</td>' +
-          '<td class="num">' + money(row.actualRefund) + '</td>' +
+          '<td>' + esc(customer) + '</td>' +
+          '<td class="num">' + money(salesIncome, customer) + '</td>' +
+          '<td class="num">' + calcButton(row, 'opening', money(row.openingBalance, customer)) + '</td>' +
+          '<td class="num">' + money(row.actualRefund, customer) + '</td>' +
           '<td class="num">' + calcButton(row, 'prevRatio', pct(getPreviousRatio(row))) + '</td>' +
           '<td class="num">' + calcButton(row, 'ratio', pct(row.ratio)) + '</td>' +
           '<td class="num">' + calcButton(row, 'window', String(row.windowMonths)) + '</td>' +
-          '<td class="num">' + calcButton(row, 'accrual', money(row.accrualAmount)) + '</td>' +
-          '<td class="num">' + calcButton(row, 'closing', money(row.closingBalance)) + '</td>' +
+          '<td class="num">' + calcButton(row, 'accrual', money(row.accrualAmount, customer)) + '</td>' +
+          '<td class="num">' + calcButton(row, 'closing', money(row.closingBalance, customer)) + '</td>' +
           '<td title="' + esc(row.note || '') + '">' + esc((row.note || '').slice(0, 24)) + '</td>' +
           '<td>' + esc(row.updatedAt || '-') + '</td>' +
           '<td><span class="ops">' +
@@ -317,17 +345,18 @@
       ['期间', '客户', '销售收入', '期初计提退款余额', '实际退款(录入)', '上月滚动退款率', '本月滚动退款率', '目标窗口(月)', '当月计提退款', '期末计提退款余额', '备注', '更新时间']
     ].concat(rows.map(function (row) {
       var salesIncome = row.salesIncome != null ? row.salesIncome : getCurrentSales(row.customer, row.period);
+      var customer = row.customer;
       return [
         exportText(row.period),
         row.customer,
-        exportText(money(salesIncome)),
-        exportText(money(row.openingBalance)),
-        exportText(money(row.actualRefund)),
+        exportText(money(salesIncome, customer)),
+        exportText(money(row.openingBalance, customer)),
+        exportText(money(row.actualRefund, customer)),
         pct(getPreviousRatio(row)),
         pct(row.ratio),
         String(row.windowMonths),
-        exportText(money(row.accrualAmount)),
-        exportText(money(row.closingBalance)),
+        exportText(money(row.accrualAmount, customer)),
+        exportText(money(row.closingBalance, customer)),
         row.note || '',
         row.updatedAt || '-'
       ];
@@ -346,7 +375,7 @@
 
     var actual = Number(document.getElementById('fActual').value || 0);
     var accrual = actual + Number(row.targetClosing || 0) - Number(row.openingBalance || 0);
-    document.getElementById('fAccrual').value = money(accrual);
+    document.getElementById('fAccrual').value = money(accrual, row.customer);
   }
 
   function openEditModal(row) {
@@ -354,12 +383,13 @@
     editingId = row.id;
     document.getElementById('fPeriod').value = row.period;
     document.getElementById('fCustomer').value = row.customer;
-    document.getElementById('fOpening').value = money(row.openingBalance);
+    document.getElementById('fOpening').value = money(row.openingBalance, row.customer);
     document.getElementById('fPrevRatio').value = pct(getPreviousRatio(row));
     document.getElementById('fRatio').value = pct(row.ratio);
-    document.getElementById('fTarget').value = money(row.targetClosing);
+    document.getElementById('fTarget').value = money(row.targetClosing, row.customer);
     document.getElementById('fActual').value = Number(row.actualRefund || 0);
     document.getElementById('fNote').value = row.note || '';
+    setCurrencyDisplay(row.customer);
     previewAccrual();
     window.FeeMgmtCommon.openModalMask('editModal');
   }
@@ -375,7 +405,7 @@
       : '销售收入 − 退货退款的收入（金蝶-销售退货单，type=退货退款）';
   }
 
-  function renderMiniTable(rows, activePeriods) {
+  function renderMiniTable(rows, activePeriods, customer) {
     if (!rows.length) {
       return '<p style="margin:0;font-size:12px;color:#6b7280;">无可用历史数据。</p>';
     }
@@ -391,8 +421,8 @@
             return '' +
               '<tr class="' + (activeMap[item.period] ? 'active' : '') + '">' +
                 '<td>' + esc(item.period) + '</td>' +
-                '<td>' + money(item.sales) + '</td>' +
-                '<td>' + money(Math.abs(item.refund || 0)) + '</td>' +
+                '<td>' + money(item.sales, customer) + '</td>' +
+                '<td>' + money(Math.abs(item.refund || 0), customer) + '</td>' +
               '</tr>';
           }).join('') +
         '</tbody>' +
@@ -417,6 +447,7 @@
     if (!calcState || !calcState.row) return;
 
     var row = calcState.row;
+    var customer = row.customer;
     var scenario = buildCalcScenario(row, document.getElementById('calcWindowInput').value);
     var basisPeriods = scenario.basisRows.map(function (item) { return item.period; });
     var triggerLabel = {
@@ -431,52 +462,53 @@
     document.getElementById('calcTitle').textContent = triggerLabel + '计算过程';
     document.getElementById('calcPrevRatioInput').value = pct(scenario.openingRatio);
     document.getElementById('calcRatioInput').value = pct(scenario.ratio);
-    document.getElementById('calcSalesIncomeInput').value = money(scenario.currentSales);
+    document.getElementById('calcSalesIncomeInput').value = money(scenario.currentSales, customer);
 
     document.getElementById('calcSummary').innerHTML = '' +
       '<div class="item"><div class="label">期间</div><div class="value">' + esc(row.period) + '</div></div>' +
-      '<div class="item"><div class="label">客户</div><div class="value">' + esc(row.customer) + '</div></div>' +
-      '<div class="item"><div class="label" title="' + esc(salesIncomeLogicNote()) + '">销售收入</div><div class="value">' + money(scenario.currentSales) + '</div></div>' +
+      '<div class="item"><div class="label">客户</div><div class="value">' + esc(customer) + '</div></div>' +
+      '<div class="item"><div class="label" title="' + esc(salesIncomeLogicNote()) + '">销售收入</div><div class="value">' + money(scenario.currentSales, customer) + '</div></div>' +
       '<div class="item"><div class="label">目标窗口</div><div class="value">' + esc(String(scenario.windowMonths)) + ' 月</div></div>';
 
     document.getElementById('ratioFormula').textContent =
-      '本月滚动退款率 = 截至 ' + esc(row.period) + ' 近12个月实际退款合计 ' + money(scenario.history12Refund) +
-      ' / 近12个月销售收入合计 ' + money(scenario.history12Sales) +
+      '本月滚动退款率 = 截至 ' + esc(row.period) + ' 近12个月实际退款合计 ' + money(scenario.history12Refund, customer) +
+      ' / 近12个月销售收入合计 ' + money(scenario.history12Sales, customer) +
       ' = ' + pct(scenario.ratio);
 
-    document.getElementById('ratioHistoryWrap').innerHTML = renderMiniTable(scenario.history12, []);
+    document.getElementById('ratioHistoryWrap').innerHTML = renderMiniTable(scenario.history12, [], customer);
 
     document.getElementById('prevRatioFormula').textContent =
-      '上月滚动退款率 = 截至 ' + esc(scenario.prevPeriodLabel) + ' 近12个月实际退款合计 ' + money(scenario.prevHistory12Refund) +
-      ' / 近12个月销售收入合计 ' + money(scenario.prevHistory12Sales) +
+      '上月滚动退款率 = 截至 ' + esc(scenario.prevPeriodLabel) + ' 近12个月实际退款合计 ' + money(scenario.prevHistory12Refund, customer) +
+      ' / 近12个月销售收入合计 ' + money(scenario.prevHistory12Sales, customer) +
       ' = ' + pct(scenario.openingRatio);
 
-    document.getElementById('prevRatioHistoryWrap').innerHTML = renderMiniTable(scenario.prevHistory12, []);
+    document.getElementById('prevRatioHistoryWrap').innerHTML = renderMiniTable(scenario.prevHistory12, [], customer);
 
     document.getElementById('openingFormula').textContent =
       '本月期初计提退款余额 = 上月滚动退款率 ' + pct(scenario.openingRatio) +
       ' × 过去近 ' + scenario.windowMonths + ' 个月销售收入（截至 ' + esc(scenario.prevPeriodLabel) + '，' +
-      scenario.openingBasisRows.map(function (item) { return money(item.sales); }).join(' + ') +
-      '） = ' + money(scenario.openingBalance);
+      scenario.openingBasisRows.map(function (item) { return money(item.sales, customer); }).join(' + ') +
+      '） = ' + money(scenario.openingBalance, customer);
 
     document.getElementById('openingHistoryWrap').innerHTML = renderMiniTable(
       scenario.openingBasisRows,
-      scenario.openingBasisRows.map(function (item) { return item.period; })
+      scenario.openingBasisRows.map(function (item) { return item.period; }),
+      customer
     );
 
     document.getElementById('closingFormula').textContent =
       '本月期末计提退款余额 = 本月滚动退款率 ' + pct(scenario.ratio) +
       ' × 过去近 ' + scenario.windowMonths + ' 个月销售收入（截至 ' + esc(row.period) + '，' +
-      scenario.basisRows.map(function (item) { return money(item.sales); }).join(' + ') +
-      '） = ' + money(scenario.closingBalance);
+      scenario.basisRows.map(function (item) { return money(item.sales, customer); }).join(' + ') +
+      '） = ' + money(scenario.closingBalance, customer);
 
-    document.getElementById('closingHistoryWrap').innerHTML = renderMiniTable(scenario.basisRows, basisPeriods);
+    document.getElementById('closingHistoryWrap').innerHTML = renderMiniTable(scenario.basisRows, basisPeriods, customer);
 
     document.getElementById('accrualFormula').textContent =
-      '当月计提退款 = 实际退款金额 ' + money(scenario.actualRefund) +
-      ' + 期末计提退款余额 ' + money(scenario.targetClosing) +
-      ' - 期初计提退款余额 ' + money(scenario.openingBalance) +
-      ' = ' + money(scenario.accrualAmount);
+      '当月计提退款 = 实际退款金额 ' + money(scenario.actualRefund, customer) +
+      ' + 期末计提退款余额 ' + money(scenario.targetClosing, customer) +
+      ' - 期初计提退款余额 ' + money(scenario.openingBalance, customer) +
+      ' = ' + money(scenario.accrualAmount, customer);
 
     focusCalcSection(calcState.field);
   }
@@ -525,19 +557,21 @@
 
     var actualAmount = document.getElementById('fActual').value;
     var note = document.getElementById('fNote').value.trim();
+    var currency = getIncomeCurrency(row.customer);
 
     store.upsertRefundActual({
       id: editingId,
       customer: row.customer,
       period: row.period,
       actualAmount: actualAmount,
+      currency: currency,
       note: note
     });
 
     appendOpLog(editingId, {
       action: '录入实际退款',
       target: row.customer + ' · ' + row.period,
-      detail: '实际退款 ' + money(actualAmount) + (note ? '；备注：' + note : '')
+      detail: '实际退款 ' + formatCurrencyAmount(actualAmount, currency) + (note ? '；备注：' + note : '')
     });
 
     closeEditModal();
@@ -552,12 +586,7 @@
     document.getElementById('qCustomer').insertAdjacentHTML('beforeend', customerOpts);
   }
 
-  function buildImportTemplateRows() {
-    return [
-      ['期间', '客户', '实际退款金额', '备注'],
-      ['2026-01', 'Target', '298568.84', '账单核对后录入']
-    ];
-  }
+  var IMPORT_TEMPLATE_DOC_URL = 'https://alidocs.dingtalk.com/i/nodes/YndMj49yWjPGo3reIRRww7RKJ3pmz5aA';
 
   function mountImportKit() {
     if (!window.ImportModalKit) return;
@@ -565,23 +594,24 @@
       trigger: '#btnImport',
       title: '导入实际退款',
       introHtml: '<p>批量导入各客户、各期间的实际退款金额。系统会按「期间 + 客户」匹配台账记录，覆盖对应行的实际退款（录入）值，并自动重算当月计提退款与期末计提退款余额。</p>' +
-        '<p><strong>注意：</strong>仅「实际退款金额」支持导入；滚动退款率、目标窗口等仍由系统按规则计算。</p>',
-      templateExt: 'CSV',
-      templateFileName: '退款实际值导入模版.csv',
+        '<p><strong>注意：</strong>币种随客户收入币种自动带入（加拿大客户为 CNY，其余为 USD），无需手工填写；滚动退款率、目标窗口等仍由系统按规则计算。</p>',
+      templateButtonLabel: '打开导入模版（钉钉文档）',
       columns: [
         { group: '主键', name: '期间', required: true, desc: '格式 YYYY-MM，须与系统已有期间一致' },
         { group: '主键', name: '客户', required: true, desc: '零售商名称，须与系统客户主数据一致' },
         { group: '录入', name: '实际退款金额', required: true, desc: '正数金额，可带或不带 $ 符号' },
+        { group: '录入', name: '币种', required: true, desc: '随客户收入币种自动带入；加拿大客户为 CNY，其余为 USD' },
         { group: '录入', name: '备注', required: false, desc: '可填写账单来源、差异说明' }
       ],
       requirements: [
         '期间与客户组合须在退款台账中已存在，否则该行导入失败。',
         '实际退款金额为必填，填写数字即可，例如 298568.84。',
+        '币种随客户收入币种自动带入；加拿大客户（Costco CA、D&H CA、Synnex-CA、HOME DEPOT CANADA）为 CNY，其余为 USD。',
         '导入后会标记为「手工录入」来源，并触发后续月份余额顺延重算。',
         '原型示意中不做真实文件解析，确认导入后会模拟批量覆盖当前筛选结果中的前几条记录。'
       ],
       onDownload: function () {
-        window.ImportModalKit.downloadCsv('退款实际值导入模版.csv', buildImportTemplateRows());
+        window.open(IMPORT_TEMPLATE_DOC_URL, '_blank', 'noopener,noreferrer');
       },
       onConfirm: function (file, resultEl) {
         if (!file) {
@@ -592,17 +622,19 @@
         var count = 0;
         rows.slice(0, 3).forEach(function (row, index) {
           var amount = Number(row.actualRefund || 0) + (index + 1) * 100;
+          var currency = getIncomeCurrency(row.customer);
           store.upsertRefundActual({
             id: row.id,
             customer: row.customer,
             period: row.period,
             actualAmount: amount,
+            currency: currency,
             note: '批量导入示意'
           });
           appendOpLog(row.id, {
             action: '批量导入实际退款',
             target: row.customer + ' · ' + row.period,
-            detail: '实际退款 ' + money(amount)
+            detail: '实际退款 ' + formatCurrencyAmount(amount, currency)
           });
           count += 1;
         });

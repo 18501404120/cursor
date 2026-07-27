@@ -28,6 +28,13 @@
     annual_avg: '年总金额月均分摊'
   };
   var KINGDEE_ORDER_TAX_FACTOR = 0.9524;
+
+  function getDefaultCustomerCurrency(customer) {
+    if (global.FeeMgmtCommon && global.FeeMgmtCommon.getCustomerCurrency) {
+      return global.FeeMgmtCommon.getCustomerCurrency(customer);
+    }
+    return 'USD';
+  }
   var DEFAULT_DEPARTMENTS = [
     { id: '1001', code: '1001', name: '北美商超业务部' },
     { id: '2003', code: '2003', name: '电商渠道部' },
@@ -1190,6 +1197,7 @@
           period: period,
           openingBalance: openingBalance,
           actualRefund: actualRefund,
+          currency: actualOverride.currency || baseLedger.currency || getDefaultCustomerCurrency(customer),
           accrualAmount: accrualAmount,
           closingBalance: closingBalance,
           prevRatio: round8(prevRatio),
@@ -1437,12 +1445,15 @@
     var baseLedger = refundLedgerBaseMap[id] || {};
     var actualAmount = numericOrNull(payload.actualAmount);
     var note = String(payload.note || '');
+    var currency = getDefaultCustomerCurrency(payload.customer);
+    var baseCurrency = getDefaultCustomerCurrency(payload.customer);
 
-    if (round2(actualAmount || 0) === round2(baseLedger.actualAmount || 0) && note === '') {
+    if (round2(actualAmount || 0) === round2(baseLedger.actualAmount || 0) && note === '' && currency === baseCurrency) {
       delete overrides[id];
     } else {
       overrides[id] = {
         actualAmount: actualAmount == null ? 0 : round2(actualAmount),
+        currency: currency,
         note: note,
         updatedAt: nowText()
       };

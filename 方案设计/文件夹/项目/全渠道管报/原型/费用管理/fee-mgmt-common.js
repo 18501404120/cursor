@@ -169,6 +169,47 @@
   /** 商超扣款/退款页共用的「销售收入」取值口径说明 */
   var SALES_INCOME_LOGIC_DESC = '销售收入 − 退货退款的收入（金蝶-销售退货单，type=退货退款）';
 
+  /** 加拿大客户按人民币口径维护与展示 */
+  var CANADIAN_CNY_CUSTOMERS = ['Costco CA', 'D&H CA', 'Synnex-CA', 'HOME DEPOT CANADA'];
+
+  function getCustomerCurrency(customer) {
+    return CANADIAN_CNY_CUSTOMERS.indexOf(String(customer || '').trim()) >= 0 ? 'CNY' : 'USD';
+  }
+
+  function normalizeCurrencyCode(code) {
+    var value = String(code || 'USD').trim().toUpperCase();
+    return value === 'CNY' ? 'CNY' : 'USD';
+  }
+
+  function formatMoney(amount, customerOrCurrency) {
+    var currency = customerOrCurrency === 'CNY' || customerOrCurrency === 'USD'
+      ? normalizeCurrencyCode(customerOrCurrency)
+      : getCustomerCurrency(customerOrCurrency);
+    var num = Number(amount || 0);
+    var prefix = num < 0 ? '-' : '';
+    var abs = Math.abs(num).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    if (currency === 'CNY') return prefix + '¥' + abs;
+    return prefix + '$' + abs;
+  }
+
+  function formatCurrencyAmount(amount, currency) {
+    var code = normalizeCurrencyCode(currency);
+    var num = Number(amount || 0);
+    var prefix = num < 0 ? '-' : '';
+    return prefix + code + ' ' + Math.abs(num).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+
+  function resolveStatsCurrency(rows, selectedCustomer) {
+    if (selectedCustomer) return getCustomerCurrency(selectedCustomer);
+    if (!rows || !rows.length) return 'USD';
+    var map = {};
+    rows.forEach(function (row) {
+      map[getCustomerCurrency(row.customer)] = true;
+    });
+    var keys = Object.keys(map);
+    return keys.length === 1 ? keys[0] : 'USD';
+  }
+
   /** 计提用收入说明：用于比例计提与退款滚动率分母，与实际退款/扣款入账分离 */
   var ACCRUAL_INCOME_NOTE = '计提用收入 = 上述销售收入口径；用于扣款比例计提与退款滚动率分母。实际退款/扣款单独维护，不重复扣减。';
 
@@ -251,6 +292,12 @@
     lastDayOfMonthYm: lastDayOfMonthYm,
     currentMonthYm: currentMonthYm,
     salesIncomeLogicDesc: SALES_INCOME_LOGIC_DESC,
+    canadianCnyCustomers: CANADIAN_CNY_CUSTOMERS.slice(),
+    getCustomerCurrency: getCustomerCurrency,
+    normalizeCurrencyCode: normalizeCurrencyCode,
+    formatMoney: formatMoney,
+    formatCurrencyAmount: formatCurrencyAmount,
+    resolveStatsCurrency: resolveStatsCurrency,
     accrualIncomeNote: ACCRUAL_INCOME_NOTE,
     getRecentMonthsRange: getRecentMonthsRange,
     periodInMonthRange: periodInMonthRange,

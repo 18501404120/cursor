@@ -27,10 +27,33 @@
       .replace(/"/g, '&quot;');
   }
 
-  function money(value) {
+  function money(value, customer) {
+    if (window.FeeMgmtCommon && window.FeeMgmtCommon.formatMoney) {
+      return window.FeeMgmtCommon.formatMoney(value, customer);
+    }
     var num = Number(value || 0);
     var prefix = num < 0 ? '-$' : '$';
     return prefix + Math.abs(num).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+
+  function getIncomeCurrency(customer) {
+    if (window.FeeMgmtCommon && window.FeeMgmtCommon.getCustomerCurrency) {
+      return window.FeeMgmtCommon.getCustomerCurrency(customer);
+    }
+    return 'USD';
+  }
+
+  function formatCurrencyAmount(amount, currency) {
+    if (window.FeeMgmtCommon && window.FeeMgmtCommon.formatCurrencyAmount) {
+      return window.FeeMgmtCommon.formatCurrencyAmount(amount, currency);
+    }
+    return 'USD ' + Number(amount || 0).toFixed(2);
+  }
+
+  function setCurrencyDisplay(customer) {
+    var input = document.getElementById('fCurrency');
+    if (!input) return;
+    input.value = getIncomeCurrency(customer);
   }
 
   function exportText(value) {
@@ -247,6 +270,11 @@
     var actual = 0;
     var closing = 0;
 
+    var selectedCustomer = document.getElementById('qCustomer').value;
+    var statsCurrency = window.FeeMgmtCommon && window.FeeMgmtCommon.resolveStatsCurrency
+      ? window.FeeMgmtCommon.resolveStatsCurrency(list, selectedCustomer)
+      : 'USD';
+
     list.forEach(function (row) {
       opening += Number(row.openingBalance || 0);
       actual += Number(row.actualDeduction || 0);
@@ -254,9 +282,9 @@
     });
 
     document.getElementById('statCount').textContent = list.length;
-    document.getElementById('statOpening').textContent = money(opening);
-    document.getElementById('statActual').textContent = money(actual);
-    document.getElementById('statClosing').textContent = money(closing);
+    document.getElementById('statOpening').textContent = money(opening, statsCurrency);
+    document.getElementById('statActual').textContent = money(actual, statsCurrency);
+    document.getElementById('statClosing').textContent = money(closing, statsCurrency);
   }
 
   function renderTable() {
@@ -268,7 +296,7 @@
     var body = document.getElementById('deductionBody');
 
     renderStats(rows);
-    document.getElementById('resultTip').textContent = '共 ' + rows.length + ' 条 · 金额单位 USD';
+    document.getElementById('resultTip').textContent = '共 ' + rows.length + ' 条';
 
     if (!rows.length) {
       body.innerHTML = '<tr><td colspan="13" style="text-align:center;color:#6b7280;padding:32px;">暂无扣款记录</td></tr>';
@@ -278,6 +306,7 @@
     body.innerHTML = rows.map(function (row) {
       var state = stateOf(row);
       var delta = diff(row.actualDeduction, row.accrualDeduction);
+      var customer = row.customer;
       var ratioCell = isDeptFixedFee(row)
         ? ratioCalcButton(row)
         : (isRatioBasedFee(row)
@@ -289,20 +318,17 @@
           '<td>' + esc(row.period) + '</td>' +
           '<td>' + esc(row.customer) + '</td>' +
           '<td>' + esc(row.feeType) + '</td>' +
-          '<td class="num">' + calcButton(row, 'opening', money(row.openingBalance)) + '</td>' +
-          '<td class="num">' + money(row.actualDeduction) + '</td>' +
+          '<td class="num">' + calcButton(row, 'opening', money(row.openingBalance, customer)) + '</td>' +
+          '<td class="num">' + money(row.actualDeduction, customer) + '</td>' +
           '<td class="num">' + ratioCell + '</td>' +
-          '<td class="num">' + calcButton(row, 'accrual', money(row.accrualDeduction)) + '</td>' +
-          '<td class="num">' + calcButton(row, 'closing', money(row.closingBalance)) + '</td>' +
-          '<td class="num">' + money(delta) + '</td>' +
+          '<td class="num">' + calcButton(row, 'accrual', money(row.accrualDeduction, customer)) + '</td>' +
+          '<td class="num">' + calcButton(row, 'closing', money(row.closingBalance, customer)) + '</td>' +
+          '<td class="num">' + money(delta, customer) + '</td>' +
           '<td><span class="' + stateTagClass(state) + '">' + esc(state) + '</span></td>' +
           '<td title="' + esc(row.note || '') + '">' + esc((row.note || '').slice(0, 24)) + '</td>' +
           '<td>' + esc(row.updatedAt || '-') + '</td>' +
           '<td><span class="ops">' +
             '<button class="op-link" data-action="edit" data-id="' + esc(row.id) + '">录入实际值</button>' +
-            (state !== '匹配'
-              ? '<a class="op-link" href="客户计提规则管理.html?qCustomer=' + encodeURIComponent(row.customer) + '">调整规则</a>'
-              : '') +
             '<button class="op-link" data-action="row-log" data-row-key="' + esc(row.id) + '" data-row-label="' + esc(row.customer + ' · ' + row.feeType + ' · ' + row.period) + '">' + esc(logCountLabel(row.id)) + '</button>' +
           '</span></td>' +
         '</tr>';
@@ -319,16 +345,17 @@
       ['期间', '客户', '费用项', '期初余额', '实际扣款(录入)', '计提比例/规则', '计提扣款', '期末余额', '差异(实际-计提)', '状态', '备注', '更新时间']
     ].concat(rows.map(function (row) {
       var delta = diff(row.actualDeduction, row.accrualDeduction);
+      var customer = row.customer;
       return [
         exportText(row.period),
         row.customer,
         row.feeType,
-        exportText(money(row.openingBalance)),
-        exportText(money(row.actualDeduction)),
+        exportText(money(row.openingBalance, customer)),
+        exportText(money(row.actualDeduction, customer)),
         ratioDisplay(row),
-        exportText(money(row.accrualDeduction)),
-        exportText(money(row.closingBalance)),
-        exportText(money(delta)),
+        exportText(money(row.accrualDeduction, customer)),
+        exportText(money(row.closingBalance, customer)),
+        exportText(money(delta, customer)),
         stateOf(row),
         row.note || '',
         row.updatedAt || '-'
@@ -348,7 +375,7 @@
 
     var actual = Number(document.getElementById('fActual').value || 0);
     var closing = Number(row.openingBalance || 0) - actual + Number(row.accrualDeduction || 0);
-    document.getElementById('fClosing').value = money(closing);
+    document.getElementById('fClosing').value = money(closing, row.customer);
   }
 
   function openModal(row) {
@@ -357,12 +384,13 @@
     document.getElementById('fPeriod').value = row.period;
     document.getElementById('fCustomer').value = row.customer;
     document.getElementById('fFeeType').value = row.feeType;
-    document.getElementById('fOpening').value = money(row.openingBalance);
-    document.getElementById('fIncome').value = money(row.income);
+    document.getElementById('fOpening').value = money(row.openingBalance, row.customer);
+    document.getElementById('fIncome').value = money(row.income, row.customer);
     document.getElementById('fRatio').value = ratioDisplay(row);
-    document.getElementById('fAccrual').value = money(row.accrualDeduction);
+    document.getElementById('fAccrual').value = money(row.accrualDeduction, row.customer);
     document.getElementById('fActual').value = Number(row.actualDeduction || 0);
     document.getElementById('fNote').value = row.note || '';
+    setCurrencyDisplay(row.customer);
     previewClosing();
     window.FeeMgmtCommon.openModalMask('editModal');
   }
@@ -393,10 +421,19 @@
       : '销售收入 − 退货退款的收入（金蝶-销售退货单，type=退货退款）';
   }
 
+  function ratioRuleIntroText(feeType) {
+    var base = '促销扣款、销售折扣、现金折扣支持固定比例（当月销售收入 × 比例）或部门固定比例（各部门订单金额不含税并减去退款金额 × 部门比例后汇总）两种计提方式。';
+    if (feeType === '销售折扣') {
+      base += '销售折扣：当订单上有折扣数据，直接取订单上的折扣比例，没有再用固定比例或部门固定比例；促销扣款、现金折扣按固定比例或部门固定比例计提。';
+    }
+    return base + '部门取不到时，比例按0计算。规则在客户计提规则管理页维护；当月销售收入按上述取值口径自财务系统取数。';
+  }
+
   function renderCalcModal() {
     if (!calcState || !calcState.row) return;
 
     var row = calcState.row;
+    var customer = row.customer;
     var scenario = buildCalcScenario(row);
     var rule = scenario.rule;
     var triggerLabel = {
@@ -411,68 +448,70 @@
       '<div class="item"><div class="label">期间</div><div class="value">' + esc(row.period) + '</div></div>' +
       '<div class="item"><div class="label">客户</div><div class="value">' + esc(row.customer) + '</div></div>' +
       '<div class="item"><div class="label">费用项</div><div class="value">' + esc(row.feeType) + '</div></div>' +
-      '<div class="item"><div class="label" title="' + esc(salesIncomeLogicNote()) + '">当月销售收入</div><div class="value">' + money(scenario.income) + '</div></div>';
+      '<div class="item"><div class="label" title="' + esc(salesIncomeLogicNote()) + '">当月销售收入</div><div class="value">' + money(scenario.income, customer) + '</div></div>';
 
     document.getElementById('sectionRatio').hidden = scenario.budgetFee;
     document.getElementById('sectionBudget').hidden = !scenario.budgetFee;
+    var ratioIntroEl = document.querySelector('#sectionRatio p');
+    if (ratioIntroEl) ratioIntroEl.textContent = ratioRuleIntroText(row.feeType);
 
     if (!scenario.budgetFee && !scenario.monthlyFixed) {
       var ratioName = row.feeType === '促销扣款' ? '促销扣款比例' : (row.feeType === '销售折扣' ? '销售折扣比例' : (row.feeType === '现金折扣' ? '现金折扣比例' : '计提比例'));
       if (scenario.kingdeeDoc) {
         var deptLines = (scenario.deptRatioRows || []).map(function (item) {
-          return esc(item.name) + ' ' + money(item.orderAmountExTax) + ' × ' + pct(item.ratio) + ' = ' + money(item.accrual);
+          return esc(item.name) + ' ' + money(item.orderAmountExTax, customer) + ' × ' + pct(item.ratio) + ' = ' + money(item.accrual, customer);
         }).join('；');
         document.getElementById('ratioFormula').textContent =
           row.feeType + ' 计提扣款 = Σ（部门订单金额不含税并减去退款金额 × 部门固定比例）' +
           (deptLines ? '（' + deptLines + '）' : '') +
-          ' = ' + money(scenario.computedAccrual);
+          ' = ' + money(scenario.computedAccrual, customer);
       } else {
         document.getElementById('ratioFormula').textContent =
-          row.feeType + ' 计提扣款 = 当月销售收入 ' + money(scenario.income) +
+          row.feeType + ' 计提扣款 = 当月销售收入 ' + money(scenario.income, customer) +
           ' × ' + ratioName + ' ' + pct(scenario.ratio) +
-          '（来源：客户计提规则 · ' + esc(row.customer) + '）' +
-          ' = ' + money(scenario.computedAccrual);
+          '（来源：客户计提规则 · ' + esc(customer) + '）' +
+          ' = ' + money(scenario.computedAccrual, customer);
       }
     } else if (scenario.monthlyFixed) {
       document.getElementById('ratioFormula').textContent =
-        row.feeType + ' 按固定月度金额计提：' + money(scenario.computedAccrual);
+        row.feeType + ' 按固定月度金额计提：' + money(scenario.computedAccrual, customer);
     }
 
     if (scenario.budgetFee) {
       var method = row.ruleMethodLabel || '销售费用';
       var formulaText = {
-        monthly_fixed: '销售费用计提 = 月固定金额 ' + money(scenario.computedAccrual),
-        annual_avg: '销售费用计提 = 年总金额 ' + money(row.ruleBaseAmount) + ' ÷ 12 = ' + money(scenario.computedAccrual),
-        fixed_ratio: '销售费用计提 = 当月收入 ' + money(scenario.income) + ' × ' + pct(scenario.ratio) + ' = ' + money(scenario.computedAccrual)
-      }[row.ruleMethod] || ('销售费用计提 = ' + money(scenario.accrualDeduction));
+        monthly_fixed: '销售费用计提 = 月固定金额 ' + money(scenario.computedAccrual, customer),
+        annual_avg: '销售费用计提 = 年总金额 ' + money(row.ruleBaseAmount, customer) + ' ÷ 12 = ' + money(scenario.computedAccrual, customer),
+        fixed_ratio: '销售费用计提 = 当月收入 ' + money(scenario.income, customer) + ' × ' + pct(scenario.ratio) + ' = ' + money(scenario.computedAccrual, customer)
+      }[row.ruleMethod] || ('销售费用计提 = ' + money(scenario.accrualDeduction, customer));
       document.getElementById('budgetFormula').textContent = formulaText + (rule && rule.note ? '（' + rule.note + '）' : '');
     }
 
     document.getElementById('openingFormula').textContent = scenario.previousRow
-      ? '本月期初余额 = 上月（' + esc(scenario.previousRow.period) + '）期末余额 = ' + money(scenario.openingBalance)
-      : '本月期初余额 = 系统扣款台账期初值 = ' + money(scenario.openingBalance);
+      ? '本月期初余额 = 上月（' + esc(scenario.previousRow.period) + '）期末余额 = ' + money(scenario.openingBalance, customer)
+      : '本月期初余额 = 系统扣款台账期初值 = ' + money(scenario.openingBalance, customer);
 
     if (scenario.budgetFee) {
       document.getElementById('accrualFormula').textContent =
-        '计提扣款 = ' + (row.ruleMethodLabel || '销售费用规则') + ' → ' + money(scenario.accrualDeduction);
+        '计提扣款 = ' + (row.ruleMethodLabel || '销售费用规则') + ' → ' + money(scenario.accrualDeduction, customer);
     } else if (scenario.monthlyFixed) {
       document.getElementById('accrualFormula').textContent =
-        '计提扣款 = 固定月度金额 ' + money(scenario.accrualDeduction);
+        '计提扣款 = 固定月度金额 ' + money(scenario.accrualDeduction, customer);
     } else if (scenario.kingdeeDoc) {
       document.getElementById('accrualFormula').textContent =
-        '计提扣款 = Σ（部门订单金额不含税并减去退款金额 × 部门固定比例） = ' + money(scenario.accrualDeduction);
+        '计提扣款 = Σ（部门订单金额不含税并减去退款金额 × 部门固定比例） = ' + money(scenario.accrualDeduction, customer);
     } else {
       document.getElementById('accrualFormula').textContent =
-        '计提扣款 = 当月销售收入 ' + money(scenario.income) +
+        '计提扣款 = 当月销售收入 ' + money(scenario.income, customer) +
         ' × 计提比例 ' + pct(scenario.ratio) +
-        ' = ' + money(scenario.accrualDeduction);
+        ' = ' + money(scenario.accrualDeduction, customer);
     }
 
     document.getElementById('closingFormula').textContent =
-      '期末余额 = 期初余额 ' + money(scenario.openingBalance) +
-      ' - 实际扣款 ' + money(scenario.actualDeduction) +
-      ' + 计提扣款 ' + money(scenario.accrualDeduction) +
-      ' = ' + money(scenario.closingBalance);
+      '期末余额 = 期初余额 ' + money(scenario.openingBalance, customer) +
+      ' - 实际扣款 ' + money(scenario.actualDeduction, customer) +
+      ' + 计提扣款 ' + money(scenario.accrualDeduction, customer) +
+      ' = ' + money(scenario.closingBalance, customer);
 
     focusCalcSection(calcState.field);
   }
@@ -509,19 +548,14 @@
     appendOpLog(editingId, {
       action: '录入实际扣款',
       target: row.customer + ' · ' + row.feeType + ' · ' + row.period,
-      detail: '实际扣款 ' + money(actualAmount) + (note ? '；备注：' + note : '')
+      detail: '实际扣款 ' + formatCurrencyAmount(actualAmount, getIncomeCurrency(row.customer)) + (note ? '；备注：' + note : '')
     });
 
     closeModal();
     renderTable();
   }
 
-  function buildImportTemplateRows() {
-    return [
-      ['期间', '客户', '费用项', '实际扣款金额', '备注'],
-      ['2026-01', 'Target', '促销扣款', '44956.16', '账单核对后录入']
-    ];
-  }
+  var IMPORT_TEMPLATE_DOC_URL = 'https://alidocs.dingtalk.com/i/nodes/amweZ92PV6vrdP52FMMRRE1KVxEKBD6p';
 
   function mountImportKit() {
     if (!window.ImportModalKit) return;
@@ -530,8 +564,7 @@
       title: '导入实际扣款',
       introHtml: '<p>批量导入各客户、各费用项、各期间的实际扣款金额。系统按「期间 + 客户 + 费用项」匹配台账，覆盖实际扣款（录入）值，并自动重算期末余额。</p>' +
         '<p><strong>注意：</strong>仅「实际扣款金额」支持导入；计提比例、计提扣款仍由系统按客户计提规则计算。</p>',
-      templateExt: 'CSV',
-      templateFileName: '扣款实际值导入模版.csv',
+      templateButtonLabel: '打开导入模版（钉钉文档）',
       columns: [
         { group: '主键', name: '期间', required: true, desc: '格式 YYYY-MM' },
         { group: '主键', name: '客户', required: true, desc: '零售商名称' },
@@ -546,7 +579,7 @@
         '原型示意中不做真实文件解析，确认导入后模拟批量覆盖当前筛选结果前几条。'
       ],
       onDownload: function () {
-        window.ImportModalKit.downloadCsv('扣款实际值导入模版.csv', buildImportTemplateRows());
+        window.open(IMPORT_TEMPLATE_DOC_URL, '_blank', 'noopener,noreferrer');
       },
       onConfirm: function (file, resultEl) {
         if (!file) {
@@ -568,7 +601,7 @@
           appendOpLog(row.id, {
             action: '批量导入实际扣款',
             target: row.customer + ' · ' + row.feeType + ' · ' + row.period,
-            detail: '实际扣款 ' + money(actualAmount)
+            detail: '实际扣款 ' + formatCurrencyAmount(actualAmount, getIncomeCurrency(row.customer))
           });
           count += 1;
         });

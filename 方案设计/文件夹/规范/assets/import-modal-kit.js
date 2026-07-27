@@ -52,7 +52,7 @@
           '<div class="import-tpl-block">' +
             (config.docUrl ? '<p style="margin:0 0 6px"><strong>在线说明：</strong><a href="' + esc(config.docUrl) + '" target="_blank" rel="noopener noreferrer">' + esc(config.docLabel || '查看在线模版说明') + '</a></p>' : '') +
             '<div class="import-actions-row">' +
-              '<button type="button" class="btn btn-primary" data-kit-download>下载导入模版（' + esc(config.templateExt || 'CSV') + '）</button>' +
+              '<button type="button" class="btn btn-primary" data-kit-download>' + esc(config.templateButtonLabel || ('下载导入模版（' + (config.templateExt || 'CSV') + '）')) + '</button>' +
               '<button type="button" class="btn-link" data-kit-open-req>查看模版填写要求</button>' +
             '</div></div>' +
           '<div class="import-upload-zone">' +
