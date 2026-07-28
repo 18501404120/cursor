@@ -11,36 +11,102 @@ function getLlmConfig(config) {
   };
 }
 
+/** 修复模型常见的残缺 JSON：尾逗号、控制字符、中文标点、字符串内裸换行等 */
+function repairJsonText(input) {
+  let s = String(input || '')
+    .replace(/^\uFEFF/, '')
+    .replace(/，/g, ',')
+    .replace(/：/g, ':')
+    .replace(/[“”]/g, '"')
+    .replace(/[‘’]/g, "'")
+    // 去掉对象/数组尾逗号
+    .replace(/,\s*([}\]])/g, '$1')
+    // JSON 不允许的控制字符（保留 \t \n \r，后续再处理字符串内换行）
+    .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '');
+
+  // 字符串字面量内的裸换行 → \n
+  let out = '';
+  let inStr = false;
+  let escaped = false;
+  for (let i = 0; i < s.length; i += 1) {
+    const ch = s[i];
+    if (inStr) {
+      if (escaped) {
+        out += ch;
+        escaped = false;
+        continue;
+      }
+      if (ch === '\\') {
+        out += ch;
+        escaped = true;
+        continue;
+      }
+      if (ch === '"') {
+        out += ch;
+        inStr = false;
+        continue;
+      }
+      if (ch === '\n') {
+        out += '\\n';
+        continue;
+      }
+      if (ch === '\r') {
+        out += '\\r';
+        continue;
+      }
+      if (ch === '\t') {
+        out += '\\t';
+        continue;
+      }
+      out += ch;
+      continue;
+    }
+    if (ch === '"') {
+      inStr = true;
+      out += ch;
+      continue;
+    }
+    out += ch;
+  }
+  return out;
+}
+
+function tryParseJson(text) {
+  const candidates = [text, repairJsonText(text)];
+  let lastErr;
+  for (const c of candidates) {
+    try {
+      return JSON.parse(c);
+    } catch (err) {
+      lastErr = err;
+    }
+  }
+  throw lastErr || new Error('无法解析 JSON');
+}
+
 function extractJson(text) {
   const raw = String(text || '').trim();
   if (!raw) throw new Error('模型返回为空');
 
   try {
-    return JSON.parse(raw);
+    return tryParseJson(raw);
   } catch (_) {
     /* fall through */
   }
 
   const fenced = raw.match(/```(?:json)?\s*([\s\S]*?)```/i);
   if (fenced) {
-    return JSON.parse(fenced[1].trim());
+    try {
+      return tryParseJson(fenced[1].trim());
+    } catch (_) {
+      /* fall through */
+    }
   }
 
   const start = raw.indexOf('{');
   const end = raw.lastIndexOf('}');
   if (start >= 0 && end > start) {
-    const slice = raw.slice(start, end + 1);
-    try {
-      return JSON.parse(slice);
-    } catch (_) {
-      // 模型偶发中文标点
-      const normalized = slice
-        .replace(/，/g, ',')
-        .replace(/：/g, ':')
-        .replace(/"/g, '"')
-        .replace(/"/g, '"');
-      return JSON.parse(normalized);
-    }
+    return tryParseJson(raw.slice(start, end + 1));
   }
 
   throw new Error('无法解析模型返回的 JSON');

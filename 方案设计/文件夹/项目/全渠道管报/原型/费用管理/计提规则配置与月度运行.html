@@ -575,6 +575,8 @@
               <option value="channelCountryScene">渠道+国家+场景</option>
               <option value="channelCountryRetailer">渠道+国家+零售商</option>
               <option value="channelCountrySceneRetailer">渠道+国家+场景+零售商</option>
+              <option value="channelStore">渠道+店铺</option>
+              <option value="channelStoreRetailer">渠道+店铺+零售商</option>
             </select>
           </div>
           <div class="source-block" data-panel="fixedAmount" data-pa-key="source-type-params">
@@ -667,9 +669,13 @@
                   <label>渠道</label>
                   <div id="detailMsfChannel"></div>
                 </div>
-                <div class="detail-filter-item">
+                <div class="detail-filter-item" id="detailFilterCountryWrap">
                   <label>国家</label>
                   <div id="detailMsfCountry"></div>
+                </div>
+                <div class="detail-filter-item" id="detailFilterStoreWrap" hidden style="display:none;">
+                  <label>店铺</label>
+                  <div id="detailMsfStore"></div>
                 </div>
                 <div class="detail-filter-item" id="detailFilterSceneWrap" hidden style="display:none;">
                   <label>场景</label>
@@ -770,14 +776,9 @@
     '线下分销': ['线下分销', '京东']
   };
   var ALL_CHANNELS = ['亚马逊', 'shopify', 'App商城', '线下商超', '商超3P', '线下分销'];
-  /** 零售商 = 具体客户（非店铺 MSKU 店铺名），对齐补充费用导入原型 RETAILER_NAMES */
+  /** 零售商 = 具体客户；仅线下商超渠道有零售商，其它渠道为空 */
   var RETAILER_BY_PAGE_CHANNEL = {
-    '亚马逊': ['Best Buy', 'Target', 'MediaMarkt', 'Yodobashi'],
-    'shopify': ['企业客户', '战略合作渠道', 'DTC 大客户'],
-    'App商城': ['App 会员', 'App 活动客户'],
-    '线下商超': ['沃尔玛', 'Costco', 'Best Buy', 'Target', 'Wayfair', 'MediaMarkt'],
-    '商超3P': ['Walmart 3P', 'Best Buy 3P', 'Lowes 3P'],
-    '线下分销': ['Ingram Micro', 'Tech Data', '华东总代', '华南总代', '跨境分销商']
+    '线下商超': ['沃尔玛', 'Costco', 'Best Buy', 'Target', 'Wayfair', 'MediaMarkt']
   };
   var DIMENSION_OPTIONS = {};
   var masterDataReady = false;
@@ -844,7 +845,8 @@
     };
   }
   function retailersForPageChannel(pageChannel) {
-    return (RETAILER_BY_PAGE_CHANNEL[pageChannel] || []).slice();
+    if (pageChannel !== '线下商超') return [];
+    return (RETAILER_BY_PAGE_CHANNEL['线下商超'] || []).slice();
   }
   function rebuildDimensionOptions(channelPayload, regionPayload, scenePayload) {
     var allCountries = flattenCountryNames(regionPayload);
@@ -853,6 +855,7 @@
       DIMENSION_OPTIONS[pageChannel] = {
         countries: allCountries.slice(),
         scenes: allScenes.slice(),
+        stores: storesForMasterChannels(channelPayload, PAGE_CHANNEL_MASTER[pageChannel] || []),
         retailers: retailersForPageChannel(pageChannel)
       };
     });
@@ -887,7 +890,9 @@
     channelCountry: '渠道+国家',
     channelCountryScene: '渠道+国家+场景',
     channelCountryRetailer: '渠道+国家+零售商',
-    channelCountrySceneRetailer: '渠道+国家+场景+零售商'
+    channelCountrySceneRetailer: '渠道+国家+场景+零售商',
+    channelStore: '渠道+店铺',
+    channelStoreRetailer: '渠道+店铺+零售商'
   };
   var RULE_TYPES = ['fixedAmount', 'fixedRate', 'rollingRate', 'yoyMonthRate'];
 
@@ -897,7 +902,8 @@
     { id: 'R003', feeCode: 'T040203020202', sourceType: 'fixedAmount', caliberScope: 'channelCountry', channels: ['App商城'], summary: '¥85,000 / 月 · 渠道+国家 · 3 条明细', status: '启用', maintainer: 'GTM-李四 · 2026-06-05', fixedAmount: 85000, fixedRate: null },
     { id: 'R004', feeCode: 'T0402020101', sourceType: 'fixedRate', caliberScope: 'channelCountrySceneRetailer', channels: ['线下商超'], summary: '8.5% × 当月实际营收 · 渠道+国家+场景+零售商 · 12 条明细', status: '启用', maintainer: 'GTM-王五 · 2026-06-04', fixedAmount: null, fixedRate: 8.5 },
     { id: 'R005', feeCode: 'T040202020101', sourceType: 'auto', channels: ['商超3P'], summary: '—', status: '启用', maintainer: '系统同步 · 2026-06-03', fixedAmount: null, fixedRate: null },
-    { id: 'R006', feeCode: 'T040201010201', sourceType: 'fixedAmount', caliberScope: 'channelCountryRetailer', channels: ['线下分销'], summary: '¥445,000 / 月 · 渠道+国家+零售商 · 4 条明细', status: '停用', maintainer: 'GTM-李四 · 2026-05-28', fixedAmount: 445000, fixedRate: null }
+    { id: 'R006', feeCode: 'T040201010201', sourceType: 'fixedAmount', caliberScope: 'channelCountryRetailer', channels: ['线下商超'], summary: '¥445,000 / 月 · 渠道+国家+零售商 · 24 条明细', status: '停用', maintainer: 'GTM-李四 · 2026-05-28', fixedAmount: 445000, fixedRate: null },
+    { id: 'R007', feeCode: 'T040301010103', sourceType: 'fixedRate', caliberScope: 'channelStore', channels: ['亚马逊'], summary: '6.5% × 当月实际营收 · 渠道+店铺 · 12 条明细', status: '启用', maintainer: 'GTM-李四 · 2026-06-06', fixedAmount: null, fixedRate: 6.5 }
   ];
 
 
@@ -907,7 +913,7 @@
   var selectedDetailKeys = new Set();
   var detailRows = [];
   var detailRowsType = null;
-  var detailMsf = { channel: null, country: null, scene: null, retailer: null };
+  var detailMsf = { channel: null, country: null, store: null, scene: null, retailer: null };
   var detailMsfMounted = false;
   var detailFilterSyncGuard = false;
   var chDrop = document.getElementById('chDrop');
@@ -953,7 +959,8 @@
       return {
         key: item.key,
         channel: item.channel,
-        country: item.country,
+        country: item.country || '—',
+        store: item.store || '—',
         scene: item.scene || '—',
         retailer: item.retailer || '—',
         value: Number(item.value)
@@ -961,10 +968,21 @@
     });
   }
   function scopeFlags(scope) {
+    var storeBased = scope === 'channelStore' || scope === 'channelStoreRetailer';
     return {
+      country: !storeBased,
+      store: storeBased,
       scene: scope === 'channelCountryScene' || scope === 'channelCountrySceneRetailer',
-      retailer: scope === 'channelCountryRetailer' || scope === 'channelCountrySceneRetailer'
+      retailer: scope === 'channelCountryRetailer' || scope === 'channelCountrySceneRetailer' || scope === 'channelStoreRetailer'
     };
+  }
+  function buildDetailKey(item) {
+    return [item.channel, item.country || '—', item.store || '—', item.scene || '—', item.retailer || '—'].join('|');
+  }
+  function retailersForChannel(channel, flags) {
+    if (!flags.retailer) return ['—'];
+    var list = retailersForPageChannel(channel);
+    return list.length ? list : ['—'];
   }
   function currentAccrualMonthYm() {
     var demoAnchor = '2026-04';
@@ -1020,22 +1038,41 @@
     var flags = scopeFlags(scope);
     var list = [];
     channels.forEach(function (channel) {
-      var options = DIMENSION_OPTIONS[channel] || { countries: ['全部国家'], scenes: ['全部场景'], retailers: ['全部零售商'] };
-      var countries = options.countries || ['全部国家'];
-      var scenes = flags.scene ? (options.scenes || ['全部场景']) : ['—'];
-      var retailers = flags.retailer ? (options.retailers || ['全部零售商']) : ['—'];
+      var options = DIMENSION_OPTIONS[channel] || { countries: [], scenes: [], stores: [], retailers: [] };
+      var retailers = retailersForChannel(channel, flags);
+      if (flags.store) {
+        var stores = (options.stores || []).length ? options.stores : ['—'];
+        stores.forEach(function (store) {
+          retailers.forEach(function (retailer) {
+            var item = {
+              channel: channel,
+              country: '—',
+              store: store,
+              scene: '—',
+              retailer: retailer
+            };
+            item.key = buildDetailKey(item);
+            item.value = defaultDetailValue(type, item.key);
+            list.push(item);
+          });
+        });
+        return;
+      }
+      var countries = (options.countries || []).length ? options.countries : ['—'];
+      var scenes = flags.scene ? ((options.scenes || []).length ? options.scenes : ['—']) : ['—'];
       countries.forEach(function (country) {
         scenes.forEach(function (scene) {
           retailers.forEach(function (retailer) {
-            var key = [channel, country, scene, retailer].join('|');
-            list.push({
-              key: key,
+            var item = {
               channel: channel,
               country: country,
+              store: '—',
               scene: scene,
-              retailer: retailer,
-              value: defaultDetailValue(type, key)
-            });
+              retailer: retailer
+            };
+            item.key = buildDetailKey(item);
+            item.value = defaultDetailValue(type, item.key);
+            list.push(item);
           });
         });
       });
@@ -1063,6 +1100,8 @@
   function getDetailFilterOptions(field) {
     var scope = document.getElementById('caliberScope').value;
     var flags = scopeFlags(scope);
+    if (field === 'country' && !flags.country) return [];
+    if (field === 'store' && !flags.store) return [];
     if (field === 'scene' && !flags.scene) return [];
     if (field === 'retailer' && !flags.retailer) return [];
     var formChannels = Array.from(selectedChannels);
@@ -1078,8 +1117,9 @@
       var options = DIMENSION_OPTIONS[channel];
       if (!options) return;
       var list = field === 'country' ? options.countries
-        : field === 'scene' ? options.scenes
-          : options.retailers;
+        : field === 'store' ? options.stores
+          : field === 'scene' ? options.scenes
+            : options.retailers;
       (list || []).forEach(function (value) { set.add(value); });
     });
     return Array.from(set).sort().map(function (value) {
@@ -1109,13 +1149,14 @@
     }
     detailMsf.channel = mk('channel', 'detailMsfChannel', '请选择');
     detailMsf.country = mk('country', 'detailMsfCountry', '请选择');
+    detailMsf.store = mk('store', 'detailMsfStore', '请选择');
     detailMsf.scene = mk('scene', 'detailMsfScene', '请选择');
     detailMsf.retailer = mk('retailer', 'detailMsfRetailer', '请选择');
     detailMsfMounted = true;
   }
   function refreshDetailFilters() {
     mountDetailFilters();
-    ['channel', 'country', 'scene', 'retailer'].forEach(function (key) {
+    ['channel', 'country', 'store', 'scene', 'retailer'].forEach(function (key) {
       if (detailMsf[key] && detailMsf[key].refreshOptions) detailMsf[key].refreshOptions();
     });
   }
@@ -1128,11 +1169,13 @@
     var flags = scopeFlags(scope);
     var channels = getDetailFilterValues('channel');
     var countries = getDetailFilterValues('country');
+    var stores = getDetailFilterValues('store');
     var scenes = getDetailFilterValues('scene');
     var retailers = getDetailFilterValues('retailer');
     return detailRows.filter(function (item) {
       if (channels.length && channels.indexOf(item.channel) < 0) return false;
-      if (countries.length && countries.indexOf(item.country) < 0) return false;
+      if (flags.country && countries.length && countries.indexOf(item.country) < 0) return false;
+      if (flags.store && stores.length && stores.indexOf(item.store) < 0) return false;
       if (flags.scene && scenes.length && scenes.indexOf(item.scene) < 0) return false;
       if (flags.retailer && retailers.length && retailers.indexOf(item.retailer) < 0) return false;
       return true;
@@ -1147,10 +1190,14 @@
   function updateDetailFilterVisibility() {
     var scope = document.getElementById('caliberScope').value;
     var flags = scopeFlags(scope);
+    setDetailFilterItemVisible('detailFilterCountryWrap', flags.country);
+    setDetailFilterItemVisible('detailFilterStoreWrap', flags.store);
     setDetailFilterItemVisible('detailFilterSceneWrap', flags.scene);
     setDetailFilterItemVisible('detailFilterRetailerWrap', flags.retailer);
     detailFilterSyncGuard = true;
     try {
+      if (!flags.country && detailMsf.country) detailMsf.country.clear();
+      if (!flags.store && detailMsf.store) detailMsf.store.clear();
       if (!flags.scene && detailMsf.scene) detailMsf.scene.clear();
       if (!flags.retailer && detailMsf.retailer) detailMsf.retailer.clear();
     } finally {
@@ -1160,7 +1207,7 @@
   function clearDetailFilters() {
     detailFilterSyncGuard = true;
     try {
-      ['channel', 'country', 'scene', 'retailer'].forEach(function (key) {
+      ['channel', 'country', 'store', 'scene', 'retailer'].forEach(function (key) {
         if (detailMsf[key]) detailMsf[key].clear();
       });
     } finally {
@@ -1253,10 +1300,9 @@
   }
   function getDetailColumns(scope, type) {
     var flags = scopeFlags(scope);
-    var columns = [
-      { key: 'channel', label: '渠道' },
-      { key: 'country', label: '国家' }
-    ];
+    var columns = [{ key: 'channel', label: '渠道' }];
+    if (flags.country) columns.push({ key: 'country', label: '国家' });
+    if (flags.store) columns.push({ key: 'store', label: '店铺' });
     if (flags.scene) columns.push({ key: 'scene', label: '场景' });
     if (flags.retailer) columns.push({ key: 'retailer', label: '零售商' });
     columns.push({ key: 'value', label: valueMeta(type).label });
@@ -1300,12 +1346,12 @@
 
     body.innerHTML = visibleRows.map(function (item) {
       var cells = [
-        '<td class="sel-col">' + (isViewMode ? '' : '<input type="checkbox" data-detail-check="' + escapeHtml(item.key) + '"' + (selectedDetailKeys.has(item.key) ? ' checked' : '') + '>') + '</td>',
-        '<td>' + escapeHtml(item.channel) + '</td>',
-        '<td>' + escapeHtml(item.country) + '</td>'
+        '<td class="sel-col">' + (isViewMode ? '' : '<input type="checkbox" data-detail-check="' + escapeHtml(item.key) + '"' + (selectedDetailKeys.has(item.key) ? ' checked' : '') + '>') + '</td>'
       ];
-      if (scopeFlags(scope).scene) cells.push('<td>' + escapeHtml(item.scene) + '</td>');
-      if (scopeFlags(scope).retailer) cells.push('<td>' + escapeHtml(item.retailer) + '</td>');
+      columns.forEach(function (column) {
+        if (column.key === 'value') return;
+        cells.push('<td>' + escapeHtml(item[column.key] || '—') + '</td>');
+      });
       if (isViewMode || meta.readonly) {
         var valueCellClass = 'value-col' + (meta.readonly ? ' is-computed' : '');
         cells.push('<td class="' + valueCellClass + '"><span class="detail-value-readonly">' + escapeHtml(item.value) + '</span></td>');
@@ -1380,14 +1426,16 @@
       templateFileName: '费用来源明细导入模版.csv',
       columns: [
         { group: '维度', name: '渠道', required: true, desc: '必须属于当前费用项已选择的渠道' },
-        { group: '维度', name: '国家', required: true, desc: '按当前渠道展开的国家' },
+        { group: '维度', name: '国家', required: false, desc: '口径含国家时必填；店铺口径不填' },
+        { group: '维度', name: '店铺', required: false, desc: '口径含店铺时必填；国家口径不填' },
         { group: '维度', name: '场景', required: false, desc: '当口径范围包含场景时必填' },
-        { group: '维度', name: '零售商', required: false, desc: '当口径范围包含零售商时必填' },
+        { group: '维度', name: '零售商', required: false, desc: '当口径范围包含零售商时必填；仅线下商超有零售商' },
         { group: '取值', name: '维护值', required: true, desc: '固定金额填金额；比例类填百分比数值' }
       ],
       requirements: [
         '请先选择渠道与口径范围，再下载模版，确保列结构与当前弹窗一致。',
-        '导入会按 渠道 + 国家 + 场景 + 零售商 匹配并覆盖当前明细值。',
+        '导入会按当前口径维度组合匹配并覆盖当前明细值；店铺口径不含国家列。',
+        '零售商仅针对线下商超渠道；其它渠道零售商留空或填「—」。',
         '任一校验或执行失败时整批回滚；文件内重复维度组合视为失败。',
         '比例类直接填写数字，例如 8.5 表示 8.5%。',
         '原型示意中不做真实文件解析，确认导入后会模拟批量覆盖效果。'
@@ -2098,7 +2146,7 @@
       "id": "caliber-detail-rule",
       "selector": "#caliberScope",
       "title": "口径范围",
-      "body": "口径范围规则：\n1. 口径范围决定下方明细表字段：渠道+国家为基础列，选择含场景/零售商时会增加对应列。\n2. 切换口径范围会重新展开可维护组合，并清空不再适用的明细筛选。\n3. 建议需求明确：已保存规则变更口径后，旧明细值如何迁移或是否重新维护。"
+      "body": "口径范围规则：\n1. 口径范围决定下方明细表字段：可选渠道+国家、渠道+店铺，或叠加场景、零售商。\n2. 店铺口径不含国家列；店铺按已选渠道从渠道店铺基础数据加载。\n3. 零售商仅线下商超渠道有值，其它渠道零售商为空。\n4. 切换口径范围会重新展开可维护组合，并清空不再适用的明细筛选。"
     },
     {
       "id": "source-type-params-rule",
@@ -2128,13 +2176,13 @@
       "id": "detail-expand-rule",
       "selector": "[data-pa-key=\"source-detail-card\"]",
       "title": "明细展开规则",
-      "body": "口径明细规则：\n1. 选择渠道后，系统按渠道主数据展开国家、场景、零售商等组合。\n2. 明细表字段与口径范围一致：口径包含哪个维度，列表就展示并保存哪个维度。\n3. 明细筛选只影响弹窗内展示，不改变保存范围；没有选择渠道时不生成明细，也不能保存非自动取数规则。"
+      "body": "口径明细规则：\n1. 选择渠道后，系统按渠道主数据展开国家/店铺、场景、零售商等组合。\n2. 店铺仅加载已选渠道对应店铺；零售商仅线下商超有值。\n3. 明细表字段与口径范围一致：口径包含哪个维度，列表就展示并保存哪个维度。\n4. 明细筛选只影响弹窗内展示，不改变保存范围；没有选择渠道时不生成明细，也不能保存非自动取数规则。"
     },
     {
       "id": "detail-filter-rule",
       "selector": "[data-pa-key=\"detail-filter-bar\"]",
       "title": "明细筛选",
-      "body": "明细筛选规则：\n1. 筛选项与当前口径范围维度一致：不含场景/零售商时对应筛选项隐藏。\n2. 筛选仅缩小弹窗内表格展示，不改变已展开的全部明细集合及保存范围。\n3. 渠道筛选项默认限于表单已选渠道；国家/场景/零售商选项随渠道联动刷新。"
+      "body": "明细筛选规则：\n1. 筛选项与当前口径范围维度一致：国家/店铺互斥显示；不含场景/零售商时对应筛选项隐藏。\n2. 筛选仅缩小弹窗内表格展示，不改变已展开的全部明细集合及保存范围。\n3. 渠道筛选项默认限于表单已选渠道；国家/店铺/场景/零售商选项随渠道联动刷新。"
     },
     {
       "id": "detail-toolbar-rule",
@@ -2208,7 +2256,7 @@
         "同一费用项下渠道互斥，保存时再次校验，避免同一渠道重复计提。",
         "来源类型决定计算方式：自动取数、固定金额、固定比例、历史滚动占比、同期占比预估。",
         "弹窗启用状态与列表启停一致；查看模式只读不可保存。",
-        "口径范围决定明细维度，渠道选择决定可展开组合；非自动取数必须补全明细维护值。",
+        "口径范围决定明细维度，渠道选择决定可展开组合；店铺按渠道加载，零售商仅线下商超；非自动取数必须补全明细维护值。",
         "明细筛选仅影响展示；工具栏支持批量编辑、导出全部明细、按维度导入覆盖；导入失败整批回滚。",
         "历史滚动占比明细值只读，导入和批量编辑均禁止；同期占比支持缺数处理策略。",
         "启用/停用须二次确认、权限控制与操作日志；已运行月份与历史报表保留快照，未运行月份按新规则生效。",
@@ -2227,7 +2275,7 @@
         "同期占比正式缺数降级为近12个月滚动均值；不足12个月按实际月份计算，以及补数后是否回溯重算。",
         "列表导出文件格式、字段顺序及是否含停用规则。"
       ],
-      "关联上下游": "上游依赖费用项主数据、渠道/国家/场景/零售商主数据、历史费用和比例基数；下游供月度费用运行、管报费用汇总与费用填报对账使用。"
+      "关联上下游": "上游依赖费用项主数据、渠道/国家/店铺/场景/零售商主数据、历史费用和比例基数；下游供月度费用运行、管报费用汇总与费用填报对账使用。"
     },
     "user": {
       "标准操作流程": [

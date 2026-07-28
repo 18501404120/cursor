@@ -398,7 +398,22 @@ async function analyzeTranscript(config, transcript, onProgress, topicHint) {
   if (onProgress) onProgress({ phase: 'scenario', message: '第 2 步：生成场景梳理结构…' });
   const messages = buildAnalysisMessages(transcript, facts, topicHint);
   let content = await chatCompletion(config, messages, { temperature: 0.35 });
-  let data = normalizeAnalysisData(extractJson(content));
+  let data;
+  try {
+    data = normalizeAnalysisData(extractJson(content));
+  } catch (parseErr) {
+    console.warn('[meeting-recorder] 场景 JSON 解析失败，请求模型重输出:', parseErr.message);
+    content = await chatCompletion(config, [
+      ...messages,
+      { role: 'assistant', content },
+      {
+        role: 'user',
+        content:
+          `上一份输出不是合法 JSON（${parseErr.message}）。请只输出一份严格合法的 JSON 对象，不要 markdown，不要注释，字符串内引号必须转义。`,
+      },
+    ], { temperature: 0.2 });
+    data = normalizeAnalysisData(extractJson(content));
+  }
 
   const emptySections = data.sections.filter(sectionNeedsRepair);
   if (!data.sections.length || emptySections.length) {
