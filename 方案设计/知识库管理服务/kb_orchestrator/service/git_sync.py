@@ -93,12 +93,17 @@ def _run_git(
     *,
     check: bool = True,
     env: dict[str, str] | None = None,
+    global_config: list[str] | None = None,
 ) -> GitCommandResult:
     proc_env = os.environ.copy()
     if env:
         proc_env.update(env)
+    prefix: list[str] = []
+    if global_config:
+        for item in global_config:
+            prefix.extend(["-c", item])
     proc = subprocess.run(
-        ["git", *args],
+        ["git", *prefix, *args],
         cwd=cwd,
         capture_output=True,
         text=True,
@@ -581,9 +586,10 @@ class GitSyncManager:
         _run_git(["commit", "-m", commit_msg], repo, env={"SKIP_AUTO_PUSH": "1"})
 
         push = _run_git(
-            ["push", "-c", "http.version=HTTP/1.1", "origin", "HEAD"],
+            ["push", "origin", "HEAD"],
             repo,
             check=False,
+            global_config=["http.version=HTTP/1.1"],
         )
         if not push.ok:
             raise GitSyncError("push origin 失败", details=push.text)
