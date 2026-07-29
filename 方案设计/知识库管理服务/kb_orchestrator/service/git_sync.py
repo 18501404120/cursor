@@ -25,6 +25,7 @@ GIT_PUSH_SYSTEMS = frozenset(
         "自营系统",
         "商超系统",
         "分销系统",
+        "产品系统",
         LOCAL_SYSTEM_KEY,
     }
 )
@@ -116,6 +117,37 @@ def _run_git(
     return result
 
 
+def _stash_wip(repo: Path, message: str) -> tuple[bool, list[str]]:
+    """暂存工作区变更（含未跟踪文件），避免 merge 时 untracked 被覆盖报错。"""
+    logs: list[str] = []
+    if _count_changes(repo) == 0:
+        return False, logs
+    stash = _run_git(
+        ["stash", "push", "--include-untracked", "-m", message],
+        repo,
+        check=False,
+    )
+    combined = f"{stash.stdout}\n{stash.stderr}"
+    if "No local changes" in combined:
+        return False, logs
+    if not stash.ok:
+        raise GitSyncError("暂存本地变更失败，请手动 stash 后再拉取", details=stash.text)
+    if _count_changes(repo) > 0:
+        raise GitSyncError(
+            "工作区仍有未暂存变更，无法安全拉取",
+            details=_run_git(["status", "--short"], repo, check=False).stdout,
+        )
+    logs.append("已暂存本地工作区变更（含未跟踪文件）")
+    return True, logs
+
+
+def _restore_stash(repo: Path) -> tuple[bool, str]:
+    pop = _run_git(["stash", "pop"], repo, check=False)
+    if pop.ok:
+        return True, "已恢复拉取前的本地变更"
+    return False, pop.text or "stash pop 失败，请手动 git stash list 查看"
+
+
 def _is_git_repo(path: Path) -> bool:
     result = _run_git(["rev-parse", "--is-inside-work-tree"], path, check=False)
     return result.ok and result.stdout.strip() == "true"
@@ -188,12 +220,21 @@ def _erp_system_names(paths: WorkspacePaths) -> list[str]:
     return names
 
 
-def _status_label(change_count: int, *, repo_dirty: bool) -> str:
+def _status_label(change_count: int, *, can_push: bool = False) -> str:
     if change_count > 0:
-        return f"{change_count} 个变更"
-    if repo_dirty:
-        return "仓库有其它变更"
+        return f"{change_count} 个变更待推送" if can_push else f"{change_count} 个本地变更"
     return "干净"
+
+
+def _clear_system_worktree_after_push(repo: Path, system_key: str, logs: list[str]) -> None:
+    """推送成功后清理该系统目录的工作区残留（内容已在目标分支远端）。"""
+    _run_git(["checkout", "HEAD", "--", f"{system_key}/"], repo, check=False)
+    clean = _run_git(["clean", "-fd", "--", f"{system_key}/"], repo, check=False)
+    remaining = _count_changes(repo, f"{system_key}/")
+    if remaining == 0:
+        logs.append(f"已清理 {system_key}/ 本地工作区（推送完成）")
+    else:
+        logs.append(f"WARN: {system_key}/ 仍有 {remaining} 个本地变更未清理")
 
 
 @dataclass
@@ -258,7 +299,9 @@ class GitSyncManager:
                     "can_push": name in GIT_PUSH_SYSTEMS,
                     "change_count": system_changes,
                     "repo_change_count": product_dirty,
-                    "status_label": _status_label(system_changes, repo_dirty=product_dirty > 0),
+                    "status_label": _status_label(
+                        system_changes, can_push=name in GIT_PUSH_SYSTEMS
+                    ),
                     "tracking": tracking,
                 }
             )
@@ -281,7 +324,7 @@ class GitSyncManager:
                 "can_push": True,
                 "change_count": local_changes,
                 "repo_change_count": local_changes,
-                "status_label": _status_label(local_changes, repo_dirty=False),
+                "status_label": _status_label(local_changes, can_push=True),
                 "tracking": local_tracking,
             }
         )
@@ -322,41 +365,65 @@ class GitSyncManager:
             raise GitSyncError("ERP_product 不是 Git 仓库")
         original_branch = _current_branch(repo)
         logs: list[str] = [f"ERP_product 当前分支: {original_branch}"]
+        stash_created = False
 
-        fetch = _run_git(["fetch", "origin", "main"], repo, check=False)
-        if not fetch.ok:
-            raise GitSyncError("fetch origin/main 失败", details=fetch.text)
-        logs.append("已 fetch origin/main")
+        try:
+            fetch = _run_git(["fetch", "origin", "main"], repo, check=False)
+            if not fetch.ok:
+                raise GitSyncError("fetch origin/main 失败", details=fetch.text)
+            logs.append("已 fetch origin/main")
 
-        merge = _run_git(["merge", "--no-edit", "origin/main"], repo, check=False)
-        if not merge.ok:
-            conflicts = _run_git(
-                ["diff", "--name-only", "--diff-filter=U"], repo, check=False
+            stash_created, stash_logs = _stash_wip(
+                repo, f"wip-before-pull-main-{datetime.now().strftime('%Y%m%d%H%M%S')}"
             )
-            files = [line for line in conflicts.stdout.splitlines() if line.strip()]
-            if files:
+            logs.extend(stash_logs)
+
+            merge = _run_git(["merge", "--no-edit", "origin/main"], repo, check=False)
+            if not merge.ok:
                 _run_git(["merge", "--abort"], repo, check=False)
-                raise GitSyncError(
-                    "合并 origin/main 发生冲突，请本地解决后重试",
-                    details="\n".join(files),
-                    code="conflict",
+                conflicts = _run_git(
+                    ["diff", "--name-only", "--diff-filter=U"], repo, check=False
                 )
-            raise GitSyncError("合并 origin/main 失败", details=merge.text)
+                files = [line for line in conflicts.stdout.splitlines() if line.strip()]
+                detail = merge.text
+                if files:
+                    raise GitSyncError(
+                        "合并 origin/main 发生冲突，请本地解决后重试",
+                        details="\n".join(files),
+                        code="conflict",
+                    )
+                if "untracked working tree files would be overwritten" in detail:
+                    raise GitSyncError(
+                        "合并 origin/main 失败：本地未跟踪文件与 main 冲突",
+                        details=detail,
+                        code="untracked_conflict",
+                    )
+                raise GitSyncError("合并 origin/main 失败", details=detail)
 
-        if merge.stdout.strip():
-            logs.append(merge.stdout.strip())
-        else:
-            logs.append("已合并 origin/main（或已是最新）")
+            if merge.stdout.strip():
+                logs.append(merge.stdout.strip())
+            else:
+                logs.append("已合并 origin/main（或已是最新）")
 
-        return {
-            "ok": True,
-            "action": "pull",
-            "system": system_key,
-            "repo": "ERP_product",
-            "branch": _current_branch(repo),
-            "message": f"{system_key}：已同步 origin/main 到当前分支",
-            "logs": logs,
-        }
+            if stash_created:
+                restored, restore_msg = _restore_stash(repo)
+                logs.append(restore_msg)
+                if not restored:
+                    logs.append("提示：如不需要 stash 中的旧文件，可执行 git stash drop")
+
+            return {
+                "ok": True,
+                "action": "pull",
+                "system": system_key,
+                "repo": "ERP_product",
+                "branch": _current_branch(repo),
+                "message": f"{system_key}：已同步 origin/main 到当前分支",
+                "logs": logs,
+            }
+        except Exception:
+            if stash_created:
+                _restore_stash(repo)
+            raise
 
     def _pull_local(self, paths: WorkspacePaths) -> dict[str, Any]:
         repo = paths.local_dir
@@ -515,6 +582,8 @@ class GitSyncManager:
                     logs.append("已恢复 stash")
                 else:
                     logs.append("WARN: stash pop 失败，请手动处理 stash")
+
+            _clear_system_worktree_after_push(repo, system_key, logs)
 
             message = f"{system_key}：已推送到 {target_branch}"
             if not committed:

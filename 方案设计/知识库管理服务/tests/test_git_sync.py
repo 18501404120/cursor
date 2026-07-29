@@ -15,7 +15,7 @@ class GitSyncTests(unittest.TestCase):
     def test_push_whitelist(self) -> None:
         self.assertIn(LOCAL_SYSTEM_KEY, GIT_PUSH_SYSTEMS)
         self.assertIn("销售系统", GIT_PUSH_SYSTEMS)
-        self.assertNotIn("产品系统", GIT_PUSH_SYSTEMS)
+        self.assertIn("产品系统", GIT_PUSH_SYSTEMS)
         self.assertNotIn("客服系统", GIT_PUSH_SYSTEMS)
 
     def test_system_branch_map_covers_push_systems_except_local(self) -> None:
