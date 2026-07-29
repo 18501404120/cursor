@@ -38,6 +38,14 @@
     progressSummary: $("progressSummary"),
     progressText: $("progressText"),
     previewTitle: $("previewTitle"),
+    tabBtnKb: $("tabBtnKb"),
+    tabBtnGit: $("tabBtnGit"),
+    tabKb: $("tabKb"),
+    tabGit: $("tabGit"),
+    gitTableBody: $("gitTableBody"),
+    gitBusyBadge: $("gitBusyBadge"),
+    btnRefreshGit: $("btnRefreshGit"),
+    gitLogView: $("gitLogView"),
   };
 
   let selectedSystem = "";
@@ -50,6 +58,29 @@
   let lastJob = null;
   let activeFilePath = "";
   let collapsedDirs = new Set();
+  let gitSystemsCache = [];
+  let gitRowResults = {};
+  let gitBusy = false;
+  let activeTab = "kb";
+
+  function formatApiError(detail) {
+    if (!detail) return "请求失败";
+    if (typeof detail === "string") return detail;
+    if (typeof detail === "object") {
+      const parts = [detail.message, detail.details].filter(Boolean);
+      if (parts.length) return parts.join("\n");
+      return JSON.stringify(detail);
+    }
+    return String(detail);
+  }
+
+  function escapeHtml(value) {
+    return String(value)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
+  }
 
   async function api(path, options = {}) {
     const res = await fetch(path, {
@@ -58,8 +89,7 @@
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {
-      const detail = data.detail || data.message || res.statusText;
-      throw new Error(typeof detail === "string" ? detail : JSON.stringify(detail));
+      throw new Error(formatApiError(data.detail || data.message || res.statusText));
     }
     return data;
   }
@@ -528,6 +558,151 @@
     if (selectedSystem) {
       loadProgress(selectedSystem).catch(() => {});
       loadTree(selectedSystem).catch(() => {});
+    }
+  });
+
+  function switchTab(tab) {
+    activeTab = tab;
+    const isKb = tab === "kb";
+    els.tabBtnKb.classList.toggle("active", isKb);
+    els.tabBtnGit.classList.toggle("active", !isKb);
+    els.tabBtnKb.setAttribute("aria-selected", String(isKb));
+    els.tabBtnGit.setAttribute("aria-selected", String(!isKb));
+    els.tabKb.classList.toggle("active", isKb);
+    els.tabKb.hidden = !isKb;
+    els.tabGit.classList.toggle("active", !isKb);
+    els.tabGit.hidden = isKb;
+    if (!isKb) {
+      loadGitSystems().catch((err) => appendGitLog(String(err.message || err), "error"));
+    }
+  }
+
+  function updateGitBusyBadge(op = {}) {
+    const busy = Boolean(op.busy || gitBusy);
+    if (busy) {
+      els.gitBusyBadge.textContent = `进行中 · ${op.busy_action || "git"} · ${op.busy_system || ""}`;
+      els.gitBusyBadge.className = "badge";
+    } else {
+      els.gitBusyBadge.textContent = "空闲";
+      els.gitBusyBadge.className = "badge ok";
+    }
+  }
+
+  function appendGitLog(text, kind = "info") {
+    const prefix = kind === "error" ? "[错误] " : kind === "ok" ? "[完成] " : "";
+    els.gitLogView.textContent += `${prefix}${text}\n`;
+    els.gitLogView.scrollTop = els.gitLogView.scrollHeight;
+  }
+
+  function branchLabel(item) {
+    if (item.kind === "local") {
+      return item.current_branch || "main";
+    }
+    const mapped = item.mapped_branch ? `映射 ${item.mapped_branch}` : "";
+    const current = item.current_branch ? `当前 ${item.current_branch}` : "";
+    return [mapped, current].filter(Boolean).join(" · ");
+  }
+
+  function renderGitTable(items, operation = {}) {
+    gitBusy = Boolean(operation.busy);
+    updateGitBusyBadge(operation);
+    if (!items.length) {
+      els.gitTableBody.innerHTML = `<tr><td colspan="6" class="git-empty">暂无系统</td></tr>`;
+      return;
+    }
+    els.gitTableBody.innerHTML = items
+      .map((item) => {
+        const result = gitRowResults[item.key] || {};
+        const resultClass = result.ok === true ? "ok" : result.ok === false ? "bad" : "";
+        const resultHtml = result.text
+          ? `<div class="git-result ${resultClass}">${result.text}</div>`
+          : `<span class="git-result">—</span>`;
+        const pushBtn = item.can_push
+          ? `<button class="btn primary git-push" data-key="${escapeHtml(item.key)}" type="button" ${
+              gitBusy ? "disabled" : ""
+            }>推送 Git</button>`
+          : "";
+        return `<tr data-key="${escapeHtml(item.key)}">
+          <td><strong>${escapeHtml(item.name)}</strong></td>
+          <td class="mono">${escapeHtml(item.repo)}</td>
+          <td class="mono">${escapeHtml(branchLabel(item))}</td>
+          <td>${escapeHtml(item.status_label || "—")}</td>
+          <td class="actions">
+            <button class="btn ghost git-pull" data-key="${escapeHtml(item.key)}" type="button" ${
+              gitBusy ? "disabled" : ""
+            }>拉取最新</button>
+            ${pushBtn}
+          </td>
+          <td>${resultHtml}</td>
+        </tr>`;
+      })
+      .join("");
+  }
+
+  async function loadGitSystems() {
+    const data = await api("/api/git/systems");
+    gitSystemsCache = data.items || [];
+    renderGitTable(gitSystemsCache, data.operation || {});
+  }
+
+  function setGitRowResult(key, ok, text) {
+    gitRowResults[key] = { ok, text };
+    renderGitTable(gitSystemsCache, { busy: gitBusy });
+  }
+
+  async function runGitAction(action, key) {
+    if (gitBusy) return;
+    gitBusy = true;
+    updateGitBusyBadge({ busy: true, busy_action: action, busy_system: key });
+    renderGitTable(gitSystemsCache, { busy: true, busy_action: action, busy_system: key });
+    const label = action === "pull" ? "拉取最新" : "推送 Git";
+    appendGitLog(`${key} · ${label} 开始…`);
+    try {
+      const data = await api(`/api/git/${encodeURIComponent(key)}/${action}`, {
+        method: "POST",
+        body: "{}",
+      });
+      let text = data.message || "完成";
+      if (data.preview_base_url) {
+        text += ` · <a href="${escapeHtml(data.preview_base_url)}" target="_blank" rel="noopener">预览入口</a>`;
+      }
+      if (data.pr_url) {
+        text += ` · <a href="${escapeHtml(data.pr_url)}" target="_blank" rel="noopener">PR</a>`;
+      } else if (data.manual_pr_url) {
+        text += ` · <a href="${escapeHtml(data.manual_pr_url)}" target="_blank" rel="noopener">建 PR</a>`;
+      }
+      if (Array.isArray(data.logs) && data.logs.length) {
+        data.logs.forEach((line) => appendGitLog(`${key}: ${line}`));
+      }
+      setGitRowResult(key, true, text);
+      appendGitLog(`${key} · ${label} 成功`, "ok");
+      await loadGitSystems();
+    } catch (err) {
+      const msg = String(err.message || err);
+      setGitRowResult(key, false, msg.replace(/\n/g, "<br>"));
+      appendGitLog(`${key} · ${label} 失败: ${msg}`, "error");
+      await loadGitSystems().catch(() => {});
+    } finally {
+      gitBusy = false;
+      updateGitBusyBadge();
+      renderGitTable(gitSystemsCache, { busy: false });
+    }
+  }
+
+  els.tabBtnKb.addEventListener("click", () => switchTab("kb"));
+  els.tabBtnGit.addEventListener("click", () => switchTab("git"));
+  els.btnRefreshGit.addEventListener("click", () => {
+    loadGitSystems().catch((err) => appendGitLog(String(err.message || err), "error"));
+  });
+  els.gitTableBody.addEventListener("click", (e) => {
+    const pullBtn = e.target.closest(".git-pull");
+    const pushBtn = e.target.closest(".git-push");
+    if (pullBtn) {
+      runGitAction("pull", pullBtn.dataset.key).catch(() => {});
+      return;
+    }
+    if (pushBtn) {
+      runGitAction("push", pushBtn.dataset.key).catch(() => {});
     }
   });
 

@@ -56,8 +56,20 @@
     return table[c] != null ? table[c] : 1;
   }
 
+  /** 按当月汇率将金额从原币折算为目标币种（经 USD 中转） */
+  function convertAmount(amount, fromCurrency, toCurrency, refDate) {
+    var from = String(fromCurrency || "USD").toUpperCase();
+    var to = String(toCurrency || "USD").toUpperCase();
+    var amt = Number(amount) || 0;
+    if (from === to) return Math.round(amt);
+    var usd = amt * getFxRateToUsd(from, refDate);
+    var toRate = getFxRateToUsd(to, refDate);
+    if (!toRate) return Math.round(usd);
+    return Math.round(usd / toRate);
+  }
+
   function toUsd(amount, currency, refDate) {
-    return Math.round((Number(amount) || 0) * getFxRateToUsd(currency, refDate));
+    return convertAmount(amount, currency, "USD", refDate);
   }
 
   function todayYmd() {
@@ -186,9 +198,10 @@
     return REGION_MAP[code] || code || "—";
   }
 
-  function enrichRow(row, year) {
+  function enrichRow(row, year, displayCurrency) {
     var copy = JSON.parse(JSON.stringify(row));
     var currency = copy.currency || "USD";
+    var target = String(displayCurrency || "USD").toUpperCase();
     var y = Number(year || new Date().getFullYear());
     copy.elapsedDeduct = calcElapsedDeduct(copy.amount, copy.revenueDateStart, copy.revenueDateEnd);
     copy.timeProgress = calcTimeProgress(copy.revenueDateStart, copy.revenueDateEnd);
@@ -196,9 +209,13 @@
     copy.yearOccupied = calcYearOccupied(copy.amount, copy.revenueDateStart, copy.revenueDateEnd, y);
     copy.fxMonth = getFxMonth();
     copy.fxRate = getFxRateToUsd(currency);
-    copy.amountUsd = toUsd(copy.amount, currency);
-    copy.elapsedDeductUsd = toUsd(copy.elapsedDeduct, currency);
-    copy.yearOccupiedUsd = toUsd(copy.yearOccupied, currency);
+    copy.displayCurrency = target;
+    copy.amountDisplay = convertAmount(copy.amount, currency, target);
+    copy.yearOccupiedDisplay = Math.round(copy.amountDisplay * copy.yearOccupiedRatio);
+    copy.elapsedDeductDisplay = convertAmount(copy.elapsedDeduct, currency, target);
+    copy.amountUsd = convertAmount(copy.amount, currency, "USD");
+    copy.yearOccupiedUsd = Math.round(copy.amountUsd * copy.yearOccupiedRatio);
+    copy.elapsedDeductUsd = convertAmount(copy.elapsedDeduct, currency, "USD");
     return copy;
   }
 
@@ -473,6 +490,7 @@
     var projectName = String(opts.projectName || "").trim().toLowerCase();
     var revenueStart = String(opts.revenueStart || "").trim();
     var revenueEnd = String(opts.revenueEnd || "").trim();
+    var displayCurrency = String(opts.displayCurrency || "USD").toUpperCase();
 
     return getAllProjects()
       .filter(function (p) {
@@ -486,7 +504,7 @@
         return true;
       })
       .map(function (p) {
-        return enrichRow(p, year);
+        return enrichRow(p, year, displayCurrency);
       });
   }
 
@@ -502,11 +520,12 @@
     var year = Number(opts.year || new Date().getFullYear());
     var marketingType = String(opts.marketingType || "").trim();
     var pool = getPoolByYear(year);
-    var rows = filterProjects(opts);
+    var displayCurrency = String(pool.currency || "USD").toUpperCase();
+    var rows = filterProjects(Object.assign({}, opts, { displayCurrency: displayCurrency }));
     var totalPackage = getPoolAmountForType(pool, marketingType);
-    var occupied = sumAmount(rows, "amount");
-    var yearOccupied = sumAmount(rows, "yearOccupied");
-    var elapsedDeduct = sumAmount(rows, "elapsedDeduct");
+    var occupied = sumAmount(rows, "amountDisplay");
+    var yearOccupied = sumAmount(rows, "yearOccupiedDisplay");
+    var elapsedDeduct = sumAmount(rows, "elapsedDeductDisplay");
     var remaining = totalPackage - yearOccupied;
     var rate = totalPackage > 0 ? occupied / totalPackage : 0;
     var yearRate = totalPackage > 0 ? yearOccupied / totalPackage : 0;
@@ -544,6 +563,7 @@
     getRegionName: getRegionName,
     getFxMonth: getFxMonth,
     getFxRateToUsd: getFxRateToUsd,
+    convertAmount: convertAmount,
     toUsd: toUsd,
     calcTimeProgress: calcTimeProgress,
     calcElapsedDeduct: calcElapsedDeduct,

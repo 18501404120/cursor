@@ -34,8 +34,16 @@ class WorkspacePaths:
             raise FileNotFoundError(f"未找到 prompt-lib: {prompt_lib}")
         return cls(erp_root=erp_root, prompt_lib=prompt_lib)
 
+    @property
+    def erp_product_dir(self) -> Path:
+        return self.erp_root / "ERP_product"
+
+    @property
+    def local_dir(self) -> Path:
+        return self.erp_root / "本地"
+
     def system_dir(self, system_name: str) -> Path:
-        return self.erp_root / "ERP_product" / system_name
+        return self.erp_product_dir / system_name
 
     def kb_root(self, system_name: str) -> Path:
         return self.system_dir(system_name) / "知识库"

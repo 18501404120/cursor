@@ -250,10 +250,9 @@
 
       <div class="hint">
         <strong>管报扣减口径：</strong>今年剩余可用（生效额度）= 年度费用总包 − 今年已立项占用。
-        <strong>今年已立项占用</strong> = 筛选年度内各预算行金额合计，跨年项目按收益期间自然日比例拆分到当年（分母为完整收益期间天数）。
-        <strong>已立项占用</strong>为全额合计，不做年度拆分。
-        <strong>距今扣减金额</strong> = 营销费用规划 × 收益期间至今日的时间进度。
-        明细表中「营销费用规划（USD）」「距今扣减金额（USD）」按<strong>当月汇率</strong>折算为美元；顶部总览仍按录入币种直接相加（原型演示）。
+        <strong>今年已立项占用</strong> = 各预算行「营销费用规划（年度总包币种）」按收益期间自然日比例拆分到筛选年度后合计。
+        <strong>已立项占用</strong> = 各预算行「营销费用规划（年度总包币种）」全额合计（当月汇率折算）。
+        <strong>距今扣减金额</strong> = 各预算行「距今扣减金额（年度总包币种）」合计。括号内币种与年度总包维护币种一致。
       </div>
 
       <section class="panel">
@@ -342,8 +341,8 @@
                 <th>费用部门</th>
                 <th class="num">营销费用规划</th>
                 <th>币种</th>
-                <th class="num">营销费用规划（USD）</th>
-                <th class="num">距今扣减金额（USD）</th>
+                <th class="num" id="thAmountDisplay">营销费用规划（USD）</th>
+                <th class="num" id="thElapsedDisplay">距今扣减金额（USD）</th>
                 <th>最近维护</th>
               </tr>
             </thead>
@@ -533,6 +532,9 @@
     document.getElementById("overviewSub").textContent =
       queryState.year + " 年 · " + typeLabel + " · 币种 " + currency;
 
+    document.getElementById("thAmountDisplay").textContent = "营销费用规划（" + currency + "）";
+    document.getElementById("thElapsedDisplay").textContent = "距今扣减金额（" + currency + "）";
+
     document.getElementById("statTotal").textContent = api.formatMoney(summary.totalPackage);
     document.getElementById("statCurrency").textContent = currency;
     document.getElementById("statOccupied").textContent = api.formatMoney(summary.occupied);
@@ -598,8 +600,8 @@
         "<td>" + esc(row.dept || "—") + "</td>" +
         '<td class="num">' + api.formatMoney(row.amount) + "</td>" +
         "<td>" + esc(row.currency || "USD") + "</td>" +
-        '<td class="num">' + api.formatMoney(row.amountUsd) + "</td>" +
-        '<td class="num">' + api.formatMoney(row.elapsedDeductUsd) +
+        '<td class="num">' + api.formatMoney(row.amountDisplay) + "</td>" +
+        '<td class="num">' + api.formatMoney(row.elapsedDeductDisplay) +
           ' <span style="color:#94a3b8;font-size:11px">(' + pct(row.timeProgress) + ")</span></td>" +
         "<td>" + esc(row.updatedAt || "—") + "</td>" +
         "</tr>"
@@ -636,10 +638,12 @@
       toast("当前无可导出数据");
       return;
     }
+    var cur = summary.currency || "USD";
     var header = [
       "项目编号", "项目名称", "营销类型", "费用类型", "收益开始", "收益结束",
       "场景品类", "model", "SKU", "新品标签", "区域", "国家", "渠道", "店铺",
-      "费用部门", "营销费用规划", "币种", "营销费用规划(USD)", "距今扣减金额(USD)", "时间进度", "最近维护"
+      "费用部门", "营销费用规划", "币种",
+      "营销费用规划(" + cur + ")", "距今扣减金额(" + cur + ")", "时间进度", "最近维护"
     ];
     var lines = [header.join(",")];
     rows.forEach(function (r) {
@@ -661,8 +665,8 @@
         '"' + (r.dept || "") + '"',
         r.amount,
         r.currency || "USD",
-        r.amountUsd,
-        r.elapsedDeductUsd,
+        r.amountDisplay,
+        r.elapsedDeductDisplay,
         (r.timeProgress * 100).toFixed(1) + "%",
         r.updatedAt || ""
       ].join(","));

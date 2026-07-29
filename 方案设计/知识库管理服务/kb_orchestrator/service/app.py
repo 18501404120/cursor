@@ -12,6 +12,7 @@ from pydantic import BaseModel, Field
 
 from ..env import load_dotenv, project_root, resolve_api_key
 from ..orchestrator import OrchestratorConfig
+from .git_sync import GitSyncError, git_sync_manager
 from .jobs import (
     JobManager,
     create_system,
@@ -193,6 +194,36 @@ def api_stop_job() -> dict[str, Any]:
 def api_logs(after: int = Query(0, ge=0)) -> dict[str, Any]:
     events = manager.list_logs(after_seq=after)
     return {"events": [e.to_dict() for e in events]}
+
+
+@app.get("/api/git/systems")
+def api_git_systems() -> dict[str, Any]:
+    try:
+        return git_sync_manager.list_systems()
+    except FileNotFoundError as exc:
+        raise HTTPException(404, str(exc)) from exc
+
+
+@app.post("/api/git/{system_key}/pull")
+def api_git_pull(system_key: str) -> dict[str, Any]:
+    try:
+        return git_sync_manager.pull_latest(system_key)
+    except GitSyncError as exc:
+        status = 409 if exc.code == "busy" else 400
+        if exc.code == "conflict":
+            status = 409
+        raise HTTPException(status, {"message": str(exc), "details": exc.details, "code": exc.code}) from exc
+
+
+@app.post("/api/git/{system_key}/push")
+def api_git_push(system_key: str) -> dict[str, Any]:
+    try:
+        return git_sync_manager.push_git(system_key)
+    except GitSyncError as exc:
+        if exc.code == "forbidden":
+            raise HTTPException(403, str(exc)) from exc
+        status = 409 if exc.code in {"busy", "conflict"} else 400
+        raise HTTPException(status, {"message": str(exc), "details": exc.details, "code": exc.code}) from exc
 
 
 @app.get("/api/jobs/stream")
