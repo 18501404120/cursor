@@ -654,14 +654,23 @@ class GitSyncManager:
         commit_msg = f"chore: 本地方案同步 {_now_label()[:10]}"
         _run_git(["commit", "-m", commit_msg], repo, env={"SKIP_AUTO_PUSH": "1"})
 
+        remote_url = _run_git(["remote", "get-url", "origin"], repo, check=False).stdout.strip()
         push = _run_git(
             ["push", "origin", "HEAD"],
             repo,
             check=False,
-            global_config=["http.version=HTTP/1.1"],
+            global_config=["http.version=HTTP/1.1"] if remote_url.startswith("https://") else None,
         )
         if not push.ok:
-            raise GitSyncError("push origin 失败", details=push.text)
+            detail = push.text
+            hint = ""
+            if "Couldn't connect to server" in detail or "Failed to connect" in detail:
+                hint = (
+                    "\n\n提示：当前网络无法通过 HTTPS 访问 GitHub。"
+                    "可将 origin 改为 SSH，例如：\n"
+                    "git remote set-url origin git@github-personal:18501404120/cursor.git"
+                )
+            raise GitSyncError("push origin 失败", details=detail + hint)
 
         return {
             "ok": True,
