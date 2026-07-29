@@ -1,0 +1,741 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>营销费用预算管理</title>
+  <link rel="stylesheet" href="../费用管理/fee-mgmt-common.css">
+  <style>
+    body { background: #f5f7fb; }
+    .header { background: #1f3a8a; }
+    .stat-row {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 12px;
+      padding: 0 16px 16px;
+    }
+    .stat-card {
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      background: #fff;
+      padding: 14px 16px;
+      position: relative;
+      overflow: hidden;
+    }
+    .stat-card::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: 4px;
+      background: #1677ff;
+    }
+    .stat-card.warn::before { background: #fa8c16; }
+    .stat-card.ok::before { background: #52c41a; }
+    .stat-card.purple::before { background: #722ed1; }
+    .stat-card.danger::before { background: #ff4d4f; }
+    .stat-card .k { font-size: 12px; color: #6b7280; }
+    .stat-card .v {
+      margin-top: 6px;
+      font-size: 22px;
+      font-weight: 700;
+      color: #1f2937;
+      line-height: 1.2;
+    }
+    .stat-card .sub { margin-top: 4px; font-size: 11px; color: #94a3b8; }
+    .hint {
+      margin: 0 16px 12px;
+      border: 1px solid #bfdbfe;
+      background: #eff6ff;
+      padding: 10px 12px;
+      border-radius: 6px;
+      font-size: 12px;
+      color: #1e3a8a;
+      line-height: 1.7;
+    }
+    .progress-wrap {
+      margin: 0 16px 16px;
+      padding: 14px 16px;
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      background: #fff;
+    }
+    .progress-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+      font-size: 12px;
+      color: #64748b;
+    }
+    .progress-bar {
+      height: 12px;
+      border-radius: 999px;
+      background: #f1f5f9;
+      overflow: hidden;
+      display: flex;
+    }
+    .progress-bar .seg-elapsed {
+      background: linear-gradient(90deg, #722ed1, #531dab);
+      transition: width .3s;
+    }
+    .progress-bar .seg-occupied {
+      background: linear-gradient(90deg, #60a5fa, #2563eb);
+      transition: width .3s;
+    }
+    .progress-legend {
+      display: flex;
+      gap: 16px;
+      margin-top: 8px;
+      font-size: 11px;
+      color: #64748b;
+      flex-wrap: wrap;
+    }
+    .legend-dot {
+      display: inline-block;
+      width: 10px;
+      height: 10px;
+      border-radius: 2px;
+      margin-right: 4px;
+      vertical-align: -1px;
+    }
+    .form-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px 16px;
+    }
+    .form-field {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .form-field.full { grid-column: 1 / -1; }
+    .form-field label { color: #6b7280; font-size: 12px; }
+    .form-field input,
+    .form-field textarea,
+    .form-field select {
+      height: 32px;
+      border: 1px solid #d9d9d9;
+      border-radius: 6px;
+      padding: 0 10px;
+      font-size: 13px;
+      background: #fff;
+      width: 100%;
+    }
+    .form-field textarea {
+      height: 64px;
+      padding: 8px 10px;
+      resize: vertical;
+    }
+    .form-field input[readonly] {
+      background: #f8fafc;
+      color: #475569;
+    }
+    .num-warn { color: #dc2626; font-weight: 600; }
+    .num-ok { color: #15803d; font-weight: 600; }
+    .panel-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+    .filter-panel .filter-grid { row-gap: 10px; }
+    .date-range {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .date-range input[type="date"] {
+      height: 32px;
+      border: 1px solid #d9d9d9;
+      border-radius: 6px;
+      padding: 0 8px;
+      font-size: 13px;
+      width: 138px;
+    }
+    .table-wrap { overflow-x: auto; }
+    .data-table th,
+    .data-table td { white-space: nowrap; }
+    .data-table td.wrap-cell {
+      white-space: normal;
+      min-width: 120px;
+      max-width: 180px;
+    }
+    .pool-split-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px 16px;
+    }
+    .pool-total-row {
+      margin-top: 4px;
+      padding: 10px 12px;
+      border-radius: 6px;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      font-size: 13px;
+      color: #475569;
+    }
+    .pool-total-row strong { color: #1f2937; font-size: 16px; margin-left: 8px; }
+    @media (max-width: 1280px) {
+      .stat-row { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    }
+    @media (max-width: 900px) {
+      .stat-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .form-grid, .pool-split-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+<div class="layout">
+  <aside class="sider" aria-label="主导航">
+    <div class="sider-logo" aria-hidden="true"></div>
+    <a class="sider-item" href="../费用管理/index.html">费用</a>
+    <a class="sider-item active" href="index.html">管报</a>
+  </aside>
+  <main class="main">
+    <header class="header">
+      <div class="title">营销费用预算管理</div>
+      <nav class="nav-links">
+        <a href="index.html">归档原型</a>
+        <a href="../费用管理/项目立项-创建项目.html">项目立项预算</a>
+        <a class="active" href="品牌营销费用预算管理.html">预算总包</a>
+      </nav>
+    </header>
+
+    <div class="page">
+      <div class="breadcrumb">
+        <a href="../index.html">全渠道管报</a> /
+        <a href="index.html">归档原型</a> /
+        <span>营销费用预算管理</span>
+      </div>
+
+      <section class="panel panel--filter">
+        <div class="filter-panel">
+          <div class="filter-grid">
+            <div class="f-item">
+              <label for="fltYear">年度</label>
+              <select id="fltYear" class="ctl"></select>
+            </div>
+            <div class="f-item">
+              <label for="fltMarketingType">营销类型</label>
+              <select id="fltMarketingType" class="ctl">
+                <option value="">全部</option>
+              </select>
+            </div>
+            <div class="f-item">
+              <label for="fltBudgetType">费用类型</label>
+              <select id="fltBudgetType" class="ctl">
+                <option value="">全部</option>
+              </select>
+            </div>
+            <div class="f-item">
+              <label for="fltProjectCode">项目编号</label>
+              <input id="fltProjectCode" class="ctl" type="text" placeholder="支持模糊匹配" style="width:140px">
+            </div>
+            <div class="f-item">
+              <label for="fltProjectName">项目名称</label>
+              <input id="fltProjectName" class="ctl" type="text" placeholder="支持模糊匹配" style="width:160px">
+            </div>
+            <div class="f-item">
+              <label>收益日期范围</label>
+              <div class="date-range">
+                <input type="date" id="fltRevenueStart">
+                <span>~</span>
+                <input type="date" id="fltRevenueEnd">
+              </div>
+            </div>
+            <div class="f-item">
+              <button type="button" class="btn btn-primary" id="btnQuery">查询</button>
+              <button type="button" class="btn" id="btnReset">重置</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <div class="hint">
+        <strong>管报扣减口径：</strong>今年剩余可用（生效额度）= 年度费用总包 − 今年已立项占用。
+        <strong>今年已立项占用</strong> = 筛选年度内各预算行金额合计，跨年项目按收益期间自然日比例拆分到当年（分母为完整收益期间天数）。
+        <strong>已立项占用</strong>为全额合计，不做年度拆分。
+        <strong>距今扣减金额</strong> = 营销费用规划 × 收益期间至今日的时间进度。
+        明细表中「营销费用规划（USD）」「距今扣减金额（USD）」按<strong>当月汇率</strong>折算为美元；顶部总览仍按录入币种直接相加（原型演示）。
+      </div>
+
+      <section class="panel">
+        <div class="panel-head">
+          <div>
+            <div class="panel-title">预算总览</div>
+            <div class="panel-sub" id="overviewSub">—</div>
+          </div>
+          <div class="panel-actions">
+            <button type="button" class="btn btn-primary" id="btnOpenPool">维护年度总包</button>
+            <button type="button" class="btn" id="btnSyncLegacy">同步项目立项预算</button>
+          </div>
+        </div>
+        <div class="stat-row">
+          <div class="stat-card">
+            <div class="k">年度费用总包</div>
+            <div class="v" id="statTotal">0</div>
+            <div class="sub" id="statCurrency">USD</div>
+          </div>
+          <div class="stat-card warn" id="statOccupiedCard">
+            <div class="k">已立项占用</div>
+            <div class="v" id="statOccupied">0</div>
+            <div class="sub" id="statOccupiedRate">占年度总包 0%</div>
+          </div>
+          <div class="stat-card warn" id="statYearOccupiedCard">
+            <div class="k">今年已立项占用</div>
+            <div class="v" id="statYearOccupied">0</div>
+            <div class="sub" id="statYearOccupiedRate">占年度总包 0%</div>
+          </div>
+          <div class="stat-card purple">
+            <div class="k">距今扣减金额</div>
+            <div class="v" id="statElapsed">0</div>
+            <div class="sub" id="statElapsedRate">占年度总包 0%</div>
+          </div>
+          <div class="stat-card ok" id="statRemainingCard">
+            <div class="k">今年剩余可用（生效额度）</div>
+            <div class="v" id="statRemaining">0</div>
+            <div class="sub">可继续立项规划的额度</div>
+          </div>
+        </div>
+        <div class="progress-wrap">
+          <div class="progress-head">
+            <span>年度预算使用进度</span>
+            <span id="progressLabel">—</span>
+          </div>
+          <div class="progress-bar" aria-hidden="true">
+            <div class="seg-elapsed" id="segElapsed" style="width:0%"></div>
+            <div class="seg-occupied" id="segOccupiedRest" style="width:0%"></div>
+          </div>
+          <div class="progress-legend">
+            <span><span class="legend-dot" style="background:#722ed1"></span>距今扣减金额</span>
+            <span><span class="legend-dot" style="background:#2563eb"></span>已立项占用（未到期部分）</span>
+            <span><span class="legend-dot" style="background:#f1f5f9;border:1px solid #e2e8f0"></span>今年剩余可用</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel panel--table">
+        <div class="panel-head">
+          <div>
+            <div class="panel-title">立项预算扣减明细</div>
+            <div class="panel-sub" id="detailTip">共 0 条</div>
+          </div>
+          <div class="panel-actions">
+            <a class="btn" href="../费用管理/项目立项-创建项目.html" target="_blank" rel="noopener">前往项目立项录入</a>
+            <button type="button" class="btn" id="btnExport">导出 CSV</button>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>项目编号</th>
+                <th>项目名称</th>
+                <th>营销类型</th>
+                <th>费用类型</th>
+                <th>收益期间</th>
+                <th>场景品类</th>
+                <th>model</th>
+                <th>SKU</th>
+                <th>新品标签</th>
+                <th>区域</th>
+                <th>国家</th>
+                <th>渠道</th>
+                <th>店铺</th>
+                <th>费用部门</th>
+                <th class="num">营销费用规划</th>
+                <th>币种</th>
+                <th class="num">营销费用规划（USD）</th>
+                <th class="num">距今扣减金额（USD）</th>
+                <th>最近维护</th>
+              </tr>
+            </thead>
+            <tbody id="detailBody"></tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+  </main>
+</div>
+
+<div class="modal-mask" id="poolModal" aria-hidden="true">
+  <div class="modal" style="width:min(640px,92vw)">
+    <div class="modal-hd">
+      <h2>维护年度费用总包</h2>
+      <button type="button" class="modal-close" id="btnClosePool">×</button>
+    </div>
+    <div class="modal-bd">
+      <div class="form-grid">
+        <div class="form-field">
+          <label for="poolYear">年度</label>
+          <input id="poolYear" type="text" readonly>
+        </div>
+        <div class="form-field">
+          <label for="poolCurrency">币种</label>
+          <select id="poolCurrency">
+            <option value="USD">USD</option>
+            <option value="CNY">CNY</option>
+            <option value="EUR">EUR</option>
+          </select>
+        </div>
+      </div>
+      <div class="pool-split-grid" style="margin-top:12px">
+        <div class="form-field">
+          <label for="poolAutonomousProduct">自主营销-产品营销</label>
+          <input id="poolAutonomousProduct" type="number" min="0" step="10000">
+        </div>
+        <div class="form-field">
+          <label for="poolAutonomousBrand">自主营销-品牌营销</label>
+          <input id="poolAutonomousBrand" type="number" min="0" step="10000">
+        </div>
+        <div class="form-field">
+          <label for="poolJointProduct">联合营销-产品营销</label>
+          <input id="poolJointProduct" type="number" min="0" step="10000">
+        </div>
+        <div class="form-field">
+          <label for="poolJointBrand">联合营销-品牌营销</label>
+          <input id="poolJointBrand" type="number" min="0" step="10000">
+        </div>
+      </div>
+      <div class="pool-total-row">
+        费用总包（合计）<strong id="poolTotalDisplay">0</strong>
+        <span id="poolCurrencyDisplay" style="margin-left:4px;color:#64748b"></span>
+      </div>
+      <div class="form-grid" style="margin-top:12px">
+        <div class="form-field full">
+          <label for="poolRemark">备注</label>
+          <textarea id="poolRemark" placeholder="可填写预算编制说明、审批单号等"></textarea>
+        </div>
+      </div>
+      <div style="margin-top:8px;font-size:12px;color:#94a3b8" id="poolUpdatedAt">—</div>
+    </div>
+    <div class="modal-ft">
+      <button type="button" class="btn" id="btnCancelPool">取消</button>
+      <button type="button" class="btn btn-primary" id="btnSavePool">保存</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script src="品牌营销费用预算管理.js"></script>
+<script>
+(function () {
+  var api = window.BrandMarketingBudget;
+  if (!api) {
+    alert("预算管理脚本加载失败，请通过 HTTP 服务打开本页。");
+    return;
+  }
+
+  var queryState = {
+    year: new Date().getFullYear(),
+    marketingType: "",
+    budgetType: "",
+    projectCode: "",
+    projectName: "",
+    revenueStart: "",
+    revenueEnd: ""
+  };
+
+  var fltYear = document.getElementById("fltYear");
+  var fltMarketingType = document.getElementById("fltMarketingType");
+  var fltBudgetType = document.getElementById("fltBudgetType");
+  var poolModal = document.getElementById("poolModal");
+  var poolInputs = ["poolAutonomousProduct", "poolAutonomousBrand", "poolJointProduct", "poolJointBrand"];
+
+  function toast(msg) {
+    var el = document.getElementById("toast");
+    if (!el) return;
+    el.textContent = msg;
+    el.classList.add("show");
+    clearTimeout(el._t);
+    el._t = setTimeout(function () { el.classList.remove("show"); }, 2400);
+  }
+
+  function pct(n) {
+    return (Number(n) * 100).toFixed(1) + "%";
+  }
+
+  function esc(s) {
+    return String(s || "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
+  }
+
+  function fillSelects() {
+    fltYear.innerHTML = api.getYearOptions().map(function (y) {
+      return '<option value="' + y + '">' + y + " 年</option>";
+    }).join("");
+    fltYear.value = String(queryState.year);
+
+    fltMarketingType.innerHTML = '<option value="">全部</option>' +
+      api.MARKETING_TYPES.map(function (t) {
+        return '<option value="' + esc(t) + '">' + esc(t) + "</option>";
+      }).join("");
+    fltMarketingType.value = queryState.marketingType;
+
+    fltBudgetType.innerHTML = '<option value="">全部</option>' +
+      api.BUDGET_TYPES.map(function (t) {
+        return '<option value="' + esc(t) + '">' + esc(t) + "</option>";
+      }).join("");
+    fltBudgetType.value = queryState.budgetType;
+  }
+
+  function readQueryFromForm() {
+    queryState.year = Number(fltYear.value);
+    queryState.marketingType = fltMarketingType.value;
+    queryState.budgetType = fltBudgetType.value;
+    queryState.projectCode = document.getElementById("fltProjectCode").value.trim();
+    queryState.projectName = document.getElementById("fltProjectName").value.trim();
+    queryState.revenueStart = document.getElementById("fltRevenueStart").value;
+    queryState.revenueEnd = document.getElementById("fltRevenueEnd").value;
+  }
+
+  function updatePoolTotalDisplay() {
+    var total = 0;
+    poolInputs.forEach(function (id) {
+      total += Number(document.getElementById(id).value) || 0;
+    });
+    var currency = document.getElementById("poolCurrency").value || "USD";
+    document.getElementById("poolTotalDisplay").textContent = api.formatMoney(total);
+    document.getElementById("poolCurrencyDisplay").textContent = currency;
+  }
+
+  function loadPoolForm(year) {
+    var pool = api.getPoolByYear(year);
+    document.getElementById("poolYear").value = pool.year;
+    document.getElementById("poolCurrency").value = pool.currency || "USD";
+    document.getElementById("poolAutonomousProduct").value = pool.autonomousProduct || 0;
+    document.getElementById("poolAutonomousBrand").value = pool.autonomousBrand || 0;
+    document.getElementById("poolJointProduct").value = pool.jointProduct || 0;
+    document.getElementById("poolJointBrand").value = pool.jointBrand || 0;
+    document.getElementById("poolRemark").value = pool.remark || "";
+    document.getElementById("poolUpdatedAt").textContent =
+      "最近维护：" + (pool.updatedBy || "—") + " · " + (pool.updatedAt || "—");
+    updatePoolTotalDisplay();
+  }
+
+  function openPoolModal() {
+    loadPoolForm(queryState.year);
+    poolModal.classList.add("open");
+    poolModal.setAttribute("aria-hidden", "false");
+  }
+
+  function closePoolModal() {
+    poolModal.classList.remove("open");
+    poolModal.setAttribute("aria-hidden", "true");
+  }
+
+  function render() {
+    var summary = api.computeSummary(queryState);
+    var currency = summary.currency;
+    var typeLabel = queryState.marketingType || "全部营销类型";
+
+    document.getElementById("overviewSub").textContent =
+      queryState.year + " 年 · " + typeLabel + " · 币种 " + currency;
+
+    document.getElementById("statTotal").textContent = api.formatMoney(summary.totalPackage);
+    document.getElementById("statCurrency").textContent = currency;
+    document.getElementById("statOccupied").textContent = api.formatMoney(summary.occupied);
+    document.getElementById("statOccupiedRate").textContent = "占年度总包 " + pct(summary.utilizationRate);
+    document.getElementById("statYearOccupied").textContent = api.formatMoney(summary.yearOccupied);
+    document.getElementById("statYearOccupiedRate").textContent = "占年度总包 " + pct(summary.yearUtilizationRate);
+    document.getElementById("statElapsed").textContent = api.formatMoney(summary.elapsedDeduct);
+    document.getElementById("statElapsedRate").textContent = "占年度总包 " + pct(summary.elapsedRate);
+
+    var occupiedCard = document.getElementById("statOccupiedCard");
+    occupiedCard.className = "stat-card" +
+      (summary.utilizationRate >= 1 ? " danger" : summary.utilizationRate >= 0.85 ? " warn" : "");
+
+    var yearOccupiedCard = document.getElementById("statYearOccupiedCard");
+    yearOccupiedCard.className = "stat-card" +
+      (summary.yearUtilizationRate >= 1 ? " danger" : summary.yearUtilizationRate >= 0.85 ? " warn" : "");
+
+    var remainingEl = document.getElementById("statRemaining");
+    remainingEl.textContent = api.formatMoney(summary.remaining);
+    remainingEl.className = "v" + (summary.remaining < 0 ? " num-warn" : " num-ok");
+
+    var remainingCard = document.getElementById("statRemainingCard");
+    remainingCard.className = "stat-card ok" + (summary.remaining < 0 ? " danger" : "");
+
+    var total = summary.totalPackage || 1;
+    var elapsedW = Math.min(100, (summary.elapsedDeduct / total) * 100);
+    var occupiedRestW = Math.min(100 - elapsedW, Math.max(0, (summary.occupied - summary.elapsedDeduct) / total * 100));
+    document.getElementById("segElapsed").style.width = elapsedW + "%";
+    document.getElementById("segOccupiedRest").style.width = occupiedRestW + "%";
+    document.getElementById("progressLabel").textContent =
+      "全额立项占用 " + pct(summary.utilizationRate) +
+      " · 今年立项占用 " + pct(summary.yearUtilizationRate) +
+      " · 时间进度扣减 " + pct(summary.elapsedRate) +
+      (summary.remaining < 0 ? "（今年超支 " + api.formatMoney(Math.abs(summary.remaining)) + "）" : "");
+
+    var rows = summary.rows.slice().sort(function (a, b) {
+      return (b.amount || 0) - (a.amount || 0);
+    });
+    document.getElementById("detailTip").textContent = "共 " + rows.length + " 条";
+
+    var tbody = document.getElementById("detailBody");
+    if (!rows.length) {
+      tbody.innerHTML = '<tr><td colspan="19" style="text-align:center;color:#94a3b8;padding:28px">当前筛选条件下暂无立项预算</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = rows.map(function (row) {
+      return (
+        "<tr>" +
+        "<td>" + esc(row.projectCode) + "</td>" +
+        '<td class="wrap-cell">' + esc(row.projectName) + "</td>" +
+        "<td>" + esc(row.marketingType) + "</td>" +
+        "<td>" + esc(row.budgetType) + "</td>" +
+        "<td>" + esc(row.revenueDateStart) + " ~ " + esc(row.revenueDateEnd) + "</td>" +
+        '<td class="wrap-cell">' + esc(api.formatSceneCategories(row)) + "</td>" +
+        '<td class="wrap-cell">' + esc(api.formatList(row.models)) + "</td>" +
+        '<td class="wrap-cell">' + esc(api.formatList(row.skus)) + "</td>" +
+        "<td>" + esc(row.npTag ? row.npTag + "年新品" : "—") + "</td>" +
+        "<td>" + esc(api.getRegionName(row.region)) + "</td>" +
+        '<td class="wrap-cell">' + esc(api.formatList(row.countries)) + "</td>" +
+        '<td class="wrap-cell">' + esc(api.formatList(row.channels)) + "</td>" +
+        '<td class="wrap-cell">' + esc(api.formatList(row.stores)) + "</td>" +
+        "<td>" + esc(row.dept || "—") + "</td>" +
+        '<td class="num">' + api.formatMoney(row.amount) + "</td>" +
+        "<td>" + esc(row.currency || "USD") + "</td>" +
+        '<td class="num">' + api.formatMoney(row.amountUsd) + "</td>" +
+        '<td class="num">' + api.formatMoney(row.elapsedDeductUsd) +
+          ' <span style="color:#94a3b8;font-size:11px">(' + pct(row.timeProgress) + ")</span></td>" +
+        "<td>" + esc(row.updatedAt || "—") + "</td>" +
+        "</tr>"
+      );
+    }).join("");
+  }
+
+  function savePool() {
+    var year = Number(document.getElementById("poolYear").value);
+    var payload = {
+      year: year,
+      currency: document.getElementById("poolCurrency").value,
+      autonomousProduct: Number(document.getElementById("poolAutonomousProduct").value) || 0,
+      autonomousBrand: Number(document.getElementById("poolAutonomousBrand").value) || 0,
+      jointProduct: Number(document.getElementById("poolJointProduct").value) || 0,
+      jointBrand: Number(document.getElementById("poolJointBrand").value) || 0,
+      remark: document.getElementById("poolRemark").value.trim(),
+      updatedBy: "当前用户"
+    };
+    if (payload.autonomousProduct + payload.autonomousBrand + payload.jointProduct + payload.jointBrand <= 0) {
+      toast("请至少填写一项子包金额");
+      return;
+    }
+    api.savePool(payload);
+    toast("年度费用总包已保存");
+    closePoolModal();
+    render();
+  }
+
+  function exportCsv() {
+    var summary = api.computeSummary(queryState);
+    var rows = summary.rows;
+    if (!rows.length) {
+      toast("当前无可导出数据");
+      return;
+    }
+    var header = [
+      "项目编号", "项目名称", "营销类型", "费用类型", "收益开始", "收益结束",
+      "场景品类", "model", "SKU", "新品标签", "区域", "国家", "渠道", "店铺",
+      "费用部门", "营销费用规划", "币种", "营销费用规划(USD)", "距今扣减金额(USD)", "时间进度", "最近维护"
+    ];
+    var lines = [header.join(",")];
+    rows.forEach(function (r) {
+      lines.push([
+        r.projectCode,
+        '"' + (r.projectName || "") + '"',
+        r.marketingType,
+        r.budgetType,
+        r.revenueDateStart,
+        r.revenueDateEnd,
+        '"' + api.formatSceneCategories(r) + '"',
+        '"' + api.formatList(r.models) + '"',
+        '"' + api.formatList(r.skus) + '"',
+        r.npTag || "",
+        api.getRegionName(r.region),
+        '"' + api.formatList(r.countries) + '"',
+        '"' + api.formatList(r.channels) + '"',
+        '"' + api.formatList(r.stores) + '"',
+        '"' + (r.dept || "") + '"',
+        r.amount,
+        r.currency || "USD",
+        r.amountUsd,
+        r.elapsedDeductUsd,
+        (r.timeProgress * 100).toFixed(1) + "%",
+        r.updatedAt || ""
+      ].join(","));
+    });
+    var blob = new Blob(["\ufeff" + lines.join("\n")], { type: "text/csv;charset=utf-8" });
+    var a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "营销费用预算扣减明细_" + queryState.year + ".csv";
+    a.click();
+    URL.revokeObjectURL(a.href);
+  }
+
+  document.getElementById("btnQuery").addEventListener("click", function () {
+    readQueryFromForm();
+    render();
+  });
+
+  document.getElementById("btnReset").addEventListener("click", function () {
+    queryState = {
+      year: new Date().getFullYear(),
+      marketingType: "",
+      budgetType: "",
+      projectCode: "",
+      projectName: "",
+      revenueStart: "",
+      revenueEnd: ""
+    };
+    document.getElementById("fltProjectCode").value = "";
+    document.getElementById("fltProjectName").value = "";
+    document.getElementById("fltRevenueStart").value = "";
+    document.getElementById("fltRevenueEnd").value = "";
+    fillSelects();
+    render();
+  });
+
+  document.getElementById("btnOpenPool").addEventListener("click", openPoolModal);
+  document.getElementById("btnClosePool").addEventListener("click", closePoolModal);
+  document.getElementById("btnCancelPool").addEventListener("click", closePoolModal);
+  document.getElementById("btnSavePool").addEventListener("click", savePool);
+  document.getElementById("btnExport").addEventListener("click", exportCsv);
+  poolModal.addEventListener("click", function (e) {
+    if (e.target === poolModal) closePoolModal();
+  });
+
+  poolInputs.forEach(function (id) {
+    document.getElementById(id).addEventListener("input", updatePoolTotalDisplay);
+  });
+  document.getElementById("poolCurrency").addEventListener("change", updatePoolTotalDisplay);
+
+  document.getElementById("btnSyncLegacy").addEventListener("click", function () {
+    var imported = api.importFromLegacyBudget();
+    if (!imported.length) {
+      toast("未读取到项目立项页的营销预算（请先打开项目立项页录入）");
+      return;
+    }
+    var list = api.getAllProjects();
+    var existIds = {};
+    list.forEach(function (p) { existIds[p.id] = true; });
+    var added = 0;
+    imported.forEach(function (row) {
+      if (!existIds[row.id]) {
+        list.push(row);
+        added++;
+      }
+    });
+    api.saveAllProjects(list);
+    toast("已同步 " + added + " 条项目立项预算");
+    render();
+  });
+
+  fillSelects();
+  render();
+})();
+</script>
+</body>
+</html>
