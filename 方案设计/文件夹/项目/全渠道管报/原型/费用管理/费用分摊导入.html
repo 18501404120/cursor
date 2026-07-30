@@ -1772,10 +1772,8 @@
       });
     }
 
-    function prevMonthYm(belongYm) {
-      const [y, m] = belongYm.split("-").map(Number);
-      const d = new Date(y, m - 2, 1);
-      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+    function weightMonthYm(belongYm) {
+      return belongYm;
     }
     function daysInMonth(ym) {
       const [y, m] = ym.split("-").map(Number);
@@ -2161,7 +2159,7 @@
 
     function updateRuleText() {
       const { month, label } = getCreateBelongMonth();
-      const weight = month ? prevMonthYm(month) : "—";
+      const weight = month ? weightMonthYm(month) : "—";
       const amt = Number.isFinite(getCreateAmount()) ? getCreateAmount() : 0;
       const fee = document.getElementById("feeType").value;
       const currency = document.getElementById("feeCurrency")?.value || "CNY";
@@ -2205,7 +2203,8 @@
           productScope: ps
         })}<br>
         <strong>交集：</strong>渠道五列、产品九列分别取交后得到分摊对象集合。<br>
-        <strong>权重：</strong>按权重月 ${weight}（归属月的上月）各 MSKU 营收占比，将<strong>金额</strong>分摊至各行。
+        <strong>权重：</strong>按权重月 ${weight}（归属月当月）各 MSKU 营收占比，将<strong>金额</strong>分摊至各行。<br>
+        <strong>更新：</strong>归属月关账前（次月 20 日前），待生效与已生效批次分摊明细随营收每日自动重算；关账后冻结。
       `;
     }
 
@@ -2411,7 +2410,7 @@
       const rowLive = state.historyRows.find((r) => r.id === batchId);
       if (rowLive) d.st = rowLive.status;
       const belongMonth = normalizeBelongMonth(d.belongMonth || d.belongRange || d.month || "");
-      const wm = belongMonth ? prevMonthYm(belongMonth) : "—";
+      const wm = belongMonth ? weightMonthYm(belongMonth) : "—";
       const ch = d.channelScope || {};
       const ps = d.productScope || {};
       const mode = d.allocMode || rowLive?.allocMode || "分摊";
@@ -2423,7 +2422,8 @@
            <strong>归属维度：</strong>${escHtml(buildNoAllocDimensionHtml(ch, ps))}<br>
            <strong>部门：</strong>${escHtml(deptText)}<br>
            <strong>查询口径：</strong>未填字段视为通配，仅命中该维度时此费用才显示。`
-        : `<strong>权重月：</strong>${escHtml(wm)}（归属月的上月）<br>`;
+        : `<strong>权重月：</strong>${escHtml(wm)}（归属月当月）<br>
+           <strong>更新：</strong>关账前分摊明细随营收每日自动重算，关账后冻结。<br>`;
       document.getElementById("historyDetailMeta").innerHTML = `
         <div style="line-height:1.75;font-size:13px;color:#78350f;">
           <strong>导入批次号：</strong>${escHtml(batchId)}<br>
@@ -3587,7 +3587,7 @@
       "id": "create-belong-month",
       "selector": "#createBelongMonth",
       "title": "归属月",
-      "body": "归属月逻辑：\n1. 格式 YYYY-MM，与导入模版「归属月」列一致。\n2. 权重月 = 归属月的上月（如归属月 2026-04 → 权重月 2026-03）。\n3. 分摊金额按权重月各 MSKU 营收占比计算。"
+      "body": "归属月逻辑：\n1. 格式 YYYY-MM，与导入模版「归属月」列一致。\n2. 权重月 = 归属月当月（如归属月 2026-04 → 权重月 2026-04）。\n3. 分摊金额按权重月各 MSKU 营收占比计算。\n4. 关账前（次月 20 日前）待生效与已生效批次分摊明细随营收每日自动重算；关账后冻结。"
     },
     {
       "id": "create-total-amount",
@@ -3611,7 +3611,7 @@
       "id": "create-preview",
       "selector": "#btnPreview",
       "title": "预览分摊",
-      "body": "预览分摊逻辑：\n1. 校验费用项、归属月、金额；不分摊时部门必填。\n2. 分摊模式：按渠道×产品交集匹配 MSKU，剔除负营收，按权重月营收占比分摊，末行补差。\n3. 预览成功后才允许确认写入；预览总额须与金额一致。"
+      "body": "预览分摊逻辑：\n1. 校验费用项、归属月、金额；不分摊时部门必填。\n2. 分摊模式：按渠道×产品交集匹配 MSKU，剔除负营收，按权重月（归属月当月）营收占比分摊，末行补差。\n3. 预览成功后才允许确认写入；预览总额须与金额一致。\n4. 关账前系统自动重算已写入批次，无需手动重预览。"
     },
     {
       "id": "create-confirm",
@@ -3623,7 +3623,7 @@
       "id": "create-rule-summary",
       "selector": "#ruleText",
       "title": "分摊规则摘要",
-      "body": "规则摘要逻辑：\n1. 实时展示当前费用/渠道/产品口径、权重月与分摊模式说明。\n2. 不分摊且未选部门时，须提示「未填写（必填，请选择金蝶部门）」。\n3. 与导入模版口径块保持一致，便于验收对照。"
+      "body": "规则摘要逻辑：\n1. 实时展示当前费用/渠道/产品口径、权重月与分摊模式说明。\n2. 不分摊且未选部门时，须提示「未填写（必填，请选择金蝶部门）」。\n3. 分摊模式须说明：权重月=归属月当月；关账前每日自动重算，关账后冻结。\n4. 与导入模版口径块保持一致，便于验收对照。"
     },
     {
       "id": "import-dialog",
@@ -3685,7 +3685,7 @@
   "pageGuide": {
     "dev": {
       "页面整体定位": "管理业务费用导入批次的录入、导入、状态流转与分摊核对，归属全渠道管报费用管理模块。核心价值是确保仅业务确认后的批次进入管报，口径可控、可追溯。",
-      "页面核心业务逻辑": "数据来源于手工新增与模版导入。归属月 YYYY-MM，权重月为上月。分摊逻辑：渠道五列与产品九列分别取交集，按权重月营收占比分摊；剔除负营收，末行舍入补差。仅已生效纳入管报结果池。",
+      "页面核心业务逻辑": "数据来源于手工新增与模版导入。归属月 YYYY-MM，权重月为归属月当月。分摊逻辑：渠道五列与产品九列分别取交集，按权重月营收占比分摊；剔除负营收，末行舍入补差。关账前（次月20日前）待生效与已生效批次分摊明细随营收每日自动重算；关账后冻结。仅已生效纳入管报结果池。",
       "关键规则说明": "筛选须点击查询生效；全选仅当前可见行。状态机：待生效→已生效→失效，失效可删除不可重生效。新增须先预览再写入；不分摊部门必填。部门展示统一为「组织·组织名 / 管报部门」格式。批量操作整批校验，无部分成功。",
       "关联上下游": "上游：费用项主数据、费用部门主数据、渠道/店铺/商品主数据、营收权重数据、钉钉导入模版。下游：全渠道管报费用汇总与按 MSKU 分摊展示。"
     },
