@@ -418,20 +418,26 @@ async function analyzeTranscript(config, transcript, onProgress, topicHint) {
   const emptySections = data.sections.filter(sectionNeedsRepair);
   if (!data.sections.length || emptySections.length) {
     console.warn('[meeting-recorder] 存在空章节，请求补全…', emptySections.map((s) => s.id));
-    content = await chatCompletion(config, [
-      ...messages,
-      { role: 'assistant', content },
-      {
-        role: 'user',
-        content: `以下章节 blocks 为空或内容不足：${emptySections.map((s) => s.id).join(', ') || '全部'}。
+    try {
+      content = await chatCompletion(config, [
+        ...messages,
+        { role: 'assistant', content },
+        {
+          role: 'user',
+          content: `以下章节 blocks 为空或内容不足：${emptySections.map((s) => s.id).join(', ') || '全部'}。
 请重新输出**完整** JSON。要求：
 - sections 至少 8 章，每章 blocks 非空且信息充实
 - types 章含 pills+table；data 章含 tabs；sku 章含 table+pipe；time 章含 moments
 - open 至少 6 条「待您确认：…？」
-- 写入转写中的具体数字与报告字段名`,
-      },
-    ]);
-    data = normalizeAnalysisData(extractJson(content));
+- 写入转写中的具体数字与报告字段名
+- 控制篇幅，优先补齐空章节，避免冗长`,
+        },
+      ]);
+      data = normalizeAnalysisData(extractJson(content));
+    } catch (repairErr) {
+      // 补全超时/失败时不整单失败：用首轮结果 + 事实清单继续渲染
+      console.warn('[meeting-recorder] 空章节补全失败，将用已有结果继续生成:', repairErr.message);
+    }
   }
 
   data = enrichFromFacts(data, facts);

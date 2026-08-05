@@ -1,0 +1,2352 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>费用来源定义</title>
+  <link rel="stylesheet" href="fee-mgmt-common.css">
+  <link rel="stylesheet" href="fee-item-master.css">
+  <link rel="stylesheet" href="fee-dept-master.css">
+  <link rel="stylesheet" href="../../../../规范/assets/import-modal-kit.css">
+  <style>
+    :root {
+      --jd-blue: #2f6bff;
+      --jd-blue-dark: #1f55d8;
+      --jd-bg: #f5f7fb;
+      --jd-border: #e5e7eb;
+    }
+    body { background: var(--jd-bg); }
+    .header { background: #1f3a8a; }
+    .page { padding: 14px 16px 20px; }
+    .jd-card {
+      background: #fff;
+      border: 1px solid var(--jd-border);
+      border-radius: 6px;
+      margin-bottom: 12px;
+      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+    }
+    .jd-card-hd {
+      min-height: 44px;
+      padding: 0 16px;
+      border-bottom: 1px solid #eef0f5;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: #fbfcff;
+      gap: 12px;
+    }
+    .jd-card-title { font-size: 14px; font-weight: 600; color: #111827; }
+    .filter-panel { padding: 14px 16px; border-bottom: 1px solid #eef0f5; }
+    .filter-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px 16px;
+      align-items: center;
+    }
+    .f-item { display: flex; align-items: center; gap: 8px; }
+    .f-item > label { color: #374151; font-size: 12px; white-space: nowrap; }
+    .f-item select {
+      height: 32px;
+      min-width: 120px;
+      border: 1px solid #d1d5db;
+      border-radius: 4px;
+      padding: 0 9px;
+      font-size: 13px;
+      background: #fff;
+    }
+    .btn-primary {
+      background: var(--jd-blue);
+      border-color: var(--jd-blue);
+      color: #fff;
+    }
+    .btn-primary:hover {
+      background: var(--jd-blue-dark);
+      border-color: var(--jd-blue-dark);
+      color: #fff;
+    }
+    .status-dot {
+      display: inline-flex;
+      align-items: center;
+      height: 22px;
+      padding: 0 8px;
+      border-radius: 999px;
+      font-size: 12px;
+      background: #ecfdf3;
+      color: #067647;
+      border: 1px solid #abefc6;
+    }
+    .status-dot.off {
+      background: #f9fafb;
+      color: #475467;
+      border-color: #d0d5dd;
+    }
+    .op-link {
+      border: none;
+      background: transparent;
+      color: var(--jd-blue);
+      cursor: pointer;
+      padding: 0 4px;
+      font-size: 13px;
+    }
+    .op-link:hover { text-decoration: underline; }
+    .table-wrap { max-height: calc(100vh - 280px); min-height: 240px; }
+    .data-table th {
+      background: #f9fafb;
+      color: #374151;
+      font-weight: 600;
+    }
+    .data-table td,
+    .data-table th { border-color: #e5e7eb; }
+    .toolbar-line { display: flex; gap: 8px; align-items: center; }
+
+    /* 渠道多选 Tag（对齐《产品信息筛选区》§2.3） */
+    .ch-msf { position: relative; width: 100%; overflow: visible; }
+    .ch-tags {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 4px;
+      min-height: 32px;
+      padding: 2px 28px 2px 6px;
+      border: 1px solid #d9d9d9;
+      border-radius: 6px;
+      background: #fff;
+      cursor: pointer;
+      box-sizing: border-box;
+    }
+    .ch-tags.open {
+      border-color: #1677ff;
+      box-shadow: 0 0 0 2px rgba(22, 119, 255, 0.12);
+    }
+    .ch-tags.is-readonly {
+      cursor: default;
+      background: #fafafa;
+      opacity: 0.72;
+      pointer-events: none;
+    }
+    .ch-tags .ph { color: #bfbfbf; font-size: 13px; }
+    .ch-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 0 6px;
+      height: 22px;
+      background: #f5f5f5;
+      border: 1px solid #e8e8e8;
+      border-radius: 4px;
+      font-size: 12px;
+    }
+    .ch-tag button {
+      border: none;
+      background: none;
+      cursor: pointer;
+      color: #999;
+      padding: 0 2px;
+      line-height: 1;
+    }
+    .ch-chev {
+      position: absolute;
+      right: 10px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 0;
+      height: 0;
+      border-left: 5px solid transparent;
+      border-right: 5px solid transparent;
+      border-top: 6px solid #64748b;
+      pointer-events: none;
+    }
+    .ch-drop {
+      position: fixed;
+      z-index: 1660;
+      min-width: 200px;
+      background: #fff;
+      border: 1px solid #dbe4f0;
+      border-radius: 8px;
+      box-shadow: 0 10px 26px rgba(15, 23, 42, 0.12);
+      max-height: 240px;
+      overflow-y: auto;
+      display: none;
+    }
+    .ch-drop.show { display: block; }
+    .ch-opt {
+      padding: 8px 12px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+    }
+    .ch-opt:hover:not(.disabled) { background: #f1f5f9; }
+    .ch-opt.on { color: #1677ff; font-weight: 600; }
+    .ch-opt.disabled {
+      color: #bfbfbf;
+      cursor: not-allowed;
+      background: #fafafa;
+    }
+    .ch-opt .hint { margin-left: auto; font-size: 11px; color: #94a3b8; font-weight: 400; }
+    .ch-opt .tick { margin-left: auto; color: #1677ff; font-weight: 700; }
+
+    .source-panel {
+      grid-column: 1 / -1;
+      padding: 14px;
+      border: 1px solid #e5e7eb;
+      background: #fafbff;
+      border-radius: 6px;
+    }
+    .source-panel.hidden { display: none; }
+    .source-block { display: none; }
+    .source-block.active {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 16px 20px;
+    }
+    .auto-tip {
+      grid-column: 1 / -1;
+      padding: 12px 14px;
+      border: 1px solid #bfdbfe;
+      border-radius: 4px;
+      background: #eff6ff;
+      color: #1d4ed8;
+      font-size: 13px;
+      line-height: 1.6;
+    }
+    .rule-tip {
+      grid-column: 1 / -1;
+      padding: 12px 14px;
+      border: 1px solid #e5e7eb;
+      border-radius: 4px;
+      background: #f9fafb;
+      color: #374151;
+      font-size: 12px;
+      line-height: 1.65;
+    }
+    .rule-tip strong { color: #111827; }
+    .rule-tip .formula {
+      margin-top: 8px;
+      padding: 8px 10px;
+      background: #fff;
+      border: 1px dashed #d1d5db;
+      border-radius: 4px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 11px;
+      color: #4b5563;
+    }
+    .field-hint {
+      margin-top: 6px;
+      color: #6b7280;
+      font-size: 12px;
+      line-height: 1.6;
+    }
+    .detail-card {
+      grid-column: 1 / -1;
+      margin-top: 16px;
+      padding-top: 16px;
+      border-top: 1px solid #e5e7eb;
+    }
+    .detail-intro {
+      margin-bottom: 12px;
+      padding: 10px 12px;
+      border-radius: 6px;
+      background: #eff6ff;
+      border: 1px solid #bfdbfe;
+      color: #1d4ed8;
+      font-size: 12px;
+      line-height: 1.7;
+    }
+    .detail-toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px 12px;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 10px;
+    }
+    .detail-filter-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px 16px;
+      align-items: center;
+      flex: 1 1 520px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid #eef0f5;
+    }
+    .detail-filter-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .detail-filter-item > label {
+      font-size: 12px;
+      color: #374151;
+      white-space: nowrap;
+    }
+    .detail-filter-item .msf-root {
+      min-width: 120px;
+      width: 120px;
+    }
+    #detailFilterSceneWrap .msf-root,
+    #detailFilterRetailerWrap .msf-root {
+      min-width: 140px;
+      width: 140px;
+    }
+    .detail-table input,
+    .detail-table select,
+    #batchEditValue {
+      width: 100%;
+      height: 32px;
+      border: 1px solid #d1d5db;
+      border-radius: 4px;
+      padding: 0 10px;
+      font-size: 13px;
+      box-sizing: border-box;
+      background: #fff;
+    }
+    .detail-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-left: auto;
+    }
+    #editModal .modal.modal-xl { width: min(1180px, 98vw); }
+    #editModal.modal-mask.open { z-index: 1600 !important; }
+    #batchEditModal.modal-mask.open { z-index: 1650 !important; }
+    .batch-preview-wrap {
+      margin-top: 14px;
+      max-height: 280px;
+      overflow: auto;
+      border: 1px solid #e5e7eb;
+      border-radius: 6px;
+    }
+    .batch-preview-wrap .data-table th {
+      position: sticky;
+      top: 0;
+      z-index: 1;
+      background: #f8fafc;
+    }
+    .view-mode-tip {
+      grid-column: 1 / -1;
+      padding: 10px 12px;
+      border-radius: 6px;
+      background: #fffbeb;
+      border: 1px solid #fde68a;
+      color: #92400e;
+      font-size: 12px;
+      line-height: 1.6;
+    }
+    .detail-summary {
+      margin-bottom: 10px;
+      font-size: 12px;
+      color: #6b7280;
+      line-height: 1.6;
+    }
+    .detail-table-wrap {
+      max-height: 320px;
+      overflow: auto;
+      border: 1px solid #e5e7eb;
+      border-radius: 6px;
+      background: #fff;
+    }
+    .detail-table { min-width: 860px; }
+    .detail-table th {
+      position: sticky;
+      top: 0;
+      z-index: 2;
+      background: #f8fafc;
+      box-shadow: 0 1px 0 #e5e7eb;
+    }
+    .detail-table td { vertical-align: middle; }
+    .detail-table .sel-col {
+      width: 42px;
+      text-align: center;
+    }
+    .detail-table .value-col {
+      min-width: 180px;
+    }
+    .detail-table .value-col.is-computed {
+      background: #fafbff;
+    }
+    .detail-value-readonly {
+      display: inline-block;
+      min-width: 72px;
+      padding: 4px 8px;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 4px;
+      color: #1e293b;
+      font-variant-numeric: tabular-nums;
+    }
+    .detail-table .dim-muted { color: #94a3b8; }
+    .detail-empty {
+      padding: 28px 20px;
+      text-align: center;
+      color: #6b7280;
+      font-size: 13px;
+    }
+    .section-title {
+      grid-column: 1 / -1;
+      font-size: 13px;
+      font-weight: 600;
+      color: #111827;
+      padding-bottom: 4px;
+      border-bottom: 1px solid #eef0f5;
+      margin-top: 4px;
+    }
+    #editModal .form-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    @media (max-width: 768px) {
+      #editModal .form-grid,
+      .source-block.active { grid-template-columns: 1fr; }
+      .detail-toolbar,
+      .detail-filter-bar,
+      .detail-actions { align-items: stretch; }
+      .detail-filter-item { width: 100%; }
+      .detail-filter-item .msf-root { width: 100%; min-width: 0; }
+    }
+  </style>
+</head>
+<body>
+<div class="layout">
+  <aside class="sider">
+    <div class="sider-logo" aria-hidden="true"></div>
+    <a class="sider-item active" href="index.html">费用</a>
+    <a class="sider-item" href="../经营分析明细.html">管报</a>
+  </aside>
+  <main class="main">
+    <header class="header">
+      <div class="title">费用来源定义</div>
+      <nav class="nav-links">
+        <a href="index.html">目录</a>
+        <a class="active" href="计提规则配置与月度运行.html">费用来源</a>
+        <a href="手工简易填报.html">手工填报</a>
+        <a href="商超费用计提口径说明.html">口径说明</a>
+      </nav>
+    </header>
+    <div class="page">
+      <div class="breadcrumb"><a href="index.html">费用管理</a> / 费用来源定义</div>
+
+      <section class="jd-card panel--filter">
+        <div class="filter-panel" data-pa-key="list-filter-bar">
+          <div class="filter-grid">
+            <div class="f-item">
+              <label for="filterFee">费用项</label>
+              <span class="ctl-wrap">
+                <select id="filterFee" class="ctl">
+                  <option value="">全部</option>
+                </select>
+                <button type="button" class="ctl-clear" aria-label="清除费用项">×</button>
+              </span>
+            </div>
+            <div class="f-item">
+              <label for="filterSource">费用来源</label>
+              <span class="ctl-wrap">
+                <select id="filterSource" class="ctl">
+                  <option value="">全部</option>
+                  <option>自动取数</option>
+                  <option>固定金额</option>
+                  <option>固定比例</option>
+                  <option>历史滚动占比</option>
+                  <option>同期占比预估</option>
+                </select>
+                <button type="button" class="ctl-clear" aria-label="清除费用来源">×</button>
+              </span>
+            </div>
+            <div class="f-item">
+              <label for="filterChannel">渠道</label>
+              <span class="ctl-wrap">
+                <select id="filterChannel" class="ctl">
+                  <option value="">全部</option>
+                  <option>亚马逊</option>
+                  <option>shopify</option>
+                  <option>App商城</option>
+                  <option>线下商超</option>
+                  <option>商超3P</option>
+                  <option>线下分销</option>
+                </select>
+                <button type="button" class="ctl-clear" aria-label="清除渠道">×</button>
+              </span>
+            </div>
+            <div class="f-item">
+              <label for="filterStatus">状态</label>
+              <span class="ctl-wrap">
+                <select id="filterStatus" class="ctl">
+                  <option value="">全部</option>
+                  <option>启用</option>
+                  <option>停用</option>
+                </select>
+                <button type="button" class="ctl-clear" aria-label="清除状态">×</button>
+              </span>
+            </div>
+            <div class="f-item">
+              <button type="button" class="btn btn-primary" id="btnQuery">查询</button>
+            </div>
+          </div>
+        </div>
+        <div class="jd-card-hd" style="border-top:1px solid #eef0f5;">
+          <span class="jd-card-title">费用来源列表</span>
+          <div class="toolbar-line">
+            <button type="button" class="btn" id="btnManageFeeDepts" data-pa-key="btn-fee-dept-manage">费用部门管理</button>
+            <button type="button" class="btn" id="btnManageFeeItems">费用项管理</button>
+            <button type="button" class="btn" id="btnExportList">导出</button>
+            <button type="button" class="btn btn-primary" id="btnAdd">新增来源</button>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>费用项</th>
+                <th>费用来源</th>
+                <th data-pa-key="source-scope">适用范围</th>
+                <th data-pa-key="source-summary">来源摘要</th>
+                <th data-pa-key="source-status">状态</th>
+                <th>最近维护</th>
+                <th data-pa-key="source-actions">操作</th>
+              </tr>
+            </thead>
+            <tbody id="sourceBody"></tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+  </main>
+</div>
+
+<div class="modal-mask" id="editModal" role="dialog" aria-modal="true" aria-labelledby="editModalTitle" aria-hidden="true">
+  <div class="modal modal-lg modal-xl">
+    <div class="modal-hd">
+      <h2 id="editModalTitle">编辑费用来源</h2>
+      <div class="modal-hd-actions">
+        <button type="button" class="modal-close" id="editModalClose" aria-label="关闭">×</button>
+      </div>
+    </div>
+    <div class="modal-bd">
+      <div class="form-grid">
+        <div class="form-field" data-pa-key="source-fee-item-select">
+          <label for="feeItem"><span class="req">*</span> 费用项</label>
+          <select id="feeItem"></select>
+        </div>
+        <div class="form-field">
+          <label for="sourceType"><span class="req">*</span> 费用来源</label>
+          <select id="sourceType">
+            <option value="auto">自动取数</option>
+            <option value="fixedAmount">固定金额</option>
+            <option value="fixedRate">固定比例</option>
+            <option value="rollingRate">历史滚动占比</option>
+            <option value="yoyMonthRate">同期占比预估</option>
+          </select>
+        </div>
+        <div class="form-field" data-pa-key="source-enabled">
+          <label for="enabled">启用状态</label>
+          <select id="enabled">
+            <option>启用</option>
+            <option>停用</option>
+          </select>
+        </div>
+
+        <div class="section-title">适用范围</div>
+        <div class="form-field full">
+          <label><span class="req">*</span> 渠道（多选）</label>
+          <div class="ch-msf">
+            <div id="chTags" class="ch-tags" tabindex="0" role="combobox" aria-expanded="false" aria-haspopup="listbox">
+              <span class="ph">请选择渠道</span>
+            </div>
+            <span class="ch-chev" aria-hidden="true"></span>
+            <div id="chDrop" class="ch-drop" role="listbox" aria-label="渠道选项"></div>
+          </div>
+          <div id="chHint" style="font-size:11px;color:#6b7280;margin-top:4px;">
+            同一费用项下，已被其它配置占用的渠道不可再选。
+          </div>
+        </div>
+
+        <div id="viewModeTip" class="view-mode-tip full" data-pa-key="view-mode-tip" hidden>
+          当前为<strong>查看模式</strong>：仅展示配置内容，不可修改。如需调整请点击列表中的「编辑」。
+        </div>
+
+        <div id="autoTip" class="auto-tip full" data-pa-key="auto-source-tip">
+          已选择<strong>自动取数</strong>：系统从既有数据源自动同步该费用，无需填写额外规则。仅需确认费用项与适用渠道。
+        </div>
+
+        <div id="sourcePanel" class="source-panel hidden">
+          <div class="form-field full">
+            <label for="caliberScope"><span class="req">*</span> 口径范围</label>
+            <select id="caliberScope">
+              <option value="channelCountry">渠道+国家</option>
+              <option value="channelCountryScene">渠道+国家+场景</option>
+              <option value="channelCountryRetailer">渠道+国家+零售商</option>
+              <option value="channelCountrySceneRetailer">渠道+国家+场景+零售商</option>
+              <option value="channelStore">渠道+店铺</option>
+              <option value="channelStoreRetailer">渠道+店铺+零售商</option>
+            </select>
+          </div>
+          <div class="source-block" data-panel="fixedAmount" data-pa-key="source-type-params">
+            <div class="form-field">
+              <label><span class="req">*</span> 默认月固定金额</label>
+              <input id="fixedAmount" type="number" value="85000">
+            </div>
+            <div class="form-field">
+              <label>币种</label>
+              <select id="fixedCurrency">
+                <option>CNY</option>
+                <option>USD</option>
+                <option>EUR</option>
+              </select>
+            </div>
+            <div class="form-field">
+              <label>适用周期</label>
+              <select id="fixedPeriod" disabled>
+                <option>每月</option>
+              </select>
+            </div>
+          </div>
+          <div class="source-block" data-panel="fixedRate" data-pa-key="source-type-params">
+            <div class="form-field">
+              <label><span class="req">*</span> 默认比例值（%）</label>
+              <input id="fixedRate" type="number" step="0.01" value="8.50">
+            </div>
+            <div class="form-field">
+              <label><span class="req">*</span> 比例基数</label>
+              <select id="rateBase">
+                <option>当月实际营收</option>
+                <option>当月销售额</option>
+              </select>
+            </div>
+          </div>
+          <div class="source-block" data-panel="rollingRate" data-pa-key="source-type-params">
+            <div class="rule-tip" data-pa-key="rolling-rate-rule">
+              <strong>历史滚动占比</strong>：在选定历史窗口内，按口径范围汇总后计算「历史费用 ÷ 历史基数」的<strong>滚动平均占比</strong>，再乘以当月基数得出本月费用。
+              <div class="formula">本月费用 = 当月比例基数 × AVG(历史各月费用 ÷ 历史各月基数)</div>
+            </div>
+            <div class="form-field">
+              <label><span class="req">*</span> 历史窗口</label>
+              <select id="histWindow">
+                <option>近 12 个月</option>
+                <option>近 6 个月</option>
+                <option>近 3 个月</option>
+              </select>
+            </div>
+            <div class="form-field">
+              <label><span class="req">*</span> 比例基数</label>
+              <select id="histBase">
+                <option>当月实际营收</option>
+                <option>当月销售额</option>
+              </select>
+            </div>
+          </div>
+          <div class="source-block" data-panel="yoyMonthRate" data-pa-key="source-type-params">
+            <div class="rule-tip" data-pa-key="yoy-rate-rule">
+              <strong>同期占比预估</strong>：优先取去年同期同月占比（同比月对齐，保留季节性）；若去年同月缺数，则降级为过去 12 个月各月「费用 ÷ 比例基数」占比的滚动均值（不足 12 个月按实际有数据月份计算）。
+              <div class="formula">本月预估占比 = 去年同月费用 ÷ 去年同月基数；缺数时 = 过去 N 个月占比均值（N ≤ 12）；本月费用 = 当月比例基数 × 本月预估占比</div>
+            </div>
+            <div class="form-field">
+              <label><span class="req">*</span> 比例基数</label>
+              <select id="yoyRateBase">
+                <option>当月实际营收</option>
+                <option>当月销售额</option>
+              </select>
+            </div>
+            <div class="form-field">
+              <label>历史参考窗口</label>
+              <select id="yoyWindow" disabled title="固定为近 12 个月，用于校验同比月数据完整性">
+                <option>近 12 个月</option>
+              </select>
+            </div>
+            <div class="form-field">
+              <label>缺数处理</label>
+              <select id="yoyFallback" disabled title="去年同月缺数时的固定降级策略">
+                <option>取近12个月滚动均值</option>
+              </select>
+              <div class="field-hint">首选去年同月占比；若去年同月缺费用或缺基数，则取过去 12 个月各月「费用÷基数」占比的算术平均值；历史不足 12 个月时，按实际有数据的月份数取均值。</div>
+            </div>
+          </div>
+          <div class="detail-card" data-pa-key="source-detail-card">
+            <div class="detail-intro" id="detailIntro">
+              按当前口径范围，系统会基于已选渠道自动展开全部可维护组合。筛选条件与口径维度一致，支持多选下拉；勾选明细后可批量编辑、导出或导入。
+            </div>
+            <div class="detail-toolbar" data-pa-key="detail-toolbar">
+              <div class="detail-filter-bar" id="detailFilterBar" data-pa-key="detail-filter-bar">
+                <div class="detail-filter-item">
+                  <label>渠道</label>
+                  <div id="detailMsfChannel"></div>
+                </div>
+                <div class="detail-filter-item" id="detailFilterCountryWrap">
+                  <label>国家</label>
+                  <div id="detailMsfCountry"></div>
+                </div>
+                <div class="detail-filter-item" id="detailFilterStoreWrap" hidden style="display:none;">
+                  <label>店铺</label>
+                  <div id="detailMsfStore"></div>
+                </div>
+                <div class="detail-filter-item" id="detailFilterSceneWrap" hidden style="display:none;">
+                  <label>场景</label>
+                  <div id="detailMsfScene"></div>
+                </div>
+                <div class="detail-filter-item" id="detailFilterRetailerWrap" hidden style="display:none;">
+                  <label>零售商</label>
+                  <div id="detailMsfRetailer"></div>
+                </div>
+              </div>
+              <div class="detail-actions">
+                <button type="button" class="btn btn-primary" id="btnBulkEdit">批量编辑</button>
+                <button type="button" class="btn" id="btnDetailExport">导出当前明细</button>
+                <button type="button" class="btn" id="btnDetailImport">导入明细</button>
+              </div>
+            </div>
+            <div class="detail-summary" id="detailSummary"></div>
+            <div class="detail-table-wrap" data-pa-key="source-detail-table">
+              <table class="data-table detail-table">
+                <thead id="detailHead"></thead>
+                <tbody id="detailBody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-field full" id="remarkField">
+          <label for="remark">说明</label>
+          <textarea id="remark" placeholder="补充业务说明、例外情况或维护责任人"></textarea>
+        </div>
+      </div>
+    </div>
+    <div class="modal-ft" data-pa-key="edit-modal-footer">
+      <button type="button" class="btn" id="editModalCancel">取消</button>
+      <button type="button" class="btn btn-primary" id="btnSave">保存</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-mask" id="batchEditModal" role="dialog" aria-modal="true" aria-labelledby="batchEditModalTitle" aria-hidden="true">
+  <div class="modal modal-lg">
+    <div class="modal-hd">
+      <h2 id="batchEditModalTitle">批量编辑口径明细</h2>
+      <div class="modal-hd-actions">
+        <button type="button" class="modal-close" id="batchEditModalClose" aria-label="关闭">×</button>
+      </div>
+    </div>
+    <div class="modal-bd" data-pa-key="batch-edit-modal">
+      <p id="batchEditIntro" style="margin:0 0 14px;font-size:13px;color:#475569;line-height:1.7;"></p>
+      <div class="form-field">
+        <label for="batchEditValue"><span class="req">*</span> <span id="batchEditValueLabel">维护值</span></label>
+        <input id="batchEditValue" type="number" step="0.01" placeholder="请输入统一维护值">
+      </div>
+      <div class="batch-preview-wrap">
+        <table class="data-table">
+          <thead id="batchEditHead"></thead>
+          <tbody id="batchEditBody"></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="modal-ft">
+      <button type="button" class="btn" id="batchEditCancel">取消</button>
+      <button type="button" class="btn btn-primary" id="batchEditConfirm">确认填入</button>
+    </div>
+  </div>
+</div>
+
+<script src="fee-mgmt-common.js?v=20260707-modal-resync"></script>
+<script src="fee-item-master.js?v=20260723-remark-only"></script>
+<script src="fee-dept-master.js?v=20260723-dept-v3"></script>
+<script src="../../../../规范/assets/import-modal-kit.js"></script>
+<script src="../../../../规范/assets/multi-select-filter.js"></script>
+<script>
+(function () {
+  if (window.FeeMgmtCommon) window.FeeMgmtCommon.ensureHiddenModals();
+
+  function showMask(id) {
+    if (window.FeeMgmtCommon) window.FeeMgmtCommon.openModalMask(id);
+    else document.getElementById(id).classList.add('open');
+  }
+  function hideMask(id) {
+    if (window.FeeMgmtCommon) window.FeeMgmtCommon.closeModalMask(id);
+    else document.getElementById(id).classList.remove('open');
+  }
+  function paResyncAnnotations() {
+    if (window.FeeMgmtCommon && typeof window.FeeMgmtCommon.notifyAnnotationResync === 'function') {
+      window.FeeMgmtCommon.notifyAnnotationResync();
+    }
+  }
+
+  var MASTER_JSON_BASE = '../../../../规范/基础数据/';
+  var PAGE_CHANNEL_MASTER = {
+    '亚马逊': ['Govee', 'Govee EU', 'GoveeLife', 'Govee_VC', 'TTS'],
+    'shopify': ['独立站'],
+    'App商城': ['APP商城'],
+    '线下商超': ['Offline', 'Wayfair-US'],
+    '商超3P': ['WM 3P', 'BBY 3P', 'Lowes 3P'],
+    '线下分销': ['线下分销', '京东']
+  };
+  var ALL_CHANNELS = ['亚马逊', 'shopify', 'App商城', '线下商超', '商超3P', '线下分销'];
+  /** 零售商 = 具体客户；仅线下商超渠道有零售商，其它渠道为空 */
+  var RETAILER_BY_PAGE_CHANNEL = {
+    '线下商超': ['沃尔玛', 'Costco', 'Best Buy', 'Target', 'Wayfair', 'MediaMarkt']
+  };
+  var DIMENSION_OPTIONS = {};
+  var masterDataReady = false;
+
+  function flattenCountryNames(regionPayload) {
+    var names = [];
+    (regionPayload.regions || []).forEach(function (region) {
+      (region.countries || []).forEach(function (c) {
+        if (names.indexOf(c.country_name) < 0) names.push(c.country_name);
+      });
+    });
+    return names.sort();
+  }
+  function flattenSceneNames(scenePayload) {
+    return (scenePayload.scenes || [])
+      .map(function (s) { return s.scene_name; })
+      .filter(function (n) { return n && n !== '未分类'; })
+      .sort();
+  }
+  function storesForMasterChannels(channelPayload, masterNames) {
+    var set = new Set();
+    (channelPayload.channels || []).forEach(function (c) {
+      if (masterNames.indexOf(c.channel_name) < 0) return;
+      (c.stores || []).forEach(function (s) { set.add(s); });
+    });
+    return Array.from(set).sort();
+  }
+  function defaultRegionPayload() {
+    return {
+      regions: [
+        { countries: [{ country_name: '美国' }, { country_name: '加拿大' }, { country_name: '墨西哥' }] },
+        { countries: [{ country_name: '英国' }, { country_name: '德国' }, { country_name: '法国' }, { country_name: '意大利' }, { country_name: '西班牙' }, { country_name: '瑞典' }, { country_name: '波兰' }, { country_name: '比利时' }] },
+        { countries: [{ country_name: '中国' }, { country_name: '日本' }, { country_name: '韩国' }, { country_name: '新加坡' }, { country_name: '澳大利亚' }] }
+      ]
+    };
+  }
+  function defaultScenePayload() {
+    return {
+      scenes: [
+        { scene_name: '居家' }, { scene_name: '观影' }, { scene_name: '户外' },
+        { scene_name: '传感器及控制' }, { scene_name: '季节' }, { scene_name: '环境电器' },
+        { scene_name: '厨房电器' }, { scene_name: '游戏' }
+      ]
+    };
+  }
+  function defaultChannelPayload() {
+    return {
+      channels: [
+        { channel_name: 'Govee', stores: ['Govee_US', 'Govee_CA', 'Govee_DE', 'Govee_UK', 'Govee_FR', 'Govee_JP', 'Govee_AU'] },
+        { channel_name: 'Govee EU', stores: ['Govee_DE_1', 'Govee_UK_1', 'Govee_FR_1', 'Govee_IT_1', 'Govee_ES_1'] },
+        { channel_name: 'GoveeLife', stores: ['Goveelife_US', 'Goveelife_CA', 'Goveelife_DE', 'Goveelife_UK', 'Goveelife_FR'] },
+        { channel_name: '独立站', stores: ['独立站-US', '独立站-UK', '独立站-EU', '独立站-CA', '独立站-US-GL', '独立站-EU-GL'] },
+        { channel_name: 'APP商城', stores: ['APP商城-US', 'APP商城-CA', 'APP商城-EU', 'APP商城-UK'] },
+        { channel_name: 'Offline', stores: ['Offline-US', 'Offline-CA', 'Offline-MX', 'Offline-Others'] },
+        { channel_name: 'Wayfair-US', stores: ['Wayfair-US'] },
+        { channel_name: 'WM 3P', stores: ['WM 3P-US'] },
+        { channel_name: 'BBY 3P', stores: ['BBY 3P-US'] },
+        { channel_name: 'Lowes 3P', stores: ['Lowes 3P-US'] },
+        { channel_name: '线下分销', stores: ['分销-华东', '分销-华北', '分销-华南', '分销-跨境'] },
+        { channel_name: '京东', stores: ['京东旗舰店'] },
+        { channel_name: 'TTS', stores: ['TTS-US'] },
+        { channel_name: 'Govee_VC', stores: ['Govee_VC_JP'] }
+      ]
+    };
+  }
+  function retailersForPageChannel(pageChannel) {
+    if (pageChannel !== '线下商超') return [];
+    return (RETAILER_BY_PAGE_CHANNEL['线下商超'] || []).slice();
+  }
+  function rebuildDimensionOptions(channelPayload, regionPayload, scenePayload) {
+    var allCountries = flattenCountryNames(regionPayload);
+    var allScenes = flattenSceneNames(scenePayload);
+    Object.keys(PAGE_CHANNEL_MASTER).forEach(function (pageChannel) {
+      DIMENSION_OPTIONS[pageChannel] = {
+        countries: allCountries.slice(),
+        scenes: allScenes.slice(),
+        stores: storesForMasterChannels(channelPayload, PAGE_CHANNEL_MASTER[pageChannel] || []),
+        retailers: retailersForPageChannel(pageChannel)
+      };
+    });
+    masterDataReady = true;
+  }
+  function fetchJson(url) {
+    return fetch(url).then(function (r) {
+      if (!r.ok) throw new Error('load failed');
+      return r.json();
+    });
+  }
+  function loadMasterDimensionData() {
+    rebuildDimensionOptions(defaultChannelPayload(), defaultRegionPayload(), defaultScenePayload());
+    return Promise.all([
+      fetchJson(MASTER_JSON_BASE + '渠道店铺基础数据_v1.json').catch(function () { return defaultChannelPayload(); }),
+      fetchJson(MASTER_JSON_BASE + '区域国家基础数据_v1.json').catch(function () { return defaultRegionPayload(); }),
+      fetchJson(MASTER_JSON_BASE + '场景品类基础数据_v1.json').catch(function () { return defaultScenePayload(); })
+    ]).then(function (payloads) {
+      rebuildDimensionOptions(payloads[0], payloads[1], payloads[2]);
+      refreshDetailFilters();
+      if (document.getElementById('editModal').classList.contains('open')) renderDetailTable();
+    });
+  }
+  var SOURCE_LABEL = {
+    auto: '自动取数',
+    fixedAmount: '固定金额',
+    fixedRate: '固定比例',
+    rollingRate: '历史滚动占比',
+    yoyMonthRate: '同期占比预估'
+  };
+  var CALIBER_LABEL = {
+    channelCountry: '渠道+国家',
+    channelCountryScene: '渠道+国家+场景',
+    channelCountryRetailer: '渠道+国家+零售商',
+    channelCountrySceneRetailer: '渠道+国家+场景+零售商',
+    channelStore: '渠道+店铺',
+    channelStoreRetailer: '渠道+店铺+零售商'
+  };
+  var RULE_TYPES = ['fixedAmount', 'fixedRate', 'rollingRate', 'yoyMonthRate'];
+
+  var rows = [
+    { id: 'R001', feeCode: 'T040301010102', sourceType: 'rollingRate', caliberScope: 'channelCountry', channels: ['亚马逊'], summary: '近 12 月滚动 · 当月实际营收 · 渠道+国家 · 3 条明细', status: '启用', maintainer: 'GTM-李四 · 2026-06-05', fixedAmount: null, fixedRate: null, histWindow: '近 12 个月', histBase: '当月实际营收' },
+    { id: 'R002', feeCode: 'T040301010101', sourceType: 'yoyMonthRate', caliberScope: 'channelCountryScene', channels: ['shopify'], summary: '同比月占比 · 当月实际营收 · 渠道+国家+场景 · 9 条明细', status: '启用', maintainer: 'GTM-李四 · 2026-06-04', fixedAmount: null, fixedRate: null, yoyRateBase: '当月实际营收', yoyFallback: '取近12个月滚动均值' },
+    { id: 'R003', feeCode: 'T040203020202', sourceType: 'fixedAmount', caliberScope: 'channelCountry', channels: ['App商城'], summary: '¥85,000 / 月 · 渠道+国家 · 3 条明细', status: '启用', maintainer: 'GTM-李四 · 2026-06-05', fixedAmount: 85000, fixedRate: null },
+    { id: 'R004', feeCode: 'T0402020101', sourceType: 'fixedRate', caliberScope: 'channelCountrySceneRetailer', channels: ['线下商超'], summary: '8.5% × 当月实际营收 · 渠道+国家+场景+零售商 · 12 条明细', status: '启用', maintainer: 'GTM-王五 · 2026-06-04', fixedAmount: null, fixedRate: 8.5 },
+    { id: 'R005', feeCode: 'T040202020101', sourceType: 'auto', channels: ['商超3P'], summary: '—', status: '启用', maintainer: '系统同步 · 2026-06-03', fixedAmount: null, fixedRate: null },
+    { id: 'R006', feeCode: 'T040201010201', sourceType: 'fixedAmount', caliberScope: 'channelCountryRetailer', channels: ['线下商超'], summary: '¥445,000 / 月 · 渠道+国家+零售商 · 24 条明细', status: '停用', maintainer: 'GTM-李四 · 2026-05-28', fixedAmount: 445000, fixedRate: null },
+    { id: 'R007', feeCode: 'T040301010103', sourceType: 'fixedRate', caliberScope: 'channelStore', channels: ['亚马逊'], summary: '6.5% × 当月实际营收 · 渠道+店铺 · 12 条明细', status: '启用', maintainer: 'GTM-李四 · 2026-06-06', fixedAmount: null, fixedRate: 6.5 }
+  ];
+
+
+  var editingId = null;
+  var isViewMode = false;
+  var selectedChannels = new Set();
+  var selectedDetailKeys = new Set();
+  var detailRows = [];
+  var detailRowsType = null;
+  var detailMsf = { channel: null, country: null, store: null, scene: null, retailer: null };
+  var detailMsfMounted = false;
+  var detailFilterSyncGuard = false;
+  var chDrop = document.getElementById('chDrop');
+  if (chDrop && chDrop.parentNode !== document.body) document.body.appendChild(chDrop);
+
+  function feeName(code) {
+    if (!window.FeeItemMaster) return code;
+    return FeeItemMaster.getFullName(code) || FeeItemMaster.getName(code) || code;
+  }
+  function refreshFeeItemSelects() {
+    if (!window.FeeItemMaster) return;
+    FeeItemMaster.syncSelect('filterFee', { mode: 'code', includeAll: true, allLabel: '全部', showCode: true });
+    FeeItemMaster.mountTreeSelect('filterFee', {
+      mode: 'code',
+      includeAll: true,
+      allLabel: '全部',
+      showCode: true,
+      placeholder: '全部',
+      zIndex: 1700
+    });
+    FeeItemMaster.syncSelect('feeItem', { mode: 'code', showCode: true });
+    FeeItemMaster.mountTreeSelect('feeItem', {
+      mode: 'code',
+      showCode: true,
+      placeholder: '请选择费用项',
+      zIndex: 1700
+    });
+  }
+  function sourceName(type) {
+    if (type === 'historyRate') return '历史滚动占比';
+    return SOURCE_LABEL[type] || type;
+  }
+  function channelsText(chs) { return (chs || []).join('、') || '—'; }
+  function escapeHtml(text) {
+    return String(text == null ? '' : text)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+  function cloneDetailRows(list) {
+    return (list || []).map(function (item) {
+      return {
+        key: item.key,
+        channel: item.channel,
+        country: item.country || '—',
+        store: item.store || '—',
+        scene: item.scene || '—',
+        retailer: item.retailer || '—',
+        value: Number(item.value)
+      };
+    });
+  }
+  function scopeFlags(scope) {
+    var storeBased = scope === 'channelStore' || scope === 'channelStoreRetailer';
+    return {
+      country: !storeBased,
+      store: storeBased,
+      scene: scope === 'channelCountryScene' || scope === 'channelCountrySceneRetailer',
+      retailer: scope === 'channelCountryRetailer' || scope === 'channelCountrySceneRetailer' || scope === 'channelStoreRetailer'
+    };
+  }
+  function buildDetailKey(item) {
+    return [item.channel, item.country || '—', item.store || '—', item.scene || '—', item.retailer || '—'].join('|');
+  }
+  function retailersForChannel(channel, flags) {
+    if (!flags.retailer) return ['—'];
+    var list = retailersForPageChannel(channel);
+    return list.length ? list : ['—'];
+  }
+  function currentAccrualMonthYm() {
+    var demoAnchor = '2026-04';
+    if (window.FeeMgmtCommon && typeof window.FeeMgmtCommon.currentMonthYm === 'function') {
+      var live = window.FeeMgmtCommon.currentMonthYm();
+      return live > demoAnchor ? demoAnchor : live;
+    }
+    return demoAnchor;
+  }
+  function isComputedDetailValue(type) {
+    return type === 'rollingRate';
+  }
+  function valueMeta(type) {
+    if (type === 'fixedAmount') return { label: '月固定金额', step: '100', placeholder: '请输入金额', unit: '金额', readonly: false };
+    if (type === 'fixedRate') return { label: '比例值（%）', step: '0.01', placeholder: '请输入比例', unit: '比例', readonly: false };
+    if (type === 'rollingRate') {
+      return {
+        label: currentAccrualMonthYm() + ' 滚动占比（%）',
+        step: '0.01',
+        placeholder: '',
+        unit: '比例',
+        readonly: true
+      };
+    }
+    return { label: '预估占比（%）', step: '0.01', placeholder: '请输入占比', unit: '比例', readonly: false };
+  }
+  function parseNumberField(id) {
+    var el = document.getElementById(id);
+    var raw = el ? String(el.value || '').trim() : '';
+    if (raw === '') return NaN;
+    return Number(raw);
+  }
+  function isValidMaintainValue(type, value) {
+    if (!Number.isFinite(value)) return false;
+    if (type === 'fixedAmount') return value > 0;
+    return value >= 0 && value <= 100;
+  }
+  function maintainValueError(type) {
+    if (type === 'fixedAmount') return '金额必须为大于 0 的数字';
+    return '比例必须为 0 到 100 之间的数字';
+  }
+  function seedValue(key) {
+    return Array.from(String(key)).reduce(function (sum, ch) {
+      return sum + ch.charCodeAt(0);
+    }, 0);
+  }
+  function defaultDetailValue(type, key) {
+    var seed = seedValue(key);
+    if (type === 'fixedAmount') return Math.round((8000 + (seed % 9) * 3500) / 100) * 100;
+    return Number((2.5 + (seed % 40) * 0.17).toFixed(2));
+  }
+  function buildDetailRows(type, scope, channels) {
+    var flags = scopeFlags(scope);
+    var list = [];
+    channels.forEach(function (channel) {
+      var options = DIMENSION_OPTIONS[channel] || { countries: [], scenes: [], stores: [], retailers: [] };
+      var retailers = retailersForChannel(channel, flags);
+      if (flags.store) {
+        var stores = (options.stores || []).length ? options.stores : ['—'];
+        stores.forEach(function (store) {
+          retailers.forEach(function (retailer) {
+            var item = {
+              channel: channel,
+              country: '—',
+              store: store,
+              scene: '—',
+              retailer: retailer
+            };
+            item.key = buildDetailKey(item);
+            item.value = defaultDetailValue(type, item.key);
+            list.push(item);
+          });
+        });
+        return;
+      }
+      var countries = (options.countries || []).length ? options.countries : ['—'];
+      var scenes = flags.scene ? ((options.scenes || []).length ? options.scenes : ['—']) : ['—'];
+      countries.forEach(function (country) {
+        scenes.forEach(function (scene) {
+          retailers.forEach(function (retailer) {
+            var item = {
+              channel: channel,
+              country: country,
+              store: '—',
+              scene: scene,
+              retailer: retailer
+            };
+            item.key = buildDetailKey(item);
+            item.value = defaultDetailValue(type, item.key);
+            list.push(item);
+          });
+        });
+      });
+    });
+    return list;
+  }
+  function syncDetailRows(type, scope, channels) {
+    if (!RULE_TYPES.includes(type) || !channels.length) {
+      detailRows = [];
+      selectedDetailKeys.clear();
+      return;
+    }
+    var baseRows = buildDetailRows(type, scope, channels);
+    var existed = {};
+    detailRows.forEach(function (item) { existed[item.key] = item; });
+    detailRows = baseRows.map(function (item) {
+      var old = existed[item.key];
+      if (old && !Number.isNaN(Number(old.value))) item.value = Number(old.value);
+      return item;
+    });
+    selectedDetailKeys.forEach(function (key) {
+      if (!detailRows.some(function (item) { return item.key === key; })) selectedDetailKeys.delete(key);
+    });
+  }
+  function getDetailFilterOptions(field) {
+    var scope = document.getElementById('caliberScope').value;
+    var flags = scopeFlags(scope);
+    if (field === 'country' && !flags.country) return [];
+    if (field === 'store' && !flags.store) return [];
+    if (field === 'scene' && !flags.scene) return [];
+    if (field === 'retailer' && !flags.retailer) return [];
+    var formChannels = Array.from(selectedChannels);
+    if (!formChannels.length) return [];
+    var filterChannels = getDetailFilterValues('channel');
+    var activeChannels = filterChannels.length ? filterChannels : formChannels;
+    var set = new Set();
+    activeChannels.forEach(function (channel) {
+      if (field === 'channel') {
+        set.add(channel);
+        return;
+      }
+      var options = DIMENSION_OPTIONS[channel];
+      if (!options) return;
+      var list = field === 'country' ? options.countries
+        : field === 'store' ? options.stores
+          : field === 'scene' ? options.scenes
+            : options.retailers;
+      (list || []).forEach(function (value) { set.add(value); });
+    });
+    return Array.from(set).sort().map(function (value) {
+      return { value: value, label: value };
+    });
+  }
+  function mountDetailFilters() {
+    if (detailMsfMounted || !window.MultiSelectFilter) return;
+    var z = 1600;
+    var onFilterChange = function () {
+      if (detailFilterSyncGuard) return;
+      renderDetailTable();
+    };
+    function mk(key, id, placeholder) {
+      var el = document.getElementById(id);
+      if (!el) return null;
+      return MultiSelectFilter.mount(el, {
+        placeholder: placeholder,
+        showSelectAll: true,
+        clearable: true,
+        zIndex: z,
+        useBodyPortal: true,
+        maxPanelHeight: 240,
+        onChange: onFilterChange,
+        getOptions: function () { return getDetailFilterOptions(key); }
+      });
+    }
+    detailMsf.channel = mk('channel', 'detailMsfChannel', '请选择');
+    detailMsf.country = mk('country', 'detailMsfCountry', '请选择');
+    detailMsf.store = mk('store', 'detailMsfStore', '请选择');
+    detailMsf.scene = mk('scene', 'detailMsfScene', '请选择');
+    detailMsf.retailer = mk('retailer', 'detailMsfRetailer', '请选择');
+    detailMsfMounted = true;
+  }
+  function refreshDetailFilters() {
+    mountDetailFilters();
+    ['channel', 'country', 'store', 'scene', 'retailer'].forEach(function (key) {
+      if (detailMsf[key] && detailMsf[key].refreshOptions) detailMsf[key].refreshOptions();
+    });
+  }
+  function getDetailFilterValues(key) {
+    if (!detailMsf[key] || !detailMsf[key].getValues) return [];
+    return detailMsf[key].getValues();
+  }
+  function filteredDetailRows() {
+    var scope = document.getElementById('caliberScope').value;
+    var flags = scopeFlags(scope);
+    var channels = getDetailFilterValues('channel');
+    var countries = getDetailFilterValues('country');
+    var stores = getDetailFilterValues('store');
+    var scenes = getDetailFilterValues('scene');
+    var retailers = getDetailFilterValues('retailer');
+    return detailRows.filter(function (item) {
+      if (channels.length && channels.indexOf(item.channel) < 0) return false;
+      if (flags.country && countries.length && countries.indexOf(item.country) < 0) return false;
+      if (flags.store && stores.length && stores.indexOf(item.store) < 0) return false;
+      if (flags.scene && scenes.length && scenes.indexOf(item.scene) < 0) return false;
+      if (flags.retailer && retailers.length && retailers.indexOf(item.retailer) < 0) return false;
+      return true;
+    });
+  }
+  function setDetailFilterItemVisible(id, visible) {
+    var el = document.getElementById(id);
+    if (!el) return;
+    el.hidden = !visible;
+    el.style.display = visible ? 'flex' : 'none';
+  }
+  function updateDetailFilterVisibility() {
+    var scope = document.getElementById('caliberScope').value;
+    var flags = scopeFlags(scope);
+    setDetailFilterItemVisible('detailFilterCountryWrap', flags.country);
+    setDetailFilterItemVisible('detailFilterStoreWrap', flags.store);
+    setDetailFilterItemVisible('detailFilterSceneWrap', flags.scene);
+    setDetailFilterItemVisible('detailFilterRetailerWrap', flags.retailer);
+    detailFilterSyncGuard = true;
+    try {
+      if (!flags.country && detailMsf.country) detailMsf.country.clear();
+      if (!flags.store && detailMsf.store) detailMsf.store.clear();
+      if (!flags.scene && detailMsf.scene) detailMsf.scene.clear();
+      if (!flags.retailer && detailMsf.retailer) detailMsf.retailer.clear();
+    } finally {
+      detailFilterSyncGuard = false;
+    }
+  }
+  function clearDetailFilters() {
+    detailFilterSyncGuard = true;
+    try {
+      ['channel', 'country', 'store', 'scene', 'retailer'].forEach(function (key) {
+        if (detailMsf[key]) detailMsf[key].clear();
+      });
+    } finally {
+      detailFilterSyncGuard = false;
+    }
+  }
+  function applyModalFormState() {
+    var readonly = isViewMode;
+    document.querySelectorAll('#editModal select, #editModal input:not([type="search"]), #editModal textarea').forEach(function (el) {
+      if (el.closest('#detailHead') || el.closest('#detailBody')) return;
+      if (el.closest('#detailFilterBar')) return;
+      el.disabled = readonly;
+    });
+    var chTags = document.getElementById('chTags');
+    chTags.classList.toggle('is-readonly', readonly);
+    if (readonly) closeChDrop();
+    var type = document.getElementById('sourceType').value;
+    var computedValue = isComputedDetailValue(type);
+    document.getElementById('btnBulkEdit').disabled = readonly || computedValue;
+    document.getElementById('btnDetailExport').disabled = false;
+    document.getElementById('btnDetailImport').disabled = readonly || computedValue;
+    document.getElementById('btnSave').hidden = readonly;
+    document.getElementById('viewModeTip').hidden = !readonly;
+    document.getElementById('editModalCancel').textContent = readonly ? '关闭' : '取消';
+    var filterBar = document.getElementById('detailFilterBar');
+    if (filterBar) {
+      filterBar.style.pointerEvents = '';
+      filterBar.style.opacity = '';
+    }
+  }
+  function getSelectedDetailRows() {
+    return detailRows.filter(function (item) { return selectedDetailKeys.has(item.key); });
+  }
+  function openBatchEditModal() {
+    if (isViewMode) return;
+    if (isComputedDetailValue(document.getElementById('sourceType').value)) {
+      alert('历史滚动占比为系统计算结果，不支持批量编辑。');
+      return;
+    }
+    var targets = getSelectedDetailRows();
+    if (!targets.length) {
+      alert('请先勾选需要批量编辑的明细行');
+      return;
+    }
+    var type = document.getElementById('sourceType').value;
+    var scope = document.getElementById('caliberScope').value;
+    var meta = valueMeta(type);
+    var columns = getDetailColumns(scope, type).filter(function (column) { return column.key !== 'value'; });
+    document.getElementById('batchEditIntro').textContent = '已选中 ' + targets.length + ' 条明细。填写下方维护值后，将统一应用到所选组合。';
+    document.getElementById('batchEditValueLabel').textContent = meta.label;
+    document.getElementById('batchEditValue').value = '';
+    document.getElementById('batchEditValue').step = meta.step;
+    document.getElementById('batchEditValue').placeholder = meta.placeholder;
+    document.getElementById('batchEditHead').innerHTML = '<tr>' + columns.map(function (column) {
+      return '<th>' + column.label + '</th>';
+    }).join('') + '<th>' + meta.label + '（当前）</th></tr>';
+    document.getElementById('batchEditBody').innerHTML = targets.map(function (item) {
+      var cells = columns.map(function (column) {
+        return '<td>' + escapeHtml(item[column.key] || '—') + '</td>';
+      }).join('');
+      return '<tr>' + cells + '<td>' + escapeHtml(item.value) + '</td></tr>';
+    }).join('');
+    showMask('batchEditModal');
+  }
+  function closeBatchEditModal() {
+    hideMask('batchEditModal');
+    document.getElementById('batchEditValue').value = '';
+  }
+  function confirmBatchEdit() {
+    var value = document.getElementById('batchEditValue').value;
+    if (value === '') {
+      alert('请先输入维护值');
+      return;
+    }
+    var type = document.getElementById('sourceType').value;
+    var num = Number(value);
+    if (!isValidMaintainValue(type, num)) {
+      alert(maintainValueError(type));
+      return;
+    }
+    var targets = getSelectedDetailRows();
+    if (!targets.length) {
+      alert('当前没有可批量编辑的明细行');
+      return;
+    }
+    targets.forEach(function (item) { item.value = num; });
+    closeBatchEditModal();
+    renderDetailTable();
+    alert('已批量更新 ' + targets.length + ' 条口径明细');
+  }
+  function getDetailColumns(scope, type) {
+    var flags = scopeFlags(scope);
+    var columns = [{ key: 'channel', label: '渠道' }];
+    if (flags.country) columns.push({ key: 'country', label: '国家' });
+    if (flags.store) columns.push({ key: 'store', label: '店铺' });
+    if (flags.scene) columns.push({ key: 'scene', label: '场景' });
+    if (flags.retailer) columns.push({ key: 'retailer', label: '零售商' });
+    columns.push({ key: 'value', label: valueMeta(type).label });
+    return columns;
+  }
+  function renderDetailTable() {
+    var type = document.getElementById('sourceType').value;
+    var scope = document.getElementById('caliberScope').value;
+    var head = document.getElementById('detailHead');
+    var body = document.getElementById('detailBody');
+    var summaryEl = document.getElementById('detailSummary');
+    var meta = valueMeta(type);
+    var valueComputed = isComputedDetailValue(type);
+    refreshDetailFilters();
+
+    if (!selectedChannels.size) {
+      head.innerHTML = '';
+      body.innerHTML = '<tr><td colspan="6"><div class="detail-empty">请先选择适用渠道，系统会按口径范围自动展开可维护的明细组合。</div></td></tr>';
+      summaryEl.textContent = '尚未选择渠道，无法生成口径明细。';
+      return;
+    }
+
+    var columns = getDetailColumns(scope, type);
+    var visibleRows = filteredDetailRows();
+    var allChecked = !isViewMode && visibleRows.length && visibleRows.every(function (item) { return selectedDetailKeys.has(item.key); });
+    head.innerHTML = '<tr><th class="sel-col">' + (isViewMode ? '' : '<input id="detailCheckAll" type="checkbox"' + (allChecked ? ' checked' : '') + '>') + '</th>' +
+      columns.map(function (column) {
+        if (column.key === 'value') {
+          var thClass = 'value-col' + (valueComputed ? ' is-computed' : '');
+          var thTitle = valueComputed ? ' title="系统按历史窗口自动计算，不可手工修改"' : '';
+          return '<th class="' + thClass + '" data-pa-key="detail-maintain-value"' + thTitle + '>' + column.label + '</th>';
+        }
+        return '<th>' + column.label + '</th>';
+      }).join('') + '</tr>';
+
+    if (!visibleRows.length) {
+      body.innerHTML = '<tr><td colspan="' + (columns.length + 1) + '"><div class="detail-empty">没有匹配的明细，请调整筛选条件。</div></td></tr>';
+      summaryEl.textContent = '已展开 ' + detailRows.length + ' 条明细，当前筛选结果 0 条。';
+      return;
+    }
+
+    body.innerHTML = visibleRows.map(function (item) {
+      var cells = [
+        '<td class="sel-col">' + (isViewMode ? '' : '<input type="checkbox" data-detail-check="' + escapeHtml(item.key) + '"' + (selectedDetailKeys.has(item.key) ? ' checked' : '') + '>') + '</td>'
+      ];
+      columns.forEach(function (column) {
+        if (column.key === 'value') return;
+        cells.push('<td>' + escapeHtml(item[column.key] || '—') + '</td>');
+      });
+      if (isViewMode || meta.readonly) {
+        var valueCellClass = 'value-col' + (meta.readonly ? ' is-computed' : '');
+        cells.push('<td class="' + valueCellClass + '"><span class="detail-value-readonly">' + escapeHtml(item.value) + '</span></td>');
+      } else {
+        cells.push('<td class="value-col"><input class="detail-value-input" data-detail-value="' + escapeHtml(item.key) + '" type="number" step="' + meta.step + '" value="' + escapeHtml(item.value) + '" placeholder="' + meta.placeholder + '"></td>');
+      }
+      return '<tr>' + cells.join('') + '</tr>';
+    }).join('');
+
+    summaryEl.textContent = '已展开 ' + detailRows.length + ' 条明细，当前显示 ' + visibleRows.length + ' 条。筛选维度与当前口径范围一致，未选择时表示不过滤。' +
+      (valueComputed ? ' ' + currentAccrualMonthYm() + ' 滚动占比由系统计算，不可修改。' : '');
+    paResyncAnnotations();
+  }
+  function buildDetailCsvRows() {
+    var type = document.getElementById('sourceType').value;
+    if (!RULE_TYPES.includes(type)) return [];
+    var scope = document.getElementById('caliberScope').value;
+    var columns = getDetailColumns(scope, type);
+    var rowsForCsv = [columns.map(function (column) { return column.label; })];
+    detailRows.forEach(function (item) {
+      var line = [];
+      columns.forEach(function (column) {
+        line.push(column.key === 'value' ? item.value : item[column.key] || '');
+      });
+      rowsForCsv.push(line);
+    });
+    return rowsForCsv;
+  }
+  function exportDetailRows() {
+    if (!detailRows.length) {
+      alert('当前没有可导出的口径明细');
+      return;
+    }
+    (window.FeeMgmtCommon || window.ImportModalKit).downloadCsv('费用来源明细导出.csv', buildDetailCsvRows());
+  }
+  function downloadDetailTemplate() {
+    if (!detailRows.length) {
+      alert('请先选择渠道并展开口径明细后再下载模版');
+      return;
+    }
+    (window.FeeMgmtCommon || window.ImportModalKit).downloadCsv('费用来源明细导入模版.csv', buildDetailCsvRows());
+  }
+  function exportSourceList() {
+    var list = filtered();
+    if (!list.length) {
+      alert('当前筛选结果为空，无可导出数据');
+      return;
+    }
+    var rowsForCsv = [['费用项', '费用项编码', '费用来源', '适用范围', '来源摘要', '状态', '最近维护']];
+    list.forEach(function (r) {
+      rowsForCsv.push([
+        feeName(r.feeCode),
+        r.feeCode,
+        sourceName(r.sourceType),
+        channelsText(r.channels),
+        r.sourceType === 'auto' ? '系统自动取数' : r.summary,
+        r.status,
+        r.maintainer
+      ]);
+    });
+    (window.FeeMgmtCommon || window.ImportModalKit).downloadCsv('费用来源列表.csv', rowsForCsv);
+  }
+  function mountDetailImportKit() {
+    if (!window.ImportModalKit) return;
+    window.ImportModalKit.mount({
+      trigger: '#btnDetailImport',
+      title: '导入费用来源明细',
+      introHtml: '<p>请先下载导入模版，再按当前口径范围填写对应组合的维护值。导入成功后将按维度匹配覆盖当前弹窗中的同组合明细。</p>' +
+        '<p><strong>适用场景：</strong>固定金额、固定比例、同期占比预估。历史滚动占比为系统计算，不支持导入。</p>' +
+        '<p><strong>失败策略：</strong>任一校验或执行失败时整批回滚，不留部分成功；文件内重复维度组合视为失败。</p>',
+      templateExt: 'CSV',
+      templateFileName: '费用来源明细导入模版.csv',
+      columns: [
+        { group: '维度', name: '渠道', required: true, desc: '必须属于当前费用项已选择的渠道' },
+        { group: '维度', name: '国家', required: false, desc: '口径含国家时必填；店铺口径不填' },
+        { group: '维度', name: '店铺', required: false, desc: '口径含店铺时必填；国家口径不填' },
+        { group: '维度', name: '场景', required: false, desc: '当口径范围包含场景时必填' },
+        { group: '维度', name: '零售商', required: false, desc: '当口径范围包含零售商时必填；仅线下商超有零售商' },
+        { group: '取值', name: '维护值', required: true, desc: '固定金额填金额；比例类填百分比数值' }
+      ],
+      requirements: [
+        '请先选择渠道与口径范围，再下载模版，确保列结构与当前弹窗一致。',
+        '导入会按当前口径维度组合匹配并覆盖当前明细值；店铺口径不含国家列。',
+        '零售商仅针对线下商超渠道；其它渠道零售商留空或填「—」。',
+        '任一校验或执行失败时整批回滚；文件内重复维度组合视为失败。',
+        '比例类直接填写数字，例如 8.5 表示 8.5%。',
+        '原型示意中不做真实文件解析，确认导入后会模拟批量覆盖效果。'
+      ],
+      onDownload: function () {
+        downloadDetailTemplate();
+      },
+      onConfirm: function (file, resultEl) {
+        if (isComputedDetailValue(document.getElementById('sourceType').value)) {
+          resultEl.textContent = '历史滚动占比为系统计算结果，不支持导入。';
+          return;
+        }
+        if (!file) {
+          resultEl.textContent = '请先选择已填写的模版文件。';
+          return;
+        }
+        var count = 0;
+        detailRows.forEach(function (item, index) {
+          if (index > 5) return;
+          item.value = valueMeta(document.getElementById('sourceType').value).unit === '金额'
+            ? Number(item.value) + 500
+            : Number((Number(item.value) + 0.15).toFixed(2));
+          count += 1;
+        });
+        renderDetailTable();
+        resultEl.textContent = '导入完成：示意覆盖 ' + count + ' 行，失败 0 行。';
+      }
+    });
+    if (window.FeeMgmtCommon) window.FeeMgmtCommon.ensureHiddenModals();
+  }
+  function resetModalFormFields() {
+    document.getElementById('fixedAmount').value = '85000';
+    document.getElementById('fixedRate').value = '8.50';
+    document.getElementById('fixedCurrency').value = 'CNY';
+    document.getElementById('rateBase').value = '当月实际营收';
+    document.getElementById('histWindow').selectedIndex = 0;
+    document.getElementById('histBase').selectedIndex = 0;
+    document.getElementById('yoyRateBase').selectedIndex = 0;
+    document.getElementById('yoyFallback').selectedIndex = 0;
+  }
+
+  function summarizeDetailValues(details) {
+    var nums = (details || []).map(function (item) { return Number(item.value); }).filter(function (v) { return Number.isFinite(v); });
+    if (!nums.length) return null;
+    var min = Math.min.apply(null, nums);
+    var max = Math.max.apply(null, nums);
+    var sum = nums.reduce(function (s, v) { return s + v; }, 0);
+    return { min: min, max: max, avg: sum / nums.length, count: nums.length };
+  }
+
+  function buildSummary(sourceType, caliberText, details) {
+    details = details || [];
+    var detailCount = details.length;
+    var stats = summarizeDetailValues(details);
+    if (sourceType === 'fixedAmount') {
+      if (!stats) return '— · ' + caliberText + ' · 0 条明细';
+      var amtText = stats.min === stats.max
+        ? '¥' + stats.min.toLocaleString() + ' / 月'
+        : '¥' + stats.min.toLocaleString() + '–' + stats.max.toLocaleString() + ' / 月（均值 ¥' + Math.round(stats.avg).toLocaleString() + '）';
+      return amtText + ' · ' + caliberText + ' · ' + detailCount + ' 条明细';
+    }
+    if (sourceType === 'fixedRate') {
+      if (!stats) return '— × ' + document.getElementById('rateBase').value + ' · ' + caliberText + ' · 0 条明细';
+      var rateText = stats.min === stats.max
+        ? stats.min.toFixed(2) + '%'
+        : stats.min.toFixed(2) + '%–' + stats.max.toFixed(2) + '%（均值 ' + stats.avg.toFixed(2) + '%）';
+      return rateText + ' × ' + document.getElementById('rateBase').value + ' · ' + caliberText + ' · ' + detailCount + ' 条明细';
+    }
+    if (sourceType === 'rollingRate') {
+      return document.getElementById('histWindow').value + ' 滚动 · ' + document.getElementById('histBase').value + ' · ' + caliberText + ' · ' + detailCount + ' 条明细';
+    }
+    if (sourceType === 'yoyMonthRate') {
+      return '同比月占比 · ' + document.getElementById('yoyRateBase').value + ' · ' + caliberText + ' · ' + detailCount + ' 条明细';
+    }
+    return '—';
+  }
+
+  function getOccupied(feeCode, excludeId) {
+    var map = {};
+    rows.forEach(function (r) {
+      if (r.feeCode !== feeCode || r.id === excludeId) return;
+      if (r.status !== '启用') return;
+      (r.channels || []).forEach(function (ch) { map[ch] = r.id; });
+    });
+    return map;
+  }
+
+  var appliedListFilter = null;
+
+  function readListFilter() {
+    return {
+      fee: document.getElementById('filterFee').value,
+      source: document.getElementById('filterSource').value,
+      channel: document.getElementById('filterChannel').value,
+      status: document.getElementById('filterStatus').value
+    };
+  }
+
+  function applyListFilter() {
+    appliedListFilter = readListFilter();
+  }
+
+  function filtered() {
+    var f = appliedListFilter || readListFilter();
+    return rows.filter(function (r) {
+      if (f.fee && r.feeCode !== f.fee) return false;
+      if (f.source && sourceName(r.sourceType) !== f.source) return false;
+      if (f.channel && (r.channels || []).indexOf(f.channel) < 0) return false;
+      if (f.status && r.status !== f.status) return false;
+      return true;
+    });
+  }
+
+  function queryList() {
+    applyListFilter();
+    renderTable();
+  }
+
+  function renderTable() {
+    var list = filtered();
+    document.getElementById('sourceBody').innerHTML = list.map(function (r) {
+      var statusCls = r.status === '启用' ? '' : ' off';
+      var summary = r.sourceType === 'auto' ? '系统自动取数' : r.summary;
+      return '<tr>' +
+        '<td><strong>' + feeName(r.feeCode) + '</strong><div class="mono" style="color:#6b7280;margin-top:2px;">' + r.feeCode + '</div></td>' +
+        '<td>' + sourceName(r.sourceType) + '</td>' +
+        '<td>' + channelsText(r.channels) + '</td>' +
+        '<td style="color:#6b7280;">' + summary + '</td>' +
+        '<td><span class="status-dot' + statusCls + '">' + r.status + '</span></td>' +
+        '<td style="font-size:12px;color:#6b7280;">' + r.maintainer + '</td>' +
+        '<td><button type="button" class="op-link" data-act="edit" data-id="' + r.id + '">编辑</button> ' +
+        '<button type="button" class="op-link" data-act="view" data-id="' + r.id + '">查看</button> ' +
+        '<button type="button" class="op-link" data-act="toggle" data-id="' + r.id + '">' + (r.status === '启用' ? '停用' : '启用') + '</button></td></tr>';
+    }).join('') || '<tr><td colspan="7" style="text-align:center;color:#6b7280;padding:32px;">暂无数据</td></tr>';
+  }
+
+  function updateDetailIntro(type) {
+    var el = document.getElementById('detailIntro');
+    if (!el) return;
+    var base = '按当前口径范围，系统会基于已选渠道自动展开全部可维护组合。筛选条件与口径维度一致，支持多选下拉。';
+    if (type === 'rollingRate') {
+      el.textContent = base + '历史滚动占比将展示当前计提月的系统计算结果（只读，不可手工修改）；可导出当前明细，不支持批量编辑与导入。';
+      return;
+    }
+    if (type === 'yoyMonthRate') {
+      el.textContent = base + '预估占比可手工维护；勾选明细后可批量编辑、导出或导入。';
+      return;
+    }
+    el.textContent = base + '勾选明细后可批量编辑、导出或导入。';
+  }
+
+  function renderSourcePanels() {
+    var type = document.getElementById('sourceType').value;
+    var isAuto = type === 'auto';
+    document.getElementById('autoTip').style.display = isAuto ? '' : 'none';
+    document.getElementById('sourcePanel').classList.toggle('hidden', isAuto);
+    document.querySelectorAll('.source-block').forEach(function (el) {
+      el.classList.toggle('active', !isAuto && el.dataset.panel === type);
+    });
+    if (!isAuto) {
+      if (detailRowsType && detailRowsType !== type) detailRows = [];
+      detailRowsType = type;
+      syncDetailRows(type, document.getElementById('caliberScope').value, Array.from(selectedChannels));
+      updateDetailFilterVisibility();
+      refreshDetailFilters();
+      renderDetailTable();
+      updateDetailIntro(type);
+    }
+    applyModalFormState();
+    paResyncAnnotations();
+  }
+
+  function renderChTags() {
+    var host = document.getElementById('chTags');
+    host.innerHTML = '';
+    if (!selectedChannels.size) {
+      host.innerHTML = '<span class="ph">请选择渠道</span>';
+      return;
+    }
+    selectedChannels.forEach(function (ch) {
+      var tag = document.createElement('span');
+      tag.className = 'ch-tag';
+      tag.appendChild(document.createTextNode(ch));
+      if (!isViewMode) {
+        var x = document.createElement('button');
+        x.type = 'button';
+        x.setAttribute('aria-label', '移除' + ch);
+        x.textContent = '×';
+        x.addEventListener('click', function (e) {
+          e.stopPropagation();
+          selectedChannels.delete(ch);
+          renderChTags();
+          renderChDrop();
+          renderSourcePanels();
+        });
+        tag.appendChild(x);
+      }
+      host.appendChild(tag);
+    });
+  }
+
+  function renderChDrop() {
+    if (!chDrop) return;
+    var feeCode = document.getElementById('feeItem').value;
+    var occupied = getOccupied(feeCode, editingId);
+    chDrop.innerHTML = '';
+    ALL_CHANNELS.forEach(function (ch) {
+      var isSelected = selectedChannels.has(ch);
+      var isDisabled = !isSelected && !!occupied[ch];
+      var row = document.createElement('div');
+      row.className = 'ch-opt' + (isSelected ? ' on' : '') + (isDisabled ? ' disabled' : '');
+      var cb = document.createElement('input');
+      cb.type = 'checkbox';
+      cb.checked = isSelected;
+      cb.disabled = isDisabled;
+      row.appendChild(cb);
+      row.appendChild(document.createTextNode(ch));
+      if (isDisabled) {
+        var hint = document.createElement('span');
+        hint.className = 'hint';
+        hint.textContent = '已被启用配置占用';
+        row.appendChild(hint);
+      } else if (isSelected) {
+        var tick = document.createElement('span');
+        tick.className = 'tick';
+        tick.textContent = '✓';
+        row.appendChild(tick);
+      }
+      if (!isDisabled) {
+        row.addEventListener('click', function (e) {
+          e.stopPropagation();
+          if (selectedChannels.has(ch)) selectedChannels.delete(ch);
+          else selectedChannels.add(ch);
+          renderChTags();
+          renderChDrop();
+          renderSourcePanels();
+        });
+      }
+      chDrop.appendChild(row);
+    });
+  }
+
+  function getDefaultFeeCode() {
+    if (!window.FeeItemMaster || typeof FeeItemMaster.getLeafItems !== 'function') return '';
+    var leaves = FeeItemMaster.getLeafItems();
+    return leaves.length ? leaves[0].code : '';
+  }
+
+  function positionChDrop() {
+    if (!chDrop || !chDrop.classList.contains('show')) return;
+    var host = document.getElementById('chTags');
+    if (!host) return;
+    var r = host.getBoundingClientRect();
+    chDrop.style.left = r.left + 'px';
+    chDrop.style.top = (r.bottom + 4) + 'px';
+    chDrop.style.width = Math.max(r.width, 220) + 'px';
+  }
+
+  function closeChDrop() {
+    var chTagsEl = document.getElementById('chTags');
+    if (chTagsEl) chTagsEl.classList.remove('open');
+    if (chDrop) chDrop.classList.remove('show');
+    if (chTagsEl) chTagsEl.setAttribute('aria-expanded', 'false');
+  }
+
+  function openChDrop() {
+    if (isViewMode || !chDrop) return;
+    renderChDrop();
+    if (chDrop.parentNode !== document.body) document.body.appendChild(chDrop);
+    var chTagsEl = document.getElementById('chTags');
+    if (chTagsEl) chTagsEl.classList.add('open');
+    chDrop.classList.add('show');
+    if (chTagsEl) chTagsEl.setAttribute('aria-expanded', 'true');
+    positionChDrop();
+  }
+
+  document.getElementById('chTags').addEventListener('click', function (e) {
+    e.stopPropagation();
+    if (isViewMode) return;
+    if (!chDrop) return;
+    if (chDrop.classList.contains('show')) closeChDrop();
+    else openChDrop();
+  });
+  if (chDrop) {
+    chDrop.addEventListener('click', function (e) { e.stopPropagation(); });
+  }
+  document.addEventListener('click', function (e) {
+    if (e.target.closest('#chTags') || e.target.closest('#chDrop')) return;
+    closeChDrop();
+  });
+  window.addEventListener('scroll', positionChDrop, true);
+  window.addEventListener('resize', positionChDrop);
+
+  document.getElementById('feeItem').addEventListener('change', function () {
+    var occupied = getOccupied(this.value, editingId);
+    selectedChannels.forEach(function (ch) {
+      if (occupied[ch]) selectedChannels.delete(ch);
+    });
+    renderChTags();
+    if (chDrop.classList.contains('show')) renderChDrop();
+    renderSourcePanels();
+  });
+
+  function openModal(id, options) {
+    options = options || {};
+    try {
+      isViewMode = !!options.viewOnly;
+      editingId = id || null;
+      var isNew = !id;
+      document.getElementById('editModalTitle').textContent = isViewMode
+        ? '查看费用来源 · ' + id
+        : (isNew ? '新增费用来源' : '编辑费用来源 · ' + id);
+      selectedChannels = new Set();
+      selectedDetailKeys.clear();
+      detailRows = [];
+      detailRowsType = null;
+      clearDetailFilters();
+      resetModalFormFields();
+
+      if (isNew) {
+        document.getElementById('feeItem').value = getDefaultFeeCode();
+        document.getElementById('sourceType').value = 'auto';
+        document.getElementById('enabled').value = '启用';
+        document.getElementById('remark').value = '';
+        document.getElementById('caliberScope').value = 'channelCountry';
+      } else {
+        var row = rows.find(function (r) { return r.id === id; });
+        if (!row) return;
+        document.getElementById('feeItem').value = row.feeCode;
+        document.getElementById('sourceType').value = row.sourceType === 'historyRate' ? 'rollingRate' : row.sourceType;
+        document.getElementById('enabled').value = row.status;
+        document.getElementById('remark').value = row.remark || '';
+        if (row.fixedAmount != null) document.getElementById('fixedAmount').value = row.fixedAmount;
+        if (row.fixedRate != null) document.getElementById('fixedRate').value = row.fixedRate;
+        if (row.rateBase) document.getElementById('rateBase').value = row.rateBase;
+        document.getElementById('caliberScope').value = row.caliberScope || 'channelCountry';
+        if (row.yoyRateBase) document.getElementById('yoyRateBase').value = row.yoyRateBase;
+        if (row.yoyFallback) document.getElementById('yoyFallback').value = row.yoyFallback;
+        if (row.histBase) document.getElementById('histBase').value = row.histBase;
+        if (row.histWindow) document.getElementById('histWindow').value = row.histWindow;
+        (row.channels || []).forEach(function (ch) { selectedChannels.add(ch); });
+        detailRows = cloneDetailRows(row.details || []);
+        detailRowsType = row.sourceType === 'historyRate' ? 'rollingRate' : row.sourceType;
+      }
+
+      renderChTags();
+      renderSourcePanels();
+      applyModalFormState();
+      closeChDrop();
+      showMask('editModal');
+    } catch (err) {
+      console.error('openModal failed', err);
+      try {
+        showMask('editModal');
+      } catch (maskErr) {
+        console.error('showMask failed', maskErr);
+      }
+    }
+  }
+
+  function closeModal() {
+    hideMask('editModal');
+    closeChDrop();
+    closeBatchEditModal();
+    isViewMode = false;
+    editingId = null;
+    applyModalFormState();
+  }
+
+  function saveModal() {
+    if (isViewMode) {
+      closeModal();
+      return;
+    }
+    var feeCode = document.getElementById('feeItem').value;
+    var sourceType = document.getElementById('sourceType').value;
+    var status = document.getElementById('enabled').value;
+    var channels = Array.from(selectedChannels);
+    var remark = (document.getElementById('remark').value || '').trim();
+
+    if (!channels.length) {
+      alert('请至少选择一个适用渠道');
+      return;
+    }
+
+    if (status === '启用') {
+      var occupied = getOccupied(feeCode, editingId);
+      for (var i = 0; i < channels.length; i++) {
+        if (occupied[channels[i]]) {
+          alert('渠道「' + channels[i] + '」已被该费用项的其它启用配置占用');
+          return;
+        }
+      }
+    }
+
+    var summary = '—';
+    var caliberScope = document.getElementById('caliberScope').value;
+    var caliberText = CALIBER_LABEL[caliberScope] || caliberScope;
+    if (RULE_TYPES.indexOf(sourceType) >= 0) {
+      if (sourceType === 'fixedAmount' && !isValidMaintainValue(sourceType, parseNumberField('fixedAmount'))) {
+        alert('默认月固定金额：' + maintainValueError(sourceType));
+        return;
+      }
+      if (sourceType === 'fixedRate' && !isValidMaintainValue(sourceType, parseNumberField('fixedRate'))) {
+        alert('默认比例值：' + maintainValueError(sourceType));
+        return;
+      }
+      var invalid = detailRows.find(function (item) { return !isValidMaintainValue(sourceType, Number(item.value)); });
+      if (invalid) {
+        alert('请补全并校验所有口径明细的维护值：' + maintainValueError(sourceType));
+        return;
+      }
+      summary = buildSummary(sourceType, caliberText, detailRows);
+    }
+
+    if (editingId) {
+      var row = rows.find(function (r) { return r.id === editingId; });
+      if (row) {
+        row.feeCode = feeCode;
+        row.sourceType = sourceType;
+        row.channels = channels;
+        row.status = status;
+        row.remark = remark;
+        row.summary = summary;
+        row.maintainer = 'GTM-李四 · 2026-06-05';
+        row.caliberScope = RULE_TYPES.indexOf(sourceType) >= 0 ? caliberScope : null;
+        row.fixedAmount = sourceType === 'fixedAmount' ? parseNumberField('fixedAmount') : null;
+        row.fixedRate = sourceType === 'fixedRate' ? parseNumberField('fixedRate') : null;
+        row.rateBase = sourceType === 'fixedRate' ? document.getElementById('rateBase').value : null;
+        row.histWindow = sourceType === 'rollingRate' ? document.getElementById('histWindow').value : null;
+        row.histBase = sourceType === 'rollingRate' ? document.getElementById('histBase').value : null;
+        row.yoyRateBase = sourceType === 'yoyMonthRate' ? document.getElementById('yoyRateBase').value : null;
+        row.yoyFallback = sourceType === 'yoyMonthRate' ? document.getElementById('yoyFallback').value : null;
+        row.details = RULE_TYPES.indexOf(sourceType) >= 0 ? cloneDetailRows(detailRows) : null;
+      }
+    } else {
+      rows.unshift({
+        id: 'R' + String(Date.now()).slice(-6),
+        feeCode: feeCode,
+        sourceType: sourceType,
+        channels: channels,
+        summary: summary,
+        status: status,
+        remark: remark,
+        maintainer: 'GTM-李四 · 2026-06-05',
+        caliberScope: RULE_TYPES.indexOf(sourceType) >= 0 ? caliberScope : null,
+        fixedAmount: sourceType === 'fixedAmount' ? parseNumberField('fixedAmount') : null,
+        fixedRate: sourceType === 'fixedRate' ? parseNumberField('fixedRate') : null,
+        rateBase: sourceType === 'fixedRate' ? document.getElementById('rateBase').value : null,
+        histWindow: sourceType === 'rollingRate' ? document.getElementById('histWindow').value : null,
+        histBase: sourceType === 'rollingRate' ? document.getElementById('histBase').value : null,
+        yoyRateBase: sourceType === 'yoyMonthRate' ? document.getElementById('yoyRateBase').value : null,
+        yoyFallback: sourceType === 'yoyMonthRate' ? document.getElementById('yoyFallback').value : null,
+        details: RULE_TYPES.indexOf(sourceType) >= 0 ? cloneDetailRows(detailRows) : null
+      });
+    }
+
+    closeModal();
+    renderTable();
+    alert(sourceType === 'auto'
+      ? '已保存：自动取数 · 渠道「' + channels.join('、') + '」'
+      : '已保存费用来源配置');
+  }
+
+  document.getElementById('btnAdd').onclick = function () { openModal(null); };
+  document.getElementById('btnAdd').addEventListener('click', function (e) {
+    e.stopPropagation();
+  });
+  document.getElementById('editModalClose').onclick = closeModal;
+  document.getElementById('editModalCancel').onclick = closeModal;
+  document.getElementById('btnSave').onclick = saveModal;
+  document.getElementById('sourceType').addEventListener('change', renderSourcePanels);
+  document.getElementById('caliberScope').addEventListener('change', function () {
+    clearDetailFilters();
+    updateDetailFilterVisibility();
+    renderSourcePanels();
+  });
+  document.getElementById('detailHead').addEventListener('change', function (e) {
+    if (isViewMode || e.target.id !== 'detailCheckAll') return;
+    filteredDetailRows().forEach(function (item) {
+      if (e.target.checked) selectedDetailKeys.add(item.key);
+      else selectedDetailKeys.delete(item.key);
+    });
+    renderDetailTable();
+  });
+  document.getElementById('detailBody').addEventListener('change', function (e) {
+    if (isViewMode) return;
+    if (e.target.dataset.detailCheck) {
+      if (e.target.checked) selectedDetailKeys.add(e.target.dataset.detailCheck);
+      else selectedDetailKeys.delete(e.target.dataset.detailCheck);
+      renderDetailTable();
+      return;
+    }
+    if (e.target.dataset.detailValue) {
+      var target = detailRows.find(function (item) { return item.key === e.target.dataset.detailValue; });
+      if (target) target.value = e.target.value === '' ? NaN : Number(e.target.value);
+    }
+  });
+  document.getElementById('btnBulkEdit').addEventListener('click', openBatchEditModal);
+  document.getElementById('batchEditModalClose').addEventListener('click', closeBatchEditModal);
+  document.getElementById('batchEditCancel').addEventListener('click', closeBatchEditModal);
+  document.getElementById('batchEditConfirm').addEventListener('click', confirmBatchEdit);
+  document.getElementById('batchEditModal').addEventListener('click', function (e) {
+    if (e.target.id === 'batchEditModal') closeBatchEditModal();
+  });
+  document.getElementById('btnDetailExport').addEventListener('click', exportDetailRows);
+  document.getElementById('editModal').addEventListener('click', function (e) {
+    if (e.target.id === 'editModal') closeModal();
+  });
+  document.getElementById('btnQuery').onclick = queryList;
+  document.getElementById('btnExportList').onclick = exportSourceList;
+
+  function toggleSourceStatus(id) {
+    var row = rows.find(function (r) { return r.id === id; });
+    if (!row) return;
+    var nextStatus = row.status === '启用' ? '停用' : '启用';
+    if (!confirm('确定将来源配置 ' + id + ' ' + nextStatus + '？')) return;
+    if (nextStatus === '启用') {
+      var occupied = getOccupied(row.feeCode, row.id);
+      var conflict = (row.channels || []).find(function (ch) { return occupied[ch]; });
+      if (conflict) {
+        alert('渠道「' + conflict + '」已被该费用项的其它启用配置占用，不能启用。');
+        return;
+      }
+    }
+    row.status = nextStatus;
+    row.maintainer = 'GTM-李四 · 2026-06-05';
+    renderTable();
+  }
+
+  /* 列表页按钮委托（capture）：避免遮罩层拦截导致编辑/查看无响应 */
+  function handleListPageAction(e) {
+    if (window.PrototypeAnnotation && typeof window.PrototypeAnnotation.isPickModeActive === 'function' && window.PrototypeAnnotation.isPickModeActive()) {
+      return;
+    }
+    var t = e.target.closest('#btnAdd, #btnManageFeeDepts, #btnManageFeeItems, #btnQuery, #btnExportList, [data-act], [data-fee-item-act]');
+    if (!t) return;
+    if (t.id === 'btnManageFeeDepts') {
+      e.preventDefault();
+      e.stopPropagation();
+      if (window.FeeDeptMaster && typeof FeeDeptMaster.openManage === 'function') FeeDeptMaster.openManage();
+      else alert('费用部门管理脚本未加载，请通过仓库 HTTP 预览本页。');
+      return;
+    }
+    if (t.id === 'btnManageFeeItems') {
+      e.preventDefault();
+      e.stopPropagation();
+      if (window.FeeItemMaster && typeof FeeItemMaster.openManage === 'function') FeeItemMaster.openManage();
+      else alert('费用项管理脚本未加载，请通过仓库 HTTP 预览本页。');
+      return;
+    }
+    if (t.id === 'btnAdd') { e.preventDefault(); e.stopPropagation(); openModal(null); return; }
+    if (t.id === 'btnQuery') { e.preventDefault(); e.stopPropagation(); queryList(); return; }
+    if (t.id === 'btnExportList') { e.preventDefault(); e.stopPropagation(); exportSourceList(); return; }
+    if (t.dataset && t.dataset.act === 'edit') { e.preventDefault(); e.stopPropagation(); openModal(t.dataset.id); return; }
+    if (t.dataset && t.dataset.act === 'view') { e.preventDefault(); e.stopPropagation(); openModal(t.dataset.id, { viewOnly: true }); return; }
+    if (t.dataset && t.dataset.act === 'toggle') { e.preventDefault(); e.stopPropagation(); toggleSourceStatus(t.dataset.id); return; }
+  }
+  document.addEventListener('click', handleListPageAction, true);
+
+  if (window.FeeDeptMaster) {
+    FeeDeptMaster.init();
+  }
+
+  if (window.FeeItemMaster) {
+    FeeItemMaster.init({
+      usageResolver: function (code) {
+        if (rows.some(function (r) { return r.feeCode === code && r.status === '启用'; })) {
+          return '该费用项存在启用的费用来源配置，不可删除';
+        }
+        return null;
+      }
+    }).then(function () {
+      refreshFeeItemSelects();
+      applyListFilter();
+      renderTable();
+    });
+    FeeItemMaster.onChange(function () {
+      refreshFeeItemSelects();
+      renderTable();
+    });
+  } else {
+    applyListFilter();
+    renderTable();
+  }
+
+  loadMasterDimensionData();
+  try {
+    mountDetailFilters();
+    renderSourcePanels();
+    mountDetailImportKit();
+  } catch (err) {
+    console.error(err);
+    var warn = document.createElement('div');
+    warn.className = 'hint-bar';
+    warn.style.margin = '12px 16px';
+    warn.textContent = '部分交互脚本加载异常，请强制刷新或通过 GitHub Pages / 本地 HTTP 打开（勿用 file://）。';
+    document.querySelector('.page').insertBefore(warn, document.querySelector('.page').firstChild);
+  }
+  if (!window.MultiSelectFilter || !window.ImportModalKit) {
+    var bar = document.createElement('div');
+    bar.className = 'hint-bar';
+    bar.style.margin = '12px 16px';
+    bar.style.background = '#fff7e6';
+    bar.style.borderColor = '#ffd591';
+    bar.textContent = '规范脚本（多选筛选/导入组件）未完整加载：弹窗内明细筛选与导入暂不可用。新增/编辑来源仍可用；请通过仓库 HTTP 预览并保留 文件夹/规范/ 目录结构。';
+    if (!document.querySelector('.page .hint-bar')) {
+      document.querySelector('.page').insertBefore(bar, document.querySelector('.page').firstChild);
+    }
+  }
+  if (window.FeeMgmtCommon) {
+    window.FeeMgmtCommon.ensureHiddenModals();
+    window.FeeMgmtCommon.wireClearableSelects(document);
+  }
+})();
+</script>
+
+
+
+
+<!-- prototype-annotation:start -->
+<link rel="stylesheet" href="../prototype-annotation/prototype-annotation.css?v=20260723pick3">
+<script id="prototype-annotation-config" type="application/json">
+{
+  "pageId": "fee-source-definition",
+  "version": "2026-07-07T12:00:00+08:00",
+  "pageTitle": "费用来源定义",
+  "annotations": [
+    {
+      "id": "fee-dept-master",
+      "selector": "#btnManageFeeDepts",
+      "title": "费用部门管理",
+      "body": "费用部门树规则：\n1. 最上层为金蝶组织（102/109/110/127），其下按部门层级展开。\n2. 费用可选中间层级（如销售中心、新渠道），也可选末级渠道/部门（含 OC（全渠道）等独立部门）。\n3. 右侧展示金蝶组织、BM 编码与名称，便于与财务对账。\n4. 支持新增、修改、删除、导出；有下级时须先删下级再删父节点。\n5. 级联禁用规则：当上级部门被设为「禁用不可选」时，其所有下级部门自动级联设为「禁用不可选」，无需逐个手动设置。\n6. 禁用部门在业务页面的部门下拉中不显示，避免误选。"
+    },
+    {
+      "id": "fee-item-master",
+      "selector": "#btnManageFeeItems",
+      "title": "费用项管理",
+      "body": "费用项主数据规则：\n1. 费用项树由初始化主数据提供，本页只读浏览。\n2. 本页仅可维护节点「备注」；不提供新增节点、新增下级、编辑、删除。\n3. 业务配置仅可选无下级的末级节点；列表展示名称全称 + 连续编码。"
+    },
+    {
+      "id": "fee-item-toolbar-rule",
+      "selector": "[data-pa-key=\"fee-item-toolbar\"]",
+      "title": "树工具栏",
+      "body": "费用项树工具栏规则：\n1. 「全部展开/全部收拢」仅影响树形展示，不改数据。\n2. 支持按名称/编码搜索并自动展开匹配路径。\n3. 不提供「新增节点」；树结构由初始化主数据维护。"
+    },
+    {
+      "id": "fee-node-actions-rule",
+      "selector": "[data-pa-key=\"fee-item-actions-col\"]",
+      "title": "节点操作区",
+      "body": "节点操作规则：\n1. 操作列仅保留「备注」。\n2. 「备注」补充适用场景与口径边界，不直接改变计提逻辑；有备注时操作链接显示蓝点提示。\n3. 不提供新增下级、编辑、删除。"
+    },
+    {
+      "id": "list-query-rule",
+      "selector": "[data-pa-key=\"list-filter-bar\"]",
+      "title": "列表筛选",
+      "body": "列表筛选规则：\n1. 可按费用项、来源类型、渠道、状态组合筛选；「全部」表示不限该维度。\n2. 修改筛选项后须点击「查询」刷新列表；未点查询前列表保持上一次结果。\n3. 导出与列表一致，按上一次查询的筛选条件取数。\n4. 状态筛选用于区分参与计提的启用规则与已停用规则；停用规则不占渠道。"
+    },
+    {
+      "id": "list-export-rule",
+      "selector": "#btnExportList",
+      "title": "导出列表",
+      "body": "列表导出规则：\n1. 导出与列表展示一致，按上一次点击「查询」后的筛选结果导出（费用项、来源类型、渠道、摘要、状态等）。\n2. 导出的是配置摘要，不含口径明细维护值；明细须从编辑弹窗单独导出。\n3. 建议需求明确：导出文件格式、字段顺序及是否含停用规则。"
+    },
+    {
+      "id": "create-source-entry",
+      "selector": "#btnAdd",
+      "title": "新增来源",
+      "body": "新增来源规则：\n1. 一条来源配置绑定一个费用项、一种费用来源类型和一组适用渠道。\n2. 自动取数仅确认费用项与渠道；其他类型必须维护口径范围和明细值。\n3. 保存后生成列表摘要，启用状态决定是否参与后续月度计提。"
+    },
+    {
+      "id": "source-fee-item-rule",
+      "selector": "[data-pa-key=\"source-fee-item-select\"]",
+      "title": "费用项选择",
+      "body": "费用项选择规则：\n1. 仅可选择树形结构中的末级节点（无下级），父级节点不可选。\n2. 切换费用项会重新计算渠道占用情况，已被同费用项其它配置占用的渠道不可再选。\n3. 建议需求明确：同一费用项是否允许多条不同来源类型的配置并存。"
+    },
+    {
+      "id": "source-type-rule",
+      "selector": "#sourceType",
+      "title": "来源类型规则",
+      "body": "费用来源类型规则：\n1. 自动取数：系统从既有数据源同步费用，本页不维护金额或比例参数（数据源、同步频率等本期不展开）。\n2. 固定金额/固定比例：按口径明细维护值直接参与计提。\n3. 历史滚动占比/同期占比预估：按历史数据推算比例，再结合当月基数形成费用。"
+    },
+    {
+      "id": "source-enabled-rule",
+      "selector": "[data-pa-key=\"source-enabled\"]",
+      "title": "弹窗启停",
+      "body": "弹窗启用状态规则：\n1. 启用表示保存后该来源参与后续月度计提；停用则保留配置但不参与新计提。\n2. 与列表「启用/停用」操作效果一致，最终以保存值为准。\n3. 已运行月份及历史报表按快照保留，不因停用而回溯重算。"
+    },
+    {
+      "id": "auto-source-tip-rule",
+      "selector": "[data-pa-key=\"auto-source-tip\"]",
+      "title": "自动取数",
+      "body": "自动取数规则：\n1. 选择自动取数后隐藏口径范围与明细区，仅需确认费用项和适用渠道。\n2. 系统从既有数据源同步费用，本页不维护金额或比例参数。\n3. 数据源、同步频率、失败补数与对账口径本期不纳入本页需求范围。"
+    },
+    {
+      "id": "view-mode-rule",
+      "selector": "[data-pa-key=\"view-mode-tip\"]",
+      "title": "查看模式",
+      "body": "查看模式规则：\n1. 从列表点「查看」进入，所有表单控件只读，不显示保存按钮。\n2. 渠道 Tag 不可移除，明细不可勾选、编辑、导入或批量修改。\n3. 如需调整须返回列表点「编辑」进入可写模式。"
+    },
+    {
+      "id": "channel-exclusive-rule",
+      "selector": "#chTags",
+      "title": "渠道互斥",
+      "body": "适用渠道规则：\n1. 同一费用项下，一个渠道只能被一条来源配置占用。\n2. 新增或编辑时，已被其他配置占用的渠道会置灰不可选。\n3. 保存时仍会二次校验渠道占用，避免重复计提。"
+    },
+    {
+      "id": "caliber-detail-rule",
+      "selector": "#caliberScope",
+      "title": "口径范围",
+      "body": "口径范围规则：\n1. 口径范围决定下方明细表字段：可选渠道+国家、渠道+店铺，或叠加场景、零售商。\n2. 店铺口径不含国家列；店铺按已选渠道从渠道店铺基础数据加载。\n3. 零售商仅线下商超渠道有值，其它渠道零售商为空。\n4. 切换口径范围会重新展开可维护组合，并清空不再适用的明细筛选。"
+    },
+    {
+      "id": "source-type-params-rule",
+      "selector": ".source-block.active[data-pa-key=\"source-type-params\"]",
+      "title": "类型参数",
+      "body": "来源类型参数规则：\n1. 固定金额/固定比例：顶部默认值为批量编辑参考；列表摘要按明细维护值汇总展示（区间/均值）。\n2. 历史滚动占比：历史窗口与比例基数决定系统如何计算各明细行的滚动占比（只读）。\n3. 同期占比预估：比例基数与缺数处理决定同比月缺数时的降级策略。"
+    },
+    {
+      "id": "rolling-rate-rule",
+      "selector": "[data-pa-key=\"rolling-rate-rule\"]",
+      "title": "历史滚动占比",
+      "body": "历史滚动占比规则：\n1. 按所选历史窗口统计历史费用与比例基数，先算各月费用占比，再取滚动平均。\n2. 本月费用 = 当月比例基数 × 滚动平均占比。\n3. 原型当前表现为系统自动计算且明细值只读；建议需求明确缺历史数据、异常月份和补录数据时的处理。"
+    },
+    {
+      "id": "yoy-rate-rule",
+      "selector": "[data-pa-key=\"yoy-rate-rule\"]",
+      "title": "同期占比预估",
+      "body": "同期占比预估规则：\n1. 优先取去年同月费用 ÷ 去年同月基数，作为本月预估占比。\n2. 本月费用 = 当月比例基数 × 本月预估占比。\n3. 若去年同月缺数，降级为过去 12 个月各月占比的滚动均值；不足 12 个月按实际有数据月份取均值。"
+    },
+    {
+      "id": "yoy-fallback-rule",
+      "selector": "#yoyFallback",
+      "title": "缺数处理",
+      "body": "同期缺数处理规则：\n1. 正常：本月预估占比 = 去年同月费用 ÷ 去年同月基数。\n2. 缺数降级：去年同月缺费用或缺基数时，取过去 12 个月各月「费用÷基数」占比的算术平均值。\n3. 历史不足 12 个月时，按实际有数据的月份数取均值；示例：仅 3 个月历史则取 3 个月占比均值。"
+    },
+    {
+      "id": "detail-expand-rule",
+      "selector": "[data-pa-key=\"source-detail-card\"]",
+      "title": "明细展开规则",
+      "body": "口径明细规则：\n1. 选择渠道后，系统按渠道主数据展开国家/店铺、场景、零售商等组合。\n2. 店铺仅加载已选渠道对应店铺；零售商仅线下商超有值。\n3. 明细表字段与口径范围一致：口径包含哪个维度，列表就展示并保存哪个维度。\n4. 明细筛选只影响弹窗内展示，不改变保存范围；没有选择渠道时不生成明细，也不能保存非自动取数规则。"
+    },
+    {
+      "id": "detail-filter-rule",
+      "selector": "[data-pa-key=\"detail-filter-bar\"]",
+      "title": "明细筛选",
+      "body": "明细筛选规则：\n1. 筛选项与当前口径范围维度一致：国家/店铺互斥显示；不含场景/零售商时对应筛选项隐藏。\n2. 筛选仅缩小弹窗内表格展示，不改变已展开的全部明细集合及保存范围。\n3. 渠道筛选项默认限于表单已选渠道；国家/店铺/场景/零售商选项随渠道联动刷新。"
+    },
+    {
+      "id": "detail-toolbar-rule",
+      "selector": "[data-pa-key=\"detail-toolbar\"]",
+      "title": "明细工具栏",
+      "body": "明细工具栏规则：\n1. 「批量编辑」：须先勾选明细行，统一写入同一维护值；历史滚动占比只读不可批量编辑。\n2. 「导出当前明细」：导出弹窗内全部已展开明细（非仅筛选可见行），列结构跟随口径范围。\n3. 「导入明细」：按维度匹配覆盖同组合维护值；任一校验或执行失败时整批回滚，不留部分成功；文件内重复维度组合视为失败。"
+    },
+    {
+      "id": "batch-edit-modal-rule",
+      "selector": "[data-pa-key=\"batch-edit-modal\"]",
+      "title": "批量编辑确认",
+      "body": "批量编辑确认规则：\n1. 弹窗展示待更新的明细行预览及当前值，输入统一维护值后点「确认填入」。\n2. 固定金额写金额，固定比例和同期占比写百分比数值；空值不允许提交。\n3. 确认后仅更新已勾选行，不自动修改未勾选明细。"
+    },
+    {
+      "id": "edit-modal-footer-rule",
+      "selector": "[data-pa-key=\"edit-modal-footer\"]",
+      "title": "保存与取消",
+      "body": "弹窗底栏规则：\n1. 「取消」关闭弹窗且不保存本次修改。\n2. 「保存」校验：至少选一个渠道；仅启用状态校验渠道占用（停用配置不占渠道）；非自动取数须补全全部明细维护值。\n3. 保存成功后刷新列表摘要（按明细汇总）；新规则仅影响未运行月份，已运行月份与历史报表保留快照不重算。"
+    },
+    {
+      "id": "status-impact-rule",
+      "selector": "[data-pa-key=\"source-status\"]",
+      "title": "启停影响",
+      "body": "启停规则：\n1. 启用配置参与月度费用计提与管报取数，停用配置保留但不参与后续计提，且不占渠道。\n2. 列表与弹窗启停须二次确认，并记录操作日志；须受权限控制。\n3. 已运行月份及历史报表按快照保留，不因启停回溯重算。"
+    },
+    {
+      "id": "source-scope-column-rule",
+      "selector": "[data-pa-key=\"source-scope\"]",
+      "title": "适用范围列",
+      "body": "列表适用范围列规则：\n1. 展示该来源配置绑定的渠道集合，多渠道以顿号分隔。\n2. 同一费用项下各配置的渠道互斥，不会出现同一渠道被多条配置同时占用。\n3. 自动取数与其它来源类型均按渠道维度界定适用范围。"
+    },
+    {
+      "id": "source-row-actions-rule",
+      "selector": "[data-pa-key=\"source-actions\"]",
+      "title": "列表操作",
+      "body": "列表操作规则：\n1. 「编辑」用于调整费用来源参数并重新保存；「查看」仅展示当前配置内容，不允许修改。\n2. 「启用/停用」须二次确认、受权限控制并记操作日志；会改变该来源是否参与后续月度计提。\n3. 规则修改或启停后，已运行月份与历史报表保留快照；仅未运行月份按新规则生效。"
+    }
+  ],
+  "fieldTips": [
+    {
+      "id": "tip-source-scope",
+      "selector": "[data-pa-key=\"source-scope\"]",
+      "title": "适用范围",
+      "body": "展示该来源配置适用的渠道集合。同一费用项下各配置的渠道互不重叠。"
+    },
+    {
+      "id": "tip-source-summary",
+      "selector": "[data-pa-key=\"source-summary\"]",
+      "title": "来源摘要",
+      "body": "汇总当前来源的关键参数：列表摘要按明细维护值汇总（固定金额/比例展示区间或均值），并附口径范围与明细条数。用户可通过摘要快速判断该规则如何计算费用。"
+    },
+    {
+      "id": "tip-source-status",
+      "selector": "[data-pa-key=\"source-status\"]",
+      "title": "状态",
+      "body": "启用表示该来源可参与后续月度计提；停用表示保留配置但不再参与新的计提结果。"
+    },
+    {
+      "id": "tip-detail-value",
+      "selector": "#detailHead th[data-pa-key=\"detail-maintain-value\"]",
+      "title": "维护值",
+      "body": "该列随费用来源变化：固定金额为月金额，固定比例和同期占比为百分比，历史滚动占比为系统计算值。"
+    }
+  ],
+  "pageGuide": {
+    "dev": {
+      "页面整体定位": "费用来源定义是月度费用运行前的规则主数据页，用来说明每个费用项在不同渠道下如何取数或计提，并将规则摘要提供给后续管报计算。",
+      "关键逻辑盘点": [
+        "费用项主数据提供费用项编码、名称；树结构由初始化维护，本页费用项管理仅可维护备注。",
+        "费用项树工具栏支持展开/收拢/搜索；行内操作区仅保留备注，无新增/编辑/删除。",
+        "同一费用项下渠道互斥，保存时再次校验，避免同一渠道重复计提。",
+        "来源类型决定计算方式：自动取数、固定金额、固定比例、历史滚动占比、同期占比预估。",
+        "弹窗启用状态与列表启停一致；查看模式只读不可保存。",
+        "口径范围决定明细维度，渠道选择决定可展开组合；店铺按渠道加载，零售商仅线下商超；非自动取数必须补全明细维护值。",
+        "明细筛选仅影响展示；工具栏支持批量编辑、导出全部明细、按维度导入覆盖；导入失败整批回滚。",
+        "历史滚动占比明细值只读，导入和批量编辑均禁止；同期占比支持缺数处理策略。",
+        "启用/停用须二次确认、权限控制与操作日志；已运行月份与历史报表保留快照，未运行月份按新规则生效。",
+        "来源规则修改后不重算已运行月份与历史报表；自动取数的数据源与同步细节本期不纳入范围。"
+      ],
+      "已确认项": [
+        "来源规则修改后，对已运行月份、历史报表保留快照不重算；仅未运行月份按新规则生效。",
+        "明细导入任一校验或执行失败时整批回滚；文件内重复维度组合视为失败；成功导入按维度匹配覆盖已有明细。",
+        "启停操作须二次确认、受权限控制并记录操作日志。"
+      ],
+      "待确认项": [
+        "费用项改名后，历史月份、已生成报表和下游取数是否保留快照。",
+        "同一费用项是否允许多条不同来源类型的配置并存。",
+        "已保存规则变更口径后，旧明细值如何迁移或是否重新维护。",
+        "历史滚动占比缺历史数据、异常月份和补录数据的处理。",
+        "同期占比正式缺数降级为近12个月滚动均值；不足12个月按实际月份计算，以及补数后是否回溯重算。",
+        "列表导出文件格式、字段顺序及是否含停用规则。"
+      ],
+      "关联上下游": "上游依赖费用项主数据、渠道/国家/店铺/场景/零售商主数据、历史费用和比例基数；下游供月度费用运行、管报费用汇总与费用填报对账使用。"
+    },
+    "user": {
+      "标准操作流程": [
+        "先在「费用项管理」确认费用项已存在且名称口径正确。",
+        "在列表中筛选费用项、来源类型、渠道或状态，定位已有规则。",
+        "点击「新增来源」或「编辑」，选择费用项、来源类型、启用状态和适用渠道。",
+        "非自动取数时选择口径范围，检查系统展开的明细组合，并维护金额或比例。",
+        "需要批量维护时，先导出/下载当前口径模板，再导入覆盖或勾选后批量编辑。",
+        "保存前确认来源摘要、启用状态和适用范围，避免后续月度计提口径错误。"
+      ],
+      "关键字段说明": "「来源摘要」按明细维护值汇总展示；「维护值」是明细层真正参与计算的金额或比例；「状态」决定该规则是否参与后续计提（停用不占渠道）。",
+      "使用注意事项": "切换来源类型、口径范围或渠道会改变明细结构。历史滚动占比由系统计算，不需要手工填值。规则修改或启停仅影响未运行月份；已运行月份与历史报表保留快照。启停须二次确认。"
+    }
+  },
+  "statusFlow": {
+    "nodes": [
+      {
+        "id": "on",
+        "label": "启用",
+        "description": "参与后续月度费用计提与管报取数。"
+      },
+      {
+        "id": "off",
+        "label": "停用",
+        "description": "保留配置与历史追溯，但不参与新的计提结果。"
+      }
+    ],
+    "transitions": [
+      {
+        "from": "启用",
+        "to": "停用",
+        "trigger": "编辑弹窗改为停用后保存，或列表行执行停用操作",
+        "allowed": "继续查看和再次启用",
+        "forbidden": "停用期间不参与后续计提"
+      },
+      {
+        "from": "停用",
+        "to": "启用",
+        "trigger": "编辑后保存为启用，或列表行执行启用操作",
+        "allowed": "恢复参与后续计提",
+        "forbidden": "停用期间不参与后续计提，不补算停用期间费用"
+      }
+    ]
+  },
+  "editPolicy": {
+    "viewOnlyHostnames": [
+      "18501404120.github.io"
+    ],
+    "allowIps": [],
+    "allowIpPrefixes": [],
+    "allowTrustedBrowser": false,
+    "editToken": "",
+    "allowLocalhost": true,
+    "allowOtherHosts": true,
+    "pagesForceReadonly": true,
+    "autoPublishOnSave": false
+  },
+  "persistedState": {
+    "edits": {},
+    "hidden": {},
+    "guides": {},
+    "assets": {},
+    "userAdded": {
+      "annotations": [],
+      "fieldTips": []
+    },
+    "persistedAt": "2026-07-23T07:22:03.891Z"
+  }
+}
+</script>
+<script src="../prototype-annotation/prototype-annotation-runtime.js?v=20260723pick3"></script>
+<!-- prototype-annotation:end -->
+</body>
+</html>

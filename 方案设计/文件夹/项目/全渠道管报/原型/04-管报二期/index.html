@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>管报二期 · 费用分析与来源追溯</title>
+  <link rel="stylesheet" href="mgmt-report-v2.css">
+  <script src="../../../规范/assets/date-range-picker.js"></script>
+</head>
+<body>
+  <div class="layout">
+    <aside class="sider">
+      <div class="sider-logo"></div>
+      <a class="sider-item active" href="index.html">管报</a>
+      <a class="sider-item" href="../02-费用管理/index.html">费用</a>
+      <a class="sider-item" href="../../管报二期/00_索引.md">文档</a>
+    </aside>
+
+    <main class="main">
+      <header class="header">
+        <div>
+          <div class="title">管报二期 · 费用分析与来源追溯</div>
+          <div class="header-sub">费用项展示、明细下钻、来源摘要、计算过程、财报差异</div>
+        </div>
+        <nav class="nav-tabs" aria-label="页面导航">
+          <button class="nav-tab active" data-tab="overview">总览</button>
+          <button class="nav-tab" data-tab="analysis">分析</button>
+          <button class="nav-tab" data-tab="details">明细</button>
+          <button class="nav-tab" data-tab="sources">来源</button>
+          <button class="nav-tab" data-tab="recon">差异</button>
+          <button class="nav-tab" data-tab="closing">定稿</button>
+        </nav>
+      </header>
+
+      <section class="page">
+        <div class="breadcrumb">
+          <a href="../00_索引.md">管报二期</a> / 费用分析与来源追溯
+        </div>
+
+        <section class="panel panel--filter">
+          <div class="panel-head">
+            <div>
+              <div class="panel-title">查询条件</div>
+              <div class="panel-sub">筛选结果会同步影响总览、分析、明细和差异页签</div>
+            </div>
+            <div class="toolbar">
+              <button class="btn btn-primary" id="btnQuery">查询</button>
+              <button class="btn" id="btnReset">重置</button>
+              <button class="btn" id="btnExport">导出明细</button>
+            </div>
+          </div>
+          <div class="filter-panel">
+            <div class="filter-grid">
+              <label class="f-item f-item--range">日期范围
+                <span id="fDateRange" class="date-range-host"></span>
+              </label>
+              <label class="f-item">渠道
+                <select class="ctl" id="fChannel"></select>
+              </label>
+              <label class="f-item">店铺
+                <select class="ctl" id="fStore"></select>
+              </label>
+              <label class="f-item">费用项
+                <select class="ctl wide" id="fFeeItem"></select>
+              </label>
+              <label class="f-item">来源模式
+                <select class="ctl wide" id="fSourceMode"></select>
+              </label>
+              <label class="f-item">定稿状态
+                <select class="ctl" id="fFinalStatus"></select>
+              </label>
+              <label class="f-item">关键字
+                <input class="ctl wide" id="fKeyword" placeholder="MSKU / 单据 / 批次">
+              </label>
+            </div>
+          </div>
+        </section>
+
+        <section class="tab-panel active" data-panel="overview">
+          <div class="stat-grid" id="statGrid"></div>
+          <section class="panel">
+            <div class="panel-head">
+              <div>
+                <div class="panel-title">费用趋势</div>
+                <div class="panel-sub">参考经营趋势图样式，按日期范围展示管报费用项金额走势</div>
+              </div>
+            </div>
+            <div class="overview-trend" id="overviewTrendChart"></div>
+          </section>
+          <section class="panel">
+            <div class="panel-head">
+              <div>
+                <div class="panel-title">费用项总览</div>
+                <div class="panel-sub">按费用项展示金额、占比、趋势和来源模式</div>
+              </div>
+              <div class="toolbar">
+                <button class="btn" id="btnExpandAll">展开</button>
+                <button class="btn" id="btnCollapseAll">收起</button>
+              </div>
+            </div>
+            <div class="table-wrap overview-table-wrap">
+              <div class="fee-tree-table">
+                <div class="fee-tree-table-head">
+                  <div class="col-tree col-cell">费用项</div>
+                  <div class="col-num col-cell">管报金额</div>
+                  <div class="col-num col-cell">原币金额</div>
+                  <div class="col-num col-cell">占净收入</div>
+                  <div class="col-num col-cell">环比</div>
+                  <div class="col-num col-cell">同比</div>
+                  <div class="col-cell">主要来源</div>
+                  <div class="col-cell">定稿</div>
+                  <div class="col-actions col-cell">操作</div>
+                </div>
+                <div class="fee-tree-table-body" id="feeTreeBody"></div>
+              </div>
+            </div>
+          </section>
+        </section>
+
+        <section class="tab-panel" data-panel="analysis">
+          <section class="analysis-head">
+            <div>
+              <div class="page-title" id="analysisTitle">费用项分析</div>
+              <div class="page-sub" id="analysisSub">按费用项、渠道、店铺、来源类型拆解金额和异常</div>
+            </div>
+            <div class="toolbar">
+              <button class="btn" data-quick-fee="T040202030101">进场费</button>
+              <button class="btn" data-quick-fee="T0403030101">销售退款</button>
+              <button class="btn" data-quick-fee="T040301010102">尾程</button>
+            </div>
+          </section>
+          <div class="analysis-grid">
+            <section class="panel">
+              <div class="panel-head">
+                <div class="panel-title">月度趋势</div>
+              </div>
+              <div class="chart-body" id="trendChart"></div>
+            </section>
+            <section class="panel">
+              <div class="panel-head">
+                <div class="panel-title">来源结构</div>
+              </div>
+              <div class="chart-body" id="sourceChart"></div>
+            </section>
+          </div>
+          <div class="analysis-grid">
+            <section class="panel">
+              <div class="panel-head">
+                <div class="panel-title">Top 维度</div>
+              </div>
+              <div class="table-wrap compact">
+                <table class="data-table">
+                  <thead>
+                    <tr><th>维度</th><th>名称</th><th class="num">USD</th><th class="num">占比</th></tr>
+                  </thead>
+                  <tbody id="topBody"></tbody>
+                </table>
+              </div>
+            </section>
+            <section class="panel">
+              <div class="panel-head">
+                <div class="panel-title">异常提示</div>
+              </div>
+              <div class="alert-list" id="alertList"></div>
+            </section>
+          </div>
+        </section>
+
+        <section class="tab-panel" data-panel="details">
+          <section class="panel">
+            <div class="panel-head">
+              <div>
+                <div class="panel-title">费用明细</div>
+                <div class="panel-sub" id="detailSummary">展示当前筛选条件下的费用事实与来源追溯字段</div>
+              </div>
+              <div class="toolbar">
+                <button class="btn" id="btnClearFeeContext">清除费用项上下文</button>
+              </div>
+            </div>
+            <div class="table-wrap">
+              <table class="data-table detail-table">
+                <thead>
+                  <tr>
+                    <th>月份</th>
+                    <th>渠道/店铺</th>
+                    <th>MSKU</th>
+                    <th>费用项</th>
+                    <th class="num">金额</th>
+                    <th>分摊</th>
+                    <th>来源</th>
+                    <th>定稿</th>
+                    <th style="min-width: 180px;">操作</th>
+                  </tr>
+                </thead>
+                <tbody id="detailBody"></tbody>
+              </table>
+            </div>
+          </section>
+        </section>
+
+        <section class="tab-panel" data-panel="sources">
+          <section class="panel">
+            <div class="panel-head">
+              <div>
+                <div class="panel-title">来源记录</div>
+                <div class="panel-sub">按来源类型查看单据、批次、项目、规则运行和无明细来源摘要</div>
+              </div>
+            </div>
+            <div class="source-grid" id="sourceCards"></div>
+          </section>
+        </section>
+
+        <section class="tab-panel" data-panel="recon">
+          <section class="panel">
+            <div class="panel-head">
+              <div>
+                <div class="panel-title">财报对照与差异</div>
+                <div class="panel-sub">差异率按规则展示；财务金额为 0 时差异率为 100%</div>
+              </div>
+              <label class="threshold-control">差异阈值
+                <input id="diffThreshold" type="number" min="0" step="100" value="1000">
+              </label>
+            </div>
+            <div class="table-wrap">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>月份</th>
+                    <th>费用项</th>
+                    <th>渠道</th>
+                    <th class="num">管报金额</th>
+                    <th class="num">财务金额</th>
+                    <th class="num">差异</th>
+                    <th class="num">差异率</th>
+                    <th>处理</th>
+                    <th style="min-width: 160px;">操作</th>
+                  </tr>
+                </thead>
+                <tbody id="reconBody"></tbody>
+              </table>
+            </div>
+          </section>
+        </section>
+
+        <section class="tab-panel" data-panel="closing">
+          <div class="analysis-grid">
+            <section class="panel">
+              <div class="panel-head">
+                <div>
+                  <div class="panel-title">数据批次与关账</div>
+                  <div class="panel-sub">每月 20 日对上月关账定稿，已锁定月份只看冻结值</div>
+                </div>
+                <button class="btn btn-primary" id="btnRunClosingCheck">模拟关账检查</button>
+              </div>
+              <div class="timeline" id="closingTimeline"></div>
+            </section>
+            <section class="panel">
+              <div class="panel-head">
+                <div class="panel-title">关账检查结果</div>
+              </div>
+              <div class="check-list" id="closingChecks"></div>
+            </section>
+          </div>
+        </section>
+      </section>
+    </main>
+  </div>
+
+  <div class="drawer-mask" id="drawerMask" aria-hidden="true">
+    <aside class="drawer" role="dialog" aria-modal="true" aria-labelledby="drawerTitle">
+      <div class="drawer-hd">
+        <h2 id="drawerTitle">详情</h2>
+        <button class="modal-close" id="drawerClose" aria-label="关闭">×</button>
+      </div>
+      <div class="drawer-bd" id="drawerBody"></div>
+    </aside>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script src="mgmt-report-v2.js"></script>
+</body>
+</html>
