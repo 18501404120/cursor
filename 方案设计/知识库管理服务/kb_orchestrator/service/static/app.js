@@ -608,7 +608,7 @@
     els.gitTableBody.innerHTML = items
       .map((item) => {
         const result = gitRowResults[item.key] || {};
-        const resultClass = result.ok === true ? "ok" : result.ok === false ? "bad" : "";
+        const resultClass = result.ok === true ? "ok" : result.ok === false ? "bad" : result.ok === null ? "warn" : "";
         const resultHtml = result.text
           ? `<div class="git-result ${resultClass}">${result.text}</div>`
           : `<span class="git-result">—</span>`;
@@ -675,8 +675,12 @@
       if (Array.isArray(data.logs) && data.logs.length) {
         data.logs.forEach((line) => appendGitLog(`${key}: ${line}`));
       }
-      setGitRowResult(key, true, text);
-      appendGitLog(`${key} · ${label} 成功`, "ok");
+      const skipped = Boolean(data.skipped);
+      setGitRowResult(key, skipped ? null : true, text);
+      appendGitLog(
+        `${key} · ${label} ${skipped ? "已跳过" : "成功"}`,
+        skipped ? "error" : "ok",
+      );
       await loadGitSystems();
     } catch (err) {
       const msg = String(err.message || err);

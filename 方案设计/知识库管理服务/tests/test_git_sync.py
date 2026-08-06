@@ -10,6 +10,7 @@ from kb_orchestrator.service.git_sync import (
     LOCAL_SYSTEM_KEY,
     SYSTEM_BRANCH_MAP,
     GitSyncError,
+    _is_sensitive_git_path,
     git_sync_manager,
 )
 
@@ -48,6 +49,12 @@ class GitSyncTests(unittest.TestCase):
         with self.assertRaises(GitSyncError) as ctx:
             git_sync_manager.request_merge_main("销售系统")
         self.assertEqual(ctx.exception.code, "no_token")
+
+    def test_sensitive_git_path_rules(self) -> None:
+        self.assertTrue(_is_sensitive_git_path("config/daily-kb-sync.env"))
+        self.assertTrue(_is_sensitive_git_path(".env"))
+        self.assertFalse(_is_sensitive_git_path("config/daily-kb-sync.env.example"))
+        self.assertFalse(_is_sensitive_git_path("方案设计/foo.html"))
 
 
 if __name__ == "__main__":

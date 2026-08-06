@@ -42,7 +42,17 @@ SYSTEM_BRANCH_MAP: dict[str, str] = {
 
 LOCAL_PREVIEW_BASE_URL = "https://18501404120.github.io/cursor/"
 
-_SENSITIVE_PATTERNS = (".env", ".pem", "credentials.json")
+
+def _is_sensitive_git_path(rel_path: str) -> bool:
+    """排除真实密钥文件，不误伤 *.env.example 等模板。"""
+    name = Path(rel_path).name.lower()
+    if name in {".env", "credentials.json"}:
+        return True
+    if name.endswith(".pem"):
+        return True
+    if name.endswith(".env") and not name.endswith(".env.example"):
+        return True
+    return False
 
 
 class GitSyncError(Exception):
@@ -908,24 +918,24 @@ class GitSyncManager:
         _run_git(["add", "-A"], repo)
         diff = _run_git(["diff", "--cached", "--name-only"], repo, check=False)
         staged_files = [line for line in diff.stdout.splitlines() if line.strip()]
-        safe_files = [
-            f
-            for f in staged_files
-            if not any(part in f for part in _SENSITIVE_PATTERNS)
-        ]
-        if len(safe_files) < len(staged_files):
-            for risky in set(staged_files) - set(safe_files):
+        excluded_files = [f for f in staged_files if _is_sensitive_git_path(f)]
+        safe_files = [f for f in staged_files if not _is_sensitive_git_path(f)]
+        if excluded_files:
+            for risky in excluded_files:
                 _run_git(["reset", "HEAD", "--", risky], repo, check=False)
 
         cached = _run_git(["diff", "--cached", "--quiet"], repo, check=False)
         if cached.returncode == 0:
+            logs = []
+            if excluded_files:
+                logs.append(f"已排除敏感文件: {', '.join(excluded_files)}")
             return {
                 "ok": True,
                 "action": "push",
                 "system": LOCAL_SYSTEM_KEY,
                 "skipped": True,
                 "message": "本地：无有效变更可提交（已排除敏感文件）",
-                "logs": [],
+                "logs": logs,
                 "preview_base_url": LOCAL_PREVIEW_BASE_URL,
             }
 
