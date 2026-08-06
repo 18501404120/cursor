@@ -1305,9 +1305,8 @@
       if (!silent) toast(n + "：请选择分摊模式");
       return false;
     }
-    var rowAllocMode = getRowAllocMode(row);
-    if (rowAllocMode === "不分摊" && !row.deptCode) {
-      if (!silent) toast(n + "：不分摊模式下费用部门为必填项");
+    if (!row.deptCode) {
+      if (!silent) toast(n + "：请填写费用部门");
       return false;
     }
     if (!(row.amount > 0)) {
@@ -1386,7 +1385,6 @@
         "<td>" + currencySelectHtml(row.currency || "USD") + "</td>" +
         '<td class="actions">' +
         '<button type="button" class="link js-budget-copy">复制</button>' +
-        '<button type="button" class="link js-budget-save">保存</button>' +
         '<button type="button" class="link danger js-budget-del">删除</button>' +
         "</td>";
       tbody.appendChild(tr);
@@ -1409,26 +1407,11 @@
     });
     tbody.querySelectorAll("tr[data-id]").forEach(function (tr) {
       var id = tr.dataset.id;
-      var saveBtn = tr.querySelector(".js-budget-save");
       var copyBtn = tr.querySelector(".js-budget-copy");
       var delBtn = tr.querySelector(".js-budget-del");
       if (copyBtn) {
         copyBtn.addEventListener("click", function () {
           copyRow(tbodyId, chkAllId, btnBatchDelId, id);
-        });
-      }
-      if (saveBtn) {
-        saveBtn.addEventListener("click", function () {
-          var list = loadAll();
-          var idx = list.findIndex(function (x) {
-            return x.id === id;
-          });
-          if (idx < 0) return;
-          var row = readRowFromDom(tr, list[idx]);
-          if (!validateRow(row, idx)) return;
-          list[idx] = row;
-          saveAll(list);
-          toast("已保存该行预算");
         });
       }
       if (delBtn) {
