@@ -7,6 +7,7 @@ import shutil
 import subprocess
 import tempfile
 import threading
+import time
 import urllib.error
 import urllib.request
 from dataclasses import dataclass, field
@@ -14,9 +15,11 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+from ..env import load_dotenv
 from ..paths import WorkspacePaths
 
 LOCAL_SYSTEM_KEY = "本地"
+ERP_PRODUCT_PUSH_BRANCH = "feature-chengkaiwu-xiaoshou"
 
 GIT_PUSH_SYSTEMS = frozenset(
     {
@@ -30,13 +33,11 @@ GIT_PUSH_SYSTEMS = frozenset(
     }
 )
 
+# 各系统知识库均推送到同一分支（与 ERP_product 当前工作分支一致）
 SYSTEM_BRANCH_MAP: dict[str, str] = {
-    "分销系统": "feature-chengkaiwu-fenxiao",
-    "销售系统": "feature-chengkaiwu-xiaoshou",
-    "GTM系统": "feature-chengkaiwu-gtm",
-    "自营系统": "feature-chengkaiwu-ziying",
-    "产品系统": "feature-chengkaiwu-chanpin",
-    "商超系统": "feature-chengkaiwu-shangchao",
+    name: ERP_PRODUCT_PUSH_BRANCH
+    for name in GIT_PUSH_SYSTEMS
+    if name != LOCAL_SYSTEM_KEY
 }
 
 LOCAL_PREVIEW_BASE_URL = "https://18501404120.github.io/cursor/"
@@ -70,22 +71,83 @@ def _now_label() -> str:
     return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
 
+def _erp_push_branch(_system_key: str) -> str:
+    return ERP_PRODUCT_PUSH_BRANCH
+
+
 def _load_github_token() -> str:
-    token = os.environ.get("GITHUB_TOKEN", "").strip()
-    if token:
-        return token
-    paths = WorkspacePaths.resolve()
-    env_file = paths.local_dir / "config" / "daily-kb-sync.env"
-    if not env_file.is_file():
-        return ""
-    for raw in env_file.read_text(encoding="utf-8").splitlines():
-        line = raw.strip()
-        if not line or line.startswith("#") or "=" not in line:
-            continue
-        key, value = line.split("=", 1)
-        if key.strip() == "GITHUB_TOKEN":
-            return value.strip().strip("'").strip('"')
-    return ""
+    load_dotenv(override=True)
+    return os.environ.get("GITHUB_TOKEN", "").strip()
+
+
+def _parse_github_repo(remote_url: str) -> tuple[str, str] | None:
+    patterns = [
+        re.compile(r"git@[^:]+:([^/]+)/(.+?)(?:\.git)?$"),
+        re.compile(r"https://[^/]+/([^/]+)/(.+?)(?:\.git)?$"),
+    ]
+    for pattern in patterns:
+        match = pattern.search(remote_url.strip())
+        if match:
+            return match.group(1), match.group(2)
+    return None
+
+
+def _github_headers(token: str) -> dict[str, str]:
+    return {
+        "Authorization": f"Bearer {token}",
+        "Accept": "application/vnd.github+json",
+        "X-GitHub-Api-Version": "2022-11-28",
+    }
+
+
+def _github_request(
+    method: str,
+    url: str,
+    token: str,
+    payload: dict[str, Any] | None = None,
+    *,
+    timeout: int = 30,
+) -> Any:
+    data = None
+    headers = _github_headers(token)
+    if payload is not None:
+        data = json.dumps(payload).encode("utf-8")
+        headers["Content-Type"] = "application/json"
+    req = urllib.request.Request(url, data=data, headers=headers, method=method)
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            body = resp.read().decode("utf-8")
+            return json.loads(body) if body else {}
+    except urllib.error.HTTPError as exc:
+        detail = exc.read().decode("utf-8", errors="replace")
+        try:
+            parsed = json.loads(detail)
+            message = parsed.get("message") or detail
+        except json.JSONDecodeError:
+            message = detail or str(exc)
+        raise GitSyncError(
+            f"GitHub API 请求失败（{exc.code}）",
+            details=message,
+            code="github_api",
+        ) from exc
+    except (urllib.error.URLError, json.JSONDecodeError, TimeoutError) as exc:
+        raise GitSyncError("GitHub API 请求失败", details=str(exc), code="github_api") from exc
+
+
+def _github_graphql(token: str, query: str, variables: dict[str, Any]) -> dict[str, Any]:
+    payload = {"query": query, "variables": variables}
+    result = _github_request("POST", "https://api.github.com/graphql", token, payload)
+    if not isinstance(result, dict):
+        raise GitSyncError("GitHub GraphQL 返回异常", code="github_api")
+    if result.get("errors"):
+        messages = "; ".join(
+            str(item.get("message") or item) for item in result["errors"] if item
+        )
+        raise GitSyncError("GitHub GraphQL 请求失败", details=messages, code="github_api")
+    data = result.get("data")
+    if not isinstance(data, dict):
+        raise GitSyncError("GitHub GraphQL 返回异常", code="github_api")
+    return data
 
 
 def _run_git(
@@ -158,18 +220,6 @@ def _current_branch(repo: Path) -> str:
     if result.ok and result.stdout.strip():
         return result.stdout.strip()
     return "HEAD"
-
-
-def _parse_github_repo(remote_url: str) -> tuple[str, str] | None:
-    patterns = [
-        re.compile(r"git@[^:]+:([^/]+)/(.+)\.git$"),
-        re.compile(r"https://[^/]+/([^/]+)/(.+)\.git$"),
-    ]
-    for pattern in patterns:
-        match = pattern.search(remote_url.strip())
-        if match:
-            return match.group(1), match.group(2)
-    return None
 
 
 def _count_changes(repo: Path, rel_path: str | None = None) -> int:
@@ -278,13 +328,13 @@ class GitSyncManager:
         product_dirty = _count_changes(product_repo) if _is_git_repo(product_repo) else 0
 
         for name in _erp_system_names(paths):
-            mapped = SYSTEM_BRANCH_MAP.get(name)
+            target_branch = _erp_push_branch(name)
             system_changes = (
                 _count_changes(product_repo, f"{name}/") if _is_git_repo(product_repo) else 0
             )
             tracking = (
-                _branch_tracking(product_repo, mapped)
-                if mapped and _is_git_repo(product_repo)
+                _branch_tracking(product_repo, target_branch)
+                if _is_git_repo(product_repo)
                 else None
             )
             items.append(
@@ -295,7 +345,7 @@ class GitSyncManager:
                     "repo_path": str(product_repo),
                     "kind": "erp",
                     "current_branch": product_branch,
-                    "mapped_branch": mapped,
+                    "target_branch": target_branch,
                     "can_push": name in GIT_PUSH_SYSTEMS,
                     "change_count": system_changes,
                     "repo_change_count": product_dirty,
@@ -320,7 +370,7 @@ class GitSyncManager:
                 "repo_path": str(local_repo),
                 "kind": "local",
                 "current_branch": local_branch,
-                "mapped_branch": "main",
+                "target_branch": "main",
                 "can_push": True,
                 "change_count": local_changes,
                 "repo_change_count": local_changes,
@@ -358,6 +408,244 @@ class GitSyncManager:
             return self._push_erp_system(key, WorkspacePaths.resolve(erp_root))
         finally:
             self._end()
+
+    def request_merge_main(self, system_key: str, *, erp_root=None) -> dict[str, Any]:
+        key = system_key.strip()
+        if key not in GIT_PUSH_SYSTEMS:
+            raise GitSyncError(f"系统 {key} 不支持请求合并", code="forbidden")
+        self._begin("merge-request", key)
+        try:
+            return self._request_merge_main(key, WorkspacePaths.resolve(erp_root))
+        finally:
+            self._end()
+
+    def _resolve_merge_repo(self, system_key: str, paths: WorkspacePaths) -> Path:
+        if system_key == LOCAL_SYSTEM_KEY:
+            return paths.local_dir
+        return paths.erp_product_dir
+
+    def _resolve_merge_head_branch(self, system_key: str, repo: Path) -> str:
+        if system_key == LOCAL_SYSTEM_KEY:
+            return _current_branch(repo)
+        return ERP_PRODUCT_PUSH_BRANCH
+
+    def _find_open_pr(
+        self, owner: str, name: str, token: str, head_branch: str, base_branch: str = "main"
+    ) -> dict[str, Any] | None:
+        url = (
+            f"https://api.github.com/repos/{owner}/{name}/pulls"
+            f"?head={owner}:{head_branch}&base={base_branch}&state=open"
+        )
+        result = _github_request("GET", url, token)
+        if isinstance(result, list) and result:
+            return result[0]
+        return None
+
+    def _create_merge_pr(
+        self,
+        owner: str,
+        name: str,
+        token: str,
+        *,
+        head_branch: str,
+        base_branch: str,
+        system_key: str,
+    ) -> dict[str, Any]:
+        title = f"{system_key}：合并 {head_branch} → {base_branch} ({_now_label()[:10]})"
+        body = (
+            "## Summary\n"
+            f"由知识库管理服务发起的合并请求，将 `{head_branch}` 合入 `{base_branch}`。\n\n"
+            "## 变更范围\n"
+            f"触发系统：`{system_key}`\n"
+        )
+        return _github_request(
+            "POST",
+            f"https://api.github.com/repos/{owner}/{name}/pulls",
+            token,
+            {"title": title, "head": head_branch, "base": base_branch, "body": body},
+        )
+
+    def _get_pull_request(
+        self, owner: str, name: str, token: str, pr_number: int
+    ) -> dict[str, Any]:
+        return _github_request(
+            "GET",
+            f"https://api.github.com/repos/{owner}/{name}/pulls/{pr_number}",
+            token,
+        )
+
+    def _wait_for_mergeable(
+        self, owner: str, name: str, token: str, pr_number: int, *, attempts: int = 6
+    ) -> dict[str, Any]:
+        latest: dict[str, Any] = {}
+        for attempt in range(attempts):
+            latest = self._get_pull_request(owner, name, token, pr_number)
+            if latest.get("merged"):
+                return latest
+            if latest.get("mergeable") is not None:
+                return latest
+            if attempt < attempts - 1:
+                time.sleep(2)
+        return latest
+
+    def _merge_pull_request(
+        self, owner: str, name: str, token: str, pr_number: int
+    ) -> bool:
+        try:
+            _github_request(
+                "PUT",
+                f"https://api.github.com/repos/{owner}/{name}/pulls/{pr_number}/merge",
+                token,
+                {"merge_method": "merge"},
+            )
+            return True
+        except GitSyncError as exc:
+            if exc.code != "github_api":
+                raise
+            return False
+
+    def _enable_pull_request_auto_merge(
+        self, token: str, pull_request: dict[str, Any]
+    ) -> bool:
+        node_id = str(pull_request.get("node_id") or "").strip()
+        if not node_id:
+            return False
+        query = """
+        mutation EnableAutoMerge($pullRequestId: ID!) {
+          enablePullRequestAutoMerge(input: {pullRequestId: $pullRequestId, mergeMethod: MERGE}) {
+            pullRequest { number }
+          }
+        }
+        """
+        try:
+            _github_graphql(token, query, {"pullRequestId": node_id})
+            return True
+        except GitSyncError:
+            return False
+
+    def _request_merge_main(self, system_key: str, paths: WorkspacePaths) -> dict[str, Any]:
+        repo = self._resolve_merge_repo(system_key, paths)
+        if not _is_git_repo(repo):
+            raise GitSyncError(f"{system_key} 不是 Git 仓库")
+
+        token = _load_github_token()
+        if not token:
+            raise GitSyncError(
+                "未配置 GITHUB_TOKEN，请在 知识库管理服务/.env 中设置",
+                code="no_token",
+            )
+
+        remote = _run_git(["remote", "get-url", "origin"], repo, check=False)
+        if not remote.ok:
+            raise GitSyncError("无法读取 origin 远程地址", details=remote.text)
+        owner_repo = _parse_github_repo(remote.stdout.strip())
+        if not owner_repo:
+            raise GitSyncError("无法解析 GitHub 仓库地址", details=remote.stdout.strip())
+
+        owner, name = owner_repo
+        head_branch = self._resolve_merge_head_branch(system_key, repo)
+        base_branch = "main"
+        logs: list[str] = [f"源分支: {head_branch}", f"目标分支: {base_branch}"]
+
+        if head_branch == base_branch:
+            return {
+                "ok": True,
+                "action": "merge-request",
+                "system": system_key,
+                "branch": head_branch,
+                "skipped": True,
+                "message": f"{system_key}：当前已在 {base_branch} 分支，无需创建合并请求",
+                "logs": logs,
+            }
+
+        existing = self._find_open_pr(owner, name, token, head_branch, base_branch)
+        created = False
+        if existing:
+            pull = existing
+            logs.append(f"已找到进行中的 PR #{pull.get('number')}")
+        else:
+            pull = self._create_merge_pr(
+                owner,
+                name,
+                token,
+                head_branch=head_branch,
+                base_branch=base_branch,
+                system_key=system_key,
+            )
+            created = True
+            logs.append(f"已创建 PR #{pull.get('number')}")
+
+        pr_number = int(pull["number"])
+        pr_url = str(pull.get("html_url") or "")
+        logs.append(f"PR 链接: {pr_url}")
+
+        pull = self._wait_for_mergeable(owner, name, token, pr_number)
+        if pull.get("merged"):
+            message = f"{system_key}：PR 已合并到 {base_branch}"
+            logs.append("PR 已处于 merged 状态")
+            return {
+                "ok": True,
+                "action": "merge-request",
+                "system": system_key,
+                "branch": head_branch,
+                "pr_url": pr_url,
+                "merged": True,
+                "created": created,
+                "message": message,
+                "logs": logs,
+            }
+
+        mergeable = pull.get("mergeable")
+        mergeable_state = str(pull.get("mergeable_state") or "")
+        merged = False
+        auto_merge_enabled = False
+
+        if mergeable is True:
+            merged = self._merge_pull_request(owner, name, token, pr_number)
+            if merged:
+                logs.append("已自动合并到 main")
+            else:
+                logs.append("GitHub 返回不可立即合并，尝试开启自动合并")
+                auto_merge_enabled = self._enable_pull_request_auto_merge(token, pull)
+        elif mergeable is False:
+            logs.append("存在合并冲突，需先在 GitHub 上解决")
+        elif mergeable_state in {"blocked", "unstable"}:
+            auto_merge_enabled = self._enable_pull_request_auto_merge(token, pull)
+            if auto_merge_enabled:
+                logs.append("已开启自动合并，检查通过后将合入 main")
+            else:
+                logs.append("暂不可自动合并，请打开 PR 查看检查项或审批状态")
+        else:
+            auto_merge_enabled = self._enable_pull_request_auto_merge(token, pull)
+            if auto_merge_enabled:
+                logs.append("已开启自动合并")
+            else:
+                logs.append("GitHub 尚未完成可合并性判断，请稍后打开 PR 查看")
+
+        if merged:
+            message = f"{system_key}：已自动合并 {head_branch} → {base_branch}"
+        elif mergeable is False:
+            message = f"{system_key}：PR 存在冲突，请解决后合并"
+        elif auto_merge_enabled:
+            message = f"{system_key}：已创建 PR 并开启自动合并"
+        elif created:
+            message = f"{system_key}：已创建 PR（{head_branch} → {base_branch}）"
+        else:
+            message = f"{system_key}：已关联进行中的 PR（{head_branch} → {base_branch}）"
+
+        return {
+            "ok": True,
+            "action": "merge-request",
+            "system": system_key,
+            "branch": head_branch,
+            "pr_url": pr_url,
+            "merged": merged,
+            "auto_merge_enabled": auto_merge_enabled,
+            "created": created,
+            "mergeable": mergeable,
+            "message": message,
+            "logs": logs,
+        }
 
     def _pull_erp(self, system_key: str, paths: WorkspacePaths) -> dict[str, Any]:
         repo = paths.erp_product_dir
@@ -455,9 +743,10 @@ class GitSyncManager:
         }
 
     def _push_erp_system(self, system_key: str, paths: WorkspacePaths) -> dict[str, Any]:
-        target_branch = SYSTEM_BRANCH_MAP.get(system_key)
-        if not target_branch:
+        if system_key not in SYSTEM_BRANCH_MAP:
             raise GitSyncError(f"未配置 {system_key} 的目标分支")
+
+        target_branch = _erp_push_branch(system_key)
 
         repo = paths.erp_product_dir
         if not _is_git_repo(repo):
@@ -570,8 +859,6 @@ class GitSyncManager:
                 raise GitSyncError(f"push {target_branch} 失败", details=push.text)
             logs.append(f"已 push origin/{target_branch}")
 
-            pr_url = self._maybe_create_pr(repo, system_key, target_branch)
-
             if original_branch and original_branch != target_branch:
                 _run_git(["checkout", original_branch], repo, check=False)
                 logs.append(f"已切回 {original_branch}")
@@ -598,15 +885,6 @@ class GitSyncManager:
                 "message": message,
                 "logs": logs,
             }
-            if pr_url:
-                result["pr_url"] = pr_url
-            else:
-                owner_repo = self._github_owner_repo(repo)
-                if owner_repo:
-                    owner, name = owner_repo
-                    result["manual_pr_url"] = (
-                        f"https://github.com/{owner}/{name}/compare/main...{target_branch}"
-                    )
             return result
         finally:
             shutil.rmtree(backup_dir, ignore_errors=True)
@@ -681,68 +959,5 @@ class GitSyncManager:
             "logs": [push.stdout.strip() or push.stderr.strip() or "push 完成"],
             "preview_base_url": LOCAL_PREVIEW_BASE_URL,
         }
-
-    def _github_owner_repo(self, repo: Path) -> tuple[str, str] | None:
-        remote = _run_git(["remote", "get-url", "origin"], repo, check=False)
-        if not remote.ok:
-            return None
-        parsed = _parse_github_repo(remote.stdout.strip())
-        return parsed
-
-    def _maybe_create_pr(
-        self, repo: Path, system_key: str, target_branch: str
-    ) -> str | None:
-        token = _load_github_token()
-        owner_repo = self._github_owner_repo(repo)
-        if not token or not owner_repo:
-            return None
-        owner, name = owner_repo
-
-        check_url = (
-            f"https://api.github.com/repos/{owner}/{name}/pulls"
-            f"?head={owner}:{target_branch}&base=main&state=open"
-        )
-        req = urllib.request.Request(
-            check_url,
-            headers={
-                "Authorization": f"token {token}",
-                "Accept": "application/vnd.github+json",
-            },
-        )
-        try:
-            with urllib.request.urlopen(req, timeout=20) as resp:
-                existing = json.loads(resp.read().decode("utf-8"))
-            if isinstance(existing, list) and existing:
-                return str(existing[0].get("html_url") or "")
-        except (urllib.error.URLError, json.JSONDecodeError, TimeoutError):
-            pass
-
-        title = f"{system_key}知识库同步 {_now_label()[:10]}"
-        body = (
-            "## Summary\n"
-            "由知识库管理服务推送的知识库增量同步。\n\n"
-            "## 变更范围\n"
-            f"仅限 `{system_key}/` 目录的知识库文档更新。"
-        )
-        payload = json.dumps(
-            {"title": title, "head": target_branch, "base": "main", "body": body}
-        ).encode("utf-8")
-        create_req = urllib.request.Request(
-            f"https://api.github.com/repos/{owner}/{name}/pulls",
-            data=payload,
-            headers={
-                "Authorization": f"token {token}",
-                "Accept": "application/vnd.github+json",
-                "Content-Type": "application/json",
-            },
-            method="POST",
-        )
-        try:
-            with urllib.request.urlopen(create_req, timeout=20) as resp:
-                created = json.loads(resp.read().decode("utf-8"))
-            return str(created.get("html_url") or "") or None
-        except (urllib.error.URLError, json.JSONDecodeError, TimeoutError):
-            return None
-
 
 git_sync_manager = GitSyncManager()

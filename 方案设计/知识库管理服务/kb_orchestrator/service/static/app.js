@@ -595,12 +595,7 @@
   }
 
   function branchLabel(item) {
-    if (item.kind === "local") {
-      return item.current_branch || "main";
-    }
-    const mapped = item.mapped_branch ? `映射 ${item.mapped_branch}` : "";
-    const current = item.current_branch ? `当前 ${item.current_branch}` : "";
-    return [mapped, current].filter(Boolean).join(" · ");
+    return item.target_branch || item.current_branch || "—";
   }
 
   function renderGitTable(items, operation = {}) {
@@ -620,7 +615,10 @@
         const pushBtn = item.can_push
           ? `<button class="btn primary git-push" data-key="${escapeHtml(item.key)}" type="button" ${
               gitBusy ? "disabled" : ""
-            }>推送 Git</button>`
+            }>推送 Git</button>
+            <button class="btn ghost git-merge" data-key="${escapeHtml(item.key)}" type="button" ${
+              gitBusy ? "disabled" : ""
+            }>请求合并main分支</button>`
           : "";
         return `<tr data-key="${escapeHtml(item.key)}">
           <td><strong>${escapeHtml(item.name)}</strong></td>
@@ -655,7 +653,12 @@
     gitBusy = true;
     updateGitBusyBadge({ busy: true, busy_action: action, busy_system: key });
     renderGitTable(gitSystemsCache, { busy: true, busy_action: action, busy_system: key });
-    const label = action === "pull" ? "拉取最新" : "推送 Git";
+    const actionLabels = {
+      pull: "拉取最新",
+      push: "推送 Git",
+      "merge-request": "请求合并main分支",
+    };
+    const label = actionLabels[action] || action;
     appendGitLog(`${key} · ${label} 开始…`);
     try {
       const data = await api(`/api/git/${encodeURIComponent(key)}/${action}`, {
@@ -668,8 +671,6 @@
       }
       if (data.pr_url) {
         text += ` · <a href="${escapeHtml(data.pr_url)}" target="_blank" rel="noopener">PR</a>`;
-      } else if (data.manual_pr_url) {
-        text += ` · <a href="${escapeHtml(data.manual_pr_url)}" target="_blank" rel="noopener">建 PR</a>`;
       }
       if (Array.isArray(data.logs) && data.logs.length) {
         data.logs.forEach((line) => appendGitLog(`${key}: ${line}`));
@@ -697,12 +698,17 @@
   els.gitTableBody.addEventListener("click", (e) => {
     const pullBtn = e.target.closest(".git-pull");
     const pushBtn = e.target.closest(".git-push");
+    const mergeBtn = e.target.closest(".git-merge");
     if (pullBtn) {
       runGitAction("pull", pullBtn.dataset.key).catch(() => {});
       return;
     }
     if (pushBtn) {
       runGitAction("push", pushBtn.dataset.key).catch(() => {});
+      return;
+    }
+    if (mergeBtn) {
+      runGitAction("merge-request", mergeBtn.dataset.key).catch(() => {});
     }
   });
 

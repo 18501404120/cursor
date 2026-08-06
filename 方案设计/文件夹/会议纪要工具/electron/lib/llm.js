@@ -112,12 +112,7 @@ function extractJson(text) {
   throw new Error('无法解析模型返回的 JSON');
 }
 
-async function chatCompletion(config, messages, options = {}) {
-  const llm = getLlmConfig(config);
-  if (!llm.enabled) {
-    throw new Error('未配置 LLM API Key，请在 config.json 中设置 llm.apiKey');
-  }
-
+async function chatCompletionOnce(llm, messages, options = {}) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), llm.timeoutMs);
 
@@ -156,6 +151,30 @@ async function chatCompletion(config, messages, options = {}) {
   } finally {
     clearTimeout(timer);
   }
+}
+
+async function chatCompletion(config, messages, options = {}) {
+  const llm = getLlmConfig(config);
+  if (!llm.enabled) {
+    throw new Error('未配置 LLM API Key，请在 config.json 中设置 llm.apiKey');
+  }
+
+  const maxAttempts = options.retries == null ? 2 : Number(options.retries) + 1;
+  let lastErr;
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    try {
+      return await chatCompletionOnce(llm, messages, options);
+    } catch (err) {
+      lastErr = err;
+      const retryable = /超时|timeout|fetch failed|ECONNRESET|ETIMEDOUT|503|502|429/i.test(
+        String(err?.message || err)
+      );
+      if (!retryable || attempt >= maxAttempts) throw err;
+      console.warn(`[meeting-recorder] LLM 调用失败，第 ${attempt} 次重试:`, err.message);
+      await new Promise((r) => setTimeout(r, 1500 * attempt));
+    }
+  }
+  throw lastErr;
 }
 
 function isLlmConfigured(config) {

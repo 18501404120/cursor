@@ -226,6 +226,17 @@ def api_git_push(system_key: str) -> dict[str, Any]:
         raise HTTPException(status, {"message": str(exc), "details": exc.details, "code": exc.code}) from exc
 
 
+@app.post("/api/git/{system_key}/merge-request")
+def api_git_merge_request(system_key: str) -> dict[str, Any]:
+    try:
+        return git_sync_manager.request_merge_main(system_key)
+    except GitSyncError as exc:
+        if exc.code == "forbidden":
+            raise HTTPException(403, str(exc)) from exc
+        status = 409 if exc.code == "busy" else 400
+        raise HTTPException(status, {"message": str(exc), "details": exc.details, "code": exc.code}) from exc
+
+
 @app.get("/api/jobs/stream")
 async def api_stream(after: int = Query(0, ge=0)):
     async def gen():
