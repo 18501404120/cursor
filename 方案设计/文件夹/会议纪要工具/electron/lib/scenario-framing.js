@@ -319,6 +319,126 @@ function buildFactMessages(transcript) {
   ];
 }
 
+/** LLM 全失败时，用事实清单拼一份可渲染的最小场景页，避免整单无 HTML */
+function buildFallbackAnalysis(facts, topicHint) {
+  const topic =
+    sanitizeFilename(facts?.meetingTopic || topicFromFolderName(topicHint) || '会议梳理') ||
+    '会议梳理';
+  const painItems = (facts?.painPoints || []).slice(0, 6).map((p) => ({
+    title: p.title || '痛点',
+    body: p.body || '',
+  }));
+  const valueItems = (facts?.businessValue || []).slice(0, 6).map((v) => ({
+    title: v.title || '价值',
+    body: v.body || '',
+  }));
+  const openItems = (facts?.openQuestions || []).slice(0, 8).map((q) => {
+    const s = String(q || '').trim();
+    if (!s) return '待您确认：本场结论与后续动作？';
+    if (s.startsWith('待您确认') || s.startsWith('待确认')) return s;
+    return `待您确认：${s.replace(/[？?]$/, '')}？`;
+  });
+  const ruleItems = (facts?.rules || []).slice(0, 8).map(String);
+  const numberCards = (facts?.numbers || []).slice(0, 6).map((n) => ({
+    title: n.label || '指标',
+    body: `${n.value || ''}${n.context ? `（${n.context}）` : ''}`,
+  }));
+
+  const sections = [
+    {
+      id: 'bg',
+      num: 1,
+      title: '背景与目标',
+      navTitle: '背景',
+      lead: topic,
+      blocks: [
+        {
+          kind: 'cards',
+          items: numberCards.length
+            ? numberCards
+            : [{ title: '会议主题', body: topic }],
+        },
+      ],
+    },
+    {
+      id: 'pain',
+      num: 2,
+      title: '痛点',
+      navTitle: '痛点',
+      blocks: [
+        {
+          kind: 'cards',
+          items: painItems.length
+            ? painItems
+            : [{ title: '待补充', body: '本场未提炼出明确痛点，请结合转写核对。' }],
+        },
+      ],
+    },
+    {
+      id: 'value',
+      num: 3,
+      title: '价值',
+      navTitle: '价值',
+      blocks: [
+        {
+          kind: 'cards',
+          items: valueItems.length
+            ? valueItems
+            : [{ title: '待补充', body: '本场未提炼出明确业务价值，请结合转写核对。' }],
+        },
+      ],
+    },
+    {
+      id: 'rules',
+      num: 4,
+      title: '规则与口径',
+      navTitle: '规则',
+      blocks: [
+        {
+          kind: 'list',
+          items: ruleItems.length ? ruleItems : ['待确认：本场规则与口径需人工补充'],
+        },
+      ],
+    },
+    {
+      id: 'open',
+      num: 5,
+      title: '待确认',
+      navTitle: '待确认',
+      blocks: [
+        {
+          kind: 'list',
+          items: openItems.length
+            ? openItems
+            : ['待您确认：本场结论、责任人与下一步？'],
+        },
+      ],
+    },
+  ];
+
+  return {
+    meetingTopic: topic,
+    hero: facts?.heroHint || `基于转写自动兜底生成：${topic}`,
+    subtitle: '会议记录 · 场景梳理（兜底）',
+    readMinutes: 8,
+    sections,
+    meetingMinutes: {
+      summaryBlocks: [
+        {
+          title: '会议摘要',
+          paragraphs: [
+            `主题：${topic}`,
+            (facts?.decisions || []).length
+              ? `已拍板：${(facts.decisions || []).slice(0, 5).join('；')}`
+              : '已拍板结论较少，请回看转写原文。',
+          ],
+        },
+      ],
+      todos: Array.isArray(facts?.todos) ? facts.todos : [],
+    },
+  };
+}
+
 function countOpenItems(sections) {
   const open = (sections || []).find((s) => s.id === 'open');
   if (!open) return 0;
@@ -397,50 +517,68 @@ async function analyzeTranscript(config, transcript, onProgress, topicHint) {
 
   if (onProgress) onProgress({ phase: 'scenario', message: '第 2 步：生成场景梳理结构…' });
   const messages = buildAnalysisMessages(transcript, facts, topicHint);
-  let content = await chatCompletion(config, messages, { temperature: 0.35 });
-  let data;
+  let content = '';
+  let data = null;
+
   try {
-    data = normalizeAnalysisData(extractJson(content));
-  } catch (parseErr) {
-    console.warn('[meeting-recorder] 场景 JSON 解析失败，请求模型重输出:', parseErr.message);
-    content = await chatCompletion(config, [
-      ...messages,
-      { role: 'assistant', content },
-      {
-        role: 'user',
-        content:
-          `上一份输出不是合法 JSON（${parseErr.message}）。请只输出一份严格合法的 JSON 对象，不要 markdown，不要注释，字符串内引号必须转义。`,
-      },
-    ], { temperature: 0.2 });
-    data = normalizeAnalysisData(extractJson(content));
+    content = await chatCompletion(config, messages, { temperature: 0.35 });
+    try {
+      data = normalizeAnalysisData(extractJson(content));
+    } catch (parseErr) {
+      console.warn('[meeting-recorder] 场景 JSON 解析失败，请求模型重输出:', parseErr.message);
+      content = await chatCompletion(
+        config,
+        [
+          ...messages,
+          { role: 'assistant', content },
+          {
+            role: 'user',
+            content:
+              `上一份输出不是合法 JSON（${parseErr.message}）。请只输出一份严格合法的 JSON 对象，不要 markdown，不要注释，字符串内引号必须转义。章节可精简到 5～8 章，但 blocks 不能为空。`,
+          },
+        ],
+        { temperature: 0.2 }
+      );
+      data = normalizeAnalysisData(extractJson(content));
+    }
+  } catch (genErr) {
+    console.warn('[meeting-recorder] 场景结构生成失败，启用事实清单兜底:', genErr.message);
+    data = normalizeAnalysisData(buildFallbackAnalysis(facts, topicHint));
   }
 
-  const emptySections = data.sections.filter(sectionNeedsRepair);
-  if (!data.sections.length || emptySections.length) {
+  const repairEnabled = config?.scenarioFraming?.repairEmptySections === true;
+  const emptySections = (data.sections || []).filter(sectionNeedsRepair);
+  if (repairEnabled && (!data.sections.length || emptySections.length)) {
     console.warn('[meeting-recorder] 存在空章节，请求补全…', emptySections.map((s) => s.id));
     try {
       content = await chatCompletion(config, [
         ...messages,
-        { role: 'assistant', content },
+        { role: 'assistant', content: content || JSON.stringify(data) },
         {
           role: 'user',
           content: `以下章节 blocks 为空或内容不足：${emptySections.map((s) => s.id).join(', ') || '全部'}。
 请重新输出**完整** JSON。要求：
-- sections 至少 8 章，每章 blocks 非空且信息充实
-- types 章含 pills+table；data 章含 tabs；sku 章含 table+pipe；time 章含 moments
-- open 至少 6 条「待您确认：…？」
-- 写入转写中的具体数字与报告字段名
-- 控制篇幅，优先补齐空章节，避免冗长`,
+- sections 至少 6 章，每章 blocks 非空
+- open 至少 4 条「待您确认：…？」
+- 控制篇幅，优先补齐空章节`,
         },
       ]);
       data = normalizeAnalysisData(extractJson(content));
     } catch (repairErr) {
-      // 补全超时/失败时不整单失败：用首轮结果 + 事实清单继续渲染
       console.warn('[meeting-recorder] 空章节补全失败，将用已有结果继续生成:', repairErr.message);
     }
+  } else if (emptySections.length) {
+    console.warn(
+      '[meeting-recorder] 存在空章节，已跳过补全（可用 scenarioFraming.repairEmptySections=true 开启）:',
+      emptySections.map((s) => s.id)
+    );
   }
 
   data = enrichFromFacts(data, facts);
+
+  if (!data.sections?.length) {
+    data = normalizeAnalysisData(buildFallbackAnalysis(facts, topicHint));
+  }
 
   const stillEmpty = data.sections.filter(sectionNeedsRepair);
   if (stillEmpty.length) {
@@ -459,7 +597,7 @@ async function analyzeTranscript(config, transcript, onProgress, topicHint) {
   refineMeetingTopic(data, facts);
 
   if (!data.meetingTopic) {
-    throw new Error('模型未返回 meetingTopic');
+    data.meetingTopic = sanitizeFilename(topicFromFolderName(topicHint) || '会议梳理') || '会议梳理';
   }
   if (!data.sections.length) {
     throw new Error('模型未返回场景梳理 sections，请重试或更换 model');

@@ -30,20 +30,27 @@
       .replace(/"/g, '&quot;');
   }
 
-  function money(value, customer) {
-    if (window.FeeMgmtCommon && window.FeeMgmtCommon.formatMoney) {
-      return window.FeeMgmtCommon.formatMoney(value, customer);
-    }
-    var num = Number(value || 0);
-    var prefix = num < 0 ? '-$' : '$';
-    return prefix + Math.abs(num).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  }
-
   function getIncomeCurrency(customer) {
+    if (window.FeeMgmtCommon && window.FeeMgmtCommon.getDeductionCurrency) {
+      return window.FeeMgmtCommon.getDeductionCurrency(customer);
+    }
     if (window.FeeMgmtCommon && window.FeeMgmtCommon.getCustomerCurrency) {
       return window.FeeMgmtCommon.getCustomerCurrency(customer);
     }
     return 'USD';
+  }
+
+  function money(value, customerOrCurrency) {
+    var currency = getIncomeCurrency(customerOrCurrency);
+    if (window.FeeMgmtCommon && window.FeeMgmtCommon.formatMoney) {
+      return window.FeeMgmtCommon.formatMoney(value, currency);
+    }
+    var num = Number(value || 0);
+    var prefix = num < 0 ? '-' : '';
+    var abs = Math.abs(num).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    if (currency === 'CNY') return prefix + '¥' + abs;
+    if (currency === 'CAD') return prefix + 'C$' + abs;
+    return prefix + '$' + abs;
   }
 
   function updateExpenseCurrencyLabel(customer) {

@@ -35,6 +35,14 @@
     }
     return 'USD';
   }
+
+  /** 退款台账默认币种：加拿大四客户 CNY，勿用扣款域 CAD/USD */
+  function getDefaultRefundCurrency(customer) {
+    if (global.FeeMgmtCommon && global.FeeMgmtCommon.getRefundCurrency) {
+      return global.FeeMgmtCommon.getRefundCurrency(customer);
+    }
+    return getDefaultCustomerCurrency(customer);
+  }
   var DEFAULT_DEPARTMENTS = [
     { id: '1001', code: '1001', name: '北美商超业务部' },
     { id: '2003', code: '2003', name: '电商渠道部' },
@@ -498,8 +506,21 @@
     });
   }
 
+  function getBaseCustomerDeptMaster() {
+    return base.customerDeptMaster && typeof base.customerDeptMaster === 'object'
+      ? base.customerDeptMaster
+      : {};
+  }
+
   function readCustomerDeptMasterMap() {
-    return safeRead(STORAGE_KEYS.customerDeptMaster);
+    try {
+      if (storage.getItem(STORAGE_KEYS.customerDeptMaster) != null) {
+        return safeRead(STORAGE_KEYS.customerDeptMaster);
+      }
+    } catch (err) {
+      // fall through to base seed
+    }
+    return clone(getBaseCustomerDeptMaster()) || {};
   }
 
   function normalizeDepartmentMasterItem(item) {
@@ -731,6 +752,26 @@
     return normalizeDeductionMethod(overrideRow.method || baseRow.method || 'fixed_ratio');
   }
 
+  /** 促销扣款 H1(1-6月) / H2(7-12月) */
+  function promoHalfKey(period) {
+    var month = Number(String(period || '').slice(5, 7));
+    if (!Number.isFinite(month) || month <= 0) return 'H1';
+    return month >= 7 ? 'H2' : 'H1';
+  }
+
+  function resolveRuleRatio(baseRow, overrideRow, period) {
+    var feeType = baseRow.feeType || '';
+    var anchor = period || baseRow.sourcePeriod || periods[0] || '';
+    if (feeType === '促销扣款' && promoHalfKey(anchor) === 'H2') {
+      var ratioH2 = numericOrNull(overrideRow && overrideRow.ratioH2);
+      if (ratioH2 == null) ratioH2 = numericOrNull(baseRow.ratioH2);
+      if (ratioH2 != null) return ratioH2;
+    }
+    var ratio = numericOrNull(overrideRow && overrideRow.ratio);
+    if (ratio == null) ratio = numericOrNull(baseRow.ratio);
+    return ratio == null ? 0 : ratio;
+  }
+
   function getBaseAccrualAmount(customer, feeType, period) {
     var row = getBaseAccrualRow(customer, period);
     if (!row) return 0;
@@ -806,14 +847,17 @@
     var overrides = readOverrides(STORAGE_KEYS.fixedRules);
     var overrideRow = overrides[ruleId] || {};
     var method = resolveDeductionMethod(baseRow, overrideRow);
-    var ratio = numericOrNull(overrideRow.ratio);
-    if (ratio == null) ratio = numericOrNull(baseRow.ratio);
-    if (ratio == null) ratio = 0;
+    var sourcePeriod = baseRow.sourcePeriod || periods[periods.length - 1] || periods[0] || '';
+    var previewPeriod = sourcePeriod;
+    var ratio = resolveRuleRatio(baseRow, overrideRow, previewPeriod);
+    var ratioH1 = numericOrNull(overrideRow.ratio);
+    if (ratioH1 == null) ratioH1 = numericOrNull(baseRow.ratio);
+    if (ratioH1 == null) ratioH1 = 0;
+    var ratioH2 = numericOrNull(overrideRow.ratioH2);
+    if (ratioH2 == null) ratioH2 = numericOrNull(baseRow.ratioH2);
     var baseAmount = numericOrNull(overrideRow.baseAmount);
     if (baseAmount == null) baseAmount = numericOrNull(baseRow.baseAmount);
     var note = Object.prototype.hasOwnProperty.call(overrideRow, 'note') ? String(overrideRow.note || '') : String(baseRow.note || '');
-    var sourcePeriod = baseRow.sourcePeriod || periods[periods.length - 1] || periods[0] || '';
-    var previewPeriod = sourcePeriod;
     var sampleIncome = getIncome(baseRow.customer, previewPeriod);
     var sampleOrderAmount = getSalesOrderAmountExTax(baseRow.customer, previewPeriod);
     var deptItems = resolveDeptItems(overrideRow, baseRow.customer, baseRow);
@@ -833,12 +877,15 @@
       method: method,
       methodLabel: METHOD_LABELS[method] || method || '-',
       ratio: round8(effectiveRatio),
+      ratioH1: round8(ratioH1),
+      ratioH2: ratioH2 == null ? null : round8(ratioH2),
+      promoHalf: baseRow.feeType === '促销扣款' ? promoHalfKey(previewPeriod) : null,
       manualRatio: round8(ratio),
       deptRatios: deptRatios,
       deptItems: deptItems,
       deptRatioRows: deptRatioRows,
       ratioLabel: ratioLabelForFeeType(baseRow.feeType),
-      ratioSource: method === 'dept_fixed_ratio' ? '部门固定比例' : (hasValue(overrideRow.ratio) ? '手工覆盖' : '客户计提规则'),
+      ratioSource: method === 'dept_fixed_ratio' ? '部门固定比例' : (hasValue(overrideRow.ratio) || hasValue(overrideRow.ratioH2) ? '手工覆盖' : '客户计提规则'),
       baseAmount: baseAmount == null ? 0 : baseAmount,
       sourcePeriod: sourcePeriod,
       sampleIncome: sampleIncome,
@@ -984,9 +1031,7 @@
     var baseRow = fixedRuleBaseMap[ruleId] || {};
     var overrideRow = readOverrides(STORAGE_KEYS.fixedRules)[ruleId] || {};
     var method = resolveDeductionMethod(baseRow, overrideRow);
-    var ratio = numericOrNull(overrideRow.ratio);
-    if (ratio == null) ratio = numericOrNull(baseRow.ratio);
-    if (ratio == null) ratio = 0;
+    var ratio = resolveRuleRatio(baseRow, overrideRow, period);
     var baseAmount = numericOrNull(overrideRow.baseAmount);
     if (baseAmount == null) baseAmount = numericOrNull(baseRow.baseAmount);
     if (baseAmount == null) baseAmount = 0;
@@ -1197,7 +1242,7 @@
           period: period,
           openingBalance: openingBalance,
           actualRefund: actualRefund,
-          currency: actualOverride.currency || baseLedger.currency || getDefaultCustomerCurrency(customer),
+          currency: actualOverride.currency || baseLedger.currency || getDefaultRefundCurrency(customer),
           accrualAmount: accrualAmount,
           closingBalance: closingBalance,
           prevRatio: round8(prevRatio),
@@ -1445,8 +1490,8 @@
     var baseLedger = refundLedgerBaseMap[id] || {};
     var actualAmount = numericOrNull(payload.actualAmount);
     var note = String(payload.note || '');
-    var currency = getDefaultCustomerCurrency(payload.customer);
-    var baseCurrency = getDefaultCustomerCurrency(payload.customer);
+    var currency = getDefaultRefundCurrency(payload.customer);
+    var baseCurrency = getDefaultRefundCurrency(payload.customer);
 
     if (round2(actualAmount || 0) === round2(baseLedger.actualAmount || 0) && note === '' && currency === baseCurrency) {
       delete overrides[id];

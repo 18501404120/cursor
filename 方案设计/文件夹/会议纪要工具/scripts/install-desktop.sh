@@ -77,7 +77,24 @@ LOG_FILE="$LOG_FILE"
   echo ""
   echo "========== \$(date '+%Y-%m-%d %H:%M:%S') 启动 =========="
   cd "\$TOOL_ROOT" || exit 1
-  export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:\$PATH"
+  export PATH="\$HOME/.nvm/versions/node/\$(ls "\$HOME/.nvm/versions/node" 2>/dev/null | tail -1)/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:\$PATH"
+
+  if [ ! -x "\$ELECTRON_BIN" ]; then
+    echo "Electron 缺失，尝试自动 npm install…"
+    if command -v npm >/dev/null 2>&1; then
+      npm install --no-fund --no-audit
+    else
+      echo "未找到 npm，无法自动修复"
+      osascript -e 'display notification "Electron 缺失，请在工具目录执行 npm install" with title "会议记录"' 2>/dev/null || true
+      exit 1
+    fi
+  fi
+
+  if [ ! -x "\$ELECTRON_BIN" ]; then
+    echo "npm install 后仍无 Electron，启动失败"
+    exit 1
+  fi
+
   if [ "\$(sysctl -n hw.optional.arm64 2>/dev/null || echo 0)" = "1" ]; then
     exec arch -arm64 "\$ELECTRON_BIN" .
   else

@@ -169,26 +169,68 @@
   /** 商超扣款/退款页共用的「销售收入」取值口径说明 */
   var SALES_INCOME_LOGIC_DESC = '销售收入 − 退货退款的收入（金蝶-销售退货单，type=退货退款）';
 
-  /** 加拿大客户按人民币口径维护与展示 */
+  /**
+   * 加拿大客户币种按费用域拆分：
+   * - 退款/负债：CNY（跟预计负债汇总）
+   * - 扣款：Costco CA=USD；D&H CA / HOME DEPOT CANADA / Synnex-CA=CAD
+   * 优先读 SupermarketAccrualBaseData.customerCurrencies。
+   */
   var CANADIAN_CNY_CUSTOMERS = ['Costco CA', 'D&H CA', 'Synnex-CA', 'HOME DEPOT CANADA'];
+  var DEFAULT_CA_DEDUCTION = {
+    'Costco CA': 'USD',
+    'D&H CA': 'CAD',
+    'HOME DEPOT CANADA': 'CAD',
+    'Synnex-CA': 'CAD'
+  };
 
+  function getCustomerCurrencyMap(customer) {
+    var name = String(customer || '').trim();
+    var base = global.SupermarketAccrualBaseData || {};
+    var map = (base.customerCurrencies && base.customerCurrencies[name]) || null;
+    if (map && map.refund && map.deduction) return map;
+    if (CANADIAN_CNY_CUSTOMERS.indexOf(name) >= 0) {
+      return {
+        refund: 'CNY',
+        deduction: DEFAULT_CA_DEDUCTION[name] || 'CAD'
+      };
+    }
+    return { refund: 'USD', deduction: 'USD' };
+  }
+
+  function getRefundCurrency(customer) {
+    return getCustomerCurrencyMap(customer).refund;
+  }
+
+  function getDeductionCurrency(customer) {
+    return getCustomerCurrencyMap(customer).deduction;
+  }
+
+  /** 兼容旧调用：默认取扣款币种；退款页请改用 getRefundCurrency */
   function getCustomerCurrency(customer) {
-    return CANADIAN_CNY_CUSTOMERS.indexOf(String(customer || '').trim()) >= 0 ? 'CNY' : 'USD';
+    return getDeductionCurrency(customer);
   }
 
   function normalizeCurrencyCode(code) {
     var value = String(code || 'USD').trim().toUpperCase();
-    return value === 'CNY' ? 'CNY' : 'USD';
+    if (value === 'CNY' || value === 'CAD' || value === 'USD') return value;
+    return 'USD';
   }
 
+  /**
+   * 金额格式化。第二参可为币种码（CNY/USD/CAD）或客户名。
+   * 传入客户名时默认取「扣款币种」；退款页务必先 resolve 为 getRefundCurrency(customer) 再传入，
+   * 避免加拿大客户误显示 C$/$。
+   */
   function formatMoney(amount, customerOrCurrency) {
-    var currency = customerOrCurrency === 'CNY' || customerOrCurrency === 'USD'
+    var known = { CNY: 1, USD: 1, CAD: 1 };
+    var currency = known[String(customerOrCurrency || '').trim().toUpperCase()]
       ? normalizeCurrencyCode(customerOrCurrency)
       : getCustomerCurrency(customerOrCurrency);
     var num = Number(amount || 0);
     var prefix = num < 0 ? '-' : '';
     var abs = Math.abs(num).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     if (currency === 'CNY') return prefix + '¥' + abs;
+    if (currency === 'CAD') return prefix + 'C$' + abs;
     return prefix + '$' + abs;
   }
 
@@ -199,12 +241,13 @@
     return prefix + code + ' ' + Math.abs(num).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   }
 
-  function resolveStatsCurrency(rows, selectedCustomer) {
-    if (selectedCustomer) return getCustomerCurrency(selectedCustomer);
+  function resolveStatsCurrency(rows, selectedCustomer, domain) {
+    var getter = domain === 'refund' ? getRefundCurrency : getDeductionCurrency;
+    if (selectedCustomer) return getter(selectedCustomer);
     if (!rows || !rows.length) return 'USD';
     var map = {};
     rows.forEach(function (row) {
-      map[getCustomerCurrency(row.customer)] = true;
+      map[getter(row.customer)] = true;
     });
     var keys = Object.keys(map);
     return keys.length === 1 ? keys[0] : 'USD';
@@ -293,6 +336,9 @@
     currentMonthYm: currentMonthYm,
     salesIncomeLogicDesc: SALES_INCOME_LOGIC_DESC,
     canadianCnyCustomers: CANADIAN_CNY_CUSTOMERS.slice(),
+    getCustomerCurrencyMap: getCustomerCurrencyMap,
+    getRefundCurrency: getRefundCurrency,
+    getDeductionCurrency: getDeductionCurrency,
     getCustomerCurrency: getCustomerCurrency,
     normalizeCurrencyCode: normalizeCurrencyCode,
     formatMoney: formatMoney,

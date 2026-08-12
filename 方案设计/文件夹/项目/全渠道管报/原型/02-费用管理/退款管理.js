@@ -29,20 +29,28 @@
       .replace(/"/g, '&quot;');
   }
 
-  function money(value, customer) {
-    if (window.FeeMgmtCommon && window.FeeMgmtCommon.formatMoney) {
-      return window.FeeMgmtCommon.formatMoney(value, customer);
-    }
-    var num = Number(value || 0);
-    var prefix = num < 0 ? '-$' : '$';
-    return prefix + Math.abs(num).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  }
-
   function getIncomeCurrency(customer) {
+    if (window.FeeMgmtCommon && window.FeeMgmtCommon.getRefundCurrency) {
+      return window.FeeMgmtCommon.getRefundCurrency(customer);
+    }
     if (window.FeeMgmtCommon && window.FeeMgmtCommon.getCustomerCurrency) {
       return window.FeeMgmtCommon.getCustomerCurrency(customer);
     }
     return 'USD';
+  }
+
+  /** 退款域金额展示：必须按退款币种（加拿大四客户 CNY→¥），禁止落到扣款币种 CAD/USD */
+  function money(value, customerOrCurrency) {
+    var currency = getIncomeCurrency(customerOrCurrency);
+    if (window.FeeMgmtCommon && window.FeeMgmtCommon.formatMoney) {
+      return window.FeeMgmtCommon.formatMoney(value, currency);
+    }
+    var num = Number(value || 0);
+    var prefix = num < 0 ? '-' : '';
+    var abs = Math.abs(num).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    if (currency === 'CNY') return prefix + '¥' + abs;
+    if (currency === 'CAD') return prefix + 'C$' + abs;
+    return prefix + '$' + abs;
   }
 
   function formatCurrencyAmount(amount, currency) {
@@ -275,7 +283,7 @@
     var closing = 0;
     var selectedCustomer = document.getElementById('qCustomer').value;
     var statsCurrency = window.FeeMgmtCommon && window.FeeMgmtCommon.resolveStatsCurrency
-      ? window.FeeMgmtCommon.resolveStatsCurrency(list, selectedCustomer)
+      ? window.FeeMgmtCommon.resolveStatsCurrency(list, selectedCustomer, 'refund')
       : 'USD';
 
     list.forEach(function (row) {

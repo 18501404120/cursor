@@ -1,0 +1,843 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>研发知识解耦 · 方案框架</title>
+  <style>
+    :root {
+      --bg: #f4f6fb;
+      --card: #fff;
+      --text: #1a2332;
+      --muted: #5c6b7f;
+      --primary: #4f46e5;
+      --primary-light: #eef2ff;
+      --success: #059669;
+      --success-light: #ecfdf5;
+      --warn: #d97706;
+      --warn-light: #fffbeb;
+      --danger: #dc2626;
+      --danger-light: #fef2f2;
+      --border: #e2e8f0;
+      --shadow: 0 4px 24px rgba(15, 23, 42, 0.06);
+      --radius: 14px;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+      font-size: 14px;
+    }
+    .page { max-width: 1180px; margin: 0 auto; padding: 32px 20px 64px; }
+
+    /* Hero */
+    .hero {
+      background: linear-gradient(135deg, #312e81 0%, #4f46e5 55%, #6366f1 100%);
+      color: #fff;
+      border-radius: 20px;
+      padding: 36px 40px;
+      margin-bottom: 28px;
+      box-shadow: var(--shadow);
+    }
+    .hero-tag { font-size: 12px; opacity: 0.85; letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 8px; }
+    .hero h1 { font-size: 28px; font-weight: 700; margin-bottom: 12px; }
+    .hero-summary {
+      font-size: 16px;
+      opacity: 0.95;
+      max-width: 720px;
+      padding: 14px 18px;
+      background: rgba(255,255,255,0.12);
+      border-radius: 10px;
+      border-left: 4px solid #a5b4fc;
+    }
+
+    /* Section */
+    .section { margin-bottom: 32px; }
+    .section-head {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 18px;
+    }
+    .section-num {
+      width: 32px; height: 32px;
+      background: var(--primary);
+      color: #fff;
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 700; font-size: 14px; flex-shrink: 0;
+    }
+    .section-head h2 { font-size: 20px; font-weight: 700; }
+
+    /* Compare */
+    .compare-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+    @media (max-width: 800px) { .compare-grid { grid-template-columns: 1fr; } }
+    .compare-card {
+      background: var(--card);
+      border-radius: var(--radius);
+      padding: 22px;
+      box-shadow: var(--shadow);
+      border-top: 4px solid;
+    }
+    .compare-card.old { border-color: #94a3b8; }
+    .compare-card.new { border-color: var(--primary); }
+    .compare-label {
+      font-size: 11px; font-weight: 700; letter-spacing: 0.06em;
+      text-transform: uppercase; margin-bottom: 6px;
+    }
+    .compare-card.old .compare-label { color: #64748b; }
+    .compare-card.new .compare-label { color: var(--primary); }
+    .compare-card h3 { font-size: 17px; margin-bottom: 14px; }
+
+    /* Flow diagram */
+    .flow-v {
+      display: flex; flex-direction: column; align-items: center; gap: 0;
+      padding: 8px 0;
+    }
+    .flow-node {
+      background: #f1f5f9;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 8px 16px;
+      font-size: 13px;
+      text-align: center;
+      min-width: 200px;
+    }
+    .flow-node.highlight { background: var(--primary-light); border-color: #c7d2fe; color: var(--primary); font-weight: 600; }
+    .flow-arrow { color: #94a3b8; font-size: 18px; line-height: 1; padding: 2px 0; }
+
+    .flow-parallel {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+    @media (max-width: 600px) { .flow-parallel { grid-template-columns: 1fr 1fr; } }
+    .lane {
+      background: var(--primary-light);
+      border: 1px dashed #a5b4fc;
+      border-radius: 8px;
+      padding: 10px 8px;
+      text-align: center;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--primary);
+    }
+    .merge-bar {
+      background: linear-gradient(90deg, #4f46e5, #6366f1);
+      color: #fff;
+      text-align: center;
+      padding: 10px;
+      border-radius: 8px;
+      font-weight: 600;
+      font-size: 13px;
+    }
+
+    /* Pain points */
+    .pain-list { list-style: none; display: flex; flex-direction: column; gap: 8px; }
+    .pain-list li {
+      display: flex; align-items: flex-start; gap: 8px;
+      font-size: 13px; color: var(--muted);
+    }
+    .pain-list li::before { content: "⚠"; flex-shrink: 0; }
+    .gain-list li::before { content: "✓"; color: var(--success); font-weight: 700; }
+
+    /* Pillars */
+    .pillar-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+    }
+    .pillar-card {
+      background: var(--card);
+      border-radius: var(--radius);
+      padding: 20px;
+      box-shadow: var(--shadow);
+      position: relative;
+      overflow: hidden;
+    }
+    .pillar-card::before {
+      content: attr(data-n);
+      position: absolute; top: 12px; right: 14px;
+      font-size: 42px; font-weight: 800; color: #f1f5f9; line-height: 1;
+    }
+    .pillar-icon {
+      width: 44px; height: 44px;
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 22px; margin-bottom: 12px;
+    }
+    .pillar-card h4 { font-size: 15px; margin-bottom: 6px; }
+    .pillar-card p { font-size: 12px; color: var(--muted); margin-bottom: 10px; }
+    .pillar-tag {
+      display: inline-block;
+      font-size: 11px;
+      background: var(--primary-light);
+      color: var(--primary);
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-weight: 600;
+    }
+
+    /* Gate timeline */
+    .gate-track {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      align-items: center;
+      padding: 16px;
+      background: var(--card);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+    }
+    .gate {
+      background: #f8fafc;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 8px 12px;
+      text-align: center;
+      min-width: 56px;
+    }
+    .gate strong { display: block; font-size: 13px; }
+    .gate span { font-size: 10px; color: var(--muted); }
+    .gate.skip { opacity: 0.45; border-style: dashed; }
+    .gate-arrow { color: #cbd5e1; font-size: 16px; }
+
+    /* Blocks table visual */
+    .blocks-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+      gap: 12px;
+    }
+    .block-item {
+      background: var(--card);
+      border-radius: 10px;
+      padding: 14px;
+      border-left: 3px solid var(--primary);
+      box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+    }
+    .block-item .role { font-size: 11px; color: var(--primary); font-weight: 600; margin-bottom: 4px; }
+    .block-item .name { font-size: 14px; font-weight: 700; margin-bottom: 6px; }
+    .block-item .verify { font-size: 11px; color: var(--muted); }
+
+    /* JP card */
+    .jp-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; }
+    .jp-card {
+      background: var(--card);
+      border-radius: var(--radius);
+      padding: 16px;
+      box-shadow: var(--shadow);
+    }
+    .jp-card .jp-name {
+      font-weight: 700; font-size: 15px; color: var(--primary);
+      margin-bottom: 8px;
+      display: flex; align-items: center; gap: 6px;
+    }
+    .jp-card ul { list-style: none; font-size: 12px; color: var(--muted); }
+    .jp-card ul li { padding: 3px 0; padding-left: 14px; position: relative; }
+    .jp-card ul li::before { content: "•"; position: absolute; left: 0; color: var(--primary); }
+
+    /* Rules */
+    .rules-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+    @media (max-width: 800px) { .rules-grid { grid-template-columns: 1fr 1fr; } }
+    .rule-card {
+      background: var(--card);
+      border-radius: 10px;
+      padding: 16px;
+      text-align: center;
+      box-shadow: var(--shadow);
+    }
+    .rule-card .emoji { font-size: 28px; margin-bottom: 8px; }
+    .rule-card h5 { font-size: 14px; margin-bottom: 6px; }
+    .rule-card p { font-size: 11px; color: var(--muted); }
+
+    /* Before/After fields */
+    .field-compare {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      gap: 16px;
+      align-items: center;
+    }
+    @media (max-width: 700px) { .field-compare { grid-template-columns: 1fr; } }
+    .field-box {
+      background: var(--card);
+      border-radius: var(--radius);
+      padding: 18px;
+      box-shadow: var(--shadow);
+    }
+    .field-box h4 { font-size: 13px; margin-bottom: 10px; }
+    .field-box.before { border-top: 3px solid #94a3b8; }
+    .field-box.after { border-top: 3px solid var(--success); }
+    .field-row {
+      display: flex; justify-content: space-between;
+      font-size: 12px; padding: 6px 0;
+      border-bottom: 1px dashed var(--border);
+    }
+    .field-row:last-child { border: none; }
+    .field-row .val { font-weight: 600; }
+    .field-arrow { font-size: 24px; color: var(--primary); text-align: center; }
+
+    /* Steps */
+    .steps { display: flex; flex-direction: column; gap: 0; }
+    .step {
+      display: flex; gap: 16px;
+      padding: 14px 0;
+      border-left: 2px solid #e2e8f0;
+      margin-left: 15px;
+      padding-left: 24px;
+      position: relative;
+    }
+    .step::before {
+      content: attr(data-step);
+      position: absolute; left: -16px; top: 12px;
+      width: 30px; height: 30px;
+      background: var(--primary);
+      color: #fff;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 12px; font-weight: 700;
+    }
+    .step-body h5 { font-size: 14px; margin-bottom: 2px; }
+    .step-body p { font-size: 12px; color: var(--muted); }
+
+    /* Pipeline overview */
+    .pipeline {
+      background: var(--card);
+      border-radius: var(--radius);
+      padding: 24px;
+      box-shadow: var(--shadow);
+      text-align: center;
+    }
+    .pipeline-flow {
+      display: flex; flex-wrap: wrap; justify-content: center; align-items: center;
+      gap: 4px; margin: 16px 0;
+    }
+    .pipe-item {
+      background: var(--primary-light);
+      color: var(--primary);
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 12px; font-weight: 600;
+    }
+    .pipe-down { color: #94a3b8; font-size: 20px; margin: 8px 0; }
+    .pipe-note {
+      display: flex; flex-wrap: wrap; justify-content: center; gap: 12px;
+      margin-top: 12px; font-size: 12px;
+    }
+    .note-keep { color: var(--success); font-weight: 600; }
+    .note-change { color: var(--warn); font-weight: 600; }
+
+    /* Mapping table */
+    .map-table {
+      width: 100%;
+      border-collapse: collapse;
+      background: var(--card);
+      border-radius: var(--radius);
+      overflow: hidden;
+      box-shadow: var(--shadow);
+      font-size: 13px;
+    }
+    .map-table th {
+      background: #f8fafc;
+      text-align: left;
+      padding: 12px 16px;
+      font-weight: 600;
+      border-bottom: 1px solid var(--border);
+    }
+    .map-table td {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+      vertical-align: top;
+    }
+    .map-table tr:last-child td { border-bottom: none; }
+    .badge {
+      display: inline-block;
+      background: var(--primary-light);
+      color: var(--primary);
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 600;
+    }
+
+    /* Do / Don't */
+    .dodont { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    @media (max-width: 600px) { .dodont { grid-template-columns: 1fr; } }
+    .do-box, .dont-box {
+      border-radius: var(--radius);
+      padding: 18px;
+      box-shadow: var(--shadow);
+    }
+    .do-box { background: var(--success-light); }
+    .dont-box { background: var(--danger-light); }
+    .do-box h4 { color: var(--success); margin-bottom: 10px; font-size: 14px; }
+    .dont-box h4 { color: var(--danger); margin-bottom: 10px; font-size: 14px; }
+    .do-box ul, .dont-box ul { list-style: none; font-size: 12px; }
+    .do-box li, .dont-box li { padding: 4px 0; padding-left: 18px; position: relative; }
+    .do-box li::before { content: "✓"; position: absolute; left: 0; color: var(--success); font-weight: 700; }
+    .dont-box li::before { content: "✕"; position: absolute; left: 0; color: var(--danger); font-weight: 700; }
+
+    /* Dual track */
+    .dual-track { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    @media (max-width: 600px) { .dual-track { grid-template-columns: 1fr; } }
+    .track-card {
+      background: var(--card);
+      border-radius: var(--radius);
+      padding: 20px;
+      box-shadow: var(--shadow);
+      text-align: center;
+    }
+    .track-card .track-icon { font-size: 36px; margin-bottom: 10px; }
+    .track-card h4 { margin-bottom: 8px; }
+    .track-card p { font-size: 12px; color: var(--muted); }
+
+    footer {
+      text-align: center;
+      font-size: 11px;
+      color: var(--muted);
+      margin-top: 40px;
+      padding-top: 20px;
+      border-top: 1px solid var(--border);
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+
+    <!-- Hero -->
+    <header class="hero">
+      <div class="hero-tag">研发知识解耦 · 家电事业部方案框架</div>
+      <h1>从「流水线催文档」到「分块并行、到点汇合」</h1>
+      <p class="hero-summary">
+        阶段节点不变（CD→KO→ES→TL→DR→BT→CR）｜节点之间拆块并行｜汇入点对齐阶段节点｜规则代替催办｜关键信息字段化
+      </p>
+    </header>
+
+    <!-- Section 1: 1.0 vs 2.0 -->
+    <section class="section">
+      <div class="section-head">
+        <div class="section-num">1</div>
+        <h2>现状 vs 目标</h2>
+      </div>
+      <div class="compare-grid">
+        <div class="compare-card old">
+          <div class="compare-label">现在 1.0</div>
+          <h3>一条流水线 + PM 当调度</h3>
+          <div class="flow-v">
+            <div class="flow-node">PM 出 PRD</div>
+            <div class="flow-arrow">↓</div>
+            <div class="flow-node">结构 板框 / 3D</div>
+            <div class="flow-arrow">↓</div>
+            <div class="flow-node">电子 原理图 / Layout</div>
+            <div class="flow-arrow">↓</div>
+            <div class="flow-node">嵌入式 固件</div>
+            <div class="flow-arrow">↓</div>
+            <div class="flow-node">试产 → BT → CR</div>
+          </div>
+          <ul class="pain-list" style="margin-top:14px">
+            <li>串行等待：电子等板框、嵌入式等原理图</li>
+            <li>信息在文档里，找最新版靠问人</li>
+            <li>PM 收材料、催节点、排计划</li>
+            <li>同一交付物多轮迭代，靠人记轮次</li>
+          </ul>
+        </div>
+        <div class="compare-card new">
+          <div class="compare-label">目标 2.0</div>
+          <h3>多条线并行 + 到站点汇合</h3>
+          <div class="flow-parallel">
+            <div class="lane">结构线</div>
+            <div class="lane">制冷线</div>
+            <div class="lane">电控线</div>
+            <div class="lane">包材线</div>
+          </div>
+          <div class="merge-bar">↓ ES / TL / DR 汇入点（对齐阶段节点）↓</div>
+          <ul class="pain-list gain-list" style="margin-top:14px">
+            <li>各块自主跑，能单验的先单验</li>
+            <li>关键状态字段化，一眼可见</li>
+            <li>PM 维护规则与汇入条件</li>
+            <li>迭代用轮次字段管理，不靠催</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- Section 2: 家电主链 -->
+    <section class="section">
+      <div class="section-head">
+        <div class="section-num">2</div>
+        <h2>家电研发主链（阶段节点）</h2>
+      </div>
+      <div class="gate-track">
+        <div class="gate"><strong>CD</strong><span>概念</span></div>
+        <span class="gate-arrow">→</span>
+        <div class="gate"><strong>KO</strong><span>启动</span></div>
+        <span class="gate-arrow">→</span>
+        <div class="gate"><strong>ES</strong><span>工程样</span></div>
+        <span class="gate-arrow">→</span>
+        <div class="gate"><strong>TL</strong><span>开模</span></div>
+        <span class="gate-arrow">→</span>
+        <div class="gate"><strong>DR</strong><span>含试产</span></div>
+        <span class="gate-arrow">→</span>
+        <div class="gate"><strong>BT</strong><span>用户测</span></div>
+        <span class="gate-arrow">→</span>
+        <div class="gate"><strong>CR</strong><span>商业释放</span></div>
+      </div>
+      <p style="font-size:12px;color:var(--muted);margin-top:10px;text-align:center">
+        汇入点优先对齐上述阶段节点 ｜ 多轮试产在 DR 内管理 ｜ 样板：H8120 制冰机
+      </p>
+    </section>
+
+    <!-- Section 3: 五件事 -->
+    <section class="section">
+      <div class="section-head">
+        <div class="section-num">3</div>
+        <h2>整体思路：五件事</h2>
+      </div>
+      <div class="pillar-grid">
+        <div class="pillar-card" data-n="1">
+          <div class="pillar-icon" style="background:#eef2ff">🧩</div>
+          <h4>画拆块图</h4>
+          <p>按产品单元拆，不是只按岗位拆</p>
+          <span class="pillar-tag">谁主导 · 接口 · 能单验什么</span>
+        </div>
+        <div class="pillar-card" data-n="2">
+          <div class="pillar-icon" style="background:#ecfdf5">🚉</div>
+          <h4>汇入点对齐阶段节点</h4>
+          <p>汇入点 = 现有阶段节点，写清汇合清单</p>
+          <span class="pillar-tag">带什么 · 过不过 · 谁回退</span>
+        </div>
+        <div class="pillar-card" data-n="3">
+          <div class="pillar-icon" style="background:#fffbeb">📋</div>
+          <h4>定游戏规则</h4>
+          <p>启动 / 调整 / 协同 / 汇合四类规则</p>
+          <span class="pillar-tag">PM 做平台，不催排期</span>
+        </div>
+        <div class="pillar-card" data-n="4">
+          <div class="pillar-icon" style="background:#f0f9ff">📊</div>
+          <h4>输入输出字段化</h4>
+          <p>协作表 I/O → 能搜的字段，不是网盘</p>
+          <span class="pillar-tag">先看摘要，再下钻附件</span>
+        </div>
+        <div class="pillar-card" data-n="5">
+          <div class="pillar-icon" style="background:#fdf4ff">🚀</div>
+          <h4>H8120 练手 + 在飞试点</h4>
+          <p>历史项目抽字段，在飞项目真跑规则</p>
+          <span class="pillar-tag">沉淀家电套件</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Section 4: 拆块图 H8120 -->
+    <section class="section">
+      <div class="section-head">
+        <div class="section-num">4</div>
+        <h2>第一件事 · H8120 拆块示例</h2>
+      </div>
+      <div class="blocks-grid">
+        <div class="block-item">
+          <div class="role">主导 · 结构</div>
+          <div class="name">箱体结构</div>
+          <div class="verify">手板 · 开模图 · 2D/BOM</div>
+        </div>
+        <div class="block-item">
+          <div class="role">主导 · 制冷</div>
+          <div class="name">制冷系统</div>
+          <div class="verify">管路件 · ES冰量测试</div>
+        </div>
+        <div class="block-item">
+          <div class="role">主导 · 电子</div>
+          <div class="name">电控 PCBA</div>
+          <div class="verify">原理图 · Layout · BOM</div>
+        </div>
+        <div class="block-item">
+          <div class="role">主导 · 嵌入式</div>
+          <div class="name">固件</div>
+          <div class="verify">固件版本 · 测试用例</div>
+        </div>
+        <div class="block-item">
+          <div class="role">主导 · 包装</div>
+          <div class="name">包材</div>
+          <div class="verify">包装 BOM · 受控图纸</div>
+        </div>
+        <div class="block-item" style="border-color:#94a3b8;background:#f8fafc">
+          <div class="role" style="color:#64748b">接口示例</div>
+          <div class="name">电子 ← 结构</div>
+          <div class="verify">板框尺寸字段化，不等整包文档</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Section 5: 汇入点 -->
+    <section class="section">
+      <div class="section-head">
+        <div class="section-num">5</div>
+        <h2>第二件事 · 汇入点 = 阶段节点（先写这三个）</h2>
+      </div>
+      <div class="jp-grid">
+        <div class="jp-card">
+          <div class="jp-name">🟢 ES 工程样机</div>
+          <ul>
+            <li>结构：ES 样机</li>
+            <li>制冷：调试结论</li>
+            <li>电子：能亮的板子</li>
+            <li>汇合：整机方案是否可行</li>
+          </ul>
+        </div>
+        <div class="jp-card">
+          <div class="jp-name">🟡 TL 模具启动</div>
+          <ul>
+            <li>结构：3D/2D 冻结</li>
+            <li>Sourcing：模具合同/进度</li>
+            <li>开模后改代价高，锁定要严</li>
+          </ul>
+        </div>
+        <div class="jp-card">
+          <div class="jp-name">🔵 DR 设计释放</div>
+          <ul>
+            <li>内含多轮试产 TR1/TR2…</li>
+            <li>每轮小汇合 → 最终 DR 释放</li>
+            <li>测试报告 · DFMEA · 成熟度</li>
+          </ul>
+        </div>
+        <div class="jp-card">
+          <div class="jp-name">🟣 BT → CR</div>
+          <ul>
+            <li>BT：用户测试 → 进 CR 或整改</li>
+            <li>CR：承认书 · 首单 · 转量</li>
+            <li>先沿用现有做法</li>
+          </ul>
+        </div>
+      </div>
+      <p style="font-size:12px;color:var(--warn);margin-top:12px;text-align:center;font-weight:600">
+        ⚡ 汇入时间 = 共识碰头日，可提醒，≠ PM 压缩个人工期
+      </p>
+    </section>
+
+    <!-- Section 6: 四条规则 -->
+    <section class="section">
+      <div class="section-head">
+        <div class="section-num">6</div>
+        <h2>第三件事 · 四条游戏规则</h2>
+      </div>
+      <div class="rules-grid">
+        <div class="rule-card">
+          <div class="emoji">🚀</div>
+          <h5>启动</h5>
+          <p>KO 后各块认领目标、接口、自策划资源</p>
+        </div>
+        <div class="rule-card">
+          <div class="emoji">🔄</div>
+          <h5>调整</h5>
+          <p>需求大变分 P0/P1，定通知范围</p>
+        </div>
+        <div class="rule-card">
+          <div class="emoji">🤝</div>
+          <h5>协同</h5>
+          <p>A 向 B 提诉求，走协同不单聊</p>
+        </div>
+        <div class="rule-card">
+          <div class="emoji">🎯</div>
+          <h5>汇合</h5>
+          <p>到点验收，不过谁回退、他组可否继续</p>
+        </div>
+      </div>
+      <div style="text-align:center;margin-top:16px;padding:12px;background:var(--primary-light);border-radius:10px;font-size:13px">
+        <strong>PM / PD 新角色：</strong>平台运营 — 维护规则与汇入清单，<em>不</em>给每人排细节点
+      </div>
+    </section>
+
+    <!-- Section 7: 字段化 -->
+    <section class="section">
+      <div class="section-head">
+        <div class="section-num">7</div>
+        <h2>第四件事 · 文档 → 字段</h2>
+      </div>
+      <div class="field-compare">
+        <div class="field-box before">
+          <h4>❌ 现在：翻文件夹 / 问 PM</h4>
+          <div class="field-row"><span>BT 结论</span><span class="val">打开 Excel 找</span></div>
+          <div class="field-row"><span>PRD 版本</span><span class="val">哪个是最新？</span></div>
+          <div class="field-row"><span>试产轮次</span><span class="val">靠人记</span></div>
+          <div class="field-row"><span>制冷 ES</span><span class="val">进资料夹翻</span></div>
+        </div>
+        <div class="field-arrow">→</div>
+        <div class="field-box after">
+          <h4>✅ 以后：项目页一眼可见</h4>
+          <div class="field-row"><span>BT结论</span><span class="val" style="color:var(--success)">通过</span></div>
+          <div class="field-row"><span>PRD版本</span><span class="val">3.2</span></div>
+          <div class="field-row"><span>DR试产轮次</span><span class="val">第 2 轮</span></div>
+          <div class="field-row"><span>制冷ES结论</span><span class="val" style="color:var(--success)">达标</span></div>
+        </div>
+      </div>
+      <p style="font-size:12px;color:var(--muted);margin-top:12px;text-align:center">
+        图纸/长报告仍用附件 · 变更留日志 · Excel 可先跑，不等大系统
+      </p>
+    </section>
+
+    <!-- Section 8: 双轨试点 -->
+    <section class="section">
+      <div class="section-head">
+        <div class="section-num">8</div>
+        <h2>第五件事 · 怎么落地</h2>
+      </div>
+      <div class="dual-track">
+        <div class="track-card">
+          <div class="track-icon">📚</div>
+          <h4>历史线 · H8120</h4>
+          <p>按节点×角色整理资料<br>抽字段 · 画拆块图初稿<br><strong>当字典</strong></p>
+        </div>
+        <div class="track-card">
+          <div class="track-icon">🏃</div>
+          <h4>在飞线 · 试点项目</h4>
+          <p>真跑汇入清单 + 规则 + 字段<br>边跑边改<br><strong>当考场</strong></p>
+        </div>
+      </div>
+      <p style="font-size:12px;color:var(--muted);margin-top:12px;text-align:center">
+        优先啃透：ES 前单验并行 ｜ TL 开模冻结 ｜ DR 试产轮次
+      </p>
+    </section>
+
+    <!-- Section 9: 总流程 -->
+    <section class="section">
+      <div class="section-head">
+        <div class="section-num">9</div>
+        <h2>五件事怎么串起来</h2>
+      </div>
+      <div class="pipeline">
+        <div class="pipeline-flow">
+          <span class="pipe-item">① 拆块图</span>
+          <span style="color:#94a3b8">→</span>
+          <span class="pipe-item">② 汇合清单</span>
+          <span style="color:#94a3b8">→</span>
+          <span class="pipe-item">③ 四条规则</span>
+          <span style="color:#94a3b8">→</span>
+          <span class="pipe-item">④ 字段最小集</span>
+          <span style="color:#94a3b8">→</span>
+          <span class="pipe-item">⑤ 试点沉淀</span>
+        </div>
+        <div class="pipe-down">↓</div>
+        <div class="pipe-note">
+          <span class="note-keep">✓ 不变：CD/KO/ES… 阶段节点</span>
+          <span class="note-change">↻ 要变：节点间并行 · 汇入点对齐 · 字段化</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Section 10: 推进步骤 -->
+    <section class="section">
+      <div class="section-head">
+        <div class="section-num">10</div>
+        <h2>建议推进顺序</h2>
+      </div>
+      <div class="steps">
+        <div class="step" data-step="1">
+          <div class="step-body">
+            <h5>画拆块图</h5>
+            <p>H8120 工作坊，半天～1 天</p>
+          </div>
+        </div>
+        <div class="step" data-step="2">
+          <div class="step-body">
+            <h5>写 ES / TL / DR 阶段节点汇合清单</h5>
+            <p>汇入点对齐阶段节点，先写这三个</p>
+          </div>
+        </div>
+        <div class="step" data-step="3">
+          <div class="step-body">
+            <h5>定调整 / 协同规则</h5>
+            <p>哪怕先 3 条，试点共创细化</p>
+          </div>
+        </div>
+        <div class="step" data-step="4">
+          <div class="step-body">
+            <h5>抽 20～30 个必看字段</h5>
+            <p>Excel 先跑，H8120 当样板</p>
+          </div>
+        </div>
+        <div class="step" data-step="5">
+          <div class="step-body">
+            <h5>在飞项目试跑 + 每月复盘</h5>
+            <p>修订后沉淀「家电套件」</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Section 11: 核心需求映射 -->
+    <section class="section">
+      <div class="section-head">
+        <div class="section-num">11</div>
+        <h2>与核心需求对应</h2>
+      </div>
+      <table class="map-table">
+        <thead>
+          <tr><th>核心需求</th><th>对应事项</th><th>一句话</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>解耦 + 汇入点</td>
+            <td><span class="badge">① + ②</span></td>
+            <td>拆块并行，汇入点对齐阶段节点汇合</td>
+          </tr>
+          <tr>
+            <td>三项自主</td>
+            <td><span class="badge">① + ③</span></td>
+            <td>每块自策划、确认、验收</td>
+          </tr>
+          <tr>
+            <td>自主机制</td>
+            <td><span class="badge">③</span></td>
+            <td>调整 / 协同 / 汇合有规矩</td>
+          </tr>
+          <tr>
+            <td>字段化</td>
+            <td><span class="badge">④</span></td>
+            <td>不翻文档也能决策</td>
+          </tr>
+          <tr>
+            <td>试点沉淀</td>
+            <td><span class="badge">⑤</span></td>
+            <td>H8120 + 在飞项目</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- Section 12: Do / Don't -->
+    <section class="section">
+      <div class="section-head">
+        <div class="section-num">12</div>
+        <h2>边界：做 vs 不做</h2>
+      </div>
+      <div class="dodont">
+        <div class="do-box">
+          <h4>要做</h4>
+          <ul>
+            <li>阶段节点内拆块并行、单元预验</li>
+            <li>汇入点优先对齐阶段节点</li>
+            <li>迭代用轮次字段管理</li>
+            <li>字段化汇合关键信息</li>
+            <li>PM 维护机制与汇入条件</li>
+          </ul>
+        </div>
+        <div class="dont-box">
+          <h4>不做</h4>
+          <ul>
+            <li>取消 CD/KO/ES 等阶段节点</li>
+            <li>另起与阶段节点无关的汇入点名称</li>
+            <li>先建大而全系统再试点</li>
+            <li>把多轮迭代当失败</li>
+            <li>PM 继续细排、压工期</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <footer>
+      研发知识解耦 · 方案框架可视化 ｜ 基于 H8120 协作事实 + 核心需求 2.0 ｜ 2026-08
+    </footer>
+  </div>
+</body>
+</html>
