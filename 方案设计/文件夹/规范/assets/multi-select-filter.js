@@ -2,6 +2,7 @@
  * 多选下拉筛选（原型）— 对齐《多选下拉筛选-全局UI规范》
  * - 默认不请求/不渲染选项；首次点击展开时再执行 getOptions
  * - 面板内：搜索 +（可选）首行「全部」+ 多选勾选
+ * - summaryMode:"tags"：已选标签显示在触发器输入框内；超出 maxTagCount 时以 +N 收起
  *
  * MultiSelectFilter.mount(container, {
  *   placeholder: '请选择',
@@ -12,27 +13,33 @@
  *   initialValues: [],
  *   clearable: true,
  *   onChange: (values: string[]) => {},
- *   useBodyPortal: true
+ *   useBodyPortal: true,
+ *   summaryMode: 'inline' | 'tags',
+ *   maxTagCount: 1,   // tags 模式：输入框内最多展示的标签数，超出显示 +N
+ *   tagMaxLen: 28
  * })
  * useBodyPortal：默认 true，展开时面板挂 document.body + fixed，避免被 overflow 裁切或后续板块盖住。
  * 返回：{ getValues, setValues, clear, destroy, refreshOptions, open, close }
  */
 (function (global) {
-  var STYLE_ID = "msf-global-style-v1";
+  var STYLE_ID = "msf-global-style-v2";
 
   function injectStyle() {
     if (document.getElementById(STYLE_ID)) return;
+    var legacy = document.getElementById("msf-global-style-v1");
+    if (legacy) legacy.remove();
     var st = document.createElement("style");
     st.id = STYLE_ID;
     st.textContent =
       ".msf-root{position:relative;display:inline-block;vertical-align:middle;min-width:200px;max-width:100%;font-size:13px;}" +
       ".msf-trigger-wrap{position:relative;display:flex;width:100%;align-items:center;}" +
-      ".msf-trigger{position:relative;display:flex;align-items:center;justify-content:space-between;gap:8px;width:100%;min-height:32px;height:32px;padding:4px 28px 4px 10px;border:1px solid #d9d9d9;border-radius:6px;background:#fff;cursor:pointer;text-align:left;color:#0f172a;box-sizing:border-box;font:inherit;}" +
+      ".msf-trigger{position:relative;display:flex;align-items:center;justify-content:space-between;gap:6px;width:100%;min-height:32px;height:32px;padding:2px 28px 2px 6px;border:1px solid #d9d9d9;border-radius:6px;background:#fff;cursor:pointer;text-align:left;color:#0f172a;box-sizing:border-box;font:inherit;overflow:hidden;}" +
       ".msf-trigger-wrap.has-val .msf-trigger{padding-right:48px;}" +
       ".msf-trigger:hover{border-color:#1677ff;}" +
       ".msf-trigger.msf-open{border-color:#1677ff;box-shadow:0 0 0 2px rgba(22,119,255,.12);}" +
       ".msf-trigger .msf-trigger-text{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}" +
       ".msf-trigger .msf-ph{color:#bfbfbf;}" +
+      ".msf-trigger-tags{display:flex;align-items:center;flex:1;min-width:0;gap:4px;overflow:hidden;flex-wrap:nowrap;}" +
       ".msf-clear{position:absolute;right:22px;top:50%;transform:translateY(-50%);width:18px;height:18px;border:none;background:transparent;color:rgba(0,0,0,.25);cursor:pointer;font-size:14px;line-height:1;padding:0;display:none;z-index:1;}" +
       ".msf-clear:hover{color:rgba(0,0,0,.45);}" +
       ".msf-trigger-wrap.has-val .msf-clear{display:block;}" +
@@ -49,11 +56,10 @@
       ".msf-row input{flex-shrink:0;}" +
       ".msf-empty{padding:12px;color:#64748b;font-size:12px;text-align:center;}" +
       ".msf-loading{padding:12px;color:#64748b;font-size:12px;text-align:center;}" +
-      ".msf-root.msf-tags-mode{align-self:flex-start;}" +
-      ".msf-tags-wrap{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px;max-height:72px;overflow-y:auto;min-height:0;}" +
-      ".msf-tags-wrap:empty{display:none;}" +
-      ".msf-tag{display:inline-flex;align-items:center;gap:2px;max-width:100%;padding:2px 6px;border-radius:4px;background:#f0f5ff;border:1px solid #d6e4ff;color:#1e3a8a;font-size:12px;line-height:1.4;}" +
-      ".msf-tag-text{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:180px;}" +
+      ".msf-root.msf-tags-mode{align-self:stretch;width:100%;}" +
+      ".msf-tag{display:inline-flex;align-items:center;gap:2px;max-width:100%;min-width:0;padding:0 6px;height:22px;border-radius:4px;background:#f0f5ff;border:1px solid #d6e4ff;color:#1e3a8a;font-size:12px;line-height:20px;box-sizing:border-box;flex-shrink:1;}" +
+      ".msf-tag-text{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:96px;}" +
+      ".msf-tag-more{flex-shrink:0;background:#f1f5f9;border-color:#e2e8f0;color:#475569;font-weight:600;cursor:default;}" +
       ".msf-tag-rm{flex-shrink:0;border:none;background:transparent;color:#64748b;cursor:pointer;font-size:14px;line-height:1;padding:0 2px;}" +
       ".msf-tag-rm:hover{color:#b91c1c;}";
     document.head.appendChild(st);
@@ -80,6 +86,8 @@
     var useBodyPortal = options.useBodyPortal !== false;
     var summaryMode = options.summaryMode === "tags" ? "tags" : "inline";
     var tagMaxLen = options.tagMaxLen != null ? options.tagMaxLen : 28;
+    // tags 模式：输入框内最多展示的标签数；超出显示 +N（窄列默认 1）
+    var maxTagCount = options.maxTagCount != null ? Math.max(0, Number(options.maxTagCount) || 0) : 1;
 
     var loaded = false;
     var loading = false;
@@ -93,12 +101,6 @@
     if (summaryMode === "tags") root.classList.add("msf-tags-mode");
     root.innerHTML = "";
     root.style.position = "relative";
-
-    var tagsWrap = null;
-    if (summaryMode === "tags") {
-      tagsWrap = document.createElement("div");
-      tagsWrap.className = "msf-tags-wrap";
-    }
 
     var triggerWrap = document.createElement("div");
     triggerWrap.className = "msf-trigger-wrap";
@@ -163,7 +165,6 @@
     panel.addEventListener("mousedown", stopPanelEventBubble);
     panel.addEventListener("wheel", stopPanelEventBubble, { passive: true });
     list.addEventListener("wheel", stopPanelEventBubble, { passive: true });
-    if (tagsWrap) root.appendChild(tagsWrap);
     root.appendChild(triggerWrap);
     root.appendChild(panel);
 
@@ -178,33 +179,53 @@
       return s.slice(0, tagMaxLen - 1) + "…";
     }
 
-    function renderTags() {
-      if (!tagsWrap) return;
-      tagsWrap.innerHTML = "";
-      Array.from(selected).forEach(function (v) {
-        var full = labelByValue(v);
-        var tag = document.createElement("span");
-        tag.className = "msf-tag";
-        tag.title = full;
-        var txt = document.createElement("span");
-        txt.className = "msf-tag-text";
-        txt.textContent = truncateTagLabel(full);
+    function makeTag(v, removable) {
+      var full = labelByValue(v);
+      var tag = document.createElement("span");
+      tag.className = "msf-tag";
+      tag.title = full;
+      var txt = document.createElement("span");
+      txt.className = "msf-tag-text";
+      txt.textContent = truncateTagLabel(full);
+      tag.appendChild(txt);
+      if (removable) {
         var rm = document.createElement("button");
         rm.type = "button";
         rm.className = "msf-tag-rm";
         rm.setAttribute("aria-label", "移除 " + full);
         rm.textContent = "×";
         rm.addEventListener("click", function (e) {
+          e.preventDefault();
           e.stopPropagation();
           selected.delete(String(v));
           syncMasterCheckbox(list.querySelector(".msf-master input"));
+          if (loaded) renderList();
           updateTriggerLabel();
           onChange(api.getValues());
         });
-        tag.appendChild(txt);
         tag.appendChild(rm);
-        tagsWrap.appendChild(tag);
-      });
+      }
+      return tag;
+    }
+
+    function renderInlineTags() {
+      var arr = Array.from(selected);
+      var wrap = document.createElement("span");
+      wrap.className = "msf-trigger-tags";
+      var showCount = maxTagCount <= 0 ? 0 : Math.min(maxTagCount, arr.length);
+      var i;
+      for (i = 0; i < showCount; i++) {
+        wrap.appendChild(makeTag(arr[i], true));
+      }
+      var rest = arr.length - showCount;
+      if (rest > 0) {
+        var more = document.createElement("span");
+        more.className = "msf-tag msf-tag-more";
+        more.title = arr.slice(showCount).map(labelByValue).join("、");
+        more.textContent = "+" + rest;
+        wrap.appendChild(more);
+      }
+      return wrap;
     }
 
     function repositionPanelIfOpen() {
@@ -215,26 +236,30 @@
 
     function updateTriggerLabel() {
       triggerWrap.classList.toggle("has-val", selected.size > 0);
+      trigger.innerHTML = "";
       if (!selected.size) {
+        textSpan = document.createElement("span");
+        textSpan.className = "msf-trigger-text msf-ph";
         textSpan.textContent = placeholder;
-        textSpan.classList.add("msf-ph");
-        if (tagsWrap) renderTags();
+        trigger.appendChild(textSpan);
         repositionPanelIfOpen();
         return;
       }
-      textSpan.classList.remove("msf-ph");
       if (summaryMode === "tags") {
-        textSpan.textContent = "已选 " + selected.size + " 项";
-        renderTags();
+        trigger.appendChild(renderInlineTags());
         repositionPanelIfOpen();
         return;
       }
+      textSpan = document.createElement("span");
+      textSpan.className = "msf-trigger-text";
       var arr = Array.from(selected);
       if (arr.length <= 2) {
         textSpan.textContent = arr.map(labelByValue).join("、");
-        return;
+      } else {
+        textSpan.textContent = "已选 " + arr.length + " 项";
       }
-      textSpan.textContent = "已选 " + arr.length + " 项";
+      trigger.appendChild(textSpan);
+      repositionPanelIfOpen();
     }
 
     function rowVisible(label) {
@@ -538,6 +563,7 @@
         restorePanelToRoot();
         root.innerHTML = "";
         root.classList.remove("msf-root");
+        root.classList.remove("msf-tags-mode");
       }
     };
 

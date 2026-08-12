@@ -673,15 +673,19 @@
       }
     }
     #overlayCreate .msf-root,
-    #overlayCreate .msf-host {
+    #overlayCreate .msf-host,
+    #overlayCreate .scc-root {
       min-width: 0;
       max-width: 100%;
       width: 100%;
     }
-    #overlayCreate .msf-trigger {
+    #overlayCreate .msf-trigger,
+    #overlayCreate .scc-trigger {
       min-width: 0;
       max-width: 100%;
       width: 100%;
+      min-height: 32px;
+      height: 32px;
     }
     #overlayCreate .scope-flat-col {
       min-width: 0;
@@ -902,7 +906,8 @@
     body.embed-mode .pa-toolbar { display: none !important; }
     body.embed-mode.pa-pick-mode .pa-toolbar,
     body.embed-mode .pa-pick-hint { display: block !important; }
-    .scope-flat-col input.scope-text {
+    .scope-flat-col input.scope-text,
+    .scope-flat-col select.scope-text {
       width: 100%;
       max-width: 100%;
       padding: 8px 10px;
@@ -910,6 +915,7 @@
       border-radius: 8px;
       font-size: 13px;
       box-sizing: border-box;
+      background: #fff;
     }
   </style>
 </head>
@@ -1169,7 +1175,9 @@
                 </div>
                 <div class="scope-flat-col field">
                   <label for="productNewTags">新品标签</label>
-                  <input type="text" id="productNewTags" class="scope-text" placeholder="如 2024年新品">
+                  <select id="productNewTags" class="scope-text" aria-label="新品标签">
+                    <option value="">请选择</option>
+                  </select>
                 </div>
                 <div class="scope-flat-col field">
                   <label for="orderNos">订单号</label>
@@ -1308,7 +1316,7 @@
                 <tr><td>SKU</td><td>否</td><td>8 位生产 SKU。</td></tr>
                 <tr><td>MSKU</td><td>否</td><td>精确 MSKU。</td></tr>
                 <tr><td>ASIN</td><td>否</td><td>亚马逊 ASIN；多选英文逗号。</td></tr>
-                <tr><td>新品标签</td><td>否</td><td>如 2024年新品；多选英文逗号；填写后仅匹配带该标签的产品。</td></tr>
+                <tr><td>新品标签</td><td>否</td><td>年份下拉单选（当前年±3年）；填写如 2024年新品；填写后仅匹配带该标签的产品。</td></tr>
                 <tr><td>订单号</td><td>否</td><td>订单号；多选英文逗号；用于订单维度收窄。</td></tr>
                 <tr><td>DL批次号</td><td>否</td><td>DL 批次号；多选英文逗号。</td></tr>
               </tbody>
@@ -1562,6 +1570,35 @@
       return arr.join(", ");
     }
 
+    function getNpTagOptions() {
+      const year = new Date().getFullYear();
+      const list = [];
+      for (let i = 3; i >= -3; i--) {
+        const y = year + i;
+        list.push({ value: String(y), label: `${y}年新品` });
+      }
+      return list;
+    }
+
+    function fillProductNewTagSelect() {
+      const el = document.getElementById("productNewTags");
+      if (!el) return;
+      const cur = el.value || "";
+      el.innerHTML =
+        '<option value="">请选择</option>' +
+        getNpTagOptions()
+          .map((t) => `<option value="${escHtml(t.value)}">${escHtml(t.label)}</option>`)
+          .join("");
+      if (cur && [...el.options].some((o) => o.value === cur)) el.value = cur;
+    }
+
+    function getSelectedNewProductTagLabel() {
+      const el = document.getElementById("productNewTags");
+      if (!el || !el.value) return "";
+      const opt = el.options[el.selectedIndex];
+      return opt ? String(opt.textContent || "").trim() : `${el.value}年新品`;
+    }
+
     function collectChannelScopeFromUi() {
       return {
         regions: state.msf.region?.getValues() || [],
@@ -1574,6 +1611,7 @@
 
     function collectProductScopeFromUi() {
       const catKeys = state.msf.cat?.getValues() || [];
+      const npLabel = getSelectedNewProductTagLabel();
       return {
         scenes: state.msf.scene?.getValues() || [],
         categories: catKeys.map((k) => catOptionKeyToLabel(k)),
@@ -1581,15 +1619,15 @@
         skus: state.msf.sku?.getValues() || [],
         mskus: state.msf.msku?.getValues() || [],
         asins: state.msf.asin?.getValues() || [],
-        newProductTags: parseCommaList(document.getElementById("productNewTags")?.value),
+        newProductTags: npLabel ? [npLabel] : [],
         orderNos: parseCommaList(document.getElementById("orderNos")?.value),
         dlBatchNos: parseCommaList(document.getElementById("dlBatchNos")?.value)
       };
     }
 
     function getProductNewTagsLabel() {
-      const tags = parseCommaList(document.getElementById("productNewTags")?.value);
-      return tags.length ? tags.join(",") : "（空）";
+      const label = getSelectedNewProductTagLabel();
+      return label || "（空）";
     }
 
     function resetCreatePreview() {
@@ -1614,10 +1652,12 @@
         dept.value = "";
         dept.dispatchEvent(new Event("change", { bubbles: true }));
       }
-      ["productNewTags", "orderNos", "dlBatchNos"].forEach((id) => {
+      ["orderNos", "dlBatchNos"].forEach((id) => {
         const el = document.getElementById(id);
         if (el) el.value = "";
       });
+      const npSel = document.getElementById("productNewTags");
+      if (npSel) npSel.value = "";
       Object.keys(state.msf).forEach((key) => {
         const inst = state.msf[key];
         if (!inst || typeof inst.setValues !== "function") return;
@@ -1936,6 +1976,7 @@
           zIndex: z,
           onChange: onScopeChange(key),
           summaryMode: "tags",
+          maxTagCount: 1,
           tagMaxLen: 24,
           useBodyPortal: true,
           ...opts
@@ -2081,7 +2122,6 @@
             state.msfPrev[k] = [...vals];
           }
         });
-        enforceSingleValueText("productNewTags");
         enforceSingleValueText("orderNos");
         enforceSingleValueText("dlBatchNos");
       }
@@ -3153,7 +3193,7 @@
       if (e.target.id === "overlayHistoryDetail") closeOverlay("overlayHistoryDetail");
     });
 
-    ["productNewTags", "orderNos", "dlBatchNos"].forEach((id) => {
+    ["orderNos", "dlBatchNos"].forEach((id) => {
       const el = document.getElementById(id);
       if (!el) return;
       el.addEventListener("input", () => {
@@ -3167,6 +3207,10 @@
         resetCreatePreview();
         updateRuleText();
       });
+    });
+    document.getElementById("productNewTags")?.addEventListener("change", () => {
+      resetCreatePreview();
+      updateRuleText();
     });
 
     document.getElementById("allocModeSeg")?.addEventListener("click", (e) => {
@@ -3438,6 +3482,7 @@
 
       applyHistoryFilter();
       renderHistory();
+      fillProductNewTagSelect();
       updateRuleText();
 
       FeeItemMaster.init({

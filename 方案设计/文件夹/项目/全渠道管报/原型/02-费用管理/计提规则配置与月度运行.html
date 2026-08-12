@@ -377,6 +377,18 @@
       color: #1e293b;
       font-variant-numeric: tabular-nums;
     }
+    .detail-currency-select {
+      width: 100%;
+      min-width: 88px;
+      max-width: 120px;
+      height: 32px;
+      border: 1px solid #dcdfe6;
+      border-radius: 4px;
+      padding: 0 8px;
+      font-size: 13px;
+      color: #303133;
+      background: #fff;
+    }
     .detail-table .dim-muted { color: #94a3b8; }
     .detail-empty {
       padding: 28px 20px;
@@ -586,11 +598,17 @@
             </div>
             <div class="form-field">
               <label>币种</label>
-              <select id="fixedCurrency">
-                <option>CNY</option>
-                <option>USD</option>
-                <option>EUR</option>
+              <select id="fixedCurrency" title="批量填入参考币种，不替代明细行币种">
+                <option value="USD" selected>USD</option>
+                <option value="CNY">CNY</option>
+                <option value="EUR">EUR</option>
+                <option value="GBP">GBP</option>
+                <option value="JPY">JPY</option>
+                <option value="CAD">CAD</option>
+                <option value="AUD">AUD</option>
+                <option value="MXN">MXN</option>
               </select>
+              <div class="field-hint">默认 USD；明细行币种按国家/站点当地币种带出，可逐行修改。</div>
             </div>
             <div class="form-field">
               <label>适用周期</label>
@@ -729,6 +747,21 @@
         <label for="batchEditValue"><span class="req">*</span> <span id="batchEditValueLabel">维护值</span></label>
         <input id="batchEditValue" type="number" step="0.01" placeholder="请输入统一维护值">
       </div>
+      <div class="form-field" id="batchEditCurrencyField" hidden>
+        <label for="batchEditCurrency">统一币种（可空）</label>
+        <select id="batchEditCurrency">
+          <option value="">不修改币种（仅改金额）</option>
+          <option value="USD">USD</option>
+          <option value="CNY">CNY</option>
+          <option value="EUR">EUR</option>
+          <option value="GBP">GBP</option>
+          <option value="JPY">JPY</option>
+          <option value="CAD">CAD</option>
+          <option value="AUD">AUD</option>
+          <option value="MXN">MXN</option>
+        </select>
+        <div class="field-hint">留空则只更新金额，保留各行原币种；填写后统一覆盖并视为手改。</div>
+      </div>
       <div class="batch-preview-wrap">
         <table class="data-table">
           <thead id="batchEditHead"></thead>
@@ -782,6 +815,48 @@
   };
   var DIMENSION_OPTIONS = {};
   var masterDataReady = false;
+  var CURRENCY_OPTIONS = ['USD', 'CNY', 'EUR', 'GBP', 'JPY', 'CAD', 'AUD', 'MXN', 'KRW', 'SGD'];
+  /** 国家 → 当地币种（原型示意，正式环境取自主数据） */
+  var COUNTRY_LOCAL_CURRENCY = {
+    '美国': 'USD', '加拿大': 'CAD', '墨西哥': 'MXN',
+    '英国': 'GBP', '德国': 'EUR', '法国': 'EUR', '意大利': 'EUR', '西班牙': 'EUR',
+    '瑞典': 'EUR', '波兰': 'EUR', '比利时': 'EUR',
+    '中国': 'CNY', '日本': 'JPY', '韩国': 'KRW', '新加坡': 'SGD', '澳大利亚': 'AUD'
+  };
+  /** 店铺后缀/片段 → 国家（店铺口径无国家列时推断） */
+  var STORE_COUNTRY_HINTS = [
+    ['_US', '美国'], ['-US', '美国'], ['_CA', '加拿大'], ['-CA', '加拿大'],
+    ['_MX', '墨西哥'], ['-MX', '墨西哥'], ['_UK', '英国'], ['-UK', '英国'],
+    ['_DE', '德国'], ['-DE', '德国'], ['_FR', '法国'], ['-FR', '法国'],
+    ['_IT', '意大利'], ['-IT', '意大利'], ['_ES', '西班牙'], ['-ES', '西班牙'],
+    ['_JP', '日本'], ['-JP', '日本'], ['_AU', '澳大利亚'], ['-AU', '澳大利亚'],
+    ['_EU', '德国'], ['-EU', '德国'], ['华东', '中国'], ['华北', '中国'], ['华南', '中国'], ['跨境', '中国'],
+    ['京东', '中国']
+  ];
+  function inferCountryFromStore(store) {
+    var name = String(store || '');
+    for (var i = 0; i < STORE_COUNTRY_HINTS.length; i++) {
+      if (name.indexOf(STORE_COUNTRY_HINTS[i][0]) >= 0) return STORE_COUNTRY_HINTS[i][1];
+    }
+    return '';
+  }
+  function resolveDetailCountry(item) {
+    if (item.country && item.country !== '—') return item.country;
+    if (item.store && item.store !== '—') return inferCountryFromStore(item.store);
+    return '';
+  }
+  function defaultCurrencyForDetail(item) {
+    var country = resolveDetailCountry(item);
+    return country ? (COUNTRY_LOCAL_CURRENCY[country] || '') : '';
+  }
+  function currencySelectHtml(selected, key, readonly) {
+    var cur = selected || '';
+    if (readonly) return '<span class="detail-value-readonly">' + escapeHtml(cur || '—') + '</span>';
+    var opts = '<option value="">请选择</option>' + CURRENCY_OPTIONS.map(function (c) {
+      return '<option value="' + c + '"' + (c === cur ? ' selected' : '') + '>' + c + '</option>';
+    }).join('');
+    return '<select class="detail-currency-select" data-detail-currency="' + escapeHtml(key) + '">' + opts + '</select>';
+  }
 
   function flattenCountryNames(regionPayload) {
     var names = [];
@@ -1053,6 +1128,10 @@
             };
             item.key = buildDetailKey(item);
             item.value = defaultDetailValue(type, item.key);
+            if (type === 'fixedAmount') {
+              item.currency = defaultCurrencyForDetail(item);
+              item.currencyTouched = false;
+            }
             list.push(item);
           });
         });
@@ -1072,6 +1151,10 @@
             };
             item.key = buildDetailKey(item);
             item.value = defaultDetailValue(type, item.key);
+            if (type === 'fixedAmount') {
+              item.currency = defaultCurrencyForDetail(item);
+              item.currencyTouched = false;
+            }
             list.push(item);
           });
         });
@@ -1255,26 +1338,40 @@
     var type = document.getElementById('sourceType').value;
     var scope = document.getElementById('caliberScope').value;
     var meta = valueMeta(type);
-    var columns = getDetailColumns(scope, type).filter(function (column) { return column.key !== 'value'; });
-    document.getElementById('batchEditIntro').textContent = '已选中 ' + targets.length + ' 条明细。填写下方维护值后，将统一应用到所选组合。';
+    var isFixedAmt = type === 'fixedAmount';
+    var columns = getDetailColumns(scope, type).filter(function (column) {
+      return column.key !== 'value' && column.key !== 'currency';
+    });
+    document.getElementById('batchEditIntro').textContent = isFixedAmt
+      ? '已选中 ' + targets.length + ' 条明细。金额必填；币种可空（空=只改金额，不覆盖各行原币种）。'
+      : '已选中 ' + targets.length + ' 条明细。填写下方维护值后，将统一应用到所选组合。';
     document.getElementById('batchEditValueLabel').textContent = meta.label;
     document.getElementById('batchEditValue').value = '';
     document.getElementById('batchEditValue').step = meta.step;
     document.getElementById('batchEditValue').placeholder = meta.placeholder;
+    var currencyField = document.getElementById('batchEditCurrencyField');
+    currencyField.hidden = !isFixedAmt;
+    document.getElementById('batchEditCurrency').value = '';
+    var headExtra = isFixedAmt
+      ? '<th>' + meta.label + '（当前）</th><th>币种（当前）</th>'
+      : '<th>' + meta.label + '（当前）</th>';
     document.getElementById('batchEditHead').innerHTML = '<tr>' + columns.map(function (column) {
       return '<th>' + column.label + '</th>';
-    }).join('') + '<th>' + meta.label + '（当前）</th></tr>';
+    }).join('') + headExtra + '</tr>';
     document.getElementById('batchEditBody').innerHTML = targets.map(function (item) {
       var cells = columns.map(function (column) {
         return '<td>' + escapeHtml(item[column.key] || '—') + '</td>';
       }).join('');
-      return '<tr>' + cells + '<td>' + escapeHtml(item.value) + '</td></tr>';
+      cells += '<td>' + escapeHtml(item.value) + '</td>';
+      if (isFixedAmt) cells += '<td>' + escapeHtml(item.currency || '—') + '</td>';
+      return '<tr>' + cells + '</tr>';
     }).join('');
     showMask('batchEditModal');
   }
   function closeBatchEditModal() {
     hideMask('batchEditModal');
     document.getElementById('batchEditValue').value = '';
+    document.getElementById('batchEditCurrency').value = '';
   }
   function confirmBatchEdit() {
     var value = document.getElementById('batchEditValue').value;
@@ -1293,10 +1390,23 @@
       alert('当前没有可批量编辑的明细行');
       return;
     }
-    targets.forEach(function (item) { item.value = num; });
+    var batchCurrency = '';
+    if (type === 'fixedAmount') {
+      batchCurrency = String(document.getElementById('batchEditCurrency').value || '').trim();
+    }
+    targets.forEach(function (item) {
+      item.value = num;
+      if (type === 'fixedAmount' && batchCurrency) {
+        item.currency = batchCurrency;
+        item.currencyTouched = true;
+      }
+    });
     closeBatchEditModal();
     renderDetailTable();
-    alert('已批量更新 ' + targets.length + ' 条口径明细');
+    var tip = '已批量更新 ' + targets.length + ' 条口径明细';
+    if (type === 'fixedAmount' && batchCurrency) tip += '（含币种 ' + batchCurrency + '）';
+    else if (type === 'fixedAmount') tip += '（仅金额，币种未改）';
+    alert(tip);
   }
   function getDetailColumns(scope, type) {
     var flags = scopeFlags(scope);
@@ -1306,6 +1416,7 @@
     if (flags.scene) columns.push({ key: 'scene', label: '场景' });
     if (flags.retailer) columns.push({ key: 'retailer', label: '零售商' });
     columns.push({ key: 'value', label: valueMeta(type).label });
+    if (type === 'fixedAmount') columns.push({ key: 'currency', label: '币种' });
     return columns;
   }
   function renderDetailTable() {
@@ -1335,6 +1446,9 @@
           var thTitle = valueComputed ? ' title="系统按历史窗口自动计算，不可手工修改"' : '';
           return '<th class="' + thClass + '" data-pa-key="detail-maintain-value"' + thTitle + '>' + column.label + '</th>';
         }
+        if (column.key === 'currency') {
+          return '<th class="value-col" data-pa-key="detail-currency">币种</th>';
+        }
         return '<th>' + column.label + '</th>';
       }).join('') + '</tr>';
 
@@ -1349,7 +1463,7 @@
         '<td class="sel-col">' + (isViewMode ? '' : '<input type="checkbox" data-detail-check="' + escapeHtml(item.key) + '"' + (selectedDetailKeys.has(item.key) ? ' checked' : '') + '>') + '</td>'
       ];
       columns.forEach(function (column) {
-        if (column.key === 'value') return;
+        if (column.key === 'value' || column.key === 'currency') return;
         cells.push('<td>' + escapeHtml(item[column.key] || '—') + '</td>');
       });
       if (isViewMode || meta.readonly) {
@@ -1358,11 +1472,15 @@
       } else {
         cells.push('<td class="value-col"><input class="detail-value-input" data-detail-value="' + escapeHtml(item.key) + '" type="number" step="' + meta.step + '" value="' + escapeHtml(item.value) + '" placeholder="' + meta.placeholder + '"></td>');
       }
+      if (type === 'fixedAmount') {
+        cells.push('<td class="value-col">' + currencySelectHtml(item.currency, item.key, isViewMode) + '</td>');
+      }
       return '<tr>' + cells.join('') + '</tr>';
     }).join('');
 
     summaryEl.textContent = '已展开 ' + detailRows.length + ' 条明细，当前显示 ' + visibleRows.length + ' 条。筛选维度与当前口径范围一致，未选择时表示不过滤。' +
-      (valueComputed ? ' ' + currentAccrualMonthYm() + ' 滚动占比由系统计算，不可修改。' : '');
+      (valueComputed ? ' ' + currentAccrualMonthYm() + ' 滚动占比由系统计算，不可修改。' : '') +
+      (type === 'fixedAmount' ? ' 币种按国家/站点当地币种默认带出，可改选；保存前必选。' : '');
     paResyncAnnotations();
   }
   function buildDetailCsvRows() {
@@ -1374,7 +1492,9 @@
     detailRows.forEach(function (item) {
       var line = [];
       columns.forEach(function (column) {
-        line.push(column.key === 'value' ? item.value : item[column.key] || '');
+        if (column.key === 'value') line.push(item.value);
+        else if (column.key === 'currency') line.push(item.currency || '');
+        else line.push(item[column.key] || '');
       });
       rowsForCsv.push(line);
     });
@@ -1421,6 +1541,7 @@
       title: '导入费用来源明细',
       introHtml: '<p>请先下载导入模版，再按当前口径范围填写对应组合的维护值。导入成功后将按维度匹配覆盖当前弹窗中的同组合明细。</p>' +
         '<p><strong>适用场景：</strong>固定金额、固定比例、同期占比预估。历史滚动占比为系统计算，不支持导入。</p>' +
+        '<p><strong>固定金额：</strong>模版在「月固定金额」后含「币种」列，币种必填。</p>' +
         '<p><strong>失败策略：</strong>任一校验或执行失败时整批回滚，不留部分成功；文件内重复维度组合视为失败。</p>',
       templateExt: 'CSV',
       templateFileName: '费用来源明细导入模版.csv',
@@ -1430,11 +1551,13 @@
         { group: '维度', name: '店铺', required: false, desc: '口径含店铺时必填；国家口径不填' },
         { group: '维度', name: '场景', required: false, desc: '当口径范围包含场景时必填' },
         { group: '维度', name: '零售商', required: false, desc: '当口径范围包含零售商时必填；仅线下商超有零售商' },
-        { group: '取值', name: '维护值', required: true, desc: '固定金额填金额；比例类填百分比数值' }
+        { group: '取值', name: '维护值', required: true, desc: '固定金额填金额；比例类填百分比数值' },
+        { group: '取值', name: '币种', required: false, desc: '仅固定金额必填；标准三字码如 USD/CNY' }
       ],
       requirements: [
         '请先选择渠道与口径范围，再下载模版，确保列结构与当前弹窗一致。',
         '导入会按当前口径维度组合匹配并覆盖当前明细值；店铺口径不含国家列。',
+        '固定金额须同时填写金额与币种；其它类型无需币种列。',
         '零售商仅针对线下商超渠道；其它渠道零售商留空或填「—」。',
         '任一校验或执行失败时整批回滚；文件内重复维度组合视为失败。',
         '比例类直接填写数字，例如 8.5 表示 8.5%。',
@@ -1469,7 +1592,7 @@
   function resetModalFormFields() {
     document.getElementById('fixedAmount').value = '85000';
     document.getElementById('fixedRate').value = '8.50';
-    document.getElementById('fixedCurrency').value = 'CNY';
+    document.getElementById('fixedCurrency').value = 'USD';
     document.getElementById('rateBase').value = '当月实际营收';
     document.getElementById('histWindow').selectedIndex = 0;
     document.getElementById('histBase').selectedIndex = 0;
@@ -1843,9 +1966,15 @@
         alert('默认比例值：' + maintainValueError(sourceType));
         return;
       }
-      var invalid = detailRows.find(function (item) { return !isValidMaintainValue(sourceType, Number(item.value)); });
+      var invalid = detailRows.find(function (item) {
+        if (!isValidMaintainValue(sourceType, Number(item.value))) return true;
+        if (sourceType === 'fixedAmount' && !String(item.currency || '').trim()) return true;
+        return false;
+      });
       if (invalid) {
-        alert('请补全并校验所有口径明细的维护值：' + maintainValueError(sourceType));
+        alert(sourceType === 'fixedAmount'
+          ? '请补全并校验所有口径明细：金额须大于 0，币种必选。'
+          : '请补全并校验所有口径明细的维护值：' + maintainValueError(sourceType));
         return;
       }
       summary = buildSummary(sourceType, caliberText, detailRows);
@@ -1932,6 +2061,14 @@
     if (e.target.dataset.detailValue) {
       var target = detailRows.find(function (item) { return item.key === e.target.dataset.detailValue; });
       if (target) target.value = e.target.value === '' ? NaN : Number(e.target.value);
+      return;
+    }
+    if (e.target.dataset.detailCurrency) {
+      var curTarget = detailRows.find(function (item) { return item.key === e.target.dataset.detailCurrency; });
+      if (curTarget) {
+        curTarget.currency = e.target.value;
+        curTarget.currencyTouched = true;
+      }
     }
   });
   document.getElementById('btnBulkEdit').addEventListener('click', openBatchEditModal);
@@ -2152,7 +2289,7 @@
       "id": "source-type-params-rule",
       "selector": ".source-block.active[data-pa-key=\"source-type-params\"]",
       "title": "类型参数",
-      "body": "来源类型参数规则：\n1. 固定金额/固定比例：顶部默认值为批量编辑参考；列表摘要按明细维护值汇总展示（区间/均值）。\n2. 历史滚动占比：历史窗口与比例基数决定系统如何计算各明细行的滚动占比（只读）。\n3. 同期占比预估：比例基数与缺数处理决定同比月缺数时的降级策略。"
+      "body": "来源类型参数规则：\n1. 固定金额：顶部默认金额为批量编辑参考；顶部币种默认 USD（可选手动改），不替代明细行币种。\n2. 固定金额明细：月固定金额后增加币种列，默认按国家/站点当地币种带出，可改选；仅首次带出，已手改不覆盖。\n3. 固定比例：顶部默认比例为批量编辑参考；列表摘要按明细维护值汇总展示（区间/均值）。\n4. 历史滚动占比：历史窗口与比例基数决定系统如何计算各明细行的滚动占比（只读）。\n5. 同期占比预估：比例基数与缺数处理决定同比月缺数时的降级策略。"
     },
     {
       "id": "rolling-rate-rule",
@@ -2188,19 +2325,19 @@
       "id": "detail-toolbar-rule",
       "selector": "[data-pa-key=\"detail-toolbar\"]",
       "title": "明细工具栏",
-      "body": "明细工具栏规则：\n1. 「批量编辑」：须先勾选明细行，统一写入同一维护值；历史滚动占比只读不可批量编辑。\n2. 「导出当前明细」：导出弹窗内全部已展开明细（非仅筛选可见行），列结构跟随口径范围。\n3. 「导入明细」：按维度匹配覆盖同组合维护值；任一校验或执行失败时整批回滚，不留部分成功；文件内重复维度组合视为失败。"
+      "body": "明细工具栏规则：\n1. 「批量编辑」：须先勾选明细行；固定金额可同时填统一金额（必填）+统一币种（可空=只改金额）；其它类型只写维护值；历史滚动占比只读不可批量编辑。\n2. 「导出当前明细」：导出弹窗内全部已展开明细（非仅筛选可见行），列结构跟随口径范围；固定金额含币种列。\n3. 「导入明细」：按维度匹配覆盖同组合维护值；固定金额须含币种；任一校验或执行失败时整批回滚，不留部分成功；文件内重复维度组合视为失败。"
     },
     {
       "id": "batch-edit-modal-rule",
       "selector": "[data-pa-key=\"batch-edit-modal\"]",
       "title": "批量编辑确认",
-      "body": "批量编辑确认规则：\n1. 弹窗展示待更新的明细行预览及当前值，输入统一维护值后点「确认填入」。\n2. 固定金额写金额，固定比例和同期占比写百分比数值；空值不允许提交。\n3. 确认后仅更新已勾选行，不自动修改未勾选明细。"
+      "body": "批量编辑确认规则：\n1. 弹窗展示待更新的明细行预览及当前值（固定金额另展示当前币种）。\n2. 金额/比例必填；固定金额的「统一币种」可空——空则只改金额不覆盖各行币种；有值则统一覆盖并视为手改。\n3. 确认后仅更新已勾选行，不自动修改未勾选明细。"
     },
     {
       "id": "edit-modal-footer-rule",
       "selector": "[data-pa-key=\"edit-modal-footer\"]",
       "title": "保存与取消",
-      "body": "弹窗底栏规则：\n1. 「取消」关闭弹窗且不保存本次修改。\n2. 「保存」校验：至少选一个渠道；仅启用状态校验渠道占用（停用配置不占渠道）；非自动取数须补全全部明细维护值。\n3. 保存成功后刷新列表摘要（按明细汇总）；新规则仅影响未运行月份，已运行月份与历史报表保留快照不重算。"
+      "body": "弹窗底栏规则：\n1. 「取消」关闭弹窗且不保存本次修改。\n2. 「保存」校验：至少选一个渠道；仅启用状态校验渠道占用（停用配置不占渠道）；非自动取数须补全全部明细维护值；固定金额明细币种必选。\n3. 保存成功后刷新列表摘要（按明细汇总）；新规则仅影响未运行月份，已运行月份与历史报表保留快照不重算。"
     },
     {
       "id": "status-impact-rule",
@@ -2244,7 +2381,13 @@
       "id": "tip-detail-value",
       "selector": "#detailHead th[data-pa-key=\"detail-maintain-value\"]",
       "title": "维护值",
-      "body": "该列随费用来源变化：固定金额为月金额，固定比例和同期占比为百分比，历史滚动占比为系统计算值。"
+      "body": "该列随费用来源变化：固定金额为月金额，固定比例和同期占比为百分比，历史滚动占比为系统计算值。固定金额时右侧另有「币种」列，按国家/站点当地币种默认带出，可改选，保存前必选。"
+    },
+    {
+      "id": "tip-detail-currency",
+      "selector": "#detailHead th[data-pa-key=\"detail-currency\"]",
+      "title": "明细币种",
+      "body": "仅固定金额展示。默认：明细行国家→当地币种；店铺口径按站点所属国家映射。映射不到为空须手选。用户手改后不再被自动覆盖。批量编辑可统一改币种（可空=只改金额）。"
     }
   ],
   "pageGuide": {
@@ -2257,7 +2400,8 @@
         "来源类型决定计算方式：自动取数、固定金额、固定比例、历史滚动占比、同期占比预估。",
         "弹窗启用状态与列表启停一致；查看模式只读不可保存。",
         "口径范围决定明细维度，渠道选择决定可展开组合；店铺按渠道加载，零售商仅线下商超；非自动取数必须补全明细维护值。",
-        "明细筛选仅影响展示；工具栏支持批量编辑、导出全部明细、按维度导入覆盖；导入失败整批回滚。",
+        "明细筛选仅影响展示；固定金额支持批量编辑金额+币种（币种可空）、导出/导入含币种列；其它类型批量编辑仅维护值；导入失败整批回滚。",
+        "固定金额明细币种按国家/站点当地币种默认带出，可改选；仅首次带出，已手改不覆盖；保存前币种必选。",
         "历史滚动占比明细值只读，导入和批量编辑均禁止；同期占比支持缺数处理策略。",
         "启用/停用须二次确认、权限控制与操作日志；已运行月份与历史报表保留快照，未运行月份按新规则生效。",
         "来源规则修改后不重算已运行月份与历史报表；自动取数的数据源与同步细节本期不纳入范围。"
@@ -2287,7 +2431,7 @@
         "保存前确认来源摘要、启用状态和适用范围，避免后续月度计提口径错误。"
       ],
       "关键字段说明": "「来源摘要」按明细维护值汇总展示；「维护值」是明细层真正参与计算的金额或比例；「状态」决定该规则是否参与后续计提（停用不占渠道）。",
-      "使用注意事项": "切换来源类型、口径范围或渠道会改变明细结构。历史滚动占比由系统计算，不需要手工填值。规则修改或启停仅影响未运行月份；已运行月份与历史报表保留快照。启停须二次确认。"
+      "使用注意事项": "切换来源类型、口径范围或渠道会改变明细结构。固定金额须维护金额与币种（顶部币种默认 USD，明细按国家/站点带出）。历史滚动占比由系统计算，不需要手工填值。规则修改或启停仅影响未运行月份；已运行月份与历史报表保留快照。启停须二次确认。"
     }
   },
   "statusFlow": {
