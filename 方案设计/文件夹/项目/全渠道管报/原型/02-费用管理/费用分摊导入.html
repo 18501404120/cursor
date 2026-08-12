@@ -917,6 +917,20 @@
       box-sizing: border-box;
       background: #fff;
     }
+    .scope-flat-col.is-disabled-by-mode {
+      opacity: 0.55;
+    }
+    .scope-flat-col.is-disabled-by-mode .msf-root,
+    .scope-flat-col.is-disabled-by-mode .msf-trigger {
+      pointer-events: none;
+      cursor: not-allowed;
+      background: #f1f5f9;
+    }
+    .scope-flat-col.is-disabled-by-mode input.scope-text:disabled {
+      cursor: not-allowed;
+      background: #f1f5f9;
+      color: #94a3b8;
+    }
   </style>
 </head>
 <body>
@@ -1169,7 +1183,7 @@
                   <label for="msfCreateMsku">MSKU</label>
                   <div id="msfCreateMsku"></div>
                 </div>
-                <div class="scope-flat-col">
+                <div class="scope-flat-col" id="colCreateAsin" data-noalloc-forbid="1">
                   <label for="msfCreateAsin">ASIN</label>
                   <div id="msfCreateAsin"></div>
                 </div>
@@ -1179,11 +1193,11 @@
                     <option value="">请选择</option>
                   </select>
                 </div>
-                <div class="scope-flat-col field">
+                <div class="scope-flat-col field" id="colOrderNos" data-noalloc-forbid="1">
                   <label for="orderNos">订单号</label>
                   <input type="text" id="orderNos" class="scope-text" placeholder="多选英文逗号分隔">
                 </div>
-                <div class="scope-flat-col field">
+                <div class="scope-flat-col field" id="colDlBatchNos" data-noalloc-forbid="1">
                   <label for="dlBatchNos">DL批次号</label>
                   <input type="text" id="dlBatchNos" class="scope-text" placeholder="多选英文逗号分隔">
                 </div>
@@ -1251,7 +1265,7 @@
                 <h4>分摊规则</h4>
                 <ul>
                   <li><strong>分摊：</strong>渠道与产品范围分别取交后，按权重月营收占比分摊至各 MSKU，剔除回款为负数据；部门可留空（按店铺映射）</li>
-                  <li><strong>不分摊：</strong>渠道/产品每列仅可单选或不填，填写字段为 AND 条件，全空即全公司通用费用；部门必填</li>
+                  <li><strong>不分摊：</strong>渠道/产品每列仅可单选或不填；ASIN、订单号、DL批次号不可填；填写字段为 AND 条件，全空即全公司通用费用；部门必填</li>
                   <li>解析成功生成待生效批次，规则与「新增导入费用」一致</li>
                 </ul>
               </div>
@@ -1315,10 +1329,10 @@
                 <tr><td>MODEL</td><td>否</td><td>主数据 MODEL（与 SPU 前 5 位一致）。</td></tr>
                 <tr><td>SKU</td><td>否</td><td>8 位生产 SKU。</td></tr>
                 <tr><td>MSKU</td><td>否</td><td>精确 MSKU。</td></tr>
-                <tr><td>ASIN</td><td>否</td><td>亚马逊 ASIN；多选英文逗号。</td></tr>
+                <tr><td>ASIN</td><td>否</td><td>亚马逊 ASIN；多选英文逗号；<strong>仅分摊模式可填</strong>，不分摊须留空。</td></tr>
                 <tr><td>新品标签</td><td>否</td><td>年份下拉单选（当前年±3年）；填写如 2024年新品；填写后仅匹配带该标签的产品。</td></tr>
-                <tr><td>订单号</td><td>否</td><td>订单号；多选英文逗号；用于订单维度收窄。</td></tr>
-                <tr><td>DL批次号</td><td>否</td><td>DL 批次号；多选英文逗号。</td></tr>
+                <tr><td>订单号</td><td>否</td><td>订单号；多选英文逗号；用于订单维度收窄；<strong>仅分摊模式可填</strong>，不分摊须留空。</td></tr>
+                <tr><td>DL批次号</td><td>否</td><td>DL 批次号；多选英文逗号；<strong>仅分摊模式可填</strong>，不分摊须留空。</td></tr>
               </tbody>
             </table>
           </div>
@@ -1327,7 +1341,7 @@
             <li>费用项、币种及渠道/产品各列取值须与钉钉模版「数据字典」页一致；店铺、SKU、MSKU 等与系统主数据二次校验。</li>
             <li>同一单元格内多个选项仅用<strong>英文逗号</strong>分隔，勿用分号或中文逗号。</li>
             <li><strong>分摊模式：</strong>从本月营收明细筛选「渠道范围 AND 产品范围」都匹配的记录，空字段视为不限，营收 &lt; 0 的记录剔除不参与分摊；按匹配记录营收占比分摊金额（保留2位小数，末行舍入调整），结果归属到明细级（如具体店铺）。部门可留空（按店铺映射归属），填了则按填的部门归属；订单号、DL批次号可填。</li>
-            <li><strong>不分摊模式：</strong>渠道/产品范围每列仅可单选或不填，不可多选；填写字段作为费用归属的 AND 条件，全部为空即「全公司通用费用」；查询时填写字段精确匹配、空字段为通配。部门必填，由用户填金蝶部门。</li>
+            <li><strong>不分摊模式：</strong>渠道/产品范围每列仅可单选或不填，不可多选；<strong>ASIN、订单号、DL批次号不可填写（须留空）</strong>；其余填写字段作为费用归属的 AND 条件，全部为空即「全公司通用费用」；查询时填写字段精确匹配、空字段为通配。部门必填，由用户填金蝶部门。</li>
             <li>解析失败行写入错误文件回传；成功行生成待生效批次。</li>
           </ol>
         </div>
@@ -1610,6 +1624,7 @@
     }
 
     function collectProductScopeFromUi() {
+      const noAlloc = getAllocMode() === "不分摊";
       const catKeys = state.msf.cat?.getValues() || [];
       const npLabel = getSelectedNewProductTagLabel();
       return {
@@ -1618,10 +1633,10 @@
         models: state.msf.model?.getValues() || [],
         skus: state.msf.sku?.getValues() || [],
         mskus: state.msf.msku?.getValues() || [],
-        asins: state.msf.asin?.getValues() || [],
+        asins: noAlloc ? [] : (state.msf.asin?.getValues() || []),
         newProductTags: npLabel ? [npLabel] : [],
-        orderNos: parseCommaList(document.getElementById("orderNos")?.value),
-        dlBatchNos: parseCommaList(document.getElementById("dlBatchNos")?.value)
+        orderNos: noAlloc ? [] : parseCommaList(document.getElementById("orderNos")?.value),
+        dlBatchNos: noAlloc ? [] : parseCommaList(document.getElementById("dlBatchNos")?.value)
       };
     }
 
@@ -2088,6 +2103,33 @@
       return state.allocMode || "分摊";
     }
 
+    function syncNoAllocForbiddenFields(mode) {
+      const forbidden = mode === "不分摊";
+      ["colCreateAsin", "colOrderNos", "colDlBatchNos"].forEach((id) => {
+        document.getElementById(id)?.classList.toggle("is-disabled-by-mode", forbidden);
+      });
+      const orderEl = document.getElementById("orderNos");
+      const dlEl = document.getElementById("dlBatchNos");
+      if (orderEl) {
+        if (forbidden) orderEl.value = "";
+        orderEl.disabled = forbidden;
+        orderEl.placeholder = forbidden ? "不分摊模式不可填写" : "多选英文逗号分隔";
+      }
+      if (dlEl) {
+        if (forbidden) dlEl.value = "";
+        dlEl.disabled = forbidden;
+        dlEl.placeholder = forbidden ? "不分摊模式不可填写" : "多选英文逗号分隔";
+      }
+      const asin = state.msf.asin;
+      if (asin) {
+        if (forbidden) {
+          asin.close?.();
+          asin.clear?.();
+          state.msfPrev.asin = [];
+        }
+      }
+    }
+
     function setAllocMode(mode) {
       if (mode !== "分摊" && mode !== "不分摊") return;
       state.allocMode = mode;
@@ -2104,13 +2146,14 @@
         hint.textContent =
           mode === "分摊"
             ? "分摊：按渠道/产品范围交集与权重月营收占比分摊至各 MSKU。"
-            : "不分摊：渠道/产品范围每列仅可单选或不填，填写字段之间为 AND 条件，费用整笔归属到该维度组合。";
+            : "不分摊：渠道/产品范围每列仅可单选或不填；ASIN、订单号、DL批次号不可填写；费用整笔归属到该维度组合。";
       }
       const deptReq = document.getElementById("deptReq");
       if (deptReq) deptReq.style.display = mode === "不分摊" ? "" : "none";
+      syncNoAllocForbiddenFields(mode);
       updateScopePanelHints();
       if (mode === "不分摊") {
-        const MSF_KEYS = ["region", "country", "ch", "store", "retailer", "scene", "cat", "model", "sku", "msku", "asin"];
+        const MSF_KEYS = ["region", "country", "ch", "store", "retailer", "scene", "cat", "model", "sku", "msku"];
         MSF_KEYS.forEach((k) => {
           const inst = state.msf[k];
           if (!inst) return;
@@ -2122,8 +2165,6 @@
             state.msfPrev[k] = [...vals];
           }
         });
-        enforceSingleValueText("orderNos");
-        enforceSingleValueText("dlBatchNos");
       }
       resetCreatePreview();
       updateRuleText();
@@ -2131,7 +2172,7 @@
 
     function enforceSingleValueText(id) {
       const el = document.getElementById(id);
-      if (!el) return;
+      if (!el || el.disabled) return;
       if (state.allocMode !== "不分摊") return;
       const raw = (el.value || "").trim();
       if (!raw) return;
@@ -2151,7 +2192,7 @@
         if (ps) ps.textContent = `分摊模式：各列可多选，列间取交集；均不选表示全产品。`;
       } else {
         if (ch) ch.textContent = `不分摊模式：每列仅可单选或不填，填写字段之间为 AND 条件，未填字段视为通配。`;
-        if (ps) ps.textContent = `不分摊模式：每列仅可单选或不填，填写字段之间为 AND 条件，未填字段视为通配。`;
+        if (ps) ps.textContent = `不分摊模式：每列仅可单选或不填；ASIN、订单号、DL批次号不可填写；其余填写字段为 AND 条件，未填视为通配。`;
       }
     }
 
@@ -3620,7 +3661,7 @@
       "id": "create-alloc-mode",
       "selector": "#allocModeSeg",
       "title": "分摊模式",
-      "body": "分摊模式逻辑：\n1. 分摊：各列可多选，列间取交集，按权重月营收占比拆至各 MSKU。\n2. 不分摊：每列仅单选或不填，整笔挂到维度组合，部门必填。\n3. 切换模式后渠道/产品多选规则与部门必填规则联动变化。"
+      "body": "分摊模式逻辑：\n1. 分摊：各列可多选，列间取交集，按权重月营收占比拆至各 MSKU；ASIN、订单号、DL批次号可填。\n2. 不分摊：每列仅单选或不填，整笔挂到维度组合，部门必填；ASIN、订单号、DL批次号禁用并清空。\n3. 切换模式后渠道/产品多选规则、禁用字段与部门必填规则联动变化。"
     },
     {
       "id": "create-dept",
@@ -3650,7 +3691,7 @@
       "id": "create-product-flat",
       "selector": "#msfCreateScene",
       "title": "产品范围",
-      "body": "产品范围逻辑：\n1. 九列（场景、品类、MODEL、SKU、MSKU、ASIN、新品标签、订单号、DL批次号）列间取交集。\n2. 填写新品标签后仅匹配带该标签的产品参与分摊。\n3. 交集为空时预览拦截并提示放宽范围。"
+      "body": "产品范围逻辑：\n1. 九列（场景、品类、MODEL、SKU、MSKU、ASIN、新品标签、订单号、DL批次号）列间取交集。\n2. 填写新品标签后仅匹配带该标签的产品参与分摊。\n3. 不分摊模式下 ASIN、订单号、DL批次号禁用并须留空。\n4. 交集为空时预览拦截并提示放宽范围。"
     },
     {
       "id": "create-preview",
