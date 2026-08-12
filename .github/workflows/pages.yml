@@ -3,15 +3,22 @@
 # 若仍选「GitHub Actions」为源，本分支不会生效，请改回「从分支发布」
 #
 # 仓库根目录为「本地/」，静态站点内容来自「方案设计/」子目录，以保持 Pages URL 不变。
+#
+# 加固：
+# 1) 每次写入 .pages-deploy-stamp，即使业务文件无 diff 也会强制更新 gh-pages
+# 2) 支持 workflow_dispatch 手动重跑部署
+# 3) 部署后轮询官方 pages build and deployment；失败则自动 Re-run 一次
 
 name: Deploy GitHub Pages
 
 on:
   push:
     branches: [main]
+  workflow_dispatch:
 
 permissions:
   contents: write
+  actions: write
 
 concurrency:
   group: pages-gh
@@ -20,6 +27,8 @@ concurrency:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    outputs:
+      deploy_started_at: ${{ steps.stamp.outputs.deploy_started_at }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -28,6 +37,7 @@ jobs:
           fetch-depth: 1
 
       - name: Prepare static files
+        id: stamp
         shell: bash
         run: |
           set -euo pipefail
@@ -60,6 +70,20 @@ jobs:
             ls -la _site
             exit 1
           fi
+
+          # 强制每次 gh-pages 都有变更，避免「Deploy success 但未触发 Pages 重建」
+          DEPLOY_STARTED_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          {
+            echo "sha=${GITHUB_SHA}"
+            echo "run_id=${GITHUB_RUN_ID}"
+            echo "run_attempt=${GITHUB_RUN_ATTEMPT}"
+            echo "deployed_at=${DEPLOY_STARTED_AT}"
+            echo "event=${GITHUB_EVENT_NAME}"
+            echo "actor=${GITHUB_ACTOR}"
+          } > _site/.pages-deploy-stamp
+          echo "deploy_started_at=${DEPLOY_STARTED_AT}" >> "$GITHUB_OUTPUT"
+          echo "wrote deploy stamp:"
+          cat _site/.pages-deploy-stamp
           ls -la _site | head -20
 
       - name: Push to gh-pages
@@ -69,3 +93,98 @@ jobs:
           folder: _site
           clean: true
           single-commit: true
+          force: true
+
+  ensure-pages-live:
+    name: Ensure Pages build live
+    needs: deploy
+    runs-on: ubuntu-latest
+    steps:
+      - name: Wait / rerun pages-build-deployment
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DEPLOY_STARTED_AT: ${{ needs.deploy.outputs.deploy_started_at }}
+          REPO: ${{ github.repository }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          echo "Deploy started at: ${DEPLOY_STARTED_AT}"
+          echo "Waiting for official pages-build-deployment..."
+
+          find_run() {
+            gh api "repos/${REPO}/actions/runs?branch=gh-pages&per_page=20" \
+              --jq --arg since "${DEPLOY_STARTED_AT}" '
+                [.workflow_runs[]
+                  | select(.name == "pages build and deployment")
+                  | select(.created_at >= $since)
+                ]
+                | sort_by(.created_at)
+                | reverse
+                | .[0]
+                | if . == null then empty else {id,status,conclusion,html_url,created_at,head_sha} end
+              '
+          }
+
+          # 先等构建出现（最多约 3 分钟）
+          RUN_JSON=""
+          for i in $(seq 1 18); do
+            RUN_JSON="$(find_run || true)"
+            if [[ -n "${RUN_JSON}" ]]; then
+              echo "Found pages build: ${RUN_JSON}"
+              break
+            fi
+            echo "poll appear #${i}: not found yet"
+            sleep 10
+          done
+
+          if [[ -z "${RUN_JSON}" ]]; then
+            echo "::error::未找到 pages build and deployment（请确认 Settings→Pages 源为 gh-pages 分支）"
+            exit 1
+          fi
+
+          RUN_ID="$(echo "${RUN_JSON}" | jq -r .id)"
+          STATUS="$(echo "${RUN_JSON}" | jq -r .status)"
+          CONCLUSION="$(echo "${RUN_JSON}" | jq -r .conclusion)"
+          RUN_URL="$(echo "${RUN_JSON}" | jq -r .html_url)"
+
+          wait_done() {
+            local id="$1"
+            for j in $(seq 1 36); do
+              local info
+              info="$(gh api "repos/${REPO}/actions/runs/${id}" --jq '{status,conclusion,html_url}')"
+              STATUS="$(echo "${info}" | jq -r .status)"
+              CONCLUSION="$(echo "${info}" | jq -r .conclusion)"
+              RUN_URL="$(echo "${info}" | jq -r .html_url)"
+              echo "poll done #${j}: status=${STATUS} conclusion=${CONCLUSION}"
+              if [[ "${STATUS}" == "completed" ]]; then
+                return 0
+              fi
+              sleep 10
+            done
+            echo "::error::pages build 超时未完成: ${RUN_URL}"
+            return 1
+          }
+
+          wait_done "${RUN_ID}"
+
+          if [[ "${CONCLUSION}" == "success" ]]; then
+            echo "Pages build success: ${RUN_URL}"
+            exit 0
+          fi
+
+          echo "::warning::Pages build failed (${CONCLUSION}), auto re-run once: ${RUN_URL}"
+          gh run rerun "${RUN_ID}" --repo "${REPO}" --failed || gh run rerun "${RUN_ID}" --repo "${REPO}"
+
+          # 重跑后重新等待
+          sleep 15
+          wait_done "${RUN_ID}"
+
+          if [[ "${CONCLUSION}" == "success" ]]; then
+            echo "Pages build success after re-run: ${RUN_URL}"
+            exit 0
+          fi
+
+          echo "::error::Pages build 仍失败（已自动重跑一次）: ${RUN_URL}"
+          echo "可在 Actions 手动 Re-run，或再跑一次本工作流（workflow_dispatch）。"
+          exit 1
