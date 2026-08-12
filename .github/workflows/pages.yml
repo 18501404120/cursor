@@ -29,6 +29,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       deploy_started_at: ${{ steps.stamp.outputs.deploy_started_at }}
+      source_sha: ${{ github.sha }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -104,87 +105,125 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           DEPLOY_STARTED_AT: ${{ needs.deploy.outputs.deploy_started_at }}
+          SOURCE_SHA: ${{ needs.deploy.outputs.source_sha }}
           REPO: ${{ github.repository }}
         shell: bash
         run: |
           set -euo pipefail
+          python3 <<'PY'
+          import json, os, time, urllib.error, urllib.request
 
-          echo "Deploy started at: ${DEPLOY_STARTED_AT}"
-          echo "Waiting for official pages-build-deployment..."
-
-          find_run() {
-            gh api "repos/${REPO}/actions/runs?branch=gh-pages&per_page=20" \
-              --jq --arg since "${DEPLOY_STARTED_AT}" '
-                [.workflow_runs[]
-                  | select(.name == "pages build and deployment")
-                  | select(.created_at >= $since)
-                ]
-                | sort_by(.created_at)
-                | reverse
-                | .[0]
-                | if . == null then empty else {id,status,conclusion,html_url,created_at,head_sha} end
-              '
+          token = os.environ["GH_TOKEN"]
+          repo = os.environ["REPO"]
+          since = os.environ["DEPLOY_STARTED_AT"]
+          source_sha = os.environ["SOURCE_SHA"]
+          headers = {
+              "Accept": "application/vnd.github+json",
+              "Authorization": f"Bearer {token}",
+              "User-Agent": "pages-ensure",
+              "X-GitHub-Api-Version": "2022-11-28",
           }
 
-          # 先等构建出现（最多约 3 分钟）
-          RUN_JSON=""
-          for i in $(seq 1 18); do
-            RUN_JSON="$(find_run || true)"
-            if [[ -n "${RUN_JSON}" ]]; then
-              echo "Found pages build: ${RUN_JSON}"
-              break
-            fi
-            echo "poll appear #${i}: not found yet"
-            sleep 10
-          done
+          def api(method: str, path: str, body: dict | None = None):
+              data = None if body is None else json.dumps(body).encode()
+              req = urllib.request.Request(
+                  f"https://api.github.com/{path}",
+                  data=data,
+                  headers={**headers, **({"Content-Type": "application/json"} if body is not None else {})},
+                  method=method,
+              )
+              try:
+                  with urllib.request.urlopen(req, timeout=30) as resp:
+                      raw = resp.read().decode()
+                      return json.loads(raw) if raw else {}
+              except urllib.error.HTTPError as e:
+                  detail = e.read().decode(errors="replace")
+                  raise RuntimeError(f"{method} {path} -> {e.code}: {detail}") from e
 
-          if [[ -z "${RUN_JSON}" ]]; then
-            echo "::error::未找到 pages build and deployment（请确认 Settings→Pages 源为 gh-pages 分支）"
-            exit 1
-          fi
+          def live_stamp_ok() -> bool:
+              try:
+                  req = urllib.request.Request(
+                      "https://18501404120.github.io/cursor/.pages-deploy-stamp",
+                      headers={"User-Agent": "pages-ensure", "Cache-Control": "no-cache"},
+                  )
+                  with urllib.request.urlopen(req, timeout=20) as resp:
+                      text = resp.read().decode(errors="replace")
+                  print("live stamp:\n" + text)
+                  return f"sha={source_sha}" in text
+              except Exception as e:
+                  print(f"live stamp check: {e}")
+                  return False
 
-          RUN_ID="$(echo "${RUN_JSON}" | jq -r .id)"
-          STATUS="$(echo "${RUN_JSON}" | jq -r .status)"
-          CONCLUSION="$(echo "${RUN_JSON}" | jq -r .conclusion)"
-          RUN_URL="$(echo "${RUN_JSON}" | jq -r .html_url)"
+          def latest_pages_run():
+              data = api("GET", f"repos/{repo}/actions/runs?branch=gh-pages&per_page=30")
+              runs = [
+                  r
+                  for r in data.get("workflow_runs", [])
+                  if r.get("name") == "pages build and deployment" and (r.get("created_at") or "") >= since
+              ]
+              runs.sort(key=lambda r: r.get("created_at") or "", reverse=True)
+              return runs[0] if runs else None
 
-          wait_done() {
-            local id="$1"
-            for j in $(seq 1 36); do
-              local info
-              info="$(gh api "repos/${REPO}/actions/runs/${id}" --jq '{status,conclusion,html_url}')"
-              STATUS="$(echo "${info}" | jq -r .status)"
-              CONCLUSION="$(echo "${info}" | jq -r .conclusion)"
-              RUN_URL="$(echo "${info}" | jq -r .html_url)"
-              echo "poll done #${j}: status=${STATUS} conclusion=${CONCLUSION}"
-              if [[ "${STATUS}" == "completed" ]]; then
-                return 0
-              fi
-              sleep 10
-            done
-            echo "::error::pages build 超时未完成: ${RUN_URL}"
-            return 1
-          }
+          print(f"Deploy started at: {since}")
+          print(f"Source sha: {source_sha}")
 
-          wait_done "${RUN_ID}"
+          run = None
+          for i in range(1, 19):
+              run = latest_pages_run()
+              if run:
+                  print(
+                      f"Found pages build: id={run['id']} status={run.get('status')} "
+                      f"conclusion={run.get('conclusion')} url={run.get('html_url')}"
+                  )
+                  break
+              if live_stamp_ok():
+                  print("Live stamp already matches source sha; treat as success.")
+                  raise SystemExit(0)
+              print(f"poll appear #{i}: not found yet")
+              time.sleep(10)
 
-          if [[ "${CONCLUSION}" == "success" ]]; then
-            echo "Pages build success: ${RUN_URL}"
-            exit 0
-          fi
+          if not run:
+              if live_stamp_ok():
+                  print("No Actions run found, but live stamp matches; treat as success.")
+                  raise SystemExit(0)
+              raise SystemExit(
+                  "::error::未找到 pages build and deployment（请确认 Settings→Pages 源为 gh-pages 分支）"
+              )
 
-          echo "::warning::Pages build failed (${CONCLUSION}), auto re-run once: ${RUN_URL}"
-          gh run rerun "${RUN_ID}" --repo "${REPO}" --failed || gh run rerun "${RUN_ID}" --repo "${REPO}"
+          run_id = run["id"]
 
-          # 重跑后重新等待
-          sleep 15
-          wait_done "${RUN_ID}"
+          def wait_done(rid: int):
+              for j in range(1, 37):
+                  info = api("GET", f"repos/{repo}/actions/runs/{rid}")
+                  status = info.get("status")
+                  conclusion = info.get("conclusion")
+                  url = info.get("html_url")
+                  print(f"poll done #{j}: status={status} conclusion={conclusion}")
+                  if status == "completed":
+                      return conclusion, url
+                  time.sleep(10)
+              raise SystemExit(f"::error::pages build 超时未完成: {url}")
 
-          if [[ "${CONCLUSION}" == "success" ]]; then
-            echo "Pages build success after re-run: ${RUN_URL}"
-            exit 0
-          fi
+          conclusion, url = wait_done(run_id)
+          if conclusion == "success" or live_stamp_ok():
+              print(f"Pages build success: {url}")
+              raise SystemExit(0)
 
-          echo "::error::Pages build 仍失败（已自动重跑一次）: ${RUN_URL}"
-          echo "可在 Actions 手动 Re-run，或再跑一次本工作流（workflow_dispatch）。"
-          exit 1
+          print(f"::warning::Pages build failed ({conclusion}), auto re-run once: {url}")
+          try:
+              api("POST", f"repos/{repo}/actions/runs/{run_id}/rerun-failed-jobs")
+          except Exception as e:
+              print(f"rerun-failed-jobs failed ({e}); fallback to full rerun")
+              api("POST", f"repos/{repo}/actions/runs/{run_id}/rerun")
+
+          time.sleep(15)
+          conclusion, url = wait_done(run_id)
+          if conclusion == "success" or live_stamp_ok():
+              print(f"Pages build success after re-run: {url}")
+              raise SystemExit(0)
+
+          raise SystemExit(
+              f"::error::Pages build 仍失败（已自动重跑一次）: {url}\n"
+              "可在 Actions 手动 Re-run，或再跑一次本工作流（workflow_dispatch）。"
+          )
+          PY
