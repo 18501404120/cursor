@@ -615,11 +615,20 @@
         const pushBtn = item.can_push
           ? `<button class="btn primary git-push" data-key="${escapeHtml(item.key)}" type="button" ${
               gitBusy ? "disabled" : ""
-            }>推送 Git</button>
-            <button class="btn ghost git-merge" data-key="${escapeHtml(item.key)}" type="button" ${
-              gitBusy ? "disabled" : ""
-            }>请求合并main分支</button>`
+            }>推送 Git</button>`
           : "";
+        const mergeBtn =
+          item.can_push && item.can_merge
+            ? `<button class="btn ghost git-merge" data-key="${escapeHtml(item.key)}" type="button" ${
+                gitBusy ? "disabled" : ""
+              }>请求合并main分支</button>`
+            : "";
+        const fixBtn =
+          item.kind === "local" && result.preview_fixable
+            ? `<button class="btn primary git-fix-preview" data-key="${escapeHtml(item.key)}" type="button" ${
+                gitBusy ? "disabled" : ""
+              }>解决预览</button>`
+            : "";
         return `<tr data-key="${escapeHtml(item.key)}">
           <td><strong>${escapeHtml(item.name)}</strong></td>
           <td class="mono">${escapeHtml(item.repo)}</td>
@@ -630,6 +639,8 @@
               gitBusy ? "disabled" : ""
             }>拉取最新</button>
             ${pushBtn}
+            ${mergeBtn}
+            ${fixBtn}
           </td>
           <td>${resultHtml}</td>
         </tr>`;
@@ -643,9 +654,35 @@
     renderGitTable(gitSystemsCache, data.operation || {});
   }
 
-  function setGitRowResult(key, ok, text) {
-    gitRowResults[key] = { ok, text };
+  function setGitRowResult(key, ok, text, extra = {}) {
+    gitRowResults[key] = { ok, text, ...extra };
     renderGitTable(gitSystemsCache, { busy: gitBusy });
+  }
+
+  function formatGitResultText(data) {
+    let text = data.message || "完成";
+    if (data.preview_base_url) {
+      text += ` · <a href="${escapeHtml(data.preview_base_url)}" target="_blank" rel="noopener">预览入口</a>`;
+    }
+    if (data.pr_url) {
+      text += ` · <a href="${escapeHtml(data.pr_url)}" target="_blank" rel="noopener">PR</a>`;
+    }
+    if (Array.isArray(data.actions_urls)) {
+      data.actions_urls.forEach((item) => {
+        if (!item || !item.url) return;
+        const label = escapeHtml(item.label || "Actions");
+        text += ` · <a href="${escapeHtml(item.url)}" target="_blank" rel="noopener">${label}</a>`;
+      });
+    }
+    return text;
+  }
+
+  function actionsLinksPlain(data) {
+    if (!Array.isArray(data.actions_urls) || !data.actions_urls.length) return "";
+    return data.actions_urls
+      .filter((item) => item && item.url)
+      .map((item) => `${item.label || "Actions"}: ${item.url}`)
+      .join("\n");
   }
 
   async function runGitAction(action, key) {
@@ -657,6 +694,7 @@
       pull: "拉取最新",
       push: "推送 Git",
       "merge-request": "请求合并main分支",
+      "fix-preview": "解决预览",
     };
     const label = actionLabels[action] || action;
     appendGitLog(`${key} · ${label} 开始…`);
@@ -665,27 +703,38 @@
         method: "POST",
         body: "{}",
       });
-      let text = data.message || "完成";
-      if (data.preview_base_url) {
-        text += ` · <a href="${escapeHtml(data.preview_base_url)}" target="_blank" rel="noopener">预览入口</a>`;
-      }
-      if (data.pr_url) {
-        text += ` · <a href="${escapeHtml(data.pr_url)}" target="_blank" rel="noopener">PR</a>`;
-      }
+      const text = formatGitResultText(data);
       if (Array.isArray(data.logs) && data.logs.length) {
         data.logs.forEach((line) => appendGitLog(`${key}: ${line}`));
       }
       const skipped = Boolean(data.skipped);
-      setGitRowResult(key, skipped ? null : true, text);
+      const previewFailed = data.preview_ok === false;
+      const previewFixable = Boolean(data.preview_fixable);
+      let ok = skipped ? null : true;
+      if (previewFailed) ok = false;
+      if (action === "fix-preview" && !data.preview_ok) ok = false;
+      setGitRowResult(key, ok, text, {
+        preview_fixable: previewFixable,
+        actions_urls: data.actions_urls || [],
+      });
       appendGitLog(
-        `${key} · ${label} ${skipped ? "已跳过" : "成功"}`,
-        skipped ? "error" : "ok",
+        `${key} · ${label} ${skipped ? "已跳过" : previewFailed || ok === false ? "未完成" : "成功"}`,
+        skipped || previewFailed || ok === false ? "error" : "ok",
       );
+      if (action === "fix-preview" && previewFailed) {
+        const links = actionsLinksPlain(data);
+        alert(`解决预览失败：${data.message || "未知错误"}${links ? `\n\n${links}` : ""}`);
+      }
       await loadGitSystems();
     } catch (err) {
       const msg = String(err.message || err);
-      setGitRowResult(key, false, msg.replace(/\n/g, "<br>"));
+      setGitRowResult(key, false, msg.replace(/\n/g, "<br>"), {
+        preview_fixable: key === "本地" && action !== "pull",
+      });
       appendGitLog(`${key} · ${label} 失败: ${msg}`, "error");
+      if (action === "fix-preview") {
+        alert(`解决预览失败：${msg}`);
+      }
       await loadGitSystems().catch(() => {});
     } finally {
       gitBusy = false;
@@ -703,6 +752,7 @@
     const pullBtn = e.target.closest(".git-pull");
     const pushBtn = e.target.closest(".git-push");
     const mergeBtn = e.target.closest(".git-merge");
+    const fixBtn = e.target.closest(".git-fix-preview");
     if (pullBtn) {
       runGitAction("pull", pullBtn.dataset.key).catch(() => {});
       return;
@@ -713,6 +763,10 @@
     }
     if (mergeBtn) {
       runGitAction("merge-request", mergeBtn.dataset.key).catch(() => {});
+      return;
+    }
+    if (fixBtn) {
+      runGitAction("fix-preview", fixBtn.dataset.key).catch(() => {});
     }
   });
 

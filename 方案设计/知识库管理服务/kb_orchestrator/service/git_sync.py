@@ -41,6 +41,9 @@ SYSTEM_BRANCH_MAP: dict[str, str] = {
 }
 
 LOCAL_PREVIEW_BASE_URL = "https://18501404120.github.io/cursor/"
+LOCAL_PAGES_STAMP_URL = f"{LOCAL_PREVIEW_BASE_URL}.pages-deploy-stamp"
+LOCAL_PREVIEW_WAIT_SEC = 180
+LOCAL_PREVIEW_POLL_SEC = 8
 
 
 def _is_sensitive_git_path(rel_path: str) -> bool:
@@ -158,6 +161,108 @@ def _github_graphql(token: str, query: str, variables: dict[str, Any]) -> dict[s
     if not isinstance(data, dict):
         raise GitSyncError("GitHub GraphQL 返回异常", code="github_api")
     return data
+
+
+def _http_get_text(url: str, *, timeout: int = 20) -> str:
+    req = urllib.request.Request(
+        url,
+        headers={
+            "User-Agent": "kb-orchestrator-pages-check",
+            "Cache-Control": "no-cache",
+            "Pragma": "no-cache",
+        },
+    )
+    with urllib.request.urlopen(req, timeout=timeout) as resp:
+        return resp.read().decode("utf-8", errors="replace")
+
+
+def _github_api_get(path: str, token: str = "") -> Any:
+    url = path if path.startswith("https://") else f"https://api.github.com/{path.lstrip('/')}"
+    headers = {
+        "Accept": "application/vnd.github+json",
+        "User-Agent": "kb-orchestrator-pages-check",
+        "X-GitHub-Api-Version": "2022-11-28",
+    }
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
+    req = urllib.request.Request(url, headers=headers)
+    try:
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            body = resp.read().decode("utf-8")
+            return json.loads(body) if body else {}
+    except urllib.error.HTTPError as exc:
+        detail = exc.read().decode("utf-8", errors="replace")
+        raise GitSyncError(
+            f"GitHub API 请求失败（{exc.code}）",
+            details=detail,
+            code="github_api",
+        ) from exc
+    except (urllib.error.URLError, json.JSONDecodeError, TimeoutError) as exc:
+        raise GitSyncError("GitHub API 请求失败", details=str(exc), code="github_api") from exc
+
+
+def _utc_now_iso() -> str:
+    return datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def _local_repo_slug(repo: Path) -> tuple[str, str]:
+    remote_url = _run_git(["remote", "get-url", "origin"], repo, check=False).stdout.strip()
+    parsed = _parse_github_repo(remote_url) if remote_url else None
+    if not parsed:
+        raise GitSyncError("无法解析本地仓库的 GitHub 地址", details=remote_url)
+    return parsed
+
+
+def _actions_url(owner: str, name: str, run_id: int | None = None) -> str:
+    base = f"https://github.com/{owner}/{name}/actions"
+    if run_id:
+        return f"{base}/runs/{run_id}"
+    return base
+
+
+def _find_workflow_run(
+    owner: str,
+    name: str,
+    *,
+    workflow_name: str,
+    token: str = "",
+    head_sha: str = "",
+    branch: str = "",
+    since_iso: str = "",
+) -> dict[str, Any] | None:
+    query = f"repos/{owner}/{name}/actions/runs?per_page=30"
+    if branch:
+        query += f"&branch={branch}"
+    data = _github_api_get(query, token)
+    runs = data.get("workflow_runs") if isinstance(data, dict) else None
+    if not isinstance(runs, list):
+        return None
+    matched: list[dict[str, Any]] = []
+    for run in runs:
+        if not isinstance(run, dict):
+            continue
+        if run.get("name") != workflow_name:
+            continue
+        if head_sha:
+            run_sha = str(run.get("head_sha") or "")
+            if run_sha != head_sha and not run_sha.startswith(head_sha[:7]):
+                continue
+        if since_iso and str(run.get("created_at") or "") < since_iso:
+            continue
+        matched.append(run)
+    if not matched:
+        return None
+    matched.sort(key=lambda r: str(r.get("created_at") or ""), reverse=True)
+    return matched[0]
+
+
+def _live_stamp_matches(head_sha: str) -> tuple[bool, str]:
+    try:
+        text = _http_get_text(LOCAL_PAGES_STAMP_URL)
+    except Exception as exc:  # noqa: BLE001 - 预览探测需吞掉网络异常
+        return False, f"读取线上 stamp 失败: {exc}"
+    ok = f"sha={head_sha}" in text
+    return ok, text.strip()
 
 
 def _run_git(
@@ -357,6 +462,7 @@ class GitSyncManager:
                     "current_branch": product_branch,
                     "target_branch": target_branch,
                     "can_push": name in GIT_PUSH_SYSTEMS,
+                    "can_merge": name in GIT_PUSH_SYSTEMS,
                     "change_count": system_changes,
                     "repo_change_count": product_dirty,
                     "status_label": _status_label(
@@ -382,6 +488,7 @@ class GitSyncManager:
                 "current_branch": local_branch,
                 "target_branch": "main",
                 "can_push": True,
+                "can_merge": False,
                 "change_count": local_changes,
                 "repo_change_count": local_changes,
                 "status_label": _status_label(local_changes, can_push=True),
@@ -421,11 +528,20 @@ class GitSyncManager:
 
     def request_merge_main(self, system_key: str, *, erp_root=None) -> dict[str, Any]:
         key = system_key.strip()
+        if key == LOCAL_SYSTEM_KEY:
+            raise GitSyncError("本地不支持请求合并main分支（已直接推送 main）", code="forbidden")
         if key not in GIT_PUSH_SYSTEMS:
             raise GitSyncError(f"系统 {key} 不支持请求合并", code="forbidden")
         self._begin("merge-request", key)
         try:
             return self._request_merge_main(key, WorkspacePaths.resolve(erp_root))
+        finally:
+            self._end()
+
+    def fix_local_preview(self, *, erp_root=None) -> dict[str, Any]:
+        self._begin("fix-preview", LOCAL_SYSTEM_KEY)
+        try:
+            return self._fix_local_preview(WorkspacePaths.resolve(erp_root))
         finally:
             self._end()
 
@@ -905,14 +1021,28 @@ class GitSyncManager:
             raise GitSyncError("本地 不是 Git 仓库")
 
         if _count_changes(repo) == 0:
+            head_sha = _run_git(["rev-parse", "HEAD"], repo).stdout.strip()
+            preview = self._await_local_preview(
+                repo,
+                head_sha,
+                since_iso=_utc_now_iso(),
+                wait_for_new_deploy=False,
+            )
             return {
                 "ok": True,
                 "action": "push",
                 "system": LOCAL_SYSTEM_KEY,
                 "skipped": True,
                 "message": "本地：无变更，无需推送",
-                "logs": [],
+                "logs": preview.get("logs") or [],
                 "preview_base_url": LOCAL_PREVIEW_BASE_URL,
+                "head_sha": head_sha,
+                **{k: preview[k] for k in (
+                    "preview_ok",
+                    "preview_fixable",
+                    "preview_message",
+                    "actions_urls",
+                ) if k in preview},
             }
 
         _run_git(["add", "-A"], repo)
@@ -929,6 +1059,14 @@ class GitSyncManager:
             logs = []
             if excluded_files:
                 logs.append(f"已排除敏感文件: {', '.join(excluded_files)}")
+            head_sha = _run_git(["rev-parse", "HEAD"], repo).stdout.strip()
+            preview = self._await_local_preview(
+                repo,
+                head_sha,
+                since_iso=_utc_now_iso(),
+                wait_for_new_deploy=False,
+            )
+            logs.extend(preview.get("logs") or [])
             return {
                 "ok": True,
                 "action": "push",
@@ -937,10 +1075,19 @@ class GitSyncManager:
                 "message": "本地：无有效变更可提交（已排除敏感文件）",
                 "logs": logs,
                 "preview_base_url": LOCAL_PREVIEW_BASE_URL,
+                "head_sha": head_sha,
+                **{k: preview[k] for k in (
+                    "preview_ok",
+                    "preview_fixable",
+                    "preview_message",
+                    "actions_urls",
+                ) if k in preview},
             }
 
         commit_msg = f"chore: 本地方案同步 {_now_label()[:10]}"
         _run_git(["commit", "-m", commit_msg], repo, env={"SKIP_AUTO_PUSH": "1"})
+        head_sha = _run_git(["rev-parse", "HEAD"], repo).stdout.strip()
+        since_iso = _utc_now_iso()
 
         remote_url = _run_git(["remote", "get-url", "origin"], repo, check=False).stdout.strip()
         push = _run_git(
@@ -960,14 +1107,320 @@ class GitSyncManager:
                 )
             raise GitSyncError("push origin 失败", details=detail + hint)
 
+        logs = [push.stdout.strip() or push.stderr.strip() or "push 完成"]
+        preview = self._await_local_preview(
+            repo,
+            head_sha,
+            since_iso=since_iso,
+            wait_for_new_deploy=True,
+        )
+        logs.extend(preview.get("logs") or [])
+        preview_ok = bool(preview.get("preview_ok"))
+        message = (
+            "本地：已 push，Pages 预览已更新"
+            if preview_ok
+            else (
+                preview.get("preview_message")
+                or "本地：已 push，但 Pages 预览未更新"
+            )
+        )
         return {
-            "ok": True,
+            "ok": preview_ok,
             "action": "push",
             "system": LOCAL_SYSTEM_KEY,
             "branch": _current_branch(repo),
-            "message": "本地：已 push 到 origin/main，约 1～2 分钟后 Pages 预览更新",
-            "logs": [push.stdout.strip() or push.stderr.strip() or "push 完成"],
+            "message": message,
+            "logs": logs,
             "preview_base_url": LOCAL_PREVIEW_BASE_URL,
+            "head_sha": head_sha,
+            "preview_ok": preview_ok,
+            "preview_fixable": bool(preview.get("preview_fixable")),
+            "preview_message": preview.get("preview_message") or "",
+            "actions_urls": preview.get("actions_urls") or [],
+        }
+
+    def _await_local_preview(
+        self,
+        repo: Path,
+        head_sha: str,
+        *,
+        since_iso: str,
+        wait_for_new_deploy: bool,
+    ) -> dict[str, Any]:
+        logs: list[str] = []
+        actions_urls: list[dict[str, str]] = []
+        token = _load_github_token()
+        try:
+            owner, name = _local_repo_slug(repo)
+        except GitSyncError as exc:
+            return {
+                "preview_ok": False,
+                "preview_fixable": True,
+                "preview_message": str(exc),
+                "actions_urls": [{"label": "Actions", "url": "https://github.com/18501404120/cursor/actions"}],
+                "logs": [str(exc)],
+            }
+
+        actions_home = _actions_url(owner, name)
+        actions_urls.append({"label": "Actions", "url": actions_home})
+
+        stamp_ok, stamp_text = _live_stamp_matches(head_sha)
+        if stamp_ok:
+            logs.append("线上 stamp 已匹配当前提交")
+            return {
+                "preview_ok": True,
+                "preview_fixable": False,
+                "preview_message": "Pages 预览已是最新",
+                "actions_urls": actions_urls,
+                "logs": logs,
+            }
+
+        if not wait_for_new_deploy:
+            logs.append("线上 stamp 未匹配当前提交")
+            latest_pages = _find_workflow_run(
+                owner,
+                name,
+                workflow_name="pages build and deployment",
+                token=token,
+                branch="gh-pages",
+            )
+            if latest_pages and latest_pages.get("html_url"):
+                actions_urls.append(
+                    {"label": "最近 Pages 构建", "url": str(latest_pages["html_url"])}
+                )
+            return {
+                "preview_ok": False,
+                "preview_fixable": True,
+                "preview_message": (
+                    "本地预览未更新：线上 stamp 落后于当前提交，可点「解决预览」"
+                ),
+                "actions_urls": actions_urls,
+                "logs": logs + [f"stamp={stamp_text[:180]}"],
+            }
+
+        deadline = time.time() + LOCAL_PREVIEW_WAIT_SEC
+        deploy_run: dict[str, Any] | None = None
+        pages_run: dict[str, Any] | None = None
+        logs.append(f"等待 Pages 部署（最长 {LOCAL_PREVIEW_WAIT_SEC}s，目标 sha={head_sha[:7]}）")
+
+        while time.time() < deadline:
+            if deploy_run is None:
+                deploy_run = _find_workflow_run(
+                    owner,
+                    name,
+                    workflow_name="Deploy GitHub Pages",
+                    token=token,
+                    head_sha=head_sha,
+                    branch="main",
+                    since_iso=since_iso,
+                )
+                if deploy_run and deploy_run.get("html_url"):
+                    actions_urls.append(
+                        {"label": "Deploy GitHub Pages", "url": str(deploy_run["html_url"])}
+                    )
+                    logs.append(f"找到 Deploy 任务: {deploy_run.get('status')}/{deploy_run.get('conclusion')}")
+
+            if deploy_run:
+                deploy_run = _github_api_get(
+                    f"repos/{owner}/{name}/actions/runs/{deploy_run['id']}", token
+                )
+                status = deploy_run.get("status")
+                conclusion = deploy_run.get("conclusion")
+                if status == "completed" and conclusion != "success":
+                    return {
+                        "preview_ok": False,
+                        "preview_fixable": True,
+                        "preview_message": f"Deploy GitHub Pages 失败（{conclusion}）",
+                        "actions_urls": actions_urls,
+                        "logs": logs,
+                    }
+
+            if pages_run is None:
+                pages_run = _find_workflow_run(
+                    owner,
+                    name,
+                    workflow_name="pages build and deployment",
+                    token=token,
+                    branch="gh-pages",
+                    since_iso=since_iso,
+                )
+                if pages_run and pages_run.get("html_url"):
+                    actions_urls.append(
+                        {"label": "pages build and deployment", "url": str(pages_run["html_url"])}
+                    )
+
+            if pages_run:
+                pages_run = _github_api_get(
+                    f"repos/{owner}/{name}/actions/runs/{pages_run['id']}", token
+                )
+                status = pages_run.get("status")
+                conclusion = pages_run.get("conclusion")
+                if status == "completed":
+                    if conclusion == "success":
+                        stamp_ok, stamp_text = _live_stamp_matches(head_sha)
+                        if stamp_ok:
+                            logs.append("Pages 构建成功，线上 stamp 已匹配")
+                            return {
+                                "preview_ok": True,
+                                "preview_fixable": False,
+                                "preview_message": "Pages 预览已更新",
+                                "actions_urls": actions_urls,
+                                "logs": logs,
+                            }
+                        logs.append("Pages 构建成功但 stamp 尚未匹配，继续等待 CDN")
+                    else:
+                        return {
+                            "preview_ok": False,
+                            "preview_fixable": True,
+                            "preview_message": f"pages build and deployment 失败（{conclusion}）",
+                            "actions_urls": actions_urls,
+                            "logs": logs,
+                        }
+
+            stamp_ok, stamp_text = _live_stamp_matches(head_sha)
+            if stamp_ok:
+                logs.append("线上 stamp 已匹配当前提交")
+                return {
+                    "preview_ok": True,
+                    "preview_fixable": False,
+                    "preview_message": "Pages 预览已更新",
+                    "actions_urls": actions_urls,
+                    "logs": logs,
+                }
+
+            time.sleep(LOCAL_PREVIEW_POLL_SEC)
+
+        stamp_ok, stamp_text = _live_stamp_matches(head_sha)
+        if stamp_ok:
+            return {
+                "preview_ok": True,
+                "preview_fixable": False,
+                "preview_message": "Pages 预览已更新",
+                "actions_urls": actions_urls,
+                "logs": logs,
+            }
+
+        if not any(a.get("label") == "Deploy GitHub Pages" for a in actions_urls):
+            latest_deploy = _find_workflow_run(
+                owner,
+                name,
+                workflow_name="Deploy GitHub Pages",
+                token=token,
+                branch="main",
+            )
+            if latest_deploy and latest_deploy.get("html_url"):
+                actions_urls.append(
+                    {"label": "最近 Deploy", "url": str(latest_deploy["html_url"])}
+                )
+        if not any(a.get("label") == "pages build and deployment" for a in actions_urls):
+            latest_pages = _find_workflow_run(
+                owner,
+                name,
+                workflow_name="pages build and deployment",
+                token=token,
+                branch="gh-pages",
+            )
+            if latest_pages and latest_pages.get("html_url"):
+                actions_urls.append(
+                    {"label": "最近 Pages 构建", "url": str(latest_pages["html_url"])}
+                )
+
+        return {
+            "preview_ok": False,
+            "preview_fixable": True,
+            "preview_message": (
+                "本地预览超时未更新，可点「解决预览」重试；详见 Actions 链接"
+            ),
+            "actions_urls": actions_urls,
+            "logs": logs + [f"stamp={stamp_text[:180]}"],
+        }
+
+    def _fix_local_preview(self, paths: WorkspacePaths) -> dict[str, Any]:
+        repo = paths.local_dir
+        if not _is_git_repo(repo):
+            raise GitSyncError("本地 不是 Git 仓库")
+
+        design_dir = repo / "方案设计"
+        if not design_dir.is_dir():
+            raise GitSyncError("未找到 方案设计 目录，无法修复预览")
+
+        marker = design_dir / ".pages-fix-preview"
+        marker.write_text(
+            "\n".join(
+                [
+                    f"fixed_at={_utc_now_iso()}",
+                    f"actor=kb-orchestrator",
+                    f"reason=fix-preview",
+                    "",
+                ]
+            ),
+            encoding="utf-8",
+        )
+        _run_git(["add", "--", str(marker.relative_to(repo))], repo)
+        cached = _run_git(["diff", "--cached", "--quiet"], repo, check=False)
+        logs: list[str] = []
+        if cached.returncode != 0:
+            _run_git(
+                ["commit", "-m", f"chore: fix pages preview {_now_label()[:10]}"],
+                repo,
+                env={"SKIP_AUTO_PUSH": "1"},
+            )
+            logs.append("已创建预览修复提交")
+        else:
+            logs.append("修复标记无新变更，继续触发等待")
+
+        head_sha = _run_git(["rev-parse", "HEAD"], repo).stdout.strip()
+        since_iso = _utc_now_iso()
+        remote_url = _run_git(["remote", "get-url", "origin"], repo, check=False).stdout.strip()
+        push = _run_git(
+            ["push", "origin", "HEAD"],
+            repo,
+            check=False,
+            global_config=["http.version=HTTP/1.1"] if remote_url.startswith("https://") else None,
+        )
+        if not push.ok:
+            raise GitSyncError("解决预览：push 失败", details=push.text)
+        logs.append(push.stdout.strip() or push.stderr.strip() or "push 完成")
+
+        # 有 token 时额外尝试 workflow_dispatch，双通道触发
+        token = _load_github_token()
+        if token:
+            try:
+                owner, name = _local_repo_slug(repo)
+                _github_request(
+                    "POST",
+                    f"https://api.github.com/repos/{owner}/{name}/actions/workflows/pages.yml/dispatches",
+                    token,
+                    {"ref": "main"},
+                )
+                logs.append("已触发 workflow_dispatch: Deploy GitHub Pages")
+            except GitSyncError as exc:
+                logs.append(f"workflow_dispatch 跳过: {exc}")
+
+        preview = self._await_local_preview(
+            repo,
+            head_sha,
+            since_iso=since_iso,
+            wait_for_new_deploy=True,
+        )
+        logs.extend(preview.get("logs") or [])
+        preview_ok = bool(preview.get("preview_ok"))
+        return {
+            "ok": preview_ok,
+            "action": "fix-preview",
+            "system": LOCAL_SYSTEM_KEY,
+            "message": (
+                "解决预览成功：Pages 已更新"
+                if preview_ok
+                else (preview.get("preview_message") or "解决预览失败")
+            ),
+            "logs": logs,
+            "preview_base_url": LOCAL_PREVIEW_BASE_URL,
+            "head_sha": head_sha,
+            "preview_ok": preview_ok,
+            "preview_fixable": (not preview_ok),
+            "preview_message": preview.get("preview_message") or "",
+            "actions_urls": preview.get("actions_urls") or [],
         }
 
 git_sync_manager = GitSyncManager()

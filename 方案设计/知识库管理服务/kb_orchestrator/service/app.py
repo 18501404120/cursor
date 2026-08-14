@@ -237,6 +237,19 @@ def api_git_merge_request(system_key: str) -> dict[str, Any]:
         raise HTTPException(status, {"message": str(exc), "details": exc.details, "code": exc.code}) from exc
 
 
+@app.post("/api/git/{system_key}/fix-preview")
+def api_git_fix_preview(system_key: str) -> dict[str, Any]:
+    if system_key.strip() != "本地":
+        raise HTTPException(403, "仅「本地」支持解决预览")
+    try:
+        return git_sync_manager.fix_local_preview()
+    except GitSyncError as exc:
+        if exc.code == "forbidden":
+            raise HTTPException(403, str(exc)) from exc
+        status = 409 if exc.code in {"busy", "conflict"} else 400
+        raise HTTPException(status, {"message": str(exc), "details": exc.details, "code": exc.code}) from exc
+
+
 @app.get("/api/jobs/stream")
 async def api_stream(after: int = Query(0, ge=0)):
     async def gen():
