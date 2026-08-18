@@ -639,7 +639,7 @@
           item.can_push && item.can_merge
             ? `<button class="btn ghost git-merge${hint === "merge" ? " suggested" : ""}" data-key="${escapeHtml(item.key)}" type="button" ${
                 gitBusy ? "disabled" : ""
-              }>请求合并main分支</button>`
+              }>合并main分支</button>`
             : "";
         const fixBtn =
           item.kind === "local" && result.preview_fixable
@@ -714,7 +714,7 @@
     const actionLabels = {
       pull: "拉取最新",
       push: "推送 Git",
-      "merge-request": "请求合并main分支",
+      "merge-request": "合并main分支",
       "fix-preview": "解决预览",
     };
     const label = actionLabels[action] || action;

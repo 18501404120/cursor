@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import os
 import unittest
 from unittest.mock import patch
 
@@ -24,21 +23,28 @@ class GitSyncTests(unittest.TestCase):
         self.assertIn("产品系统", GIT_PUSH_SYSTEMS)
         self.assertNotIn("客服系统", GIT_PUSH_SYSTEMS)
 
-    def test_system_branch_map_uses_single_push_branch(self) -> None:
+    def test_system_branch_map_uses_feature_branch(self) -> None:
         for name in GIT_PUSH_SYSTEMS:
             if name == LOCAL_SYSTEM_KEY:
                 continue
             self.assertEqual(SYSTEM_BRANCH_MAP[name], ERP_PRODUCT_PUSH_BRANCH)
+            self.assertEqual(SYSTEM_BRANCH_MAP[name], "feature-chengkaiwu-xiaoshou")
 
+    @patch("kb_orchestrator.service.git_sync._fetch_origin_refs", return_value=True)
     @patch("kb_orchestrator.service.git_sync._fetch_origin_ref", return_value=True)
-    def test_list_systems_includes_local_and_push_count(self, _fetch) -> None:
+    def test_list_systems_includes_local_and_push_count(self, _fetch, _fetch_refs) -> None:
         data = git_sync_manager.list_systems()
         items = data["items"]
         self.assertTrue(any(item["key"] == LOCAL_SYSTEM_KEY for item in items))
         self.assertEqual(sum(1 for item in items if item["can_push"]), len(GIT_PUSH_SYSTEMS))
+        self.assertTrue(all(
+            item.get("can_merge") is (item["key"] in GIT_PUSH_SYSTEMS and item["key"] != LOCAL_SYSTEM_KEY)
+            for item in items
+        ))
 
+    @patch("kb_orchestrator.service.git_sync._fetch_origin_refs", return_value=True)
     @patch("kb_orchestrator.service.git_sync._fetch_origin_ref", return_value=True)
-    def test_list_systems_includes_vs_main(self, _fetch) -> None:
+    def test_list_systems_includes_vs_main(self, _fetch, _fetch_refs) -> None:
         data = git_sync_manager.list_systems()
         erp_pairs = []
         for item in data["items"]:
@@ -96,11 +102,10 @@ class GitSyncTests(unittest.TestCase):
             git_sync_manager.request_merge_main("客服系统")
         self.assertEqual(ctx.exception.code, "forbidden")
 
-    @patch.dict(os.environ, {"GITHUB_TOKEN": ""}, clear=False)
-    def test_merge_request_requires_token(self) -> None:
+    def test_merge_request_forbidden_local(self) -> None:
         with self.assertRaises(GitSyncError) as ctx:
-            git_sync_manager.request_merge_main("销售系统")
-        self.assertEqual(ctx.exception.code, "no_token")
+            git_sync_manager.request_merge_main(LOCAL_SYSTEM_KEY)
+        self.assertEqual(ctx.exception.code, "forbidden")
 
     @patch("kb_orchestrator.service.git_sync._github_request")
     def test_ensure_github_repo_access_translates_404(self, mock_req) -> None:

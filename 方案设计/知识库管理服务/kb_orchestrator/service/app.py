@@ -233,7 +233,7 @@ def api_git_merge_request(system_key: str) -> dict[str, Any]:
     except GitSyncError as exc:
         if exc.code == "forbidden":
             raise HTTPException(403, str(exc)) from exc
-        status = 409 if exc.code == "busy" else 400
+        status = 409 if exc.code in {"busy", "conflict"} else 400
         raise HTTPException(status, {"message": str(exc), "details": exc.details, "code": exc.code}) from exc
 
 

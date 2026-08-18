@@ -396,6 +396,25 @@ def _fetch_origin_ref(repo: Path, ref: str = "main") -> bool:
     return _run_git(["fetch", "origin", ref], repo, check=False).ok
 
 
+def _fetch_origin_refs(repo: Path, *refs: str) -> bool:
+    if not refs:
+        return _fetch_origin_ref(repo, "main")
+    return _run_git(["fetch", "origin", *refs], repo, check=False).ok
+
+
+def _ref_exists(repo: Path, ref: str) -> bool:
+    return _run_git(["rev-parse", "--verify", ref], repo, check=False).ok
+
+
+def _feature_head_ref(repo: Path) -> str | None:
+    origin_ref = f"origin/{ERP_PRODUCT_PUSH_BRANCH}"
+    if _ref_exists(repo, origin_ref):
+        return origin_ref
+    if _ref_exists(repo, ERP_PRODUCT_PUSH_BRANCH):
+        return ERP_PRODUCT_PUSH_BRANCH
+    return None
+
+
 def _ahead_behind(
     repo: Path, left_ref: str, right_ref: str = "HEAD"
 ) -> tuple[int | None, int | None]:
@@ -550,10 +569,18 @@ class GitSyncManager:
         product_is_git = _is_git_repo(product_repo)
         product_branch = _current_branch(product_repo) if product_is_git else ""
         product_dirty = _count_changes(product_repo) if product_is_git else 0
-        product_fetched = _fetch_origin_ref(product_repo, "main") if product_is_git else False
-        product_behind, product_ahead = (
-            _ahead_behind(product_repo, "origin/main", "HEAD") if product_is_git else (None, None)
-        )
+        product_fetched = False
+        if product_is_git:
+            product_fetched = _fetch_origin_refs(
+                product_repo, "main", ERP_PRODUCT_PUSH_BRANCH
+            )
+        product_behind, product_ahead = (None, None)
+        if product_is_git:
+            feature_ref = _feature_head_ref(product_repo)
+            if feature_ref:
+                product_behind, product_ahead = _ahead_behind(
+                    product_repo, "origin/main", feature_ref
+                )
 
         for name in _erp_system_names(paths):
             target_branch = _erp_push_branch(name)
@@ -656,14 +683,144 @@ class GitSyncManager:
     def request_merge_main(self, system_key: str, *, erp_root=None) -> dict[str, Any]:
         key = system_key.strip()
         if key == LOCAL_SYSTEM_KEY:
-            raise GitSyncError("本地不支持请求合并main分支（已直接推送 main）", code="forbidden")
+            raise GitSyncError("本地不支持合并 main（已直接推送 main）", code="forbidden")
         if key not in GIT_PUSH_SYSTEMS:
-            raise GitSyncError(f"系统 {key} 不支持请求合并", code="forbidden")
+            raise GitSyncError(f"系统 {key} 不支持合并 main", code="forbidden")
         self._begin("merge-request", key)
         try:
-            return self._request_merge_main(key, WorkspacePaths.resolve(erp_root))
+            return self._merge_feature_into_main(key, WorkspacePaths.resolve(erp_root))
         finally:
             self._end()
+
+    def _merge_feature_into_main(self, system_key: str, paths: WorkspacePaths) -> dict[str, Any]:
+        repo = paths.erp_product_dir
+        if not _is_git_repo(repo):
+            raise GitSyncError("ERP_product 不是 Git 仓库")
+
+        feature = ERP_PRODUCT_PUSH_BRANCH
+        base = "main"
+        original_branch = _current_branch(repo)
+        logs: list[str] = [
+            f"源分支: {feature}",
+            f"目标分支: {base}",
+            f"原始分支: {original_branch}",
+        ]
+        stash_created = False
+        switched = False
+        restored = False
+
+        def restore_workspace() -> None:
+            nonlocal restored
+            if restored:
+                return
+            restored = True
+            if switched and original_branch and original_branch != base:
+                _run_git(["checkout", original_branch], repo, check=False)
+                logs.append(f"已切回 {original_branch}")
+            if stash_created:
+                pop = _run_git(["stash", "pop"], repo, check=False)
+                if pop.ok:
+                    logs.append("已恢复 stash")
+                else:
+                    logs.append("WARN: stash pop 失败，请手动处理 stash")
+
+        try:
+            fetched = _fetch_origin_refs(repo, base, feature)
+            if not fetched:
+                _fetch_origin_ref(repo, base)
+                _fetch_origin_ref(repo, feature)
+            logs.append(f"已 fetch origin/{base} 与 origin/{feature}")
+
+            source_ref = _feature_head_ref(repo)
+            if not source_ref:
+                raise GitSyncError(f"找不到功能分支 {feature}（本地与 origin 均不存在）")
+
+            _, ahead = _ahead_behind(repo, f"origin/{base}", source_ref)
+            if ahead == 0:
+                return {
+                    "ok": True,
+                    "action": "merge-request",
+                    "system": system_key,
+                    "branch": feature,
+                    "skipped": True,
+                    "message": f"{system_key}：{feature} 没有领先 main 的提交，无需合并",
+                    "logs": logs,
+                }
+
+            if _count_changes(repo) > 0:
+                stash = _run_git(
+                    [
+                        "stash",
+                        "push",
+                        "--include-untracked",
+                        "-m",
+                        f"wip-before-merge-main-{datetime.now().strftime('%Y%m%d%H%M%S')}",
+                    ],
+                    repo,
+                    check=False,
+                )
+                if stash.returncode == 0 and "No local changes" not in stash.stdout:
+                    stash_created = True
+                    logs.append("已 stash 工作区变更")
+
+            if original_branch != base:
+                checkout = _run_git(["checkout", base], repo, check=False)
+                if not checkout.ok:
+                    raise GitSyncError(f"无法切换到 {base}", details=checkout.text)
+                switched = True
+                logs.append(f"已切换到 {base}")
+
+            pull = _run_git(["pull", "--no-edit", "origin", base], repo, check=False)
+            if not pull.ok:
+                conflict_files = _run_git(
+                    ["diff", "--name-only", "--diff-filter=U"], repo, check=False
+                )
+                files = [line for line in conflict_files.stdout.splitlines() if line.strip()]
+                _run_git(["merge", "--abort"], repo, check=False)
+                if files:
+                    raise GitSyncError(
+                        "拉取 origin/main 发生冲突，请本地解决后重试",
+                        details="\n".join(files),
+                        code="conflict",
+                    )
+                raise GitSyncError("pull origin/main 失败", details=pull.text)
+            logs.append("已 pull origin/main")
+
+            merge = _run_git(["merge", "--no-edit", source_ref], repo, check=False)
+            if not merge.ok:
+                conflict_files = _run_git(
+                    ["diff", "--name-only", "--diff-filter=U"], repo, check=False
+                )
+                files = [line for line in conflict_files.stdout.splitlines() if line.strip()]
+                _run_git(["merge", "--abort"], repo, check=False)
+                raise GitSyncError(
+                    f"合并 {feature} 到 main 发生冲突，请本地解决后重试",
+                    details="\n".join(files) or merge.text,
+                    code="conflict",
+                )
+            if merge.stdout.strip():
+                logs.append(merge.stdout.strip())
+            else:
+                logs.append(f"已合并 {source_ref} → main")
+
+            push = _run_git(["push", "origin", base], repo, check=False)
+            if not push.ok:
+                raise GitSyncError("push origin/main 失败", details=push.text)
+            logs.append("已 push origin/main")
+
+            restore_workspace()
+            return {
+                "ok": True,
+                "action": "merge-request",
+                "system": system_key,
+                "branch": feature,
+                "message": f"{system_key}：已将 {feature} 合并到 main 并推送",
+                "logs": logs,
+            }
+        except Exception:
+            _run_git(["merge", "--abort"], repo, check=False)
+            restore_workspace()
+            raise
 
     def fix_local_preview(self, *, erp_root=None) -> dict[str, Any]:
         self._begin("fix-preview", LOCAL_SYSTEM_KEY)
@@ -1025,6 +1182,23 @@ class GitSyncManager:
         logs: list[str] = [f"原始分支: {original_branch}"]
         backup_dir = Path(tempfile.mkdtemp(prefix="kb-git-backup-"))
         stash_created = False
+        switched = False
+        restored = False
+
+        def restore_workspace() -> None:
+            nonlocal restored
+            if restored:
+                return
+            restored = True
+            if switched and original_branch and original_branch != target_branch:
+                _run_git(["checkout", original_branch], repo, check=False)
+                logs.append(f"已切回 {original_branch}")
+            if stash_created:
+                pop = _run_git(["stash", "pop"], repo, check=False)
+                if pop.ok:
+                    logs.append("已恢复 stash")
+                else:
+                    logs.append("WARN: stash pop 失败，请手动处理 stash")
 
         try:
             shutil.copytree(system_path, backup_dir / system_key)
@@ -1045,52 +1219,43 @@ class GitSyncManager:
                 stash_created = True
                 logs.append("已 stash 工作区变更")
 
-            checkout = _run_git(["checkout", target_branch], repo, check=False)
-            if not checkout.ok:
-                raise GitSyncError(f"无法切换到 {target_branch}", details=checkout.text)
-            logs.append(f"已切换到 {target_branch}")
+            if original_branch != target_branch:
+                checkout = _run_git(["checkout", target_branch], repo, check=False)
+                if not checkout.ok:
+                    raise GitSyncError(f"无法切换到 {target_branch}", details=checkout.text)
+                switched = True
+                logs.append(f"已切换到 {target_branch}")
 
-            pull = _run_git(["pull", "origin", target_branch], repo, check=False)
+            pull = _run_git(["pull", "--no-edit", "origin", target_branch], repo, check=False)
             if not pull.ok:
-                raise GitSyncError(f"pull {target_branch} 失败", details=pull.text)
-            logs.append(f"已 pull origin/{target_branch}")
-
-            merge = _run_git(["merge", "--no-edit", "origin/main"], repo, check=False)
-            if not merge.ok:
                 conflict_files = _run_git(
                     ["diff", "--name-only", "--diff-filter=U"], repo, check=False
                 )
                 files = [line for line in conflict_files.stdout.splitlines() if line.strip()]
-                for rel in files:
-                    if rel.startswith(f"{system_key}/"):
-                        _run_git(["checkout", "--ours", "--", rel], repo, check=False)
-                        _run_git(["add", "--", rel], repo, check=False)
-                    else:
-                        _run_git(["checkout", "--theirs", "--", rel], repo, check=False)
-                        _run_git(["add", "--", rel], repo, check=False)
-                remaining = _run_git(
-                    ["diff", "--name-only", "--diff-filter=U"], repo, check=False
-                )
-                if remaining.stdout.strip():
-                    _run_git(["merge", "--abort"], repo, check=False)
+                _run_git(["merge", "--abort"], repo, check=False)
+                if files:
                     raise GitSyncError(
-                        "合并 origin/main 仍有未解决冲突",
-                        details=remaining.stdout.strip(),
+                        f"拉取 origin/{target_branch} 发生冲突，请本地解决后重试",
+                        details="\n".join(files),
                         code="conflict",
                     )
-                _run_git(
-                    [
-                        "commit",
-                        "--no-edit",
-                        "-m",
-                        f"merge origin/main into {target_branch}: resolve conflicts before KB push",
-                    ],
-                    repo,
-                    check=False,
+                raise GitSyncError(f"pull {target_branch} 失败", details=pull.text)
+            logs.append(f"已 pull origin/{target_branch}")
+
+            _fetch_origin_ref(repo, "main")
+            merge_main = _run_git(["merge", "--no-edit", "origin/main"], repo, check=False)
+            if not merge_main.ok:
+                conflict_files = _run_git(
+                    ["diff", "--name-only", "--diff-filter=U"], repo, check=False
                 )
-                logs.append("已解决 merge origin/main 冲突")
-            else:
-                logs.append("merge origin/main 完成")
+                files = [line for line in conflict_files.stdout.splitlines() if line.strip()]
+                _run_git(["merge", "--abort"], repo, check=False)
+                raise GitSyncError(
+                    "合并 origin/main 到功能分支发生冲突，请本地解决后重试",
+                    details="\n".join(files) or merge_main.text,
+                    code="conflict",
+                )
+            logs.append("已合并 origin/main 到功能分支")
 
             if system_path.exists():
                 shutil.rmtree(system_path)
@@ -1113,24 +1278,14 @@ class GitSyncManager:
                 raise GitSyncError(f"push {target_branch} 失败", details=push.text)
             logs.append(f"已 push origin/{target_branch}")
 
-            if original_branch and original_branch != target_branch:
-                _run_git(["checkout", original_branch], repo, check=False)
-                logs.append(f"已切回 {original_branch}")
-
-            if stash_created:
-                pop = _run_git(["stash", "pop"], repo, check=False)
-                if pop.ok:
-                    logs.append("已恢复 stash")
-                else:
-                    logs.append("WARN: stash pop 失败，请手动处理 stash")
-
+            restore_workspace()
             _clear_system_worktree_after_push(repo, system_key, logs)
 
             message = f"{system_key}：已推送到 {target_branch}"
             if not committed:
-                message += "（仅 merge commit 或无文件差异）"
+                message += "（无文件差异）"
 
-            result: dict[str, Any] = {
+            return {
                 "ok": True,
                 "action": "push",
                 "system": system_key,
@@ -1139,7 +1294,10 @@ class GitSyncManager:
                 "message": message,
                 "logs": logs,
             }
-            return result
+        except Exception:
+            _run_git(["merge", "--abort"], repo, check=False)
+            restore_workspace()
+            raise
         finally:
             shutil.rmtree(backup_dir, ignore_errors=True)
 
