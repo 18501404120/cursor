@@ -1,0 +1,1408 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>研发知识解耦产品架构</title>
+  <style>
+    :root {
+      --bg: #f5f7fb;
+      --card: #ffffff;
+      --text: #172033;
+      --muted: #657187;
+      --line: #e3e8f0;
+      --primary: #335cff;
+      --primary-soft: #eef2ff;
+      --green: #0b8f6a;
+      --green-soft: #eaf8f3;
+      --amber: #b66a00;
+      --amber-soft: #fff6e5;
+      --red: #c43a48;
+      --red-soft: #fff0f2;
+      --blue-soft: #edf6ff;
+      --ink-soft: #f0f3f8;
+      --shadow: 0 8px 30px rgba(28, 39, 66, .07);
+      --radius: 14px;
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      color: var(--text);
+      background: var(--bg);
+      font: 14px/1.65 -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    }
+    a { color: inherit; }
+    button { font: inherit; }
+    .page { max-width: 1180px; margin: 0 auto; padding: 28px 22px 80px; }
+
+    .hero {
+      padding: 34px 38px;
+      color: #fff;
+      border-radius: 18px;
+      background: #1d2a57;
+      box-shadow: var(--shadow);
+    }
+    .hero-kicker { font-size: 12px; opacity: .72; letter-spacing: .08em; }
+    .hero h1 { margin: 8px 0 10px; font-size: 30px; line-height: 1.25; }
+    .hero p { max-width: 900px; margin: 0; opacity: .88; font-size: 15px; }
+    .hero-meta { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; }
+    .hero-pill { padding: 5px 10px; border: 1px solid rgba(255,255,255,.24); border-radius: 999px; font-size: 12px; }
+
+    .toc {
+      position: sticky;
+      top: 10px;
+      z-index: 10;
+      display: flex;
+      gap: 6px;
+      margin: 18px 0 34px;
+      padding: 9px;
+      overflow-x: auto;
+      background: rgba(255,255,255,.94);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(10px);
+    }
+    .toc a {
+      flex: 0 0 auto;
+      padding: 7px 11px;
+      color: var(--muted);
+      border-radius: 8px;
+      text-decoration: none;
+      font-size: 12px;
+      font-weight: 600;
+    }
+    .toc a:hover { color: var(--primary); background: var(--primary-soft); }
+
+    section { margin: 0 0 48px; scroll-margin-top: 78px; }
+    .section-head { display: flex; align-items: center; gap: 12px; margin-bottom: 18px; }
+    .section-no {
+      display: grid;
+      width: 34px;
+      height: 34px;
+      place-items: center;
+      color: #fff;
+      background: var(--primary);
+      border-radius: 9px;
+      font-weight: 700;
+    }
+    h2 { margin: 0; font-size: 22px; }
+    h3 { margin: 0 0 8px; font-size: 17px; }
+    h4 { margin: 0 0 6px; font-size: 14px; }
+    p { margin: 0 0 10px; }
+    ul, ol { margin: 8px 0 0; padding-left: 20px; }
+    li { margin-bottom: 4px; }
+    .muted { color: var(--muted); }
+
+    .card {
+      padding: 20px 22px;
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+    }
+    .grid-2 { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 14px; }
+    .grid-3 { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 14px; }
+    .grid-4 { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 12px; }
+
+    .callout { padding: 14px 16px; border-radius: 10px; }
+    .callout.info { color: #2544a3; background: var(--primary-soft); }
+    .callout.ok { color: #086d51; background: var(--green-soft); }
+    .callout.warn { color: #8a5100; background: var(--amber-soft); }
+
+    .architecture-board {
+      padding: 14px;
+      overflow: hidden;
+      background: #dcecff;
+      border: 1px solid #c5dcf7;
+      border-radius: 14px;
+      box-shadow: var(--shadow);
+    }
+    .architecture-title {
+      padding: 3px 0 12px;
+      color: #0878cf;
+      text-align: center;
+      font-size: 20px;
+      font-weight: 800;
+      letter-spacing: .02em;
+    }
+    .architecture-layer {
+      display: grid;
+      grid-template-columns: 58px minmax(0, 1fr);
+      gap: 8px;
+      margin-bottom: 8px;
+      padding: 7px;
+      background: rgba(255,255,255,.52);
+      border: 1px solid #c7dcf2;
+      border-radius: 9px;
+    }
+    .architecture-layer:last-child { margin-bottom: 0; }
+    .layer-title {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 74px;
+      padding: 7px 4px;
+      color: #1388d3;
+      background: #f5faff;
+      border: 1px solid #c8def3;
+      border-radius: 7px;
+      font-size: 13px;
+      font-weight: 800;
+      line-height: 1.25;
+      text-align: center;
+      writing-mode: vertical-rl;
+      letter-spacing: .08em;
+    }
+    .architecture-content { min-width: 0; }
+    .capability-grid { display: grid; gap: 6px; }
+    .capability-grid.workbenches { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+    .capability-grid.domains { grid-template-columns: 1.65fr 1fr 1fr .72fr; }
+    .capability-grid.engines { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+    .capability-grid.supports { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+    .capability-card {
+      position: relative;
+      min-width: 0;
+      padding: 9px 8px;
+      background: #fff;
+      border: 1px solid #cddff0;
+      border-radius: 6px;
+      text-align: center;
+    }
+    .capability-card h4 {
+      margin: 0 0 6px;
+      color: #0878c9;
+      font-size: 12px;
+      line-height: 1.25;
+    }
+    .capability-card ul {
+      margin: 0;
+      padding: 0;
+      color: #43546b;
+      list-style: none;
+      font-size: 9px;
+      line-height: 1.55;
+    }
+    .capability-card li { margin: 0; }
+    .domain-card {
+      padding: 8px;
+      background: #f8fbff;
+      border: 1px solid #c6dcef;
+      border-radius: 7px;
+    }
+    .domain-title {
+      margin-bottom: 6px;
+      color: #0878c9;
+      text-align: center;
+      font-size: 12px;
+      font-weight: 800;
+    }
+    .domain-modules {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 5px;
+    }
+    .domain-card.single .domain-modules { grid-template-columns: 1fr; }
+    .module-card {
+      position: relative;
+      min-height: 62px;
+      padding: 8px 5px 6px;
+      background: #fff;
+      border: 1px solid #d3e2f1;
+      border-radius: 5px;
+      text-align: center;
+    }
+    .module-card strong {
+      display: block;
+      margin-bottom: 4px;
+      color: #26384e;
+      font-size: 10px;
+    }
+    .module-card small {
+      display: block;
+      color: #66778b;
+      font-size: 8px;
+      line-height: 1.4;
+    }
+    .phase-badge {
+      position: absolute;
+      top: 3px;
+      right: 3px;
+      padding: 1px 4px;
+      color: #315cbd;
+      background: #e7efff;
+      border-radius: 999px;
+      font-size: 7px;
+      font-weight: 700;
+    }
+    .phase-badge.p2 { color: #087258; background: #e4f6ee; }
+    .phase-badge.p3 { color: #8f5700; background: #fff0cf; }
+    .architecture-footnote {
+      margin-top: 9px;
+      color: #4e6d8a;
+      font-size: 11px;
+      text-align: center;
+    }
+
+    .phase-switch { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+    .phase-button {
+      padding: 8px 14px;
+      color: var(--muted);
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 9px;
+      cursor: pointer;
+    }
+    .phase-button.active { color: #fff; background: var(--primary); border-color: var(--primary); }
+    .phase-panel { display: none; }
+    .phase-panel.active { display: block; }
+    .phase-card { position: relative; overflow: hidden; min-height: 210px; }
+    .phase-card::before { content: ""; position: absolute; inset: 0 auto 0 0; width: 4px; background: var(--primary); }
+    .phase-card.p2::before { background: var(--green); }
+    .phase-card.p3::before { background: var(--amber); }
+    .phase-label { font-size: 12px; font-weight: 700; color: var(--primary); }
+    .p2 .phase-label { color: var(--green); }
+    .p3 .phase-label { color: var(--amber); }
+    .phase-time { color: var(--muted); font-size: 12px; }
+    .phase-goal { margin: 8px 0 12px; font-size: 18px; font-weight: 700; }
+
+    .function-group-title { display: flex; align-items: center; gap: 10px; margin: 28px 0 14px; }
+    .phase-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--primary); }
+    .phase-dot.p2 { background: var(--green); }
+    .phase-dot.p3 { background: var(--amber); }
+    .deep-module-head {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin: 30px 0 16px;
+      padding: 12px 15px;
+      color: #174ca1;
+      background: #eaf2ff;
+      border-left: 4px solid var(--primary);
+      border-radius: 8px;
+    }
+    .deep-module-head:first-of-type { margin-top: 20px; }
+    .deep-module-index {
+      display: grid;
+      width: 25px;
+      height: 25px;
+      place-items: center;
+      color: #fff;
+      background: var(--primary);
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 800;
+    }
+    .deep-module-head h3 { margin: 0; font-size: 17px; }
+    .deep-module-head p { margin: 2px 0 0; color: #5f7391; font-size: 11px; }
+    .capability-detail-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 22px;
+    }
+    .capability-detail {
+      display: grid;
+      grid-template-columns: .86fr 1.14fr;
+      align-items: stretch;
+      overflow: hidden;
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 11px;
+      box-shadow: 0 4px 16px rgba(28,39,66,.045);
+    }
+    .capability-detail > :not(.screen) { grid-column: 1; }
+    .capability-detail > .screen {
+      grid-column: 2;
+      grid-row: 1 / span 4;
+      min-height: 275px;
+      margin: 20px 22px 24px 0;
+    }
+    .capability-detail-head {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 20px 22px 14px;
+      border-bottom: 1px solid var(--line);
+    }
+    .capability-detail-head h4 { margin: 3px 0 0; color: #26384f; font-size: 19px; }
+    .detail-id { color: var(--primary); font-size: 10px; font-weight: 800; letter-spacing: .08em; }
+    .detail-phase {
+      flex: 0 0 auto;
+      padding: 3px 8px;
+      color: #315cbd;
+      background: #e7efff;
+      border-radius: 999px;
+      font-size: 10px;
+      font-weight: 700;
+    }
+    .detail-phase.p2 { color: #087258; background: #e4f6ee; }
+    .detail-phase.p3 { color: #8f5700; background: #fff0cf; }
+    .detail-row {
+      display: grid;
+      grid-template-columns: 68px 1fr;
+      gap: 9px;
+      padding: 12px 0;
+      margin: 0 22px;
+      border-bottom: 1px dashed #e5eaf1;
+      font-size: 12px;
+    }
+    .detail-row:nth-of-type(4) { padding-bottom: 20px; border-bottom: 0; }
+    .detail-row b { color: #66778b; font-size: 11px; }
+    .page-outline {
+      padding: 8px 9px;
+      color: #34506f;
+      background: #f5f8fd;
+      border: 1px solid #dce5f1;
+      border-radius: 6px;
+      line-height: 1.5;
+    }
+    .shared-preview {
+      margin-top: 14px;
+      padding: 16px;
+      background: #f8faff;
+      border: 1px solid #dce5f2;
+      border-radius: 11px;
+    }
+    .shared-preview h4 { color: #315cbd; }
+    .preview-strip {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0,1fr));
+      gap: 7px;
+      margin-top: 10px;
+    }
+    .preview-box {
+      padding: 9px;
+      background: #fff;
+      border: 1px solid #dde5f0;
+      border-radius: 7px;
+      font-size: 9px;
+    }
+    .preview-box strong { display: block; margin-bottom: 4px; color: #28466c; }
+
+    .feature {
+      margin-bottom: 22px;
+      padding: 0;
+      overflow: hidden;
+    }
+    .feature-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 18px;
+      padding: 20px 22px 14px;
+      border-bottom: 1px solid var(--line);
+    }
+    .feature-id { color: var(--primary); font-size: 11px; font-weight: 800; letter-spacing: .08em; }
+    .feature-head h3 { margin-top: 3px; font-size: 19px; }
+    .feature-tag { align-self: start; padding: 4px 9px; color: var(--primary); background: var(--primary-soft); border-radius: 999px; font-size: 11px; font-weight: 700; }
+    .feature-tag.p2 { color: var(--green); background: var(--green-soft); }
+    .feature-tag.p3 { color: var(--amber); background: var(--amber-soft); }
+    .feature-body { display: grid; grid-template-columns: .86fr 1.14fr; gap: 20px; padding: 20px 22px 24px; }
+    .feature-copy { display: grid; gap: 14px; align-content: start; }
+    .copy-block { padding-bottom: 12px; border-bottom: 1px solid var(--line); }
+    .copy-block:last-child { padding-bottom: 0; border-bottom: 0; }
+    .copy-title { margin-bottom: 5px; color: var(--muted); font-size: 11px; font-weight: 800; letter-spacing: .08em; }
+
+    .screen {
+      min-width: 0;
+      overflow: hidden;
+      background: #f6f8fc;
+      border: 1px solid #dce2ed;
+      border-radius: 12px;
+    }
+    .screen-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 9px 12px;
+      color: #344056;
+      background: #fff;
+      border-bottom: 1px solid #e4e8f0;
+      font-size: 11px;
+      font-weight: 700;
+    }
+    .dots { display: flex; gap: 4px; }
+    .dots i { display: block; width: 6px; height: 6px; background: #c9d0dc; border-radius: 50%; }
+    .screen-layout { display: grid; grid-template-columns: 102px 1fr; min-height: 260px; }
+    .mock-side { padding: 12px 9px; color: #7a8496; background: #202a43; font-size: 9px; }
+    .mock-side b { display: block; margin-bottom: 8px; color: #fff; font-size: 10px; }
+    .mock-nav { padding: 6px 7px; margin-bottom: 4px; border-radius: 5px; }
+    .mock-nav.active { color: #fff; background: #3957b7; }
+    .mock-main { min-width: 0; padding: 13px; }
+    .mock-title { display: flex; justify-content: space-between; gap: 8px; margin-bottom: 10px; font-size: 11px; font-weight: 800; }
+    .mock-button { padding: 4px 7px; color: #fff; background: var(--primary); border-radius: 5px; font-size: 8px; }
+    .mock-toolbar { display: flex; gap: 6px; margin-bottom: 9px; }
+    .mock-filter { padding: 5px 7px; color: #768196; background: #fff; border: 1px solid #e0e5ee; border-radius: 5px; font-size: 8px; }
+    .mock-grid-2 { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 8px; }
+    .mock-grid-3 { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 7px; }
+    .mock-card { padding: 8px; background: #fff; border: 1px solid #e1e6ef; border-radius: 7px; font-size: 8px; }
+    .mock-card strong { display: block; margin-bottom: 4px; color: #2f3b53; font-size: 9px; }
+    .mock-meta { color: #8993a4; }
+    .mock-row { display: flex; align-items: center; justify-content: space-between; gap: 6px; padding: 6px 0; border-bottom: 1px solid #edf0f5; }
+    .mock-row:last-child { border-bottom: 0; }
+    .status { padding: 2px 5px; border-radius: 999px; font-size: 7px; white-space: nowrap; }
+    .status.green { color: #087455; background: #e7f7f0; }
+    .status.amber { color: #955a00; background: #fff3dd; }
+    .status.blue { color: #2853a4; background: #eaf1ff; }
+    .status.gray { color: #6f7888; background: #eef1f5; }
+    .status.red { color: #a42b3b; background: #ffeaee; }
+    .progress { height: 5px; margin-top: 5px; overflow: hidden; background: #edf0f5; border-radius: 999px; }
+    .progress span { display: block; height: 100%; background: var(--primary); border-radius: inherit; }
+
+    .lane { display: grid; grid-template-columns: 72px repeat(4,minmax(72px,1fr)); gap: 5px; margin-bottom: 6px; align-items: stretch; }
+    .lane-label { padding: 7px 5px; color: #677286; font-size: 8px; }
+    .work-node { position: relative; padding: 7px; border-radius: 6px; font-size: 7px; border: 1px solid transparent; }
+    .work-node.gray { color: #6c7686; background: #edf0f4; }
+    .work-node.amber { color: #885100; background: #fff1cf; border-color: #f3d791; }
+    .work-node.blue { color: #1d4f9c; background: #e7f0ff; border-color: #bad1f5; }
+    .work-node.green { color: #076a4f; background: #e1f6ed; border-color: #aadfc9; }
+    .work-node .badge { position: absolute; top: -5px; right: -4px; padding: 1px 4px; color: #fff; background: var(--red); border-radius: 999px; font-size: 6px; }
+
+    .atom-head { display: grid; grid-template-columns: 1fr auto; gap: 10px; margin-bottom: 8px; }
+    .atom-value { padding: 12px; background: #fff; border: 1px solid #e1e6ef; border-radius: 7px; font-size: 9px; }
+    .timeline { margin-top: 8px; padding-left: 10px; border-left: 2px solid #dce3ef; }
+    .timeline div { position: relative; padding: 0 0 8px 9px; color: #747f91; font-size: 7px; }
+    .timeline div::before { content: ""; position: absolute; left: -14px; top: 3px; width: 6px; height: 6px; background: var(--primary); border-radius: 50%; }
+
+    .jp-score { display: grid; grid-template-columns: repeat(4,1fr); gap: 6px; margin-bottom: 9px; }
+    .score { padding: 7px; text-align: center; background: #fff; border: 1px solid #e1e6ef; border-radius: 6px; }
+    .score b { display: block; font-size: 13px; }
+    .score small { color: #8992a2; font-size: 7px; }
+    .jp-table { width: 100%; border-collapse: collapse; background: #fff; font-size: 7px; }
+    .jp-table th, .jp-table td { padding: 6px; text-align: left; border-bottom: 1px solid #edf0f5; }
+    .jp-table th { color: #758095; background: #f9fafc; }
+
+    .capability-card { padding: 9px; background: #fff; border: 1px solid #e1e6ef; border-radius: 7px; font-size: 8px; }
+    .capability-card h5 { margin: 0 0 4px; font-size: 9px; }
+    .stars { color: #e2a42a; letter-spacing: 1px; }
+    .impact-tree { display: grid; gap: 7px; }
+    .impact-root { width: fit-content; padding: 7px 9px; color: #fff; background: var(--red); border-radius: 7px; font-size: 8px; }
+    .impact-children { display: grid; grid-template-columns: repeat(3,1fr); gap: 7px; padding-left: 16px; }
+    .impact-child { padding: 8px; background: #fff; border: 1px solid #e1e6ef; border-radius: 7px; font-size: 8px; }
+
+    .chat { display: grid; gap: 8px; }
+    .chat-msg { max-width: 82%; padding: 8px 10px; border-radius: 8px; font-size: 8px; }
+    .chat-msg.user { justify-self: end; color: #fff; background: var(--primary); }
+    .chat-msg.ai { background: #fff; border: 1px solid #e1e6ef; }
+    .source { margin-top: 5px; padding-top: 5px; color: #4565b1; border-top: 1px solid #edf0f5; font-size: 7px; }
+
+    table.data { width: 100%; border-collapse: collapse; background: #fff; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; font-size: 12px; }
+    table.data th, table.data td { padding: 10px 12px; text-align: left; vertical-align: top; border-bottom: 1px solid var(--line); }
+    table.data th { color: var(--muted); background: #f8fafc; font-weight: 700; }
+    table.data tr:last-child td { border-bottom: 0; }
+
+    .page-gallery { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 12px; }
+    .page-tile { padding: 15px; background: #fff; border: 1px solid var(--line); border-radius: 11px; }
+    .page-tile span { color: var(--primary); font-size: 11px; font-weight: 700; }
+    .page-tile h4 { margin-top: 5px; }
+
+    .footer { padding-top: 24px; color: var(--muted); border-top: 1px solid var(--line); font-size: 12px; }
+
+    @media (max-width: 900px) {
+      .grid-3, .grid-4, .page-gallery { grid-template-columns: repeat(2,minmax(0,1fr)); }
+      .feature-body { grid-template-columns: 1fr; }
+      .capability-detail { grid-template-columns: 1fr; }
+      .capability-detail > :not(.screen), .capability-detail > .screen { grid-column: 1; }
+      .capability-detail > .screen { grid-row: auto; margin: 0 22px 24px; }
+    }
+    @media (max-width: 680px) {
+      .page { padding: 14px 12px 50px; }
+      .hero { padding: 25px 22px; }
+      .hero h1 { font-size: 24px; }
+      .grid-2, .grid-3, .grid-4, .page-gallery { grid-template-columns: 1fr; }
+      .capability-detail-grid { grid-template-columns: 1fr; }
+      .preview-strip { grid-template-columns: repeat(2, minmax(0,1fr)); }
+      .architecture-layer { grid-template-columns: 42px minmax(0,1fr); }
+      .capability-grid.workbenches,
+      .capability-grid.engines,
+      .capability-grid.supports { grid-template-columns: repeat(2, minmax(0,1fr)); }
+      .capability-grid.domains { grid-template-columns: 1fr; }
+      .screen-layout { grid-template-columns: 82px 1fr; }
+      .lane { grid-template-columns: 55px repeat(4,minmax(58px,1fr)); }
+    }
+    @media print {
+      body { background: #fff; }
+      .toc, .phase-switch { display: none; }
+      .page { max-width: none; padding: 0; }
+      .hero, .card { box-shadow: none; }
+      .phase-panel { display: block !important; }
+      .feature, .screen, .arch-layer { break-inside: avoid; }
+      section { break-before: auto; }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <header class="hero">
+      <div class="hero-kicker">PRODUCT ARCHITECTURE · V0.2</div>
+      <h1>研发知识解耦产品架构</h1>
+      <p>用最简单的四层架构讲清产品，再按一期、二期、三期逐步展开。每个功能都说明它解决什么问题、如何解决，以及关键页面应呈现什么。</p>
+      <div class="hero-meta">
+        <span class="hero-pill">一期：自主协作闭环</span>
+        <span class="hero-pill">二期：能力与影响闭环</span>
+        <span class="hero-pill">三期：跨项目智能协作</span>
+        <span class="hero-pill">基于金蝶 AI PLM 调研</span>
+      </div>
+    </header>
+
+    <nav class="toc" aria-label="页面目录">
+      <a href="#position">产品定位</a>
+      <a href="#architecture">简化架构</a>
+      <a href="#roadmap">三期规划</a>
+      <a href="#features">功能详解</a>
+      <a href="#pages">页面清单</a>
+      <a href="#kingdee">金蝶借鉴</a>
+      <a href="#boundary">产品边界</a>
+    </nav>
+
+    <section id="position">
+      <div class="section-head"><div class="section-no">1</div><h2>产品定位</h2></div>
+      <div class="grid-2">
+        <div class="card">
+          <h3>它是什么</h3>
+          <p>一套研发自主协作平台：把项目拆成可独立验收的解耦单元，让主责人在明确授权、输入条件和组织能力支持下自主推进，并在必要的 JP 汇合验收。</p>
+          <div class="callout info">第一主对象是“解耦单元”，不是 WBS 任务。</div>
+        </div>
+        <div class="card">
+          <h3>它不是什么</h3>
+          <ul>
+            <li>不是替代金蝶或现有 PLM；</li>
+            <li>不是项目经理排每日任务的工具；</li>
+            <li>不是把文档集中存放的新网盘；</li>
+            <li>不是靠更多审批保证协同；</li>
+            <li>不是一期就建设完整研发平台。</li>
+          </ul>
+        </div>
+      </div>
+      <div class="callout ok" style="margin-top:14px">
+        <strong>核心价值：</strong>主责人知道何时能开始、需要谁支持、该交付什么、如何独立验收；PM/PD 知道哪里是机制阻塞，而不是继续靠催进度维持项目。
+      </div>
+    </section>
+
+    <section id="architecture">
+      <div class="section-head"><div class="section-no">2</div><h2>简化后的四层产品架构</h2></div>
+      <div class="architecture-board">
+        <div class="architecture-title">研发知识解耦产品能力架构</div>
+
+        <div class="architecture-layer">
+          <div class="layer-title">角色工作台</div>
+          <div class="architecture-content">
+            <div class="capability-grid workbenches">
+              <div class="capability-card">
+                <span class="phase-badge">一期</span>
+                <h4>我的工作台</h4>
+                <ul><li>可开始工作</li><li>等待与缺口</li><li>源更新提醒</li></ul>
+              </div>
+              <div class="capability-card">
+                <span class="phase-badge">一期</span>
+                <h4>主责人工作台</h4>
+                <ul><li>目标与授权</li><li>输入与输出</li><li>自主验收</li></ul>
+              </div>
+              <div class="capability-card">
+                <span class="phase-badge">一期</span>
+                <h4>PM/PD 机制台</h4>
+                <ul><li>机制风险</li><li>跨组协同</li><li>项目上下文</li></ul>
+              </div>
+              <div class="capability-card">
+                <span class="phase-badge">一期</span>
+                <h4>JP 驾驶舱</h4>
+                <ul><li>齐套检查</li><li>汇入结论</li><li>快照固化</li></ul>
+              </div>
+              <div class="capability-card">
+                <span class="phase-badge p2">二期</span>
+                <h4>能力方工作台</h4>
+                <ul><li>能力请求</li><li>响应承诺</li><li>交付记录</li></ul>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="architecture-layer">
+          <div class="layer-title">核心业务功能</div>
+          <div class="architecture-content">
+            <div class="capability-grid domains">
+              <div class="domain-card">
+                <div class="domain-title">自主协作域</div>
+                <div class="domain-modules">
+                  <div class="module-card"><span class="phase-badge">一期</span><strong>项目解耦</strong><small>单元划分<br>主责人授权</small></div>
+                  <div class="module-card"><span class="phase-badge">一期</span><strong>条件工作网</strong><small>输入条件<br>结果状态</small></div>
+                  <div class="module-card"><span class="phase-badge">一期</span><strong>JP 汇入</strong><small>齐套验收<br>回退与继续</small></div>
+                  <div class="module-card"><span class="phase-badge">一期</span><strong>协同调整</strong><small>协同请求<br>P0/P1/P2</small></div>
+                </div>
+              </div>
+              <div class="domain-card">
+                <div class="domain-title">数字知识域</div>
+                <div class="domain-modules">
+                  <div class="module-card"><span class="phase-badge">一期</span><strong>数字上下文</strong><small>知识原子<br>组装与快照</small></div>
+                  <div class="module-card"><span class="phase-badge p2">二期</span><strong>模板复用</strong><small>项目模板<br>经验沉淀</small></div>
+                </div>
+              </div>
+              <div class="domain-card">
+                <div class="domain-title">能力与影响域</div>
+                <div class="domain-modules">
+                  <div class="module-card"><span class="phase-badge p2">二期</span><strong>组织能力</strong><small>能力货架<br>请求与承诺</small></div>
+                  <div class="module-card"><span class="phase-badge p2">二期</span><strong>影响分析</strong><small>关系反查<br>责任处置</small></div>
+                </div>
+              </div>
+              <div class="domain-card single">
+                <div class="domain-title">智能运营域</div>
+                <div class="domain-modules">
+                  <div class="module-card"><span class="phase-badge p3">三期</span><strong>AI 辅助</strong><small>上下文问答<br>缺口与推荐</small></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="architecture-layer">
+          <div class="layer-title">统一数据内核</div>
+          <div class="architecture-content">
+            <div class="capability-grid engines">
+              <div class="capability-card"><span class="phase-badge">一期</span><h4>解耦单元</h4><ul><li>边界与责任</li><li>输入输出</li></ul></div>
+              <div class="capability-card"><span class="phase-badge">一期</span><h4>知识原子</h4><ul><li>字段与附件</li><li>A/B 分档</li></ul></div>
+              <div class="capability-card"><span class="phase-badge">一期</span><h4>关系</h4><ul><li>需要与产出</li><li>引用与影响</li></ul></div>
+              <div class="capability-card"><span class="phase-badge">一期</span><h4>版本与冻结</h4><ul><li>定稿版本</li><li>阶段冻结点</li></ul></div>
+              <div class="capability-card"><span class="phase-badge">一期</span><h4>钉扎</h4><ul><li>消费版本</li><li>源更新提醒</li></ul></div>
+              <div class="capability-card"><span class="phase-badge">一期</span><h4>JP 快照</h4><ul><li>汇入证据</li><li>历史复现</li></ul></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="architecture-layer">
+          <div class="layer-title">平台支撑</div>
+          <div class="architecture-content">
+            <div class="capability-grid supports">
+              <div class="capability-card"><span class="phase-badge">一期</span><h4>权限与授权</h4><ul><li>项目角色</li><li>业务决策权</li></ul></div>
+              <div class="capability-card"><span class="phase-badge">一期</span><h4>规则</h4><ul><li>状态计算</li><li>汇入校验</li></ul></div>
+              <div class="capability-card"><span class="phase-badge">一期</span><h4>消息待办</h4><ul><li>协同提醒</li><li>超时升级</li></ul></div>
+              <div class="capability-card"><span class="phase-badge p2">二期</span><h4>搜索</h4><ul><li>对象检索</li><li>关系定位</li></ul></div>
+              <div class="capability-card"><span class="phase-badge p2">二期</span><h4>审计度量</h4><ul><li>操作留痕</li><li>机制指标</li></ul></div>
+              <div class="capability-card"><span class="phase-badge p2">二期</span><h4>外部对象连接</h4><ul><li>PLM/ERP/CAD</li><li>测试平台</li></ul></div>
+            </div>
+          </div>
+        </div>
+        <div class="architecture-footnote">一期先跑通自主协作闭环，二期补齐能力与影响，三期再建设可溯源 AI 与跨项目运营。</div>
+      </div>
+    </section>
+
+    <section id="roadmap">
+      <div class="section-head"><div class="section-no">3</div><h2>一期、二期、三期建设规划</h2></div>
+      <div class="phase-switch" role="tablist">
+        <button class="phase-button active" data-phase-target="phase-all">全部</button>
+        <button class="phase-button" data-phase-target="phase-1">一期</button>
+        <button class="phase-button" data-phase-target="phase-2">二期</button>
+        <button class="phase-button" data-phase-target="phase-3">三期</button>
+      </div>
+      <div class="phase-panel active" id="phase-all">
+        <div class="grid-3">
+          <div class="card phase-card">
+            <div class="phase-label">一期 · 0—3个月</div>
+            <div class="phase-goal">跑通自主协作闭环</div>
+            <p class="muted">项目解耦、数字上下文、条件工作网、JP 汇入、基础协同调整。</p>
+            <ul><li>1 个历史样板 + 1 个在飞项目</li><li>先证明机制有效</li><li>不追求大而全</li></ul>
+          </div>
+          <div class="card phase-card p2">
+            <div class="phase-label">二期 · 3—9个月</div>
+            <div class="phase-goal">补齐能力与影响闭环</div>
+            <p class="muted">组织能力货架、综合影响分析、模板复用、外部对象连接、机制度量。</p>
+            <ul><li>能力可申请和承诺</li><li>变化影响可反查</li><li>经验可复制</li></ul>
+          </div>
+          <div class="card phase-card p3">
+            <div class="phase-label">三期 · 9—18个月</div>
+            <div class="phase-goal">形成跨项目智能协作</div>
+            <p class="muted">AI 上下文助手、缺口识别、智能复用、跨项目能力运营和受控配置。</p>
+            <ul><li>先有结构化事实</li><li>AI 输出必须溯源</li><li>正式决策仍由人确认</li></ul>
+          </div>
+        </div>
+      </div>
+      <div class="phase-panel" id="phase-1">
+        <div class="card"><h3>一期交付边界</h3><p>交付 6 个关键页面：项目解耦地图、主责人工作台、条件工作网、知识原子详情、JP 驾驶舱、协同调整中心。试点约 60 个原子、25—35 个结果型工作。</p></div>
+      </div>
+      <div class="phase-panel" id="phase-2">
+        <div class="card"><h3>二期交付边界</h3><p>增加组织能力货架、能力请求、影响分析、模板中心和机制运营看板，并选择性连接 PLM、测试平台和 ERP 的关键对象。</p></div>
+      </div>
+      <div class="phase-panel" id="phase-3">
+        <div class="card"><h3>三期交付边界</h3><p>基于稳定运行产生的对象、关系、版本和事件建设可溯源 AI；支持跨项目风险、依赖与能力容量运营。</p></div>
+      </div>
+    </section>
+
+    <section id="features">
+      <div class="section-head"><div class="section-no">4</div><h2>功能深度说明</h2></div>
+      <p class="muted">严格对应产品架构的四个模块展开；每个功能均说明“解决什么问题 → 怎么解决 → 关键页面长什么样”。页面为产品方向示意，不代表最终视觉稿。</p>
+
+      <div class="deep-module-head">
+        <span class="deep-module-index">01</span>
+        <div><h3>角色工作台</h3><p>同一套项目事实，按成员、主责人、项目机制角色、JP 决策者和 AI 辅助场景重新组织。</p></div>
+      </div>
+      <div class="capability-detail-grid">
+        <div class="capability-detail">
+          <div class="capability-detail-head"><div><span class="detail-id">R-01</span><h4>我的工作台</h4></div><span class="detail-phase">一期</span></div>
+          <div class="detail-row"><b>解决问题</b><span>成员面对多项目、多群聊和多份表格，不知道“现在该做什么、为什么做、交给谁”。</span></div>
+          <div class="detail-row"><b>怎么解决</b><span>聚合我的可开始工作、等待项、协同请求和下一 JP，只呈现与当前角色相关的输入与结果。</span></div>
+          <div class="detail-row"><b>关键页面</b><span class="page-outline">顶部项目切换＋左侧“可开始/等待/协同”导航＋中部工作卡片＋右侧依赖上下文。</span></div>
+          <div class="screen">
+            <div class="screen-bar"><span>我的工作台 · 制冰机 PD</span><span class="dots"><i></i><i></i><i></i></span></div>
+            <div class="screen-layout">
+              <div class="mock-side"><b>我的工作</b><div class="mock-nav active">可开始工作　3</div><div class="mock-nav">等待输入　2</div><div class="mock-nav">协同请求　1</div><div class="mock-nav">我的结果</div><div class="mock-nav">下一 JP</div></div>
+              <div class="mock-main">
+                <div class="mock-title"><span>今日优先处理</span><span class="mock-button">发起协同</span></div>
+                <div class="mock-grid-3"><div class="mock-card"><strong>3</strong><span class="mock-meta">可立即开始</span></div><div class="mock-card"><strong>2</strong><span class="mock-meta">等待上游</span></div><div class="mock-card"><strong>6 天</strong><span class="mock-meta">距离 JP-ES</span></div></div>
+                <div class="mock-card" style="margin-top:8px"><div class="mock-row"><strong>完成制冷性能方案</strong><span class="status blue">可开始</span></div><p class="mock-meta">输入已齐套 · 输出：性能方案 v1.0 · 汇入 JP-ES</p></div>
+                <div class="mock-card" style="margin-top:7px"><div class="mock-row"><strong>确认压缩机样件参数</strong><span class="status amber">等供应商</span></div><p class="mock-meta">缺少：38℃ 工况曲线 · 已等待 1 天 6 小时</p></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="capability-detail">
+          <div class="capability-detail-head"><div><span class="detail-id">R-02</span><h4>主责人工作台</h4></div><span class="detail-phase">一期</span></div>
+          <div class="detail-row"><b>解决问题</b><span>主责人有结果责任，却缺少对边界、授权、输入缺口和汇入条件的一站式视图。</span></div>
+          <div class="detail-row"><b>怎么解决</b><span>围绕解耦单元集中展示责任边界、当前授权、输入齐套、待定稿原子、能力申请与 JP 倒计时。</span></div>
+          <div class="detail-row"><b>关键页面</b><span class="page-outline">上方责任与授权条＋中部条件工作网＋右侧输入缺口和能力请求＋底部汇入检查。</span></div>
+          <div class="screen">
+            <div class="screen-bar"><span>主责人工作台 · 制冷系统</span><span class="dots"><i></i><i></i><i></i></span></div>
+            <div class="mock-main">
+              <div class="mock-title"><span>责任边界与推进状态</span><span class="status green">授权有效</span></div>
+              <div class="jp-score"><div class="score"><b>8/10</b><small>输入齐套</small></div><div class="score"><b>5/7</b><small>结果定稿</small></div><div class="score"><b style="color:#b66a00">2</b><small>能力缺口</small></div><div class="score"><b>6天</b><small>距离 JP</small></div></div>
+              <div class="mock-grid-2">
+                <div class="mock-card"><strong>当前可自主决策</strong><div class="mock-row"><span>性能方案取舍</span><span class="status green">已授权</span></div><div class="mock-row"><span>样件方案调整</span><span class="status green">已授权</span></div><div class="mock-row"><span>成本目标变更</span><span class="status gray">需协同</span></div></div>
+                <div class="mock-card"><strong>汇入前缺口</strong><div class="mock-row"><span>高温工况曲线</span><span class="status red">未到位</span></div><div class="mock-row"><span>噪声验证证据</span><span class="status amber">进行中</span></div><div class="mock-row"><span>安规结论</span><span class="status green">已定稿</span></div></div>
+              </div>
+              <div class="mock-toolbar" style="margin-top:9px"><span class="mock-button">申请能力</span><span class="mock-filter">发起跨组协同</span><span class="mock-filter">进入汇入检查</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="capability-detail">
+          <div class="capability-detail-head"><div><span class="detail-id">R-03</span><h4>PM/PD 机制台</h4></div><span class="detail-phase">一期</span></div>
+          <div class="detail-row"><b>解决问题</b><span>PM/PD 被迫逐项催办，花大量时间搬运状态，仍看不清哪些问题需要机制介入。</span></div>
+          <div class="detail-row"><b>怎么解决</b><span>按异常而非任务展示跨组等待、P0/P1/P2 调整、授权冲突、超时响应和 JP 风险。</span></div>
+          <div class="detail-row"><b>关键页面</b><span class="page-outline">顶部项目健康度＋中部解耦组异常矩阵＋右侧机制介入队列＋决策与升级记录。</span></div>
+          <div class="screen">
+            <div class="screen-bar"><span>PM/PD 机制台 · 项目健康度</span><span class="dots"><i></i><i></i><i></i></span></div>
+            <div class="mock-main">
+              <div class="jp-score"><div class="score"><b style="color:#0b8f6a">76%</b><small>整体健康度</small></div><div class="score"><b style="color:#c43a48">3</b><small>需介入</small></div><div class="score"><b style="color:#b66a00">5</b><small>跨组等待</small></div><div class="score"><b>1.8天</b><small>平均响应</small></div></div>
+              <table class="jp-table"><thead><tr><th>异常</th><th>解耦组</th><th>等级</th><th>等待/影响</th><th>机制动作</th></tr></thead><tbody>
+                <tr><td>样件参数未承诺</td><td>制冷系统</td><td><span class="status red">P0</span></td><td>阻塞验证</td><td>立即升级</td></tr>
+                <tr><td>接口版本冲突</td><td>电控联调</td><td><span class="status amber">P1</span></td><td>2项工作</td><td>组织对齐</td></tr>
+                <tr><td>资源申请超时</td><td>可靠性</td><td><span class="status blue">P2</span></td><td>已等待16h</td><td>提醒能力方</td></tr>
+              </tbody></table>
+              <div class="mock-toolbar" style="margin-top:9px"><span class="mock-button">进入介入队列</span><span class="mock-filter">查看决策记录</span><span class="mock-filter">导出周报</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="capability-detail">
+          <div class="capability-detail-head"><div><span class="detail-id">R-04</span><h4>JP 驾驶舱</h4></div><span class="detail-phase">一期</span></div>
+          <div class="detail-row"><b>解决问题</b><span>汇入前靠人工追文档、拉会议，验收依据分散，决策后难以复盘当时事实。</span></div>
+          <div class="detail-row"><b>怎么解决</b><span>自动计算 A 档齐套，集中呈现关键证据、未决项、带条件继续与回退选项，决策后冻结快照。</span></div>
+          <div class="detail-row"><b>关键页面</b><span class="page-outline">左侧解耦组清单＋中部齐套与证据表＋右侧风险/例外＋底部“汇入/带条件/回退”操作。</span></div>
+          <div class="screen">
+            <div class="screen-bar"><span>JP-ES 汇入驾驶舱 · 2026-08-22</span><span class="dots"><i></i><i></i><i></i></span></div>
+            <div class="mock-main">
+              <div class="jp-score"><div class="score"><b style="color:#0b8f6a">87%</b><small>A档齐套</small></div><div class="score"><b>42</b><small>有效证据</small></div><div class="score"><b style="color:#b66a00">3</b><small>带条件项</small></div><div class="score"><b style="color:#c43a48">1</b><small>阻断项</small></div></div>
+              <table class="jp-table"><thead><tr><th>解耦组</th><th>A档</th><th>验收证据</th><th>风险/例外</th><th>建议</th></tr></thead><tbody>
+                <tr><td>制冷系统</td><td>9/10</td><td>8份有效</td><td>高温工况缺失</td><td><span class="status red">回退补齐</span></td></tr>
+                <tr><td>电控系统</td><td>12/12</td><td>11份有效</td><td>无</td><td><span class="status green">可汇入</span></td></tr>
+                <tr><td>结构系统</td><td>8/8</td><td>7份有效</td><td>模具承诺待签</td><td><span class="status amber">带条件</span></td></tr>
+              </tbody></table>
+              <div class="mock-toolbar" style="margin-top:9px"><span class="mock-button">确认汇入</span><span class="mock-filter">带条件继续</span><span class="mock-filter">回退指定组</span><span class="mock-filter">冻结快照</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="capability-detail">
+          <div class="capability-detail-head"><div><span class="detail-id">R-05</span><h4>AI 辅助工作台</h4></div><span class="detail-phase p3">三期</span></div>
+          <div class="detail-row"><b>解决问题</b><span>项目事实越来越多，人工检索和比较成本高，但通用 AI 又无法保证版本、权限与来源可信。</span></div>
+          <div class="detail-row"><b>怎么解决</b><span>基于有权限的对象、关系、版本和事件回答问题，主动提示依赖缺口与可复用资产，正式决策由人确认。</span></div>
+          <div class="detail-row"><b>关键页面</b><span class="page-outline">中部问答与建议流＋右侧来源对象/版本证据＋下方“采纳、忽略、转协同请求”操作。</span></div>
+          <div class="screen">
+            <div class="screen-bar"><span>AI 辅助工作台 · 有权限的项目上下文</span><span class="dots"><i></i><i></i><i></i></span></div>
+            <div class="mock-main">
+              <div class="mock-toolbar"><span class="mock-filter">项目：制冰机 PD</span><span class="mock-filter">角色：制冷主责人</span><span class="mock-filter">截至版本：JP-ES 基线</span></div>
+              <div class="chat"><div class="chat-msg user">当前制冷系统还有哪些内容会阻塞 JP-ES？</div><div class="chat-msg ai"><strong>发现 1 个阻断项和 2 个高风险项：</strong><br>① 38℃ 高温工况曲线尚未提交；② 噪声证据仍为草稿；③ 压缩机承诺版本晚于冻结点。<div class="source">来源：3个知识原子 · 2条工作关系 · JP-ES规则 v2.1</div></div></div>
+              <div class="mock-card" style="margin-top:8px"><div class="mock-row"><strong>建议动作：向供应商能力方发起 P0 协同</strong><span class="status blue">置信度 92%</span></div><div class="mock-toolbar"><span class="mock-button">采纳并发起</span><span class="mock-filter">查看依据</span><span class="mock-filter">忽略并反馈</span></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="deep-module-head">
+        <span class="deep-module-index">02</span>
+        <div><h3>核心业务功能</h3><p>承载自主协作、数字知识、能力影响和智能运营四个业务域。</p></div>
+      </div>
+      <div class="function-group-title"><i class="phase-dot"></i><h3>一期：自主协作闭环</h3></div>
+
+      <article class="card feature">
+        <div class="feature-head">
+          <div><div class="feature-id">P1-01</div><h3>项目与解耦设计</h3><p class="muted">把项目从“岗位交文档”改成“结果单元自主推进”。</p></div>
+          <span class="feature-tag">一期</span>
+        </div>
+        <div class="feature-body">
+          <div class="feature-copy">
+            <div class="copy-block"><div class="copy-title">解决什么问题</div><p>现有项目主要按阶段和岗位分工，谁对一个可独立结果负责、需要哪些输入、能否先验证并不清晰，最终仍由 PM 统筹所有接口。</p></div>
+            <div class="copy-block"><div class="copy-title">怎么解决</div><p>建立解耦单元，明确目标、边界、主责人、授权、辅助角色、必要输入、输出、独立验证方式和汇入 JP。KO 时从模板实例化并裁剪。</p></div>
+            <div class="copy-block"><div class="copy-title">关键规则</div><ul><li>解耦单元必须可独立推进、验证和汇入；</li><li>主责人拥有需求确认、资源策划、节奏安排、协同发起和专业验收权；</li><li>不能把岗位工作简单改名为解耦单元。</li></ul></div>
+          </div>
+          <div class="screen">
+            <div class="screen-bar"><span>H8120 · 项目解耦地图</span><span class="dots"><i></i><i></i><i></i></span></div>
+            <div class="screen-layout">
+              <aside class="mock-side"><b>项目空间</b><div class="mock-nav active">解耦地图</div><div class="mock-nav">条件工作网</div><div class="mock-nav">JP 汇入</div><div class="mock-nav">知识上下文</div></aside>
+              <div class="mock-main">
+                <div class="mock-title"><span>11 个解耦单元</span><span class="mock-button">新增解耦单元</span></div>
+                <div class="mock-grid-3">
+                  <div class="mock-card"><strong>箱体结构</strong><span class="mock-meta">主责人：张工</span><div class="mock-row"><span>输入就绪</span><span class="status green">5/5</span></div><div class="mock-row"><span>下一汇入</span><span>JP-ES</span></div></div>
+                  <div class="mock-card"><strong>制冷系统</strong><span class="mock-meta">主责人：李工</span><div class="mock-row"><span>独立预验</span><span class="status blue">进行中</span></div><div class="mock-row"><span>能力缺口</span><span class="status amber">1项</span></div></div>
+                  <div class="mock-card"><strong>电控硬件</strong><span class="mock-meta">主责人：王工</span><div class="mock-row"><span>板框依赖</span><span class="status amber">待确认</span></div><div class="mock-row"><span>授权</span><span class="status green">已确认</span></div></div>
+                  <div class="mock-card"><strong>嵌入式固件</strong><span class="mock-meta">主责人：周工</span><div class="mock-row"><span>必要输入</span><span class="status gray">3/4</span></div></div>
+                  <div class="mock-card"><strong>质量验证</strong><span class="mock-meta">主责人：陈工</span><div class="mock-row"><span>测试准备</span><span class="status blue">进行中</span></div></div>
+                  <div class="mock-card"><strong>供应链</strong><span class="mock-meta">主责人：赵工</span><div class="mock-row"><span>样件状态</span><span class="status green">已承诺</span></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </article>
+
+      <article class="card feature">
+        <div class="feature-head">
+          <div><div class="feature-id">P1-02</div><h3>数字上下文</h3><p class="muted">把关键结论从文档和群聊中提取成可版本化的事实。</p></div>
+          <span class="feature-tag">一期</span>
+        </div>
+        <div class="feature-body">
+          <div class="feature-copy">
+            <div class="copy-block"><div class="copy-title">解决什么问题</div><p>项目成员需要打开 PRD、图纸、报告或询问责任人才能知道当前有效版本、结论和状态；源更新后，下游也不知道自己使用的版本是否落后。</p></div>
+            <div class="copy-block"><div class="copy-title">怎么解决</div><p>以知识原子作为事实源，保存责任人、内容、附件、版本、定稿和阶段冻结点；组装页只引用原子并钉住版本，JP 时固化不可变快照。</p></div>
+            <div class="copy-block"><div class="copy-title">关键规则</div><ul><li>定稿与打冻结点是两个动作；</li><li>源更新不自动灌入消费页面；</li><li>原子附件随定稿版本冻结，禁止原地覆盖；</li><li>一期 A 档约 35 个、B 档约 25 个。</li></ul></div>
+          </div>
+          <div class="screen">
+            <div class="screen-bar"><span>知识原子 · 外观主视觉</span><span class="dots"><i></i><i></i><i></i></span></div>
+            <div class="screen-layout">
+              <aside class="mock-side"><b>数字上下文</b><div class="mock-nav active">原子详情</div><div class="mock-nav">引用关系</div><div class="mock-nav">版本历史</div><div class="mock-nav">附件证据</div></aside>
+              <div class="mock-main">
+                <div class="atom-head"><div><strong style="font-size:11px">外观主视觉</strong><div class="mock-meta">A档 · 责任人：ID 张工</div></div><span class="status green">ES 已冻结</span></div>
+                <div class="atom-value"><strong>当前定稿 v2</strong><p style="margin:5px 0 0">白色圆角箱体，正面隐藏式出冰口；关键尺寸 310 × 420 × 370 mm。</p></div>
+                <div class="mock-grid-2" style="margin-top:8px">
+                  <div class="mock-card"><strong>被 6 个页面引用</strong><span class="mock-meta">其中 2 个仍钉扎 v1</span></div>
+                  <div class="mock-card"><strong>附件 3 个</strong><span class="mock-meta">效果图、CMF、尺寸说明</span></div>
+                </div>
+                <div class="timeline"><div><b>v2 · ES冻结</b>　调整出冰口与 CMF</div><div><b>v1 · 已定稿</b>　KO 初版主视觉</div></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </article>
+
+      <article class="card feature">
+        <div class="feature-head">
+          <div><div class="feature-id">P1-03</div><h3>条件工作网</h3><p class="muted">用真实输入条件决定“谁能开始”，不再由 PM 手工排程。</p></div>
+          <span class="feature-tag">一期</span>
+        </div>
+        <div class="feature-body">
+          <div class="feature-copy">
+            <div class="copy-block"><div class="copy-title">解决什么问题</div><p>下游不知道上游是否真的准备好，只能靠计划日期和口头确认；上游变化后，已完成结果经常被直接打回或无人评估。</p></div>
+            <div class="copy-block"><div class="copy-title">怎么解决</div><p>每份工作绑定必要/可选输入、最低冻结要求和必要输出。系统自动计算未就绪、可开始、进行中、已完成；开工时钉住输入版本。</p></div>
+            <div class="copy-block"><div class="copy-title">关键规则</div><ul><li>工作粒度是可独立验收的结果包，不是每日任务；</li><li>一期依赖边来自模板，不自动推导；</li><li>上游改版只增加角标，不抹掉历史完成状态；</li><li>只有选择“改输出”才要求下游评估。</li></ul></div>
+          </div>
+          <div class="screen">
+            <div class="screen-bar"><span>项目条件工作网 · KO → DR</span><span class="dots"><i></i><i></i><i></i></span></div>
+            <div class="mock-main">
+              <div class="mock-toolbar"><span class="mock-filter">全部解耦组</span><span class="mock-filter">显示缺口</span><span class="mock-filter">JP-ES 还有 12 天</span></div>
+              <div class="lane"><div class="lane-label"></div><div class="lane-label">KO</div><div class="lane-label">ES</div><div class="lane-label">TL</div><div class="lane-label">DR</div></div>
+              <div class="lane"><div class="lane-label">结构</div><div class="work-node green">板框初版</div><div class="work-node blue">ES 手板<span class="badge">源更新</span></div><div class="work-node gray">结构冻结</div><div class="work-node gray">设计释放</div></div>
+              <div class="lane"><div class="lane-label">制冷</div><div class="work-node green">方案确认</div><div class="work-node amber">单系统调试</div><div class="work-node gray">关键件冻结</div><div class="work-node gray">试产闭环</div></div>
+              <div class="lane"><div class="lane-label">电控</div><div class="work-node green">器件选型</div><div class="work-node blue">电控联调</div><div class="work-node gray">PCBA冻结</div><div class="work-node gray">设计释放</div></div>
+              <div class="lane"><div class="lane-label">质量</div><div class="work-node green">规格初版</div><div class="work-node amber">ES 测试</div><div class="work-node gray">可靠性验证</div><div class="work-node gray">试产结论</div></div>
+              <div class="callout info" style="margin-top:8px;padding:8px;font-size:8px">琥珀 = 必要输入已齐，可由主责人自主选择开工；灰色节点显示缺少哪个输入及上游责任人。</div>
+            </div>
+          </div>
+        </div>
+      </article>
+
+      <article class="card feature">
+        <div class="feature-head">
+          <div><div class="feature-id">P1-04</div><h3>JP 汇入管理</h3><p class="muted">让汇入评审变成有条件、有证据、有回退边界的业务验收。</p></div>
+          <span class="feature-tag">一期</span>
+        </div>
+        <div class="feature-body">
+          <div class="feature-copy">
+            <div class="copy-block"><div class="copy-title">解决什么问题</div><p>评审前由 PM 临时收材料，会上才发现条件不齐；不通过后哪些组回退、哪些组继续，往往依赖经验和临时讨论。</p></div>
+            <div class="copy-block"><div class="copy-title">怎么解决</div><p>JP 明确参与单元、A 档必看原子、验收规则、证据、通过边界、回退组和可继续组；通过后自动固化版本与证据快照。</p></div>
+            <div class="copy-block"><div class="copy-title">关键规则</div><ul><li>JP 优先对齐 CD/KO/ES/TL/DR/BT/CR；</li><li>可按试产轮次设置子 JP；</li><li>支持通过、带条件通过、不通过；</li><li>必须同步检查 GTM 商业判定、目标和开售时间。</li></ul></div>
+          </div>
+          <div class="screen">
+            <div class="screen-bar"><span>JP-ES · 整机可行性汇入</span><span class="dots"><i></i><i></i><i></i></span></div>
+            <div class="mock-main">
+              <div class="jp-score"><div class="score"><b style="color:#0b8f6a">28</b><small>已达标</small></div><div class="score"><b style="color:#b66a00">5</b><small>带条件</small></div><div class="score"><b style="color:#c43a48">2</b><small>未达标</small></div><div class="score"><b>86%</b><small>齐套率</small></div></div>
+              <table class="jp-table"><thead><tr><th>解耦单元</th><th>必看结果</th><th>证据</th><th>验收状态</th><th>不通过策略</th></tr></thead><tbody>
+                <tr><td>箱体结构</td><td>ES样机可用</td><td>手板记录</td><td><span class="status green">达标</span></td><td>—</td></tr>
+                <tr><td>制冷系统</td><td>冰量达标</td><td>调试报告</td><td><span class="status amber">带条件</span></td><td>制冷回退，电子继续</td></tr>
+                <tr><td>电控+固件</td><td>核心链路跑通</td><td>联调记录</td><td><span class="status green">达标</span></td><td>—</td></tr>
+                <tr><td>认证合规</td><td>无阻断风险</td><td>安规评估</td><td><span class="status red">未达标</span></td><td>认证+结构联合处理</td></tr>
+              </tbody></table>
+              <div class="mock-toolbar" style="justify-content:flex-end;margin-top:9px"><span class="mock-filter">保存草稿</span><span class="mock-button">形成汇入结论并固化快照</span></div>
+            </div>
+          </div>
+        </div>
+      </article>
+
+      <article class="card feature">
+        <div class="feature-head">
+          <div><div class="feature-id">P1-05</div><h3>协同与调整</h3><p class="muted">把跨组诉求和重大变化从私聊转成可响应、可决策、可追溯的机制。</p></div>
+          <span class="feature-tag">一期</span>
+        </div>
+        <div class="feature-body">
+          <div class="feature-copy">
+            <div class="copy-block"><div class="copy-title">解决什么问题</div><p>电子需要结构改开孔、PRD 修改核心规格等事项主要靠临时沟通，缺少明确请求、响应时限、影响范围和最终结论。</p></div>
+            <div class="copy-block"><div class="copy-title">怎么解决</div><p>提供协同请求和调整单。请求写清要什么、为什么、何时需要、影响什么；调整按 P0/P1/P2 决定通知范围、决策角色和响应 SLA。</p></div>
+            <div class="copy-block"><div class="copy-title">关键规则</div><ul><li>P0 影响项目目标或多个 JP；</li><li>P1 影响两个及以上解耦单元接口；</li><li>P2 为组内或单接口微调；</li><li>协同结论写回关联知识原子和工作。</li></ul></div>
+          </div>
+          <div class="screen">
+            <div class="screen-bar"><span>协同与调整中心</span><span class="dots"><i></i><i></i><i></i></span></div>
+            <div class="screen-layout">
+              <aside class="mock-side"><b>机制中心</b><div class="mock-nav active">待我响应</div><div class="mock-nav">我发起的</div><div class="mock-nav">P0/P1调整</div><div class="mock-nav">决策记录</div></aside>
+              <div class="mock-main">
+                <div class="mock-title"><span>待我响应 4</span><span class="mock-button">发起协同</span></div>
+                <div class="mock-card"><div class="mock-row"><strong>电子申请结构调整开孔位置</strong><span class="status amber">P1 · 剩余 1 天</span></div><p class="mock-meta">影响：电控联调、ES手板、JP-ES　·　响应方：结构组</p></div>
+                <div class="mock-card" style="margin-top:7px"><div class="mock-row"><strong>核心规格日产量由 12kg 调整为 15kg</strong><span class="status red">P0 · 待决策</span></div><p class="mock-meta">影响：制冷、结构、电控、成本、ES/DR、GTM 商业判定</p></div>
+                <div class="mock-card" style="margin-top:7px"><div class="mock-row"><strong>固件告警提示文案调整</strong><span class="status gray">P2 · 组内处理</span></div><p class="mock-meta">影响：固件原子 v1.3；无需调整 JP</p></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </article>
+
+      <div class="function-group-title"><i class="phase-dot p2"></i><h3>二期：能力与影响闭环</h3></div>
+
+      <article class="card feature">
+        <div class="feature-head">
+          <div><div class="feature-id">P2-01</div><h3>组织能力货架</h3><p class="muted">把测试、专家、设备和供应商从“找人协调”变成可调用服务。</p></div>
+          <span class="feature-tag p2">二期</span>
+        </div>
+        <div class="feature-body">
+          <div class="feature-copy">
+            <div class="copy-block"><div class="copy-title">解决什么问题</div><p>主责人知道自己需要测试、样件或专家，但不知道谁能提供、需要什么输入、多久响应，能力缺口也无法沉淀为组织建设事项。</p></div>
+            <div class="copy-block"><div class="copy-title">怎么解决</div><p>建立能力目录，定义适用场景、输入条件、输出承诺、负责人、容量、成熟度和案例；从工作或解耦单元直接发起能力请求。</p></div>
+            <div class="copy-block"><div class="copy-title">关键页面</div><p>能力货架、能力详情、请求与承诺、能力方工作台、能力缺口清单。</p></div>
+          </div>
+          <div class="screen">
+            <div class="screen-bar"><span>组织能力货架</span><span class="dots"><i></i><i></i><i></i></span></div>
+            <div class="mock-main">
+              <div class="mock-toolbar"><span class="mock-filter">测试与实验</span><span class="mock-filter">本月可用</span><span class="mock-filter">家电事业部</span></div>
+              <div class="mock-grid-3">
+                <div class="capability-card"><h5>制冷性能实验室</h5><div class="stars">★★★★☆</div><p class="mock-meta">输出：冰量/能耗/温升结论</p><div class="mock-row"><span>响应</span><span>2工作日</span></div><span class="status green">本月可预约</span></div>
+                <div class="capability-card"><h5>安规专家评审</h5><div class="stars">★★★★★</div><p class="mock-meta">输出：风险清单与整改建议</p><div class="mock-row"><span>响应</span><span>1工作日</span></div><span class="status amber">容量紧张</span></div>
+                <div class="capability-card"><h5>快速手板服务</h5><div class="stars">★★★★☆</div><p class="mock-meta">输出：结构手板与检测报告</p><div class="mock-row"><span>交付</span><span>5—7天</span></div><span class="status green">可申请</span></div>
+                <div class="capability-card"><h5>供应商器件选型</h5><div class="stars">★★★☆☆</div><p class="mock-meta">输出：样件、规格、价格区间</p><span class="status blue">外部能力</span></div>
+                <div class="capability-card"><h5>可靠性测试平台</h5><div class="stars">★★★★☆</div><p class="mock-meta">输出：测试记录与结论</p><span class="status amber">下周可用</span></div>
+                <div class="capability-card"><h5>CBB 制冷模块库</h5><div class="stars">★★★★★</div><p class="mock-meta">输出：成熟模块与验证证据</p><span class="status green">成熟度 L4</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </article>
+
+      <article class="card feature">
+        <div class="feature-head">
+          <div><div class="feature-id">P2-02</div><h3>综合影响分析</h3><p class="muted">从“产品数据影响”扩展到工作、JP、能力和商业锁定影响。</p></div>
+          <span class="feature-tag p2">二期</span>
+        </div>
+        <div class="feature-body">
+          <div class="feature-copy">
+            <div class="copy-block"><div class="copy-title">解决什么问题</div><p>核心规格、接口或 BOM 变化后，通常只关注文档升版，遗漏已完成工作、后续 JP、能力预约和 GTM 锁定。</p></div>
+            <div class="copy-block"><div class="copy-title">怎么解决</div><p>基于对象关系反查五类影响：数据、工作、依赖、JP、组织能力；形成责任人处置清单，并保留不升级、只改钉扎、改输出等选择。</p></div>
+            <div class="copy-block"><div class="copy-title">关键页面</div><p>影响树、影响对象清单、责任处置面板、变更前后版本比较、处置完成度。</p></div>
+          </div>
+          <div class="screen">
+            <div class="screen-bar"><span>影响分析 · 日产量规格调整</span><span class="dots"><i></i><i></i><i></i></span></div>
+            <div class="mock-main">
+              <div class="impact-tree">
+                <div class="impact-root">PRD 核心规格：12kg → 15kg</div>
+                <div class="impact-children">
+                  <div class="impact-child"><strong>数据影响 · 8</strong><p class="mock-meta">制冷方案、结构尺寸、BOM、测试规格</p><span class="status red">5项待评估</span></div>
+                  <div class="impact-child"><strong>工作影响 · 6</strong><p class="mock-meta">3项已完成仍保留绿色，增加需评估角标</p><span class="status amber">3项待响应</span></div>
+                  <div class="impact-child"><strong>JP/GTM · 3</strong><p class="mock-meta">JP-ES、JP-TL、商业判定需重新确认</p><span class="status red">影响锁定</span></div>
+                  <div class="impact-child"><strong>能力请求 · 2</strong><p class="mock-meta">制冷实验室需增加新工况</p><span class="status blue">已通知</span></div>
+                  <div class="impact-child"><strong>供应链 · 4</strong><p class="mock-meta">压缩机、冷凝器、成本与交期</p><span class="status amber">待评估</span></div>
+                  <div class="impact-child"><strong>处置进度</strong><div class="progress"><span style="width:46%"></span></div><p class="mock-meta">11/24 已完成</p></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </article>
+
+      <article class="card feature">
+        <div class="feature-head">
+          <div><div class="feature-id">P2-03</div><h3>模板与复用中心</h3><p class="muted">让一个项目跑出的机制和知识可以进入下一个项目。</p></div>
+          <span class="feature-tag p2">二期</span>
+        </div>
+        <div class="feature-body">
+          <div class="feature-copy">
+            <div class="copy-block"><div class="copy-title">解决什么问题</div><p>新项目仍要重新拆解、重新定义字段和验收清单，经验沉淀在项目成员脑中或总结文档里。</p></div>
+            <div class="copy-block"><div class="copy-title">怎么解决</div><p>将经过项目验证的解耦单元、输入输出、工作依赖、JP 清单、知识原子和能力需求组合成业务模板；实例化时允许裁剪。</p></div>
+            <div class="copy-block"><div class="copy-title">关键页面</div><p>模板市场、模板详情、历史使用效果、差异比较、项目实例化向导。</p></div>
+          </div>
+          <div class="screen">
+            <div class="screen-bar"><span>模板与复用中心</span><span class="dots"><i></i><i></i><i></i></span></div>
+            <div class="mock-main">
+              <div class="mock-grid-2">
+                <div class="mock-card"><strong>家电制冰机 PD 全链模板</strong><p class="mock-meta">11个解耦单元 · 32份工作 · 61个原子 · 7个JP</p><div class="mock-row"><span>已使用</span><span>4个项目</span></div><div class="mock-row"><span>最近复盘</span><span>2026-07</span></div></div>
+                <div class="mock-card"><strong>电控 + 固件联调模板</strong><p class="mock-meta">接口、板框、固件、用例、验证证据</p><div class="mock-row"><span>已使用</span><span>9个项目</span></div><div class="mock-row"><span>JP一次通过</span><span>78%</span></div></div>
+                <div class="mock-card"><strong>DR 多轮试产模板</strong><p class="mock-meta">轮次、回退组、可继续组、问题关闭</p><span class="status green">推荐</span></div>
+                <div class="mock-card"><strong>新压缩机导入模板</strong><p class="mock-meta">供应商、样件、制冷验证、成本与认证</p><span class="status blue">技术模板</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </article>
+
+      <div class="function-group-title"><i class="phase-dot p3"></i><h3>三期：跨项目智能协作</h3></div>
+
+      <article class="card feature">
+        <div class="feature-head">
+          <div><div class="feature-id">P3-01</div><h3>AI 项目上下文助手</h3><p class="muted">基于结构化对象回答问题，每个答案都能回到来源和版本。</p></div>
+          <span class="feature-tag p3">三期</span>
+        </div>
+        <div class="feature-body">
+          <div class="feature-copy">
+            <div class="copy-block"><div class="copy-title">解决什么问题</div><p>新成员、跨组角色和评审人理解项目成本高，现有知识问答容易给出无法追溯或已经过期的答案。</p></div>
+            <div class="copy-block"><div class="copy-title">怎么解决</div><p>AI 读取用户有权限的知识原子、钉扎版本、工作、JP、协同和外部对象，按角色生成摘要；答案必须列出来源对象、版本和冻结点。</p></div>
+            <div class="copy-block"><div class="copy-title">关键规则</div><ul><li>AI 建议和正式结论分离；</li><li>没有来源的结论不能作为验收依据；</li><li>AI 不直接冻结、改钉扎或判定 JP 通过。</li></ul></div>
+          </div>
+          <div class="screen">
+            <div class="screen-bar"><span>AI 项目上下文助手</span><span class="dots"><i></i><i></i><i></i></span></div>
+            <div class="mock-main">
+              <div class="chat">
+                <div class="chat-msg user">JP-ES 目前还缺什么？哪些组可以继续？</div>
+                <div class="chat-msg ai"><strong>当前有 2 项硬缺口、3 项带条件。</strong><br>认证合规尚未形成安规结论；制冷系统的 15kg 工况验证未完成。电子和固件可继续非结构依赖工作，包材暂不受影响。
+                  <div class="source">来源：JP-ES 清单 v3 · 安规评估@未定稿 · 制冷ES结论 v2 · 2026-08-16</div>
+                </div>
+                <div class="chat-msg user">如果日产量保持 12kg，会有什么差异？</div>
+                <div class="chat-msg ai">可保持当前制冷方案和已完成联调结果，预计减少 6 个影响对象；但商业判定仍需产品经理确认，不应由 AI 自动决定。
+                  <div class="source">来源：P0-20260815 影响分析 · PRD核心规格 v4/v5 差异</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </article>
+
+      <article class="card feature">
+        <div class="feature-head">
+          <div><div class="feature-id">P3-02</div><h3>AI 缺口识别与智能复用</h3><p class="muted">主动发现依赖、证据和能力缺口，并推荐已验证资产。</p></div>
+          <span class="feature-tag p3">三期</span>
+        </div>
+        <div class="feature-body">
+          <div class="feature-copy">
+            <div class="copy-block"><div class="copy-title">解决什么问题</div><p>依赖缺口、能力瓶颈和相似历史方案需要有经验的人才能发现；历史模板和 CBB 虽然存在，但不会主动进入当前工作。</p></div>
+            <div class="copy-block"><div class="copy-title">怎么解决</div><p>AI 根据当前解耦单元、输入输出和历史项目，推荐潜在依赖、遗漏证据、相似模板、技术/CBB、专家和测试能力，由主责人确认是否采用。</p></div>
+            <div class="copy-block"><div class="copy-title">关键页面</div><p>智能建议侧栏、缺口清单、推荐依据、采纳/忽略及反馈记录。</p></div>
+          </div>
+          <div class="screen">
+            <div class="screen-bar"><span>智能建议 · 制冷系统</span><span class="dots"><i></i><i></i><i></i></span></div>
+            <div class="mock-main">
+              <div class="mock-card"><div class="mock-row"><strong>可能遗漏：环境温度 38℃ 工况验证</strong><span class="status red">高风险</span></div><p class="mock-meta">依据：相似 4 个项目均在 JP-ES 前完成；当前测试规格未包含。</p><div class="mock-toolbar"><span class="mock-button">加入验证清单</span><span class="mock-filter">忽略并说明</span></div></div>
+              <div class="mock-card" style="margin-top:7px"><div class="mock-row"><strong>推荐复用：CBB-制冷模块-08</strong><span class="status green">成熟度 L4</span></div><p class="mock-meta">与当前压缩机规格相似度 86%，已有 3 个项目验证证据。</p></div>
+              <div class="mock-card" style="margin-top:7px"><div class="mock-row"><strong>能力推荐：制冷性能实验室</strong><span class="status blue">下周可用</span></div><p class="mock-meta">预计可覆盖新增工况，申请前需提供样机和测试规格定稿。</p></div>
+            </div>
+          </div>
+        </div>
+      </article>
+
+      <article class="card feature">
+        <div class="feature-head">
+          <div><div class="feature-id">P3-03</div><h3>跨项目能力运营与业务配置</h3><p class="muted">从单项目工具升级为组织协作能力运营平台。</p></div>
+          <span class="feature-tag p3">三期</span>
+        </div>
+        <div class="feature-body">
+          <div class="feature-copy">
+            <div class="copy-block"><div class="copy-title">解决什么问题</div><p>多个项目争抢实验室、专家和供应商资源，组织无法判断应该建设什么能力；不同业务线也需要不同解耦模板和 JP 规则。</p></div>
+            <div class="copy-block"><div class="copy-title">怎么解决</div><p>聚合跨项目能力容量、预约、缺口和复用情况；允许业务管理员受控配置对象类型、字段、状态、JP 和规则，而不修改核心产品逻辑。</p></div>
+            <div class="copy-block"><div class="copy-title">关键页面</div><p>跨项目能力运营中心、容量冲突、能力建设建议、业务模板与规则配置。</p></div>
+          </div>
+          <div class="screen">
+            <div class="screen-bar"><span>组织能力运营中心</span><span class="dots"><i></i><i></i><i></i></span></div>
+            <div class="mock-main">
+              <div class="jp-score"><div class="score"><b>24</b><small>在飞项目</small></div><div class="score"><b style="color:#c43a48">7</b><small>容量冲突</small></div><div class="score"><b style="color:#b66a00">12</b><small>重复缺口</small></div><div class="score"><b style="color:#0b8f6a">68%</b><small>能力复用率</small></div></div>
+              <table class="jp-table"><thead><tr><th>能力</th><th>未来4周需求</th><th>可用容量</th><th>建议</th></tr></thead><tbody>
+                <tr><td>制冷实验室</td><td>14次</td><td>9次</td><td><span class="status red">扩容或外协</span></td></tr>
+                <tr><td>安规专家</td><td>8次</td><td>8次</td><td><span class="status green">正常</span></td></tr>
+                <tr><td>快速手板</td><td>21次</td><td>16次</td><td><span class="status amber">新增供应商</span></td></tr>
+              </tbody></table>
+            </div>
+          </div>
+        </div>
+      </article>
+
+      <div class="deep-module-head">
+        <span class="deep-module-index">03</span>
+        <div><h3>统一数据内核</h3><p>用六类基础对象承载业务事实，确保跨角色页面看到的是同一份可追溯上下文。</p></div>
+      </div>
+      <div class="capability-detail-grid">
+        <div class="capability-detail">
+          <div class="capability-detail-head"><div><span class="detail-id">D-01</span><h4>解耦单元</h4></div><span class="detail-phase">一期</span></div>
+          <div class="detail-row"><b>解决问题</b><span>项目按部门和文档切分，责任边界、结果承诺和自主决策空间不清楚。</span></div>
+          <div class="detail-row"><b>怎么解决</b><span>把可独立负责、可独立验收、可向 JP 汇入的结果包建模为解耦单元，绑定主责人、边界与授权。</span></div>
+          <div class="detail-row"><b>关键页面</b><span class="page-outline">解耦单元详情：责任边界、主责人、输入输出、关键关系、授权和汇入目标分栏展示。</span></div>
+          <div class="screen">
+            <div class="screen-bar"><span>解耦单元详情 · 制冷系统</span><span class="dots"><i></i><i></i><i></i></span></div>
+            <div class="screen-layout">
+              <div class="mock-side"><b>制冷系统</b><div class="mock-nav active">基本信息</div><div class="mock-nav">输入输出</div><div class="mock-nav">条件工作</div><div class="mock-nav">授权边界</div><div class="mock-nav">汇入记录</div></div>
+              <div class="mock-main">
+                <div class="mock-title"><span>独立负责、独立验收、向 JP-ES 汇入</span><span class="status green">推进中</span></div>
+                <div class="mock-grid-3"><div class="mock-card"><strong>主责人</strong><span>王工 · 制冷</span></div><div class="mock-card"><strong>输入齐套</strong><span>8 / 10</span></div><div class="mock-card"><strong>结果定稿</strong><span>5 / 7</span></div></div>
+                <div class="mock-grid-2" style="margin-top:8px"><div class="mock-card"><strong>责任边界</strong><p class="mock-meta">负责制冷性能、压缩机选型及验证证据；不负责整机噪声目标调整。</p></div><div class="mock-card"><strong>授权范围</strong><p class="mock-meta">可自主调整样件与测试顺序；目标变化需向整机组发起协同。</p></div></div>
+                <div class="mock-toolbar" style="margin-top:9px"><span class="mock-button">维护边界</span><span class="mock-filter">查看关系</span><span class="mock-filter">进入汇入检查</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="capability-detail">
+          <div class="capability-detail-head"><div><span class="detail-id">D-02</span><h4>知识原子</h4></div><span class="detail-phase">一期</span></div>
+          <div class="detail-row"><b>解决问题</b><span>关键结论藏在整份文档和聊天中，无法独立复用、引用、定稿和判断是否齐套。</span></div>
+          <div class="detail-row"><b>怎么解决</b><span>将关键上下文拆成有类型、有责任人、有状态的小型业务对象，并用 A/B 分档区分汇入必需与协作补充。</span></div>
+          <div class="detail-row"><b>关键页面</b><span class="page-outline">知识原子详情：结构化字段、正文/附件、A/B 档、状态、责任人、引用位置和版本历史。</span></div>
+          <div class="screen">
+            <div class="screen-bar"><span>知识原子 · 制冷性能目标</span><span class="dots"><i></i><i></i><i></i></span></div>
+            <div class="mock-main">
+              <div class="atom-head"><div><div class="mock-title"><span>KA-PERF-023 · v1.3</span><span class="status green">已定稿</span></div><p class="mock-meta">类型：性能目标　责任人：王工　档位：A档（JP必需）</p></div><span class="mock-button">新建版本</span></div>
+              <div class="atom-value"><strong>目标值</strong><div class="mock-grid-3" style="margin-top:8px"><div><span class="mock-meta">制冰量</span><br><b>12 kg/24h</b></div><div><span class="mock-meta">环境温度</span><br><b>38℃</b></div><div><span class="mock-meta">允许偏差</span><br><b>±5%</b></div></div></div>
+              <div class="mock-grid-2" style="margin-top:8px"><div class="mock-card"><strong>被引用位置</strong><div class="mock-row"><span>性能验证方案</span><span>v2.1</span></div><div class="mock-row"><span>JP-ES 验收清单</span><span>已钉扎</span></div></div><div class="mock-card"><strong>版本记录</strong><div class="timeline"><div>v1.3 定稿 · 补充38℃工况</div><div>v1.2 评审 · 调整允许偏差</div><div>v1.0 创建 · 初始目标</div></div></div></div>
+            </div>
+          </div>
+        </div>
+        <div class="capability-detail">
+          <div class="capability-detail-head"><div><span class="detail-id">D-03</span><h4>关系</h4></div><span class="detail-phase">一期</span></div>
+          <div class="detail-row"><b>解决问题</b><span>团队知道“有依赖”，却说不清谁需要谁的哪个结果，以及变化会波及哪里。</span></div>
+          <div class="detail-row"><b>怎么解决</b><span>显式记录需要、产出、引用、验证、汇入和影响关系，让工作状态与变更影响可计算。</span></div>
+          <div class="detail-row"><b>关键页面</b><span class="page-outline">关系浏览器：中心对象＋上下游关系图＋关系类型筛选＋受影响对象清单。</span></div>
+          <div class="screen">
+            <div class="screen-bar"><span>关系浏览器 · KA-PERF-023</span><span class="dots"><i></i><i></i><i></i></span></div>
+            <div class="mock-main">
+              <div class="mock-toolbar"><span class="mock-filter">需要</span><span class="mock-filter">产出</span><span class="mock-filter">引用</span><span class="mock-filter">验证</span><span class="mock-filter">影响</span></div>
+              <div class="impact-tree"><div class="impact-root">制冷性能目标 v1.3</div><div class="impact-children"><div class="impact-child"><strong>上游需要</strong><br>产品市场目标 v2.0<br>整机约束 v1.4</div><div class="impact-child"><strong>下游引用</strong><br>验证方案 v2.1<br>压缩机选型 v1.6</div><div class="impact-child"><strong>汇入与影响</strong><br>JP-ES 验收<br>GTM 参数页</div></div></div>
+              <table class="jp-table" style="margin-top:10px"><thead><tr><th>关系对象</th><th>关系类型</th><th>消费版本</th><th>变化响应</th></tr></thead><tbody><tr><td>性能验证方案</td><td>引用</td><td>钉扎 v1.2</td><td><span class="status amber">待评估</span></td></tr><tr><td>JP-ES 验收清单</td><td>汇入</td><td>最新定稿</td><td><span class="status green">已同步</span></td></tr></tbody></table>
+            </div>
+          </div>
+        </div>
+        <div class="capability-detail">
+          <div class="capability-detail-head"><div><span class="detail-id">D-04</span><h4>版本与冻结</h4></div><span class="detail-phase">一期</span></div>
+          <div class="detail-row"><b>解决问题</b><span>同一结论持续被覆盖，不知道何时定稿、阶段评审依据的是哪个版本。</span></div>
+          <div class="detail-row"><b>怎么解决</b><span>区分草稿、定稿和废止版本，在 JP 或关键节点冻结消费基线，保留比较与恢复能力。</span></div>
+          <div class="detail-row"><b>关键页面</b><span class="page-outline">版本时间轴：版本号、状态、变更摘要、创建人、冻结点，以及两版本差异对比。</span></div>
+          <div class="screen">
+            <div class="screen-bar"><span>版本比较 · 制冷性能目标</span><span class="dots"><i></i><i></i><i></i></span></div>
+            <div class="mock-main">
+              <div class="mock-toolbar"><span class="mock-filter">基准：v1.2（JP-ES冻结）</span><span class="mock-filter">比较：v1.3（最新定稿）</span><span class="mock-button">生成变更摘要</span></div>
+              <table class="jp-table"><thead><tr><th>字段</th><th>v1.2 冻结值</th><th>v1.3 最新值</th><th>差异</th></tr></thead><tbody><tr><td>环境温度</td><td>35℃</td><td>38℃</td><td><span class="status red">+3℃</span></td></tr><tr><td>允许偏差</td><td>±8%</td><td>±5%</td><td><span class="status amber">收紧</span></td></tr><tr><td>制冰量</td><td>12kg/24h</td><td>12kg/24h</td><td><span class="status gray">无变化</span></td></tr></tbody></table>
+              <div class="mock-grid-2" style="margin-top:9px"><div class="mock-card"><strong>冻结点</strong><div class="timeline"><div>JP-ES · v1.2 · 2026-08-10</div><div>方案评审 · v1.0 · 2026-07-22</div></div></div><div class="mock-card"><strong>变更影响</strong><div class="mock-row"><span>受影响工作</span><b>3</b></div><div class="mock-row"><span>需重验收证据</span><b>2</b></div></div></div>
+            </div>
+          </div>
+        </div>
+        <div class="capability-detail">
+          <div class="capability-detail-head"><div><span class="detail-id">D-05</span><h4>钉扎</h4></div><span class="detail-phase">一期</span></div>
+          <div class="detail-row"><b>解决问题</b><span>上游持续更新时，下游不清楚自己当前消费哪个版本，也容易被无意中带偏。</span></div>
+          <div class="detail-row"><b>怎么解决</b><span>下游显式钉扎消费版本；源更新只产生提醒，由责任人评估后选择继续旧版或升级。</span></div>
+          <div class="detail-row"><b>关键页面</b><span class="page-outline">消费版本面板：当前钉扎版本、源最新版本、差异摘要、受影响工作和升级操作。</span></div>
+          <div class="screen">
+            <div class="screen-bar"><span>消费版本面板 · 性能验证方案</span><span class="dots"><i></i><i></i><i></i></span></div>
+            <div class="mock-main">
+              <div class="mock-grid-2"><div class="mock-card"><strong>当前消费版本</strong><div class="mock-row"><span>制冷性能目标</span><span class="status blue">钉扎 v1.2</span></div><p class="mock-meta">冻结于 JP-ES · 2026-08-10 · 消费人：李工</p></div><div class="mock-card"><strong>源最新版本</strong><div class="mock-row"><span>制冷性能目标</span><span class="status amber">已有 v1.3</span></div><p class="mock-meta">环境温度和允许偏差发生变化</p></div></div>
+              <div class="mock-card" style="margin-top:9px"><div class="mock-row"><strong>升级影响预览</strong><span class="status red">需重新评估</span></div><div class="mock-grid-3"><div><span class="mock-meta">受影响步骤</span><br><b>高温测试</b></div><div><span class="mock-meta">失效证据</span><br><b>2 份</b></div><div><span class="mock-meta">预计增加</span><br><b>3 天</b></div></div></div>
+              <div class="mock-toolbar" style="margin-top:9px"><span class="mock-button">升级至 v1.3</span><span class="mock-filter">继续使用 v1.2</span><span class="mock-filter">发起输出调整</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="capability-detail">
+          <div class="capability-detail-head"><div><span class="detail-id">D-06</span><h4>JP 快照</h4></div><span class="detail-phase">一期</span></div>
+          <div class="detail-row"><b>解决问题</b><span>阶段决策结束后，无法复原当时有哪些证据、哪些例外以及谁做了什么判断。</span></div>
+          <div class="detail-row"><b>怎么解决</b><span>在 JP 决策时冻结齐套状态、对象版本、验收证据、未决项、参与人和决策结论。</span></div>
+          <div class="detail-row"><b>关键页面</b><span class="page-outline">JP 快照详情：决策结论置顶，下方按解耦单元展开证据包、例外和版本清单。</span></div>
+          <div class="screen">
+            <div class="screen-bar"><span>JP-ES 决策快照 · SNAP-20260822</span><span class="dots"><i></i><i></i><i></i></span></div>
+            <div class="mock-main">
+              <div class="mock-card"><div class="mock-row"><strong>决策结论：带条件汇入</strong><span class="status amber">已冻结</span></div><p class="mock-meta">决策人：张总、陈总　决策时间：2026-08-22 16:40　规则版本：JP-ES v2.1</p></div>
+              <div class="jp-score" style="margin-top:9px"><div class="score"><b>47</b><small>冻结对象</small></div><div class="score"><b>42</b><small>验收证据</small></div><div class="score"><b>3</b><small>条件项</small></div><div class="score"><b>12</b><small>参与人</small></div></div>
+              <table class="jp-table"><thead><tr><th>解耦组</th><th>冻结基线</th><th>结论</th><th>例外</th></tr></thead><tbody><tr><td>制冷系统</td><td>BL-REF-18</td><td>带条件</td><td>高温证据限 3 天补齐</td></tr><tr><td>电控系统</td><td>BL-REF-19</td><td>通过</td><td>无</td></tr><tr><td>结构系统</td><td>BL-REF-20</td><td>通过</td><td>模具承诺跟踪</td></tr></tbody></table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="deep-module-head">
+        <span class="deep-module-index">04</span>
+        <div><h3>平台支撑</h3><p>提供权限、规则、消息、检索、审计和系统连接能力，不替代既有 PLM、ERP 与工程工具。</p></div>
+      </div>
+      <div class="capability-detail-grid">
+        <div class="capability-detail">
+          <div class="capability-detail-head"><div><span class="detail-id">S-01</span><h4>权限与授权</h4></div><span class="detail-phase">一期</span></div>
+          <div class="detail-row"><b>解决问题</b><span>系统权限常等于菜单权限，不能表达主责人在具体业务边界内拥有什么决策权。</span></div>
+          <div class="detail-row"><b>怎么解决</b><span>将项目角色、对象访问权与业务授权分开管理，授权可绑定解耦单元、期限与可执行动作。</span></div>
+          <div class="detail-row"><b>关键页面</b><span class="page-outline">授权矩阵：角色×对象×动作，右侧展示授权来源、生效范围、期限与变更记录。</span></div>
+          <div class="screen">
+            <div class="screen-bar"><span>权限与授权 · 制冰机 PD</span><span class="dots"><i></i><i></i><i></i></span></div>
+            <div class="mock-main">
+              <div class="mock-toolbar"><span class="mock-filter">范围：制冷系统</span><span class="mock-filter">角色：全部</span><span class="mock-button">新增业务授权</span></div>
+              <table class="jp-table"><thead><tr><th>角色/人员</th><th>查看</th><th>编辑结果</th><th>定稿</th><th>调整边界</th><th>JP决策</th></tr></thead><tbody>
+                <tr><td>主责人 · 王工</td><td>✓</td><td>✓</td><td>✓</td><td><span class="status amber">范围内</span></td><td>—</td></tr>
+                <tr><td>协作人 · 李工</td><td>✓</td><td><span class="status blue">被分配</span></td><td>—</td><td>—</td><td>—</td></tr>
+                <tr><td>PM · 陈工</td><td>✓</td><td>—</td><td>—</td><td><span class="status blue">可协调</span></td><td>—</td></tr>
+                <tr><td>JP决策者 · 张总</td><td>✓</td><td>—</td><td>—</td><td>—</td><td>✓</td></tr>
+              </tbody></table>
+              <div class="mock-card" style="margin-top:9px"><div class="mock-row"><strong>王工 · 性能方案取舍授权</strong><span class="status green">有效至 JP-ES</span></div><p class="mock-meta">来源：解耦设计确认 · 生效范围：制冷系统 · 超出成本目标需发起协同</p></div>
+            </div>
+          </div>
+        </div>
+        <div class="capability-detail">
+          <div class="capability-detail-head"><div><span class="detail-id">S-02</span><h4>规则</h4></div><span class="detail-phase">一期</span></div>
+          <div class="detail-row"><b>解决问题</b><span>工作能否开始、JP 能否汇入依赖人工判断，口径随人变化且难以审计。</span></div>
+          <div class="detail-row"><b>怎么解决</b><span>把输入齐套、状态计算、汇入校验、超时升级等规则参数化，输出可解释的命中结果。</span></div>
+          <div class="detail-row"><b>关键页面</b><span class="page-outline">规则配置与模拟：条件、结果、适用模板、版本；右侧用样例数据预演命中结果。</span></div>
+          <div class="screen">
+            <div class="screen-bar"><span>规则配置与模拟 · JP-ES汇入规则 v2.1</span><span class="dots"><i></i><i></i><i></i></span></div>
+            <div class="mock-main">
+              <div class="mock-grid-2">
+                <div class="mock-card"><strong>规则条件</strong><div class="mock-row"><span>A档知识原子</span><span>定稿率 = 100%</span></div><div class="mock-row"><span>阻断级风险</span><span>数量 = 0</span></div><div class="mock-row"><span>验证证据</span><span>状态 = 有效</span></div><div class="mock-row"><span>例外项</span><span>已指定责任人和期限</span></div></div>
+                <div class="mock-card"><strong>样例模拟结果</strong><div class="mock-row"><span>制冷系统</span><span class="status red">未通过</span></div><div class="mock-row"><span>命中条件</span><span>3 / 4</span></div><div class="mock-row"><span>失败原因</span><span>1个A档未定稿</span></div><div class="mock-row"><span>建议结果</span><span>回退补齐</span></div></div>
+              </div>
+              <div class="mock-toolbar" style="margin-top:9px"><span class="mock-button">保存新版本</span><span class="mock-filter">重新模拟</span><span class="mock-filter">查看引用模板</span><span class="mock-filter">版本比较</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="capability-detail">
+          <div class="capability-detail-head"><div><span class="detail-id">S-03</span><h4>消息待办</h4></div><span class="detail-phase">一期</span></div>
+          <div class="detail-row"><b>解决问题</b><span>提醒散落在聊天工具中，消息只有“催办”没有业务上下文，处理后也无法闭环。</span></div>
+          <div class="detail-row"><b>怎么解决</b><span>由业务事件触发结构化待办，携带项目、对象、缺口、响应期限和可执行操作，并支持升级。</span></div>
+          <div class="detail-row"><b>关键页面</b><span class="page-outline">待办中心：按等待输入、协同请求、变更影响、JP 决策分类，卡片内可直接处理。</span></div>
+          <div class="screen">
+            <div class="screen-bar"><span>消息待办中心 · 我的待处理</span><span class="dots"><i></i><i></i><i></i></span></div>
+            <div class="screen-layout">
+              <div class="mock-side"><b>待办分类</b><div class="mock-nav active">全部待办　8</div><div class="mock-nav">等待输入　3</div><div class="mock-nav">协同请求　2</div><div class="mock-nav">变更影响　2</div><div class="mock-nav">JP决策　1</div></div>
+              <div class="mock-main">
+                <div class="mock-card"><div class="mock-row"><strong>确认高温工况曲线交付承诺</strong><span class="status red">剩余 2h</span></div><p class="mock-meta">制冰机PD · 制冷系统 · 请求方王工 · 阻塞性能验证工作</p><div class="mock-toolbar"><span class="mock-button">确认承诺</span><span class="mock-filter">提出调整</span><span class="mock-filter">查看上下文</span></div></div>
+                <div class="mock-card" style="margin-top:7px"><div class="mock-row"><strong>评估性能目标 v1.3 对验证方案的影响</strong><span class="status amber">今天</span></div><p class="mock-meta">源版本已更新 · 当前钉扎 v1.2 · 预计影响 2 份证据</p></div>
+                <div class="mock-card" style="margin-top:7px"><div class="mock-row"><strong>参与 JP-ES 汇入决策</strong><span class="status blue">8月22日</span></div><p class="mock-meta">A档齐套 87% · 1个阻断项 · 已准备 42 份证据</p></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="capability-detail">
+          <div class="capability-detail-head"><div><span class="detail-id">S-04</span><h4>搜索</h4></div><span class="detail-phase p2">二期</span></div>
+          <div class="detail-row"><b>解决问题</b><span>项目、知识、关系和外部工程对象分散，仅靠文件名无法定位上下文与可复用资产。</span></div>
+          <div class="detail-row"><b>怎么解决</b><span>统一索引业务对象、字段、关系、版本与权限，支持按项目、类型、状态、能力和来源筛选。</span></div>
+          <div class="detail-row"><b>关键页面</b><span class="page-outline">全局搜索：顶部语义/关键词输入＋左侧筛选＋中部对象结果＋右侧关系与版本预览。</span></div>
+          <div class="screen">
+            <div class="screen-bar"><span>全局搜索 · “38℃ 制冷性能验证”</span><span class="dots"><i></i><i></i><i></i></span></div>
+            <div class="screen-layout">
+              <div class="mock-side"><b>结果筛选</b><div class="mock-nav active">全部对象　24</div><div class="mock-nav">知识原子　8</div><div class="mock-nav">工作结果　6</div><div class="mock-nav">历史项目　5</div><div class="mock-nav">外部对象　5</div></div>
+              <div class="mock-main">
+                <div class="mock-toolbar"><span class="mock-filter" style="flex:1">38℃ 制冷性能验证</span><span class="mock-button">搜索</span></div>
+                <div class="mock-card"><div class="mock-row"><strong>制冷性能目标 · KA-PERF-023</strong><span class="status green">已定稿 v1.3</span></div><p class="mock-meta">制冰机PD · 包含“环境温度 38℃、制冰量 12kg/24h” · 被 4 个对象引用</p></div>
+                <div class="mock-card" style="margin-top:7px"><div class="mock-row"><strong>历史验证方案 · 北美高温机型</strong><span class="status blue">相似度 88%</span></div><p class="mock-meta">2025北美项目 · 12个高温测试用例 · JP一次通过</p></div>
+                <div class="mock-card" style="margin-top:7px"><div class="mock-row"><strong>测试报告 · TR-PLM-9082</strong><span class="status gray">来自测试平台</span></div><p class="mock-meta">38℃连续运行测试 · 结果通过 · 原系统版本 R3</p></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="capability-detail">
+          <div class="capability-detail-head"><div><span class="detail-id">S-05</span><h4>审计度量</h4></div><span class="detail-phase p2">二期</span></div>
+          <div class="detail-row"><b>解决问题</b><span>组织只统计进度完成率，无法判断等待、返工、授权和复用机制是否真的改善协作。</span></div>
+          <div class="detail-row"><b>怎么解决</b><span>记录关键操作与业务事件，形成等待时长、响应 SLA、一次通过率、复用率和 PM 协调量等指标。</span></div>
+          <div class="detail-row"><b>关键页面</b><span class="page-outline">机制运营看板：指标趋势、项目/解耦组对比、异常钻取；审计页可回放对象操作链。</span></div>
+          <div class="screen">
+            <div class="screen-bar"><span>审计度量 · 机制运营看板</span><span class="dots"><i></i><i></i><i></i></span></div>
+            <div class="mock-main">
+              <div class="mock-toolbar"><span class="mock-filter">周期：近90天</span><span class="mock-filter">项目类型：PD</span><span class="mock-filter">对比：1.0协作方式</span></div>
+              <div class="jp-score"><div class="score"><b style="color:#0b8f6a">-31%</b><small>跨组等待</small></div><div class="score"><b style="color:#0b8f6a">4.2h</b><small>协同响应</small></div><div class="score"><b>72%</b><small>JP一次通过</small></div><div class="score"><b style="color:#335cff">68%</b><small>资产复用率</small></div></div>
+              <div class="mock-grid-2"><div class="mock-card"><strong>机制改善趋势</strong><div class="mock-row"><span>PM手工汇总</span><b>9.5h → 3.6h</b></div><div class="progress"><span style="width:38%"></span></div><div class="mock-row"><span>平均回退轮次</span><b>2.4 → 1.3</b></div><div class="progress"><span style="width:54%"></span></div></div><div class="mock-card"><strong>最近关键审计事件</strong><div class="timeline"><div>JP-ES 决策快照已冻结</div><div>制冷目标 v1.3 定稿</div><div>P0 协同由供应商确认承诺</div></div></div></div>
+            </div>
+          </div>
+        </div>
+        <div class="capability-detail">
+          <div class="capability-detail-head"><div><span class="detail-id">S-06</span><h4>外部对象连接</h4></div><span class="detail-phase p2">二期</span></div>
+          <div class="detail-row"><b>解决问题</b><span>CAD、BOM、物料、测试报告已在专业系统中，复制进新平台会形成双主数据和维护负担。</span></div>
+          <div class="detail-row"><b>怎么解决</b><span>只保存外部对象标识、关键元数据、版本和状态引用，通过连接器订阅变化并回写业务关系。</span></div>
+          <div class="detail-row"><b>关键页面</b><span class="page-outline">对象连接中心：系统连接状态、对象映射、同步范围、失败队列；业务页以引用卡片呈现。</span></div>
+          <div class="screen">
+            <div class="screen-bar"><span>外部对象连接中心</span><span class="dots"><i></i><i></i><i></i></span></div>
+            <div class="mock-main">
+              <div class="mock-grid-3"><div class="mock-card"><strong>PLM / PDM</strong><div class="mock-row"><span>CAD、BOM、物料</span><span class="status green">正常</span></div><p class="mock-meta">最后同步 17:06</p></div><div class="mock-card"><strong>测试平台</strong><div class="mock-row"><span>用例、报告</span><span class="status green">正常</span></div><p class="mock-meta">最后同步 17:04</p></div><div class="mock-card"><strong>ERP</strong><div class="mock-row"><span>成本、供应商</span><span class="status amber">2项延迟</span></div><p class="mock-meta">最后同步 16:42</p></div></div>
+              <table class="jp-table" style="margin-top:9px"><thead><tr><th>外部对象</th><th>来源系统</th><th>映射对象</th><th>版本/状态</th><th>同步</th></tr></thead><tbody><tr><td>压缩机组件 BOM-8842</td><td>PLM</td><td>制冷系统输入</td><td>R6 / 已发布</td><td><span class="status green">成功</span></td></tr><tr><td>高温测试报告 TR-9082</td><td>测试平台</td><td>验证证据</td><td>R3 / 通过</td><td><span class="status green">成功</span></td></tr><tr><td>供应商成本 EC-2301</td><td>ERP</td><td>成本约束</td><td>待确认</td><td><span class="status amber">延迟</span></td></tr></tbody></table>
+              <div class="mock-toolbar" style="margin-top:9px"><span class="mock-button">查看失败队列</span><span class="mock-filter">维护对象映射</span><span class="mock-filter">进入原系统</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="pages">
+      <div class="section-head"><div class="section-no">5</div><h2>关键页面总清单</h2></div>
+      <div class="page-gallery">
+        <div class="page-tile"><span>一期 · 01</span><h4>项目解耦地图</h4><p class="muted">看项目由哪些可独立结果单元组成，以及主责人、输入、验证和汇入关系。</p></div>
+        <div class="page-tile"><span>一期 · 02</span><h4>主责人工作台</h4><p class="muted">看我的授权、可开始工作、等待缺口、能力需求和下一 JP。</p></div>
+        <div class="page-tile"><span>一期 · 03</span><h4>项目条件工作网</h4><p class="muted">按阶段和解耦组查看工作状态、依赖缺口与源更新角标。</p></div>
+        <div class="page-tile"><span>一期 · 04</span><h4>知识原子详情</h4><p class="muted">查看内容、版本、冻结点、附件、引用页面和下游影响。</p></div>
+        <div class="page-tile"><span>一期 · 05</span><h4>JP 汇入驾驶舱</h4><p class="muted">查看 A 档齐套、验收证据、带条件项、回退与继续策略。</p></div>
+        <div class="page-tile"><span>一期 · 06</span><h4>协同与调整中心</h4><p class="muted">处理跨组诉求、P0/P1/P2 调整、响应 SLA 和决策。</p></div>
+        <div class="page-tile"><span>二期 · 07</span><h4>组织能力货架</h4><p class="muted">查找并申请测试、专家、设备、供应商和技术 CBB。</p></div>
+        <div class="page-tile"><span>二期 · 08</span><h4>综合影响分析</h4><p class="muted">查看变化对数据、工作、JP、能力和 GTM 的影响。</p></div>
+        <div class="page-tile"><span>二期 · 09</span><h4>模板与复用中心</h4><p class="muted">复用经过验证的解耦、工作、JP、原子和能力模板。</p></div>
+        <div class="page-tile"><span>二期 · 10</span><h4>机制运营看板</h4><p class="muted">比较等待、响应、通过率、复用和 PM 协调量。</p></div>
+        <div class="page-tile"><span>三期 · 11</span><h4>AI 上下文助手</h4><p class="muted">按角色问答、生成摘要，并返回来源对象和版本。</p></div>
+        <div class="page-tile"><span>三期 · 12</span><h4>跨项目能力运营</h4><p class="muted">管理能力容量、冲突、重复缺口和建设优先级。</p></div>
+      </div>
+    </section>
+
+    <section id="kingdee">
+      <div class="section-head"><div class="section-no">6</div><h2>从金蝶借鉴什么</h2></div>
+      <div class="grid-3">
+        <div class="card">
+          <h3>直接借鉴</h3>
+          <ul><li>业务对象与元数据；</li><li>关系、生命周期、版本与权限；</li><li>输入、输出、结束条件；</li><li>基线、比较和影响分析；</li><li>技术货架与成熟度。</li></ul>
+        </div>
+        <div class="card">
+          <h3>改造后借鉴</h3>
+          <ul><li>项目模板 → 解耦轻模板；</li><li>WBS → 结果型工作；</li><li>DCP/TR → 灵活 JP；</li><li>技术货架 → 组织能力货架；</li><li>工程变更 → 综合调整。</li></ul>
+        </div>
+        <div class="card">
+          <h3>明确不照搬</h3>
+          <ul><li>大量 WBS 和甘特图控制；</li><li>统一任务颗粒度；</li><li>层层审批；</li><li>流程完成等于结果有效；</li><li>试点期建设完整 PLM；</li><li>AI 自动替代责任人决策。</li></ul>
+        </div>
+      </div>
+    </section>
+
+    <section id="boundary">
+      <div class="section-head"><div class="section-no">7</div><h2>产品边界与判断标准</h2></div>
+      <table class="data">
+        <thead><tr><th>问题</th><th>产品判断</th></tr></thead>
+        <tbody>
+          <tr><td>是否要管理 CAD、BOM、物料主数据？</td><td>不重建。引用 PLM/PDM 中的对象、版本和状态。</td></tr>
+          <tr><td>是否要做每日任务和个人工时？</td><td>不做。工作粒度保持为可独立验收的结果包。</td></tr>
+          <tr><td>是否一期就自动推导依赖？</td><td>不做。先用模板固定边验证业务关系，二期再辅助推导。</td></tr>
+          <tr><td>是否每次源更新都自动同步下游？</td><td>不自动。提示消费方选择保持、升级钉扎或改输出。</td></tr>
+          <tr><td>是否所有项目都强制使用 2.0？</td><td>不强制。先在 PD 项目试点，后续按项目类型选择。</td></tr>
+          <tr><td>AI 什么时候开始？</td><td>前两期产生稳定对象、关系、版本和事件后再开始。</td></tr>
+        </tbody>
+      </table>
+      <div class="callout warn" style="margin-top:14px"><strong>新增功能判断：</strong>如果不能直接帮助主责人自主、依赖条件可见、组织能力可获得、JP 可验收或历史可复现，应后置或不做。</div>
+    </section>
+
+    <footer class="footer">
+      <p>依据：《核心需求》《方案框架》《协作流程 2.0》《项目知识库》《工作网》《金蝶 AI PLM 深度竞品调研》。</p>
+      <p>关键页面为产品信息架构与交互方向示意；具体字段、按钮权限和异常规则应在对应功能 PRD 中继续细化。</p>
+    </footer>
+  </main>
+
+  <script>
+    const buttons = document.querySelectorAll(".phase-button");
+    const panels = document.querySelectorAll(".phase-panel");
+    buttons.forEach((button) => {
+      button.addEventListener("click", () => {
+        buttons.forEach((item) => item.classList.remove("active"));
+        panels.forEach((item) => item.classList.remove("active"));
+        button.classList.add("active");
+        document.getElementById(button.dataset.phaseTarget).classList.add("active");
+      });
+    });
+  </script>
+</body>
+</html>

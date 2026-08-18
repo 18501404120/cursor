@@ -598,11 +598,28 @@
     return item.target_branch || item.current_branch || "—";
   }
 
+  function vsMainCell(item) {
+    const vs = item.vs_main || {};
+    const state = vs.state || "unknown";
+    const label = vs.label || "—";
+    const stale =
+      vs.fetched === false && vs.ahead != null && vs.behind != null
+        ? `<span class="git-vs-stale">远程未刷新</span>`
+        : "";
+    const title =
+      vs.ahead != null && vs.behind != null
+        ? `超前 ${vs.ahead} / 落后 ${vs.behind}`
+        : "无法与 origin/main 比较";
+    return `<div class="git-vs git-vs-${escapeHtml(state)}" title="${escapeHtml(
+      title,
+    )}"><span>${escapeHtml(label)}</span>${stale}</div>`;
+  }
+
   function renderGitTable(items, operation = {}) {
     gitBusy = Boolean(operation.busy);
     updateGitBusyBadge(operation);
     if (!items.length) {
-      els.gitTableBody.innerHTML = `<tr><td colspan="6" class="git-empty">暂无系统</td></tr>`;
+      els.gitTableBody.innerHTML = `<tr><td colspan="7" class="git-empty">暂无系统</td></tr>`;
       return;
     }
     els.gitTableBody.innerHTML = items
@@ -612,14 +629,15 @@
         const resultHtml = result.text
           ? `<div class="git-result ${resultClass}">${result.text}</div>`
           : `<span class="git-result">—</span>`;
+        const hint = (item.vs_main && item.vs_main.hint) || "";
         const pushBtn = item.can_push
-          ? `<button class="btn primary git-push" data-key="${escapeHtml(item.key)}" type="button" ${
+          ? `<button class="btn primary git-push${hint === "push" ? " suggested" : ""}" data-key="${escapeHtml(item.key)}" type="button" ${
               gitBusy ? "disabled" : ""
             }>推送 Git</button>`
           : "";
         const mergeBtn =
           item.can_push && item.can_merge
-            ? `<button class="btn ghost git-merge" data-key="${escapeHtml(item.key)}" type="button" ${
+            ? `<button class="btn ghost git-merge${hint === "merge" ? " suggested" : ""}" data-key="${escapeHtml(item.key)}" type="button" ${
                 gitBusy ? "disabled" : ""
               }>请求合并main分支</button>`
             : "";
@@ -634,8 +652,9 @@
           <td class="mono">${escapeHtml(item.repo)}</td>
           <td class="mono">${escapeHtml(branchLabel(item))}</td>
           <td>${escapeHtml(item.status_label || "—")}</td>
+          <td>${vsMainCell(item)}</td>
           <td class="actions">
-            <button class="btn ghost git-pull" data-key="${escapeHtml(item.key)}" type="button" ${
+            <button class="btn ghost git-pull${hint === "pull" ? " suggested" : ""}" data-key="${escapeHtml(item.key)}" type="button" ${
               gitBusy ? "disabled" : ""
             }>拉取最新</button>
             ${pushBtn}
@@ -649,6 +668,8 @@
   }
 
   async function loadGitSystems() {
+    els.gitBusyBadge.textContent = "刷新中…";
+    els.gitBusyBadge.className = "badge";
     const data = await api("/api/git/systems");
     gitSystemsCache = data.items || [];
     renderGitTable(gitSystemsCache, data.operation || {});

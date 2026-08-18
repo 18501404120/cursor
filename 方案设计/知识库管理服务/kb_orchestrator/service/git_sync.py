@@ -147,6 +147,35 @@ def _github_request(
         raise GitSyncError("GitHub API 请求失败", details=str(exc), code="github_api") from exc
 
 
+def _github_login(token: str) -> str:
+    try:
+        user = _github_request("GET", "https://api.github.com/user", token)
+    except GitSyncError:
+        return ""
+    if isinstance(user, dict):
+        return str(user.get("login") or "").strip()
+    return ""
+
+
+def _ensure_github_repo_access(owner: str, name: str, token: str) -> None:
+    try:
+        _github_request("GET", f"https://api.github.com/repos/{owner}/{name}", token)
+    except GitSyncError as exc:
+        if "404" not in str(exc) and "Not Found" not in (exc.details or ""):
+            raise
+        login = _github_login(token)
+        who = f"当前 token 用户是 `{login}`" if login else "当前 token 已配置但无法识别用户"
+        raise GitSyncError(
+            f"无权访问 GitHub 仓库 {owner}/{name}",
+            details=(
+                f"{who}。GitHub 对无权限的私有仓会返回 404 Not Found。\n"
+                "请更换能访问该仓的 GITHUB_TOKEN：fine-grained 需把资源所有者选为对应组织，"
+                "仓库勾选目标仓，权限至少 Pull requests: Read and write。"
+            ),
+            code="github_repo_forbidden",
+        ) from exc
+
+
 def _github_graphql(token: str, query: str, variables: dict[str, Any]) -> dict[str, Any]:
     payload = {"query": query, "variables": variables}
     result = _github_request("POST", "https://api.github.com/graphql", token, payload)
@@ -354,21 +383,99 @@ def _branch_tracking(
         fetch_result = _run_git(["fetch", "origin", branch], repo, check=False)
         if not fetch_result.ok:
             _run_git(["fetch", "origin"], repo, check=False)
-    ahead_behind = _run_git(
-        ["rev-list", "--left-right", "--count", f"origin/{branch}...{branch}"],
-        repo,
-        check=False,
-    )
-    ahead = behind = None
-    if ahead_behind.ok:
-        parts = ahead_behind.stdout.strip().split()
-        if len(parts) == 2:
-            behind, ahead = int(parts[0]), int(parts[1])
+    behind, ahead = _ahead_behind(repo, f"origin/{branch}", branch)
     return {
         "branch": branch,
         "ahead": ahead,
         "behind": behind,
     }
+
+
+def _fetch_origin_ref(repo: Path, ref: str = "main") -> bool:
+    return _run_git(["fetch", "origin", ref], repo, check=False).ok
+
+
+def _ahead_behind(
+    repo: Path, left_ref: str, right_ref: str = "HEAD"
+) -> tuple[int | None, int | None]:
+    """left...right：左为 left 有而 right 无，右为 right 有而 left 无。"""
+    result = _run_git(
+        ["rev-list", "--left-right", "--count", f"{left_ref}...{right_ref}"],
+        repo,
+        check=False,
+    )
+    if not result.ok:
+        return None, None
+    parts = result.stdout.strip().split()
+    if len(parts) != 2:
+        return None, None
+    try:
+        return int(parts[0]), int(parts[1])
+    except ValueError:
+        return None, None
+
+
+def _format_vs_main(
+    ahead: int | None,
+    behind: int | None,
+    *,
+    fetched: bool,
+    can_merge: bool,
+    can_push: bool = False,
+) -> dict[str, Any]:
+    if ahead is None or behind is None:
+        return {
+            "ahead": ahead,
+            "behind": behind,
+            "fetched": fetched,
+            "state": "unknown",
+            "label": "无法比较",
+            "hint": "unknown",
+        }
+    if behind == 0 and ahead == 0:
+        state, label, hint = "synced", "已同步", "synced"
+    elif behind > 0 and ahead == 0:
+        state, label, hint = "behind", f"落后 {behind} · 建议拉取", "pull"
+    elif ahead > 0 and behind == 0:
+        state = "ahead"
+        if can_merge:
+            label, hint = f"超前 {ahead} · 可合并", "merge"
+        elif can_push:
+            label, hint = f"超前 {ahead} · 可推送", "push"
+        else:
+            label, hint = f"超前 {ahead}", "synced"
+    else:
+        state, label, hint = (
+            "diverged",
+            f"分叉：超前 {ahead} · 落后 {behind} · 先拉取",
+            "pull",
+        )
+    return {
+        "ahead": ahead,
+        "behind": behind,
+        "fetched": fetched,
+        "state": state,
+        "label": label,
+        "hint": hint,
+    }
+
+
+def _compare_to_origin_main(
+    repo: Path,
+    *,
+    can_merge: bool,
+    can_push: bool = False,
+    do_fetch: bool = True,
+) -> dict[str, Any]:
+    fetched = _fetch_origin_ref(repo, "main") if do_fetch else True
+    behind, ahead = _ahead_behind(repo, "origin/main", "HEAD")
+    return _format_vs_main(
+        ahead,
+        behind,
+        fetched=fetched,
+        can_merge=can_merge,
+        can_push=can_push,
+    )
 
 
 def _erp_system_names(paths: WorkspacePaths) -> list[str]:
@@ -439,17 +546,23 @@ class GitSyncManager:
         items: list[dict[str, Any]] = []
 
         product_repo = paths.erp_product_dir
-        product_branch = _current_branch(product_repo) if _is_git_repo(product_repo) else ""
-        product_dirty = _count_changes(product_repo) if _is_git_repo(product_repo) else 0
+        product_is_git = _is_git_repo(product_repo)
+        product_branch = _current_branch(product_repo) if product_is_git else ""
+        product_dirty = _count_changes(product_repo) if product_is_git else 0
+        product_fetched = _fetch_origin_ref(product_repo, "main") if product_is_git else False
+        product_behind, product_ahead = (
+            _ahead_behind(product_repo, "origin/main", "HEAD") if product_is_git else (None, None)
+        )
 
         for name in _erp_system_names(paths):
             target_branch = _erp_push_branch(name)
+            can_push = name in GIT_PUSH_SYSTEMS
             system_changes = (
-                _count_changes(product_repo, f"{name}/") if _is_git_repo(product_repo) else 0
+                _count_changes(product_repo, f"{name}/") if product_is_git else 0
             )
             tracking = (
                 _branch_tracking(product_repo, target_branch)
-                if _is_git_repo(product_repo)
+                if product_is_git
                 else None
             )
             items.append(
@@ -461,23 +574,27 @@ class GitSyncManager:
                     "kind": "erp",
                     "current_branch": product_branch,
                     "target_branch": target_branch,
-                    "can_push": name in GIT_PUSH_SYSTEMS,
-                    "can_merge": name in GIT_PUSH_SYSTEMS,
+                    "can_push": can_push,
+                    "can_merge": can_push,
                     "change_count": system_changes,
                     "repo_change_count": product_dirty,
-                    "status_label": _status_label(
-                        system_changes, can_push=name in GIT_PUSH_SYSTEMS
-                    ),
+                    "status_label": _status_label(system_changes, can_push=can_push),
                     "tracking": tracking,
+                    "vs_main": _format_vs_main(
+                        product_ahead,
+                        product_behind,
+                        fetched=product_fetched,
+                        can_merge=can_push,
+                        can_push=can_push,
+                    ),
                 }
             )
 
         local_repo = paths.local_dir
-        local_branch = _current_branch(local_repo) if _is_git_repo(local_repo) else ""
-        local_changes = _count_changes(local_repo) if _is_git_repo(local_repo) else 0
-        local_tracking = (
-            _branch_tracking(local_repo, "main") if _is_git_repo(local_repo) else None
-        )
+        local_is_git = _is_git_repo(local_repo)
+        local_branch = _current_branch(local_repo) if local_is_git else ""
+        local_changes = _count_changes(local_repo) if local_is_git else 0
+        local_tracking = _branch_tracking(local_repo, "main") if local_is_git else None
         items.append(
             {
                 "key": LOCAL_SYSTEM_KEY,
@@ -493,6 +610,15 @@ class GitSyncManager:
                 "repo_change_count": local_changes,
                 "status_label": _status_label(local_changes, can_push=True),
                 "tracking": local_tracking,
+                "vs_main": (
+                    _compare_to_origin_main(
+                        local_repo, can_merge=False, can_push=True, do_fetch=True
+                    )
+                    if local_is_git
+                    else _format_vs_main(
+                        None, None, fetched=False, can_merge=False, can_push=True
+                    )
+                ),
             }
         )
 
@@ -669,6 +795,7 @@ class GitSyncManager:
             raise GitSyncError("无法解析 GitHub 仓库地址", details=remote.stdout.strip())
 
         owner, name = owner_repo
+        _ensure_github_repo_access(owner, name, token)
         head_branch = self._resolve_merge_head_branch(system_key, repo)
         base_branch = "main"
         logs: list[str] = [f"源分支: {head_branch}", f"目标分支: {base_branch}"]
