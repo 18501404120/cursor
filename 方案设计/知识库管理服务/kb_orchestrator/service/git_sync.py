@@ -17,6 +17,7 @@ from typing import Any
 
 from ..env import load_dotenv
 from ..paths import WorkspacePaths
+from .preview_tree import refresh_preview_trees
 
 LOCAL_SYSTEM_KEY = "本地"
 ERP_PRODUCT_PUSH_BRANCH = "feature-chengkaiwu-xiaoshou"
@@ -1147,6 +1148,8 @@ class GitSyncManager:
         if not _is_git_repo(repo):
             raise GitSyncError("本地 不是 Git 仓库")
 
+        preview_logs = refresh_preview_trees(repo)
+
         if _count_changes(repo) == 0:
             head_sha = _run_git(["rev-parse", "HEAD"], repo).stdout.strip()
             preview = self._await_local_preview(
@@ -1161,7 +1164,7 @@ class GitSyncManager:
                 "system": LOCAL_SYSTEM_KEY,
                 "skipped": True,
                 "message": "本地：无变更，无需推送",
-                "logs": preview.get("logs") or [],
+                "logs": preview_logs + (preview.get("logs") or []),
                 "preview_base_url": LOCAL_PREVIEW_BASE_URL,
                 "head_sha": head_sha,
                 **{k: preview[k] for k in (
@@ -1183,7 +1186,7 @@ class GitSyncManager:
 
         cached = _run_git(["diff", "--cached", "--quiet"], repo, check=False)
         if cached.returncode == 0:
-            logs = []
+            logs = list(preview_logs)
             if excluded_files:
                 logs.append(f"已排除敏感文件: {', '.join(excluded_files)}")
             head_sha = _run_git(["rev-parse", "HEAD"], repo).stdout.strip()
@@ -1234,7 +1237,8 @@ class GitSyncManager:
                 )
             raise GitSyncError("push origin 失败", details=detail + hint)
 
-        logs = [push.stdout.strip() or push.stderr.strip() or "push 完成"]
+        logs = list(preview_logs)
+        logs.append(push.stdout.strip() or push.stderr.strip() or "push 完成")
         preview = self._await_local_preview(
             repo,
             head_sha,

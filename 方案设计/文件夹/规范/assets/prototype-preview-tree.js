@@ -50,36 +50,112 @@
     });
   }
 
-  function mount(tree) {
-    if (!tree || tree.__pptMounted) return;
-    tree.__pptMounted = true;
+  function el(tag, className) {
+    var node = document.createElement(tag);
+    if (className) node.className = className;
+    return node;
+  }
+
+  function renderNode(data) {
+    if (!data || data.type === 'file') {
+      var leaf = el('div', 'ppt-leaf');
+      var link = document.createElement('a');
+      link.href = data && data.href ? data.href : '#';
+      link.textContent = (data && data.name) || '';
+      leaf.appendChild(link);
+      if (data && data.badge) {
+        var badge = el('span', 'ppt-badge' + (data.badgeClass ? ' ' + data.badgeClass : ''));
+        badge.textContent = data.badge;
+        leaf.appendChild(badge);
+      }
+      return leaf;
+    }
+
+    var wrap = el('div', 'ppt-node');
+    var details = document.createElement('details');
+    if (data.open) details.open = true;
+    var summary = document.createElement('summary');
+    summary.textContent = data.name || '';
+    details.appendChild(summary);
+    var kids = el('div', 'ppt-children');
+    (data.children || []).forEach(function (child) {
+      kids.appendChild(renderNode(child));
+    });
+    details.appendChild(kids);
+    wrap.appendChild(details);
+    return wrap;
+  }
+
+  function renderManifest(tree, nodes) {
+    tree.innerHTML = '';
+    (nodes || []).forEach(function (node) {
+      tree.appendChild(renderNode(node));
+    });
+  }
+
+  function bindToolbar(tree) {
     var toolbar = tree.previousElementSibling;
     if (!toolbar || !toolbar.classList.contains('ppt-toolbar')) {
       toolbar = tree.parentElement && tree.parentElement.querySelector('.ppt-toolbar');
     }
     if (!toolbar) return;
 
-    var details = collectDetails(tree);
     var btnExpand = toolbar.querySelector('[data-ppt-expand]');
     var btnCollapse = toolbar.querySelector('[data-ppt-collapse]');
     var input = toolbar.querySelector('.ppt-search');
 
     if (btnExpand) {
-      btnExpand.addEventListener('click', function () { setAllOpen(details, true); });
+      btnExpand.addEventListener('click', function () { setAllOpen(collectDetails(tree), true); });
     }
     if (btnCollapse) {
-      btnCollapse.addEventListener('click', function () { setAllOpen(details, false); });
+      btnCollapse.addEventListener('click', function () { setAllOpen(collectDetails(tree), false); });
     }
     if (input) {
       input.addEventListener('input', function () { filterTree(tree, input.value); });
     }
   }
 
+  function showTreeError(tree, message) {
+    tree.innerHTML = '';
+    var p = el('p', 'ppt-hint');
+    p.textContent = message;
+    tree.appendChild(p);
+  }
+
+  function loadManifest(tree, done) {
+    var src = tree.getAttribute('data-ppt-manifest');
+    if (!src) {
+      done();
+      return;
+    }
+    fetch(src, { cache: 'no-store' })
+      .then(function (res) {
+        if (!res.ok) throw new Error(String(res.status));
+        return res.json();
+      })
+      .then(function (data) {
+        renderManifest(tree, (data && data.tree) || []);
+        done();
+      })
+      .catch(function () {
+        showTreeError(tree, '目录树加载失败。请用 HTTP 打开本页（GitHub Pages 或本地 python3 -m http.server），并确认已推送最新 preview-manifest.json。');
+        done();
+      });
+  }
+
+  function mount(tree) {
+    if (!tree || tree.__pptMounted) return;
+    tree.__pptMounted = true;
+    loadManifest(tree, function () {
+      bindToolbar(tree);
+    });
+  }
+
   function autoInit() {
     document.querySelectorAll('.ppt-tree').forEach(mount);
   }
 
-  global.PreviewTree = { mount: mount, filterTree: filterTree };
+  global.PreviewTree = { mount: mount, filterTree: filterTree, renderManifest: renderManifest };
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', autoInit);
