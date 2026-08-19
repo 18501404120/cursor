@@ -1,0 +1,697 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="研发知识解耦三阶段建设方案框架">
+  <title>研发知识解耦 · 三阶段方案框架</title>
+  <style>
+    :root {
+      --bg: #f5f7fb;
+      --card: #ffffff;
+      --text: #172033;
+      --muted: #657187;
+      --line: #e2e8f1;
+      --primary: #335cff;
+      --primary-soft: #eef2ff;
+      --green: #087c60;
+      --green-soft: #eaf8f3;
+      --amber: #a96100;
+      --amber-soft: #fff5df;
+      --red: #bd3948;
+      --red-soft: #fff0f2;
+      --navy: #1d2a57;
+      --shadow: 0 8px 28px rgba(28, 39, 66, .07);
+      --radius: 14px;
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      color: var(--text);
+      background: var(--bg);
+      font: 14px/1.68 -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    }
+    button { font: inherit; }
+    a { color: inherit; }
+    strong { color: var(--text); }
+    .page { max-width: 1160px; margin: 0 auto; padding: 28px 22px 72px; }
+
+    .hero {
+      padding: 34px 38px;
+      color: #fff;
+      background: linear-gradient(135deg, #182348, #29428b);
+      border-radius: 18px;
+      box-shadow: var(--shadow);
+    }
+    .hero-kicker { font-size: 12px; letter-spacing: .1em; opacity: .7; }
+    .hero h1 { margin: 8px 0 0; font-size: 30px; line-height: 1.25; }
+
+    .toc {
+      position: sticky;
+      top: 10px;
+      z-index: 20;
+      display: flex;
+      gap: 5px;
+      margin: 18px 0 34px;
+      padding: 8px;
+      overflow-x: auto;
+      background: rgba(255,255,255,.94);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(10px);
+    }
+    .toc a {
+      flex: 0 0 auto;
+      padding: 7px 10px;
+      color: var(--muted);
+      text-decoration: none;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 700;
+    }
+    .toc a:hover, .toc a:focus { color: var(--primary); background: var(--primary-soft); outline: none; }
+
+    section { margin-bottom: 48px; scroll-margin-top: 80px; }
+    .section-head { display: flex; align-items: center; gap: 12px; margin-bottom: 18px; }
+    .section-no {
+      display: grid;
+      flex: 0 0 auto;
+      width: 34px;
+      height: 34px;
+      place-items: center;
+      color: #fff;
+      background: var(--primary);
+      border-radius: 9px;
+      font-weight: 800;
+    }
+    h2 { margin: 0; font-size: 22px; }
+    h3 { margin: 0 0 8px; font-size: 17px; }
+    h4 { margin: 0 0 6px; font-size: 14px; }
+    p { margin: 0 0 10px; }
+    ul, ol { margin: 8px 0 0; padding-left: 20px; }
+    li { margin-bottom: 5px; }
+    .muted { color: var(--muted); }
+    .eyebrow { margin-bottom: 5px; color: var(--primary); font-size: 11px; font-weight: 800; letter-spacing: .08em; }
+    .caption { margin-top: 10px; color: var(--muted); font-size: 12px; text-align: center; }
+
+    .card {
+      padding: 20px 22px;
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+    }
+    .grid-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+    .grid-3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+    .grid-5 { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; }
+    .callout { padding: 14px 16px; border-radius: 10px; }
+    .callout.info { color: #27469f; background: var(--primary-soft); }
+    .callout.ok { color: #08674f; background: var(--green-soft); }
+    .callout.warn { color: #805000; background: var(--amber-soft); }
+    .callout.stop { color: #8d2835; background: var(--red-soft); }
+
+    .compare-shell {
+      display: grid;
+      grid-template-columns: minmax(0, .88fr) 58px minmax(0, 1.12fr);
+      align-items: stretch;
+      gap: 14px;
+    }
+    .compare-panel {
+      position: relative;
+      overflow: hidden;
+      padding: 24px;
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      box-shadow: var(--shadow);
+    }
+    .compare-panel::before {
+      content: "";
+      position: absolute;
+      inset: 0 0 auto;
+      height: 4px;
+      background: #aab5c6;
+    }
+    .compare-panel.target {
+      color: #eaf0ff;
+      background:
+        radial-gradient(circle at 88% 4%, rgba(96, 118, 255, .3), transparent 30%),
+        linear-gradient(150deg, #17244f 0%, #243b85 100%);
+      border-color: #314b9c;
+    }
+    .compare-panel.target::before { background: linear-gradient(90deg, #7190ff, #8d6dff); }
+    .compare-kicker {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 5px;
+      color: #7b8799;
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: .1em;
+    }
+    .compare-panel.target .compare-kicker { color: #afc0ff; }
+    .compare-status {
+      padding: 3px 8px;
+      color: #657187;
+      background: #eef1f5;
+      border-radius: 999px;
+      letter-spacing: 0;
+    }
+    .target .compare-status { color: #dfe7ff; background: rgba(255,255,255,.12); }
+    .compare-panel h3 { margin-bottom: 16px; font-size: 19px; }
+    .compare-panel.target h3, .compare-panel.target strong { color: #fff; }
+    .legacy-flow { display: grid; justify-items: center; gap: 5px; padding: 5px 0 14px; }
+    .legacy-node {
+      width: min(100%, 248px);
+      padding: 9px 12px;
+      color: #475569;
+      background: #f4f6f9;
+      border: 1px solid #e1e6ed;
+      border-radius: 8px;
+      text-align: center;
+      font-size: 12px;
+      font-weight: 700;
+    }
+    .legacy-arrow { color: #a8b2c0; line-height: 1; }
+    .compare-list { display: grid; gap: 7px; margin: 0; padding: 14px 0 0; border-top: 1px solid var(--line); list-style: none; }
+    .compare-list li { position: relative; margin: 0; padding-left: 18px; color: var(--muted); font-size: 12px; }
+    .compare-list li::before { content: "×"; position: absolute; left: 0; color: #9aa5b5; font-weight: 800; }
+    .target .compare-list { border-color: rgba(255,255,255,.15); }
+    .target .compare-list li { color: #d5def7; }
+    .target .compare-list li::before { content: "✓"; color: #64e0b5; }
+    .compare-shift {
+      display: grid;
+      place-items: center;
+      align-content: center;
+      gap: 7px;
+      color: var(--primary);
+      font-size: 11px;
+      font-weight: 800;
+      text-align: center;
+    }
+    .compare-shift-icon {
+      display: grid;
+      width: 42px;
+      height: 42px;
+      place-items: center;
+      color: #fff;
+      background: linear-gradient(135deg, #456cff, #7157e8);
+      border-radius: 50%;
+      box-shadow: 0 8px 20px rgba(51,92,255,.22);
+      font-size: 20px;
+    }
+    .target-map { display: grid; gap: 9px; }
+    .target-hub {
+      padding: 13px 15px;
+      background: rgba(255,255,255,.1);
+      border: 1px solid rgba(164,184,255,.38);
+      border-radius: 10px;
+      text-align: center;
+    }
+    .target-hub strong { display: block; font-size: 14px; }
+    .target-hub span { color: #b9c8f4; font-size: 10px; }
+    .target-sync {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 6px;
+    }
+    .target-lane {
+      padding: 9px 5px;
+      color: #f4f6ff;
+      background: rgba(116,142,255,.14);
+      border: 1px solid rgba(157,176,255,.3);
+      border-radius: 8px;
+      text-align: center;
+      font-size: 11px;
+      font-weight: 800;
+    }
+    .target-lane small { display: block; margin-bottom: 3px; color: #75e1bd; font-size: 8px; font-weight: 700; }
+    .target-condition {
+      padding: 9px 10px;
+      color: #dce5ff;
+      background: rgba(15,25,60,.32);
+      border: 1px dashed rgba(171,186,255,.35);
+      border-radius: 8px;
+      text-align: center;
+      font-size: 10px;
+    }
+    .target-jp {
+      padding: 10px;
+      color: #fff;
+      background: linear-gradient(90deg, #526fff, #7558e7);
+      border-radius: 8px;
+      text-align: center;
+      font-size: 11px;
+      font-weight: 800;
+    }
+    .phase-switch { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+    .phase-button {
+      padding: 8px 14px;
+      color: var(--muted);
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 9px;
+      cursor: pointer;
+    }
+    .phase-button:hover { border-color: #9bacef; }
+    .phase-button.active { color: #fff; background: var(--primary); border-color: var(--primary); }
+    .phase-panel { display: none; }
+    .phase-panel.active { display: block; }
+    .phase-card { position: relative; min-height: 260px; overflow: hidden; }
+    .phase-card::before { content: ""; position: absolute; inset: 0 auto 0 0; width: 4px; background: var(--primary); }
+    .phase-card.p2::before { background: var(--green); }
+    .phase-card.p3::before { background: var(--amber); }
+    .phase-label { color: var(--primary); font-size: 12px; font-weight: 800; }
+    .p2 .phase-label { color: var(--green); }
+    .p3 .phase-label { color: var(--amber); }
+    .phase-goal { margin: 7px 0 10px; font-size: 19px; font-weight: 800; }
+    .phase-output { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--line); color: var(--muted); font-size: 12px; }
+
+    .phase-detail { border-top: 4px solid var(--primary); }
+    .phase-detail.p2 { border-top-color: var(--green); }
+    .phase-detail.p3 { border-top-color: var(--amber); }
+    .detail-lead { margin-bottom: 14px; font-size: 15px; }
+    .capability-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; margin-top: 14px; }
+    .capability {
+      padding: 14px;
+      background: #f8faff;
+      border: 1px solid #e1e7f2;
+      border-radius: 10px;
+    }
+    .capability b { display: block; margin-bottom: 5px; font-size: 13px; }
+    .capability span { color: var(--muted); font-size: 11px; line-height: 1.5; }
+
+    .atom {
+      display: grid;
+      grid-template-columns: 140px 1fr;
+      gap: 16px;
+      margin-top: 14px;
+      padding: 18px;
+      background: #f8faff;
+      border: 1px solid #dde5f4;
+      border-radius: 11px;
+    }
+    .atom-title { color: var(--primary); font-weight: 800; }
+    .atom-parts { display: flex; flex-wrap: wrap; gap: 7px; }
+    .atom-part { padding: 5px 9px; background: #fff; border: 1px solid var(--line); border-radius: 7px; font-size: 11px; }
+
+    .loop {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      margin-top: 14px;
+      padding: 18px;
+      background: #f8fafc;
+      border: 1px solid var(--line);
+      border-radius: 11px;
+    }
+    .loop-node { padding: 7px 11px; color: #27469f; background: var(--primary-soft); border-radius: 7px; font-size: 12px; font-weight: 700; }
+    .loop-arrow { color: #9ba7b7; }
+
+    .role-table, .criteria-table {
+      width: 100%;
+      border-collapse: collapse;
+      overflow: hidden;
+      background: #fff;
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      font-size: 12px;
+    }
+    .role-table th, .role-table td, .criteria-table th, .criteria-table td {
+      padding: 11px 13px;
+      text-align: left;
+      vertical-align: top;
+      border-bottom: 1px solid var(--line);
+    }
+    .role-table th, .criteria-table th { color: var(--muted); background: #f8fafc; font-weight: 800; }
+    .role-table tr:last-child td, .criteria-table tr:last-child td { border-bottom: 0; }
+    .role-name { color: var(--primary); font-weight: 800; white-space: nowrap; }
+    .not-role { color: var(--red); }
+
+    .chain-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+    .chain-card { border-top: 4px solid var(--primary); }
+    .chain-card:nth-child(2) { border-top-color: var(--green); }
+    .chain-card:nth-child(3) { border-top-color: var(--amber); }
+    .chain-path { margin-top: 13px; color: var(--muted); font-size: 12px; }
+    .chain-path b { color: var(--text); }
+
+    .boundary { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    .do, .dont { padding: 20px 22px; border-radius: var(--radius); box-shadow: var(--shadow); }
+    .do { background: var(--green-soft); }
+    .dont { background: var(--red-soft); }
+    .do h3 { color: var(--green); }
+    .dont h3 { color: var(--red); }
+    .boundary ul { padding-left: 18px; }
+
+    .footer { padding-top: 24px; color: var(--muted); border-top: 1px solid var(--line); font-size: 12px; }
+
+    @media (max-width: 900px) {
+      .grid-3, .chain-grid { grid-template-columns: 1fr; }
+      .grid-5, .capability-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .compare-shell { grid-template-columns: 1fr; }
+      .compare-shift { grid-template-columns: auto auto; padding: 2px 0; }
+      .compare-shift-icon { transform: rotate(90deg); }
+    }
+    @media (max-width: 680px) {
+      .page { padding: 14px 12px 48px; }
+      .hero { padding: 26px 22px; }
+      .hero h1 { font-size: 25px; }
+      .grid-2, .boundary { grid-template-columns: 1fr; }
+      .grid-5, .capability-grid { grid-template-columns: 1fr; }
+      .atom { grid-template-columns: 1fr; }
+      .compare-panel { padding: 20px 17px; }
+      .target-sync { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .role-table, .criteria-table { display: block; overflow-x: auto; white-space: normal; }
+    }
+    @media print {
+      body { background: #fff; }
+      .page { max-width: none; padding: 0; }
+      .toc, .phase-switch { display: none !important; }
+      .phase-panel { display: block !important; }
+      .hero, .card, .role-table, .criteria-table { box-shadow: none; }
+      section, .card, table, .phase-panel { break-inside: avoid; }
+      section { margin-bottom: 28px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <header class="hero">
+      <div class="hero-kicker">SOLUTION FRAMEWORK · V3.0</div>
+      <h1>研发知识解耦：先控知识，再解项目，最后汇入</h1>
+    </header>
+
+    <nav class="toc" aria-label="页面目录">
+      <a href="#comparison">现状目标</a>
+      <a href="#roadmap">三期总览</a>
+      <a href="#phase1">一期方案</a>
+      <a href="#phase2">二期方案</a>
+      <a href="#phase3">三期方案</a>
+      <a href="#connection">三链串联</a>
+      <a href="#criteria">成功判据</a>
+      <a href="#boundary">做与不做</a>
+    </nav>
+
+    <section id="comparison">
+      <div class="section-head"><span class="section-no">1</span><h2>现状与目标终态</h2></div>
+      <div class="compare-shell">
+        <article class="compare-panel">
+          <div class="compare-kicker"><span>CURRENT · 1.0</span><span class="compare-status">人驱动</span></div>
+          <h3>一条流水线 + PJM 人工调度</h3>
+          <div class="legacy-flow" aria-label="当前串行研发流程">
+            <div class="legacy-node">PM 输出产品需求</div>
+            <span class="legacy-arrow">↓</span>
+            <div class="legacy-node">结构 · 板框 / 3D</div>
+            <span class="legacy-arrow">↓</span>
+            <div class="legacy-node">电子 · 原理图 / Layout</div>
+            <span class="legacy-arrow">↓</span>
+            <div class="legacy-node">嵌入式 · 固件</div>
+            <span class="legacy-arrow">↓</span>
+            <div class="legacy-node">试产 → BT → CR</div>
+          </div>
+          <ul class="compare-list">
+            <li>串行等待，上游交整包材料后下游才开工</li>
+            <li>正式版本藏在文档和群聊中，依赖问人确认</li>
+            <li>PJM 收材料、追接口、判断谁该开始</li>
+            <li>多轮调整靠人记忆，历史结论难以复现</li>
+          </ul>
+        </article>
+
+        <div class="compare-shift" aria-hidden="true">
+          <span class="compare-shift-icon">→</span>
+          <span>分三期<br>逐步转型</span>
+        </div>
+
+        <article class="compare-panel target">
+          <div class="compare-kicker"><span>TARGET · 2.0</span><span class="compare-status">条件与证据驱动</span></div>
+          <h3>知识中枢 + 多单元并行 + JP 汇入</h3>
+          <div class="target-map" aria-label="目标研发协作模式">
+            <div class="target-hub">
+              <strong>受控研发知识库</strong>
+              <span>知识原子 · 正式版本 · 权限 · 来源 · 关系</span>
+            </div>
+            <div class="target-sync">
+              <div class="target-lane"><small>↓ 获取　↑ 回写</small>结构单元</div>
+              <div class="target-lane"><small>↓ 获取　↑ 回写</small>制冷单元</div>
+              <div class="target-lane"><small>↓ 获取　↑ 回写</small>电控单元</div>
+              <div class="target-lane"><small>↓ 获取　↑ 回写</small>包材单元</div>
+            </div>
+            <div class="target-condition">条件工作网 · 输入就绪后自主开工 · 开工钉扎消费版本</div>
+            <div class="target-jp">JP-ES / JP-TL / JP-DR · 条件、证据、回退边界与决策快照</div>
+          </div>
+          <ul class="compare-list">
+            <li>各单元基于受控知识自主推进，能单验的先单验</li>
+            <li>系统按输入条件提示可开始、缺口与源版本变化</li>
+            <li>PJM 维护项目机制与风险，不细排个人每日任务</li>
+            <li>JP 对照正式版本和验收证据，结论可回放</li>
+          </ul>
+        </article>
+      </div>
+    </section>
+
+    <section id="roadmap">
+      <div class="section-head"><span class="section-no">2</span><h2>三期建设总览</h2></div>
+      <div class="phase-switch" role="tablist" aria-label="分期内容切换">
+        <button class="phase-button active" type="button" role="tab" aria-selected="true" data-phase-target="phase-all">全部</button>
+        <button class="phase-button" type="button" role="tab" aria-selected="false" data-phase-target="phase-one">一期</button>
+        <button class="phase-button" type="button" role="tab" aria-selected="false" data-phase-target="phase-two">二期</button>
+        <button class="phase-button" type="button" role="tab" aria-selected="false" data-phase-target="phase-three">三期</button>
+      </div>
+
+      <div class="phase-panel active" id="phase-all" role="tabpanel">
+        <div class="grid-3">
+          <article class="card phase-card">
+            <div class="phase-label">一期 · 0—3个月</div>
+            <div class="phase-goal">受控研发知识库</div>
+            <p class="muted">稳定知识库空间、知识原子、知识关系、生命周期与版本、权限策略五类底层对象。</p>
+            <ul><li>创建与维护 → 审核 → 发布</li><li>权限内搜索与专题组装</li><li>正式版本与全程审计</li></ul>
+            <div class="phase-output"><strong>阶段产出：</strong>可独立运营的知识闭环，以及首批 30—50 个高价值知识原子。</div>
+          </article>
+          <article class="card phase-card p2">
+            <div class="phase-label">二期 · 3—9个月</div>
+            <div class="phase-goal">项目解耦协作</div>
+            <p class="muted">将一期知识原子绑定为项目输入、输出和验证依据，支持解耦单元自主推进。</p>
+            <ul><li>项目解耦与主责人授权</li><li>条件工作网与版本钉扎</li><li>基础协同、调整和状态反馈</li></ul>
+            <div class="phase-output"><strong>阶段产出：</strong>H8120 历史样板 + 1 个在飞项目，跑通核心协作链路。</div>
+          </article>
+          <article class="card phase-card p3">
+            <div class="phase-label">三期 · 9—18个月</div>
+            <div class="phase-goal">JP 汇入与智能运营</div>
+            <p class="muted">用前两期的知识、工作、版本和证据形成可复现的汇入决策，并扩展组织运营。</p>
+            <ul><li>JP 汇入、验收与决策快照</li><li>能力货架、影响分析、跨项目运营</li><li>外部连接与可溯源 AI</li></ul>
+            <div class="phase-output"><strong>阶段产出：</strong>从单项目协作升级为可复用、可运营、可追溯的平台能力。</div>
+          </article>
+        </div>
+      </div>
+      <div class="phase-panel" id="phase-one" role="tabpanel">
+        <div class="card"><h3>一期只回答一个问题</h3><p>研发团队能否在权限范围内找到一条有责任人、有适用范围、有来源、有正式版本且经过审核的知识，并确认其变更历史？</p></div>
+      </div>
+      <div class="phase-panel" id="phase-two" role="tabpanel">
+        <div class="card"><h3>二期只回答一个问题</h3><p>解耦单元主责人能否基于钉扎的正式知识自主开工、产出和验证，并让上游变化与跨组协同可见、可响应？</p></div>
+      </div>
+      <div class="phase-panel" id="phase-three" role="tabpanel">
+        <div class="card"><h3>三期只回答一个问题</h3><p>组织能否基于完整证据形成可复现的 JP 决策，并将影响、能力和历史模板用于跨项目运营与可信智能辅助？</p></div>
+      </div>
+    </section>
+
+    <section id="phase1">
+      <div class="section-head"><span class="section-no">3</span><h2>一期深度方案：受控研发知识库</h2></div>
+      <article class="card phase-detail">
+        <div class="eyebrow">0—3个月 · 建立可信知识底座</div>
+        <p class="detail-lead"><strong>目标：</strong>将分散在文档、群聊和个人目录中的关键研发结论，转化为可负责、可审核、可授权、可发布、可检索、可追溯的知识资产。</p>
+        <div class="capability-grid">
+          <div class="capability"><b>知识库空间</b><span>按产品或专业域定义知识范围、空间管理员、成员角色与默认权限。</span></div>
+          <div class="capability"><b>知识原子</b><span>承载可独立理解、引用和维护的最小业务知识单元。</span></div>
+          <div class="capability"><b>知识关系</b><span>一期只做来源、引用、组成、替代、相关等明确关系。</span></div>
+          <div class="capability"><b>生命周期与版本</b><span>草稿、待审核、已发布、已废止；正式版本不可原地覆盖。</span></div>
+          <div class="capability"><b>权限策略</b><span>空间继承为主，对象例外为辅，控制查看、编辑、审核、发布等动作。</span></div>
+        </div>
+
+        <div class="atom">
+          <div>
+            <div class="atom-title">知识原子 ≠ 字段表</div>
+            <p class="muted" style="font-size:12px;margin-top:6px">结构化字段只是内容的一部分。</p>
+          </div>
+          <div class="atom-parts">
+            <span class="atom-part">类型与结构化字段</span>
+            <span class="atom-part">责任人</span>
+            <span class="atom-part">适用范围</span>
+            <span class="atom-part">正文</span>
+            <span class="atom-part">附件</span>
+            <span class="atom-part">来源</span>
+            <span class="atom-part">关系</span>
+            <span class="atom-part">状态</span>
+            <span class="atom-part">版本</span>
+            <span class="atom-part">权限</span>
+          </div>
+        </div>
+
+        <div class="loop" aria-label="一期知识闭环">
+          <span class="loop-node">创建 / 维护</span><span class="loop-arrow">→</span>
+          <span class="loop-node">提交审核</span><span class="loop-arrow">→</span>
+          <span class="loop-node">审核发布</span><span class="loop-arrow">→</span>
+          <span class="loop-node">权限内搜索</span><span class="loop-arrow">→</span>
+          <span class="loop-node">专题组装 / 引用</span><span class="loop-arrow">→</span>
+          <span class="loop-node">版本审计</span>
+        </div>
+      </article>
+    </section>
+
+    <section id="phase2">
+      <div class="section-head"><span class="section-no">4</span><h2>二期深度方案：项目解耦协作</h2></div>
+      <article class="card phase-detail p2">
+        <div class="eyebrow" style="color:var(--green)">3—9个月 · 让可信知识进入真实项目</div>
+        <p class="detail-lead"><strong>目标：</strong>把项目从“按岗位交文档、由 PJM 人工统筹接口”转为“按可独立结果划分解耦单元，由主责人基于受控输入自主推进并交付可验证输出”。</p>
+        <div class="capability-grid">
+          <div class="capability"><b>项目解耦</b><span>明确单元目标、责任边界、主责人、辅助角色和独立验证方式。</span></div>
+          <div class="capability"><b>主责人授权</b><span>赋予需求确认、资源策划、节奏安排、协同发起与专业验收权。</span></div>
+          <div class="capability"><b>知识输入输出绑定</b><span>一期知识原子作为必要输入、结果输出和验证依据。</span></div>
+          <div class="capability"><b>条件工作网</b><span>按必要输入和最低冻结要求判断可开始、缺口与源更新。</span></div>
+          <div class="capability"><b>版本钉扎与基础协同</b><span>开工钉住消费版本，跨组请求和重要调整形成记录并回写。</span></div>
+        </div>
+        <div class="callout ok" style="margin-top:14px"><strong>核心规则：</strong>工作粒度是可独立验收的结果包，不是工程师每日任务；上游发布新版本时保留历史完成状态，由主责人评估继续沿用、改钉扎或调整输出。</div>
+      </article>
+    </section>
+
+    <section id="phase3">
+      <div class="section-head"><span class="section-no">5</span><h2>三期深度方案：JP 汇入与智能运营</h2></div>
+      <article class="card phase-detail p3">
+        <div class="eyebrow" style="color:var(--amber)">9—18个月 · 从单项目协作走向组织运营</div>
+        <p class="detail-lead"><strong>目标：</strong>基于前两期稳定的知识、责任、版本、工作和证据，形成有条件、有证据、有回退边界且可复现的 JP 决策，并沉淀跨项目复用和组织能力。</p>
+        <div class="capability-grid">
+          <div class="capability"><b>JP 汇入与快照</b><span>齐套检查、验收证据、通过/带条件/回退，以及决策时点快照。</span></div>
+          <div class="capability"><b>组织能力货架</b><span>将专家、测试、设备、供应商等能力转为可请求、可承诺服务。</span></div>
+          <div class="capability"><b>综合影响分析</b><span>覆盖数据、工作、依赖、JP、能力和商业锁定影响。</span></div>
+          <div class="capability"><b>模板复用与跨项目运营</b><span>复用解耦、知识和 JP 模板，识别容量冲突与重复缺口。</span></div>
+          <div class="capability"><b>外部连接与可溯源 AI</b><span>引用 PLM/PDM/ERP/测试对象；AI 输出返回来源、版本与权限依据。</span></div>
+        </div>
+        <div class="callout warn" style="margin-top:14px"><strong>AI 边界：</strong>AI 可做检索、摘要、缺口提示、影响线索和模板推荐，但不能替代 PM 的产品判断、PJM 的项目治理、主责人的专业验收或审核发布人的正式发布，也不能自动判定 JP 通过。</div>
+      </article>
+    </section>
+
+    <section id="connection">
+      <div class="section-head"><span class="section-no">6</span><h2>三期如何串联：责任链、条件链、证据链</h2></div>
+      <div class="chain-grid">
+        <article class="card chain-card">
+          <h3>责任链</h3>
+          <p>每个知识、项目结果和正式决策都有明确责任角色，避免“大家共同负责”等于无人负责。</p>
+          <div class="chain-path"><b>知识责任人</b>维护内容 → <b>审核发布人</b>确认正式版本 → <b>解耦单元主责人</b>对项目结果负责 → <b>JP 决策角色</b>确认汇入。</div>
+        </article>
+        <article class="card chain-card">
+          <h3>条件链</h3>
+          <p>已发布知识先成为项目输入，输入就绪后工作可开始，结果满足规则后才进入 JP 验收。</p>
+          <div class="chain-path"><b>正式知识</b> → <b>版本钉扎</b> → <b>条件工作</b> → <b>结果输出</b> → <b>JP 齐套与例外</b>。</div>
+        </article>
+        <article class="card chain-card">
+          <h3>证据链</h3>
+          <p>每个结论都能回到来源对象、消费版本、验证记录和决策时点，支撑审计、影响分析和 AI 溯源。</p>
+          <div class="chain-path"><b>来源</b> → <b>知识版本</b> → <b>项目引用</b> → <b>验收证据</b> → <b>决策快照</b>。</div>
+        </article>
+      </div>
+
+      <h3 style="margin:22px 0 10px">关键角色分工</h3>
+      <table class="role-table">
+        <thead><tr><th>角色</th><th>主要责任</th><th>明确不承担</th></tr></thead>
+        <tbody>
+          <tr><td class="role-name">PM · 产品经理</td><td>定义产品价值、用户问题、业务规则、知识需求和验收口径；确认产品取舍与商业判断。</td><td class="not-role">不负责催项目进度，不替代 PJM 做项目治理，不替代专业角色发布知识。</td></tr>
+          <tr><td class="role-name">PJM · 项目经理</td><td>维护项目目标、阶段治理、范围风险、跨单元协同机制和 JP 组织；推动异常按规则闭环。</td><td class="not-role">不细排工程师每日任务，不替代解耦单元主责人做专业判断。</td></tr>
+          <tr><td class="role-name">知识责任人</td><td>创建、维护知识原子，保证内容、适用范围、来源与附件完整，及时发起新版本审核。</td><td class="not-role">不能自行把草稿变成正式版本。</td></tr>
+          <tr><td class="role-name">审核发布人</td><td>检查内容、来源、适用范围、权限和版本差异，决定发布、退回或废止。</td><td class="not-role">不代写知识，不因项目赶节点跳过审核。</td></tr>
+          <tr><td class="role-name">解耦单元主责人</td><td>对单元结果负责，确认输入、策划资源与节奏、发起协同、完成专业验收和输出回写。</td><td class="not-role">不承担整个项目的统一调度，也不能越权发布受控知识。</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section id="criteria">
+      <div class="section-head"><span class="section-no">7</span><h2>阶段成功判据</h2></div>
+      <table class="criteria-table">
+        <thead><tr><th>阶段</th><th>必须证明</th><th>建议观察指标</th><th>进入下一期的门槛</th></tr></thead>
+        <tbody>
+          <tr>
+            <td class="role-name">一期</td>
+            <td>知识可负责、可审核、可授权、可检索、可引用、可追溯。</td>
+            <td>高价值原子发布数；责任与适用范围完整率；搜索命中与专题引用；过期复核闭环；权限异常数。</td>
+            <td>首批知识稳定运行，正式版本被真实业务使用，责任人与发布角色愿意持续维护。</td>
+          </tr>
+          <tr>
+            <td class="role-name">二期</td>
+            <td>解耦单元能基于钉扎知识自主开工、输出和验证，跨组变化可响应。</td>
+            <td>必要输入就绪率；版本钉扎覆盖；独立验收结果；跨组等待时长；调整闭环；源更新响应率。</td>
+            <td>H8120 样板和 1 个在飞项目跑通核心段，知识输入输出与条件关系可模板化。</td>
+          </tr>
+          <tr>
+            <td class="role-name">三期</td>
+            <td>JP 决策有完整证据和快照，影响与能力可跨项目复用，AI 输出可溯源。</td>
+            <td>JP 齐套率；证据有效率；决策回放成功率；模板复用率；影响处置闭环；AI 来源覆盖率。</td>
+            <td>不再以“功能上线”作为完成标准，而以决策质量、复用效率和组织运营改善持续迭代。</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section id="boundary">
+      <div class="section-head"><span class="section-no">8</span><h2>做 / 不做边界</h2></div>
+      <div class="boundary">
+        <div class="do">
+          <h3>要做</h3>
+          <ul>
+            <li>分期稳定核心业务对象，每期形成独立可验证闭环</li>
+            <li>用知识原子表达内容、责任、范围、来源、关系、状态、版本和权限</li>
+            <li>让项目引用正式版本，并保留钉扎与变化响应记录</li>
+            <li>让验收证据和决策快照可回放、可审计</li>
+            <li>连接 PLM/PDM/ERP/测试平台中的专业对象</li>
+            <li>让 PM、PJM、知识责任人、审核发布人、主责人各守其责</li>
+          </ul>
+        </div>
+        <div class="dont">
+          <h3>不做</h3>
+          <ul>
+            <li>不恢复“知识库、解耦、JP 五件事同期建设”</li>
+            <li>不把知识库做成网盘、字段表或项目附件目录</li>
+            <li>不替代 PLM/PDM/ERP/测试平台，不复制专业主数据</li>
+            <li>不做每日任务、个人工时和以甘特图为中心的微观控制</li>
+            <li>一期不做项目解耦、条件工作网、JP、复杂图谱和 AI</li>
+            <li>AI 不自动发布知识、不修改正式钉扎、不替代正式决策</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <footer class="footer">
+      <p>研发知识解耦 · 三阶段方案框架 ｜ 一期受控知识库 → 二期项目解耦协作 → 三期 JP 汇入与智能运营 ｜ 2026-08</p>
+      <p>本页用于管理层与产品方案评审；字段、权限动作、异常处理和接口规则需在各期 PRD 中继续细化。</p>
+    </footer>
+  </main>
+
+  <script>
+    (() => {
+      const buttons = document.querySelectorAll(".phase-button");
+      const panels = document.querySelectorAll(".phase-panel");
+
+      buttons.forEach((button) => {
+        button.addEventListener("click", () => {
+          const target = document.getElementById(button.dataset.phaseTarget);
+          if (!target) return;
+
+          buttons.forEach((item) => {
+            item.classList.remove("active");
+            item.setAttribute("aria-selected", "false");
+          });
+          panels.forEach((item) => item.classList.remove("active"));
+
+          button.classList.add("active");
+          button.setAttribute("aria-selected", "true");
+          target.classList.add("active");
+        });
+      });
+    })();
+  </script>
+</body>
+</html>
