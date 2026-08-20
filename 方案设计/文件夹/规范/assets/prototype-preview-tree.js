@@ -122,7 +122,31 @@
     tree.appendChild(p);
   }
 
+  function parseManifestPayload(data) {
+    if (!data) return [];
+    if (Array.isArray(data)) return data;
+    return data.tree || [];
+  }
+
+  function readInlineManifest(tree) {
+    var id = tree.getAttribute('data-ppt-inline') || 'ppt-manifest';
+    var node = document.getElementById(id);
+    if (!node) return null;
+    try {
+      return JSON.parse(node.textContent);
+    } catch (error) {
+      return null;
+    }
+  }
+
   function loadManifest(tree, done) {
+    var inline = readInlineManifest(tree);
+    if (inline) {
+      renderManifest(tree, parseManifestPayload(inline));
+      done();
+      return;
+    }
+
     var src = tree.getAttribute('data-ppt-manifest');
     if (!src) {
       done();
@@ -134,7 +158,7 @@
         return res.json();
       })
       .then(function (data) {
-        renderManifest(tree, (data && data.tree) || []);
+        renderManifest(tree, parseManifestPayload(data));
         done();
       })
       .catch(function () {
@@ -157,9 +181,8 @@
 
   global.PreviewTree = { mount: mount, filterTree: filterTree, renderManifest: renderManifest };
 
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', autoInit);
-  } else {
+  document.addEventListener('DOMContentLoaded', autoInit);
+  if (document.readyState !== 'loading') {
     autoInit();
   }
 })(typeof window !== 'undefined' ? window : this);

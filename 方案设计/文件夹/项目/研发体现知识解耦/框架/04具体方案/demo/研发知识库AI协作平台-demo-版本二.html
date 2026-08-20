@@ -1,0 +1,1657 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>研发知识库 AI 协作平台 Demo · 版本二</title>
+  <style>
+    :root {
+      --bg: #f3f6fa;
+      --surface: #ffffff;
+      --surface-2: #f8fafc;
+      --text: #172033;
+      --muted: #667085;
+      --line: #e1e7ef;
+      --primary: #2367d1;
+      --primary-dark: #174b9b;
+      --primary-soft: #eaf2ff;
+      --cyan-soft: #eaf8fb;
+      --green: #13835f;
+      --green-soft: #e9f7f1;
+      --amber: #a76000;
+      --amber-soft: #fff5e3;
+      --red: #c23c4b;
+      --red-soft: #fff0f2;
+      --purple: #6847be;
+      --purple-soft: #f1edff;
+      --nav: 218px;
+      --shadow: 0 8px 28px rgba(23, 42, 77, .07);
+    }
+
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+      margin: 0;
+      color: var(--text);
+      background: var(--bg);
+      font: 13px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    }
+    button, input, select, textarea { font: inherit; }
+    button { cursor: pointer; }
+    #app { min-height: 100%; }
+
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 30;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      height: 58px;
+      padding: 0 18px;
+      color: #fff;
+      background: #17264a;
+    }
+    .brand { min-width: 250px; font-size: 15px; font-weight: 800; }
+    .brand small { display: block; margin-top: -2px; color: rgba(255,255,255,.62); font-size: 10px; font-weight: 500; }
+    .version {
+      padding: 3px 9px;
+      color: #dce9ff;
+      background: rgba(255,255,255,.08);
+      border: 1px solid rgba(255,255,255,.2);
+      border-radius: 999px;
+      font-size: 10px;
+      font-weight: 700;
+    }
+    .top-spacer { flex: 1; }
+    .top-select {
+      height: 34px;
+      min-width: 190px;
+      padding: 0 9px;
+      color: #fff;
+      background: #223868;
+      border: 1px solid rgba(255,255,255,.24);
+      border-radius: 8px;
+      outline: none;
+    }
+    .top-button {
+      height: 34px;
+      padding: 0 11px;
+      color: #fff;
+      background: transparent;
+      border: 1px solid rgba(255,255,255,.22);
+      border-radius: 8px;
+    }
+    .top-button:hover { background: rgba(255,255,255,.08); }
+
+    .layout {
+      display: grid;
+      grid-template-columns: var(--nav) minmax(0, 1fr);
+      min-height: calc(100vh - 58px);
+    }
+    .nav {
+      position: sticky;
+      top: 58px;
+      height: calc(100vh - 58px);
+      overflow: auto;
+      padding: 15px 11px;
+      background: var(--surface);
+      border-right: 1px solid var(--line);
+    }
+    .nav-title {
+      padding: 0 10px 7px;
+      color: #98a2b3;
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: .08em;
+    }
+    .nav-button {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      width: 100%;
+      min-height: 42px;
+      margin: 2px 0;
+      padding: 8px 10px;
+      color: #475467;
+      background: transparent;
+      border: 0;
+      border-radius: 9px;
+      text-align: left;
+      font-weight: 700;
+    }
+    .nav-button:hover { background: #f5f7fa; }
+    .nav-button.on { color: var(--primary); background: var(--primary-soft); }
+    .nav-icon {
+      display: grid;
+      width: 25px;
+      height: 25px;
+      place-items: center;
+      color: #667085;
+      background: #f0f3f7;
+      border-radius: 7px;
+      font-size: 10px;
+      font-weight: 800;
+    }
+    .nav-button.on .nav-icon { color: #fff; background: var(--primary); }
+    .nav-count {
+      min-width: 20px;
+      margin-left: auto;
+      padding: 1px 6px;
+      color: #667085;
+      background: #eef1f5;
+      border-radius: 999px;
+      text-align: center;
+      font-size: 10px;
+    }
+    .role-note {
+      margin: 17px 5px 0;
+      padding: 11px;
+      color: #385375;
+      background: #f6f9ff;
+      border: 1px solid #dce6f6;
+      border-radius: 10px;
+      font-size: 11px;
+    }
+    .role-note b { display: block; margin-bottom: 3px; color: var(--primary-dark); }
+    .main { min-width: 0; padding: 18px 22px 42px; }
+
+    .page-head {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 14px;
+    }
+    .page-head h1 { margin: 0; font-size: 22px; line-height: 1.25; }
+    .page-head p { margin: 4px 0 0; color: var(--muted); }
+    .btns { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+    .btn {
+      min-height: 34px;
+      padding: 6px 12px;
+      color: #344054;
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      font-weight: 700;
+    }
+    .btn:hover { background: #f8fafc; }
+    .btn.primary { color: #fff; background: var(--primary); border-color: var(--primary); }
+    .btn.primary:hover { background: var(--primary-dark); }
+    .btn.green { color: #fff; background: var(--green); border-color: var(--green); }
+    .btn.small { min-height: 28px; padding: 3px 9px; font-size: 11px; }
+    .btn:disabled { opacity: .45; cursor: not-allowed; }
+
+    .project-strip {
+      display: grid;
+      grid-template-columns: 1.2fr repeat(4, minmax(0, .72fr));
+      gap: 9px;
+      margin-bottom: 13px;
+    }
+    .project-main, .metric {
+      padding: 12px 14px;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 11px;
+    }
+    .project-main { background: #f8fbff; border-color: #cdddf2; }
+    .project-main strong { display: block; margin-bottom: 2px; color: var(--primary-dark); font-size: 15px; }
+    .project-main span, .metric span { color: var(--muted); font-size: 10px; }
+    .metric b { display: block; margin-bottom: 1px; font-size: 17px; }
+    .metric b.good { color: var(--green); }
+    .metric b.warn { color: var(--amber); }
+
+    .workspace {
+      display: grid;
+      grid-template-columns: 238px minmax(360px, 1fr) 330px;
+      gap: 12px;
+      min-height: 650px;
+    }
+    .panel {
+      min-width: 0;
+      overflow: hidden;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      box-shadow: 0 1px 2px rgba(16,24,40,.02);
+    }
+    .panel-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      min-height: 48px;
+      padding: 10px 13px;
+      background: #fbfcfe;
+      border-bottom: 1px solid var(--line);
+    }
+    .panel-head h2 { margin: 0; font-size: 14px; }
+    .panel-head small { color: var(--muted); }
+
+    .tree { padding: 8px; }
+    .tree-project {
+      width: 100%;
+      padding: 9px 10px;
+      margin-bottom: 5px;
+      color: var(--primary-dark);
+      background: var(--primary-soft);
+      border: 0;
+      border-radius: 8px;
+      text-align: left;
+      font-weight: 800;
+    }
+    .folder { margin-bottom: 3px; }
+    .folder-row {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      width: 100%;
+      min-height: 34px;
+      padding: 6px 8px;
+      color: #344054;
+      background: transparent;
+      border: 0;
+      border-radius: 7px;
+      text-align: left;
+    }
+    .folder-row:hover, .folder-row.on { background: #f3f6fa; }
+    .folder-code { color: #8090a6; font-size: 10px; font-weight: 800; }
+    .folder-count { margin-left: auto; color: #98a2b3; font-size: 10px; }
+    .doc-list { padding: 2px 5px 5px 27px; }
+    .doc-item {
+      display: block;
+      width: 100%;
+      padding: 5px 6px;
+      overflow: hidden;
+      color: #667085;
+      background: transparent;
+      border: 0;
+      border-radius: 5px;
+      text-align: left;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-size: 10px;
+    }
+    .doc-item:hover { color: var(--primary); background: var(--primary-soft); }
+
+    .chat-panel { display: grid; grid-template-rows: auto auto 1fr auto; }
+    .context-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      padding: 9px 12px;
+      background: #f7faff;
+      border-bottom: 1px solid var(--line);
+    }
+    .context-chip {
+      padding: 3px 7px;
+      color: #36567c;
+      background: #fff;
+      border: 1px solid #d6e2f2;
+      border-radius: 999px;
+      font-size: 10px;
+    }
+    .quick-prompts {
+      display: flex;
+      gap: 6px;
+      padding: 9px 12px 0;
+      overflow-x: auto;
+    }
+    .quick {
+      flex: 0 0 auto;
+      padding: 5px 8px;
+      color: #37557b;
+      background: #fff;
+      border: 1px solid #d7e1ef;
+      border-radius: 7px;
+      font-size: 10px;
+    }
+    .quick:hover { color: var(--primary); background: var(--primary-soft); border-color: #bcd0ef; }
+    .messages {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      min-height: 380px;
+      max-height: 500px;
+      padding: 14px;
+      overflow: auto;
+    }
+    .message {
+      max-width: 88%;
+      padding: 10px 12px;
+      border-radius: 10px;
+      white-space: pre-line;
+    }
+    .message.user { align-self: flex-end; color: #fff; background: var(--primary); }
+    .message.ai { align-self: flex-start; color: #30425d; background: #f4f7fb; border: 1px solid #e1e7ef; }
+    .message strong { display: block; margin-bottom: 4px; color: #1f3c64; }
+    .sources {
+      margin-top: 8px;
+      padding-top: 7px;
+      color: #486b9f;
+      border-top: 1px solid #dce5f0;
+      font-size: 10px;
+    }
+    .composer {
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      gap: 8px;
+      padding: 11px;
+      background: #fbfcfe;
+      border-top: 1px solid var(--line);
+    }
+    .composer input {
+      min-width: 0;
+      height: 36px;
+      padding: 0 10px;
+      border: 1px solid #cfd8e5;
+      border-radius: 8px;
+      outline: none;
+    }
+    .composer.kb-ask { grid-template-columns: 1fr auto; }
+
+    .context-panel { display: flex; flex-direction: column; }
+    .context-body { padding: 12px; overflow: auto; }
+    .role-card {
+      padding: 11px;
+      color: #294465;
+      background: #f6f9ff;
+      border: 1px solid #d9e5f5;
+      border-radius: 9px;
+    }
+    .role-card b { display: block; margin-bottom: 3px; color: var(--primary-dark); }
+    .section-title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin: 14px 0 7px;
+      font-size: 12px;
+      font-weight: 800;
+    }
+    .check-list { display: grid; gap: 6px; }
+    .check-item {
+      display: grid;
+      grid-template-columns: 18px minmax(0, 1fr) auto;
+      gap: 7px;
+      align-items: center;
+      width: 100%;
+      padding: 8px;
+      color: inherit;
+      background: #fafbfc;
+      border: 1px solid #e8ecf2;
+      border-radius: 7px;
+      text-align: left;
+    }
+    .check-item.has-doc { cursor: pointer; }
+    .check-item.has-doc:hover { border-color: #c5d8f0; background: #f7fbff; }
+    .check-item.unread { background: #fff8f8; border-color: #f3c4c8; }
+    .unread-dot {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      margin-right: 4px;
+      background: #e11d48;
+      border-radius: 50%;
+      vertical-align: middle;
+    }
+    .status.red { color: #e11d48; background: #fff1f2; }
+    .check {
+      display: grid;
+      width: 18px;
+      height: 18px;
+      place-items: center;
+      color: #fff;
+      background: #aeb8c6;
+      border-radius: 50%;
+      font-size: 10px;
+      font-weight: 800;
+    }
+    .check.ok { background: var(--green); }
+    .check.missing { color: var(--amber); background: var(--amber-soft); border: 1px solid #edc77f; }
+    .check-item strong { display: block; overflow: hidden; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+    .check-item small { display: block; color: var(--muted); font-size: 9px; }
+    .status {
+      display: inline-flex;
+      align-items: center;
+      width: fit-content;
+      padding: 2px 6px;
+      border-radius: 999px;
+      font-size: 9px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+    .status.green { color: var(--green); background: var(--green-soft); }
+    .status.amber { color: var(--amber); background: var(--amber-soft); }
+    .status.blue { color: var(--primary); background: var(--primary-soft); }
+    .status.gray { color: #667085; background: #eef1f5; }
+    .status.purple { color: var(--purple); background: var(--purple-soft); }
+
+    .draft {
+      margin-top: 12px;
+      padding: 11px;
+      background: #fffdf8;
+      border: 1px solid #ead8b2;
+      border-radius: 9px;
+    }
+    .draft h3 { margin: 0 0 6px; color: #80571d; font-size: 13px; }
+    .draft p { margin: 0 0 7px; color: #665842; font-size: 10px; }
+    .draft ul { margin: 5px 0 9px; padding-left: 17px; color: #665842; font-size: 10px; }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+    .stat { padding: 14px; }
+    .stat b { display: block; margin: 2px 0; font-size: 23px; }
+    .stat span { color: var(--muted); font-size: 10px; }
+    .content-grid { display: grid; grid-template-columns: 255px minmax(0, 1fr); gap: 12px; }
+    .kb-grid { display: grid; grid-template-columns: 238px minmax(0, 1fr) 340px; gap: 12px; align-items: start; }
+    .kb-search {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+    .kb-search input, .kb-ask input {
+      min-width: 0;
+      height: 36px;
+      padding: 0 10px;
+      border: 1px solid #cfd8e5;
+      border-radius: 8px;
+      outline: none;
+    }
+    .kb-search input:focus, .kb-ask input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(35,103,209,.1); }
+    .kb-filters { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+    .chip {
+      min-height: 26px;
+      padding: 2px 9px;
+      color: #475467;
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 700;
+    }
+    .chip.on { color: var(--primary); background: var(--primary-soft); border-color: #b9d0f3; }
+    .folder-row.filter-on { color: var(--primary); background: var(--primary-soft); }
+    .cite-list { display: grid; gap: 8px; margin-top: 8px; }
+    .cite-card {
+      width: 100%;
+      padding: 8px 9px;
+      color: inherit;
+      background: #fff;
+      border: 1px solid #d6e2f2;
+      border-radius: 8px;
+      text-align: left;
+    }
+    .cite-card:hover { border-color: var(--primary); background: #f7fbff; }
+    .cite-quote {
+      margin-top: 5px;
+      padding: 6px 8px;
+      color: #294465;
+      background: #f4f8ff;
+      border-left: 3px solid var(--primary);
+      font-size: 11px;
+      line-height: 1.45;
+    }
+    .kb-ask-panel { display: flex; flex-direction: column; min-height: 560px; }
+    .kb-messages {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      min-height: 320px;
+      max-height: 460px;
+      padding: 12px;
+      overflow: auto;
+    }
+    .history-list { display: grid; gap: 8px; margin-top: 10px; }
+    .history-item {
+      padding: 9px 10px;
+      background: #fafbfc;
+      border: 1px solid #e8ecf2;
+      border-radius: 8px;
+    }
+    .history-item b { display: block; margin-bottom: 2px; }
+    .diff-row { display: grid; gap: 6px; margin-top: 8px; }
+    .diff-line { padding: 7px 9px; border-radius: 6px; font-size: 12px; line-height: 1.45; }
+    .diff-line.del { color: #9f1239; background: #fff1f2; text-decoration: line-through; }
+    .diff-line.add { color: #047857; background: #ecfdf5; }
+    .legend-note { color: var(--muted); font-size: 10px; }
+    .card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; }
+    .card-pad { padding: 15px; }
+    .card-title { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
+    .card-title h2, .card-title h3 { margin: 0; }
+    .doc-table { width: 100%; border-collapse: collapse; }
+    .doc-table th, .doc-table td { padding: 10px 9px; border-bottom: 1px solid #edf0f4; text-align: left; vertical-align: top; }
+    .doc-table th { color: #667085; background: #f8fafc; font-size: 10px; }
+    .doc-table tr:last-child td { border-bottom: 0; }
+    .doc-table tbody tr { cursor: pointer; }
+    .doc-table tbody tr:hover { background: #f8fbff; }
+    .doc-name { font-weight: 750; }
+    .doc-meta { color: var(--muted); font-size: 10px; }
+
+    .skills {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 11px;
+    }
+    .skill-card {
+      min-height: 190px;
+      padding: 15px;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+    }
+    .skill-head { display: flex; justify-content: space-between; gap: 8px; margin-bottom: 10px; }
+    .skill-code { color: var(--purple); font-size: 10px; font-weight: 800; }
+    .skill-card h3 { margin: 2px 0 0; font-size: 15px; }
+    .skill-card p { color: var(--muted); font-size: 11px; }
+    .rule-list { margin: 8px 0 0; padding-left: 17px; color: #475467; font-size: 10px; }
+
+    .modal-mask {
+      position: fixed;
+      inset: 0;
+      z-index: 50;
+      display: grid;
+      place-items: center;
+      padding: 20px;
+      background: rgba(17, 28, 51, .52);
+    }
+    .modal {
+      width: min(680px, 96vw);
+      max-height: 88vh;
+      overflow: auto;
+      background: #fff;
+      border-radius: 14px;
+      box-shadow: var(--shadow);
+    }
+    .modal-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 15px 18px;
+      border-bottom: 1px solid var(--line);
+    }
+    .modal-head h2 { margin: 0; font-size: 17px; }
+    .modal-body { padding: 17px 18px; }
+    .modal-foot { display: flex; justify-content: flex-end; gap: 8px; padding: 13px 18px; background: #f8fafc; border-top: 1px solid var(--line); }
+    .analysis-box { padding: 13px; margin-top: 12px; background: #f6f9ff; border: 1px solid #d8e5f5; border-radius: 9px; }
+    .analysis-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-top: 9px; }
+    .analysis-item { padding: 9px; background: #fff; border: 1px solid #e0e7f0; border-radius: 7px; }
+    .analysis-item small { display: block; color: var(--muted); }
+    .analysis-item b { display: block; margin-top: 2px; }
+    .close { color: #667085; background: transparent; border: 0; font-size: 20px; }
+    .toast {
+      position: fixed;
+      right: 22px;
+      bottom: 22px;
+      z-index: 80;
+      max-width: 380px;
+      padding: 11px 14px;
+      color: #fff;
+      background: #22314f;
+      border-radius: 9px;
+      box-shadow: var(--shadow);
+    }
+    .empty { padding: 25px 12px; color: var(--muted); text-align: center; }
+    .metric.action {
+      appearance: none;
+      font: inherit;
+      color: inherit;
+      cursor: pointer;
+      text-align: left;
+      border-color: #c5d8f0;
+    }
+    .metric.action:hover { background: #f7fbff; border-color: var(--primary); }
+    .metric-hint { display: block; margin-top: 3px; color: var(--primary); font-size: 10px; font-weight: 700; }
+    .map-mask {
+      position: fixed;
+      inset: 0;
+      z-index: 70;
+      display: grid;
+      grid-template-rows: auto auto 1fr;
+      background: #e8ecf4;
+    }
+    .map-top {
+      padding: 14px 20px 10px;
+      color: #fff;
+      background: linear-gradient(135deg, #17264a, #2754c5);
+    }
+    .map-top h2 { margin: 0 0 4px; font-size: 18px; }
+    .map-top p { margin: 0; opacity: .88; font-size: 12px; }
+    .map-toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+      padding: 8px 20px;
+      background: #fff;
+      border-bottom: 1px solid var(--line);
+      font-size: 11px;
+      color: var(--muted);
+    }
+    .map-legend { display: flex; flex-wrap: wrap; gap: 12px; }
+    .swatch { display: inline-flex; align-items: center; justify-content: center; width: 16px; height: 16px; border-radius: 4px; border: 1px solid var(--line); font-size: 9px; font-weight: 800; }
+    .map-canvas { overflow: auto; padding: 12px; }
+    .map-table { border-collapse: separate; border-spacing: 0; min-width: 980px; background: #fff; }
+    .map-table th, .map-table td { border: 1px solid #e2e8f0; vertical-align: top; }
+    .map-corner { position: sticky; left: 0; top: 0; z-index: 4; width: 108px; background: #f1f5f9; font-size: 11px; }
+    .map-stage { position: sticky; top: 0; z-index: 3; min-width: 168px; padding: 8px 6px; background: #fff; text-align: center; font-size: 12px; font-weight: 800; }
+    .map-stage small { display: block; color: var(--muted); font-weight: 500; font-size: 10px; }
+    .map-stage.s-CD { border-top: 3px solid #94a3b8; background: #f8fafc; }
+    .map-stage.s-KO { border-top: 3px solid #6366f1; background: #eef2ff; }
+    .map-stage.s-ES { border-top: 3px solid #10b981; background: #ecfdf5; }
+    .map-stage.s-TL { border-top: 3px solid #f59e0b; background: #fffbeb; }
+    .map-stage.s-DR { border-top: 3px solid #ef4444; background: #fef2f2; }
+    .map-stage.s-BT { border-top: 3px solid #8b5cf6; background: #f5f3ff; }
+    .map-stage.s-CR { border-top: 3px solid #22c55e; background: #f0fdf4; }
+    .map-role { position: sticky; left: 0; z-index: 2; width: 108px; padding: 8px; background: #f8fafc; font-size: 12px; font-weight: 700; text-align: right; }
+    .map-cell { min-width: 168px; min-height: 92px; padding: 8px; background: #fff; }
+    .map-cell.empty { background: #fafbfc; }
+    .map-card {
+      width: 100%;
+      padding: 7px;
+      margin: 0 0 6px;
+      color: inherit;
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      text-align: left;
+      font-size: 10px;
+      line-height: 1.35;
+    }
+    .map-card:last-child { margin-bottom: 0; }
+    .map-card.mine { cursor: pointer; }
+    .map-card.mine:hover { border-color: #93c5fd; box-shadow: 0 0 0 2px rgba(35,103,209,.12); }
+    .map-card.current { border-color: var(--primary); box-shadow: 0 0 0 2px rgba(35,103,209,.22); }
+    .map-card.other { opacity: .45; cursor: default; }
+    .map-io { margin-bottom: 3px; }
+    .map-tag { display: inline-block; margin-right: 3px; padding: 0 4px; border-radius: 3px; font-size: 8px; font-weight: 800; }
+    .map-tag.in { color: #059669; background: #ecfdf5; }
+    .map-tag.out { color: #2563eb; background: #eff6ff; }
+    .map-note { color: var(--amber); font-size: 9px; }
+
+    @media (max-width: 1180px) {
+      .workspace { grid-template-columns: 210px minmax(340px, 1fr); }
+      .context-panel { grid-column: 1 / -1; }
+      .context-body { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+      .role-card, .draft { grid-column: 1 / -1; }
+      .project-strip { grid-template-columns: repeat(3, minmax(0,1fr)); }
+      .project-main { grid-column: span 2; }
+    }
+    @media (max-width: 820px) {
+      :root { --nav: 68px; }
+      .brand { min-width: auto; }
+      .brand small, .version, .nav-title, .nav-button > span:not(.nav-icon):not(.nav-count), .role-note { display: none; }
+      .nav-button { justify-content: center; padding: 8px 4px; }
+      .nav-count { position: absolute; margin: -26px 0 0 25px; }
+      .kb-grid { grid-template-columns: 1fr; }
+      .tree-panel { max-height: 320px; }
+      .skills { grid-template-columns: 1fr 1fr; }
+      .stats { grid-template-columns: repeat(2, 1fr); }
+      .top-select { min-width: 130px; }
+    }
+    @media (max-width: 560px) {
+      .main { padding: 14px 10px 35px; }
+      .topbar { padding: 0 10px; }
+      .top-select { min-width: 105px; max-width: 125px; }
+      .top-button { display: none; }
+      .project-strip, .skills, .context-body { grid-template-columns: 1fr; }
+      .project-main { grid-column: auto; }
+      .workspace { min-height: 0; }
+      .composer { grid-template-columns: 1fr auto; }
+      .composer .upload { grid-column: 1 / -1; }
+    }
+  </style>
+</head>
+<body>
+  <div id="app"></div>
+  <script>
+  (() => {
+    "use strict";
+
+    const STORE_KEY = "rd-ai-collab-demo-v2-dot";
+    const TODAY = "2026-08-20";
+    const STAGES = [
+      { id: "CD", name: "概念设计" },
+      { id: "KO", name: "立项" },
+      { id: "ES", name: "工程样机" },
+      { id: "TL", name: "开模" },
+      { id: "DR", name: "设计释放" },
+      { id: "BT", name: "批量试产" },
+      { id: "CR", name: "结项转量" }
+    ];
+    const ROLE_ORDER = ["product", "structure", "cooling", "test"];
+    const FOLDERS = [
+      { id: "manage", code: "00", name: "项目管理" },
+      { id: "product", code: "01", name: "产品定义" },
+      { id: "structure", code: "02", name: "结构设计" },
+      { id: "cooling", code: "03", name: "制冷系统" },
+      { id: "electric", code: "04", name: "电控软件" },
+      { id: "quality", code: "05", name: "质量验证" },
+      { id: "cost", code: "06", name: "成本与供应链" },
+      { id: "output", code: "99", name: "项目正式输出" }
+    ];
+
+    const seed = () => ({
+      projectId: "h8120",
+      roleId: "cooling",
+      roles: {
+        product: { name: "产品经理", person: "陈经理", desc: "负责确认产品目标、规格边界和跨角色需求输入。" },
+        cooling: { name: "制冷工程师", person: "李工", desc: "负责制冷方案、关键件选型和性能验证结论。" },
+        structure: { name: "结构工程师", person: "王工", desc: "负责整机结构、板框接口、安装空间和手板问题闭环。" },
+        test: { name: "测试工程师", person: "孙工", desc: "负责测试方案、环境准备、数据采集和测试结论输出。" }
+      },
+      folders: FOLDERS,
+      projects: [
+        {
+          id: "h8120",
+          name: "H8120 制冰机研发项目",
+          type: "新品研发",
+          stage: "ES 工程样机",
+          members: 15,
+          currentNodeByRole: { product: "h8120-product-es", cooling: "h8120-cooling-es", structure: "h8120-structure-es", test: "h8120-test-es" },
+          docs: [
+            { id: "market", folderId: "product", name: "北美台式制冰机市场洞察报告", type: "市场洞察", version: "v1.1", status: "confirmed", owner: "陈经理", updated: "2026-07-18", source: "产品经理上传", loc: "§2 需求规模", excerpt: "北美台式制冰机以家庭场景为主，用户核心诉求是高温环境下稳定出冰、低噪音和外观一体感。" },
+            { id: "voc", folderId: "product", name: "目标用户需求与痛点清单", type: "用户需求", version: "v1.0", status: "confirmed", owner: "陈经理", updated: "2026-07-20", source: "访谈纪要整理", loc: "痛点 03", excerpt: "用户最不可接受的是夏季房间 35℃ 以上时出冰变慢或停机，其次是振动噪音影响客厅使用。" },
+            { id: "prd", folderId: "product", name: "H8120 产品定义书", type: "产品定义", version: "v2.0", status: "confirmed", owner: "陈经理", updated: "2026-08-12", source: "KO 评审确认", loc: "§3.1 性能指标", excerpt: "日产冰量目标 12kg（38℃ 环境）；制冷剂路线明确为 R290；目标市场为北美台式家用场景。", history: [
+              { version: "v1.0", status: "confirmed", date: "2026-07-28", owner: "陈经理", note: "立项初版确认", body: "日产冰量目标 11kg；压缩机路线待定；目标市场北美台式。", changes: [] },
+              { version: "v2.0", status: "confirmed", date: "2026-08-12", owner: "陈经理", note: "KO 评审确认", body: "日产冰量目标 12kg（38℃ 环境）；制冷剂路线明确为 R290；目标市场北美台式。", changes: [
+                { type: "del", text: "日产冰量目标 11kg；压缩机路线待定。" },
+                { type: "add", text: "日产冰量目标 12kg（38℃ 环境）；制冷剂路线明确为 R290。" }
+              ] }
+            ] },
+            { id: "perf", folderId: "product", name: "制冷性能目标", type: "性能目标", version: "v1.2", status: "confirmed", owner: "李工", updated: "2026-08-10", source: "产品定义书 v2.0", loc: "表 1 额定工况", excerpt: "额定工况：环境温度 38℃，24 小时有效产冰量 ≥ 12kg，允许偏差 ±5%。" },
+            { id: "appearance", folderId: "structure", name: "ID 外观冻结稿", type: "外观输入", version: "v1.0", status: "confirmed", owner: "周工", updated: "2026-08-02", source: "ID 设计输出", loc: "外观冻结说明", excerpt: "外观 CMF 与外形尺寸已冻结，后续结构拆件不得改变主视轮廓。" },
+            { id: "envelope", folderId: "structure", name: "整机结构与安装包络", type: "接口定义", version: "v1.3", status: "confirmed", owner: "王工", updated: "2026-08-14", source: "结构方案", loc: "§4 制冷安装空间", excerpt: "压缩机仓有效安装空间 186×142×128mm，冷凝器厚度不得超过 22mm。", history: [
+              { version: "v1.2", status: "confirmed", date: "2026-08-06", owner: "王工", note: "ES 初版包络", body: "压缩机仓有效安装空间 180×140×120mm，冷凝器厚度不得超过 25mm。", changes: [] },
+              { version: "v1.3", status: "confirmed", date: "2026-08-14", owner: "王工", note: "按手板反馈收紧包络", body: "压缩机仓有效安装空间 186×142×128mm，冷凝器厚度不得超过 22mm。", changes: [
+                { type: "del", text: "压缩机仓 180×140×120mm，冷凝器厚度不得超过 25mm。" },
+                { type: "add", text: "压缩机仓 186×142×128mm，冷凝器厚度不得超过 22mm。" }
+              ] }
+            ] },
+            { id: "structure-plan", folderId: "structure", name: "H8120 整机结构方案", type: "结构方案", version: "v0.9", status: "draft", owner: "王工", updated: "2026-08-16", source: "结构工程师上传", loc: "§5 手板问题", excerpt: "ES 手板发现压缩机仓翻边干涉，整改方案尚未经责任人确认。" },
+            { id: "curve", folderId: "cooling", name: "R290 压缩机性能曲线", type: "供应商参数", version: "R6", status: "confirmed", owner: "李工", updated: "2026-08-08", source: "供应商 A", loc: "38℃ 工况点", excerpt: "供应商 A 提供 R6 曲线：38℃ 冷凝条件下制冷量满足 12kg/24h 目标的选型窗口。" },
+            { id: "cooling-plan", folderId: "cooling", name: "H8120 制冷系统方案", type: "制冷方案", version: "v0.8", status: "draft", owner: "李工", updated: "2026-08-17", source: "AI 初稿后人工修订", loc: "§2 压缩机选型", excerpt: "按 R6 曲线初选压缩机，冷凝器按结构包络校核中；该稿尚未经责任人确认，不能作为 AI 默认可用来源。", history: [
+              { version: "v0.6", status: "draft", date: "2026-08-01", owner: "李工", note: "方案草稿", body: "压缩机初选型号待定，冷凝器按经验布置。", changes: [] },
+              { version: "v0.8", status: "draft", date: "2026-08-17", owner: "李工", note: "AI 初稿后人工修订", body: "按 R6 曲线初选压缩机，冷凝器按结构包络校核中，待测试结果后确认。", changes: [
+                { type: "del", text: "压缩机初选型号待定，冷凝器按经验布置。" },
+                { type: "add", text: "按 R6 曲线初选压缩机，冷凝器按结构包络校核中，待测试结果后确认。" }
+              ] }
+            ] },
+            { id: "cooling-drawing", folderId: "cooling", name: "H8120 制冷器件图纸", type: "制冷图纸", version: "v1.0", status: "confirmed", owner: "李工", updated: "2026-08-06", source: "KO 阶段输出", loc: "总图修订说明", excerpt: "KO 阶段输出制冷器件布置图，压缩机安装孔位与结构包络对齐。" },
+            { id: "test-method", folderId: "quality", name: "38℃ 工况测试方法", type: "测试方法", version: "v2.0", status: "confirmed", owner: "孙工", updated: "2026-07-25", source: "企业测试规范", loc: "§6 数据采集", excerpt: "试样在 38℃ 环境稳定运行后，连续称重 24 小时有效产冰量；中途停机视为无效试验。" },
+            { id: "test-plan", folderId: "quality", name: "ES 性能测试计划", type: "测试计划", version: "v1.0", status: "confirmed", owner: "孙工", updated: "2026-08-18", source: "测试工程师上传", loc: "§1 试验矩阵", excerpt: "ES 阶段先做 38℃ 高温产冰试验，通过后再补噪声与除霜工况。" }
+          ],
+          nodes: [
+            { id: "h8120-product-cd", roleId: "product", stage: "CD", title: "ID 设计输入", note: "概念阶段输出给 ID/结构", inputs: [{ name: "市场洞察报告", docId: "market" }, { name: "用户需求清单", docId: "voc" }], outputs: [{ name: "ID 设计输入", docId: null }] },
+            { id: "h8120-product-ko", roleId: "product", stage: "KO", title: "立项产品定义", note: "输出 PRD 供各组并行", inputs: [{ name: "ID 外观冻结稿", docId: "appearance" }, { name: "市场洞察报告", docId: "market" }], outputs: [{ name: "产品定义书", docId: "prd" }] },
+            { id: "h8120-product-es", roleId: "product", stage: "ES", title: "ES 规格确认", note: "根据样机反馈更新规格", inputs: [{ name: "产品定义书", docId: "prd" }, { name: "用户需求清单", docId: "voc" }, { name: "目标成本边界", docId: "cost-target" }], outputs: [{ name: "产品定义书", docId: "prd" }, { name: "ES 规格确认单", docId: null }] },
+            { id: "h8120-product-dr", roleId: "product", stage: "DR", title: "DR 规格迭代", note: "试产后更新 PRD", inputs: [{ name: "产品定义书", docId: "prd" }, { name: "ES 制冷验证结论", docId: "cooling-result" }], outputs: [{ name: "PRD 更新", docId: null }] },
+            { id: "h8120-structure-cd", roleId: "structure", stage: "CD", title: "ID 拆件反馈", note: "给 ID 闭环", inputs: [{ name: "ID 外观冻结稿", docId: "appearance" }], outputs: [{ name: "ID 拆件意见反馈", docId: null }] },
+            { id: "h8120-structure-ko", roleId: "structure", stage: "KO", title: "板框与 ES 样机", note: "可在后续阶段迭代", inputs: [{ name: "产品定义书", docId: "prd" }, { name: "ID 外观冻结稿", docId: "appearance" }], outputs: [{ name: "整机结构方案", docId: "structure-plan" }, { name: "ES 样机", docId: null }] },
+            { id: "h8120-structure-es", roleId: "structure", stage: "ES", title: "ES 手板验证", note: "校核安装空间", inputs: [{ name: "产品定义书", docId: "prd" }, { name: "ID 外观冻结稿", docId: "appearance" }, { name: "制冷系统接口需求", docId: "cooling-plan" }], outputs: [{ name: "整机结构方案", docId: "structure-plan" }, { name: "ES 板框校核结论", docId: null }] },
+            { id: "h8120-structure-tl", roleId: "structure", stage: "TL", title: "开模图纸冻结", note: "输出 3D/2D", inputs: [{ name: "产品定义书", docId: "prd" }, { name: "整机结构方案", docId: "structure-plan" }], outputs: [{ name: "结构 3D/2D 图", docId: null }] },
+            { id: "h8120-cooling-ko", roleId: "cooling", stage: "KO", title: "制冷方案与图纸", note: "仅需 PRD 即可并行", inputs: [{ name: "产品定义书", docId: "prd" }], outputs: [{ name: "制冷器件图纸", docId: "cooling-drawing" }] },
+            { id: "h8120-cooling-es", roleId: "cooling", stage: "ES", title: "ES 单系统验证", note: "缺测试结果仍可先完善方案", inputs: [{ name: "产品定义书", docId: "prd" }, { name: "制冷性能目标", docId: "perf" }, { name: "结构接口包络", docId: "envelope" }, { name: "压缩机性能曲线", docId: "curve" }, { name: "38℃高温性能测试结果", docId: "test-report" }], outputs: [{ name: "制冷系统方案", docId: "cooling-plan" }, { name: "压缩机选型确认单", docId: null }, { name: "ES 制冷验证结论", docId: "cooling-result" }] },
+            { id: "h8120-cooling-dr", roleId: "cooling", stage: "DR", title: "制冷图纸更新", note: "根据测试结果改版", inputs: [{ name: "产品定义书", docId: "prd" }, { name: "ES 制冷验证结论", docId: "cooling-result" }], outputs: [{ name: "更新的制冷器件图纸", docId: null }] },
+            { id: "h8120-test-es", roleId: "test", stage: "ES", title: "ES 性能验证", note: "输出测试计划与结果", inputs: [{ name: "制冷性能目标", docId: "perf" }, { name: "38℃ 工况测试方法", docId: "test-method" }, { name: "ES 样机状态确认", docId: null }], outputs: [{ name: "ES 性能测试计划", docId: "test-plan" }, { name: "38℃高温性能测试结果", docId: "test-report" }] },
+            { id: "h8120-test-dr", roleId: "test", stage: "DR", title: "试产测试报告", note: "多轮试产可迭代", inputs: [{ name: "ES 性能测试计划", docId: "test-plan" }, { name: "38℃ 工况测试方法", docId: "test-method" }], outputs: [{ name: "电性能/可靠性测试报告", docId: null }] }
+          ]
+        },
+        {
+          id: "h8130",
+          name: "H8130 衍生机型项目",
+          type: "衍生研发",
+          stage: "KO 立项",
+          members: 9,
+          currentNodeByRole: { product: "h8130-product-ko", cooling: "h8130-cooling-ko", structure: "h8130-structure-ko", test: "h8130-test-ko" },
+          docs: [
+            { id: "h8130-base", folderId: "product", name: "H8120 可复用基线包", type: "复用基线", version: "v1.0", status: "confirmed", owner: "陈经理", updated: "2026-08-15", source: "从 H8120 引用", loc: "复用范围", excerpt: "H8130 可复用 H8120 制冷系统与主结构板框，差异仅限 CMF 与控制面板丝印。" },
+            { id: "h8130-prd", folderId: "product", name: "H8130 产品定义书", type: "产品定义", version: "v0.6", status: "draft", owner: "陈经理", updated: "2026-08-19", source: "衍生差异裁剪中", loc: "§1 差异确认", excerpt: "衍生机定义仍在裁剪，产冰量是否沿用 12kg 尚未确认。" },
+            { id: "h8130-delta", folderId: "product", name: "H8130 相对 H8120 差异清单", type: "差异清单", version: "v0.4", status: "draft", owner: "陈经理", updated: "2026-08-18", source: "产品经理整理", loc: "差异项 02", excerpt: "差异项包含面板颜色、手把和包装语言，制冷系统拟沿用。" },
+            { id: "h8130-appearance", folderId: "structure", name: "H8130 CMF 调整说明", type: "外观输入", version: "v0.3", status: "draft", owner: "周工", updated: "2026-08-17", source: "ID 初稿", loc: "CMF 草案", excerpt: "主色由深空灰改为浅砂银，尚未冻结。" }
+          ],
+          nodes: [
+            { id: "h8130-product-ko", roleId: "product", stage: "KO", title: "衍生立项定义", note: "复用 H8120 基线，只确认差异", inputs: [{ name: "H8120 可复用基线包", docId: "h8130-base" }, { name: "H8130 差异清单", docId: "h8130-delta" }], outputs: [{ name: "H8130 产品定义书", docId: "h8130-prd" }] },
+            { id: "h8130-product-es", roleId: "product", stage: "ES", title: "衍生规格确认", note: "待 KO 后再展开", inputs: [{ name: "H8130 产品定义书", docId: "h8130-prd" }], outputs: [{ name: "ES 规格确认单", docId: null }] },
+            { id: "h8130-structure-ko", roleId: "structure", stage: "KO", title: "衍生结构裁剪", note: "评估能否复用板框", inputs: [{ name: "H8130 产品定义书", docId: "h8130-prd" }, { name: "H8130 CMF 调整说明", docId: "h8130-appearance" }], outputs: [{ name: "结构复用结论", docId: null }] },
+            { id: "h8130-cooling-ko", roleId: "cooling", stage: "KO", title: "制冷复用评估", note: "判断压缩机是否沿用", inputs: [{ name: "H8130 产品定义书", docId: "h8130-prd" }, { name: "H8120 可复用基线包", docId: "h8130-base" }], outputs: [{ name: "制冷复用结论", docId: null }] },
+            { id: "h8130-cooling-es", roleId: "cooling", stage: "ES", title: "衍生机单系统验证", note: "KO 后才需要", inputs: [{ name: "制冷复用结论", docId: null }, { name: "H8130 产品定义书", docId: "h8130-prd" }], outputs: [{ name: "ES 制冷验证结论", docId: null }] },
+            { id: "h8130-test-ko", roleId: "test", stage: "KO", title: "测试范围裁剪", note: "明确哪些沿用 H8120 报告", inputs: [{ name: "H8130 差异清单", docId: "h8130-delta" }], outputs: [{ name: "测试范围说明", docId: null }] }
+          ]
+        }
+      ],
+      skills: [
+        { id: "classify", code: "SK-01", name: "文件识别分类 Skill", desc: "读取上传文件，识别文件类型并建议项目目录。", rules: ["识别标题、版本、作者与项目", "匹配标准目录及角色输入输出", "低于 85% 置信度必须人工确认"] },
+        { id: "catalog", code: "SK-02", name: "项目知识目录 Skill", desc: "按新品研发项目预生成标准知识目录。", rules: ["目录覆盖产品、结构、制冷、电控、质量、成本", "允许项目成员补充自定义目录", "保留 99 项目正式输出目录"] },
+        { id: "role-io", code: "SK-03", name: "角色输入输出 Skill", desc: "按项目环节识别各角色应有输入与交付结果。", rules: ["区分必需输入与参考输入", "缺项不强制阻断工作", "输出确认后更新角色进度"] },
+        { id: "generate", code: "SK-04", name: "文档生成 Skill", desc: "基于项目上下文生成对应角色的工作文档初稿。", rules: ["只引用项目内已确认资料", "缺失内容明确标记待补充", "生成结果必须由责任人确认"] },
+        { id: "format", code: "SK-05", name: "文档格式 Skill", desc: "统一标题、章节、版本、署名和变更记录。", rules: ["统一一级至三级标题", "自动写入版本和生成日期", "保留责任人与来源清单"] },
+        { id: "complete", code: "SK-06", name: "资料完整性检查 Skill", desc: "检查角色输入、输出和文档必需章节是否齐全。", rules: ["按角色和当前环节检查", "输出缺口及影响说明", "仅提醒，不自动判定验收通过"] }
+      ],
+      messages: [
+        { type: "ai", text: "你好，李工。当前项目是 H8120。\n当前工作节点是“ES 单系统验证”，已有 4/5 项输入，缺少“38℃高温性能测试结果”。\n上游输入「整机结构与安装包络」已从你已读的 v1.2 升到 v1.3，右侧该条有红点，打开即视为已读。", sources: "角色输入输出 Skill · 输入更新提醒 · 截至 2026-08-20" }
+      ],
+      generated: null,
+      readAt: {
+        "h8120:product": { market: "v1.1", voc: "v1.0", prd: "v2.0", appearance: "v1.0" },
+        "h8120:cooling": { prd: "v2.0", perf: "v1.2", envelope: "v1.2", curve: "R6" },
+        "h8120:structure": { prd: "v2.0", appearance: "v1.0", "cooling-plan": "v0.8", "structure-plan": "v0.9" },
+        "h8120:test": { perf: "v1.2", "test-method": "v2.0", "test-plan": "v1.0" },
+        "h8130:product": { "h8130-base": "v1.0", "h8130-delta": "v0.4", "h8130-prd": "v0.6" },
+        "h8130:cooling": { "h8130-prd": "v0.6", "h8130-base": "v1.0" },
+        "h8130:structure": { "h8130-prd": "v0.6", "h8130-appearance": "v0.3" },
+        "h8130:test": { "h8130-delta": "v0.4" }
+      }
+    });
+
+    let state = loadState();
+    const ui = { view: "workbench", openFolders: ["product", "structure", "cooling", "quality"], modal: null, toast: "", kbQuery: "", kbFilter: "all", folderFilter: "", kbAsk: "", kbMessages: [] };
+
+    function loadState() {
+      try {
+        const raw = localStorage.getItem(STORE_KEY);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (parsed && Array.isArray(parsed.projects) && parsed.projects[0]?.docs?.[0]?.status) return parsed;
+        }
+      } catch (error) {}
+      return seed();
+    }
+    function persist() { localStorage.setItem(STORE_KEY, JSON.stringify(state)); }
+    function esc(value) {
+      return String(value == null ? "" : value)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+    }
+    function currentProject() { return state.projects.find(item => item.id === state.projectId); }
+    function currentRole() { return state.roles[state.roleId]; }
+    function currentNode() {
+      const project = currentProject();
+      const nodeId = project.currentNodeByRole[state.roleId];
+      return project.nodes.find(item => item.id === nodeId) || project.nodes.find(item => item.roleId === state.roleId);
+    }
+    function nodeLabel(node) { return node ? `${node.stage} ${node.title}` : ""; }
+    function docs() { return currentProject().docs; }
+    function doc(id) { return docs().find(item => item.id === id); }
+    function folder(id) { return state.folders.find(item => item.id === id); }
+    function hasDoc(id) { return Boolean(id && doc(id)); }
+    function isConfirmed(item) { return Boolean(item && item.status === "confirmed"); }
+    function readKey() { return `${state.projectId}:${state.roleId}`; }
+    function readMap() {
+      state.readAt = state.readAt || {};
+      state.readAt[readKey()] = state.readAt[readKey()] || {};
+      return state.readAt[readKey()];
+    }
+    function lastReadVersion(docId) { return readMap()[docId]; }
+    function isUnreadDoc(itemDoc) { return Boolean(itemDoc && lastReadVersion(itemDoc.id) !== itemDoc.version); }
+    function unreadInputs() { return currentNode().inputs.filter(item => isUnreadDoc(doc(item.docId))); }
+    function markDocRead(id) {
+      const item = doc(id);
+      if (!item) return;
+      readMap()[id] = item.version;
+    }
+    function openDoc(id) {
+      const item = doc(id);
+      ui.modal = { type: "doc", id, fromVersion: item ? lastReadVersion(id) : "" };
+      markDocRead(id);
+      render();
+    }
+    function isConfirmed(item) { return Boolean(item && item.status === "confirmed"); }
+    function statusLabel(item) { return isConfirmed(item) ? "已确认" : "工作稿"; }
+    function statusTone(item) { return isConfirmed(item) ? "green" : "amber"; }
+    function versionTone(version) { return String(version || "").startsWith("v0") ? "amber" : "green"; }
+    function confirmedDocs() { return docs().filter(isConfirmed); }
+    function docHistory(item) { return item.history && item.history.length ? item.history : [{ version: item.version, status: item.status, date: item.updated, owner: item.owner, note: item.source, body: item.excerpt || "", changes: [] }]; }
+    function roleProgress(items) { return items.filter(item => hasDoc(item.docId)).length; }
+    function welcomeMessage() {
+      const project = currentProject();
+      const role = currentRole();
+      const node = currentNode();
+      const related = docs().length;
+      return {
+        type: "ai",
+        text: `你好，${role.person}。当前项目是“${project.name}”。\n当前工作节点是“${nodeLabel(node)}”，已有 ${roleProgress(node.inputs)}/${node.inputs.length} 项输入、${roleProgress(node.outputs)}/${node.outputs.length} 项输出。项目内共 ${related} 份资料。你可以查看完整协作图、检查缺口或生成工作输出。`,
+        sources: `角色输入输出 Skill · ${project.name} 知识目录 · 截至 ${TODAY}`
+      };
+    }
+    function switchContext({ projectId, roleId, nodeId, announce }) {
+      if (projectId) state.projectId = projectId;
+      if (roleId) state.roleId = roleId;
+      if (nodeId) currentProject().currentNodeByRole[state.roleId] = nodeId;
+      state.generated = null;
+      if (announce !== false) state.messages = [welcomeMessage()];
+      ui.kbMessages = [];
+      ui.kbQuery = "";
+      ui.folderFilter = "";
+    }
+    function toast(message) {
+      ui.toast = message;
+      render();
+      window.setTimeout(() => {
+        if (ui.toast === message) {
+          ui.toast = "";
+          render();
+        }
+      }, 2200);
+    }
+
+    function render() {
+      persist();
+      document.getElementById("app").innerHTML = shell();
+      requestAnimationFrame(() => {
+        const messages = document.querySelector(".messages");
+        if (messages) messages.scrollTop = messages.scrollHeight;
+        const kbMessages = document.querySelector(".kb-messages");
+        if (kbMessages) kbMessages.scrollTop = kbMessages.scrollHeight;
+      });
+    }
+
+    function shell() {
+      const role = currentRole();
+      return `
+        <header class="topbar">
+          <div class="brand">研发知识库 AI 协作平台<small>项目知识库 × Skill × AI 角色工作台</small></div>
+          <span class="version">DEMO · VERSION 2</span>
+          <div class="top-spacer"></div>
+          <select class="top-select" id="projectSelect" aria-label="选择项目">
+            ${state.projects.map(item => `<option value="${item.id}" ${item.id === state.projectId ? "selected" : ""}>${esc(item.name)}</option>`).join("")}
+          </select>
+          <select class="top-select" id="roleSelect" aria-label="切换角色">
+            ${Object.entries(state.roles).map(([id, item]) => `<option value="${id}" ${id === state.roleId ? "selected" : ""}>${esc(item.name)} · ${esc(item.person)}</option>`).join("")}
+          </select>
+          <button class="top-button" data-act="reset">恢复示例数据</button>
+        </header>
+        <div class="layout">
+          <aside class="nav">
+            <div class="nav-title">MVP 核心页面</div>
+            ${navButton("workbench", "AI", "AI 角色工作台", missingCount())}
+            ${navButton("knowledge", "KB", "项目知识库", docs().length)}
+            ${navButton("skills", "SK", "Skill 规范中心", state.skills.length)}
+            <div class="role-note"><b>${esc(role.name)} · ${esc(role.person)}</b>${esc(role.desc)}</div>
+          </aside>
+          <main class="main">${mainView()}</main>
+        </div>
+        ${ui.modal ? modalHtml() : ""}
+        ${ui.toast ? `<div class="toast">${esc(ui.toast)}</div>` : ""}
+      `;
+    }
+
+    function navButton(view, icon, label, count) {
+      return `<button class="nav-button ${ui.view === view ? "on" : ""}" data-act="view" data-view="${view}">
+        <span class="nav-icon">${icon}</span><span>${label}</span><span class="nav-count">${count}</span>
+      </button>`;
+    }
+    function missingCount() {
+      const node = currentNode();
+      return node.inputs.filter(item => !hasDoc(item.docId)).length + node.outputs.filter(item => !hasDoc(item.docId)).length;
+    }
+    function mainView() {
+      if (ui.view === "knowledge") return knowledgeView();
+      if (ui.view === "skills") return skillsView();
+      return workbenchView();
+    }
+
+    function workbenchView() {
+      const project = currentProject();
+      const role = currentRole();
+      const node = currentNode();
+      const inputDone = roleProgress(node.inputs);
+      const outputDone = roleProgress(node.outputs);
+      return `
+        <div class="page-head">
+          <div><h1>${esc(role.name)} AI 工作台</h1><p>系统根据你的角色、当前工作节点和项目资料，组织上下文并辅助完成工作输出。</p></div>
+          <div class="btns"><button class="btn" data-act="upload">上传资料</button><button class="btn primary" data-act="quick" data-prompt="基于现有资料生成我的下一份工作输出">生成工作输出</button></div>
+        </div>
+        <div class="project-strip">
+          <div class="project-main"><strong>${esc(project.name)}</strong><span>${esc(project.type)} · 项目当前阶段：${esc(project.stage)} · ${project.members} 位项目成员</span></div>
+          <div class="metric"><span>当前角色</span><b>${esc(role.person)}</b><span>${esc(role.name)}</span></div>
+          <button class="metric action" data-act="open-map"><span>当前环节</span><b>${esc(nodeLabel(node))}</b><span>点击查看完整项目协作图</span><span class="metric-hint">只能切换自己的格子</span></button>
+          <div class="metric"><span>上游输入</span><b class="${inputDone === node.inputs.length ? "good" : "warn"}">${inputDone}/${node.inputs.length}</b><span>${node.inputs.length - inputDone} 项待补充</span></div>
+          <div class="metric"><span>本角色输出</span><b class="${outputDone === node.outputs.length ? "good" : "warn"}">${outputDone}/${node.outputs.length}</b><span>${node.outputs.length - outputDone} 项待完成</span></div>
+        </div>
+        <div class="workspace">
+          <section class="panel tree-panel">
+            <div class="panel-head"><h2>项目知识目录</h2><small>${docs().length} 份资料</small></div>
+            ${treeHtml()}
+          </section>
+          <section class="panel chat-panel">
+            <div class="panel-head"><div><h2>AI 协作工作区</h2><small>回答、生成和归档均基于当前项目与当前节点</small></div><span class="status blue">上下文已加载</span></div>
+            <div class="context-bar">
+              <span class="context-chip">项目：${esc(project.id.toUpperCase())}</span>
+              <span class="context-chip">角色：${esc(role.name)}</span>
+              <span class="context-chip">节点：${esc(nodeLabel(node))}</span>
+              <span class="context-chip">默认可引用 ${confirmedDocs().length} 份已确认资料</span>
+            </div>
+            <div class="quick-prompts">
+              <button class="quick" data-act="quick" data-prompt="当前还有哪些输入缺口？">当前输入缺口</button>
+              <button class="quick" data-act="quick" data-prompt="基于现有资料生成我的下一份工作输出">生成工作输出</button>
+              <button class="quick" data-act="quick" data-prompt="本周有哪些资料更新？">本周资料更新</button>
+              <button class="quick" data-act="quick" data-prompt="说明当前资料的主要风险">识别资料风险</button>
+            </div>
+            <div class="messages">
+              ${state.messages.map(item => `<div class="message ${item.type}">${item.type === "ai" ? "<strong>AI 项目助手</strong>" : ""}${esc(item.text)}${item.sources ? `<div class="sources">来源：${esc(item.sources)}</div>` : ""}</div>`).join("")}
+            </div>
+            <div class="composer">
+              <button class="btn upload" data-act="upload">上传文件</button>
+              <input id="chatInput" placeholder="询问项目资料，或让 AI 帮你生成工作输出">
+              <button class="btn primary" data-act="send">发送</button>
+            </div>
+          </section>
+          <aside class="panel context-panel">
+            <div class="panel-head"><h2>角色输入与输出</h2><span class="status ${missingCount() ? "amber" : "green"}">${missingCount() ? "存在缺口" : "已齐套"}</span></div>
+            <div class="context-body">
+              <div class="role-card"><b>${esc(role.name)} · ${esc(role.person)}</b>当前工作：${esc(nodeLabel(node))}<br>${esc(node.note)}<br>${esc(role.desc)}</div>
+              ${ioSection("上游输入", node.inputs)}
+              ${ioSection("本角色输出", node.outputs)}
+              ${draftHtml()}
+            </div>
+          </aside>
+        </div>
+      `;
+    }
+
+    function ioSection(title, items) {
+      const done = roleProgress(items);
+      return `
+        <div class="section-title"><span>${title}</span><span class="status ${done === items.length ? "green" : "amber"}">${done}/${items.length}</span></div>
+        <div class="check-list">
+          ${items.map(item => {
+            const itemDoc = doc(item.docId);
+            return `<div class="check-item">
+              <span class="check ${itemDoc ? "ok" : "missing"}">${itemDoc ? "✓" : "!"}</span>
+              <div><strong>${esc(item.name)}</strong><small>${itemDoc ? `${esc(itemDoc.version)} · ${esc(itemDoc.owner)}` : "尚未归档"}</small></div>
+              <span class="status ${itemDoc ? "green" : "amber"}">${itemDoc ? "已有" : "缺失"}</span>
+            </div>`;
+          }).join("")}
+        </div>
+      `;
+    }
+
+    function draftHtml() {
+      if (!state.generated || state.generated.roleId !== state.roleId || state.generated.nodeId !== currentNode().id) return "";
+      return `
+        <div class="draft">
+          <h3>${esc(state.generated.title)}</h3>
+          <p>${esc(state.generated.summary)}</p>
+          <ul>${state.generated.sections.map(item => `<li>${esc(item)}</li>`).join("")}</ul>
+          <div class="btns">
+            <button class="btn small" data-act="preview-draft">预览全文</button>
+            <button class="btn green small" data-act="archive" ${state.generated.archived ? "disabled" : ""}>${state.generated.archived ? "已归档" : "确认并归档"}</button>
+          </div>
+        </div>
+      `;
+    }
+
+    function treeHtml() {
+      const project = currentProject();
+      return `<div class="tree"><button class="tree-project" data-act="clear-folder">${esc(project.id.toUpperCase())} 项目知识库</button>${state.folders.map(item => {
+        const folderDocs = docs().filter(docItem => docItem.folderId === item.id);
+        const open = ui.openFolders.includes(item.id);
+        return `<div class="folder">
+          <button class="folder-row ${open ? "on" : ""} ${ui.folderFilter === item.id ? "filter-on" : ""}" data-act="toggle-folder" data-id="${item.id}">
+            <span class="folder-code">${item.code}</span><span>${esc(item.name)}</span><span class="folder-count">${folderDocs.length}</span>
+          </button>
+          ${open ? `<div class="doc-list">${folderDocs.map(docItem => `<button class="doc-item" data-act="open-doc" data-id="${docItem.id}" title="${esc(docItem.name)}">${esc(docItem.name)}</button>`).join("") || `<span class="doc-item">暂无资料</span>`}</div>` : ""}
+        </div>`;
+      }).join("")}</div>`;
+    }
+
+    function filteredDocs() {
+      const query = (ui.kbQuery || "").trim().toLowerCase();
+      return docs().filter(item => {
+        if (ui.folderFilter && item.folderId !== ui.folderFilter) return false;
+        if (ui.kbFilter === "confirmed" && !isConfirmed(item)) return false;
+        if (ui.kbFilter === "draft" && isConfirmed(item)) return false;
+        if (!query) return true;
+        const blob = [item.name, item.type, item.owner, item.source, item.excerpt, item.loc].join(" ").toLowerCase();
+        return blob.includes(query);
+      });
+    }
+
+    function citeButtons(cites) {
+      if (!cites?.length) return "";
+      return `<div class="cite-list">${cites.map(item => `<button class="cite-card" data-act="open-doc" data-id="${item.id}">
+        <div class="btns" style="margin-bottom:4px"><b>${esc(item.name)}</b><span class="status ${statusTone(item)}">${statusLabel(item)}</span><span class="status ${versionTone(item.version)}">${esc(item.version)}</span></div>
+        <div class="cite-quote">「${esc(item.excerpt || "")}」<div class="doc-meta">${esc(item.loc || "原文摘录")} · 点击查看资料</div></div>
+      </button>`).join("")}</div>`;
+    }
+
+    function knowledgeView() {
+      const projectDocs = docs();
+      const confirmed = confirmedDocs().length;
+      const drafts = projectDocs.length - confirmed;
+      const recent = projectDocs.filter(item => item.updated >= "2026-08-14").length;
+      const list = filteredDocs();
+      const folderName = ui.folderFilter ? folder(ui.folderFilter)?.name : "全部目录";
+      return `
+        <div class="page-head">
+          <div><h1>项目知识库</h1><p>检索可覆盖工作稿与已确认稿。右侧「问资料」默认只引用已确认原文；黄=工作稿，绿=已确认。版本号单独上色：v0.x 黄，v1+ / R6 绿。</p></div>
+          <div class="btns"><button class="btn primary" data-act="upload">上传并智能归档</button></div>
+        </div>
+        <div class="stats">
+          <div class="card stat"><span>项目资料</span><b>${projectDocs.length}</b><span>${esc(currentProject().name)}</span></div>
+          <div class="card stat"><span>已确认</span><b>${confirmed}</b><span>AI 问资料默认可引用</span></div>
+          <div class="card stat"><span>工作稿</span><b>${drafts}</b><span>可检索，默认不引用</span></div>
+          <div class="card stat"><span>本周更新</span><b>${recent}</b><span>含工作稿与已确认稿</span></div>
+        </div>
+        <div class="kb-grid">
+          <section class="card"><div class="card-pad"><div class="card-title"><h3>标准知识目录</h3><span class="status purple">点击目录筛选</span></div></div>${treeHtml()}</section>
+          <section class="card">
+            <div class="card-pad">
+              <div class="card-title"><div><h2>资料检索</h2><span class="doc-meta">当前范围：${esc(folderName)} · ${list.length} 份</span></div></div>
+              <div class="kb-search">
+                <input id="kbSearch" value="${esc(ui.kbQuery)}" placeholder="搜索标题、责任人、类型或正文要点">
+                <button class="btn" data-act="kb-search">检索</button>
+              </div>
+              <div class="kb-filters">
+                <button class="chip ${ui.kbFilter === "all" ? "on" : ""}" data-act="kb-filter" data-filter="all">全部</button>
+                <button class="chip ${ui.kbFilter === "confirmed" ? "on" : ""}" data-act="kb-filter" data-filter="confirmed">只看已确认</button>
+                <button class="chip ${ui.kbFilter === "draft" ? "on" : ""}" data-act="kb-filter" data-filter="draft">只看工作稿</button>
+              </div>
+            </div>
+            <table class="doc-table">
+              <thead><tr><th>资料名称</th><th>类型 / 目录</th><th>状态</th><th>版本</th><th>责任人</th><th>更新</th><th></th></tr></thead>
+              <tbody>${list.map(item => `<tr data-act="open-doc" data-id="${item.id}">
+                <td><div class="doc-name">${esc(item.name)}</div><div class="doc-meta">${esc(item.source)}</div></td>
+                <td><div>${esc(item.type)}</div><div class="doc-meta">${folder(item.folderId)?.code || ""} ${esc(folder(item.folderId)?.name || "")}</div></td>
+                <td><span class="status ${statusTone(item)}">${statusLabel(item)}</span></td>
+                <td><span class="status ${versionTone(item.version)}">${esc(item.version)}</span></td>
+                <td>${esc(item.owner)}</td>
+                <td class="doc-meta">${esc(item.updated)}</td>
+                <td>${docHistory(item).length > 1 ? `<button class="btn small" data-act="open-history" data-id="${item.id}">历史</button>` : ""}</td>
+              </tr>`).join("") || `<tr><td colspan="7" class="empty">没有符合条件的资料</td></tr>`}</tbody>
+            </table>
+          </section>
+          <section class="card kb-ask-panel">
+            <div class="panel-head"><div><h2>问资料</h2><small>独立于工作台 · 只引已确认原文</small></div><span class="status green">${confirmed} 份可引用</span></div>
+            <div class="quick-prompts">
+              <button class="quick" data-act="kb-quick" data-prompt="38℃ 日产冰量目标是多少？">产冰量目标</button>
+              <button class="quick" data-act="kb-quick" data-prompt="制冷系统方案怎么写的？">制冷方案</button>
+              <button class="quick" data-act="kb-quick" data-prompt="压缩机安装空间是多少？">安装包络</button>
+            </div>
+            <div class="kb-messages">
+              ${(ui.kbMessages.length ? ui.kbMessages : [{ type: "ai", text: `当前项目「${currentProject().name}」共 ${projectDocs.length} 份资料，其中 ${confirmed} 份已确认。\n问资料只会引用已确认稿，并给出原文摘录。工作稿能在左侧检索到，但不会进入答案。` }]).map(item => `<div class="message ${item.type}">${item.type === "ai" ? "<strong>知识库检索</strong>" : ""}${esc(item.text)}${citeButtons(item.cites || [])}${item.blocked ? `<div class="sources">未引用工作稿：${esc(item.blocked)}</div>` : ""}</div>`).join("")}
+            </div>
+            <div class="composer kb-ask">
+              <input id="kbAsk" value="${esc(ui.kbAsk)}" placeholder="用问题检索已确认资料，例如：38℃ 产冰量是多少？">
+              <button class="btn primary" data-act="kb-ask">提问</button>
+            </div>
+          </section>
+        </div>
+      `;
+    }
+
+    function skillsView() {
+      return `
+        <div class="page-head">
+          <div><h1>Skill 规范中心</h1><p>把项目目录、角色输入输出和文档规范固化为可被 AI 调用的业务规则。</p></div>
+          <span class="status purple">6 个 MVP 通配 Skill</span>
+        </div>
+        <div class="skills">
+          ${state.skills.map(item => `<article class="skill-card">
+            <div class="skill-head"><div><span class="skill-code">${esc(item.code)}</span><h3>${esc(item.name)}</h3></div><span class="status green">已启用</span></div>
+            <p>${esc(item.desc)}</p>
+            <ul class="rule-list">${item.rules.map(rule => `<li>${esc(rule)}</li>`).join("")}</ul>
+          </article>`).join("")}
+        </div>
+      `;
+    }
+
+    function modalHtml() {
+      if (ui.modal.type === "map") return mapModal();
+      if (ui.modal.type === "upload") return uploadModal();
+      if (ui.modal.type === "doc") return docModal(ui.modal.id);
+      if (ui.modal.type === "history") return historyModal(ui.modal.id);
+      if (ui.modal.type === "diff") return diffModal(ui.modal.id);
+      if (ui.modal.type === "draft") return draftModal();
+      return "";
+    }
+
+    function uploadPreset() {
+      if (state.projectId === "h8130") {
+        return {
+          id: "h8130-test-scope",
+          fileName: "H8130-测试范围裁剪说明-v0.5.pdf",
+          title: "H8130 测试范围说明",
+          type: "测试范围",
+          folderId: "quality",
+          owner: "孙工",
+          hint: "识别到：沿用 H8120 高温性能报告，本机仅补做外观与电控差异项。可补齐测试工程师 KO 节点输出。",
+          related: "测试工程师、产品经理"
+        };
+      }
+      return {
+        id: "test-report",
+        fileName: "H8120-38℃高温性能测试报告-v1.0.pdf",
+        title: "H8120 38℃高温性能测试报告",
+        type: "性能测试结果",
+        folderId: "quality",
+        owner: "孙工",
+        hint: "识别到：环境温度 38℃、24 小时有效产冰量 12.4kg、额定目标 12kg。可补齐制冷工程师 ES 节点输入“38℃高温性能测试结果”。",
+        related: "测试工程师、制冷工程师"
+      };
+    }
+
+    function mapModal() {
+      const project = currentProject();
+      const mineId = currentNode().id;
+      return `
+        <div class="map-mask">
+          <div class="map-top">
+            <h2>${esc(project.name)} · 项目协作图</h2>
+            <p>这是当前工作节点的上下文图，不是开工阻断引擎。你可以看全图，但只能切换自己角色下的格子。</p>
+          </div>
+          <div class="map-toolbar">
+            <div class="map-legend">
+              <span><span class="swatch" style="border-color:#2367d1;box-shadow:0 0 0 2px rgba(35,103,209,.22)">我</span> 当前节点</span>
+              <span><span class="swatch" style="background:#eff6ff;border-color:#93c5fd">可</span> 自己的其他节点，可点击切换</span>
+              <span><span class="swatch" style="opacity:.45">他</span> 其他角色只读</span>
+            </div>
+            <div class="top-spacer"></div>
+            <button class="btn" data-act="close-modal">关闭协作图</button>
+          </div>
+          <div class="map-canvas">
+            <table class="map-table">
+              <thead>
+                <tr>
+                  <th class="map-corner">角色 \\ 阶段</th>
+                  ${STAGES.map(stage => `<th class="map-stage s-${stage.id}">${stage.id}<small>${esc(stage.name)}</small></th>`).join("")}
+                </tr>
+              </thead>
+              <tbody>
+                ${ROLE_ORDER.map(roleId => {
+                  const role = state.roles[roleId];
+                  return `<tr>
+                    <th class="map-role">${esc(role.name)}<small style="display:block;color:var(--muted);font-weight:500">${esc(role.person)}</small></th>
+                    ${STAGES.map(stage => {
+                      const cells = project.nodes.filter(item => item.roleId === roleId && item.stage === stage.id);
+                      if (!cells.length) return `<td class="map-cell empty"></td>`;
+                      return `<td class="map-cell">${cells.map(item => {
+                        const mine = item.roleId === state.roleId;
+                        const current = item.id === mineId;
+                        const cls = current ? "current mine" : (mine ? "mine" : "other");
+                        const act = mine ? `data-act="select-node" data-id="${item.id}"` : `data-act="locked-node"`;
+                        return `<button class="map-card ${cls}" ${act}>
+                          <b>${esc(item.title)}</b>
+                          <div class="map-io"><span class="map-tag in">入 ${item.inputs.length}</span><span class="map-tag out">出 ${item.outputs.length}</span></div>
+                          <div class="map-note">${esc(item.note)}</div>
+                        </button>`;
+                      }).join("")}</td>`;
+                    }).join("")}
+                  </tr>`;
+                }).join("")}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      `;
+    }
+
+    function uploadModal() {
+      const preset = uploadPreset();
+      const already = hasDoc(preset.id);
+      return `
+        <div class="modal-mask">
+          <section class="modal">
+            <div class="modal-head"><div><h2>上传资料并智能归档</h2><span class="doc-meta">演示文件已预置，归档到当前项目</span></div><button class="close" data-act="close-modal">×</button></div>
+            <div class="modal-body">
+              <div class="card card-pad">
+                <div class="card-title"><div><h3>${esc(preset.fileName)}</h3><span class="doc-meta">PDF · 上传人：${esc(preset.owner)}</span></div><span class="status blue">解析完成</span></div>
+              </div>
+              <div class="analysis-box">
+                <div class="card-title"><div><h3>AI 分类与归档建议</h3><span class="doc-meta">依据“文件识别分类 Skill”分析</span></div><span class="status green">置信度 96%</span></div>
+                <div class="analysis-grid">
+                  <div class="analysis-item"><small>识别类型</small><b>${esc(preset.type)}</b></div>
+                  <div class="analysis-item"><small>建议目录</small><b>${esc(folder(preset.folderId)?.code)} ${esc(folder(preset.folderId)?.name)}</b></div>
+                  <div class="analysis-item"><small>关联角色</small><b>${esc(preset.related)}</b></div>
+                  <div class="analysis-item"><small>当前项目</small><b>${esc(currentProject().id.toUpperCase())}</b></div>
+                </div>
+                <p class="doc-meta" style="margin:10px 0 0">${esc(preset.hint)}</p>
+              </div>
+            </div>
+            <div class="modal-foot"><button class="btn" data-act="close-modal">取消</button><button class="btn primary" data-act="confirm-upload" ${already ? "disabled" : ""}>${already ? "已归档" : "确认归档并通知角色"}</button></div>
+          </section>
+        </div>
+      `;
+    }
+
+    function docModal(id) {
+      const item = doc(id);
+      if (!item) return "";
+      const history = docHistory(item);
+      const canCite = isConfirmed(item);
+      return `
+        <div class="modal-mask">
+          <section class="modal">
+            <div class="modal-head"><div><h2>${esc(item.name)}</h2><span class="doc-meta">${esc(item.type)} · <span class="status ${statusTone(item)}">${statusLabel(item)}</span> · <span class="status ${versionTone(item.version)}">${esc(item.version)}</span></span></div><button class="close" data-act="close-modal">×</button></div>
+            <div class="modal-body">
+              <div class="analysis-grid">
+                <div class="analysis-item"><small>归档目录</small><b>${esc(folder(item.folderId)?.code)} ${esc(folder(item.folderId)?.name)}</b></div>
+                <div class="analysis-item"><small>资料责任人</small><b>${esc(item.owner)}</b></div>
+                <div class="analysis-item"><small>更新时间</small><b>${esc(item.updated)}</b></div>
+                <div class="analysis-item"><small>AI 默认可引用</small><b>${canCite ? "是" : "否，工作稿"}</b></div>
+              </div>
+              <div class="cite-quote">「${esc(item.excerpt || "暂无正文摘录")}」<div class="doc-meta">${esc(item.loc || "原文摘录")}</div></div>
+              <div class="analysis-box"><b>AI 可用说明</b><p class="doc-meta" style="margin:6px 0 0">${canCite ? "该资料为已确认稿，问资料和工作台生成时可作为来源，并应回链到本摘录。" : "该资料为工作稿，知识库可检索，但问资料默认不会引用。责任人确认后才会进入 AI 上下文。"}</p></div>
+            </div>
+            <div class="modal-foot">
+              ${history.length > 1 ? `<button class="btn" data-act="open-history" data-id="${item.id}">查看历史版本</button>` : ""}
+              ${history.length > 1 ? `<button class="btn" data-act="open-diff" data-id="${item.id}">与上一版对比</button>` : ""}
+              <button class="btn primary" data-act="close-modal">关闭</button>
+            </div>
+          </section>
+        </div>
+      `;
+    }
+
+    function historyModal(id) {
+      const item = doc(id);
+      if (!item) return "";
+      const history = docHistory(item);
+      return `
+        <div class="modal-mask">
+          <section class="modal">
+            <div class="modal-head"><div><h2>版本历史 · ${esc(item.name)}</h2><span class="doc-meta">示意能力：不覆盖旧版，只追加</span></div><button class="close" data-act="close-modal">×</button></div>
+            <div class="modal-body">
+              <div class="history-list">${history.map((ver, index) => `<div class="history-item">
+                <b><span class="status ${versionTone(ver.version)}">${esc(ver.version)}</span> <span class="status ${ver.status === "confirmed" ? "green" : "amber"}">${ver.status === "confirmed" ? "已确认" : "工作稿"}</span> ${index === history.length - 1 ? "<span class='status blue'>当前</span>" : ""}</b>
+                <div class="doc-meta">${esc(ver.date)} · ${esc(ver.owner)} · ${esc(ver.note)}</div>
+                <p style="margin:6px 0 0">${esc(ver.body || "")}</p>
+              </div>`).join("")}</div>
+            </div>
+            <div class="modal-foot">
+              ${history.length > 1 ? `<button class="btn" data-act="open-diff" data-id="${item.id}">查看版本差异</button>` : ""}
+              <button class="btn" data-act="open-doc" data-id="${item.id}">返回资料</button>
+            </div>
+          </section>
+        </div>
+      `;
+    }
+
+    function diffModal(id) {
+      const item = doc(id);
+      if (!item) return "";
+      const history = docHistory(item);
+      const current = history[history.length - 1];
+      const prev = history[history.length - 2];
+      const changes = current?.changes?.length ? current.changes : [
+        { type: "del", text: prev?.body || "上一版正文" },
+        { type: "add", text: current?.body || item.excerpt || "当前版正文" }
+      ];
+      return `
+        <div class="modal-mask">
+          <section class="modal">
+            <div class="modal-head"><div><h2>版本差异 · ${esc(item.name)}</h2><span class="doc-meta">${esc(prev?.version || "上一版")} → ${esc(current?.version || item.version)} · 文本类示意</span></div><button class="close" data-act="close-modal">×</button></div>
+            <div class="modal-body">
+              <p class="legend-note">Demo 仅对方案/定义类文本做段落对比。图纸和 PDF 后续只提供换版说明，不做像素 diff。</p>
+              <div class="diff-row">${changes.map(line => `<div class="diff-line ${line.type}">${line.type === "add" ? "新增：" : "删除："}${esc(line.text)}</div>`).join("")}</div>
+            </div>
+            <div class="modal-foot"><button class="btn" data-act="open-history" data-id="${item.id}">返回历史</button><button class="btn primary" data-act="close-modal">关闭</button></div>
+          </section>
+        </div>
+      `;
+    }
+
+    function draftModal() {
+      const draft = state.generated;
+      const node = currentNode();
+      const missing = node.inputs.filter(item => !hasDoc(item.docId)).map(item => item.name);
+      return `
+        <div class="modal-mask">
+          <section class="modal">
+            <div class="modal-head"><div><h2>${esc(draft.title)}</h2><span class="doc-meta">AI 生成初稿 · 等待责任人确认</span></div><button class="close" data-act="close-modal">×</button></div>
+            <div class="modal-body">
+              <p><b>1. 工作目标</b></p><p>${esc(node.note)}。输出面向当前节点“${esc(nodeLabel(node))}”，不自动判定下游开工。</p>
+              <p><b>2. 输入依据</b></p><p>${node.inputs.map(item => {
+                const itemDoc = doc(item.docId);
+                return itemDoc ? `${itemDoc.name} ${itemDoc.version}` : `${item.name}（尚未归档）`;
+              }).join("、")}。</p>
+              <p><b>3. 当前判断</b></p><p>${missing.length ? `初稿可先形成，但正式结论仍缺：${missing.join("、")}。` : "当前节点输入已齐套，可形成责任人确认稿。"}</p>
+              <p><b>4. 待跟踪事项</b></p><p>${node.outputs.filter(item => !hasDoc(item.docId)).map(item => item.name).join("、") || "本节点输出均已有对应资料。"}</p>
+              <div class="analysis-box"><b>来源清单</b><p class="doc-meta" style="margin:6px 0 0">${esc(draft.sources)}</p></div>
+            </div>
+            <div class="modal-foot"><button class="btn" data-act="close-modal">返回修改</button><button class="btn green" data-act="archive" ${draft.archived ? "disabled" : ""}>${draft.archived ? "已归档" : "确认并归档"}</button></div>
+          </section>
+        </div>
+      `;
+    }
+
+    function addMessage(type, text, sources = "") { state.messages.push({ type, text, sources }); }
+
+    function answerPrompt(prompt) {
+      const role = currentRole();
+      const node = currentNode();
+      const project = currentProject();
+      addMessage("user", prompt);
+      if (prompt.includes("缺口")) {
+        const inputMissing = node.inputs.filter(item => !hasDoc(item.docId)).map(item => item.name);
+        const outputMissing = node.outputs.filter(item => !hasDoc(item.docId)).map(item => item.name);
+        addMessage("ai", `当前节点“${nodeLabel(node)}”还有以下缺口：\n输入缺口：${inputMissing.length ? inputMissing.join("、") : "无"}。\n输出缺口：${outputMissing.length ? outputMissing.join("、") : "无"}。\n缺项不会强制阻断你继续工作，但正式归档前应由责任人确认影响。`, "角色输入输出 Skill · 当前项目资料清单");
+      } else if (prompt.includes("更新")) {
+        const recent = docs().filter(item => item.updated >= "2026-08-14").slice(0, 4);
+        addMessage("ai", recent.length
+          ? `本项目近期资料更新：\n${recent.map((item, index) => `${index + 1}. ${item.name} ${item.version}（${item.updated}）`).join("\n")}\n是否影响当前节点，由你对照右侧输入清单判断。`
+          : "当前项目暂无 8 月 14 日之后的资料更新。", `项目资料更新时间 · ${project.name}`);
+      } else if (prompt.includes("风险")) {
+        const missing = [...node.inputs, ...node.outputs].filter(item => !hasDoc(item.docId)).map(item => item.name);
+        addMessage("ai", missing.length
+          ? `识别到当前节点资料风险：${missing.join("、")} 尚未归档。\n系统只提醒缺口，不自动判定下游是否可开工。`
+          : "当前节点输入输出均已有对应资料，主要风险转为版本是否需升版。", "资料完整性检查 Skill");
+      } else if (prompt.includes("生成") || prompt.includes("输出") || prompt.includes("验证结论")) {
+        generateDraft();
+        addMessage("ai", `${state.generated.title} 初稿已生成，并显示在右侧“角色输入与输出”区域。\n${state.generated.summary}\n你可以预览全文，确认后归档为当前项目新版本。`, state.generated.sources);
+      } else {
+        addMessage("ai", `已基于“${role.name} / ${nodeLabel(node)}”处理你的问题。当前默认可引用 ${confirmedDocs().length} 份已确认资料；工作稿不会进入生成上下文。如需形成正式输出，请使用“生成工作输出”，并在归档前人工确认。`, `${project.name} · 当前节点上下文`);
+      }
+      render();
+    }
+
+    function generateDraft() {
+      const node = currentNode();
+      const project = currentProject();
+      const ready = node.inputs.filter(item => isConfirmed(doc(item.docId)));
+      const missing = node.inputs.filter(item => !hasDoc(item.docId));
+      const unconfirmed = node.inputs.filter(item => hasDoc(item.docId) && !isConfirmed(doc(item.docId)));
+      const pendingOut = node.outputs.find(item => !hasDoc(item.docId)) || node.outputs[0];
+      state.generated = {
+        roleId: state.roleId,
+        nodeId: node.id,
+        title: `${project.id.toUpperCase()} ${pendingOut.name}`,
+        summary: missing.length || unconfirmed.length
+          ? `已确认输入 ${ready.length} 项。缺档 ${missing.map(item => item.name).join("、") || "无"}；工作稿未引用 ${unconfirmed.map(item => item.name).join("、") || "无"}。`
+          : "当前节点已确认输入已齐套，初稿可提交责任人确认。",
+        sections: ["目标与适用范围", "输入资料与版本", "关键数据与判断", "风险及待跟踪事项", "来源与版本记录"],
+        sources: ready.length ? ready.map(item => `${doc(item.docId).name} ${doc(item.docId).version}（已确认）`).join(" · ") : "当前节点尚无已确认输入",
+        archived: false
+      };
+    }
+
+    function askKnowledge(prompt) {
+      const text = prompt.toLowerCase();
+      const tokens = prompt.split(/[\s，。？?、]/).filter(item => item.length >= 2);
+      const hit = item => tokens.some(token => `${item.name} ${item.excerpt || ""} ${item.type}`.toLowerCase().includes(token.toLowerCase()));
+      const pick = ids => ids.map(id => doc(id)).filter(isConfirmed);
+      let cites = [];
+      let answer = "";
+      let blocked = docs().filter(item => !isConfirmed(item) && hit(item)).map(item => `${item.name} ${item.version}`).join("、");
+      if (state.projectId === "h8120" && /产冰|12kg|性能目标/.test(text)) {
+        cites = pick(["prd", "perf", "test-method"]);
+        answer = "按已确认资料：38℃ 环境下日产冰量目标为 12kg，允许偏差 ±5%；测试需在 38℃ 稳定后连续称重 24 小时有效产冰量。";
+      } else if (/制冷方案|制冷系统方案/.test(text)) {
+        cites = pick(["prd", "curve", "envelope"]);
+        answer = "「制冷系统方案」当前是工作稿，问资料默认不引用。下面只给出已确认资料里与制冷相关的原文。";
+        blocked = blocked || "H8120 制冷系统方案 v0.8";
+      } else if (/包络|安装空间|压缩机仓/.test(text)) {
+        cites = pick(["envelope"]);
+        answer = "按已确认的结构包络：压缩机仓有效安装空间 186×142×128mm，冷凝器厚度不得超过 22mm。";
+      } else if (state.projectId === "h8130") {
+        cites = pick(["h8130-base"]);
+        answer = cites.length
+          ? "衍生项目目前只有基线包为已确认稿。产品定义、差异清单仍是工作稿，未纳入引用。"
+          : "当前没有可引用的已确认资料。";
+      } else {
+        cites = confirmedDocs().filter(hit).slice(0, 3);
+        answer = cites.length
+          ? "根据已确认资料，相关原文如下。答案只绑定这些摘录，工作稿未纳入引用。"
+          : "在已确认资料中没有找到可引用原文。可用上方检索查看工作稿，但不能把工作稿当作答案依据。";
+      }
+      ui.kbMessages.push({ type: "user", text: prompt });
+      ui.kbMessages.push({ type: "ai", text: answer, cites, blocked });
+      ui.kbAsk = "";
+      render();
+    }
+
+    function confirmUpload() {
+      const preset = uploadPreset();
+      if (!hasDoc(preset.id)) {
+        docs().push({
+          id: preset.id, folderId: preset.folderId, name: preset.title, type: preset.type,
+          version: "v1.0", status: "confirmed", owner: preset.owner, updated: TODAY,
+          source: `AI 分类后由${preset.owner}确认归档`, loc: "智能归档摘录", excerpt: preset.hint
+        });
+        currentProject().nodes.forEach(node => {
+          node.inputs.concat(node.outputs).forEach(item => {
+            if (!item.docId && (item.name === preset.title || item.name.includes(preset.type) || preset.title.includes(item.name))) item.docId = preset.id;
+          });
+        });
+      }
+      ui.modal = null;
+      addMessage("ai", `新资料“${preset.title}”已归档至“${folder(preset.folderId).code} ${folder(preset.folderId).name}”。\n已按文件名和类型尝试回写当前项目节点的输入/输出项。`, "文件识别分类 Skill · 角色输入输出 Skill");
+      toast("资料已归档到当前项目，并尝试回写节点齐套状态");
+    }
+
+    function archiveDraft() {
+      if (!state.generated) return;
+      state.generated.archived = true;
+      const node = currentNode();
+      const outputId = `${node.id}-out`;
+      if (!hasDoc(outputId)) {
+        docs().push({
+          id: outputId, folderId: "output", name: state.generated.title, type: "角色工作输出",
+          version: "v0.9", status: "confirmed", owner: currentRole().person, updated: TODAY,
+          source: "AI 初稿经责任人确认", loc: "确认归档摘要", excerpt: state.generated.summary
+        });
+      }
+      const target = node.outputs.find(item => !hasDoc(item.docId)) || node.outputs.find(item => !item.docId);
+      if (target) target.docId = outputId;
+      ui.modal = null;
+      addMessage("ai", `“${state.generated.title}”已归档至“99 项目正式输出”。\n状态为已确认，版本为 v0.9（版本号仍为 v0.x 黄色，但状态为绿色已确认，问资料可以引用）。`, "文档格式 Skill · 项目知识目录 Skill");
+      toast("已确认归档：状态=已确认，版本=v0.9");
+    }
+
+    document.addEventListener("click", event => {
+      if (event.target.classList.contains("modal-mask")) {
+        ui.modal = null;
+        render();
+        return;
+      }
+      const target = event.target.closest("[data-act]");
+      if (!target) return;
+      const act = target.dataset.act;
+      if (act === "view") { ui.view = target.dataset.view; render(); return; }
+      if (act === "toggle-folder") {
+        const id = target.dataset.id;
+        ui.openFolders = ui.openFolders.includes(id) ? ui.openFolders.filter(item => item !== id) : [...ui.openFolders, id];
+        ui.folderFilter = ui.folderFilter === id ? "" : id;
+        render();
+        return;
+      }
+      if (act === "clear-folder") { ui.folderFilter = ""; render(); return; }
+      if (act === "kb-filter") { ui.kbFilter = target.dataset.filter; render(); return; }
+      if (act === "kb-search") {
+        ui.kbQuery = document.getElementById("kbSearch")?.value || "";
+        render();
+        return;
+      }
+      if (act === "kb-ask" || act === "kb-quick") {
+        const prompt = act === "kb-quick" ? (target.dataset.prompt || "") : (document.getElementById("kbAsk")?.value.trim() || "");
+        if (prompt) askKnowledge(prompt);
+        return;
+      }
+      if (act === "open-history") { ui.modal = { type: "history", id: target.dataset.id }; render(); return; }
+      if (act === "open-diff") { ui.modal = { type: "diff", id: target.dataset.id }; render(); return; }
+      if (act === "upload") { ui.modal = { type: "upload" }; render(); return; }
+      if (act === "open-map") { ui.modal = { type: "map" }; render(); return; }
+      if (act === "select-node") {
+        switchContext({ nodeId: target.dataset.id });
+        ui.modal = null;
+        toast("已切换到自己的工作节点，输入输出与 AI 上下文已更新");
+        return;
+      }
+      if (act === "locked-node") {
+        toast("只能切换归属自己角色的格子，其他人的节点仅供查看依赖");
+        return;
+      }
+      if (act === "confirm-upload") { confirmUpload(); return; }
+      if (act === "open-doc") { ui.modal = { type: "doc", id: target.dataset.id }; render(); return; }
+      if (act === "close-modal") { ui.modal = null; render(); return; }
+      if (act === "quick") { answerPrompt(target.dataset.prompt || ""); return; }
+      if (act === "send") {
+        const input = document.getElementById("chatInput");
+        const prompt = input?.value.trim();
+        if (prompt) answerPrompt(prompt);
+        return;
+      }
+      if (act === "preview-draft") { ui.modal = { type: "draft" }; render(); return; }
+      if (act === "archive") { archiveDraft(); return; }
+      if (act === "reset") {
+        if (window.confirm("恢复版本二 Demo 的预置示例数据？当前演示操作将被清除。")) {
+          state = seed();
+          ui.openFolders = ["product", "structure", "cooling", "quality"];
+          ui.kbMessages = [];
+          ui.kbQuery = "";
+          ui.kbFilter = "all";
+          ui.folderFilter = "";
+          ui.view = "workbench";
+          toast("已恢复预置示例数据");
+        }
+      }
+    });
+
+    document.addEventListener("change", event => {
+      if (event.target.id === "projectSelect") {
+        switchContext({ projectId: event.target.value });
+        ui.view = "workbench";
+        toast(`已切换到 ${currentProject().name}`);
+        return;
+      }
+      if (event.target.id === "roleSelect") {
+        switchContext({ roleId: event.target.value });
+        toast(`已切换为 ${currentRole().name} 上下文`);
+      }
+    });
+
+    document.addEventListener("keydown", event => {
+      if (event.key === "Enter" && event.target.id === "chatInput") {
+        event.preventDefault();
+        const prompt = event.target.value.trim();
+        if (prompt) answerPrompt(prompt);
+      }
+      if (event.key === "Enter" && event.target.id === "kbSearch") {
+        event.preventDefault();
+        ui.kbQuery = event.target.value;
+        render();
+      }
+      if (event.key === "Enter" && event.target.id === "kbAsk") {
+        event.preventDefault();
+        const prompt = event.target.value.trim();
+        if (prompt) askKnowledge(prompt);
+      }
+      if (event.key === "Escape" && ui.modal) {
+        ui.modal = null;
+        render();
+      }
+    });
+
+    render();
+  })();
+  </script>
+</body>
+</html>

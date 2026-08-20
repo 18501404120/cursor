@@ -1,8 +1,14 @@
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 from typing import Any
+
+PPT_INLINE_RE = re.compile(
+    r'<script type="application/json" id="ppt-manifest">[\s\S]*?</script>',
+    re.MULTILINE,
+)
 
 SKIP_DIR_NAMES = {
     ".git",
@@ -133,6 +139,27 @@ def _write_json_if_changed(path: Path, payload: Any) -> bool:
     return True
 
 
+def inject_inline_manifest(html_path: Path, payload: Any) -> bool:
+    """把目录清单写入 index.html，file:// 打开时也能渲染目录树。"""
+    if not html_path.is_file():
+        return False
+    json_text = json.dumps(payload, ensure_ascii=False, indent=2)
+    block = f'<script type="application/json" id="ppt-manifest">\n{json_text}\n</script>'
+    html = PPT_INLINE_RE.sub("", html_path.read_text(encoding="utf-8"), count=1)
+    js_idx = html.find("prototype-preview-tree.js")
+    if js_idx != -1:
+        insert_at = html.rfind("<script", 0, js_idx)
+        new_html = html[:insert_at] + block + "\n" + html[insert_at:]
+    elif "</body>" in html:
+        new_html = html.replace("</body>", block + "\n</body>", 1)
+    else:
+        return False
+    if new_html == html:
+        return False
+    html_path.write_text(new_html, encoding="utf-8")
+    return True
+
+
 def refresh_preview_trees(repo: Path | None = None) -> list[str]:
     """扫描 方案设计/文件夹 下 HTML，重写三份 preview-manifest.json。"""
     repo = Path(repo) if repo is not None else _default_repo()
@@ -149,6 +176,7 @@ def refresh_preview_trees(repo: Path | None = None) -> list[str]:
             "name": "项目",
             "scan": folder / "项目",
             "manifest": folder / "项目" / "preview-manifest.json",
+            "index": folder / "项目" / "index.html",
             "href_prefix": "",
             "skip_root_index": True,
             "open_depth": 3,
@@ -158,6 +186,7 @@ def refresh_preview_trees(repo: Path | None = None) -> list[str]:
             "name": "需求",
             "scan": folder / "需求",
             "manifest": folder / "需求" / "preview-manifest.json",
+            "index": folder / "需求" / "index.html",
             "href_prefix": "",
             "skip_root_index": True,
             "open_depth": 2,
@@ -167,6 +196,7 @@ def refresh_preview_trees(repo: Path | None = None) -> list[str]:
             "name": "仓库根",
             "scan": folder,
             "manifest": design / "preview-manifest.json",
+            "index": design / "index.html",
             "href_prefix": "文件夹/",
             "skip_root_index": False,
             "open_depth": 1,
@@ -194,6 +224,9 @@ def refresh_preview_trees(repo: Path | None = None) -> list[str]:
             logs.append(f"预览目录树：已更新 {spec['name']} ({_count_files(tree)} 个 HTML)")
         else:
             logs.append(f"预览目录树：{spec['name']} 已是最新 ({_count_files(tree)} 个 HTML)")
+        index_html = spec.get("index")
+        if index_html and inject_inline_manifest(Path(index_html), payload):
+            logs.append(f"预览目录树：已写入 {spec['name']} 内嵌清单（支持 file://）")
     if changed:
         logs.append(f"预览目录树：共刷新 {changed} 份清单，推送后 Pages 将按磁盘展示")
     return logs

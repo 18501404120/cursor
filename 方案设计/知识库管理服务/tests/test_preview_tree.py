@@ -5,7 +5,12 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from kb_orchestrator.service.preview_tree import infer_badge, refresh_preview_trees, scan_html_tree
+from kb_orchestrator.service.preview_tree import (
+    infer_badge,
+    inject_inline_manifest,
+    refresh_preview_trees,
+    scan_html_tree,
+)
 
 
 class PreviewTreeTests(unittest.TestCase):
@@ -51,6 +56,23 @@ class PreviewTreeTests(unittest.TestCase):
             data = json.loads(manifest.read_text(encoding="utf-8"))
             names = self._file_names(data["tree"])
             self.assertIn("新品.html", names)
+
+    def test_inject_inline_manifest_replaces_script(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            html_path = Path(raw) / "index.html"
+            html_path.write_text(
+                '<html><body><script src="../规范/assets/prototype-preview-tree.js"></script></body></html>',
+                encoding="utf-8",
+            )
+            changed = inject_inline_manifest(
+                html_path,
+                {"tree": [{"type": "file", "name": "a.html", "href": "a.html"}]},
+            )
+            self.assertTrue(changed)
+            html = html_path.read_text(encoding="utf-8")
+            self.assertIn('"name": "a.html"', html)
+            self.assertEqual(html.count('id="ppt-manifest"'), 1)
+            self.assertLess(html.find('id="ppt-manifest"'), html.find('prototype-preview-tree.js'))
 
     def _file_names(self, nodes: list) -> set[str]:
         found: set[str] = set()
