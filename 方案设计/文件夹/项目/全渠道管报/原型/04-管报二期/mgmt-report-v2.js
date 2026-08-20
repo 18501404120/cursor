@@ -5,8 +5,14 @@
     { id: 'T0102', name: '渠道激励/收入扣减', parent: 'T01', level: 1, mode: '计提/扣款规则计算' },
     { id: 'T0103', name: '销售退款', parent: 'T01', level: 1, mode: '退款规则计算' },
     { id: 'T02', name: '成本', parent: null, level: 0, mode: '汇总公式计算' },
-    { id: 'T0201', name: '出货授权成本', parent: 'T02', level: 1, mode: '业务系统单据取数' },
-    { id: 'T0202', name: '退货成本', parent: 'T02', level: 1, mode: '业务系统单据取数' },
+    { id: 'T0201', name: '出货授权成本', parent: 'T02', level: 1, mode: '汇总公式计算', packOnBoard: true },
+    { id: 'T020101', name: '采购成本', parent: 'T0201', level: 2, mode: '业务系统单据取数' },
+    { id: 'T020102', name: '关税', parent: 'T0201', level: 2, mode: '业务系统单据取数' },
+    { id: 'T020103', name: '预留毛利', parent: 'T0201', level: 2, mode: '业务系统单据取数' },
+    { id: 'T0202', name: '退货成本', parent: 'T02', level: 1, mode: '汇总公式计算', packOnBoard: true },
+    { id: 'T020201', name: '采购成本', parent: 'T0202', level: 2, mode: '业务系统单据取数' },
+    { id: 'T020202', name: '关税', parent: 'T0202', level: 2, mode: '业务系统单据取数' },
+    { id: 'T020203', name: '预留毛利', parent: 'T0202', level: 2, mode: '业务系统单据取数' },
     { id: 'T03', name: '毛利', parent: null, level: 0, mode: '汇总公式计算' },
     { id: 'T04', name: '费用', parent: null, level: 0, mode: '汇总公式计算' },
     { id: 'T0401', name: '管报费用', parent: 'T04', level: 1, mode: '汇总公式计算' },
@@ -1287,7 +1293,7 @@
 
   function boot() {
     feeOptionNodes().forEach(function (node) {
-      if (childrenOf(node.id).length) state.expanded[node.id] = true;
+      if (childrenOf(node.id).length && !node.packOnBoard) state.expanded[node.id] = true;
     });
     initFilters();
     bindEvents();

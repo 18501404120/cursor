@@ -903,7 +903,6 @@
       markDocRead(id);
       render();
     }
-    function isConfirmed(item) { return Boolean(item && item.status === "confirmed"); }
     function statusLabel(item) { return isConfirmed(item) ? "已确认" : "工作稿"; }
     function statusTone(item) { return isConfirmed(item) ? "green" : "amber"; }
     function versionTone(version) { return String(version || "").startsWith("v0") ? "amber" : "green"; }
@@ -915,9 +914,10 @@
       const role = currentRole();
       const node = currentNode();
       const related = docs().length;
+      const unread = unreadInputs().length;
       return {
         type: "ai",
-        text: `你好，${role.person}。当前项目是“${project.name}”。\n当前工作节点是“${nodeLabel(node)}”，已有 ${roleProgress(node.inputs)}/${node.inputs.length} 项输入、${roleProgress(node.outputs)}/${node.outputs.length} 项输出。项目内共 ${related} 份资料。你可以查看完整协作图、检查缺口或生成工作输出。`,
+        text: `你好，${role.person}。当前项目是“${project.name}”。\n当前工作节点是“${nodeLabel(node)}”，已有 ${roleProgress(node.inputs)}/${node.inputs.length} 项输入、${roleProgress(node.outputs)}/${node.outputs.length} 项输出。项目内共 ${related} 份资料。${unread ? `\n有 ${unread} 项上游输入有更新，请看右侧红点；打开资料即视为已读。` : "你可以查看完整协作图、检查缺口或生成工作输出。"}`,
         sources: `角色输入输出 Skill · ${project.name} 知识目录 · 截至 ${TODAY}`
       };
     }
@@ -1045,11 +1045,11 @@
             </div>
           </section>
           <aside class="panel context-panel">
-            <div class="panel-head"><h2>角色输入与输出</h2><span class="status ${missingCount() ? "amber" : "green"}">${missingCount() ? "存在缺口" : "已齐套"}</span></div>
+            <div class="panel-head"><h2>角色输入与输出</h2><span class="status ${unreadInputs().length ? "red" : (missingCount() ? "amber" : "green")}">${unreadInputs().length ? `${unreadInputs().length} 项输入有更新` : (missingCount() ? "存在缺口" : "已齐套")}</span></div>
             <div class="context-body">
               <div class="role-card"><b>${esc(role.name)} · ${esc(role.person)}</b>当前工作：${esc(nodeLabel(node))}<br>${esc(node.note)}<br>${esc(role.desc)}</div>
-              ${ioSection("上游输入", node.inputs)}
-              ${ioSection("本角色输出", node.outputs)}
+              ${ioSection("上游输入", node.inputs, true)}
+              ${ioSection("本角色输出", node.outputs, false)}
               ${draftHtml()}
             </div>
           </aside>
@@ -1057,18 +1057,22 @@
       `;
     }
 
-    function ioSection(title, items) {
+    function ioSection(title, items, trackUnread) {
       const done = roleProgress(items);
+      const unread = trackUnread ? items.filter(item => isUnreadDoc(doc(item.docId))).length : 0;
       return `
-        <div class="section-title"><span>${title}</span><span class="status ${done === items.length ? "green" : "amber"}">${done}/${items.length}</span></div>
+        <div class="section-title"><span>${title}${unread ? ` <span class="unread-dot"></span>` : ""}</span><span class="status ${unread ? "red" : (done === items.length ? "green" : "amber")}">${unread ? `${unread} 项有更新` : `${done}/${items.length}`}</span></div>
         <div class="check-list">
           ${items.map(item => {
             const itemDoc = doc(item.docId);
-            return `<div class="check-item">
-              <span class="check ${itemDoc ? "ok" : "missing"}">${itemDoc ? "✓" : "!"}</span>
-              <div><strong>${esc(item.name)}</strong><small>${itemDoc ? `${esc(itemDoc.version)} · ${esc(itemDoc.owner)}` : "尚未归档"}</small></div>
-              <span class="status ${itemDoc ? "green" : "amber"}">${itemDoc ? "已有" : "缺失"}</span>
-            </div>`;
+            const unreadItem = trackUnread && isUnreadDoc(itemDoc);
+            const tag = !itemDoc ? ["amber", "缺失"] : unreadItem ? ["red", "有更新"] : [statusTone(itemDoc), statusLabel(itemDoc)];
+            const body = `<span class="check ${itemDoc ? "ok" : "missing"}">${itemDoc ? "✓" : "!"}</span>
+              <div><strong>${unreadItem ? `<span class="unread-dot"></span>` : ""}${esc(item.name)}</strong><small>${itemDoc ? `${esc(itemDoc.version)} · ${esc(itemDoc.owner)}${unreadItem && lastReadVersion(itemDoc.id) ? ` · 已读 ${esc(lastReadVersion(itemDoc.id))}` : ""}` : "尚未归档"}</small></div>
+              <span class="status ${tag[0]}">${tag[1]}</span>`;
+            return itemDoc
+              ? `<button class="check-item has-doc ${unreadItem ? "unread" : ""}" data-act="open-doc" data-id="${itemDoc.id}">${body}</button>`
+              : `<div class="check-item">${body}</div>`;
           }).join("")}
         </div>
       `;
@@ -1327,15 +1331,19 @@
       if (!item) return "";
       const history = docHistory(item);
       const canCite = isConfirmed(item);
+      const fromVersion = ui.modal.fromVersion;
+      const updated = fromVersion && fromVersion !== item.version;
+      const isInput = currentNode().inputs.some(entry => entry.docId === item.id);
       return `
         <div class="modal-mask">
           <section class="modal">
             <div class="modal-head"><div><h2>${esc(item.name)}</h2><span class="doc-meta">${esc(item.type)} · <span class="status ${statusTone(item)}">${statusLabel(item)}</span> · <span class="status ${versionTone(item.version)}">${esc(item.version)}</span></span></div><button class="close" data-act="close-modal">×</button></div>
             <div class="modal-body">
+              ${updated ? `<div class="analysis-box" style="border-color:#f3c4c8;background:#fff8f8"><b>输入有更新</b><p class="doc-meta" style="margin:6px 0 0">你上次已读 ${esc(fromVersion)}，当前为 ${esc(item.version)}。打开本页即视为已读，红点将消失。${canCite ? "生成将使用最新已确认稿。" : "该资料为工作稿，仅提醒你查看，AI 仍不引用。"}</p></div>` : ""}
               <div class="analysis-grid">
                 <div class="analysis-item"><small>归档目录</small><b>${esc(folder(item.folderId)?.code)} ${esc(folder(item.folderId)?.name)}</b></div>
                 <div class="analysis-item"><small>资料责任人</small><b>${esc(item.owner)}</b></div>
-                <div class="analysis-item"><small>更新时间</small><b>${esc(item.updated)}</b></div>
+                <div class="analysis-item"><small>当前节点关系</small><b>${isInput ? "上游输入" : "项目资料"}</b></div>
                 <div class="analysis-item"><small>AI 默认可引用</small><b>${canCite ? "是" : "否，工作稿"}</b></div>
               </div>
               <div class="cite-quote">「${esc(item.excerpt || "暂无正文摘录")}」<div class="doc-meta">${esc(item.loc || "原文摘录")}</div></div>
@@ -1541,6 +1549,7 @@
       }
       const target = node.outputs.find(item => !hasDoc(item.docId)) || node.outputs.find(item => !item.docId);
       if (target) target.docId = outputId;
+      markDocRead(outputId);
       ui.modal = null;
       addMessage("ai", `“${state.generated.title}”已归档至“99 项目正式输出”。\n状态为已确认，版本为 v0.9（版本号仍为 v0.x 黄色，但状态为绿色已确认，问资料可以引用）。`, "文档格式 Skill · 项目知识目录 Skill");
       toast("已确认归档：状态=已确认，版本=v0.9");
@@ -1590,7 +1599,7 @@
         return;
       }
       if (act === "confirm-upload") { confirmUpload(); return; }
-      if (act === "open-doc") { ui.modal = { type: "doc", id: target.dataset.id }; render(); return; }
+      if (act === "open-doc") { openDoc(target.dataset.id); return; }
       if (act === "close-modal") { ui.modal = null; render(); return; }
       if (act === "quick") { answerPrompt(target.dataset.prompt || ""); return; }
       if (act === "send") {

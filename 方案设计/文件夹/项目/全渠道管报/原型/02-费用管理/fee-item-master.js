@@ -4,8 +4,8 @@
 (function (global) {
   'use strict';
 
-  var STORAGE_KEY = 'gb-fee-mgmt-fee-items-v5';
-  var LEGACY_STORAGE_KEYS = ['gb-fee-mgmt-fee-items-v4', 'gb-fee-mgmt-fee-items-v3', 'gb-fee-mgmt-fee-items-v2', 'gb-fee-mgmt-fee-items-v1'];
+  var STORAGE_KEY = 'gb-fee-mgmt-fee-items-v6';
+  var LEGACY_STORAGE_KEYS = ['gb-fee-mgmt-fee-items-v5', 'gb-fee-mgmt-fee-items-v4', 'gb-fee-mgmt-fee-items-v3', 'gb-fee-mgmt-fee-items-v2', 'gb-fee-mgmt-fee-items-v1'];
   var SEED_URL = 'fee-item-master-data.json';
   var items = [];
   var usageResolver = null;
@@ -22,7 +22,13 @@
     { code: "T0101", name: "零售销售额", remark: "收入 / 零售销售额", parentCode: "T01", sortOrder: 20 },
     { code: "T02", name: "成本", remark: "成本", parentCode: null, sortOrder: 30 },
     { code: "T0201", name: "出货授权成本", remark: "成本 / 出货授权成本", parentCode: "T02", sortOrder: 40 },
+    { code: "T020101", name: "采购成本", remark: "成本 / 出货授权成本 / 采购成本", parentCode: "T0201", sortOrder: 41 },
+    { code: "T020102", name: "关税", remark: "成本 / 出货授权成本 / 关税", parentCode: "T0201", sortOrder: 42 },
+    { code: "T020103", name: "预留毛利", remark: "成本 / 出货授权成本 / 预留毛利", parentCode: "T0201", sortOrder: 43 },
     { code: "T0202", name: "退货成本", remark: "成本 / 退货成本", parentCode: "T02", sortOrder: 50 },
+    { code: "T020201", name: "采购成本", remark: "成本 / 退货成本 / 采购成本", parentCode: "T0202", sortOrder: 51 },
+    { code: "T020202", name: "关税", remark: "成本 / 退货成本 / 关税", parentCode: "T0202", sortOrder: 52 },
+    { code: "T020203", name: "预留毛利", remark: "成本 / 退货成本 / 预留毛利", parentCode: "T0202", sortOrder: 53 },
     { code: "T03", name: "毛利", remark: "毛利", parentCode: null, sortOrder: 60 },
     { code: "T04", name: "费用", remark: "费用", parentCode: null, sortOrder: 70 },
     { code: "T0401", name: "管报费用", remark: "费用 / 管报费用", parentCode: "T04", sortOrder: 80 },
