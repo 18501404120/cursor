@@ -33,6 +33,24 @@ PA_PUBLISH_ALLOWED_ORIGINS = {
     "http://127.0.0.1:8787",
     "http://localhost:8787",
 }
+PA_PRIVATE_HOST_RE = re.compile(
+    r"^(localhost|127\.0\.0\.1|10\.\d{1,3}\.\d{1,3}\.\d{1,3}|192\.168\.\d{1,3}\.\d{1,3}|172\.(1[6-9]|2\d|3[0-1])\.\d{1,3}\.\d{1,3})$"
+)
+
+
+def is_allowed_pa_origin(origin: str) -> bool:
+    origin = (origin or "").strip()
+    if origin in PA_PUBLISH_ALLOWED_ORIGINS:
+        return True
+    if origin.startswith("https://18501404120.github.io"):
+        return True
+    try:
+        parsed = urllib.parse.urlparse(origin)
+    except ValueError:
+        return False
+    if parsed.scheme not in {"http", "https"}:
+        return False
+    return bool(PA_PRIVATE_HOST_RE.match(parsed.hostname or ""))
 
 
 class RootMount:
@@ -259,17 +277,43 @@ def apply_config_to_html(html_path: Path, config: dict) -> bool:
     return True
 
 
-def resolve_repo_html_path(repo_path: str) -> Path:
-    rel = urllib.parse.unquote(repo_path or "").strip().lstrip("/").replace("\\", "/")
+def normalize_repo_html_rel(repo_path: str) -> str:
+    """把发布请求里的路径收成仓库相对路径：方案设计/文件夹/..."""
+    rel = urllib.parse.unquote(repo_path or "").strip().replace("\\", "/")
     if not rel:
         raise ValueError("缺少 repoPath")
+
+    # 兼容 file:// 误拼：方案设计/Users/.../方案设计/文件夹/...
+    folder_marker = DESIGN_PREFIX_IN_REPO + "文件夹/"
+    folder_at = rel.rfind(folder_marker)
+    if folder_at >= 0:
+        rel = rel[folder_at:]
+    else:
+        design_at = rel.rfind("/" + DESIGN_PREFIX_IN_REPO)
+        if design_at >= 0:
+            rel = rel[design_at + 1 :]
+        elif rel.startswith(DESIGN_PREFIX_IN_REPO):
+            pass
+        else:
+            abs_at = rel.rfind(DESIGN_PREFIX_IN_REPO)
+            if abs_at > 0:
+                rel = rel[abs_at:]
+
+    rel = rel.lstrip("/")
     if rel.startswith("cursor/"):
         rel = rel[len("cursor/") :]
+    if rel.startswith("files/"):
+        rel = rel[len("files/") :]
     if not rel.startswith(DESIGN_PREFIX_IN_REPO):
         if rel.startswith("文件夹/"):
             rel = DESIGN_PREFIX_IN_REPO + rel
         else:
             rel = DESIGN_PREFIX_IN_REPO + rel
+    return rel
+
+
+def resolve_repo_html_path(repo_path: str) -> Path:
+    rel = normalize_repo_html_rel(repo_path)
     target = (LOCAL_REPO_ROOT / rel).resolve()
     try:
         target.relative_to(LOCAL_REPO_ROOT.resolve())
@@ -303,9 +347,7 @@ def git_publish_file(html_path: Path, message: str) -> None:
 
 
 def preview_url_for_repo_path(repo_path: str) -> str:
-    rel = repo_path.replace("\\", "/").lstrip("/")
-    if rel.startswith("cursor/"):
-        rel = rel[len("cursor/") :]
+    rel = normalize_repo_html_rel(repo_path)
     if rel.startswith(DESIGN_PREFIX_IN_REPO):
         rel = rel[len(DESIGN_PREFIX_IN_REPO) :]
     return "https://18501404120.github.io/cursor/" + urllib.parse.quote(rel, safe="/")
@@ -331,7 +373,7 @@ class ProtoShareHandler(BaseHTTPRequestHandler):
 
     def _cors_headers(self) -> dict[str, str]:
         origin = self.headers.get("Origin", "")
-        if origin in PA_PUBLISH_ALLOWED_ORIGINS:
+        if is_allowed_pa_origin(origin):
             return {
                 "Access-Control-Allow-Origin": origin,
                 "Access-Control-Allow-Methods": "POST, OPTIONS",

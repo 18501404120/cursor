@@ -4,6 +4,9 @@ import unittest
 from unittest.mock import patch
 
 from kb_orchestrator.service.git_sync import (
+    CODE_REPO_BACKEND,
+    CODE_REPO_FRONTEND,
+    CODE_REPO_KEYS,
     ERP_PRODUCT_PUSH_BRANCH,
     GIT_PUSH_SYSTEMS,
     LOCAL_SYSTEM_KEY,
@@ -41,6 +44,38 @@ class GitSyncTests(unittest.TestCase):
             item.get("can_merge") is (item["key"] in GIT_PUSH_SYSTEMS and item["key"] != LOCAL_SYSTEM_KEY)
             for item in items
         ))
+
+    @patch("kb_orchestrator.service.git_sync._fetch_origin_refs", return_value=True)
+    @patch("kb_orchestrator.service.git_sync._fetch_origin_ref", return_value=True)
+    def test_list_systems_includes_code_repos_pull_only(self, _fetch, _fetch_refs) -> None:
+        data = git_sync_manager.list_systems()
+        items = data["items"]
+        keys = [item["key"] for item in items]
+        self.assertEqual(keys[:2], [CODE_REPO_BACKEND, CODE_REPO_FRONTEND])
+        for item in items:
+            if item["key"] not in CODE_REPO_KEYS:
+                continue
+            self.assertEqual(item["kind"], "code")
+            self.assertFalse(item["can_push"])
+            self.assertFalse(item["can_merge"])
+            self.assertIn("vs_main", item)
+
+    def test_push_forbidden_code_repo(self) -> None:
+        with self.assertRaises(GitSyncError) as ctx:
+            git_sync_manager.push_git(CODE_REPO_BACKEND)
+        self.assertEqual(ctx.exception.code, "forbidden")
+
+    def test_merge_request_forbidden_code_repo(self) -> None:
+        with self.assertRaises(GitSyncError) as ctx:
+            git_sync_manager.request_merge_main(CODE_REPO_FRONTEND)
+        self.assertEqual(ctx.exception.code, "forbidden")
+
+    @patch.object(type(git_sync_manager), "_pull_code", return_value={"ok": True, "action": "pull"})
+    def test_pull_latest_routes_code_repo(self, mock_pull) -> None:
+        result = git_sync_manager.pull_latest(CODE_REPO_BACKEND)
+        mock_pull.assert_called_once()
+        self.assertEqual(mock_pull.call_args.args[0], CODE_REPO_BACKEND)
+        self.assertTrue(result["ok"])
 
     @patch("kb_orchestrator.service.git_sync._fetch_origin_refs", return_value=True)
     @patch("kb_orchestrator.service.git_sync._fetch_origin_ref", return_value=True)

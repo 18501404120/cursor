@@ -92,11 +92,18 @@
     return host === "18501404120.github.io" || /\.github\.io$/i.test(host);
   }
 
+  function isPrivateLanHost(host) {
+    const h = String(host || "");
+    if (h === "localhost" || h === "127.0.0.1") return true;
+    if (/^10\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(h)) return true;
+    if (/^192\.168\.\d{1,3}\.\d{1,3}$/.test(h)) return true;
+    if (/^172\.(1[6-9]|2\d|3[0-1])\.\d{1,3}\.\d{1,3}$/.test(h)) return true;
+    return false;
+  }
+
   function isShareServerHost() {
-    return (
-      (location.hostname === "127.0.0.1" || location.hostname === "localhost") &&
-      String(location.port || "") === "8787"
-    );
+    // 本机或局域网 IP 访问 8787 都视为分享服务，走同源 /api/pa-publish
+    return isPrivateLanHost(location.hostname) && String(location.port || "") === "8787";
   }
 
   function getPublishEndpoint(config) {
@@ -427,7 +434,20 @@
   }
 
   function inferRepoPathFromLocation() {
-    let p = decodeURIComponent(location.pathname || "");
+    let p = "";
+    try {
+      p = decodeURIComponent(location.pathname || "");
+    } catch (_error) {
+      p = location.pathname || "";
+    }
+    // file:// 或编辑器预览会带绝对路径：/Users/.../方案设计/文件夹/...
+    const folderAbs = "/方案设计/文件夹/";
+    const folderAt = p.lastIndexOf(folderAbs);
+    if (folderAt >= 0) return p.slice(folderAt + 1);
+    const designAbs = "/方案设计/";
+    const designAt = p.lastIndexOf(designAbs);
+    if (designAt >= 0) return p.slice(designAt + 1);
+
     if (p.startsWith("/files/")) p = p.slice("/files/".length);
     if (p.startsWith("/cursor/")) p = p.slice("/cursor/".length);
     p = p.replace(/^\//, "");
@@ -590,10 +610,19 @@
       }
 
       if (!opts.silentSuccess) {
-        showPaPublishToast(
-          "发布成功，已推送到 Git。他人约 1～2 分钟后刷新 Pages 即可看到。",
-          false
-        );
+        if (data && data.changed === false) {
+          showPaPublishToast(
+            "发布完成，但仓库文件没有新变更（未推送）。请确认编辑的是当前页，并强制刷新预览。",
+            true
+          );
+        } else {
+          const previewHint = data && data.previewUrl ? "\n" + data.previewUrl : "";
+          showPaPublishToast(
+            "发布成功，已推送到 Git。他人约 1～2 分钟后请打开 02-费用管理 路径并强制刷新。" +
+              previewHint,
+            false
+          );
+        }
       }
       return data;
     } catch (error) {

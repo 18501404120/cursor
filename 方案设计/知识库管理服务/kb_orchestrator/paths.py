@@ -39,6 +39,14 @@ class WorkspacePaths:
         return self.erp_root / "ERP_product"
 
     @property
+    def erp_backend_dir(self) -> Path:
+        return self.erp_root / "ERP_backend"
+
+    @property
+    def erp_frontend_dir(self) -> Path:
+        return self.erp_root / "ERP_frontend"
+
+    @property
     def local_dir(self) -> Path:
         return self.erp_root / "本地"
 

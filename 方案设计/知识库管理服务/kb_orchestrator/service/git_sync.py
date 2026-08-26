@@ -10,6 +10,7 @@ import threading
 import time
 import urllib.error
 import urllib.request
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
@@ -20,6 +21,9 @@ from ..paths import WorkspacePaths
 from .preview_tree import refresh_preview_trees
 
 LOCAL_SYSTEM_KEY = "本地"
+CODE_REPO_BACKEND = "ERP_backend"
+CODE_REPO_FRONTEND = "ERP_frontend"
+CODE_REPO_KEYS = frozenset({CODE_REPO_BACKEND, CODE_REPO_FRONTEND})
 ERP_PRODUCT_PUSH_BRANCH = "feature-chengkaiwu-xiaoshou"
 
 GIT_PUSH_SYSTEMS = frozenset(
@@ -498,6 +502,162 @@ def _compare_to_origin_main(
     )
 
 
+def _dedupe_keep_order(values: list[str]) -> list[str]:
+    seen: set[str] = set()
+    result: list[str] = []
+    for value in values:
+        if not value or value in seen:
+            continue
+        seen.add(value)
+        result.append(value)
+    return result
+
+
+def _nested_git_repos(root: Path) -> list[Path]:
+    """根目录本身是仓库则返回 [root]；否则返回一级子目录中的 Git 仓库。"""
+    if _is_git_repo(root):
+        return [root]
+    if not root.is_dir():
+        return []
+    repos: list[Path] = []
+    for child in sorted(root.iterdir(), key=lambda p: p.name.lower()):
+        if not child.is_dir() or child.name.startswith("."):
+            continue
+        if _is_git_repo(child):
+            repos.append(child)
+    return repos
+
+
+def _origin_default_branch(repo: Path) -> str:
+    result = _run_git(
+        ["symbolic-ref", "--short", "refs/remotes/origin/HEAD"],
+        repo,
+        check=False,
+    )
+    if result.ok and result.stdout.strip():
+        ref = result.stdout.strip()
+        return ref.rsplit("/", 1)[-1]
+    return ""
+
+
+def _pull_fetch_refs(repo: Path) -> list[str]:
+    branch = _current_branch(repo)
+    refs: list[str] = []
+    if branch and branch != "HEAD":
+        refs.append(branch)
+    default = _origin_default_branch(repo)
+    if default:
+        refs.append(default)
+    return _dedupe_keep_order(refs)
+
+
+def _origin_pull_ref(repo: Path) -> str | None:
+    branch = _current_branch(repo)
+    candidates: list[str] = []
+    if branch and branch != "HEAD":
+        candidates.append(branch)
+    default = _origin_default_branch(repo)
+    if default:
+        candidates.append(default)
+    candidates.extend(["master", "main"])
+    for name in _dedupe_keep_order(candidates):
+        if _ref_exists(repo, f"origin/{name}"):
+            return f"origin/{name}"
+    return None
+
+
+def _compare_to_origin_tracking(repo: Path, *, do_fetch: bool = True) -> dict[str, Any]:
+    fetched = True
+    if do_fetch:
+        refs = _pull_fetch_refs(repo)
+        fetched = _fetch_origin_refs(repo, *refs) if refs else _fetch_origin_ref(repo)
+    target = _origin_pull_ref(repo)
+    if not target:
+        return _format_vs_main(
+            None, None, fetched=fetched, can_merge=False, can_push=False
+        )
+    behind, ahead = _ahead_behind(repo, target, "HEAD")
+    return _format_vs_main(
+        ahead, behind, fetched=fetched, can_merge=False, can_push=False
+    )
+
+
+def _aggregate_vs_main(vs_list: list[dict[str, Any]]) -> dict[str, Any]:
+    if not vs_list:
+        return _format_vs_main(None, None, fetched=False, can_merge=False, can_push=False)
+    known = [item for item in vs_list if item.get("ahead") is not None and item.get("behind") is not None]
+    fetched = all(bool(item.get("fetched")) for item in vs_list)
+    if not known:
+        return _format_vs_main(None, None, fetched=fetched, can_merge=False, can_push=False)
+    ahead = max(int(item["ahead"]) for item in known)
+    behind = max(int(item["behind"]) for item in known)
+    vs = _format_vs_main(ahead, behind, fetched=fetched, can_merge=False, can_push=False)
+    behind_repos = sum(1 for item in known if int(item["behind"]) > 0)
+    if behind_repos > 1:
+        vs["label"] = f"{behind_repos} 个仓库落后 · 建议拉取"
+        vs["hint"] = "pull"
+    return vs
+
+
+def _code_repo_root(key: str, paths: WorkspacePaths) -> Path:
+    if key == CODE_REPO_BACKEND:
+        return paths.erp_backend_dir
+    if key == CODE_REPO_FRONTEND:
+        return paths.erp_frontend_dir
+    raise GitSyncError(f"未知代码仓库: {key}")
+
+
+def _build_code_repo_item(key: str, paths: WorkspacePaths) -> dict[str, Any]:
+    root = _code_repo_root(key, paths)
+    repos = _nested_git_repos(root)
+    if not repos:
+        missing = "目录不存在" if not root.exists() else "未找到 Git 仓库"
+        return {
+            "key": key,
+            "name": key,
+            "repo": key,
+            "repo_path": str(root),
+            "kind": "code",
+            "current_branch": "",
+            "target_branch": "",
+            "can_push": False,
+            "can_merge": False,
+            "change_count": 0,
+            "repo_change_count": 0,
+            "status_label": missing,
+            "tracking": None,
+            "vs_main": _format_vs_main(
+                None, None, fetched=False, can_merge=False, can_push=False
+            ),
+        }
+
+    branches = _dedupe_keep_order([_current_branch(repo) for repo in repos])
+    change_count = sum(_count_changes(repo) for repo in repos)
+    if len(repos) == 1:
+        vs_list = [_compare_to_origin_tracking(repos[0], do_fetch=False)]
+    else:
+        vs_list = [
+            _compare_to_origin_tracking(repo, do_fetch=False) for repo in repos
+        ]
+    repo_label = key if len(repos) == 1 else f"{key}（{len(repos)} 个子仓库）"
+    return {
+        "key": key,
+        "name": key,
+        "repo": repo_label,
+        "repo_path": str(root),
+        "kind": "code",
+        "current_branch": "、".join(branches) if branches else "",
+        "target_branch": branches[0] if len(branches) == 1 else "",
+        "can_push": False,
+        "can_merge": False,
+        "change_count": change_count,
+        "repo_change_count": change_count,
+        "status_label": _status_label(change_count, can_push=False),
+        "tracking": None,
+        "vs_main": vs_list[0] if len(vs_list) == 1 else _aggregate_vs_main(vs_list),
+    }
+
+
 def _erp_system_names(paths: WorkspacePaths) -> list[str]:
     product = paths.erp_product_dir
     if not product.is_dir():
@@ -563,24 +723,30 @@ class GitSyncManager:
 
     def list_systems(self, *, erp_root=None) -> dict[str, Any]:
         paths = WorkspacePaths.resolve(erp_root)
-        items: list[dict[str, Any]] = []
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            backend_future = pool.submit(_build_code_repo_item, CODE_REPO_BACKEND, paths)
+            frontend_future = pool.submit(_build_code_repo_item, CODE_REPO_FRONTEND, paths)
 
-        product_repo = paths.erp_product_dir
-        product_is_git = _is_git_repo(product_repo)
-        product_branch = _current_branch(product_repo) if product_is_git else ""
-        product_dirty = _count_changes(product_repo) if product_is_git else 0
-        product_fetched = False
-        if product_is_git:
-            product_fetched = _fetch_origin_refs(
-                product_repo, "main", ERP_PRODUCT_PUSH_BRANCH
-            )
-        product_behind, product_ahead = (None, None)
-        if product_is_git:
-            feature_ref = _feature_head_ref(product_repo)
-            if feature_ref:
-                product_behind, product_ahead = _ahead_behind(
-                    product_repo, "origin/main", feature_ref
+            product_repo = paths.erp_product_dir
+            product_is_git = _is_git_repo(product_repo)
+            product_branch = _current_branch(product_repo) if product_is_git else ""
+            product_dirty = _count_changes(product_repo) if product_is_git else 0
+            product_fetched = False
+            if product_is_git:
+                product_fetched = _fetch_origin_refs(
+                    product_repo, "main", ERP_PRODUCT_PUSH_BRANCH
                 )
+            product_behind, product_ahead = (None, None)
+            if product_is_git:
+                feature_ref = _feature_head_ref(product_repo)
+                if feature_ref:
+                    product_behind, product_ahead = _ahead_behind(
+                        product_repo, "origin/main", feature_ref
+                    )
+            items: list[dict[str, Any]] = [
+                backend_future.result(),
+                frontend_future.result(),
+            ]
 
         for name in _erp_system_names(paths):
             target_branch = _erp_push_branch(name)
@@ -662,9 +828,12 @@ class GitSyncManager:
             raise GitSyncError("系统名不能为空")
         self._begin("pull", key)
         try:
+            paths = WorkspacePaths.resolve(erp_root)
             if key == LOCAL_SYSTEM_KEY:
-                return self._pull_local(WorkspacePaths.resolve(erp_root))
-            return self._pull_erp(key, WorkspacePaths.resolve(erp_root))
+                return self._pull_local(paths)
+            if key in CODE_REPO_KEYS:
+                return self._pull_code(key, paths)
+            return self._pull_erp(key, paths)
         finally:
             self._end()
 
@@ -1055,6 +1224,139 @@ class GitSyncManager:
             "created": created,
             "mergeable": mergeable,
             "message": message,
+            "logs": logs,
+        }
+
+    def _pull_single_code_repo(self, repo: Path, label: str) -> dict[str, Any]:
+        if not _is_git_repo(repo):
+            raise GitSyncError(f"{label} 不是 Git 仓库")
+        original_branch = _current_branch(repo)
+        logs: list[str] = [f"{label} 当前分支: {original_branch}"]
+        stash_created = False
+
+        try:
+            refs = _pull_fetch_refs(repo)
+            fetch = (
+                _fetch_origin_refs(repo, *refs)
+                if refs
+                else _fetch_origin_ref(repo)
+            )
+            if not fetch:
+                raise GitSyncError(f"{label}：fetch origin 失败")
+            logs.append(f"已 fetch origin（{' '.join(refs) or 'default'}）")
+
+            target = _origin_pull_ref(repo)
+            if not target:
+                raise GitSyncError(f"{label}：找不到可拉取的 origin 分支")
+            logs.append(f"拉取目标: {target}")
+
+            stash_created, stash_logs = _stash_wip(
+                repo, f"wip-before-pull-{label}-{datetime.now().strftime('%Y%m%d%H%M%S')}"
+            )
+            logs.extend(stash_logs)
+
+            merge = _run_git(["merge", "--no-edit", target], repo, check=False)
+            if not merge.ok:
+                _run_git(["merge", "--abort"], repo, check=False)
+                conflicts = _run_git(
+                    ["diff", "--name-only", "--diff-filter=U"], repo, check=False
+                )
+                files = [line for line in conflicts.stdout.splitlines() if line.strip()]
+                detail = merge.text
+                if files:
+                    raise GitSyncError(
+                        f"{label}：合并 {target} 发生冲突，请本地解决后重试",
+                        details="\n".join(files),
+                        code="conflict",
+                    )
+                if "untracked working tree files would be overwritten" in detail:
+                    raise GitSyncError(
+                        f"{label}：合并失败，本地未跟踪文件与远端冲突",
+                        details=detail,
+                        code="untracked_conflict",
+                    )
+                raise GitSyncError(f"{label}：合并 {target} 失败", details=detail)
+
+            if merge.stdout.strip():
+                logs.append(merge.stdout.strip())
+            else:
+                logs.append(f"已合并 {target}（或已是最新）")
+
+            if stash_created:
+                restored, restore_msg = _restore_stash(repo)
+                logs.append(restore_msg)
+                if not restored:
+                    logs.append("提示：如不需要 stash 中的旧文件，可执行 git stash drop")
+
+            return {
+                "ok": True,
+                "label": label,
+                "repo": str(repo),
+                "branch": _current_branch(repo),
+                "logs": logs,
+            }
+        except Exception:
+            if stash_created:
+                _restore_stash(repo)
+            raise
+
+    def _pull_code(self, system_key: str, paths: WorkspacePaths) -> dict[str, Any]:
+        root = _code_repo_root(system_key, paths)
+        repos = _nested_git_repos(root)
+        if not repos:
+            raise GitSyncError(
+                f"{system_key} 目录不存在" if not root.exists() else f"{system_key} 未找到 Git 仓库"
+            )
+
+        logs: list[str] = []
+        failed: list[str] = []
+        succeeded = 0
+
+        def pull_one(repo: Path) -> tuple[str, str, dict[str, Any] | GitSyncError]:
+            label = repo.name if repo != root else system_key
+            try:
+                return ("ok", label, self._pull_single_code_repo(repo, label))
+            except GitSyncError as exc:
+                return ("err", label, exc)
+
+        if len(repos) == 1:
+            outcomes = [pull_one(repos[0])]
+        else:
+            with ThreadPoolExecutor(max_workers=min(8, len(repos))) as pool:
+                outcomes = list(pool.map(pull_one, repos))
+
+        for status, label, payload in outcomes:
+            if status == "ok":
+                succeeded += 1
+                logs.extend((payload.get("logs") if isinstance(payload, dict) else None) or [])
+            else:
+                failed.append(label)
+                logs.append(f"{label} 失败: {payload}")
+                details = getattr(payload, "details", "")
+                if details:
+                    logs.append(details)
+
+        if failed:
+            raise GitSyncError(
+                f"{system_key}：{succeeded}/{len(repos)} 个仓库已同步，失败：{'、'.join(failed)}",
+                details="\n".join(logs),
+                code="conflict" if any("冲突" in line for line in logs) else "git_error",
+            )
+
+        branch = _current_branch(repos[0]) if len(repos) == 1 else "、".join(
+            _dedupe_keep_order([_current_branch(repo) for repo in repos])
+        )
+        return {
+            "ok": True,
+            "action": "pull",
+            "system": system_key,
+            "repo": system_key,
+            "branch": branch,
+            "message": (
+                f"{system_key}：已同步 origin 最新到当前分支"
+                if len(repos) == 1
+                else f"{system_key}：已同步 {len(repos)} 个子仓库到 origin 最新"
+            ),
             "logs": logs,
         }
 
