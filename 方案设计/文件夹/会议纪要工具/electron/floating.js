@@ -15,11 +15,14 @@ let state = 'idle';
 let mediaStream = null;
 /** @type {MediaRecorder|null} */
 let mediaRecorder = null;
-let chunks = [];
 let startedAt = null;
 let elapsedBeforePause = 0;
 let tickTimer = null;
 let sessionStartedAt = null;
+let appendQueue = Promise.resolve();
+/** 边录边写失败时，结束仍可用内存中的分片补写完整录音 */
+let recordedChunks = [];
+let liveAppendFailed = false;
 
 const STATUS_TITLE = {
   idle: '待机',
@@ -144,28 +147,72 @@ function pickMimeType() {
   return candidates.find((t) => MediaRecorder.isTypeSupported(t)) || '';
 }
 
+function enqueueAppend(blob) {
+  if (!blob || blob.size <= 0) return;
+  recordedChunks.push(blob);
+  appendQueue = appendQueue
+    .then(async () => {
+      const audioBytes = await blob.arrayBuffer();
+      const result = await window.meetingApi.appendChunk({ audioBytes });
+      if (!result?.ok) throw new Error(result?.error || '写入录音失败');
+    })
+    .catch((err) => {
+      liveAppendFailed = true;
+      console.warn('[meeting-recorder] 边录边写失败:', err?.message || err);
+    });
+}
+
+async function buildFallbackAudioBytes() {
+  if (!recordedChunks.length) return null;
+  const blob = new Blob(recordedChunks, { type: recordedChunks[0]?.type || 'audio/webm' });
+  if (!blob.size) return null;
+  return blob.arrayBuffer();
+}
+
+async function flushPendingAppends() {
+  try {
+    await appendQueue;
+  } catch (_) {
+    /* already logged */
+  }
+}
+
 async function handleStart() {
   if (state === 'recording' || state === 'transcribing') return;
+  let createdSession = false;
   try {
     await ensureMic();
+    const mimeType = pickMimeType();
     if (state === 'idle') {
       sessionStartedAt = new Date();
-      await window.meetingApi.beginSession({ startedAt: sessionStartedAt.toISOString() });
-      chunks = [];
+      await window.meetingApi.beginSession({
+        startedAt: sessionStartedAt.toISOString(),
+        mimeType: mimeType || 'audio/webm',
+      });
+      createdSession = true;
       elapsedBeforePause = 0;
+      appendQueue = Promise.resolve();
+      recordedChunks = [];
+      liveAppendFailed = false;
     }
-    const mimeType = pickMimeType();
     mediaRecorder = mimeType
       ? new MediaRecorder(mediaStream, { mimeType })
       : new MediaRecorder(mediaStream);
     mediaRecorder.ondataavailable = (e) => {
-      if (e.data && e.data.size > 0) chunks.push(e.data);
+      if (e.data && e.data.size > 0) enqueueAppend(e.data);
     };
     mediaRecorder.start(1000);
     startedAt = Date.now();
     setState('recording');
     startTick();
   } catch (err) {
+    if (createdSession) {
+      try {
+        await window.meetingApi.cancelSession();
+      } catch (_) {
+        /* ignore */
+      }
+    }
     alert(`无法开始录音：${err.message || err}`);
     setState('idle');
   }
@@ -212,18 +259,21 @@ async function handleStop() {
   await new Promise((resolve) => {
     mediaRecorder.onstop = resolve;
     try {
+      mediaRecorder.requestData?.();
       mediaRecorder.stop();
     } catch (_) {
       resolve();
     }
   });
-
-  const mime = mediaRecorder.mimeType || 'audio/webm';
-  const blob = new Blob(chunks, { type: mime });
-  const audioBytes = await blob.arrayBuffer();
+  await flushPendingAppends();
 
   try {
-    const result = await window.meetingApi.saveAndTranscribe({ audioBytes, durationMs });
+    const payload = { durationMs };
+    if (liveAppendFailed) {
+      const audioBytes = await buildFallbackAudioBytes();
+      if (audioBytes) payload.audioBytes = audioBytes;
+    }
+    const result = await window.meetingApi.saveAndTranscribe(payload);
     if (!result.ok) {
       throw new Error(result.error || '转写失败');
     }
@@ -262,10 +312,12 @@ function resetToIdle() {
   }
   mediaStream = null;
   mediaRecorder = null;
-  chunks = [];
   startedAt = null;
   elapsedBeforePause = 0;
   sessionStartedAt = null;
+  appendQueue = Promise.resolve();
+  recordedChunks = [];
+  liveAppendFailed = false;
   stopTick();
   timerEl.textContent = '00:00';
   setState('idle');
@@ -294,11 +346,13 @@ async function handleClose() {
     if (mediaRecorder && mediaRecorder.state !== 'inactive') {
       mediaRecorder.onstop = null;
       try {
+        mediaRecorder.requestData?.();
         mediaRecorder.stop();
       } catch (_) {
         /* ignore */
       }
     }
+    await flushPendingAppends();
     await window.meetingApi.cancelSession();
     resetToIdle();
     return;

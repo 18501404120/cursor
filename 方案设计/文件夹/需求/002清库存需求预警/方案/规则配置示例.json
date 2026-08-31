@@ -1,0 +1,347 @@
+{
+  "rule_pack": {
+    "id": "eu-default",
+    "name": "欧洲站点-清库存预警默认包",
+    "version": "1.0.0",
+    "status": "draft",
+    "scope": {
+      "region": "EU",
+      "marketplaces": ["amazon_eu"],
+      "aggregation": "shop"
+    },
+    "engine": {
+      "horizon_weeks": 16,
+      "focus_weeks": 8,
+      "forecast_source": "approved",
+      "timezone": "Europe/Berlin",
+      "run_cron": "0 7 * * *"
+    }
+  },
+  "default_tier": "P1",
+  "tiers": [
+    {
+      "code": "P0",
+      "name": "头部品",
+      "match": { "product_position_in": ["P0", "头部品", "高定位"] },
+      "healthy_min_days": 22,
+      "healthy_max_days": 35,
+      "prefer_stockout_over_stagnation": false,
+      "recovery": {
+        "when": "next_week_dos >= healthy_min_days",
+        "downgrade_levels": 1
+      },
+      "stockout_bands": [
+        { "level": "high", "min_days": 0, "max_days": 7 },
+        { "level": "mid", "min_days": 8, "max_days": 14 },
+        { "level": "low", "min_days": 15, "max_days": 21 }
+      ]
+    },
+    {
+      "code": "P1",
+      "name": "腰部品",
+      "match": { "product_position_in": ["P1", "腰部品"] },
+      "healthy_min_days": 15,
+      "healthy_max_days": 28,
+      "prefer_stockout_over_stagnation": false,
+      "recovery": {
+        "when": "next_week_dos >= healthy_min_days",
+        "downgrade_levels": 1
+      },
+      "stockout_bands": [
+        { "level": "high", "min_days": 0, "max_days": 7 },
+        { "level": "mid", "min_days": 8, "max_days": 14 }
+      ]
+    },
+    {
+      "code": "P2",
+      "name": "尾部品",
+      "match": { "product_position_in": ["P2", "腰尾部", "尾部品"] },
+      "healthy_min_days": 8,
+      "healthy_max_days": 21,
+      "prefer_stockout_over_stagnation": true,
+      "recovery": {
+        "when": "next_week_dos >= healthy_min_days",
+        "downgrade_levels": 1
+      },
+      "stockout_bands": [
+        { "level": "high", "min_days": 0, "max_days": 7 }
+      ]
+    }
+  ],
+  "stagnation": {
+    "require_dos_over_healthy": false,
+    "deadline_days": 180,
+    "age_bands": [
+      {
+        "level": "velocity_anomaly",
+        "min_age_days": 0,
+        "max_age_days": 119,
+        "require_dos_over_healthy": true,
+        "action": "REVIEW_REPLENISH"
+      },
+      {
+        "level": "mid",
+        "min_age_days": 120,
+        "max_age_days": 149,
+        "action": "PROMOTE_HIGH_MARGIN"
+      },
+      {
+        "level": "high",
+        "min_age_days": 150,
+        "max_age_days": 179,
+        "action": "CLEARANCE"
+      },
+      {
+        "level": "overdue",
+        "min_age_days": 180,
+        "max_age_days": null,
+        "action": "FORCE_CLEARANCE"
+      }
+    ]
+  },
+  "logistics": {
+    "lead_time_source": "calculator",
+    "pull_max_days": 7,
+    "methods": [
+      {
+        "code": "NONE",
+        "name": "空运不可达-仅现货手段",
+        "fallback_min_days": 0,
+        "fallback_max_days": 27
+      },
+      {
+        "code": "AIR",
+        "name": "空运",
+        "fallback_min_days": 28,
+        "fallback_max_days": 56
+      },
+      {
+        "code": "RAIL",
+        "name": "卡航",
+        "fallback_min_days": 57,
+        "fallback_max_days": 70
+      },
+      {
+        "code": "SEA",
+        "name": "普船",
+        "fallback_min_days": 71,
+        "fallback_max_days": 400
+      }
+    ]
+  },
+  "actions": [
+    {
+      "code": "PULL_INBOUND",
+      "name": "提拉下一批在途",
+      "cost_rank": 10,
+      "when": {
+        "stockout_level_in": ["low", "mid", "high"],
+        "has_inbound_after_week": true
+      },
+      "sla_hours": { "low": 0, "mid": 48, "high": 24 },
+      "output": ["pull_qty", "next_pc_id", "eta", "inbound_follow_url"]
+    },
+    {
+      "code": "TRANSFER_APP",
+      "name": "调拨APP海外库存",
+      "cost_rank": 20,
+      "when": {
+        "stockout_level_in": ["low", "mid", "high"],
+        "next_week_recovered": false,
+        "inv_app_overseas_gt": 0
+      },
+      "sla_hours": { "low": 0, "mid": 168, "high": 24 },
+      "output": ["transfer_qty", "dos_after_transfer"]
+    },
+    {
+      "code": "PRICE_CONTROL",
+      "name": "控价停促",
+      "cost_rank": 30,
+      "when": {
+        "stockout_level_in": ["mid", "high"],
+        "next_week_recovered": false,
+        "inv_app_overseas_lte": 0,
+        "not_in_campaign": true
+      },
+      "params": {
+        "mode": "restore_list_price",
+        "exclude_campaign_types": ["flash_sale", "prime", "bfcm"]
+      },
+      "sla_hours": { "mid": 168, "high": 24 },
+      "output": ["price_from", "price_to"]
+    },
+    {
+      "code": "AIR_SHIP",
+      "name": "空运衔接",
+      "cost_rank": 40,
+      "when": {
+        "stockout_level_in": ["high"],
+        "next_week_recovered": false,
+        "method_reachable": "AIR",
+        "air_gate_pass": true
+      },
+      "sla_hours": { "high": 24 },
+      "output": ["air_qty", "air_cost", "air_margin"]
+    },
+    {
+      "code": "RAIL_SHIP",
+      "name": "卡航衔接",
+      "cost_rank": 50,
+      "when": {
+        "stockout_level_in": ["high"],
+        "next_week_recovered": false,
+        "method_reachable": "RAIL"
+      },
+      "sla_hours": { "high": 48 },
+      "output": ["rail_qty", "rail_vs_sea_cost"]
+    },
+    {
+      "code": "TRANSFER_DOMESTIC",
+      "name": "国内其他渠道借货并发出",
+      "cost_rank": 60,
+      "when": {
+        "stockout_level_in": ["high"],
+        "next_week_recovered": false,
+        "inv_domestic_lte": 0,
+        "inv_other_channel_gt": 0
+      },
+      "then_connect": ["AIR_SHIP", "RAIL_SHIP"],
+      "sla_hours": { "high": 24 },
+      "output": ["borrow_qty", "gap_qty"]
+    },
+    {
+      "code": "SEA_REPLENISH",
+      "name": "按缺口普船加发",
+      "cost_rank": 65,
+      "when": {
+        "stockout_level_in": ["low", "mid", "high"],
+        "method_reachable": "SEA",
+        "inv_domestic_gt": 0
+      },
+      "params": {
+        "qty_formula": "max(0, (A - DOS_week) * daily_forecast)",
+        "forbid_no_alert_if_domestic_positive": true
+      },
+      "output": ["replenish_qty", "gap_qty"]
+    },
+    {
+      "code": "NEW_PO",
+      "name": "建议补采购订单",
+      "cost_rank": 70,
+      "when": {
+        "stockout_level_in": ["mid", "high"],
+        "method_reachable": "SEA",
+        "inv_domestic_lte": 0,
+        "open_po_covers_gap": false
+      },
+      "output": ["suggest_po_qty"]
+    },
+    {
+      "code": "REVIEW_REPLENISH",
+      "name": "Review备货与预测",
+      "cost_rank": 80,
+      "signal": "stagnation",
+      "when": { "stagnation_level_in": ["velocity_anomaly"] },
+      "output": ["excess_qty"]
+    },
+    {
+      "code": "PROMOTE_HIGH_MARGIN",
+      "name": "高利润动销",
+      "cost_rank": 81,
+      "signal": "stagnation",
+      "when": { "stagnation_level_in": ["mid"] },
+      "params": { "tactics": ["bundle", "multi_discount", "gift"] },
+      "output": ["aged_qty", "scope"]
+    },
+    {
+      "code": "CLEARANCE",
+      "name": "清库活动",
+      "cost_rank": 82,
+      "signal": "stagnation",
+      "when": { "stagnation_level_in": ["high"] },
+      "output": ["aged_qty", "scope"]
+    },
+    {
+      "code": "FORCE_CLEARANCE",
+      "name": "超期强制清库",
+      "cost_rank": 83,
+      "signal": "stagnation",
+      "when": { "stagnation_level_in": ["overdue"] },
+      "output": ["overdue_qty", "overdue_amount"]
+    }
+  ],
+  "air_gate": {
+    "require_stockout_level": ["high"],
+    "require_next_week_not_recovered": true,
+    "require_air_reachable": true,
+    "require_positive_margin": true,
+    "if_margin_unknown": "need_approval",
+    "approval_role": "ops_owner",
+    "monthly_air_qty_cap": null,
+    "sea_ratio_is_hard_block": false
+  },
+  "po_policy": {
+    "overdue_when": "promised_date < today",
+    "too_late_when": "eta > date_when_dos_hits_A",
+    "severity_if_high_stockout": "high",
+    "severity_else": "mid"
+  },
+  "seasonal": {
+    "match": { "seasonal_flag": true },
+    "in_season_run_weekly_dos": true,
+    "in_season_months": [10, 11, 12],
+    "inventory_formula": "overseas_on_hand + inbound + app_transferable",
+    "compare_to": "remaining_approved_fcs_to_season_end",
+    "season_end": "12-31",
+    "checkpoints": [
+      {
+        "date": "09-01",
+        "over": { "signal": "velocity_anomaly", "level": "low" },
+        "under": { "signal": "none" }
+      },
+      {
+        "date": "10-01",
+        "over": { "signal": "stagnation", "level": "low" },
+        "under": { "signal": "stockout", "level": "low", "tag": "bfcm" }
+      },
+      {
+        "date": "10-12",
+        "over": { "signal": "stagnation", "level": "mid", "action": "APPLY_BFCM_RESOURCE" },
+        "under": { "signal": "stockout", "level": "mid", "tag": "bfcm" }
+      },
+      {
+        "date": "11-01",
+        "over": { "signal": "stagnation", "level": "mid" },
+        "under": { "signal": "stockout", "level": "mid", "tag": "bfcm" }
+      },
+      {
+        "date": "11-30",
+        "over": { "signal": "stagnation", "level": "high", "action": "XMAS_CLEARANCE" },
+        "under": { "signal": "none" }
+      },
+      {
+        "date": "12-02",
+        "over": { "signal": "stagnation", "level": "high", "action": "XMAS_CLEARANCE" },
+        "under": { "signal": "none" }
+      },
+      {
+        "date": "12-15",
+        "over": { "signal": "hold_to_next_year", "level": "high" },
+        "under": { "signal": "none" }
+      }
+    ]
+  },
+  "alert_lifecycle": {
+    "upsert_key": ["shop_id", "sku", "signal_type"],
+    "auto_close_after_stable_runs": 2,
+    "close_look_ahead_weeks": 4,
+    "close_when_stagnation_below": "mid",
+    "bind_rule_pack_version": true
+  },
+  "notify": {
+    "high": { "channels": ["workbench", "instant"], "role": "shop_ops" },
+    "mid": { "channels": ["workbench", "daily_digest"], "role": "shop_ops" },
+    "low": { "channels": ["workbench"], "role": "planner" },
+    "air_suggestion_cc": "ops_owner"
+  }
+}

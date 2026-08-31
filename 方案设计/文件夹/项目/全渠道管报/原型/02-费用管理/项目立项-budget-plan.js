@@ -3,32 +3,47 @@
  * 挂载：ProjectBudgetPlan.init({ tbodyId, onChange })
  */
 (function (global) {
-  var STORAGE_KEY = "project_create_budget_v13";
+  var STORAGE_KEY = "project_create_budget_v16";
+  var LEGACY_BUDGET_KEYS = [
+    "project_create_budget_v15",
+    "project_create_budget_v14",
+    "project_create_budget_v13",
+    "project_create_budget_v12",
+    "project_create_budget_v11",
+    "project_create_budget_v10",
+    "project_create_budget_v9",
+    "project_create_budget_v8",
+    "project_create_budget_v6",
+    "project_create_budget_v5"
+  ];
   /** 旧版 BP 部门名，已废弃，加载时清空 */
   var LEGACY_BP_DEPT_NAMES = { "智能照明": true, "智能家电": true };
-  var FUTURE_ALLOC_LOCK_TITLE = "收益日期范围含未来日期，已自动设为不分摊且不可修改";
 
   /** 部门树形下拉实例池 */
   var deptPickerInstances = [];
   var deptPickerReady = false;
-  var MARKETING_TYPES = [
-    "自主营销-产品营销",
-    "自主营销-品牌营销",
-    "联合营销-产品营销",
-    "联合营销-品牌营销"
-  ];
-  var BUDGET_TYPES = [
-    "海外社媒投放",
-    "红人营销（KOL）",
-    "媒体公关（PR）",
-    "视觉素材制作",
-    "地标广告",
-    "大型展会",
-    "代言与赞助",
-    "发布会"
-  ];
+  var BRAND_FEE_ROOT = "T040201";
+  var BRAND_FEE_SELECT_OPTS = {
+    mode: "code",
+    leavesOnly: true,
+    rootCode: BRAND_FEE_ROOT,
+    shortPathFrom: BRAND_FEE_ROOT,
+    placeholder: "请选择",
+    allowEmpty: true,
+    panelWidth: 420,
+    maxPanelHeight: 360,
+    showCode: false
+  };
+  var LEGACY_BRAND_FEE_L2 = {
+    "自主营销-产品营销": "T0402010101",
+    "自主营销-品牌营销": "T0402010102",
+    "自主营销-基础固定花费": "T0402010103",
+    "联合营销-产品营销": "T04020102",
+    "联合营销-品牌营销": "T04020102",
+    "联合营销-基础固定花费": "T04020102",
+    "联合营销": "T04020102"
+  };
   var CURRENCY_OPTIONS = ["USD", "CNY", "EUR", "GBP", "JPY", "CAD", "AUD"];
-  var ALLOC_MODE_OPTIONS = ["分摊", "不分摊"];
   /** 来自《销售主数据索引_v1》原型子集；fetch 成功后替换为全量 model 列表 */
   var MODEL_OPTIONS = ["H6065", "H6076", "H617E", "H6672", "H6840", "B5040", "H1310", "H70B1", "B601B"];
   var MODEL_INDEX_PATHS = [
@@ -93,165 +108,21 @@
   var activeTbodyId = "tbodyBudget";
   var cachedDefaults = null;
 
-  /** 当天 YYYY-MM-DD（本地时区），用于判定收益区间是否含未来 */
-  function todayYmd() {
-    var d = new Date();
-    var m = d.getMonth() + 1;
-    var day = d.getDate();
-    return (
-      d.getFullYear() +
-      "-" +
-      (m < 10 ? "0" : "") +
-      m +
-      "-" +
-      (day < 10 ? "0" : "") +
-      day
-    );
-  }
-
   function currentYearDateRange() {
     var y = new Date().getFullYear();
     return { start: y + "-01-01", end: y + "-12-31" };
   }
 
-  /**
-   * 收益日期范围是否含未来日：结束日晚于今天则视为未来区间。
-   * 仅本预算页生效；日期未填完整时不锁定。
-   */
-  function isFutureRevenueRange(start, end) {
-    var s = String(start || "").trim();
-    var e = String(end || "").trim();
-    if (!s || !e) return false;
-    return e > todayYmd();
-  }
-
-  function getRowAllocMode(row) {
-    if (!row) return "";
-    var m = String(row.allocMode || "").trim();
-    return m === "分摊" || m === "不分摊" ? m : "";
-  }
-
-  /** 本页默认不分摊；含未来收益日时强制不分摊 */
-  function resolveAllocMode(start, end, current) {
-    if (isFutureRevenueRange(start, end)) {
-      return { mode: "不分摊", locked: true };
-    }
-    var m = String(current || "").trim();
-    if (m !== "分摊" && m !== "不分摊") m = "不分摊";
-    return { mode: m, locked: false };
-  }
-
-  function getAllocModeFromTr(tr) {
-    if (!tr) return "";
-    var sel = tr.querySelector(".js-budget-alloc-mode");
-    if (!sel) return "";
-    var m = String(sel.value || "").trim();
-    return m === "分摊" || m === "不分摊" ? m : "";
-  }
-
-  function allocModeSelectHtml(value, locked) {
-    var v = String(value || "").trim();
-    if (v !== "分摊" && v !== "不分摊") v = "不分摊";
-    var isAlloc = v === "分摊";
-    var isNoAlloc = v === "不分摊";
-    var lockAttr = locked
-      ? ' disabled title="' + FUTURE_ALLOC_LOCK_TITLE + '"'
-      : "";
-    return (
-      '<select class="js-budget-alloc-mode" aria-required="true" aria-label="分摊模式"' +
-      lockAttr +
-      ">" +
-      '<option value="分摊"' + (isAlloc ? " selected" : "") + ">分摊</option>" +
-      '<option value="不分摊"' + (isNoAlloc ? " selected" : "") + ">不分摊</option>" +
-      "</select>"
-    );
-  }
-
-  /** 按收益日期同步分摊模式锁定（含未来 → 强制不分摊且不可改） */
-  function applyRevenueDateAllocRules(tr, opts) {
-    opts = opts || {};
-    if (!tr) return;
-    var id = tr.dataset.id;
-    var start = "";
-    var end = "";
-    if (id && rowPickers[id] && rowPickers[id].get) {
-      var dr = rowPickers[id].get();
-      start = dr.start || "";
-      end = dr.end || "";
-    }
-    var sel = tr.querySelector(".js-budget-alloc-mode");
-    if (!sel) return;
-    var resolved = resolveAllocMode(start, end, sel.value);
-    var prev = String(sel.value || "").trim();
-    if (resolved.locked) {
-      if (opts.notify && prev === "分摊") {
-        toast("收益日期含未来区间，已自动切换为不分摊且不可修改");
-      }
-      sel.value = "不分摊";
-      sel.disabled = true;
-      sel.title = FUTURE_ALLOC_LOCK_TITLE;
-    } else {
-      sel.disabled = false;
-      sel.removeAttribute("title");
-      if (prev !== "分摊" && prev !== "不分摊") sel.value = "不分摊";
-    }
-    if (id) enforceRowAllocModeRules(id);
-  }
-
-  function enforceSingleMsf(msf, mode) {
-    if (!msf || mode !== "不分摊") return;
-    var vals = msf.getValues ? msf.getValues() : [];
-    if (vals.length > 1) msf.setValues([vals[vals.length - 1]]);
-  }
-
-  function enforceSingleSc(sc, mode) {
-    if (!sc || mode !== "不分摊") return;
-    var vals = sc.getValues ? sc.getValues() : [];
-    if (vals.length > 1) sc.setValues([vals[vals.length - 1]]);
-  }
-
-  function enforceRowAllocModeRules(id) {
-    var tbody = document.getElementById(activeTbodyId);
-    if (!tbody) return;
-    var tr = tbody.querySelector('tr[data-id="' + id + '"]');
-    if (!tr) return;
-    var mode = getAllocModeFromTr(tr);
-    var msf = rowMsfs[id];
-    if (!msf || mode !== "不分摊") return;
-    ["model", "sku", "region", "country", "channel", "store"].forEach(function (key) {
-      if (msf[key]) enforceSingleMsf(msf[key], mode);
-    });
-    if (msf.sc) enforceSingleSc(msf.sc, mode);
-  }
-
-  function applyAllocModeToRowMsfs() {
-    Object.keys(rowMsfs).forEach(function (id) {
-      enforceRowAllocModeRules(id);
-    });
-  }
-
   function makeMsfOnChange(id, key, extraFn) {
     return function () {
-      var tbody = document.getElementById(activeTbodyId);
-      var tr = tbody && tbody.querySelector('tr[data-id="' + id + '"]');
-      var mode = getAllocModeFromTr(tr);
-      if (mode === "不分摊" && rowMsfs[id] && rowMsfs[id][key]) {
-        enforceSingleMsf(rowMsfs[id][key], mode);
-      }
       if (extraFn) extraFn();
-      if (onChangeCb) onChangeCb(loadAll());
+      if (onChangeCb) onChangeCb(syncListFromDom(activeTbodyId));
     };
   }
 
   function makeScOnChange(id) {
     return function () {
-      var tbody = document.getElementById(activeTbodyId);
-      var tr = tbody && tbody.querySelector('tr[data-id="' + id + '"]');
-      var mode = getAllocModeFromTr(tr);
-      if (mode === "不分摊" && rowMsfs[id] && rowMsfs[id].sc) {
-        enforceSingleSc(rowMsfs[id].sc, mode);
-      }
-      if (onChangeCb) onChangeCb(loadAll());
+      if (onChangeCb) onChangeCb(syncListFromDom(activeTbodyId));
     };
   }
 
@@ -267,9 +138,9 @@
           id: "budget-sample-na-2025",
           revenueDateStart: "2025-01-01",
           revenueDateEnd: "2025-12-31",
-          marketingType: "自主营销-产品营销",
-          budgetType: "海外社媒投放",
-          allocMode: "不分摊",
+          brandFeeCode: "T04020101010101",
+          brandFeeName: "媒介投放",
+          brandFeePath: "自主营销 / 产品营销 / 重点新品上市项目 / 媒介投放",
           deptCode: "D102_AMZ",
           dept: "亚马逊平台 · Govee",
           models: ["H6065"],
@@ -278,6 +149,7 @@
           sceneCategories: [{ scene: "观影", category: "TV灯带" }],
           skus: ["H6065301", "H6076113"],
           npTag: "2025",
+          regions: ["NA"],
           region: "NA",
           countries: ["美国", "加拿大"],
           channels: ["亚马逊"],
@@ -289,9 +161,9 @@
           id: "budget-sample-prime-day",
           revenueDateStart: "2025-06-01",
           revenueDateEnd: "2025-07-31",
-          marketingType: "联合营销-品牌营销",
-          budgetType: "大型展会",
-          allocMode: "不分摊",
+          brandFeeCode: "T04020102",
+          brandFeeName: "联合营销",
+          brandFeePath: "联合营销",
           deptCode: "D102_BRAND",
           dept: "品牌中心",
           models: ["H617E"],
@@ -300,6 +172,7 @@
           sceneCategories: [{ scene: "居家", category: "灯带" }],
           skus: ["H617E3D1"],
           npTag: "",
+          regions: ["EU"],
           region: "EU",
           countries: ["德国", "法国", "意大利"],
           channels: ["亚马逊"],
@@ -311,9 +184,9 @@
           id: "budget-sample-env-apac",
           revenueDateStart: "2025-03-01",
           revenueDateEnd: "2025-12-31",
-          marketingType: "自主营销-产品营销",
-          budgetType: "红人营销（KOL）",
-          allocMode: "不分摊",
+          brandFeeCode: "T04020101010302",
+          brandFeeName: "红人营销（KOL）",
+          brandFeePath: "自主营销 / 产品营销 / 日常营销（AO） / 红人营销（KOL）",
           deptCode: "D109_GL",
           dept: "Goveelife",
           models: ["H7170"],
@@ -325,8 +198,9 @@
           ],
           skus: ["H7170301", "H7170302"],
           npTag: "2026",
+          regions: ["APAC", "NA"],
           region: "APAC",
-          countries: ["日本", "澳大利亚"],
+          countries: ["日本", "澳大利亚", "美国"],
           channels: ["亚马逊", "Shopify"],
           stores: ["亚马逊_JP", "Shopify_US"],
           amount: 600000,
@@ -364,20 +238,98 @@
     );
   }
 
-  function marketingTypeSelectHtml(value) {
+  function findFeeChildByName(parentCode, name) {
+    if (!global.FeeItemMaster || typeof global.FeeItemMaster.getAll !== "function") return null;
+    var all = global.FeeItemMaster.getAll() || [];
+    for (var i = 0; i < all.length; i++) {
+      if (all[i].parentCode === parentCode && all[i].name === name) return all[i];
+    }
+    return null;
+  }
+
+  function formatBrandFeeLabel(code) {
+    if (!code) return "";
+    if (global.FeeItemMaster && typeof global.FeeItemMaster.getShortPath === "function") {
+      return global.FeeItemMaster.getShortPath(code, BRAND_FEE_ROOT) || "";
+    }
+    return "";
+  }
+
+  function isBrandFeeLeaf(code) {
+    var c = String(code || "").trim();
+    if (!c || c.indexOf(BRAND_FEE_ROOT) !== 0) return false;
+    if (!global.FeeItemMaster) return false;
+    if (typeof global.FeeItemMaster.getByCode === "function" && !global.FeeItemMaster.getByCode(c)) return false;
+    if (typeof global.FeeItemMaster.hasChildren === "function") return !global.FeeItemMaster.hasChildren(c);
+    var leaves = typeof global.FeeItemMaster.getLeafItems === "function" ? global.FeeItemMaster.getLeafItems() : [];
+    return leaves.some(function (item) { return item.code === c; });
+  }
+
+  function migrateBrandFeeCode(row) {
+    var code = String(row.brandFeeCode || "").trim();
+    if (code.indexOf("T04020102") === 0) return "T04020102";
+    if (isBrandFeeLeaf(code)) return code;
+    var mt = String(row.marketingType || "");
+    if (mt.indexOf("联合营销") === 0) return "T04020102";
+    var scene = String(row.marketingScene || "");
+    var typ = String(row.budgetType || "");
+    var start = LEGACY_BRAND_FEE_L2[mt];
+    if (!start) return String(row.brandFeeCode || "").trim();
+    if (mt.indexOf("基础固定花费") >= 0) {
+      var leaf = findFeeChildByName(start, scene);
+      return leaf ? leaf.code : "";
+    }
+    var sceneNode = findFeeChildByName(start, scene);
+    if (!sceneNode) return "";
+    if (!typ) {
+      if (global.FeeItemMaster && typeof global.FeeItemMaster.hasChildren === "function" && !global.FeeItemMaster.hasChildren(sceneNode.code)) {
+        return sceneNode.code;
+      }
+      return "";
+    }
+    var typeNode = findFeeChildByName(sceneNode.code, typ);
+    return typeNode ? typeNode.code : "";
+  }
+
+  function decorateBrandFeeFields(row) {
+    row.brandFeeCode = migrateBrandFeeCode(row);
+    row.brandFeeName = "";
+    row.brandFeePath = "";
+    if (row.brandFeeCode && global.FeeItemMaster) {
+      if (typeof global.FeeItemMaster.getName === "function") {
+        row.brandFeeName = global.FeeItemMaster.getName(row.brandFeeCode) || "";
+      }
+      row.brandFeePath = formatBrandFeeLabel(row.brandFeeCode);
+    }
+    if (!row.brandFeeName && row.budgetType) row.brandFeeName = String(row.budgetType);
+    return row;
+  }
+
+  function brandFeeSelectHtml(row) {
+    row = row || {};
+    var code = String(row.brandFeeCode || "").trim();
+    var label = row.brandFeePath || formatBrandFeeLabel(code) || row.brandFeeName || "请选择";
     return (
-      '<select class="js-marketing-type" required aria-required="true">' +
-      selectOptionsHtml(MARKETING_TYPES, value) +
-      "</select>"
+      '<span class="ctl-wrap budget-brand-fee-wrap' + (code ? " has-val" : "") + '">' +
+      '<select class="js-brand-fee ctl" required aria-required="true">' +
+      '<option value="">请选择</option>' +
+      (code ? '<option value="' + escapeHtml(code) + '" selected>' + escapeHtml(label) + "</option>" : "") +
+      "</select>" +
+      "</span>"
     );
   }
 
-  function budgetTypeSelectHtml(value) {
-    return (
-      '<select class="js-budget-type">' +
-      selectOptionsHtml(BUDGET_TYPES, value) +
-      "</select>"
-    );
+  function wireBrandFeeSelects(tbody) {
+    if (!tbody || !global.FeeItemMaster) return;
+    var ready = typeof global.FeeItemMaster.getAll === "function" && (global.FeeItemMaster.getAll() || []).length > 0;
+    tbody.querySelectorAll(".js-brand-fee").forEach(function (sel) {
+      if (ready && typeof global.FeeItemMaster.syncSelect === "function") {
+        global.FeeItemMaster.syncSelect(sel, BRAND_FEE_SELECT_OPTS);
+      }
+      if (typeof global.FeeItemMaster.mountTreeSelect === "function") {
+        global.FeeItemMaster.mountTreeSelect(sel, BRAND_FEE_SELECT_OPTS);
+      }
+    });
   }
 
   function departmentSelectHtml(row) {
@@ -848,6 +800,8 @@
     if (!row.budgetType && row.projectName) {
       row.budgetType = "";
     }
+    if (row.marketingScene == null) row.marketingScene = "";
+    decorateBrandFeeFields(row);
     delete row.projectName;
     if (!row.revenueDateStart && row.monthStart) {
       row.revenueDateStart = String(row.monthStart).length === 7 ? row.monthStart + "-01" : row.monthStart;
@@ -877,38 +831,26 @@
     if (row.npTag && /年新品$/.test(String(row.npTag))) {
       row.npTag = String(row.npTag).replace(/年新品$/, "");
     }
-    if (row.allocMode !== "分摊" && row.allocMode !== "不分摊") {
-      row.allocMode = "不分摊";
-    }
-    if (isFutureRevenueRange(row.revenueDateStart, row.revenueDateEnd)) {
-      row.allocMode = "不分摊";
-    }
+    row.regions = normalizeRegions(row);
+    row.region = row.regions[0] || "";
+    delete row.allocMode;
     return normalizeDeptFields(row);
+  }
+
+  function normalizeRegions(row) {
+    if (!row) return [];
+    if (Array.isArray(row.regions) && row.regions.length) {
+      return row.regions.filter(Boolean);
+    }
+    if (row.region) return [String(row.region)];
+    return [];
   }
 
   function loadAll() {
     try {
       var raw = localStorage.getItem(STORAGE_KEY);
-      if (raw == null || raw === "") {
-        raw = localStorage.getItem("project_create_budget_v12");
-      }
-      if (raw == null || raw === "") {
-        raw = localStorage.getItem("project_create_budget_v11");
-      }
-      if (raw == null || raw === "") {
-        raw = localStorage.getItem("project_create_budget_v10");
-      }
-      if (raw == null || raw === "") {
-        raw = localStorage.getItem("project_create_budget_v9");
-      }
-      if (raw == null || raw === "") {
-        raw = localStorage.getItem("project_create_budget_v8");
-      }
-      if (raw == null || raw === "") {
-        raw = localStorage.getItem("project_create_budget_v6");
-      }
-      if (raw == null || raw === "") {
-        raw = localStorage.getItem("project_create_budget_v5");
+      for (var i = 0; (raw == null || raw === "") && i < LEGACY_BUDGET_KEYS.length; i++) {
+        raw = localStorage.getItem(LEGACY_BUDGET_KEYS[i]);
       }
       if (raw != null && raw !== "") {
         var parsed = JSON.parse(raw);
@@ -1054,14 +996,18 @@
     });
   }
 
-  function countryOptions(regionCode) {
-    var r = REGIONS.find(function (x) {
-      return x.code === regionCode;
+  function countryOptions(regionCodes) {
+    var codes = regionCodes || [];
+    if (!codes.length) return [];
+    var out = [];
+    REGIONS.forEach(function (r) {
+      if (codes.indexOf(r.code) >= 0) {
+        r.countries.forEach(function (c) {
+          out.push({ value: c, label: c });
+        });
+      }
     });
-    if (!r) return [];
-    return r.countries.map(function (c) {
-      return { value: c, label: c };
-    });
+    return out;
   }
 
   function channelOptions() {
@@ -1099,7 +1045,6 @@
         end: row.revenueDateEnd,
         useBodyPortal: true,
         onChange: function () {
-          applyRevenueDateAllocRules(tr, { notify: true });
           if (onChangeCb) onChangeCb(syncListFromDom(activeTbodyId));
         }
       });
@@ -1158,10 +1103,10 @@
     if (regionHost && global.MultiSelectFilter) {
       rowMsfs[id].region = global.MultiSelectFilter.mount(regionHost, {
         placeholder: "请选择区域",
-        showSelectAll: false,
+        showSelectAll: true,
         clearable: true,
         useBodyPortal: true,
-        initialValues: row.region ? [row.region] : [],
+        initialValues: normalizeRegions(row),
         getOptions: function () {
           return regionOptions();
         },
@@ -1184,9 +1129,8 @@
         useBodyPortal: true,
         initialValues: row.countries || [],
         getOptions: function () {
-          var rv = rowMsfs[id].region ? rowMsfs[id].region.getValues() : [];
-          var code = rv[0] || row.region || "";
-          return countryOptions(code);
+          var rv = rowMsfs[id].region ? rowMsfs[id].region.getValues() : normalizeRegions(row);
+          return countryOptions(rv);
         },
         onChange: makeMsfOnChange(id, "country")
       });
@@ -1241,11 +1185,8 @@
       row.revenueDateEnd = dr.end || "";
     }
 
-    row.marketingType = String((tr.querySelector(".js-marketing-type") || {}).value || "").trim();
-    row.budgetType = String((tr.querySelector(".js-budget-type") || {}).value || "").trim();
-    row.allocMode = String((tr.querySelector(".js-budget-alloc-mode") || {}).value || "").trim();
-    var resolvedAlloc = resolveAllocMode(row.revenueDateStart, row.revenueDateEnd, row.allocMode);
-    row.allocMode = resolvedAlloc.mode;
+    row.brandFeeCode = String((tr.querySelector(".js-brand-fee") || {}).value || "").trim();
+    decorateBrandFeeFields(row);
     row.deptCode = "";
     row.dept = "";
     var pickerEl = tr.querySelector(".js-budget-dept-picker");
@@ -1278,7 +1219,10 @@
     if (msf.model) row.models = msf.model.getValues();
     if (msf.sku) row.skus = msf.sku.getValues();
     delete row.model;
-    if (msf.region) row.region = msf.region.getValues()[0] || "";
+    if (msf.region) {
+      row.regions = msf.region.getValues();
+      row.region = row.regions[0] || "";
+    }
     if (msf.country) row.countries = msf.country.getValues();
     if (msf.channel) row.channels = msf.channel.getValues();
     if (msf.store) row.stores = msf.store.getValues();
@@ -1293,16 +1237,8 @@
       if (!silent) toast(n + "：请完整选择收益日期范围");
       return false;
     }
-    if (!row.marketingType) {
-      if (!silent) toast(n + "：请选择营销类型");
-      return false;
-    }
-    if (!row.budgetType) {
-      if (!silent) toast(n + "：请选择类型");
-      return false;
-    }
-    if (!getRowAllocMode(row)) {
-      if (!silent) toast(n + "：请选择分摊模式");
+    if (!isBrandFeeLeaf(row.brandFeeCode)) {
+      if (!silent) toast(n + "：请选择品牌费用项");
       return false;
     }
     if (!row.deptCode) {
@@ -1338,25 +1274,24 @@
     var list = loadAll();
     destroyAllRowWidgets();
     tbody.innerHTML = "";
+    if (global.FeeItemMaster && typeof global.FeeItemMaster.pruneTreeSelects === "function") {
+      global.FeeItemMaster.pruneTreeSelects();
+    }
 
     if (!list.length) {
       tbody.innerHTML =
-        '<tr><td colspan="17" class="empty">暂无预算行，请点击「新增一行」；立项提交前至少须有一行有效预算。</td></tr>';
+        '<tr><td colspan="15" class="empty">暂无预算行，请点击「新增一行」；立项提交前至少须有一行有效预算。</td></tr>';
       updateBatchDelState(tbodyId, chkAllId, btnBatchDelId);
       return;
     }
 
     list.forEach(function (row) {
-      var resolvedAlloc = resolveAllocMode(row.revenueDateStart, row.revenueDateEnd, row.allocMode);
-      row.allocMode = resolvedAlloc.mode;
       var tr = document.createElement("tr");
       tr.dataset.id = row.id;
       tr.innerHTML =
         '<td class="chk-col"><span class="chk-cell-inner"><input type="checkbox" class="js-budget-chk" aria-label="选择本行" /></span></td>' +
         '<td><div class="js-budget-dr plan-row-dr-host"></div></td>' +
-        "<td>" + marketingTypeSelectHtml(row.marketingType) + "</td>" +
-        "<td>" + budgetTypeSelectHtml(row.budgetType) + "</td>" +
-        "<td>" + allocModeSelectHtml(row.allocMode, resolvedAlloc.locked) + "</td>" +
+        "<td>" + brandFeeSelectHtml(row) + "</td>" +
         "<td>" + departmentSelectHtml(row) + "</td>" +
         '<td><div class="js-budget-sc msf-plan-row"></div></td>' +
         '<td><div class="js-budget-model msf-plan-row msf-cell-narrow"></div></td>' +
@@ -1392,9 +1327,9 @@
     });
 
     bindRowEvents(tbodyId, chkAllId, btnBatchDelId);
+    wireBrandFeeSelects(tbody);
     wireDeptSelects(tbody);
     updateBatchDelState(tbodyId, chkAllId, btnBatchDelId);
-    applyAllocModeToRowMsfs();
   }
 
   function bindRowEvents(tbodyId, chkAllId, btnBatchDelId) {
@@ -1426,10 +1361,9 @@
           toast("已删除");
         });
       }
-      var allocSel = tr.querySelector(".js-budget-alloc-mode");
-      if (allocSel) {
-        allocSel.addEventListener("change", function () {
-          enforceRowAllocModeRules(id);
+      var feeSel = tr.querySelector(".js-brand-fee");
+      if (feeSel) {
+        feeSel.addEventListener("change", function () {
           if (onChangeCb) onChangeCb(loadAll());
         });
       }
@@ -1456,14 +1390,13 @@
     var list = loadAll();
     var base = SCENES[0];
     var yearRange = currentYearDateRange();
-    var resolvedAlloc = resolveAllocMode(yearRange.start, yearRange.end, "不分摊");
     list.push({
       id: uid(),
       revenueDateStart: yearRange.start,
       revenueDateEnd: yearRange.end,
-      marketingType: "",
-      budgetType: "",
-      allocMode: resolvedAlloc.mode,
+      brandFeeCode: "",
+      brandFeeName: "",
+      brandFeePath: "",
       deptCode: "",
       dept: "",
       models: [],
@@ -1472,6 +1405,7 @@
       sceneCategories: [{ scene: base.scene, category: base.categories[0] }],
       skus: [],
       npTag: "",
+      regions: ["NA"],
       region: "NA",
       countries: [],
       channels: [],
@@ -1539,6 +1473,19 @@
       fetchModelOptions(function () {
         render(tbodyId, chkAllId, btnBatchDelId);
       });
+
+      if (global.FeeItemMaster && typeof global.FeeItemMaster.init === "function") {
+        global.FeeItemMaster.init().then(function () {
+          render(tbodyId, chkAllId, btnBatchDelId);
+        }).catch(function () {
+          render(tbodyId, chkAllId, btnBatchDelId);
+        });
+        if (typeof global.FeeItemMaster.onChange === "function") {
+          global.FeeItemMaster.onChange(function () {
+            render(tbodyId, chkAllId, btnBatchDelId);
+          });
+        }
+      }
 
       // 初始化费用部门主数据，就绪后重新渲染以挂载树形下拉
       if (global.FeeDeptMaster && typeof global.FeeDeptMaster.init === "function") {

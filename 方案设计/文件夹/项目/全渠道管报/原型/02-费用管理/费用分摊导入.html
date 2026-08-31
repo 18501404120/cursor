@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>导入费用分摊 · 系统原型</title>
-  <link rel="stylesheet" href="fee-item-master.css">
+  <link rel="stylesheet" href="fee-item-master.css?v=20260831-ckw004c">
   <style>
     :root {
       --page-bg: #f0f2f5;
@@ -931,6 +931,17 @@
       background: #f1f5f9;
       color: #94a3b8;
     }
+    #overlayCreate .scope-flat-col.is-dept-locked {
+      opacity: 0.55;
+    }
+    #overlayCreate .fee-tree-select.is-disabled {
+      pointer-events: none;
+    }
+    #overlayCreate .fee-tree-select.is-disabled .fee-tree-select-trigger {
+      background: #f1f5f9;
+      cursor: not-allowed;
+      color: #94a3b8;
+    }
   </style>
 </head>
 <body>
@@ -1023,7 +1034,6 @@
               <th>归属月</th>
               <th class="num">金额</th>
               <th data-pa-key="col-currency">币种</th>
-              <th data-pa-key="col-alloc-mode">分摊模式</th>
               <th data-pa-key="col-channel-scope">渠道范围摘要</th>
               <th data-pa-key="col-product-scope">产品范围摘要</th>
               <th data-pa-key="col-remark">备注</th>
@@ -1050,8 +1060,8 @@
       <div class="dialog-bd">
         <div class="dialog-scroll">
           <div id="historyDetailMeta" class="logic-box" style="margin-bottom:14px;"></div>
-          <div style="font-weight:800;font-size:13px;color:#0f2f63;margin-bottom:8px;">按 MSKU 分摊明细（权重月营收占比）</div>
-          <div class="table-wrap" style="max-height:min(52vh,480px);">
+          <div id="historyDetailMskuTitle" style="font-weight:800;font-size:13px;color:#0f2f63;margin-bottom:8px;">按 MSKU 分摊明细（权重月营收占比）</div>
+          <div class="table-wrap" id="historyDetailMskuWrap" style="max-height:min(52vh,480px);">
             <table>
               <thead>
                 <tr>
@@ -1085,14 +1095,7 @@
           <div class="panel">
             <div class="panel-hd">费用信息</div>
             <div class="panel-bd" style="max-height:none;">
-              <div class="alloc-mode-field">
-                <label><span class="req">*</span>分摊模式</label>
-                <div class="seg" id="allocModeSeg" role="group" aria-label="分摊模式">
-                  <button type="button" class="active" data-mode="分摊">分摊</button>
-                  <button type="button" data-mode="不分摊">不分摊</button>
-                </div>
-                <p class="hint-col" id="allocModeHint">分摊：按渠道/产品范围交集与权重月营收占比分摊至各 MSKU。</p>
-              </div>
+              <p class="hint" id="feeProcessHint" style="margin:0 0 12px;">本页仅可填非营销投入费用，一律按营收分摊到店铺，部门留空。营销投入请到项目平台 → 项目 → 预算页签维护。</p>
               <div class="scope-flat-grid scope-flat-grid--fee">
                 <div class="scope-flat-col field">
                   <label for="feeType"><span class="req">*</span>费用项</label>
@@ -1132,7 +1135,7 @@
           <div class="panel">
             <div class="panel-hd">渠道范围</div>
             <div class="panel-bd" style="max-height:none;">
-              <p class="hint" id="channelScopeHint" style="margin:0 0 12px;">分摊模式：各列可多选，列间取交集；均不选表示全渠道。</p>
+              <p class="hint" id="channelScopeHint" style="margin:0 0 12px;">各列可多选，列间取交集；均不选表示全渠道。未填字段视为不限，用于筛选营收基数。</p>
               <div class="scope-flat-grid scope-flat-grid--channel">
                 <div class="scope-flat-col">
                   <label for="msfCreateRegion">区域</label>
@@ -1161,7 +1164,7 @@
           <div class="panel">
             <div class="panel-hd">产品范围</div>
             <div class="panel-bd" style="max-height:none;">
-              <p class="hint" id="productScopeHint" style="margin:0 0 12px;">分摊模式：各列可多选，列间取交集；均不选表示全产品。</p>
+              <p class="hint" id="productScopeHint" style="margin:0 0 12px;">各列可多选，列间取交集；均不选表示全产品。ASIN、订单号、DL批次号可填，用于收窄命中。</p>
               <div class="scope-flat-grid scope-flat-grid--product">
                 <div class="scope-flat-col">
                   <label for="msfCreateScene">场景</label>
@@ -1252,7 +1255,7 @@
               <div class="modal-intro-card">
                 <h4>模版结构</h4>
                 <ul>
-                  <li>费用信息：费用项、归属月、金额、币种、分摊模式、部门、备注</li>
+                  <li>费用信息：费用项、归属月、金额、币种、部门、备注</li>
                   <li>渠道范围：区域 / 国家 / 渠道 / 店铺 / 零售商</li>
                   <li>产品范围：场景 / 品类 / MODEL / SKU / MSKU / ASIN / 新品标签 / 订单号 / DL批次号</li>
                 </ul>
@@ -1262,11 +1265,11 @@
                 </div>
               </div>
               <div class="modal-intro-card">
-                <h4>分摊规则</h4>
+                <h4>处理规则</h4>
                 <ul>
-                  <li><strong>分摊：</strong>渠道与产品范围分别取交后，按权重月营收占比分摊至各 MSKU，剔除回款为负数据；部门可留空（按店铺映射）</li>
-                  <li><strong>不分摊：</strong>渠道/产品每列仅可单选或不填；ASIN、订单号、DL批次号不可填；填写字段为 AND 条件，全空即全公司通用费用；部门必填</li>
-                  <li>解析成功生成待生效批次，规则与「新增导入费用」一致</li>
+                  <li>本页费用一律按渠道与产品范围交集、权重月营收占比分摊至店铺；部门须留空（按店铺映射）；ASIN、订单号、DL批次号可填收窄</li>
+                  <li>营销投入费用项不可选、不可导入，请到项目平台预算页维护</li>
+                  <li>模版不再填写分摊模式；旧列忽略不读</li>
                 </ul>
               </div>
             </div>
@@ -1312,12 +1315,11 @@
                 </tr>
               </thead>
               <tbody>
-                <tr><td rowspan="7">费用信息</td><td>费用项</td><td>是</td><td>数据字典「费用项」，如品牌营销费。</td></tr>
+                <tr><td rowspan="6">费用信息</td><td>费用项</td><td>是</td><td>数据字典「费用项」末级。营销投入及其下级不可填，请到项目平台预算页维护。</td></tr>
                 <tr><td>归属月</td><td>是</td><td><code>YYYY-MM</code>（示例 2026-05）。</td></tr>
                 <tr><td>金额</td><td>是</td><td>正数，勿用公式。</td></tr>
                 <tr><td>币种</td><td>是</td><td>数据字典「币种」三字码，如 USD。</td></tr>
-                <tr><td>分摊模式</td><td>否</td><td>分摊 / 不分摊；空值默认分摊。两种模式规则见下方「填写要求」。</td></tr>
-                <tr><td>部门</td><td>条件必填</td><td>分摊时可留空（按店铺映射归属），填了则按填的部门归属；<strong>不分摊时必填</strong>，由用户指定金蝶部门，取值来自费用部门主数据（展示格式如 102·Govee / APP商城）。</td></tr>
+                <tr><td>部门</td><td>须留空</td><td>本页一律按营收分摊，部门由店铺映射带出，不可填写。</td></tr>
                 <tr><td>备注</td><td>否</td><td>补充费用背景、活动说明；列表与明细中展示。</td></tr>
                 <tr><td rowspan="5">渠道范围</td><td>区域</td><td>否</td><td>字典「区域」；多选英文逗号，如西欧区,北欧区,东欧区。</td></tr>
                 <tr><td>国家</td><td>否</td><td>字典「国家」，如美国 (US),德国 (DE)；与区域等取交。</td></tr>
@@ -1329,10 +1331,10 @@
                 <tr><td>MODEL</td><td>否</td><td>主数据 MODEL（与 SPU 前 5 位一致）。</td></tr>
                 <tr><td>SKU</td><td>否</td><td>8 位生产 SKU。</td></tr>
                 <tr><td>MSKU</td><td>否</td><td>精确 MSKU。</td></tr>
-                <tr><td>ASIN</td><td>否</td><td>亚马逊 ASIN；多选英文逗号；<strong>仅分摊模式可填</strong>，不分摊须留空。</td></tr>
+                <tr><td>ASIN</td><td>否</td><td>亚马逊 ASIN；多选英文逗号；可填收窄命中。</td></tr>
                 <tr><td>新品标签</td><td>否</td><td>年份下拉单选（当前年±3年）；填写如 2024年新品；填写后仅匹配带该标签的产品。</td></tr>
-                <tr><td>订单号</td><td>否</td><td>订单号；多选英文逗号；用于订单维度收窄；<strong>仅分摊模式可填</strong>，不分摊须留空。</td></tr>
-                <tr><td>DL批次号</td><td>否</td><td>DL 批次号；多选英文逗号；<strong>仅分摊模式可填</strong>，不分摊须留空。</td></tr>
+                <tr><td>订单号</td><td>否</td><td>订单号；多选英文逗号；可填收窄命中。</td></tr>
+                <tr><td>DL批次号</td><td>否</td><td>DL 批次号；多选英文逗号；可填收窄命中。</td></tr>
               </tbody>
             </table>
           </div>
@@ -1340,8 +1342,8 @@
           <ol class="req-list">
             <li>费用项、币种及渠道/产品各列取值须与钉钉模版「数据字典」页一致；店铺、SKU、MSKU 等与系统主数据二次校验。</li>
             <li>同一单元格内多个选项仅用<strong>英文逗号</strong>分隔，勿用分号或中文逗号。</li>
-            <li><strong>分摊模式：</strong>从本月营收明细筛选「渠道范围 AND 产品范围」都匹配的记录，空字段视为不限，营收 &lt; 0 的记录剔除不参与分摊；按匹配记录营收占比分摊金额（保留2位小数，末行舍入调整），结果归属到明细级（如具体店铺）。部门可留空（按店铺映射归属），填了则按填的部门归属；订单号、DL批次号可填。</li>
-            <li><strong>不分摊模式：</strong>渠道/产品范围每列仅可单选或不填，不可多选；<strong>ASIN、订单号、DL批次号不可填写（须留空）</strong>；其余填写字段作为费用归属的 AND 条件，全部为空即「全公司通用费用」；查询时填写字段精确匹配、空字段为通配。部门必填，由用户填金蝶部门。</li>
+            <li>营销投入及其下级费用项不可导入，该行失败并提示「营销投入请到项目平台维护」。</li>
+            <li>从本月营收明细筛选「渠道范围 AND 产品范围」都匹配的记录，空字段视为不限，营收 &lt; 0 不参与；按营收占比拆金额（两位小数，末行补差），结果落到店铺，再按店铺映射带出金蝶组织/部门。部门须留空；ASIN、订单号、DL批次号可填收窄。</li>
             <li>解析失败行写入错误文件回传；成功行生成待生效批次。</li>
           </ol>
         </div>
@@ -1350,7 +1352,7 @@
   </div>
 
   <script src="fee-mgmt-common.js"></script>
-  <script src="fee-item-master.js?v=20260723-remark-only"></script>
+  <script src="fee-item-master.js?v=20260831-ckw004c"></script>
   <script src="fee-dept-master.js?v=20260723-dept-v3"></script>
   <script src="../../../../规范/assets/multi-select-filter.js"></script>
   <script src="../../../../规范/assets/month-range-picker.js"></script>
@@ -1456,7 +1458,6 @@
       msf: {},
       qBelongMonthRange: null,
       appliedHistoryFilter: null,
-      allocMode: "分摊",
       msfPrev: {}
     };
 
@@ -1624,7 +1625,6 @@
     }
 
     function collectProductScopeFromUi() {
-      const noAlloc = getAllocMode() === "不分摊";
       const catKeys = state.msf.cat?.getValues() || [];
       const npLabel = getSelectedNewProductTagLabel();
       return {
@@ -1633,10 +1633,10 @@
         models: state.msf.model?.getValues() || [],
         skus: state.msf.sku?.getValues() || [],
         mskus: state.msf.msku?.getValues() || [],
-        asins: noAlloc ? [] : (state.msf.asin?.getValues() || []),
+        asins: state.msf.asin?.getValues() || [],
         newProductTags: npLabel ? [npLabel] : [],
-        orderNos: noAlloc ? [] : parseCommaList(document.getElementById("orderNos")?.value),
-        dlBatchNos: noAlloc ? [] : parseCommaList(document.getElementById("dlBatchNos")?.value)
+        orderNos: parseCommaList(document.getElementById("orderNos")?.value),
+        dlBatchNos: parseCommaList(document.getElementById("dlBatchNos")?.value)
       };
     }
 
@@ -1679,7 +1679,7 @@
         inst.setValues([]);
         state.msfPrev[key] = [];
       });
-      setAllocMode("分摊");
+      lockDeptAlways();
       resetCreatePreview();
       updateRuleText();
     }
@@ -1963,22 +1963,10 @@
       state.msf._mounted = true;
       const z = 560;
       const MSF_KEYS = ["region", "country", "ch", "store", "retailer", "scene", "cat", "model", "sku", "msku", "asin"];
-      const enforceSingleIfNoAlloc = (key) => {
-        const inst = state.msf[key];
-        if (!inst) return;
-        const vals = inst.getValues() || [];
-        if (state.allocMode !== "不分摊" || vals.length <= 1) {
-          state.msfPrev[key] = [...vals];
-          return;
-        }
-        const prev = state.msfPrev[key] || [];
-        const added = vals.find((v) => !prev.includes(v)) || vals[vals.length - 1];
-        const next = added ? [added] : [];
-        inst.setValues(next);
-        state.msfPrev[key] = next;
-      };
       const onScopeChange = (key) => () => {
-        if (typeof key === "string") enforceSingleIfNoAlloc(key);
+        if (typeof key === "string" && state.msf[key]) {
+          state.msfPrev[key] = [...(state.msf[key].getValues() || [])];
+        }
         resetCreatePreview();
         updateRuleText();
         updateScopePanelHints();
@@ -2099,143 +2087,56 @@
       return [...new Set(arr)].slice(0, 120);
     }
 
-    function getAllocMode() {
-      return state.allocMode || "分摊";
+    function isMarketingInputItem(item) {
+      if (!item) return false;
+      const remark = String(item.remark || "");
+      const code = String(item.code || "");
+      const name = String(item.name || "");
+      if (name === "营销投入" || remark.includes("营销投入")) return true;
+      return code === "T040201" || code.startsWith("T040201");
     }
 
-    function syncNoAllocForbiddenFields(mode) {
-      const forbidden = mode === "不分摊";
-      ["colCreateAsin", "colOrderNos", "colDlBatchNos"].forEach((id) => {
-        document.getElementById(id)?.classList.toggle("is-disabled-by-mode", forbidden);
-      });
-      const orderEl = document.getElementById("orderNos");
-      const dlEl = document.getElementById("dlBatchNos");
-      if (orderEl) {
-        if (forbidden) orderEl.value = "";
-        orderEl.disabled = forbidden;
-        orderEl.placeholder = forbidden ? "不分摊模式不可填写" : "多选英文逗号分隔";
-      }
-      if (dlEl) {
-        if (forbidden) dlEl.value = "";
-        dlEl.disabled = forbidden;
-        dlEl.placeholder = forbidden ? "不分摊模式不可填写" : "多选英文逗号分隔";
-      }
-      const asin = state.msf.asin;
-      if (asin) {
-        if (forbidden) {
-          asin.close?.();
-          asin.clear?.();
-          state.msfPrev.asin = [];
-        }
-      }
+    function isMarketingInputFee(feeName) {
+      const name = String(feeName || "").trim();
+      if (!name) return false;
+      if (/营销投入|品牌营销|产品营销|基础固定花费/.test(name)) return true;
+      const master = window.FeeItemMaster;
+      if (!master) return false;
+      const item = (typeof master.getByName === "function" ? master.getByName(name) : null)
+        || (typeof master.getByCode === "function" ? master.getByCode(name) : null);
+      if (isMarketingInputItem(item)) return true;
+      const full = (item && typeof master.getFullName === "function") ? String(master.getFullName(item.code) || "") : "";
+      return full.includes("营销投入");
     }
 
-    function setAllocMode(mode) {
-      if (mode !== "分摊" && mode !== "不分摊") return;
-      state.allocMode = mode;
-      const seg = document.getElementById("allocModeSeg");
-      if (seg) {
-        seg.querySelectorAll("button").forEach((b) => {
-          b.classList.toggle("active", b.dataset.mode === mode);
-        });
-      }
-      const field = document.querySelector("#overlayCreate .alloc-mode-field");
-      if (field) field.classList.toggle("mode-noalloc", mode === "不分摊");
-      const hint = document.getElementById("allocModeHint");
-      if (hint) {
-        hint.textContent =
-          mode === "分摊"
-            ? "分摊：按渠道/产品范围交集与权重月营收占比分摊至各 MSKU。"
-            : "不分摊：渠道/产品范围每列仅可单选或不填；ASIN、订单号、DL批次号不可填写；费用整笔归属到该维度组合。";
-      }
+    function feeTreeDisableOpts() {
+      return {
+        isNodeDisabled: (item) => isMarketingInputItem(item),
+        disabledHint: "营销投入请到项目平台维护"
+      };
+    }
+
+    function lockDeptAlways() {
       const deptReq = document.getElementById("deptReq");
-      if (deptReq) deptReq.style.display = mode === "不分摊" ? "" : "none";
-      syncNoAllocForbiddenFields(mode);
-      updateScopePanelHints();
-      if (mode === "不分摊") {
-        const MSF_KEYS = ["region", "country", "ch", "store", "retailer", "scene", "cat", "model", "sku", "msku"];
-        MSF_KEYS.forEach((k) => {
-          const inst = state.msf[k];
-          if (!inst) return;
-          const vals = inst.getValues() || [];
-          if (vals.length > 1) {
-            inst.setValues([vals[0]]);
-            state.msfPrev[k] = [vals[0]];
-          } else {
-            state.msfPrev[k] = [...vals];
-          }
-        });
-      }
-      resetCreatePreview();
-      updateRuleText();
-    }
-
-    function enforceSingleValueText(id) {
-      const el = document.getElementById(id);
-      if (!el || el.disabled) return;
-      if (state.allocMode !== "不分摊") return;
-      const raw = (el.value || "").trim();
-      if (!raw) return;
-      const parts = raw.split(",").map((x) => x.trim()).filter(Boolean);
-      if (parts.length > 1) {
-        el.value = parts[0];
-        el.dispatchEvent(new Event("input", { bubbles: true }));
+      if (deptReq) deptReq.style.display = "none";
+      const dept = document.getElementById("feeDept");
+      const col = dept?.closest(".scope-flat-col");
+      if (col) col.classList.add("is-dept-locked");
+      const wrap = dept?.nextElementSibling?.classList?.contains("fee-tree-select")
+        ? dept.nextElementSibling
+        : null;
+      if (wrap) wrap.classList.add("is-disabled");
+      if (dept) {
+        dept.value = "";
+        dept.disabled = true;
       }
     }
 
     function updateScopePanelHints() {
-      const mode = getAllocMode();
       const ch = document.getElementById("channelScopeHint");
       const ps = document.getElementById("productScopeHint");
-      if (mode === "分摊") {
-        if (ch) ch.textContent = `分摊模式：各列可多选，列间取交集；均不选表示全渠道。`;
-        if (ps) ps.textContent = `分摊模式：各列可多选，列间取交集；均不选表示全产品。`;
-      } else {
-        if (ch) ch.textContent = `不分摊模式：每列仅可单选或不填，填写字段之间为 AND 条件，未填字段视为通配。`;
-        if (ps) ps.textContent = `不分摊模式：每列仅可单选或不填；ASIN、订单号、DL批次号不可填写；其余填写字段为 AND 条件，未填视为通配。`;
-      }
-    }
-
-    function buildNoAllocSummaries(ch, ps) {
-      const channelParts = [];
-      if (ch.regions?.length) channelParts.push(`区域=${ch.regions.join(",")}`);
-      if (ch.countries?.length) channelParts.push(`国家=${ch.countries.join(",")}`);
-      if (ch.channels?.length) channelParts.push(`渠道=${ch.channels.join(",")}`);
-      if (ch.stores?.length) channelParts.push(`店铺=${ch.stores.join(",")}`);
-      if (ch.retailers?.length) channelParts.push(`零售商=${ch.retailers.join(",")}`);
-      const productParts = [];
-      if (ps.scenes?.length) productParts.push(`场景=${ps.scenes.join(",")}`);
-      if (ps.categories?.length) productParts.push(`品类=${ps.categories.join(",")}`);
-      if (ps.models?.length) productParts.push(`MODEL=${ps.models.join(",")}`);
-      if (ps.skus?.length) productParts.push(`SKU=${ps.skus.join(",")}`);
-      if (ps.mskus?.length) productParts.push(`MSKU=${ps.mskus.join(",")}`);
-      if (ps.asins?.length) productParts.push(`ASIN=${ps.asins.join(",")}`);
-      if (ps.newProductTags?.length) productParts.push(`新品标签=${ps.newProductTags.join(",")}`);
-      if (ps.orderNos?.length) productParts.push(`订单号=${ps.orderNos.join(",")}`);
-      if (ps.dlBatchNos?.length) productParts.push(`DL批次号=${ps.dlBatchNos.join(",")}`);
-      return {
-        channelSummary: channelParts.length ? `不分摊 · ${channelParts.join("；")}` : "不分摊 · 全渠道（各列空）",
-        productSummary: productParts.length ? `不分摊 · ${productParts.join("；")}` : "不分摊 · 全产品（各列空）"
-      };
-    }
-
-    function buildNoAllocDimensionHtml(ch, ps) {
-      const parts = [];
-      if (ch.regions?.length) parts.push(`区域=${ch.regions.join(",")}`);
-      if (ch.countries?.length) parts.push(`国家=${ch.countries.join(",")}`);
-      if (ch.channels?.length) parts.push(`渠道=${ch.channels.join(",")}`);
-      if (ch.stores?.length) parts.push(`店铺=${ch.stores.join(",")}`);
-      if (ch.retailers?.length) parts.push(`零售商=${ch.retailers.join(",")}`);
-      if (ps.scenes?.length) parts.push(`场景=${ps.scenes.join(",")}`);
-      if (ps.categories?.length) parts.push(`品类=${ps.categories.join(",")}`);
-      if (ps.models?.length) parts.push(`MODEL=${ps.models.join(",")}`);
-      if (ps.skus?.length) parts.push(`SKU=${ps.skus.join(",")}`);
-      if (ps.mskus?.length) parts.push(`MSKU=${ps.mskus.join(",")}`);
-      if (ps.asins?.length) parts.push(`ASIN=${ps.asins.join(",")}`);
-      if (ps.newProductTags?.length) parts.push(`新品标签=${ps.newProductTags.join(",")}`);
-      if (ps.orderNos?.length) parts.push(`订单号=${ps.orderNos.join(",")}`);
-      if (ps.dlBatchNos?.length) parts.push(`DL批次号=${ps.dlBatchNos.join(",")}`);
-      return parts.length ? parts.join(" AND ") : "（全部不填 · 全公司通用费用）";
+      if (ch) ch.textContent = "各列可多选，列间取交集；均不选表示全渠道。未填字段视为不限，用于筛选营收基数。";
+      if (ps) ps.textContent = "各列可多选，列间取交集；均不选表示全产品。ASIN、订单号、DL批次号可填，用于收窄命中。";
     }
 
     function updateRuleText() {
@@ -2249,30 +2150,6 @@
       const el = document.getElementById("ruleText");
       if (!el) return;
       const remark = document.getElementById("feeRemark")?.value?.trim() || "";
-      const mode = getAllocMode();
-      const dept = getDeptDisplayText(document.getElementById("feeDept")?.value || "");
-      if (mode === "不分摊") {
-        const dim = buildNoAllocDimensionHtml(ch, ps);
-        const deptLine = dept
-          ? `<strong>部门：</strong>${escHtml(dept)}`
-          : `<strong>部门：</strong>未填写（<span class="req">必填</span>，请选择金蝶部门）`;
-        el.innerHTML = `
-          ${renderTemplateScopeMetaHtml({
-            fee,
-            belongMonth: label,
-            amt,
-            currency,
-            remark,
-            channelScope: ch,
-            productScope: ps
-          })}<br>
-          <strong>模式：</strong>不分摊 · 费用整笔归属到填写字段构成的维度组合（AND 条件）。<br>
-          <strong>归属维度：</strong>${escHtml(dim)}<br>
-          ${deptLine}　
-          <strong>查询口径：</strong>未填字段视为通配，仅命中该维度时此费用才显示。
-        `;
-        return;
-      }
       el.innerHTML = `
         ${renderTemplateScopeMetaHtml({
           fee,
@@ -2283,8 +2160,9 @@
           channelScope: ch,
           productScope: ps
         })}<br>
+        <strong>处理：</strong>按营收分摊到店铺，部门由店铺映射带出。营销投入请到项目平台预算页维护。<br>
         <strong>交集：</strong>渠道五列、产品九列分别取交后得到分摊对象集合。<br>
-        <strong>权重：</strong>按权重月 ${weight}（归属月当月）各 MSKU 营收占比，将<strong>金额</strong>分摊至各行。<br>
+        <strong>权重：</strong>按权重月 ${weight}（归属月当月）各记录营收占比，将<strong>金额</strong>分摊至各行。<br>
         <strong>更新：</strong>归属月关账前（次月 20 日前），待生效与已生效批次分摊明细随营收每日自动重算；关账后冻结。
       `;
     }
@@ -2466,19 +2344,20 @@
         ]
       },
       "IMP-202604-002": {
-        fee: "品牌营销费",
+        fee: "仓储费",
         belongMonth: "2026-04",
         currency: "USD",
         amt: 5000,
-        remark: "不分摊示例：仅归属到 美国 + H6071 MODEL",
-        allocMode: "不分摊",
-        dept: "109·Trading / 品牌中心",
+        remark: "仓储费按营收分摊示例",
         channelScope: { regions: [], countries: ["美国 (US)"], channels: [], stores: [], retailers: [] },
         productScope: { scenes: [], categories: [], models: ["H6071"], skus: [], mskus: [], asins: [], newProductTags: [], orderNos: [], dlBatchNos: [] },
         st: "待生效",
         op: "（原型用户）",
         at: "2026-04-05 14:30",
-        rawRows: []
+        rawRows: [
+          { store: "亚马逊_US", msku: "H6071001+亚马逊+US", isNewProduct: false, retailer: "—", rev: 82000 },
+          { store: "亚马逊_US", msku: "H6071002+亚马逊+US", isNewProduct: false, retailer: "—", rev: 54000 }
+        ]
       }
     };
 
@@ -2494,17 +2373,13 @@
       const wm = belongMonth ? weightMonthYm(belongMonth) : "—";
       const ch = d.channelScope || {};
       const ps = d.productScope || {};
-      const mode = d.allocMode || rowLive?.allocMode || "分摊";
       document.getElementById("dlgHistTitle").textContent = `分摊明细 · ${batchId}`;
       const dept = getDeptDisplayText(rowLive?.dept || d.dept || "");
-      const deptText = dept || (mode === "不分摊" ? "未填写（必填）" : "未填写（按店铺映射归属，无店铺时进入待确认）");
-      const modeLine = mode === "不分摊"
-        ? `<strong>模式：</strong>不分摊 · 费用整笔归属到填写字段构成的维度组合（AND 条件），未参与 MSKU 分摊。<br>
-           <strong>归属维度：</strong>${escHtml(buildNoAllocDimensionHtml(ch, ps))}<br>
-           <strong>部门：</strong>${escHtml(deptText)}<br>
-           <strong>查询口径：</strong>未填字段视为通配，仅命中该维度时此费用才显示。`
-        : `<strong>权重月：</strong>${escHtml(wm)}（归属月当月）<br>
-           <strong>更新：</strong>关账前分摊明细随营收每日自动重算，关账后冻结。<br>`;
+      const deptText = dept || "未填写（按店铺映射归属，无店铺时进入待确认）";
+      const modeLine = `<strong>处理：</strong>按营收分摊到店铺，部门由店铺映射带出。<br>
+           <strong>权重月：</strong>${escHtml(wm)}（归属月当月）<br>
+           <strong>更新：</strong>关账前分摊明细随营收每日自动重算，关账后冻结。<br>
+           <strong>部门：</strong>${escHtml(deptText)}`;
       document.getElementById("historyDetailMeta").innerHTML = `
         <div style="line-height:1.75;font-size:13px;color:#78350f;">
           <strong>导入批次号：</strong>${escHtml(batchId)}<br>
@@ -2539,15 +2414,10 @@
           <td class="num">${r.alloc.toFixed(2)}</td>
         </tr>
       `).join("");
-      const mskuSectionLabel = document.querySelector("#overlayHistoryDetail .dialog-scroll > div > div[style*='font-weight:800']");
-      const mskuTableWrap = document.querySelector("#overlayHistoryDetail .table-wrap");
-      if (mode === "不分摊") {
-        if (mskuSectionLabel) mskuSectionLabel.style.display = "none";
-        if (mskuTableWrap) mskuTableWrap.style.display = "none";
-      } else {
-        if (mskuSectionLabel) mskuSectionLabel.style.display = "";
-        if (mskuTableWrap) mskuTableWrap.style.display = "";
-      }
+      const mskuSectionLabel = document.getElementById("historyDetailMskuTitle");
+      const mskuTableWrap = document.getElementById("historyDetailMskuWrap");
+      if (mskuSectionLabel) mskuSectionLabel.style.display = "";
+      if (mskuTableWrap) mskuTableWrap.style.display = "";
       openOverlay("overlayHistoryDetail");
     }
 
@@ -2659,7 +2529,6 @@
           <td>${escHtml(normalizeBelongMonth(r.belongMonth || r.belongRange || r.month || ""))}</td>
           <td class="num">${r.amt.toLocaleString("zh-CN")}</td>
           <td>${escHtml(r.currency || "—")}</td>
-          <td>${escHtml(r.allocMode || "分摊")}</td>
           <td>${escHtml(r.channelSummary || r.shop || "")}</td>
           <td>${escHtml(r.productSummary || r.mskuScopeSummary || "")}</td>
           <td>${remarkCellHtml(r.remark)}</td>
@@ -2678,7 +2547,6 @@
         "归属月",
         "金额",
         "币种",
-        "分摊模式",
         "部门",
         "区域",
         "国家",
@@ -2697,12 +2565,11 @@
         "备注"
       ];
       const sample = [
-        "品牌营销费",
+        "广告费",
         "2026-05",
         "10000",
         "USD",
-        "分摊",
-        "109·Trading / 品牌中心",
+        "",
         "西欧区,北欧区,东欧区",
         "美国 (US),德国 (DE),英国 (UK)",
         "",
@@ -2717,7 +2584,7 @@
         "",
         "",
         "",
-        "Q2 品牌联合投放补充说明"
+        "Q2 广告投放补充说明"
       ];
       const csv = bom + headers.join(",") + "\n" + sample.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(",") + "\n";
       const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
@@ -2741,22 +2608,30 @@
 
     function refreshFeeItemSelects() {
       if (!window.FeeItemMaster) return;
-      FeeItemMaster.syncSelect("qFeeType", { mode: "name", includeAll: true, allLabel: "全部", forceShowCode: true });
+      const disableOpts = feeTreeDisableOpts();
+      FeeItemMaster.syncSelect("qFeeType", { mode: "name", includeAll: true, allLabel: "全部", forceShowCode: true, ...disableOpts });
       FeeItemMaster.mountTreeSelect("qFeeType", {
         mode: "name",
         includeAll: true,
         allLabel: "全部",
         forceShowCode: true,
         placeholder: "全部",
-        zIndex: 1700
+        zIndex: 1700,
+        ...disableOpts
       });
-      FeeItemMaster.syncSelect("feeType", { mode: "name", showCode: false, forceShowCode: true });
+      FeeItemMaster.syncSelect("feeType", { mode: "name", showCode: false, forceShowCode: true, ...disableOpts });
       FeeItemMaster.mountTreeSelect("feeType", {
         mode: "name",
         forceShowCode: true,
         placeholder: "请选择费用项",
-        zIndex: 1700
+        zIndex: 1700,
+        ...disableOpts
       });
+      const feeType = document.getElementById("feeType");
+      if (feeType && isMarketingInputFee(feeType.value)) {
+        feeType.value = "";
+        feeType.dispatchEvent(new Event("change", { bubbles: true }));
+      }
     }
 
     function formatDeptFullLabel(node) {
@@ -3086,12 +2961,12 @@
       const productScope = { scenes: [], categories: [], models: [], skus: [], mskus: [], asins: [], newProductTags: [], orderNos: [], dlBatchNos: [] };
       state.historyRows.unshift({
         id,
-        fee: "品牌营销费",
-        dept: "109·Trading / 品牌中心",
+        fee: "广告费",
+        dept: "",
         belongMonth: "2026-05",
         currency: "USD",
         amt: 10000,
-        remark: "模版示例：品牌联合投放",
+        remark: "模版示例：广告投放",
         channelSummary: buildChannelScopeSummaryFromObj(channelScope),
         productSummary: buildProductScopeSummaryFromObj(productScope),
         status: "待生效",
@@ -3099,12 +2974,12 @@
         at
       });
       HISTORY_DETAIL_BY_ID[id] = {
-        fee: "品牌营销费",
+        fee: "广告费",
         belongMonth: "2026-05",
         currency: "USD",
         amt: 10000,
-        remark: "模版示例：品牌联合投放",
-        dept: "109·Trading / 品牌中心",
+        remark: "模版示例：广告投放",
+        dept: "",
         channelScope,
         productScope,
         st: "待生效",
@@ -3238,13 +3113,6 @@
       const el = document.getElementById(id);
       if (!el) return;
       el.addEventListener("input", () => {
-        if (state.allocMode === "不分摊") {
-          const raw = (el.value || "").trim();
-          const parts = raw.split(",").map((x) => x.trim()).filter(Boolean);
-          if (parts.length > 1) {
-            el.value = parts[0];
-          }
-        }
         resetCreatePreview();
         updateRuleText();
       });
@@ -3252,12 +3120,6 @@
     document.getElementById("productNewTags")?.addEventListener("change", () => {
       resetCreatePreview();
       updateRuleText();
-    });
-
-    document.getElementById("allocModeSeg")?.addEventListener("click", (e) => {
-      const btn = e.target.closest("button[data-mode]");
-      if (!btn) return;
-      setAllocMode(btn.dataset.mode);
     });
 
     document.getElementById("feeDept")?.addEventListener("change", () => {
@@ -3284,23 +3146,8 @@
         alert("金额必须为大于 0 的数字。");
         return;
       }
-      if (getAllocMode() === "不分摊") {
-        if (!deptRaw) {
-          alert("不分摊模式下部门为必填项，请先选择部门。");
-          return;
-        }
-        const ch = collectChannelScopeFromUi();
-        const ps = collectProductScopeFromUi();
-        const dim = buildNoAllocDimensionHtml(ch, ps);
-        document.getElementById("previewWrap").style.display = "none";
-        document.getElementById("summaryCards").style.display = "grid";
-        document.getElementById("summaryCards").innerHTML = `
-          <div class="sum-card"><div class="k">模式</div><div class="v">不分摊</div></div>
-          <div class="sum-card"><div class="k">归属维度</div><div class="v" style="font-size:12px;">${escHtml(dim)}</div></div>
-          <div class="sum-card"><div class="k">部门</div><div class="v dept-full">${escHtml(dept)}</div></div>
-          <div class="sum-card"><div class="k">金额</div><div class="v">${amt.toFixed(2)} ${currency}</div></div>
-        `;
-        document.getElementById("btnConfirmImport").disabled = false;
+      if (isMarketingInputFee(fee)) {
+        alert("营销投入请到项目平台维护");
         return;
       }
       const rows = buildPreviewAllocRows(mockPreviewRows(), amt);
@@ -3334,7 +3181,6 @@
       const deptRaw = document.getElementById("feeDept")?.value || "";
       const dept = getDeptDisplayText(deptRaw);
       const currency = document.getElementById("feeCurrency")?.value || "CNY";
-      const mode = getAllocMode();
       if (document.getElementById("btnConfirmImport").disabled) {
         alert("请先完成预览；修改关键字段后需要重新预览。");
         return;
@@ -3343,34 +3189,32 @@
         alert("请填写归属月、费用项、金额与币种，并先完成预览。");
         return;
       }
-      if (mode === "不分摊" && !deptRaw) {
-        alert("不分摊模式下部门为必填项，请先选择部门。");
+      if (isMarketingInputFee(fee)) {
+        alert("营销投入请到项目平台维护");
+        return;
+      }
+      if (deptRaw) {
+        alert("该费用项须按营收分摊，部门须留空。");
         return;
       }
       const id = nextBatchId();
       const ch = collectChannelScopeFromUi();
       const ps = collectProductScopeFromUi();
-      const noAllocSummaries = mode === "不分摊" ? buildNoAllocSummaries(ch, ps) : null;
-      const channelSummary = noAllocSummaries
-        ? noAllocSummaries.channelSummary
-        : buildChannelScopeSummary(ch);
-      const productSummary = noAllocSummaries
-        ? noAllocSummaries.productSummary
-        : buildProductScopeSummary(ps);
+      const channelSummary = buildChannelScopeSummary(ch);
+      const productSummary = buildProductScopeSummary(ps);
       const remark = document.getElementById("feeRemark")?.value?.trim() || "";
-      const rawRows = mode === "不分摊" ? [] : mockPreviewRows();
+      const rawRows = mockPreviewRows();
       const at = formatNow();
       state.historyRows.unshift({
         id,
         fee,
-        dept: dept || deptRaw,
+        dept: "",
         belongMonth: month,
         currency,
         amt,
         remark,
         channelSummary,
         productSummary,
-        allocMode: mode,
         status: "待生效",
         op: "（原型用户）",
         at
@@ -3381,10 +3225,9 @@
         currency,
         amt,
         remark,
-        dept: dept || deptRaw,
+        dept: "",
         channelScope: ch,
         productScope: ps,
-        allocMode: mode,
         st: "待生效",
         op: "（原型用户）",
         at,
@@ -3392,7 +3235,7 @@
       };
       closeOverlay("overlayCreate");
       renderHistory();
-      alert(`原型：已写入一条「待生效」批次 ${id}（${mode}）。请再点「生效」后才会纳入管报计算。`);
+      alert(`原型：已写入一条「待生效」批次 ${id}（按营收分摊）。请再点「生效」后才会纳入管报计算。`);
     });
     document.getElementById("btnExport").addEventListener("click", () => {
       alert("原型：导出预览明细。");
@@ -3406,6 +3249,10 @@
         updateRuleText();
       });
       n.addEventListener("change", () => {
+        if (id === "feeType" && isMarketingInputFee(n.value)) {
+          alert("营销投入请到项目平台维护");
+          n.value = "";
+        }
         resetCreatePreview();
         updateRuleText();
       });
@@ -3451,7 +3298,6 @@
           currency: "USD",
           amt: 10000,
           remark: "4 月站内广告投放",
-          allocMode: "分摊",
           channelSummary: buildChannelScopeSummaryFromObj(HISTORY_DETAIL_BY_ID["IMP-202604-001"].channelScope),
           productSummary: buildProductScopeSummaryFromObj(HISTORY_DETAIL_BY_ID["IMP-202604-001"].productScope),
           status: "已生效",
@@ -3466,7 +3312,6 @@
           currency: "CNY",
           amt: 3200,
           remark: "",
-          allocMode: "分摊",
           channelSummary: "全渠道（各列空）",
           productSummary: "全产品（各列空）",
           status: "已生效",
@@ -3481,7 +3326,6 @@
           currency: "USD",
           amt: 8000,
           remark: "新品标签收窄测试",
-          allocMode: "分摊",
           channelSummary: buildChannelScopeSummaryFromObj(HISTORY_DETAIL_BY_ID["IMP-202603-017"].channelScope),
           productSummary: buildProductScopeSummaryFromObj(HISTORY_DETAIL_BY_ID["IMP-202603-017"].productScope),
           status: "待生效",
@@ -3496,7 +3340,6 @@
           currency: "CNY",
           amt: 500,
           remark: "已作废批次样例",
-          allocMode: "分摊",
           channelSummary: "全渠道（各列空）",
           productSummary: "全产品（各列空）",
           status: "失效",
@@ -3505,15 +3348,14 @@
         },
         {
           id: "IMP-202604-002",
-          fee: "品牌营销费",
-          dept: "109品牌中心",
+          fee: "仓储费",
+          dept: "",
           belongMonth: "2026-04",
           currency: "USD",
           amt: 5000,
-          remark: "不分摊示例：仅归属到 美国 + H6071 MODEL",
-          allocMode: "不分摊",
-          channelSummary: "不分摊 · 国家=美国 (US)",
-          productSummary: "不分摊 · MODEL=H6071",
+          remark: "仓储费按营收分摊示例",
+          channelSummary: "国家=美国 (US)",
+          productSummary: "MODEL=H6071",
           status: "待生效",
           op: "（原型用户）",
           at: "2026-04-05 14:30"
@@ -3536,17 +3378,20 @@
       }).then(() => {
         refreshFeeItemSelects();
         const feeType = document.getElementById("feeType");
-        if (feeType && !feeType.value) {
-          const brand = FeeItemMaster.getByName("品牌营销费");
-          if (brand) {
-            feeType.value = brand.name;
+        if (feeType && (!feeType.value || isMarketingInputFee(feeType.value))) {
+          const pick = FeeItemMaster.getByName("零售销售额")
+            || (FeeItemMaster.getLeafItems ? FeeItemMaster.getLeafItems().find((it) => !isMarketingInputItem(it)) : null);
+          if (pick) {
+            feeType.value = pick.name;
             feeType.dispatchEvent(new Event("change", { bubbles: true }));
           }
         }
+        lockDeptAlways();
         updateRuleText();
       });
       FeeItemMaster.onChange(() => {
         refreshFeeItemSelects();
+        lockDeptAlways();
         updateRuleText();
       });
 
@@ -3556,6 +3401,7 @@
           state.historyRows.forEach((r) => {
             if (r.dept) r.dept = getDeptDisplayText(r.dept);
           });
+          lockDeptAlways();
           renderHistory();
         });
         FeeDeptMaster.onChange(() => {

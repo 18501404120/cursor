@@ -4,8 +4,8 @@
 (function (global) {
   'use strict';
 
-  var STORAGE_KEY = 'gb-fee-mgmt-fee-items-v6';
-  var LEGACY_STORAGE_KEYS = ['gb-fee-mgmt-fee-items-v5', 'gb-fee-mgmt-fee-items-v4', 'gb-fee-mgmt-fee-items-v3', 'gb-fee-mgmt-fee-items-v2', 'gb-fee-mgmt-fee-items-v1'];
+  var STORAGE_KEY = 'gb-fee-mgmt-fee-items-v9';
+  var LEGACY_STORAGE_KEYS = ['gb-fee-mgmt-fee-items-v8', 'gb-fee-mgmt-fee-items-v7', 'gb-fee-mgmt-fee-items-v6', 'gb-fee-mgmt-fee-items-v5', 'gb-fee-mgmt-fee-items-v4', 'gb-fee-mgmt-fee-items-v3', 'gb-fee-mgmt-fee-items-v2', 'gb-fee-mgmt-fee-items-v1'];
   var SEED_URL = 'fee-item-master-data.json';
   var items = [];
   var usageResolver = null;
@@ -35,43 +35,91 @@
     { code: "T0402", name: "市场投入", remark: "费用 / 市场投入", parentCode: "T04", sortOrder: 90 },
     { code: "T040201", name: "营销投入", remark: "费用 / 市场投入 / 营销投入", parentCode: "T0402", sortOrder: 100 },
     { code: "T04020101", name: "自主营销", remark: "费用 / 市场投入 / 营销投入 / 自主营销", parentCode: "T040201", sortOrder: 110 },
-    { code: "T0402010101", name: "产品营销", remark: "费用 / 市场投入 / 营销投入 / 自主营销 / 产品营销", parentCode: "T04020101", sortOrder: 120 },
-    { code: "T040201010101", name: "海外社媒投放", remark: "费用 / 市场投入 / 营销投入 / 自主营销 / 产品营销 / 海外社媒投放", parentCode: "T0402010101", sortOrder: 130 },
-    { code: "T040201010102", name: "红人营销（KOL）", remark: "费用 / 市场投入 / 营销投入 / 自主营销 / 产品营销 / 红人营销（KOL）", parentCode: "T0402010101", sortOrder: 140 },
-    { code: "T040201010103", name: "媒体公关（PR）", remark: "费用 / 市场投入 / 营销投入 / 自主营销 / 产品营销 / 媒体公关（PR）", parentCode: "T0402010101", sortOrder: 150 },
-    { code: "T040201010104", name: "视觉素材制作", remark: "费用 / 市场投入 / 营销投入 / 自主营销 / 产品营销 / 视觉素材制作", parentCode: "T0402010101", sortOrder: 160 },
-    { code: "T040201010105", name: "地标广告", remark: "费用 / 市场投入 / 营销投入 / 自主营销 / 产品营销 / 地标广告", parentCode: "T0402010101", sortOrder: 170 },
-    { code: "T040201010106", name: "大型展会", remark: "费用 / 市场投入 / 营销投入 / 自主营销 / 产品营销 / 大型展会", parentCode: "T0402010101", sortOrder: 180 },
-    { code: "T040201010107", name: "代言与赞助", remark: "费用 / 市场投入 / 营销投入 / 自主营销 / 产品营销 / 代言与赞助", parentCode: "T0402010101", sortOrder: 190 },
-    { code: "T040201010108", name: "发布会", remark: "费用 / 市场投入 / 营销投入 / 自主营销 / 产品营销 / 发布会", parentCode: "T0402010101", sortOrder: 200 },
-    { code: "T0402010102", name: "品牌营销", remark: "费用 / 市场投入 / 营销投入 / 自主营销 / 品牌营销", parentCode: "T04020101", sortOrder: 210 },
-    { code: "T040201010201", name: "海外社媒投放", remark: "费用 / 市场投入 / 营销投入 / 自主营销 / 品牌营销 / 海外社媒投放", parentCode: "T0402010102", sortOrder: 220 },
-    { code: "T040201010202", name: "红人营销（KOL）", remark: "费用 / 市场投入 / 营销投入 / 自主营销 / 品牌营销 / 红人营销（KOL）", parentCode: "T0402010102", sortOrder: 230 },
-    { code: "T040201010203", name: "媒体公关（PR）", remark: "费用 / 市场投入 / 营销投入 / 自主营销 / 品牌营销 / 媒体公关（PR）", parentCode: "T0402010102", sortOrder: 240 },
-    { code: "T040201010204", name: "视觉素材制作", remark: "费用 / 市场投入 / 营销投入 / 自主营销 / 品牌营销 / 视觉素材制作", parentCode: "T0402010102", sortOrder: 250 },
-    { code: "T040201010205", name: "地标广告", remark: "费用 / 市场投入 / 营销投入 / 自主营销 / 品牌营销 / 地标广告", parentCode: "T0402010102", sortOrder: 260 },
-    { code: "T040201010206", name: "大型展会", remark: "费用 / 市场投入 / 营销投入 / 自主营销 / 品牌营销 / 大型展会", parentCode: "T0402010102", sortOrder: 270 },
-    { code: "T040201010207", name: "代言与赞助", remark: "费用 / 市场投入 / 营销投入 / 自主营销 / 品牌营销 / 代言与赞助", parentCode: "T0402010102", sortOrder: 280 },
-    { code: "T040201010208", name: "发布会", remark: "费用 / 市场投入 / 营销投入 / 自主营销 / 品牌营销 / 发布会", parentCode: "T0402010102", sortOrder: 290 },
-    { code: "T04020102", name: "联合营销", remark: "费用 / 市场投入 / 营销投入 / 联合营销", parentCode: "T040201", sortOrder: 300 },
-    { code: "T0402010201", name: "产品营销", remark: "费用 / 市场投入 / 营销投入 / 联合营销 / 产品营销", parentCode: "T04020102", sortOrder: 310 },
-    { code: "T040201020101", name: "海外社媒投放", remark: "费用 / 市场投入 / 营销投入 / 联合营销 / 产品营销 / 海外社媒投放", parentCode: "T0402010201", sortOrder: 320 },
-    { code: "T040201020102", name: "红人营销（KOL）", remark: "费用 / 市场投入 / 营销投入 / 联合营销 / 产品营销 / 红人营销（KOL）", parentCode: "T0402010201", sortOrder: 330 },
-    { code: "T040201020103", name: "媒体公关（PR）", remark: "费用 / 市场投入 / 营销投入 / 联合营销 / 产品营销 / 媒体公关（PR）", parentCode: "T0402010201", sortOrder: 340 },
-    { code: "T040201020104", name: "视觉素材制作", remark: "费用 / 市场投入 / 营销投入 / 联合营销 / 产品营销 / 视觉素材制作", parentCode: "T0402010201", sortOrder: 350 },
-    { code: "T040201020105", name: "地标广告", remark: "费用 / 市场投入 / 营销投入 / 联合营销 / 产品营销 / 地标广告", parentCode: "T0402010201", sortOrder: 360 },
-    { code: "T040201020106", name: "大型展会", remark: "费用 / 市场投入 / 营销投入 / 联合营销 / 产品营销 / 大型展会", parentCode: "T0402010201", sortOrder: 370 },
-    { code: "T040201020107", name: "代言与赞助", remark: "费用 / 市场投入 / 营销投入 / 联合营销 / 产品营销 / 代言与赞助", parentCode: "T0402010201", sortOrder: 380 },
-    { code: "T040201020108", name: "发布会", remark: "费用 / 市场投入 / 营销投入 / 联合营销 / 产品营销 / 发布会", parentCode: "T0402010201", sortOrder: 390 },
-    { code: "T0402010202", name: "品牌营销", remark: "费用 / 市场投入 / 营销投入 / 联合营销 / 品牌营销", parentCode: "T04020102", sortOrder: 400 },
-    { code: "T040201020201", name: "海外社媒投放", remark: "费用 / 市场投入 / 营销投入 / 联合营销 / 品牌营销 / 海外社媒投放", parentCode: "T0402010202", sortOrder: 410 },
-    { code: "T040201020202", name: "红人营销（KOL）", remark: "费用 / 市场投入 / 营销投入 / 联合营销 / 品牌营销 / 红人营销（KOL）", parentCode: "T0402010202", sortOrder: 420 },
-    { code: "T040201020203", name: "媒体公关（PR）", remark: "费用 / 市场投入 / 营销投入 / 联合营销 / 品牌营销 / 媒体公关（PR）", parentCode: "T0402010202", sortOrder: 430 },
-    { code: "T040201020204", name: "视觉素材制作", remark: "费用 / 市场投入 / 营销投入 / 联合营销 / 品牌营销 / 视觉素材制作", parentCode: "T0402010202", sortOrder: 440 },
-    { code: "T040201020205", name: "地标广告", remark: "费用 / 市场投入 / 营销投入 / 联合营销 / 品牌营销 / 地标广告", parentCode: "T0402010202", sortOrder: 450 },
-    { code: "T040201020206", name: "大型展会", remark: "费用 / 市场投入 / 营销投入 / 联合营销 / 品牌营销 / 大型展会", parentCode: "T0402010202", sortOrder: 460 },
-    { code: "T040201020207", name: "代言与赞助", remark: "费用 / 市场投入 / 营销投入 / 联合营销 / 品牌营销 / 代言与赞助", parentCode: "T0402010202", sortOrder: 470 },
-    { code: "T040201020208", name: "发布会", remark: "费用 / 市场投入 / 营销投入 / 联合营销 / 品牌营销 / 发布会", parentCode: "T0402010202", sortOrder: 480 },
+    { code: "T0402010101", name: "产品营销", remark: "费用 / 市场投入 / 营销投入 / 自主营销 / 产品营销", parentCode: "T04020101", sortOrder: 111 },
+    { code: "T040201010101", name: "重点新品上市项目", remark: "费用 / 市场投入 / 营销投入 / 自主营销 / 产品营销 / 重点新品上市项目", parentCode: "T0402010101", sortOrder: 112 },
+    { code: "T04020101010101", name: "媒介投放", remark: "费用 / 市场投入 / 营销投入 / 自主营销 / 产品营销 / 重点新品上市项目 / 媒介投放", parentCode: "T040201010101", sortOrder: 113 },
+    { code: "T04020101010102", name: "红人营销（KOL）", remark: "费用 / 市场投入 / 营销投入 / 自主营销 / 产品营销 / 重点新品上市项目 / 红人营销（KOL）", parentCode: "T040201010101", sortOrder: 114 },
+    { code: "T04020101010103", name: "媒体公关（PR）", remark: "费用 / 市场投入 / 营销投入 / 自主营销 / 产品营销 / 重点新品上市项目 / 媒体公关（PR）", parentCode: "T040201010101", sortOrder: 115 },
+    { code: "T04020101010104", name: "社媒营销（Social）", remark: "费用 / 市场投入 / 营销投入 / 自主营销 / 产品营销 / 重点新品上市项目 / 社媒营销（Social）", parentCode: "T040201010101", sortOrder: 116 },
+    { code: "T04020101010105", name: "视觉素材制作", remark: "费用 / 市场投入 / 营销投入 / 自主营销 / 产品营销 / 重点新品上市项目 / 视觉素材制作", parentCode: "T040201010101", sortOrder: 117 },
+    { code: "T04020101010106", name: "资源合作", remark: "费用 / 市场投入 / 营销投入 / 自主营销 / 产品营销 / 重点新品上市项目 / 资源合作", parentCode: "T040201010101", sortOrder: 118 },
+    { code: "T04020101010107", name: "线下活动", remark: "费用 / 市场投入 / 营销投入 / 自主营销 / 产品营销 / 重点新品上市项目 / 线下活动", parentCode: "T040201010101", sortOrder: 119 },
+    { code: "T04020101010108", name: "品线运营", remark: "费用 / 市场投入 / 营销投入 / 自主营销 / 产品营销 / 重点新品上市项目 / 品线运营", parentCode: "T040201010101", sortOrder: 120 },
+    { code: "T04020101010109", name: "外部服务费", remark: "费用 / 市场投入 / 营销投入 / 自主营销 / 产品营销 / 重点新品上市项目 / 外部服务费", parentCode: "T040201010101", sortOrder: 121 },
+    { code: "T040201010102", name: "场景campaign", remark: "费用 / 市场投入 / 营销投入 / 自主营销 / 产品营销 / 场景campaign", parentCode: "T0402010101", sortOrder: 122 },
+    { code: "T04020101010201", name: "媒介投放", remark: "费用 / 市场投入 / 营销投入 / 自主营销 / 产品营销 / 场景campaign / 媒介投放", parentCode: "T040201010102", sortOrder: 123 },
+    { code: "T04020101010202", name: "红人营销（KOL）", remark: "费用 / 市场投入 / 营销投入 / 自主营销 / 产品营销 / 场景campaign / 红人营销（KOL）", parentCode: "T040201010102", sortOrder: 124 },
+    { code: "T04020101010203", name: "媒体公关（PR）", remark: "费用 / 市场投入 / 营销投入 / 自主营销 / 产品营销 / 场景campaign / 媒体公关（PR）", parentCode: "T040201010102", sortOrder: 125 },
+    { code: "T04020101010204", name: "社媒营销（Social）", remark: "费用 / 市场投入 / 营销投入 / 自主营销 / 产品营销 / 场景campaign / 社媒营销（Social）", parentCode: "T040201010102", sortOrder: 126 },
+    { code: "T04020101010205", name: "视觉素材制作", remark: "费用 / 市场投入 / 营销投入 / 自主营销 / 产品营销 / 场景campaign / 视觉素材制作", parentCode: "T040201010102", sortOrder: 127 },
+    { code: "T04020101010206", name: "资源合作", remark: "费用 / 市场投入 / 营销投入 / 自主营销 / 产品营销 / 场景campaign / 资源合作", parentCode: "T040201010102", sortOrder: 128 },
+    { code: "T04020101010207", name: "线下活动", remark: "费用 / 市场投入 / 营销投入 / 自主营销 / 产品营销 / 场景campaign / 线下活动", parentCode: "T040201010102", sortOrder: 129 },
+    { code: "T04020101010208", name: "品线运营", remark: "费用 / 市场投入 / 营销投入 / 自主营销 / 产品营销 / 场景campaign / 品线运营", parentCode: "T040201010102", sortOrder: 130 },
+    { code: "T04020101010209", name: "外部服务费", remark: "费用 / 市场投入 / 营销投入 / 自主营销 / 产品营销 / 场景campaign / 外部服务费", parentCode: "T040201010102", sortOrder: 131 },
+    { code: "T040201010103", name: "日常营销（AO）", remark: "费用 / 市场投入 / 营销投入 / 自主营销 / 产品营销 / 日常营销（AO）", parentCode: "T0402010101", sortOrder: 132 },
+    { code: "T04020101010301", name: "媒介投放", remark: "费用 / 市场投入 / 营销投入 / 自主营销 / 产品营销 / 日常营销（AO） / 媒介投放", parentCode: "T040201010103", sortOrder: 133 },
+    { code: "T04020101010302", name: "红人营销（KOL）", remark: "费用 / 市场投入 / 营销投入 / 自主营销 / 产品营销 / 日常营销（AO） / 红人营销（KOL）", parentCode: "T040201010103", sortOrder: 134 },
+    { code: "T04020101010303", name: "媒体公关（PR）", remark: "费用 / 市场投入 / 营销投入 / 自主营销 / 产品营销 / 日常营销（AO） / 媒体公关（PR）", parentCode: "T040201010103", sortOrder: 135 },
+    { code: "T04020101010304", name: "社媒营销（Social）", remark: "费用 / 市场投入 / 营销投入 / 自主营销 / 产品营销 / 日常营销（AO） / 社媒营销（Social）", parentCode: "T040201010103", sortOrder: 136 },
+    { code: "T04020101010305", name: "视觉素材制作", remark: "费用 / 市场投入 / 营销投入 / 自主营销 / 产品营销 / 日常营销（AO） / 视觉素材制作", parentCode: "T040201010103", sortOrder: 137 },
+    { code: "T04020101010306", name: "资源合作", remark: "费用 / 市场投入 / 营销投入 / 自主营销 / 产品营销 / 日常营销（AO） / 资源合作", parentCode: "T040201010103", sortOrder: 138 },
+    { code: "T04020101010307", name: "线下活动", remark: "费用 / 市场投入 / 营销投入 / 自主营销 / 产品营销 / 日常营销（AO） / 线下活动", parentCode: "T040201010103", sortOrder: 139 },
+    { code: "T04020101010308", name: "品线运营", remark: "费用 / 市场投入 / 营销投入 / 自主营销 / 产品营销 / 日常营销（AO） / 品线运营", parentCode: "T040201010103", sortOrder: 140 },
+    { code: "T04020101010309", name: "外部服务费", remark: "费用 / 市场投入 / 营销投入 / 自主营销 / 产品营销 / 日常营销（AO） / 外部服务费", parentCode: "T040201010103", sortOrder: 141 },
+    { code: "T040201010104", name: "其他产品项目（非IMC选品）", remark: "费用 / 市场投入 / 营销投入 / 自主营销 / 产品营销 / 其他产品项目（非IMC选品）", parentCode: "T0402010101", sortOrder: 142 },
+    { code: "T04020101010401", name: "物料制作", remark: "费用 / 市场投入 / 营销投入 / 自主营销 / 产品营销 / 其他产品项目（非IMC选品） / 物料制作", parentCode: "T040201010104", sortOrder: 143 },
+    { code: "T0402010102", name: "品牌营销", remark: "费用 / 市场投入 / 营销投入 / 自主营销 / 品牌营销", parentCode: "T04020101", sortOrder: 144 },
+    { code: "T040201010201", name: "大促活动营销", remark: "费用 / 市场投入 / 营销投入 / 自主营销 / 品牌营销 / 大促活动营销", parentCode: "T0402010102", sortOrder: 145 },
+    { code: "T04020101020101", name: "媒介投放", remark: "费用 / 市场投入 / 营销投入 / 自主营销 / 品牌营销 / 大促活动营销 / 媒介投放", parentCode: "T040201010201", sortOrder: 146 },
+    { code: "T04020101020102", name: "红人营销（KOL）", remark: "费用 / 市场投入 / 营销投入 / 自主营销 / 品牌营销 / 大促活动营销 / 红人营销（KOL）", parentCode: "T040201010201", sortOrder: 147 },
+    { code: "T04020101020103", name: "媒体公关（PR）", remark: "费用 / 市场投入 / 营销投入 / 自主营销 / 品牌营销 / 大促活动营销 / 媒体公关（PR）", parentCode: "T040201010201", sortOrder: 148 },
+    { code: "T04020101020104", name: "社媒营销（Social）", remark: "费用 / 市场投入 / 营销投入 / 自主营销 / 品牌营销 / 大促活动营销 / 社媒营销（Social）", parentCode: "T040201010201", sortOrder: 149 },
+    { code: "T04020101020105", name: "视觉素材制作", remark: "费用 / 市场投入 / 营销投入 / 自主营销 / 品牌营销 / 大促活动营销 / 视觉素材制作", parentCode: "T040201010201", sortOrder: 150 },
+    { code: "T04020101020106", name: "资源合作", remark: "费用 / 市场投入 / 营销投入 / 自主营销 / 品牌营销 / 大促活动营销 / 资源合作", parentCode: "T040201010201", sortOrder: 151 },
+    { code: "T04020101020107", name: "线下活动", remark: "费用 / 市场投入 / 营销投入 / 自主营销 / 品牌营销 / 大促活动营销 / 线下活动", parentCode: "T040201010201", sortOrder: 152 },
+    { code: "T04020101020108", name: "外部服务费", remark: "费用 / 市场投入 / 营销投入 / 自主营销 / 品牌营销 / 大促活动营销 / 外部服务费", parentCode: "T040201010201", sortOrder: 153 },
+    { code: "T040201010202", name: "日常营销（AO）", remark: "费用 / 市场投入 / 营销投入 / 自主营销 / 品牌营销 / 日常营销（AO）", parentCode: "T0402010102", sortOrder: 154 },
+    { code: "T04020101020201", name: "媒介投放", remark: "费用 / 市场投入 / 营销投入 / 自主营销 / 品牌营销 / 日常营销（AO） / 媒介投放", parentCode: "T040201010202", sortOrder: 155 },
+    { code: "T04020101020202", name: "红人营销（KOL）", remark: "费用 / 市场投入 / 营销投入 / 自主营销 / 品牌营销 / 日常营销（AO） / 红人营销（KOL）", parentCode: "T040201010202", sortOrder: 156 },
+    { code: "T04020101020203", name: "媒体公关（PR）", remark: "费用 / 市场投入 / 营销投入 / 自主营销 / 品牌营销 / 日常营销（AO） / 媒体公关（PR）", parentCode: "T040201010202", sortOrder: 157 },
+    { code: "T04020101020204", name: "社媒营销（Social）", remark: "费用 / 市场投入 / 营销投入 / 自主营销 / 品牌营销 / 日常营销（AO） / 社媒营销（Social）", parentCode: "T040201010202", sortOrder: 158 },
+    { code: "T04020101020205", name: "视觉素材制作", remark: "费用 / 市场投入 / 营销投入 / 自主营销 / 品牌营销 / 日常营销（AO） / 视觉素材制作", parentCode: "T040201010202", sortOrder: 159 },
+    { code: "T04020101020206", name: "资源合作", remark: "费用 / 市场投入 / 营销投入 / 自主营销 / 品牌营销 / 日常营销（AO） / 资源合作", parentCode: "T040201010202", sortOrder: 160 },
+    { code: "T04020101020207", name: "线下活动", remark: "费用 / 市场投入 / 营销投入 / 自主营销 / 品牌营销 / 日常营销（AO） / 线下活动", parentCode: "T040201010202", sortOrder: 161 },
+    { code: "T04020101020208", name: "外部服务费", remark: "费用 / 市场投入 / 营销投入 / 自主营销 / 品牌营销 / 日常营销（AO） / 外部服务费", parentCode: "T040201010202", sortOrder: 162 },
+    { code: "T04020101020209", name: "品牌运营", remark: "费用 / 市场投入 / 营销投入 / 自主营销 / 品牌营销 / 日常营销（AO） / 品牌运营", parentCode: "T040201010202", sortOrder: 163 },
+    { code: "T040201010203", name: "品牌大事件", remark: "费用 / 市场投入 / 营销投入 / 自主营销 / 品牌营销 / 品牌大事件", parentCode: "T0402010102", sortOrder: 164 },
+    { code: "T04020101020301", name: "媒介投放", remark: "费用 / 市场投入 / 营销投入 / 自主营销 / 品牌营销 / 品牌大事件 / 媒介投放", parentCode: "T040201010203", sortOrder: 165 },
+    { code: "T04020101020302", name: "红人营销（KOL）", remark: "费用 / 市场投入 / 营销投入 / 自主营销 / 品牌营销 / 品牌大事件 / 红人营销（KOL）", parentCode: "T040201010203", sortOrder: 166 },
+    { code: "T04020101020303", name: "媒体公关（PR）", remark: "费用 / 市场投入 / 营销投入 / 自主营销 / 品牌营销 / 品牌大事件 / 媒体公关（PR）", parentCode: "T040201010203", sortOrder: 167 },
+    { code: "T04020101020304", name: "社媒营销（Social）", remark: "费用 / 市场投入 / 营销投入 / 自主营销 / 品牌营销 / 品牌大事件 / 社媒营销（Social）", parentCode: "T040201010203", sortOrder: 168 },
+    { code: "T04020101020305", name: "视觉素材制作", remark: "费用 / 市场投入 / 营销投入 / 自主营销 / 品牌营销 / 品牌大事件 / 视觉素材制作", parentCode: "T040201010203", sortOrder: 169 },
+    { code: "T04020101020306", name: "资源合作", remark: "费用 / 市场投入 / 营销投入 / 自主营销 / 品牌营销 / 品牌大事件 / 资源合作", parentCode: "T040201010203", sortOrder: 170 },
+    { code: "T04020101020307", name: "线下活动", remark: "费用 / 市场投入 / 营销投入 / 自主营销 / 品牌营销 / 品牌大事件 / 线下活动", parentCode: "T040201010203", sortOrder: 171 },
+    { code: "T04020101020308", name: "外部服务费", remark: "费用 / 市场投入 / 营销投入 / 自主营销 / 品牌营销 / 品牌大事件 / 外部服务费", parentCode: "T040201010203", sortOrder: 172 },
+    { code: "T04020101020309", name: "品牌运营", remark: "费用 / 市场投入 / 营销投入 / 自主营销 / 品牌营销 / 品牌大事件 / 品牌运营", parentCode: "T040201010203", sortOrder: 173 },
+    { code: "T040201010204", name: "展会运营", remark: "费用 / 市场投入 / 营销投入 / 自主营销 / 品牌营销 / 展会运营", parentCode: "T0402010102", sortOrder: 174 },
+    { code: "T04020101020401", name: "展会搭建", remark: "费用 / 市场投入 / 营销投入 / 自主营销 / 品牌营销 / 展会运营 / 展会搭建", parentCode: "T040201010204", sortOrder: 175 },
+    { code: "T04020101020402", name: "展会申报", remark: "费用 / 市场投入 / 营销投入 / 自主营销 / 品牌营销 / 展会运营 / 展会申报", parentCode: "T040201010204", sortOrder: 176 },
+    { code: "T04020101020403", name: "展会策划设计", remark: "费用 / 市场投入 / 营销投入 / 自主营销 / 品牌营销 / 展会运营 / 展会策划设计", parentCode: "T040201010204", sortOrder: 177 },
+    { code: "T04020101020404", name: "展会运营", remark: "费用 / 市场投入 / 营销投入 / 自主营销 / 品牌营销 / 展会运营 / 展会运营", parentCode: "T040201010204", sortOrder: 178 },
+    { code: "T04020101020405", name: "物料采买", remark: "费用 / 市场投入 / 营销投入 / 自主营销 / 品牌营销 / 展会运营 / 物料采买", parentCode: "T040201010204", sortOrder: 179 },
+    { code: "T040201010205", name: "展会传播", remark: "费用 / 市场投入 / 营销投入 / 自主营销 / 品牌营销 / 展会传播", parentCode: "T0402010102", sortOrder: 180 },
+    { code: "T04020101020501", name: "媒介投放", remark: "费用 / 市场投入 / 营销投入 / 自主营销 / 品牌营销 / 展会传播 / 媒介投放", parentCode: "T040201010205", sortOrder: 181 },
+    { code: "T04020101020502", name: "红人营销（KOL）", remark: "费用 / 市场投入 / 营销投入 / 自主营销 / 品牌营销 / 展会传播 / 红人营销（KOL）", parentCode: "T040201010205", sortOrder: 182 },
+    { code: "T04020101020503", name: "媒体公关（PR）", remark: "费用 / 市场投入 / 营销投入 / 自主营销 / 品牌营销 / 展会传播 / 媒体公关（PR）", parentCode: "T040201010205", sortOrder: 183 },
+    { code: "T04020101020504", name: "社媒营销（Social）", remark: "费用 / 市场投入 / 营销投入 / 自主营销 / 品牌营销 / 展会传播 / 社媒营销（Social）", parentCode: "T040201010205", sortOrder: 184 },
+    { code: "T04020101020505", name: "视觉素材制作", remark: "费用 / 市场投入 / 营销投入 / 自主营销 / 品牌营销 / 展会传播 / 视觉素材制作", parentCode: "T040201010205", sortOrder: 185 },
+    { code: "T04020101020506", name: "资源合作", remark: "费用 / 市场投入 / 营销投入 / 自主营销 / 品牌营销 / 展会传播 / 资源合作", parentCode: "T040201010205", sortOrder: 186 },
+    { code: "T04020101020507", name: "线下活动", remark: "费用 / 市场投入 / 营销投入 / 自主营销 / 品牌营销 / 展会传播 / 线下活动", parentCode: "T040201010205", sortOrder: 187 },
+    { code: "T04020101020508", name: "外部服务费", remark: "费用 / 市场投入 / 营销投入 / 自主营销 / 品牌营销 / 展会传播 / 外部服务费", parentCode: "T040201010205", sortOrder: 188 },
+    { code: "T04020101020509", name: "品牌运营", remark: "费用 / 市场投入 / 营销投入 / 自主营销 / 品牌营销 / 展会传播 / 品牌运营", parentCode: "T040201010205", sortOrder: 189 },
+    { code: "T0402010103", name: "基础固定花费", remark: "费用 / 市场投入 / 营销投入 / 自主营销 / 基础固定花费", parentCode: "T04020101", sortOrder: 190 },
+    { code: "T040201010301", name: "翻译费", remark: "费用 / 市场投入 / 营销投入 / 自主营销 / 基础固定花费 / 翻译费", parentCode: "T0402010103", sortOrder: 191 },
+    { code: "T040201010302", name: "供应商年框合作费", remark: "费用 / 市场投入 / 营销投入 / 自主营销 / 基础固定花费 / 供应商年框合作费", parentCode: "T0402010103", sortOrder: 192 },
+    { code: "T040201010303", name: "供应商服务费", remark: "费用 / 市场投入 / 营销投入 / 自主营销 / 基础固定花费 / 供应商服务费", parentCode: "T0402010103", sortOrder: 193 },
+    { code: "T040201010304", name: "营销工具采买", remark: "费用 / 市场投入 / 营销投入 / 自主营销 / 基础固定花费 / 营销工具采买", parentCode: "T0402010103", sortOrder: 194 },
+    { code: "T04020102", name: "联合营销", remark: "费用 / 市场投入 / 营销投入 / 联合营销", parentCode: "T040201", sortOrder: 195 },
     { code: "T040202", name: "渠道投入", remark: "费用 / 市场投入 / 渠道投入", parentCode: "T0402", sortOrder: 490 },
     { code: "T04020201", name: "渠道激励", remark: "费用 / 市场投入 / 渠道投入 / 渠道激励", parentCode: "T040202", sortOrder: 500 },
     { code: "T0402020101", name: "价保", remark: "费用 / 市场投入 / 渠道投入 / 渠道激励 / 价保", parentCode: "T04020201", sortOrder: 510 },
@@ -330,6 +378,41 @@
       if (nodeHasChildren) rows = rows.concat(flattenTreeRows(node.children, depth + 1));
     });
     return rows;
+  }
+
+  function flattenTreeRowsCollapsed(nodes, depth, expandedSet, forceExpand) {
+    var rows = [];
+    (nodes || []).forEach(function (node) {
+      var nodeHasChildren = node.children && node.children.length > 0;
+      var expanded = !!(forceExpand || (expandedSet && expandedSet.has(node.code)));
+      rows.push({ node: node, depth: depth, hasChildren: nodeHasChildren, expanded: expanded });
+      if (nodeHasChildren && expanded) {
+        rows = rows.concat(flattenTreeRowsCollapsed(node.children, depth + 1, expandedSet, forceExpand));
+      }
+    });
+    return rows;
+  }
+
+  function ensureTreeSelectExpanded(inst) {
+    if (!inst.expanded) inst.expanded = new Set();
+    var opts = inst.opts || {};
+    if (opts.rootCode) inst.expanded.add(opts.rootCode);
+    var value = inst.select && inst.select.value;
+    if (!value) return;
+    var cur = opts.mode === 'name' ? getByName(value) : getByCode(value);
+    var guard = 0;
+    while (cur && cur.parentCode && guard < 20) {
+      inst.expanded.add(cur.parentCode);
+      cur = getByCode(cur.parentCode);
+      guard += 1;
+    }
+  }
+
+  function toggleTreeSelectNode(inst, code) {
+    if (!code) return;
+    if (!inst.expanded) inst.expanded = new Set();
+    if (inst.expanded.has(code)) inst.expanded.delete(code);
+    else inst.expanded.add(code);
   }
 
   function normalizedKeyword(text) {
@@ -926,6 +1009,45 @@
     return parts.join(' / ');
   }
 
+  function findNodeInForest(nodes, code) {
+    for (var i = 0; i < (nodes || []).length; i++) {
+      if (nodes[i].code === code) return nodes[i];
+      var hit = findNodeInForest(nodes[i].children, code);
+      if (hit) return hit;
+    }
+    return null;
+  }
+
+  function getDisplayRoots(rootCode) {
+    var forest = buildTreeNodes();
+    if (!rootCode) return forest;
+    var node = findNodeInForest(forest, rootCode);
+    return node ? [node] : [];
+  }
+
+  function isUnderRoot(code, rootCode) {
+    if (!rootCode) return true;
+    if (code === rootCode) return true;
+    var cur = getByCode(code);
+    var guard = 0;
+    while (cur && guard < 20) {
+      if (cur.code === rootCode) return true;
+      cur = cur.parentCode ? getByCode(cur.parentCode) : null;
+      guard += 1;
+    }
+    return false;
+  }
+
+  /** 从指定祖先起的短路径，如 自主营销 / 产品营销 / 重点新品上市项目 / 媒介投放 */
+  function getShortPath(code, fromCode) {
+    var full = getFullName(code);
+    if (!fromCode) return full;
+    var from = getFullName(fromCode);
+    if (from && full.indexOf(from + ' / ') === 0) return full.slice(from.length + 3);
+    if (from && full === from) return getName(code);
+    return full;
+  }
+
   function buildSelectOptions(opts) {
     opts = opts || {};
     var leavesOnly = opts.leavesOnly !== false;
@@ -933,10 +1055,11 @@
     var excludeMap = buildExcludeMap(opts);
     if (!treeLabels) {
       var list = leavesOnly ? getLeafItems() : items.slice();
-      return list.filter(function (item) { return !excludeMap[item.code]; })
-        .map(function (item) { return { item: item, depth: 0, hasChildren: hasChildren(item.code) }; });
+      return list.filter(function (item) {
+        return !excludeMap[item.code] && isUnderRoot(item.code, opts.rootCode);
+      }).map(function (item) { return { item: item, depth: 0, hasChildren: hasChildren(item.code) }; });
     }
-    var rows = flattenTreeRows(buildTreeNodes(), 0).filter(function (row) {
+    var rows = flattenTreeRows(getDisplayRoots(opts.rootCode), 0).filter(function (row) {
       return !excludeMap[row.node.code];
     });
     return rows.filter(function (row) {
@@ -961,9 +1084,11 @@
   function getTreeSelectRows(inst) {
     var opts = inst.opts || {};
     var keyword = normalizedKeyword(inst.keyword);
-    var nodes = filterTreeByKeyword(buildTreeNodes(), keyword);
+    var nodes = filterTreeByKeyword(getDisplayRoots(opts.rootCode), keyword);
     var excludeMap = buildExcludeMap(opts);
-    var rows = flattenTreeRows(nodes, 0).filter(function (row) {
+    var forceExpand = !!keyword;
+    if (!forceExpand) ensureTreeSelectExpanded(inst);
+    var rows = flattenTreeRowsCollapsed(nodes, 0, inst.expanded, forceExpand).filter(function (row) {
       return !excludeMap[row.node.code];
     });
     var result = [];
@@ -979,7 +1104,8 @@
     rows.forEach(function (row) {
       var item = row.node;
       var value = opts.mode === 'code' ? item.code : item.name;
-      var disabled = opts.leavesOnly !== false && row.hasChildren;
+      var blocked = typeof opts.isNodeDisabled === 'function' && !!opts.isNodeDisabled(item, row);
+      var disabled = (opts.leavesOnly !== false && row.hasChildren) || blocked;
       result.push({
         value: value,
         label: item.name,
@@ -987,7 +1113,10 @@
         showCode: shouldShowCode(opts),
         depth: row.depth,
         disabled: disabled,
-        hasChildren: row.hasChildren
+        blocked: blocked,
+        disabledHint: blocked ? (opts.disabledHint || '') : '',
+        hasChildren: row.hasChildren,
+        expanded: forceExpand || row.expanded
       });
     });
     return result;
@@ -999,6 +1128,9 @@
     var value = sel.value;
     var selected = Array.from(sel.options).find(function (opt) { return opt.value === value; });
     var label = selected ? selected.textContent.replace(/^[　\s└]+/, '') : '';
+    if (inst.opts && inst.opts.shortPathFrom && value) {
+      label = getShortPath(value, inst.opts.shortPathFrom) || label;
+    }
     if (value && label) inst.trigger.textContent = label;
     else if (value) inst.trigger.textContent = value;
     else if (inst.opts && inst.opts.includeAll) inst.trigger.textContent = inst.opts.allLabel || '全部';
@@ -1046,9 +1178,15 @@
         (row.disabled ? ' is-disabled' : '') +
         (row.value === value ? ' is-selected' : '') +
         (row.hasChildren ? ' has-children' : '');
+      var caret = row.hasChildren
+        ? '<span class="fee-tree-select-caret" aria-hidden="true">' + (row.expanded ? '▼' : '▶') + '</span>'
+        : '<span class="fee-tree-select-caret is-leaf" aria-hidden="true"></span>';
       return '<button type="button" class="' + cls + '" data-value="' + escapeHtml(row.value) + '"' +
-        (row.disabled ? ' disabled' : '') +
-        ' style="padding-left:' + (12 + row.depth * 18) + 'px;">' +
+        (row.code ? ' data-code="' + escapeHtml(row.code) + '"' : '') +
+        (row.hasChildren ? ' data-has-children="1"' : '') +
+        (row.disabledHint ? ' title="' + escapeHtml(row.disabledHint) + '"' : '') +
+        ' style="padding-left:' + (8 + row.depth * 16) + 'px;">' +
+        caret +
         '<span class="fee-tree-select-label">' + escapeHtml(row.label) + '</span>' +
         (row.code && row.showCode ? '<span class="fee-tree-select-code">' + escapeHtml(row.code) + '</span>' : '') +
         '</button>';
@@ -1068,8 +1206,17 @@
         next.setSelectionRange(next.value.length, next.value.length);
       }
     });
-    inst.panel.querySelectorAll('.fee-tree-select-option:not(.is-disabled)').forEach(function (btn) {
-      btn.addEventListener('click', function () {
+    inst.panel.querySelectorAll('.fee-tree-select-option').forEach(function (btn) {
+      btn.addEventListener('click', function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        if (btn.getAttribute('data-has-children') === '1') {
+          toggleTreeSelectNode(inst, btn.getAttribute('data-code'));
+          renderTreeSelectPanel(inst);
+          positionTreeSelectPanel(inst);
+          return;
+        }
+        if (btn.classList.contains('is-disabled')) return;
         inst.select.value = btn.dataset.value || '';
         inst.select.dispatchEvent(new Event('change', { bubbles: true }));
         closeTreeSelect(inst);
@@ -1082,6 +1229,7 @@
     closeOtherTreeSelects(inst);
     inst.open = true;
     inst.keyword = '';
+    ensureTreeSelectExpanded(inst);
     inst.wrap.classList.add('is-open');
     inst.trigger.setAttribute('aria-expanded', 'true');
     renderTreeSelectPanel(inst);
@@ -1134,6 +1282,7 @@
       panel: panel,
       opts: Object.assign({}, opts),
       keyword: '',
+      expanded: new Set(),
       open: false,
       reposition: function () { positionTreeSelectPanel(inst); }
     };
@@ -1153,6 +1302,17 @@
     return inst;
   }
 
+  function pruneTreeSelects() {
+    treeSelectInstances = treeSelectInstances.filter(function (inst) {
+      var alive = inst.select && document.body.contains(inst.select);
+      if (alive) return true;
+      closeTreeSelect(inst);
+      if (inst.panel && inst.panel.parentNode) inst.panel.parentNode.removeChild(inst.panel);
+      if (inst.wrap && inst.wrap.parentNode) inst.wrap.parentNode.removeChild(inst.wrap);
+      return false;
+    });
+  }
+
   function syncSelect(selectOrId, opts) {
     opts = opts || {};
     var sel = typeof selectOrId === 'string' ? document.getElementById(selectOrId) : selectOrId;
@@ -1163,17 +1323,23 @@
     var html = '';
     if (opts.includeAll) {
       html += '<option value="">' + escapeHtml(opts.allLabel || '全部') + '</option>';
+    } else if (opts.allowEmpty) {
+      html += '<option value="">' + escapeHtml(opts.placeholder || '请选择') + '</option>';
     }
     html += buildSelectOptions(opts).map(function (row) {
       var item = row.item;
       var val = mode === 'code' ? item.code : item.name;
       var prefix = row.depth ? '　'.repeat(row.depth) + '└ ' : '';
       var label = prefix + (showCode ? (item.name + ' · ' + item.code) : item.name);
-      return '<option value="' + escapeHtml(val) + '">' + escapeHtml(label) + '</option>';
+      if (opts.shortPathFrom) {
+        label = getShortPath(item.code, opts.shortPathFrom) || item.name;
+      }
+      var blocked = typeof opts.isNodeDisabled === 'function' && !!opts.isNodeDisabled(item, row);
+      return '<option value="' + escapeHtml(val) + '"' + (blocked ? ' disabled' : '') + '>' + escapeHtml(label) + '</option>';
     }).join('');
     sel.innerHTML = html;
     if (opts.preserve !== false && prev) {
-      var ok = Array.from(sel.options).some(function (opt) { return opt.value === prev; });
+      var ok = Array.from(sel.options).some(function (opt) { return opt.value === prev && !opt.disabled; });
       if (ok) sel.value = prev;
     }
     if (global.FeeMgmtCommon && global.FeeMgmtCommon.syncClearableSelect) {
@@ -1269,8 +1435,11 @@
     getByName: getByName,
     getName: getName,
     getFullName: getFullName,
+    getShortPath: getShortPath,
+    hasChildren: hasChildren,
     syncSelect: syncSelect,
     mountTreeSelect: mountTreeSelect,
+    pruneTreeSelects: pruneTreeSelects,
     openManage: openManage,
     openEdit: openEdit,
     openRemark: openRemark,

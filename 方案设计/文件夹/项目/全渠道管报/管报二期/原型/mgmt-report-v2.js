@@ -20,16 +20,18 @@
     { id: 'T040201', name: '营销投入', parent: 'T0402', level: 2, mode: '汇总公式计算' },
     { id: 'T04020101', name: '自主营销', parent: 'T040201', level: 3, mode: '汇总公式计算' },
     { id: 'T0402010101', name: '产品营销', parent: 'T04020101', level: 4, mode: '汇总公式计算' },
-    { id: 'T040201010101', name: '海外社媒投放', parent: 'T0402010101', level: 5, mode: '项目预算取数' },
-    { id: 'T040201010102', name: '红人营销（KOL）', parent: 'T0402010101', level: 5, mode: '项目预算取数' },
-    { id: 'T040201010103', name: '媒体公关（PR）', parent: 'T0402010101', level: 5, mode: '项目预算取数' },
-    { id: 'T040201010104', name: '视觉素材制作', parent: 'T0402010101', level: 5, mode: '项目预算取数' },
-    { id: 'T040201010105', name: '地标广告', parent: 'T0402010101', level: 5, mode: '项目预算取数' },
-    { id: 'T040201010106', name: '大型展会', parent: 'T0402010101', level: 5, mode: '项目预算取数' },
-    { id: 'T040201010107', name: '代言与赞助', parent: 'T0402010101', level: 5, mode: '项目预算取数' },
+    { id: 'T040201010101', name: '重点新品上市项目', parent: 'T0402010101', level: 5, mode: '汇总公式计算' },
+    { id: 'T04020101010101', name: '媒介投放', parent: 'T040201010101', level: 6, mode: '项目预算取数' },
+    { id: 'T04020101010102', name: '红人营销（KOL）', parent: 'T040201010101', level: 6, mode: '项目预算取数' },
+    { id: 'T04020101010103', name: '媒体公关（PR）', parent: 'T040201010101', level: 6, mode: '项目预算取数' },
+    { id: 'T040201010103', name: '日常营销（AO）', parent: 'T0402010101', level: 5, mode: '汇总公式计算' },
+    { id: 'T04020101010301', name: '媒介投放', parent: 'T040201010103', level: 6, mode: '项目预算取数' },
     { id: 'T0402010102', name: '品牌营销', parent: 'T04020101', level: 4, mode: '汇总公式计算' },
-    { id: 'T040201010201', name: '海外社媒投放', parent: 'T0402010102', level: 5, mode: '项目预算取数' },
-    { id: 'T04020102', name: '联合营销', parent: 'T040201', level: 3, mode: '汇总公式计算' },
+    { id: 'T040201010201', name: '大促活动营销', parent: 'T0402010102', level: 5, mode: '汇总公式计算' },
+    { id: 'T04020101020101', name: '媒介投放', parent: 'T040201010201', level: 6, mode: '项目预算取数' },
+    { id: 'T0402010103', name: '基础固定花费', parent: 'T04020101', level: 4, mode: '汇总公式计算' },
+    { id: 'T040201010301', name: '翻译费', parent: 'T0402010103', level: 5, mode: '项目预算取数' },
+    { id: 'T04020102', name: '联合营销', parent: 'T040201', level: 3, mode: '项目预算取数' },
     { id: 'T040202', name: '渠道投入', parent: 'T0402', level: 2, mode: '汇总公式计算' },
     { id: 'T04020201', name: '渠道激励', parent: 'T040202', level: 3, mode: '汇总公式计算' },
     { id: 'T0402020101', name: '价保', parent: 'T04020201', level: 4, mode: '业务系统单据取数' },
@@ -78,7 +80,7 @@
     {
       id: 'D001', period: '2026-06', date: '2026-06-15', channel: 'Shopify', store: 'Govee US',
       country: 'US', msku: 'H6076-US', sku: 'H6076', product: 'Floor Lamp Pro',
-      feeId: 'T040201010101', feeName: '海外社媒投放', feePath: '费用 / 市场投入 / 营销投入 / 自主营销 / 产品营销 / 海外社媒投放',
+      feeId: 'T04020101010101', feeName: '媒介投放', feePath: '费用 / 市场投入 / 营销投入 / 自主营销 / 产品营销 / 重点新品上市项目 / 媒介投放',
       dept: '109 · Trading / 新渠道', sign: '正数', amount: 12800, currency: 'USD', rate: 1, amountUSD: 12800,
       allocated: true, allocationRule: '按营收占比分摊', allocationBase: 256000, sourceAmount: 42000, allocationRatio: 0.3048,
       mode: '项目预算取数', sourceType: '项目预算', sourceId: 'SRC-PRJ-202606-001', sourceNo: 'PRJ-MKT-2026-019', lineNo: 'BUD-003',
@@ -192,9 +194,9 @@
         ['预算金额', 'USD 42,000.00']
       ],
       lines: [
-        ['BUD-001', '海外社媒投放', 'Amazon US', '14,200.00'],
-        ['BUD-002', '海外社媒投放', 'Govee EU', '15,000.00'],
-        ['BUD-003', '海外社媒投放', 'Govee US', '12,800.00']
+        ['BUD-001', '媒介投放', 'Amazon US', '14,200.00'],
+        ['BUD-002', '媒介投放', 'Govee EU', '15,000.00'],
+        ['BUD-003', '媒介投放', 'Govee US', '12,800.00']
       ]
     },
     'SRC-IMP-202606-018': {
@@ -360,7 +362,7 @@
   };
 
   var recon = [
-    { id: 'R001', period: '2026-06', feeId: 'T040201010101', channel: 'Shopify', mgmt: 12800, finance: 0, handling: '项目预算进入管报，财务暂未入账，差异率按 100% 展示', override: false },
+    { id: 'R001', period: '2026-06', feeId: 'T04020101010101', channel: 'Shopify', mgmt: 12800, finance: 0, handling: '项目预算进入管报，财务暂未入账，差异率按 100% 展示', override: false },
     { id: 'R002', period: '2026-06', feeId: 'T040202030101', channel: '线下商超', mgmt: 18650, finance: 18100, handling: '小额差异待财务定稿覆盖或进入差异说明', override: false },
     { id: 'R003', period: '2026-06', feeId: 'T0403030101', channel: '线下商超', mgmt: 45200, finance: 44780, handling: '退款计提与财务销售退款差异，保留说明', override: true },
     { id: 'R005', period: '2026-06', feeId: 'T040202020101', channel: '商超3P', mgmt: 21740, finance: 21740, handling: '财务同口径取数，已验平', override: true },
@@ -381,7 +383,7 @@
       keyword: ''
     },
     selectedFeeId: 'T04',
-    expanded: { T04: true, T0402: true, T040201: true, T04020101: true, T0402010101: true, T040202: true, T040203: true, T0403: true, T040301: true, T040303: true },
+    expanded: { T04: true, T0402: true, T040201: true, T04020101: true, T0402010101: true, T040201010101: true, T04020102: true, T040202: true, T040203: true, T0403: true, T040301: true, T040303: true },
     trendGranularity: 'day',
     trendHoverIndex: null,
     trendActiveIndex: null,

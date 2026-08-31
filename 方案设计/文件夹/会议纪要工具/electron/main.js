@@ -21,6 +21,17 @@ const {
 } = require('./lib/transcribe');
 const { generateScenarioFromTranscript } = require('./lib/scenario-framing');
 const { isLlmConfigured } = require('./lib/llm');
+const {
+  liveWebmPath,
+  writeLiveMeta,
+  openLiveFd,
+  closeLiveFd,
+  appendLiveChunk,
+  liveWebmSize,
+  cleanupLiveArtifacts,
+  findIncompleteSessions,
+  describeIncomplete,
+} = require('./lib/live-recording');
 
 const MAX_FLOATING_WINDOWS = 2;
 const WIN_W = 176;
@@ -75,12 +86,30 @@ function destroyAllFloatingWindows() {
   }
 }
 
+function flushLiveSessionsOnQuit() {
+  for (const session of sessionsByWindowId.values()) {
+    closeLiveFd(session.liveFd);
+    session.liveFd = null;
+    if (session.paths?.sessionDir) {
+      try {
+        writeLiveMeta(session.paths.sessionDir, {
+          status: 'interrupted',
+          lastChunkAt: new Date().toISOString(),
+        });
+      } catch (_) {
+        /* ignore */
+      }
+    }
+  }
+}
+
 function forceQuitApp() {
   if (isQuitting) {
     app.exit(0);
     return;
   }
   isQuitting = true;
+  flushLiveSessionsOnQuit();
   try {
     globalShortcut.unregisterAll();
   } catch (_) {
@@ -135,6 +164,14 @@ function updateTrayMenu() {
       click: () => openAnotherFloatingWindow(),
     });
   }
+  items.push({ type: 'separator' });
+  items.push({
+    label: '转写未完成的录音',
+    click: () => {
+      const first = [...floatingWindows.values()][0]?.win;
+      recoverIncompleteSessions(first);
+    },
+  });
   items.push({ type: 'separator' });
   items.push({ label: '退出应用 (⌘Q)', click: () => forceQuitApp() });
   tray.setContextMenu(Menu.buildFromTemplate(items));
@@ -206,6 +243,21 @@ function createFloatingWindow(options = {}) {
   floatingWindows.set(win.id, { win, slot });
 
   win.on('closed', () => {
+    const session = sessionsByWindowId.get(win.id);
+    if (session) {
+      closeLiveFd(session.liveFd);
+      session.liveFd = null;
+      if (session.paths?.sessionDir) {
+        try {
+          writeLiveMeta(session.paths.sessionDir, {
+            status: 'interrupted',
+            lastChunkAt: new Date().toISOString(),
+          });
+        } catch (_) {
+          /* ignore */
+        }
+      }
+    }
     floatingWindows.delete(win.id);
     sessionsByWindowId.delete(win.id);
     if (isQuitting) return;
@@ -258,7 +310,7 @@ async function pumpTranscribeQueue() {
   }
 }
 
-async function runTranscribePipeline({ win, paths, startedAt, durationMs, tempDir, config }) {
+async function runTranscribePipeline({ win, paths, startedAt, durationMs, tempDir, config, sourceAudioPath }) {
   const sendProgress = (payload) => {
     if (win && !win.isDestroyed()) {
       win.webContents.send('meeting:transcribe-progress', payload);
@@ -266,7 +318,8 @@ async function runTranscribePipeline({ win, paths, startedAt, durationMs, tempDi
   };
 
   const tempWav = path.join(tempDir, 'transcribe.wav');
-  await convertToWav(path.join(tempDir, 'capture.webm'), tempWav);
+  const source = sourceAudioPath || path.join(tempDir, 'capture.webm');
+  await convertToWav(source, tempWav);
   const result = await transcribeAudio(tempWav, config, sendProgress);
 
   const lines = (result.sentences || []).map((s) => ({
@@ -360,6 +413,100 @@ async function runTranscribePipeline({ win, paths, startedAt, durationMs, tempDi
   };
 }
 
+function cleanupLiveAfterSuccess(originalDir, finalDir) {
+  cleanupLiveArtifacts(originalDir);
+  if (finalDir && finalDir !== originalDir) cleanupLiveArtifacts(finalDir);
+}
+
+async function recoverOneSession(item, win, config) {
+  const startedAt = item.startedAt ? new Date(item.startedAt) : new Date();
+  const paths = {
+    sessionDir: item.sessionDir,
+    baseName: item.baseName,
+    monthPath: item.monthPath,
+    txtPath: item.txtPath,
+    m4aPath: item.m4aPath,
+  };
+  if (!item.hasM4a) {
+    if (!item.hasWebm) throw new Error('没有可恢复的录音文件');
+    await convertToM4a(item.webmPath, item.m4aPath);
+  }
+  const temp = buildTempSessionDir(path.join(app.getPath('temp'), 'meeting-recorder'));
+  writeLiveMeta(item.sessionDir, { status: 'transcribing' });
+  const result = await runTranscribePipeline({
+    win,
+    paths,
+    startedAt,
+    durationMs: item.durationMs || 0,
+    tempDir: temp.dir,
+    config,
+    sourceAudioPath: item.m4aPath,
+  });
+  cleanupLiveAfterSuccess(item.sessionDir, result.sessionDir);
+  return result;
+}
+
+async function recoverIncompleteSessions(win, { silentIfNone = false } = {}) {
+  const config = loadConfig();
+  const excludeDirs = [...sessionsByWindowId.values()].map((s) => s.paths?.sessionDir).filter(Boolean);
+  const items = findIncompleteSessions(config.saveBaseDir, excludeDirs);
+  if (!items.length) {
+    if (!silentIfNone && win && !win.isDestroyed()) {
+      await dialog.showMessageBox(win, {
+        type: 'info',
+        title: '会议记录',
+        message: '没有未完成的录音。',
+        buttons: ['好'],
+        defaultId: 0,
+        noLink: true,
+      });
+    }
+    return;
+  }
+
+  const list = items.map((it, i) => `${i + 1}. ${describeIncomplete(it)}`).join('\n');
+  const { response } = await dialog.showMessageBox(win && !win.isDestroyed() ? win : undefined, {
+    type: 'question',
+    title: '发现未完成的会议录音',
+    message: `有 ${items.length} 场录音未正常结束（崩溃或未点结束）。\n\n${list}`,
+    detail: '立即转写会从已写入磁盘的录音继续。选择稍后可在菜单栏「转写未完成的录音」再处理。',
+    buttons: ['立即转写', '稍后', '删除这些录音'],
+    defaultId: 0,
+    cancelId: 1,
+    noLink: true,
+  });
+
+  if (response === 1) return;
+  if (response === 2) {
+    for (const item of items) {
+      try {
+        fs.rmSync(item.sessionDir, { recursive: true, force: true });
+      } catch (err) {
+        console.warn('[meeting-recorder] 删除未完成录音失败:', err.message);
+      }
+    }
+    return;
+  }
+
+  for (const item of items) {
+    try {
+      const result = await enqueueTranscribeJob(() => recoverOneSession(item, win, config));
+      const openTarget = result?.htmlPath || result?.txtPath;
+      if (openTarget) shell.showItemInFolder(openTarget);
+    } catch (err) {
+      console.warn('[meeting-recorder] 恢复转写失败:', err.message);
+      await dialog.showMessageBox(win && !win.isDestroyed() ? win : undefined, {
+        type: 'error',
+        title: '恢复转写失败',
+        message: `${item.baseName}：${(err.message || String(err)).slice(0, 160)}`,
+        buttons: ['好'],
+        defaultId: 0,
+        noLink: true,
+      });
+    }
+  }
+}
+
 function createTray() {
   let icon = loadAppIcon();
   if (icon.isEmpty()) {
@@ -417,6 +564,12 @@ app.whenReady().then(() => {
   createFloatingWindow();
   createTray();
   warmTranscribeService(loadConfig());
+  setTimeout(() => {
+    const first = [...floatingWindows.values()][0]?.win;
+    recoverIncompleteSessions(first, { silentIfNone: true }).catch((err) => {
+      console.warn('[meeting-recorder] 启动恢复检查失败:', err.message);
+    });
+  }, 600);
 
   globalShortcut.register('CommandOrControl+Q', () => {
     forceQuitApp();
@@ -485,13 +638,53 @@ ipcMain.handle('meeting:begin-session', async (event, payload) => {
   const paths = buildOutputPaths(config, startedAt);
   const tempRoot = path.join(app.getPath('temp'), 'meeting-recorder');
   const temp = buildTempSessionDir(tempRoot);
+  const liveFd = openLiveFd(paths.sessionDir);
+  writeLiveMeta(paths.sessionDir, {
+    status: 'recording',
+    startedAt: startedAt.toISOString(),
+    mimeType: payload?.mimeType || 'audio/webm',
+    bytes: 0,
+    chunkCount: 0,
+    pid: process.pid,
+    baseName: paths.baseName,
+  });
   sessionsByWindowId.set(win.id, {
     startedAt,
     paths,
     temp,
     durationMs: 0,
+    liveFd,
+    bytes: 0,
+    chunkCount: 0,
+    mimeType: payload?.mimeType || 'audio/webm',
   });
   return { ok: true, baseName: paths.baseName, monthPath: paths.monthPath };
+});
+
+ipcMain.handle('meeting:append-chunk', async (event, payload) => {
+  const win = getWindowFromEvent(event);
+  const session = sessionsByWindowId.get(win?.id);
+  if (!session) return { ok: false, error: '未找到录音会话' };
+  let buffer;
+  if (payload?.audioBytes) buffer = Buffer.from(payload.audioBytes);
+  else if (payload?.audioBase64) buffer = Buffer.from(payload.audioBase64, 'base64');
+  else buffer = Buffer.alloc(0);
+  if (!buffer.length) return { ok: true, bytes: session.bytes || 0 };
+  try {
+    const written = appendLiveChunk(session.liveFd, buffer);
+    session.bytes = (session.bytes || 0) + written;
+    session.chunkCount = (session.chunkCount || 0) + 1;
+    session.lastChunkAt = new Date().toISOString();
+    writeLiveMeta(session.paths.sessionDir, {
+      status: 'recording',
+      bytes: session.bytes,
+      chunkCount: session.chunkCount,
+      lastChunkAt: session.lastChunkAt,
+    });
+    return { ok: true, bytes: session.bytes };
+  } catch (err) {
+    return { ok: false, error: err.message || String(err) };
+  }
 });
 
 ipcMain.handle('meeting:save-and-transcribe', async (event, payload) => {
@@ -504,58 +697,57 @@ ipcMain.handle('meeting:save-and-transcribe', async (event, payload) => {
   const config = loadConfig();
   const { paths, startedAt, temp } = sessionMeta;
   const durationMs = Number(payload?.durationMs) || 0;
-  let buffer;
-  if (payload?.audioBytes) {
-    buffer = Buffer.from(payload.audioBytes);
-  } else if (payload?.audioBase64) {
-    buffer = Buffer.from(payload.audioBase64, 'base64');
-  } else {
-    buffer = Buffer.alloc(0);
+  closeLiveFd(sessionMeta.liveFd);
+  sessionMeta.liveFd = null;
+
+  const liveWebm = liveWebmPath(paths.sessionDir);
+  if (payload?.audioBytes || payload?.audioBase64) {
+    const fallback = payload.audioBytes
+      ? Buffer.from(payload.audioBytes)
+      : Buffer.from(payload.audioBase64, 'base64');
+    if (fallback.length && liveWebmSize(paths.sessionDir) <= 0) {
+      fs.writeFileSync(liveWebm, fallback);
+    }
   }
-  if (!buffer.length) {
+
+  if (liveWebmSize(paths.sessionDir) <= 0) {
+    writeLiveMeta(paths.sessionDir, { status: 'interrupted', durationMs });
+    sessionsByWindowId.delete(win.id);
     throw new Error('录音数据为空');
   }
 
-  const tempWebm = temp.webmPath;
-  fs.writeFileSync(tempWebm, buffer);
+  writeLiveMeta(paths.sessionDir, {
+    status: 'transcribing',
+    durationMs,
+    lastChunkAt: new Date().toISOString(),
+  });
 
   try {
-    await convertToM4a(tempWebm, paths.m4aPath);
+    await convertToM4a(liveWebm, paths.m4aPath);
     sessionsByWindowId.delete(win.id);
 
-    const pipelineMeta = {
-      win,
-      paths,
-      startedAt,
-      durationMs,
-      tempDir: temp.dir,
-      config,
-    };
-
-    return await enqueueTranscribeJob(() => runTranscribePipeline(pipelineMeta));
+    const result = await enqueueTranscribeJob(() =>
+      runTranscribePipeline({
+        win,
+        paths,
+        startedAt,
+        durationMs,
+        tempDir: temp.dir,
+        config,
+        sourceAudioPath: paths.m4aPath,
+      }),
+    );
+    cleanupLiveAfterSuccess(paths.sessionDir, result.sessionDir);
+    return result;
   } catch (err) {
     removeDirSafe(temp?.dir);
-    if (fs.existsSync(paths.txtPath)) {
-      try {
-        fs.unlinkSync(paths.txtPath);
-      } catch (_) {
-        /* ignore */
-      }
-    }
-    const hasM4a = fs.existsSync(paths.m4aPath);
-    if (!hasM4a && paths.sessionDir && fs.existsSync(paths.sessionDir)) {
-      try {
-        fs.rmdirSync(paths.sessionDir);
-      } catch (_) {
-        /* ignore */
-      }
-    }
+    writeLiveMeta(paths.sessionDir, { status: 'interrupted', durationMs });
     sessionsByWindowId.delete(win.id);
     return {
       ok: false,
-      error: err.message || String(err),
-      partialDir: paths.sessionDir || paths.monthPath,
-      m4aPath: hasM4a ? paths.m4aPath : null,
+      error: `${err.message || String(err)}。录音已保存在 ${paths.sessionDir}`,
+      partialDir: paths.sessionDir,
+      m4aPath: fs.existsSync(paths.m4aPath) ? paths.m4aPath : null,
     };
   }
 });
@@ -572,6 +764,8 @@ ipcMain.handle('meeting:cancel-session', async (event) => {
   const win = getWindowFromEvent(event);
   const sessionMeta = sessionsByWindowId.get(win.id);
   if (sessionMeta) {
+    closeLiveFd(sessionMeta.liveFd);
+    sessionMeta.liveFd = null;
     removeDirSafe(sessionMeta.temp?.dir);
     const { sessionDir } = sessionMeta.paths || {};
     if (sessionDir && fs.existsSync(sessionDir)) {

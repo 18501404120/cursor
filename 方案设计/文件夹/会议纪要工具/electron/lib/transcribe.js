@@ -432,9 +432,25 @@ async function transcribeOnce(audioPath, config, onProgress) {
 
 async function convertToM4a(inputPath, outputPath) {
   if (!ffmpegPath) throw new Error('未找到 ffmpeg，无法生成 m4a');
-  await runCommand(ffmpegPath, ['-y', '-i', inputPath, '-c:a', 'aac', '-b:a', '128k', outputPath], {
-    env: buildPythonEnv({}),
-  });
+  const attempts = [
+    ['-y', '-i', inputPath, '-c:a', 'aac', '-b:a', '128k', outputPath],
+    ['-y', '-err_detect', 'ignore_err', '-i', inputPath, '-c:a', 'aac', '-b:a', '128k', outputPath],
+  ];
+  let lastErr;
+  for (const args of attempts) {
+    try {
+      await runCommand(ffmpegPath, args, { env: buildPythonEnv({}) });
+      if (fs.existsSync(outputPath) && fs.statSync(outputPath).size > 0) return;
+    } catch (err) {
+      lastErr = err;
+      try {
+        if (fs.existsSync(outputPath)) fs.unlinkSync(outputPath);
+      } catch (_) {
+        /* ignore */
+      }
+    }
+  }
+  throw lastErr || new Error('无法将录音转为 m4a');
 }
 
 /** FunASR 对 16kHz mono wav 兼容性最好 */
