@@ -1066,6 +1066,7 @@
               <thead>
                 <tr>
                   <th>店铺</th>
+                  <th>部门</th>
                   <th>MSKU</th>
                   <th>新品标签</th>
                   <th>零售商</th>
@@ -1095,7 +1096,7 @@
           <div class="panel">
             <div class="panel-hd">费用信息</div>
             <div class="panel-bd" style="max-height:none;">
-              <p class="hint" id="feeProcessHint" style="margin:0 0 12px;">本页仅可填非营销投入费用，一律按营收分摊到店铺，部门留空。营销投入请到项目平台 → 项目 → 预算页签维护。</p>
+              <p class="hint" id="feeProcessHint" style="margin:0 0 12px;">本页仅可填非营销投入费用，一律按营收分摊到店铺。部门选填：选了则各行部门覆盖为所选，没选则按店铺映射带出。营销投入请到项目平台 → 项目 → 预算页签维护。</p>
               <div class="scope-flat-grid scope-flat-grid--fee">
                 <div class="scope-flat-col field">
                   <label for="feeType"><span class="req">*</span>费用项</label>
@@ -1223,6 +1224,7 @@
                   <thead>
                     <tr>
                       <th>店铺</th>
+                      <th>部门</th>
                       <th>MSKU</th>
                       <th>新品标签</th>
                       <th>零售商</th>
@@ -1267,7 +1269,7 @@
               <div class="modal-intro-card">
                 <h4>处理规则</h4>
                 <ul>
-                  <li>本页费用一律按渠道与产品范围交集、权重月营收占比分摊至店铺；部门须留空（按店铺映射）；ASIN、订单号、DL批次号可填收窄</li>
+                  <li>本页费用一律按渠道与产品范围交集、权重月营收占比分摊至店铺；部门选填（选了覆盖映射，空则按店铺映射）；ASIN、订单号、DL批次号可填收窄</li>
                   <li>营销投入费用项不可选、不可导入，请到项目平台预算页维护</li>
                   <li>模版不再填写分摊模式；旧列忽略不读</li>
                 </ul>
@@ -1319,7 +1321,7 @@
                 <tr><td>归属月</td><td>是</td><td><code>YYYY-MM</code>（示例 2026-05）。</td></tr>
                 <tr><td>金额</td><td>是</td><td>正数，勿用公式。</td></tr>
                 <tr><td>币种</td><td>是</td><td>数据字典「币种」三字码，如 USD。</td></tr>
-                <tr><td>部门</td><td>须留空</td><td>本页一律按营收分摊，部门由店铺映射带出，不可填写。</td></tr>
+                <tr><td>部门</td><td>否</td><td>选填。填写则该行分摊结果部门覆盖为所填部门；空则按店铺映射带出。</td></tr>
                 <tr><td>备注</td><td>否</td><td>补充费用背景、活动说明；列表与明细中展示。</td></tr>
                 <tr><td rowspan="5">渠道范围</td><td>区域</td><td>否</td><td>字典「区域」；多选英文逗号，如西欧区,北欧区,东欧区。</td></tr>
                 <tr><td>国家</td><td>否</td><td>字典「国家」，如美国 (US),德国 (DE)；与区域等取交。</td></tr>
@@ -1343,7 +1345,7 @@
             <li>费用项、币种及渠道/产品各列取值须与钉钉模版「数据字典」页一致；店铺、SKU、MSKU 等与系统主数据二次校验。</li>
             <li>同一单元格内多个选项仅用<strong>英文逗号</strong>分隔，勿用分号或中文逗号。</li>
             <li>营销投入及其下级费用项不可导入，该行失败并提示「营销投入请到项目平台维护」。</li>
-            <li>从本月营收明细筛选「渠道范围 AND 产品范围」都匹配的记录，空字段视为不限，营收 &lt; 0 不参与；按营收占比拆金额（两位小数，末行补差），结果落到店铺，再按店铺映射带出金蝶组织/部门。部门须留空；ASIN、订单号、DL批次号可填收窄。</li>
+            <li>从本月营收明细筛选「渠道范围 AND 产品范围」都匹配的记录，空字段视为不限，营收 &lt; 0 不参与；按营收占比拆金额（两位小数，末行补差），结果落到店铺。部门选填：填了则各行部门覆盖为所填部门，空则按店铺映射带出金蝶组织/部门。ASIN、订单号、DL批次号可填收窄。</li>
             <li>解析失败行写入错误文件回传；成功行生成待生效批次。</li>
           </ol>
         </div>
@@ -1679,7 +1681,7 @@
         inst.setValues([]);
         state.msfPrev[key] = [];
       });
-      lockDeptAlways();
+      enableDeptOptional();
       resetCreatePreview();
       updateRuleText();
     }
@@ -2116,20 +2118,43 @@
       };
     }
 
-    function lockDeptAlways() {
+    function enableDeptOptional() {
       const deptReq = document.getElementById("deptReq");
       if (deptReq) deptReq.style.display = "none";
       const dept = document.getElementById("feeDept");
       const col = dept?.closest(".scope-flat-col");
-      if (col) col.classList.add("is-dept-locked");
+      if (col) col.classList.remove("is-dept-locked");
       const wrap = dept?.nextElementSibling?.classList?.contains("fee-tree-select")
         ? dept.nextElementSibling
         : null;
-      if (wrap) wrap.classList.add("is-disabled");
-      if (dept) {
-        dept.value = "";
-        dept.disabled = true;
-      }
+      if (wrap) wrap.classList.remove("is-disabled");
+      if (dept) dept.disabled = false;
+    }
+
+    function getCreateDeptOverride() {
+      const raw = document.getElementById("feeDept")?.value || "";
+      return getDeptDisplayText(raw);
+    }
+
+    function mappedDeptForStore(store) {
+      const s = String(store || "");
+      if (/APP|App商城/i.test(s)) return "102·Govee / APP商城";
+      if (/shopify|独立站/i.test(s)) return "102·Govee / 独立站";
+      if (/TikTok/i.test(s)) return "102·Govee / TikTok平台";
+      if (/Walmart|Costco|Target|商超|分销/i.test(s)) return "102·Govee / OC（全渠道）";
+      if (/亚马逊|Amazon|Govee_/i.test(s)) return "102·Govee / 亚马逊平台 · Govee";
+      return "102·Govee / OC（全渠道）";
+    }
+
+    function resolveRowDept(store, overrideDept) {
+      const ov = String(overrideDept || "").trim();
+      return ov || mappedDeptForStore(store);
+    }
+
+    function deptProcessLine(overrideDept) {
+      const d = String(overrideDept || "").trim();
+      if (d) return `按营收分摊到店铺，部门覆盖为「${d}」（不再按店铺映射）。`;
+      return "按营收分摊到店铺，部门未填则按店铺映射带出。";
     }
 
     function updateScopePanelHints() {
@@ -2150,6 +2175,7 @@
       const el = document.getElementById("ruleText");
       if (!el) return;
       const remark = document.getElementById("feeRemark")?.value?.trim() || "";
+      const deptOverride = getCreateDeptOverride();
       el.innerHTML = `
         ${renderTemplateScopeMetaHtml({
           fee,
@@ -2160,7 +2186,7 @@
           channelScope: ch,
           productScope: ps
         })}<br>
-        <strong>处理：</strong>按营收分摊到店铺，部门由店铺映射带出。营销投入请到项目平台预算页维护。<br>
+        <strong>处理：</strong>${escHtml(deptProcessLine(deptOverride))}营销投入请到项目平台预算页维护。<br>
         <strong>交集：</strong>渠道五列、产品九列分别取交后得到分摊对象集合。<br>
         <strong>权重：</strong>按权重月 ${weight}（归属月当月）各记录营收占比，将<strong>金额</strong>分摊至各行。<br>
         <strong>更新：</strong>归属月关账前（次月 20 日前），待生效与已生效批次分摊明细随营收每日自动重算；关账后冻结。
@@ -2251,6 +2277,7 @@
       const npCls = r.isNewProduct ? "tag-new" : "tag-old";
       return `<tr>
           <td>${escHtml(r.store)}</td>
+          <td>${escHtml(r.dept || "—")}</td>
           <td>${escHtml(r.msku)}</td>
           <td><span class="${npCls}">${np}</span></td>
           <td>${escHtml(r.retailer)}</td>
@@ -2375,8 +2402,8 @@
       const ps = d.productScope || {};
       document.getElementById("dlgHistTitle").textContent = `分摊明细 · ${batchId}`;
       const dept = getDeptDisplayText(rowLive?.dept || d.dept || "");
-      const deptText = dept || "未填写（按店铺映射归属，无店铺时进入待确认）";
-      const modeLine = `<strong>处理：</strong>按营收分摊到店铺，部门由店铺映射带出。<br>
+      const deptText = dept || "未填写（各行按店铺映射归属，无店铺时进入待确认）";
+      const modeLine = `<strong>处理：</strong>${escHtml(deptProcessLine(dept))}<br>
            <strong>权重月：</strong>${escHtml(wm)}（归属月当月）<br>
            <strong>更新：</strong>关账前分摊明细随营收每日自动重算，关账后冻结。<br>
            <strong>部门：</strong>${escHtml(deptText)}`;
@@ -2401,11 +2428,12 @@
       const rows = (d.rawRows || []).map((r) => {
         const w = tot ? r.rev / tot : 0;
         const alloc = d.amt * w;
-        return { ...r, w, alloc };
+        return { ...r, w, alloc, dept: resolveRowDept(r.store, dept) };
       });
       document.getElementById("historyDetailBody").innerHTML = rows.map((r) => `
         <tr>
           <td>${escHtml(r.store)}</td>
+          <td>${escHtml(r.dept || "—")}</td>
           <td>${escHtml(r.msku)}</td>
           <td><span class="${r.isNewProduct ? "tag-new" : "tag-old"}">${formatNewProductTag(!!r.isNewProduct)}</span></td>
           <td>${escHtml(r.retailer)}</td>
@@ -3150,7 +3178,10 @@
         alert("营销投入请到项目平台维护");
         return;
       }
-      const rows = buildPreviewAllocRows(mockPreviewRows(), amt);
+      const rows = buildPreviewAllocRows(mockPreviewRows(), amt).map((r) => ({
+        ...r,
+        dept: resolveRowDept(r.store, dept)
+      }));
       const ps = collectProductScopeFromUi();
       if (!rows.length) {
         alert(
@@ -3170,6 +3201,7 @@
         <div class="sum-card"><div class="k">MSKU 数（模拟）</div><div class="v">${rows.length}${ps.newProductTags?.length ? " · 新品标签" : ""}</div></div>
         <div class="sum-card"><div class="k">归属月</div><div class="v" style="font-size:12px;">${label}</div></div>
         <div class="sum-card"><div class="k">金额</div><div class="v">${amt.toFixed(2)} ${currency}</div></div>
+        <div class="sum-card"><div class="k">部门</div><div class="v${dept ? " dept-full" : ""}" style="font-size:12px;">${escHtml(dept || "未填 · 按店铺映射")}</div></div>
       `;
       document.getElementById("btnConfirmImport").disabled = false;
     });
@@ -3193,10 +3225,6 @@
         alert("营销投入请到项目平台维护");
         return;
       }
-      if (deptRaw) {
-        alert("该费用项须按营收分摊，部门须留空。");
-        return;
-      }
       const id = nextBatchId();
       const ch = collectChannelScopeFromUi();
       const ps = collectProductScopeFromUi();
@@ -3208,7 +3236,7 @@
       state.historyRows.unshift({
         id,
         fee,
-        dept: "",
+        dept,
         belongMonth: month,
         currency,
         amt,
@@ -3225,7 +3253,7 @@
         currency,
         amt,
         remark,
-        dept: "",
+        dept,
         channelScope: ch,
         productScope: ps,
         st: "待生效",
@@ -3386,12 +3414,12 @@
             feeType.dispatchEvent(new Event("change", { bubbles: true }));
           }
         }
-        lockDeptAlways();
+        enableDeptOptional();
         updateRuleText();
       });
       FeeItemMaster.onChange(() => {
         refreshFeeItemSelects();
-        lockDeptAlways();
+        enableDeptOptional();
         updateRuleText();
       });
 
@@ -3401,7 +3429,7 @@
           state.historyRows.forEach((r) => {
             if (r.dept) r.dept = getDeptDisplayText(r.dept);
           });
-          lockDeptAlways();
+          enableDeptOptional();
           renderHistory();
         });
         FeeDeptMaster.onChange(() => {
