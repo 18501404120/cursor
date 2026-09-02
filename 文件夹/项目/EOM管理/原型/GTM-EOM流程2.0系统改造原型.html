@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>GTM EOM 管理</title>
+  <link rel="stylesheet" href="assets/eom-proto.css" />
+</head>
+<body>
+  <div class="toast" id="toast"></div>
+  <div class="app">
+    <header class="topbar">
+      <div class="brand">蓝鲸 ERP</div>
+      <div class="breadcrumb" id="breadcrumb">GTM系统 / 管理 / EOM管理</div>
+      <button class="btn" data-act="reset-seed" title="清空本地操作，恢复 S1-S16 示例">恢复示例数据</button>
+      <div class="user" id="userBox"></div>
+    </header>
+    <div class="layout">
+      <aside class="sidebar">
+        <div class="menu-group">EOM管理</div>
+        <div class="menu-item active" data-page="workbench"><i class="menu-dot"></i>EOM工作台</div>
+        <div class="menu-item" data-page="orders"><i class="menu-dot"></i>EOM工单</div>
+        <div class="menu-item" data-page="ledger"><i class="menu-dot"></i>EOM产品台账</div>
+        <div class="menu-group">核料管理</div>
+        <div class="menu-item" data-page="materials"><i class="menu-dot"></i>核料信息管理</div>
+        <div class="menu-item" data-page="material"><i class="menu-dot"></i>核料信息详情</div>
+        <div class="menu-group">规则</div>
+        <div class="menu-item" data-page="statusFlow"><i class="menu-dot"></i>状态流转</div>
+      </aside>
+      <main class="main">
+        <section class="page active" id="page-workbench"></section>
+        <section class="page" id="page-orders"></section>
+        <section class="page" id="page-ledger"></section>
+        <section class="page" id="page-materials"></section>
+        <section class="page" id="page-material"></section>
+        <section class="page" id="page-statusFlow"></section>
+      </main>
+    </div>
+  </div>
+
+  <div class="drawer-mask" id="detailDrawer">
+    <div class="drawer">
+      <div class="drawer-header" id="detailHeader"></div>
+      <div class="drawer-body" id="detailBody"></div>
+    </div>
+  </div>
+
+  <div class="mask" id="createMask">
+    <div class="dialog xl">
+      <div class="dialog-header"><span>发起EOM流程</span><span class="dialog-close" data-act="close-mask" data-mask="createMask">×</span></div>
+      <div class="dialog-body">
+        <div class="steps" id="createSteps"></div>
+        <div class="step-panel active" data-step="1">
+          <div class="section-title">退市基本信息</div>
+          <div class="form-grid">
+            <div class="form-item"><label class="form-label required">业务单元</label><div class="form-control"><select class="select" id="businessUnit"><option>LBU</option><option>ABU</option></select></div></div>
+            <div class="form-item"><label class="form-label required">退市类型</label><div class="form-control"><div class="radio-group"><label class="radio"><input type="radio" name="eomType" value="主动退市" checked />主动退市</label><label class="radio"><input type="radio" name="eomType" value="被动退市" />被动退市</label></div></div></div>
+            <div class="form-item"><label class="form-label required">发起节点</label><div class="form-control"><select class="select" id="triggerNode"><option>GR1</option><option>特殊事项实时发起</option></select></div></div>
+            <div class="form-item full"><label class="form-label required">退市原因</label><div class="form-control"><select class="select input-wide" id="reason"></select></div></div>
+            <div class="form-item full"><label class="form-label">退市说明</label><div class="form-control"><textarea class="textarea" id="createRemark" placeholder="选择“其他”时必须补充说明">试用 H8888 可正常提交；试用 H6199 看重复工单；试用 H9009 看未上市；试用 H9100 看已EOL。</textarea></div></div>
+          </div>
+        </div>
+        <div class="step-panel" data-step="2">
+          <div class="alert">输入 Model 后带出其全部有效 8 位 SKU（含 MSKU）。未勾选必须填排除原因。已 EOL、进行中 EOM 不得提交。</div>
+          <div class="filter-bar">
+            <input class="input" id="modelSearch" value="H8888" placeholder="输入Model，如 H8888 / H6199 / H9009 / H9100" />
+            <button class="btn btn-primary" type="button" data-act="load-model">带出全部SKU</button>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th><input id="checkAllSku" type="checkbox" checked /></th><th>场景</th><th>品类</th><th>Model</th><th>8位SKU</th><th>MSKU</th><th>产品状态</th><th>上市时间</th><th>国家规格</th><th>进行中EOM</th><th>排除原因</th></tr></thead>
+              <tbody id="skuSelectBody"></tbody>
+            </table>
+          </div>
+          <div style="margin-top:10px;color:var(--text3)">已选择 <b id="selectedSkuCount" style="color:var(--primary)">0</b> 个 SKU。</div>
+        </div>
+        <div class="step-panel" data-step="3">
+          <div class="section-title">退市与新品衔接计划</div>
+          <div class="form-grid">
+            <div class="form-item"><label class="form-label required">预计EOL时间</label><div class="form-control"><input type="date" class="input" id="planEol" value="2026-12-31" /></div></div>
+            <div class="form-item" id="newFlagItem"><label class="form-label">是否新品迭代</label><div class="form-control"><div class="radio-group"><label class="radio"><input type="radio" name="newFlag" value="是" checked />是</label><label class="radio"><input type="radio" name="newFlag" value="否" />否</label></div></div></div>
+            <div class="form-item new-only"><label class="form-label">迭代新品SKU</label><div class="form-control"><input class="input" id="newSku" value="H988801" /></div></div>
+            <div class="form-item new-only"><label class="form-label">新品预计CR时间</label><div class="form-control"><input type="date" class="input" id="newCr" value="2026-10-15" /></div></div>
+            <div class="form-item new-only"><label class="form-label">新品上市时间</label><div class="form-control"><input type="date" class="input" id="newList" value="2026-11-20" /></div></div>
+            <div class="form-item full"><label class="form-label">关联附件</label><div class="form-control"><div class="upload" id="planUpload">点击上传 EOM 方案（保存并提交时必填）<input id="planFile" type="file" hidden /></div><div class="muted" id="planFileName"></div></div></div>
+            <div class="form-item full"><label class="form-label">备注</label><div class="form-control"><textarea class="textarea" id="planRemark"></textarea></div></div>
+          </div>
+        </div>
+        <div class="step-panel" data-step="4">
+          <div class="alert success">已根据产品、区域和责任关系自动带出协同人员，可按权限调整。</div>
+          <div class="form-grid">
+            <div class="form-item"><label class="form-label required">产品GTM</label><div class="form-control"><select class="select" id="rGtm"><option>王天天</option><option>陈琳</option></select></div></div>
+            <div class="form-item"><label class="form-label required">区域GTM</label><div class="form-control"><select class="select" id="rArea"><option>李薇</option><option>陈琳</option></select></div></div>
+            <div class="form-item"><label class="form-label required">需求计划</label><div class="form-control"><select class="select" id="rPlan"><option>比杰</option></select></div></div>
+            <div class="form-item"><label class="form-label required">销售负责人</label><div class="form-control"><select class="select" id="rSales"><option>周雨</option></select></div></div>
+            <div class="form-item"><label class="form-label required">计划负责人</label><div class="form-control"><select class="select" id="rPmcPlan"><option>刘洋</option></select></div></div>
+            <div class="form-item"><label class="form-label required">PMC对接人</label><div class="form-control"><select class="select" id="rPmc"><option>PMC组长</option></select></div></div>
+            <div class="form-item"><label class="form-label required">采购对接人</label><div class="form-control"><select class="select" id="rBuy"><option>张敏</option></select></div></div>
+            <div class="form-item full"><label class="form-label">抄送人员</label><div class="form-control"><input class="input" id="rCc" value="产品负责人、销售负责人、供应链负责人" /></div></div>
+          </div>
+        </div>
+        <div class="step-panel" data-step="5">
+          <div id="submitChecks"></div>
+        </div>
+      </div>
+      <div class="dialog-footer">
+        <button class="btn" type="button" data-act="close-mask" data-mask="createMask">取消</button>
+        <button class="btn" id="prevStep" type="button" data-act="wizard-prev" disabled>上一步</button>
+        <button class="btn btn-primary" id="nextStep" type="button" data-act="wizard-next">下一步</button>
+        <button class="btn" id="saveDraft" type="button" data-act="wizard-draft">保存草稿</button>
+        <button class="btn btn-primary" id="submitEom" type="button" data-act="wizard-submit" style="display:none">提交</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="mask" id="formMask">
+    <div class="dialog" id="formDialog">
+      <div class="dialog-header"><span id="formTitle">处理</span><span class="dialog-close" data-act="close-mask" data-mask="formMask">×</span></div>
+      <div class="dialog-body" id="formBody"></div>
+      <div class="dialog-footer" id="formFooter"></div>
+    </div>
+  </div>
+
+  <script src="assets/eom-seed.js"></script>
+  <script src="assets/eom-app.js"></script>
+</body>
+</html>

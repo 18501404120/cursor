@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>H8120 协作泳道图（1.0 现状事实）</title>
+<style>
+:root {
+  --bg:#f4f6fb; --text:#1a2332; --muted:#5c6b7f; --primary:#4f46e5; --primary-light:#eef2ff;
+  --warn:#d97706; --border:#e2e8f0; --shadow:0 4px 24px rgba(15,23,42,.06);
+  --hdr-bg:#fff; --role-w:136px; --col-w:210px; --cell-inset:14px; --hdr-h:46px;
+}
+* { box-sizing:border-box; margin:0; padding:0; }
+body { font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif; background:var(--bg); color:var(--text); font-size:13px; line-height:1.45; height:100vh; display:flex; flex-direction:column; overflow:hidden; }
+.topbar { flex-shrink:0; background:linear-gradient(135deg,#312e81,#4f46e5); color:#fff; padding:14px 24px; }
+.topbar h1 { font-size:18px; margin-bottom:3px; }
+.topbar p { opacity:.9; font-size:11px; }
+.toolbar { flex-shrink:0; display:flex; flex-wrap:wrap; gap:10px; align-items:center; padding:10px 24px; background:#fff; border-bottom:1px solid var(--border); }
+.toolbar label { font-size:12px; color:var(--muted); display:flex; align-items:center; gap:6px; }
+.btn { border:1px solid var(--border); background:#fff; border-radius:8px; padding:5px 11px; cursor:pointer; font-size:12px; }
+.btn:hover { background:#f8fafc; }
+.btn.active { background:var(--primary-light); border-color:#a5b4fc; color:var(--primary); font-weight:600; }
+.legend { flex-shrink:0; display:flex; flex-wrap:wrap; gap:14px; padding:8px 24px; background:#fff; border-bottom:1px solid var(--border); font-size:11px; color:var(--muted); }
+.legend-item { display:flex; align-items:center; gap:6px; }
+.swatch { width:14px; height:14px; border-radius:4px; border:1px solid var(--border); }
+.canvas-wrap { flex:1; overflow:auto; position:relative; background:#e8ecf4; }
+.matrix-container { position:relative; display:inline-block; min-width:100%; padding:12px; }
+.matrix { border-collapse:separate; border-spacing:0; table-layout:fixed; }
+.matrix th, .matrix td { border:1px solid var(--border); vertical-align:top; }
+.corner { position:sticky; left:0; top:0; z-index:40; width:var(--role-w); min-width:var(--role-w); background:#f1f5f9; }
+.stage-hdr { position:sticky; top:0; z-index:30; width:var(--col-w); min-width:var(--col-w); height:var(--hdr-h); background:var(--hdr-bg); text-align:center; padding:6px 4px; font-weight:700; font-size:11px; box-shadow:0 2px 4px rgba(0,0,0,.04); }
+.stage-hdr .sub { font-weight:400; font-size:9px; color:var(--muted); margin-top:1px; line-height:1.25; }
+.stage-hdr.s-CD { background:#f8fafc; border-top:3px solid #94a3b8; }
+.stage-hdr.s-KO { background:#eef2ff; border-top:3px solid #6366f1; }
+.stage-hdr.s-ES { background:#ecfdf5; border-top:3px solid #10b981; }
+.stage-hdr.s-TL { background:#fffbeb; border-top:3px solid #f59e0b; }
+.stage-hdr.s-DR { background:#fef2f2; border-top:3px solid #ef4444; }
+.stage-hdr.s-BT { background:#f5f3ff; border-top:3px solid #8b5cf6; }
+.stage-hdr.s-CR { background:#f0fdf4; border-top:3px solid #22c55e; }
+.role-hdr { position:sticky; left:0; z-index:20; width:var(--role-w); min-width:var(--role-w); background:#f8fafc; padding:8px 6px; font-weight:600; font-size:10px; text-align:right; box-shadow:2px 0 4px rgba(0,0,0,.04); }
+.cell { width:var(--col-w); min-width:var(--col-w); min-height:72px; padding:var(--cell-inset); background:#fff; position:relative; }
+.cell.empty { background:#fafbfc; }
+.cell.c-CD { background:#fcfcfd; }
+.cell.c-KO { background:#fafaff; }
+.cell.c-ES { background:#fafffd; }
+.cell.c-TL { background:#fffef8; }
+.cell.c-DR { background:#fffafa; }
+.cell.c-BT { background:#fdfcff; }
+.cell.c-CR { background:#fafffb; }
+.cell.has-card { background:#fff; }
+.card { background:#fff; border:1px solid var(--border); border-radius:5px; padding:4px 5px; margin:0; cursor:pointer; transition:box-shadow .15s,border-color .15s,opacity .15s; font-size:9.5px; line-height:1.3; position:relative; z-index:10; width:100%; }
+.card:last-child { margin-bottom:0; }
+.card:hover { box-shadow:0 2px 10px rgba(79,70,229,.1); border-color:#a5b4fc; }
+.card.selected { border-color:var(--primary); box-shadow:0 0 0 2px rgba(79,70,229,.2); }
+.card.dimmed { opacity:.22; }
+.card.iterative { border-left:2px solid var(--warn); }
+.card .io { margin-bottom:2px; word-break:break-all; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+.card .io .tag { display:inline-block; font-size:7px; font-weight:700; padding:0 3px; border-radius:2px; margin-right:2px; vertical-align:top; }
+.tag-in { background:#ecfdf5; color:#34d399; }
+.tag-out { background:#eff6ff; color:#93c5fd; }
+.card .io-text { color:var(--text); }
+.card .note { font-size:8px; color:var(--warn); margin-top:2px; line-height:1.25; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+.badge-iter { display:inline-block; background:#fffbeb; color:#b45309; border:1px solid #fcd34d; font-size:7px; padding:0 4px; border-radius:999px; margin-top:2px; }
+svg.links { position:absolute; top:12px; left:12px; overflow:visible; z-index:5; }
+path.link { fill:none; stroke-linecap:round; stroke-linejoin:round; pointer-events:stroke; stroke-width:1.1; opacity:.88; }
+path.link.link-in { stroke:#6ee7b7; }
+path.link.link-out { stroke:#93c5fd; }
+path.link.cross-stage { stroke-dasharray:6 4; }
+path.link.highlight { stroke-width:1.3; }
+path.link:hover { stroke-width:1.4; cursor:pointer; }
+.link-tip { position:fixed; display:none; background:#1e293b; color:#fff; font-size:11px; padding:6px 10px; border-radius:8px; z-index:300; pointer-events:none; max-width:260px; line-height:1.4; box-shadow:0 4px 16px rgba(0,0,0,.2); }
+.scroll-hint { position:fixed; bottom:12px; left:50%; transform:translateX(-50%); background:rgba(30,41,59,.75); color:#fff; font-size:11px; padding:6px 14px; border-radius:999px; pointer-events:none; z-index:50; opacity:.85; }
+.info-panel { position:fixed; right:16px; bottom:16px; width:290px; max-height:340px; overflow:auto; background:#fff; border:1px solid var(--border); border-radius:12px; box-shadow:var(--shadow); padding:14px; display:none; z-index:200; font-size:12px; }
+.info-panel.show { display:block; }
+.info-panel h3 { font-size:13px; margin-bottom:8px; padding-right:20px; }
+.info-panel .close { position:absolute; right:12px; top:12px; cursor:pointer; color:var(--muted); }
+.dep-list { margin-top:8px; font-size:11px; color:var(--muted); }
+.dep-list ul { max-height:140px; overflow-y:auto; margin-top:4px; padding-left:16px; }
+.dep-list li { margin-bottom:3px; }
+.panel-io-in .lbl { color:#34d399; font-weight:700; }
+.panel-io-out .lbl { color:#93c5fd; font-weight:700; }
+.panel-io-in, .panel-io-out { color:var(--text); margin-top:0; }
+.panel-io-out { margin-top:6px; }
+</style>
+</head>
+<body>
+<div class="topbar">
+  <h1>H8120 协作泳道图 · 1.0 现状事实</h1>
+  <p>横轴=阶段 · 纵轴=角色 · 默认无依赖线 · 点击卡片聚焦上下游 · 线条贴边吸附</p>
+</div>
+<div class="toolbar">
+  <label>角色 <select id="roleFilter"><option value="">全部</option></select></label>
+  <label>阶段 <select id="stageFilter"><option value="">全部</option></select></label>
+  <label>依赖
+    <select id="depFilter">
+      <option value="all">全部</option>
+      <option value="cross-role">仅跨角色</option>
+      <option value="cross-stage">仅跨阶段</option>
+      <option value="serial">仅同阶段串行</option>
+    </select>
+  </label>
+  <button class="btn active" id="toggleDeps">聚焦依赖线</button>
+  <button class="btn" id="resetView">重置</button>
+  <label>缩放 <input type="range" id="zoomRange" min="60" max="120" value="90"/> <span id="zoomVal">90%</span></label>
+</div>
+<div class="legend">
+  <div class="legend-item"><span class="swatch" style="background:#ecfdf5;color:#34d399;font-size:9px;line-height:14px;text-align:center">入</span>输入（绿）</div>
+  <div class="legend-item"><span class="swatch" style="background:#eff6ff;color:#93c5fd;font-size:9px;line-height:14px;text-align:center">出</span>输出（蓝）</div>
+  <div class="legend-item"><span class="swatch" style="background:#6ee7b7"></span>上游线（浅绿）</div>
+  <div class="legend-item"><span class="swatch" style="background:#93c5fd"></span>下游线（浅蓝）</div>
+  <div class="legend-item"><span class="swatch" style="background:repeating-linear-gradient(90deg,#94a3b8 0 3px,transparent 3px 6px)"></span>跨阶段虚线</div>
+  <div class="legend-item"><span class="swatch" style="border-left:3px solid #d97706"></span>可迭代</div>
+  <div class="legend-item" style="color:#94a3b8">点击卡片显示依赖 · 悬停线条查看交付物</div>
+</div>
+<div class="canvas-wrap" id="canvasWrap">
+  <div class="matrix-container" id="matrixContainer">
+    <table class="matrix" id="matrix"></table>
+    <svg class="links" id="linkSvg"><defs>
+      <marker id="arrow-in" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="4" markerHeight="4" orient="auto"><path d="M0,0 L10,5 L0,10 Z" fill="#6ee7b7"/></marker>
+      <marker id="arrow-out" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="4" markerHeight="4" orient="auto"><path d="M0,0 L10,5 L0,10 Z" fill="#93c5fd"/></marker>
+    </defs></svg>
+  </div>
+</div>
+<div class="scroll-hint">滚轮四向浏览 · 点击卡片显示依赖线 · 点击空白处取消</div>
+<div class="link-tip" id="linkTip"></div>
+<div class="info-panel" id="infoPanel">
+  <span class="close" id="closePanel">✕</span>
+  <h3 id="infoTitle"></h3>
+  <div id="infoBody"></div>
+</div>
+<script>
+const DATA = {"records": [{"stage": "CD", "role": "PM", "input": "/", "output": "ID设计输入", "note": "", "iterative": false, "id": "n0", "seq": 0, "in_tokens": [], "out_tokens": ["ID设计输入"], "col": 1}, {"stage": "CD", "role": "ID", "input": "ID设计输入", "output": "ID（根据结构反馈修改后最终输出ID和CMF）", "note": "", "iterative": false, "id": "n1", "seq": 1, "in_tokens": ["ID设计输入"], "out_tokens": ["ID（根据结构反馈修改后最终输出ID和CMF）"], "col": 2}, {"stage": "CD", "role": "结构工程师", "input": "ID", "output": "ID拆件意见反馈", "note": "", "iterative": false, "id": "n2", "seq": 2, "in_tokens": ["ID"], "out_tokens": ["ID拆件意见反馈"], "col": 3}, {"stage": "KO", "role": "PM", "input": "ID&CMF、项目预算表、成本明细", "output": "PRD、竞品Listting&竞品（通常前置到CD阶段）、ROI核算表、包装设计需求", "note": "", "iterative": false, "id": "n3", "seq": 3, "in_tokens": ["ID", "CMF", "项目预算表", "成本明细"], "out_tokens": ["PRD", "竞品Listing", "竞品（通常前置到CD阶段）", "ROI核算表", "包装设计需求"], "col": 1}, {"stage": "KO", "role": "结构工程师", "input": "PRD、ID&CMF", "output": "板框图、结构3D图、结构BOM、ES样机", "note": "可能在CD/ES/DR阶段重复发生", "iterative": true, "id": "n4", "seq": 4, "in_tokens": ["PRD", "ID", "CMF"], "out_tokens": ["板框图", "结构3D图", "结构BOM", "ES样机"], "col": 2}, {"stage": "KO", "role": "制冷工程师", "input": "PRD", "output": "制冷器件图纸", "note": "", "iterative": false, "id": "n5", "seq": 5, "in_tokens": ["PRD"], "out_tokens": ["制冷器件图纸"], "col": 2}, {"stage": "KO", "role": "电子工程师", "input": "PRD&板框图", "output": "原理图、Layout文件、电子BOM", "note": "可能在CD/ES/DR阶段重复发生", "iterative": true, "id": "n6", "seq": 6, "in_tokens": ["PRD", "板框图"], "out_tokens": ["原理图", "Layout文件", "电子BOM"], "col": 3}, {"stage": "KO", "role": "嵌入式软件工程师", "input": "PRD&原理图", "output": "固件", "note": "可能在CD/ES/DR阶段重复发生", "iterative": true, "id": "n7", "seq": 7, "in_tokens": ["PRD", "原理图"], "out_tokens": ["固件"], "col": 4}, {"stage": "KO", "role": "Sourcing", "input": "结构设计图、Layout文件、制冷器件图纸", "output": "按图纸要求打样的样品（实物）", "note": "可能在CD/ES/DR阶段重复发生", "iterative": true, "id": "n8", "seq": 8, "in_tokens": ["结构设计图", "Layout文件", "制冷器件图纸"], "out_tokens": ["按图纸要求打样的样品（实物）"], "col": 5}, {"stage": "KO", "role": "DQE", "input": "PRD竞品Listting&竞品", "output": "质量规格书、外观检验标准、VOC、DFMEA、NUDD", "note": "", "iterative": false, "id": "n9", "seq": 9, "in_tokens": ["PRD竞品Listing", "竞品"], "out_tokens": ["质量规格书", "外观检验标准", "VOC", "DFMEA", "NUDD"], "col": 2}, {"stage": "KO", "role": "NPI", "input": "PRD&BOM&结构设计图&Layout文件", "output": "PCBA生产工艺要求、成品报价工时", "note": "可能在CD/ES/DR阶段重复发生", "iterative": true, "id": "n10", "seq": 10, "in_tokens": ["PRD", "BOM", "结构设计图", "Layout文件"], "out_tokens": ["PCBA生产工艺要求", "成品报价工时"], "col": 4}, {"stage": "KO", "role": "认证工程师", "input": "PRD", "output": "认证费用评估", "note": "", "iterative": false, "id": "n11", "seq": 11, "in_tokens": ["PRD"], "out_tokens": ["认证费用评估"], "col": 2}, {"stage": "KO", "role": "专利工程师", "input": "结构设计图", "output": "专利风险评估结果（此前邮件输出评估结果，高风险or低风险）", "note": "多阶段重复", "iterative": true, "id": "n12", "seq": 12, "in_tokens": ["结构设计图"], "out_tokens": ["专利风险评估结果（此前邮件输出评估结果", "高风险or低风险）"], "col": 3}, {"stage": "KO", "role": "包装工程师", "input": "PM包装设计需求", "output": "包装核价BOM&图纸", "note": "", "iterative": false, "id": "n13", "seq": 13, "in_tokens": ["PM包装设计需求"], "out_tokens": ["包装核价BOM", "图纸"], "col": 2}, {"stage": "KO", "role": "项目经理", "input": "PRD、BOM、结构图纸、layout文件、PCBA生产工艺要求、VOC、DFMEA、认证费用评估结果、专利评估结果", "output": "项目计划表、项目预算表、成本明细、KO报告、立项评审表", "note": "可能在CD/ES/DR阶段重复发生", "iterative": true, "id": "n14", "seq": 14, "in_tokens": ["PRD", "BOM", "结构图纸", "layout文件", "PCBA生产工艺要求", "VOC", "DFMEA", "认证费用评估结果", "专利评估结果"], "out_tokens": ["项目计划表", "项目预算表", "成本明细", "KO报告", "立项评审表"], "col": 6}, {"stage": "ES", "role": "PM", "input": "ES阶段各工程师的反馈和测试结果", "output": "PRD更新", "note": "", "iterative": false, "id": "n15", "seq": 15, "in_tokens": ["ES阶段各工程师的反馈和测试结果"], "out_tokens": ["PRD更新"], "col": 5}, {"stage": "ES", "role": "Sourcing", "input": "研发打样/寻源流程&图纸", "output": "元件的规格书&样品", "note": "", "iterative": false, "id": "n16", "seq": 16, "in_tokens": ["研发打样", "寻源流程", "图纸"], "out_tokens": ["元件的规格书", "样品"], "col": 2}, {"stage": "ES", "role": "嵌入式软件测试工程师", "input": "PRD、ES样机", "output": "软件测试用例、受控的DR固件", "note": "", "iterative": false, "id": "n17", "seq": 17, "in_tokens": ["PRD", "ES样机"], "out_tokens": ["软件测试用例", "受控的DR固件"], "col": 2}, {"stage": "ES", "role": "软件产品经理（APP）", "input": "PRD、项目计划表", "output": "软件原型【APP根据时间要求自主立纯软件的项目】", "note": "", "iterative": false, "id": "n18", "seq": 18, "in_tokens": ["PRD", "项目计划表"], "out_tokens": ["软件原型【APP根据时间要求自主立纯软件的项目】"], "col": 2}, {"stage": "ES", "role": "认证工程师", "input": "ES样机", "output": "安规评估结果", "note": "", "iterative": false, "id": "n19", "seq": 19, "in_tokens": ["ES样机"], "out_tokens": ["安规评估结果"], "col": 2}, {"stage": "ES", "role": "硬件测试工程师", "input": "PRD、质量规格书、外观检验标准", "output": "电性能测试用例、可靠性测试用例", "note": "", "iterative": false, "id": "n20", "seq": 20, "in_tokens": ["PRD", "质量规格书", "外观检验标准"], "out_tokens": ["电性能测试用例", "可靠性测试用例"], "col": 3}, {"stage": "ES", "role": "硬件测试工程师", "input": "PRD、ES样机、电性能测试用例", "output": "电性能测试报告", "note": "", "iterative": false, "dup": 2, "id": "n21", "seq": 21, "in_tokens": ["PRD", "ES样机", "电性能测试用例"], "out_tokens": ["电性能测试报告"], "col": 4}, {"stage": "TL", "role": "结构工程师", "input": "PRD、ID&CMF", "output": "结构3D图、结构2D图", "note": "", "iterative": false, "id": "n22", "seq": 22, "in_tokens": ["PRD", "ID", "CMF"], "out_tokens": ["结构3D图", "结构2D图"], "col": 1}, {"stage": "TL", "role": "Sourcing", "input": "结构3D图、结构2D图", "output": "模具合同、模具计划表（模具进度表）", "note": "", "iterative": false, "id": "n23", "seq": 23, "in_tokens": ["结构3D图", "结构2D图"], "out_tokens": ["模具合同", "模具计划表（模具进度表）"], "col": 2}, {"stage": "DR", "role": "项目经理", "input": "PMC关于物料齐套的信息反馈、试产总结报告、可靠性成熟度报告、DFEMA、认证进度、专利进度", "output": "试产通知单、DR报告", "note": "多次发生", "iterative": true, "id": "n24", "seq": 24, "in_tokens": ["PMC关于物料齐套的信息反馈", "试产总结报告", "可靠性成熟度报告", "DFEMA", "认证进度", "专利进度"], "out_tokens": ["试产通知单", "DR报告"], "col": 1}, {"stage": "DR", "role": "PMC", "input": "蓝鲸系统备料、试产通知单", "output": "安排工厂试产", "note": "多次发生", "iterative": true, "id": "n25", "seq": 25, "in_tokens": ["蓝鲸系统备料", "试产通知单"], "out_tokens": ["安排工厂试产"], "col": 2}, {"stage": "DR", "role": "NPI", "input": "试产过程", "output": "试产总结报告", "note": "多次发生", "iterative": true, "id": "n26", "seq": 26, "in_tokens": ["试产过程"], "out_tokens": ["试产总结报告"], "col": 2}, {"stage": "DR", "role": "嵌入式软件测试工程师", "input": "试产样机、软件测试用例", "output": "受控的固件", "note": "多次发生", "iterative": true, "id": "n27", "seq": 27, "in_tokens": ["试产样机", "软件测试用例"], "out_tokens": ["受控的固件"], "col": 2}, {"stage": "DR", "role": "硬件测试工程师", "input": "试产样机、电性能测试用例、可靠性测试用例、原理图、元件规格书、Layout文件", "output": "电性能测试报告、可靠性测试报告", "note": "多次发生", "iterative": true, "id": "n28", "seq": 28, "in_tokens": ["试产样机", "电性能测试用例", "可靠性测试用例", "原理图", "元件规格书", "Layout文件"], "out_tokens": ["电性能测试报告", "可靠性测试报告"], "col": 2}, {"stage": "DR", "role": "认证工程师", "input": "试产样机、原理图、Layout图", "output": "认证测试报告、认证证书（部分项目证书也可能在CR阶段下）", "note": "", "iterative": false, "id": "n29", "seq": 29, "in_tokens": ["试产样机", "原理图", "Layout图"], "out_tokens": ["认证测试报告", "认证证书（部分项目证书也可能在CR阶段下）"], "col": 2}, {"stage": "DR", "role": "DQE", "input": "试产样机&、电性能测试报告、可靠性测试报告", "output": "可靠性成熟度报告、更新的DFMEA", "note": "多次发生", "iterative": true, "id": "n30", "seq": 30, "in_tokens": ["试产样机", "电性能测试报告", "可靠性测试报告"], "out_tokens": ["可靠性成熟度报告", "更新的DFMEA"], "col": 2}, {"stage": "DR", "role": "PM", "input": "DR阶段各工程师的反馈和测试结果、包材Brief", "output": "PRD更新", "note": "多次发生", "iterative": true, "id": "n31", "seq": 31, "in_tokens": ["DR阶段各工程师的反馈和测试结果", "包材Brief"], "out_tokens": ["PRD更新"], "col": 4}, {"stage": "DR", "role": "结构工程师", "input": "更新的PRD以及测试结果", "output": "更新的 2D图纸和结构BOM", "note": "", "iterative": false, "id": "n32", "seq": 32, "in_tokens": ["更新的PRD以及测试结果"], "out_tokens": ["更新的2D图纸和结构BOM"], "col": 3}, {"stage": "DR", "role": "电子工程师", "input": "更新的PRD以及测试结果", "output": "更新的原理图、Layout文件、电子BOM、PCBA维修手册", "note": "", "iterative": false, "id": "n33", "seq": 33, "in_tokens": ["更新的PRD以及测试结果"], "out_tokens": ["更新的原理图", "Layout文件", "电子BOM", "PCBA维修手册"], "col": 3}, {"stage": "DR", "role": "制冷工程师", "input": "更新的PRD以及测试结果", "output": "更新的制冷器件图纸", "note": "", "iterative": false, "id": "n34", "seq": 34, "in_tokens": ["更新的PRD以及测试结果"], "out_tokens": ["更新的制冷器件图纸"], "col": 3}, {"stage": "BT", "role": "PM", "input": "BT用户测试结果", "output": "BT评审结论，以便判定能否往下推进项目CR或者整改", "note": "", "iterative": false, "id": "n35", "seq": 35, "in_tokens": ["BT用户测试结果"], "out_tokens": ["BT评审结论", "以便判定能否往下推进项目CR或者整改"], "col": 1}, {"stage": "CR", "role": "项目经理", "input": "PMC关于物料齐套的信息反馈、试产总结报告、可靠性成熟度报告、DFEMA、认证进度、专利进度", "output": "试产通知单、CR报告、结项评审表、项目转量信息收集表", "note": "", "iterative": false, "id": "n36", "seq": 36, "in_tokens": ["PMC关于物料齐套的信息反馈", "试产总结报告", "可靠性成熟度报告", "DFEMA", "认证进度", "专利进度"], "out_tokens": ["试产通知单", "CR报告", "结项评审表", "项目转量信息收集表"], "col": 1}, {"stage": "CR", "role": "PMC", "input": "蓝鲸系统备料、试产通知单、项目装量信息收集表", "output": "安排工厂试产", "note": "", "iterative": false, "id": "n37", "seq": 37, "in_tokens": ["蓝鲸系统备料", "试产通知单", "项目装量信息收集表"], "out_tokens": ["安排工厂试产"], "col": 2}, {"stage": "CR", "role": "Sourcing", "input": "更新的 2D图纸和结构BOM、更新的原理图&Layout文件&电子BOM、更新的制冷器件图纸", "output": "物料的承认书【Sourcing提供、文员跟进 结构/电子/DQE/认证/ID 签核】", "note": "", "iterative": false, "id": "n38", "seq": 38, "in_tokens": ["更新的2D图纸和结构BOM", "更新的原理图", "Layout文件", "电子BOM", "更新的制冷器件图纸"], "out_tokens": ["物料的承认书【Sourcing提供", "文员跟进结构", "电子", "DQE", "认证", "ID签核】"], "col": 2}, {"stage": "CR", "role": "DQE", "input": "DR问题点关闭情况", "output": "可靠性成熟度报告、更新的DFMEA", "note": "", "iterative": false, "id": "n39", "seq": 39, "in_tokens": ["DR问题点关闭情况"], "out_tokens": ["可靠性成熟度报告", "更新的DFMEA"], "col": 2}, {"stage": "CR", "role": "NPI", "input": "首单生产过程", "output": "工业成熟度报告", "note": "", "iterative": false, "id": "n40", "seq": 40, "in_tokens": ["首单生产过程"], "out_tokens": ["工业成熟度报告"], "col": 2}, {"stage": "CR", "role": "PM", "input": "DR阶段各工程师的反馈和测试结果", "output": "PRD更新", "note": "", "iterative": false, "id": "n41", "seq": 41, "in_tokens": ["DR阶段各工程师的反馈和测试结果"], "out_tokens": ["PRD更新"], "col": 4}, {"stage": "CR", "role": "SQE", "input": "物料承认书", "output": "安排QC检验大货来料", "note": "", "iterative": false, "id": "n42", "seq": 42, "in_tokens": ["物料承认书"], "out_tokens": ["安排QC检验大货来料"], "col": 3}, {"stage": "CR", "role": "包装工程师", "input": "包材brief", "output": "受控的包装图纸、包装BOM", "note": "", "iterative": false, "id": "n43", "seq": 43, "in_tokens": ["包材brief"], "out_tokens": ["受控的包装图纸", "包装BOM"], "col": 3}], "deps": [{"from": "n0", "to": "n1", "labels": ["ID设计输入→ID设计输入"], "cross_role": true, "cross_stage": false, "same_stage": true}, {"from": "n2", "to": "n1", "labels": ["ID拆件意见反馈→ID设计输入"], "cross_role": true, "cross_stage": false, "same_stage": true}, {"from": "n0", "to": "n2", "labels": ["ID设计输入→ID"], "cross_role": true, "cross_stage": false, "same_stage": true}, {"from": "n1", "to": "n2", "labels": ["ID（根据结构反馈修改后最终输出ID和CMF）→ID"], "cross_role": true, "cross_stage": false, "same_stage": true}, {"from": "n0", "to": "n3", "labels": ["ID设计输入→ID", "ID设计输入→CMF"], "cross_role": false, "cross_stage": true, "same_stage": false}, {"from": "n1", "to": "n3", "labels": ["ID（根据结构反馈修改后最终输出ID和CMF）→ID", "ID（根据结构反馈修改后最终输出ID和CMF）→CMF"], "cross_role": true, "cross_stage": true, "same_stage": false}, {"from": "n2", "to": "n3", "labels": ["ID拆件意见反馈→ID", "ID拆件意见反馈→CMF"], "cross_role": true, "cross_stage": true, "same_stage": false}, {"from": "n14", "to": "n3", "labels": ["项目预算表→项目预算表", "成本明细→成本明细"], "cross_role": true, "cross_stage": false, "same_stage": true}, {"from": "n0", "to": "n4", "labels": ["ID设计输入→ID", "ID设计输入→CMF"], "cross_role": true, "cross_stage": true, "same_stage": false}, {"from": "n1", "to": "n4", "labels": ["ID（根据结构反馈修改后最终输出ID和CMF）→ID", "ID（根据结构反馈修改后最终输出ID和CMF）→CMF"], "cross_role": true, "cross_stage": true, "same_stage": false}, {"from": "n2", "to": "n4", "labels": ["ID拆件意见反馈→ID", "ID拆件意见反馈→CMF"], "cross_role": false, "cross_stage": true, "same_stage": false}, {"from": "n3", "to": "n4", "labels": ["PRD→PRD"], "cross_role": true, "cross_stage": false, "same_stage": true}, {"from": "n3", "to": "n5", "labels": ["PRD→PRD"], "cross_role": true, "cross_stage": false, "same_stage": true}, {"from": "n3", "to": "n6", "labels": ["PRD→PRD"], "cross_role": true, "cross_stage": false, "same_stage": true}, {"from": "n4", "to": "n6", "labels": ["板框图→板框图", "结构3D图→板框图"], "cross_role": true, "cross_stage": false, "same_stage": true}, {"from": "n13", "to": "n6", "labels": ["图纸→板框图"], "cross_role": true, "cross_stage": false, "same_stage": true}, {"from": "n3", "to": "n7", "labels": ["PRD→PRD"], "cross_role": true, "cross_stage": false, "same_stage": true}, {"from": "n6", "to": "n7", "labels": ["原理图→原理图"], "cross_role": true, "cross_stage": false, "same_stage": true}, {"from": "n4", "to": "n8", "labels": ["板框图→结构设计图", "结构3D图→结构设计图"], "cross_role": true, "cross_stage": false, "same_stage": true}, {"from": "n5", "to": "n8", "labels": ["制冷器件图纸→制冷器件图纸"], "cross_role": true, "cross_stage": false, "same_stage": true}, {"from": "n6", "to": "n8", "labels": ["Layout文件→Layout文件"], "cross_role": true, "cross_stage": false, "same_stage": true}, {"from": "n13", "to": "n8", "labels": ["图纸→结构设计图", "图纸→制冷器件图纸"], "cross_role": true, "cross_stage": false, "same_stage": true}, {"from": "n3", "to": "n9", "labels": ["PRD→PRD竞品Listing", "竞品Listing→PRD竞品Listing"], "cross_role": true, "cross_stage": false, "same_stage": true}, {"from": "n3", "to": "n10", "labels": ["PRD→PRD"], "cross_role": true, "cross_stage": false, "same_stage": true}, {"from": "n4", "to": "n10", "labels": ["结构BOM→BOM", "板框图→结构设计图"], "cross_role": true, "cross_stage": false, "same_stage": true}, {"from": "n6", "to": "n10", "labels": ["电子BOM→BOM", "Layout文件→Layout文件"], "cross_role": true, "cross_stage": false, "same_stage": true}, {"from": "n13", "to": "n10", "labels": ["包装核价BOM→BOM", "图纸→结构设计图"], "cross_role": true, "cross_stage": false, "same_stage": true}, {"from": "n3", "to": "n11", "labels": ["PRD→PRD"], "cross_role": true, "cross_stage": false, "same_stage": true}, {"from": "n4", "to": "n12", "labels": ["板框图→结构设计图", "结构3D图→结构设计图"], "cross_role": true, "cross_stage": false, "same_stage": true}, {"from": "n13", "to": "n12", "labels": ["图纸→结构设计图"], "cross_role": true, "cross_stage": false, "same_stage": true}, {"from": "n3", "to": "n13", "labels": ["包装设计需求→PM包装设计需求"], "cross_role": true, "cross_stage": false, "same_stage": true}, {"from": "n3", "to": "n14", "labels": ["PRD→PRD"], "cross_role": true, "cross_stage": false, "same_stage": true}, {"from": "n4", "to": "n14", "labels": ["结构BOM→BOM", "板框图→结构图纸"], "cross_role": true, "cross_stage": false, "same_stage": true}, {"from": "n6", "to": "n14", "labels": ["电子BOM→BOM", "Layout文件→layout文件"], "cross_role": true, "cross_stage": false, "same_stage": true}, {"from": "n9", "to": "n14", "labels": ["VOC→VOC", "DFMEA→DFMEA"], "cross_role": true, "cross_stage": false, "same_stage": true}, {"from": "n10", "to": "n14", "labels": ["PCBA生产工艺要求→PCBA生产工艺要求"], "cross_role": true, "cross_stage": false, "same_stage": true}, {"from": "n11", "to": "n14", "labels": ["认证费用评估→认证费用评估结果"], "cross_role": true, "cross_stage": false, "same_stage": true}, {"from": "n13", "to": "n14", "labels": ["包装核价BOM→BOM", "图纸→结构图纸"], "cross_role": true, "cross_stage": false, "same_stage": true}, {"from": "n4", "to": "n16", "labels": ["板框图→图纸", "结构3D图→图纸"], "cross_role": true, "cross_stage": true, "same_stage": false}, {"from": "n5", "to": "n16", "labels": ["制冷器件图纸→图纸"], "cross_role": true, "cross_stage": true, "same_stage": false}, {"from": "n13", "to": "n16", "labels": ["图纸→图纸"], "cross_role": true, "cross_stage": true, "same_stage": false}, {"from": "n3", "to": "n17", "labels": ["PRD→PRD"], "cross_role": true, "cross_stage": true, "same_stage": false}, {"from": "n4", "to": "n17", "labels": ["ES样机→ES样机"], "cross_role": true, "cross_stage": true, "same_stage": false}, {"from": "n15", "to": "n17", "labels": ["PRD更新→PRD"], "cross_role": true, "cross_stage": false, "same_stage": true}, {"from": "n3", "to": "n18", "labels": ["PRD→PRD"], "cross_role": true, "cross_stage": true, "same_stage": false}, {"from": "n14", "to": "n18", "labels": ["项目计划表→项目计划表"], "cross_role": true, "cross_stage": true, "same_stage": false}, {"from": "n15", "to": "n18", "labels": ["PRD更新→PRD"], "cross_role": true, "cross_stage": false, "same_stage": true}, {"from": "n4", "to": "n19", "labels": ["ES样机→ES样机"], "cross_role": true, "cross_stage": true, "same_stage": false}, {"from": "n3", "to": "n20", "labels": ["PRD→PRD"], "cross_role": true, "cross_stage": true, "same_stage": false}, {"from": "n9", "to": "n20", "labels": ["质量规格书→质量规格书", "外观检验标准→外观检验标准"], "cross_role": true, "cross_stage": true, "same_stage": false}, {"from": "n15", "to": "n20", "labels": ["PRD更新→PRD"], "cross_role": true, "cross_stage": false, "same_stage": true}, {"from": "n3", "to": "n21", "labels": ["PRD→PRD"], "cross_role": true, "cross_stage": true, "same_stage": false}, {"from": "n4", "to": "n21", "labels": ["ES样机→ES样机"], "cross_role": true, "cross_stage": true, "same_stage": false}, {"from": "n15", "to": "n21", "labels": ["PRD更新→PRD"], "cross_role": true, "cross_stage": false, "same_stage": true}, {"from": "n20", "to": "n21", "labels": ["电性能测试用例→电性能测试用例"], "cross_role": false, "cross_stage": false, "same_stage": true}, {"from": "n0", "to": "n22", "labels": ["ID设计输入→ID", "ID设计输入→CMF"], "cross_role": true, "cross_stage": true, "same_stage": false}, {"from": "n1", "to": "n22", "labels": ["ID（根据结构反馈修改后最终输出ID和CMF）→ID", "ID（根据结构反馈修改后最终输出ID和CMF）→CMF"], "cross_role": true, "cross_stage": true, "same_stage": false}, {"from": "n2", "to": "n22", "labels": ["ID拆件意见反馈→ID", "ID拆件意见反馈→CMF"], "cross_role": false, "cross_stage": true, "same_stage": false}, {"from": "n3", "to": "n22", "labels": ["PRD→PRD"], "cross_role": true, "cross_stage": true, "same_stage": false}, {"from": "n15", "to": "n22", "labels": ["PRD更新→PRD"], "cross_role": true, "cross_stage": true, "same_stage": false}, {"from": "n4", "to": "n23", "labels": ["板框图→结构3D图", "结构3D图→结构3D图"], "cross_role": true, "cross_stage": true, "same_stage": false}, {"from": "n13", "to": "n23", "labels": ["图纸→结构3D图", "图纸→结构2D图"], "cross_role": true, "cross_stage": true, "same_stage": false}, {"from": "n22", "to": "n23", "labels": ["结构3D图→结构3D图", "结构2D图→结构3D图"], "cross_role": true, "cross_stage": false, "same_stage": true}, {"from": "n9", "to": "n24", "labels": ["DFMEA→DFEMA"], "cross_role": true, "cross_stage": true, "same_stage": false}, {"from": "n26", "to": "n24", "labels": ["试产总结报告→试产总结报告"], "cross_role": true, "cross_stage": false, "same_stage": true}, {"from": "n30", "to": "n24", "labels": ["可靠性成熟度报告→可靠性成熟度报告", "更新的DFMEA→DFEMA"], "cross_role": true, "cross_stage": false, "same_stage": true}, {"from": "n24", "to": "n25", "labels": ["试产通知单→试产通知单"], "cross_role": true, "cross_stage": false, "same_stage": true}, {"from": "n4", "to": "n27", "labels": ["ES样机→试产样机"], "cross_role": true, "cross_stage": true, "same_stage": false}, {"from": "n17", "to": "n27", "labels": ["软件测试用例→软件测试用例"], "cross_role": false, "cross_stage": true, "same_stage": false}, {"from": "n4", "to": "n28", "labels": ["ES样机→试产样机"], "cross_role": true, "cross_stage": true, "same_stage": false}, {"from": "n6", "to": "n28", "labels": ["原理图→原理图", "Layout文件→Layout文件"], "cross_role": true, "cross_stage": true, "same_stage": false}, {"from": "n20", "to": "n28", "labels": ["电性能测试用例→电性能测试用例", "可靠性测试用例→可靠性测试用例"], "cross_role": false, "cross_stage": true, "same_stage": false}, {"from": "n33", "to": "n28", "labels": ["更新的原理图→原理图", "Layout文件→Layout文件"], "cross_role": true, "cross_stage": false, "same_stage": true}, {"from": "n4", "to": "n29", "labels": ["ES样机→试产样机"], "cross_role": true, "cross_stage": true, "same_stage": false}, {"from": "n6", "to": "n29", "labels": ["原理图→原理图", "Layout文件→Layout图"], "cross_role": true, "cross_stage": true, "same_stage": false}, {"from": "n33", "to": "n29", "labels": ["更新的原理图→原理图", "Layout文件→Layout图"], "cross_role": true, "cross_stage": false, "same_stage": true}, {"from": "n4", "to": "n30", "labels": ["ES样机→试产样机"], "cross_role": true, "cross_stage": true, "same_stage": false}, {"from": "n21", "to": "n30", "labels": ["电性能测试报告→电性能测试报告"], "cross_role": true, "cross_stage": true, "same_stage": false}, {"from": "n28", "to": "n30", "labels": ["电性能测试报告→电性能测试报告", "可靠性测试报告→可靠性测试报告"], "cross_role": true, "cross_stage": false, "same_stage": true}, {"from": "n3", "to": "n31", "labels": ["包装设计需求→包材Brief"], "cross_role": false, "cross_stage": true, "same_stage": false}, {"from": "n3", "to": "n32", "labels": ["PRD→更新的PRD以及测试结果"], "cross_role": true, "cross_stage": true, "same_stage": false}, {"from": "n15", "to": "n32", "labels": ["PRD更新→更新的PRD以及测试结果"], "cross_role": true, "cross_stage": true, "same_stage": false}, {"from": "n31", "to": "n32", "labels": ["PRD更新→更新的PRD以及测试结果"], "cross_role": true, "cross_stage": false, "same_stage": true}, {"from": "n3", "to": "n33", "labels": ["PRD→更新的PRD以及测试结果"], "cross_role": true, "cross_stage": true, "same_stage": false}, {"from": "n15", "to": "n33", "labels": ["PRD更新→更新的PRD以及测试结果"], "cross_role": true, "cross_stage": true, "same_stage": false}, {"from": "n31", "to": "n33", "labels": ["PRD更新→更新的PRD以及测试结果"], "cross_role": true, "cross_stage": false, "same_stage": true}, {"from": "n3", "to": "n34", "labels": ["PRD→更新的PRD以及测试结果"], "cross_role": true, "cross_stage": true, "same_stage": false}, {"from": "n15", "to": "n34", "labels": ["PRD更新→更新的PRD以及测试结果"], "cross_role": true, "cross_stage": true, "same_stage": false}, {"from": "n31", "to": "n34", "labels": ["PRD更新→更新的PRD以及测试结果"], "cross_role": true, "cross_stage": false, "same_stage": true}, {"from": "n9", "to": "n36", "labels": ["DFMEA→DFEMA"], "cross_role": true, "cross_stage": true, "same_stage": false}, {"from": "n26", "to": "n36", "labels": ["试产总结报告→试产总结报告"], "cross_role": true, "cross_stage": true, "same_stage": false}, {"from": "n30", "to": "n36", "labels": ["可靠性成熟度报告→可靠性成熟度报告", "更新的DFMEA→DFEMA"], "cross_role": true, "cross_stage": true, "same_stage": false}, {"from": "n39", "to": "n36", "labels": ["可靠性成熟度报告→可靠性成熟度报告", "更新的DFMEA→DFEMA"], "cross_role": true, "cross_stage": false, "same_stage": true}, {"from": "n24", "to": "n37", "labels": ["试产通知单→试产通知单"], "cross_role": true, "cross_stage": true, "same_stage": false}, {"from": "n36", "to": "n37", "labels": ["试产通知单→试产通知单"], "cross_role": true, "cross_stage": false, "same_stage": true}, {"from": "n4", "to": "n38", "labels": ["结构BOM→更新的2D图纸和结构BOM", "结构BOM→电子BOM"], "cross_role": true, "cross_stage": true, "same_stage": false}, {"from": "n5", "to": "n38", "labels": ["制冷器件图纸→更新的制冷器件图纸"], "cross_role": true, "cross_stage": true, "same_stage": false}, {"from": "n6", "to": "n38", "labels": ["电子BOM→更新的2D图纸和结构BOM", "原理图→更新的原理图"], "cross_role": true, "cross_stage": true, "same_stage": false}, {"from": "n13", "to": "n38", "labels": ["包装核价BOM→更新的2D图纸和结构BOM", "包装核价BOM→电子BOM"], "cross_role": true, "cross_stage": true, "same_stage": false}, {"from": "n32", "to": "n38", "labels": ["更新的2D图纸和结构BOM→更新的2D图纸和结构BOM", "更新的2D图纸和结构BOM→电子BOM"], "cross_role": true, "cross_stage": true, "same_stage": false}, {"from": "n33", "to": "n38", "labels": ["电子BOM→更新的2D图纸和结构BOM", "更新的原理图→更新的原理图"], "cross_role": true, "cross_stage": true, "same_stage": false}, {"from": "n34", "to": "n38", "labels": ["更新的制冷器件图纸→更新的制冷器件图纸"], "cross_role": true, "cross_stage": true, "same_stage": false}, {"from": "n43", "to": "n38", "labels": ["包装BOM→更新的2D图纸和结构BOM", "包装BOM→电子BOM"], "cross_role": true, "cross_stage": false, "same_stage": true}, {"from": "n38", "to": "n42", "labels": ["物料的承认书【Sourcing提供→物料承认书"], "cross_role": true, "cross_stage": false, "same_stage": true}, {"from": "n3", "to": "n43", "labels": ["包装设计需求→包材brief"], "cross_role": true, "cross_stage": true, "same_stage": false}], "stages": ["CD", "KO", "ES", "TL", "DR", "BT", "CR"], "stageLabels": {"CD": "CD · 概念设计", "KO": "KO · 立项", "ES": "ES · 工程样机", "TL": "TL · 开模", "DR": "DR · 设计释放（含试产）", "BT": "BT · 批量试产", "CR": "CR · 结项转量"}, "parallelGroups": {"KO": [{"label": "并行 · 仅需 PRD", "roles": ["制冷工程师", "DQE", "认证工程师"], "col": 2}, {"label": "并行 · 结构主链后", "roles": ["电子工程师", "嵌入式软件工程师"], "col": 3}, {"label": "并行 · DR 多轮试产", "roles": ["PMC", "NPI", "嵌入式软件测试工程师", "硬件测试工程师", "DQE"], "col": 2}], "ES": [{"label": "并行 · ES 验证", "roles": ["嵌入式软件测试工程师", "软件产品经理（APP）", "认证工程师", "硬件测试工程师", "Sourcing"], "col": 2}], "DR": [{"label": "并行 · DR 多轮试产", "roles": ["PMC", "NPI", "嵌入式软件测试工程师", "硬件测试工程师", "DQE", "认证工程师"], "col": 2}, {"label": "并行 · 设计迭代", "roles": ["结构工程师", "电子工程师", "制冷工程师"], "col": 4}], "CR": [{"label": "并行 · 转量收尾", "roles": ["Sourcing", "DQE", "NPI", "SQE", "包装工程师"], "col": 2}]}};
+const ROLE_ORDER = ["PM", "ID", "结构工程师", "制冷工程师", "电子工程师", "嵌入式软件工程师", "嵌入式软件测试工程师", "软件产品经理（APP）", "硬件测试工程师", "Sourcing", "DQE", "NPI", "认证工程师", "专利工程师", "包装工程师", "项目经理", "PMC", "SQE"];
+const stages = DATA.stages;
+const stageLabels = DATA.stageLabels;
+
+function esc(s) { const d=document.createElement('div'); d.textContent=s; return d.innerHTML; }
+
+function buildFilters() {
+  const rf=document.getElementById('roleFilter'), sf=document.getElementById('stageFilter');
+  ROLE_ORDER.forEach(r=>{ const o=document.createElement('option'); o.value=r; o.textContent=r; rf.appendChild(o); });
+  stages.forEach(s=>{ const o=document.createElement('option'); o.value=s; o.textContent=s; sf.appendChild(o); });
+}
+
+function getFilteredRecords() {
+  const role=document.getElementById('roleFilter').value;
+  const stage=document.getElementById('stageFilter').value;
+  return DATA.records.filter(r=>(!role||r.role===role)&&(!stage||r.stage===stage));
+}
+
+function getVisibleRoles(records) {
+  if (!document.getElementById('roleFilter').value) return ROLE_ORDER;
+  return ROLE_ORDER.filter(r=>records.some(x=>x.role===r));
+}
+
+function getVisibleStages(records) {
+  if (!document.getElementById('stageFilter').value) return stages;
+  return stages.filter(s=>records.some(x=>x.stage===s));
+}
+
+function renderMatrix() {
+  const records=getFilteredRecords();
+  const visibleIds=new Set(records.map(r=>r.id));
+  const visRoles=getVisibleRoles(records);
+  const visStages=getVisibleStages(records);
+  const matrix=document.getElementById('matrix');
+  let html='<thead><tr><th class="corner">角色 ↓<br/>阶段 →</th>';
+  visStages.forEach(s=>{
+    const sub=(stageLabels[s]||'').replace(s+' · ','');
+    html+=`<th class="stage-hdr s-${s}">${esc(s)}<div class="sub">${esc(sub)}</div></th>`;
+  });
+  html+='</tr></thead><tbody>';
+  visRoles.forEach(role=>{
+    html+=`<tr><th class="role-hdr">${esc(role)}</th>`;
+    visStages.forEach(stage=>{
+      const cellRecs=records.filter(r=>r.role===role&&r.stage===stage);
+      const cls=`cell c-${stage}`+(cellRecs.length?' has-card':' empty');
+      html+=`<td class="${cls}" data-role="${esc(role)}" data-stage="${stage}">`;
+      cellRecs.forEach(r=>{
+        const tip=(r.input||'—')+' → '+(r.output||'—');
+        html+=`<div class="card${r.iterative?' iterative':''}" id="card-${r.id}" data-id="${r.id}" title="${esc(tip)}">
+          <div class="io"><span class="tag tag-in">入</span><span class="io-text">${esc(r.input||'—')}</span></div>
+          <div class="io"><span class="tag tag-out">出</span><span class="io-text">${esc(r.output||'—')}</span></div>
+          ${r.note?`<div class="note">${esc(r.note)}</div>`:''}
+          ${r.iterative?'<span class="badge-iter">↻ 可迭代</span>':''}
+        </div>`;
+      });
+      html+='</td>';
+    });
+    html+='</tr>';
+  });
+  html+='</tbody>';
+  matrix.innerHTML=html;
+  matrix.querySelectorAll('.card').forEach(c=>{
+    c.onclick=e=>{ e.stopPropagation(); selectCard(c.dataset.id); };
+  });
+  requestAnimationFrame(()=>renderLinks(visibleIds));
+  return visibleIds;
+}
+
+function getAnchor(id) {
+  const el=document.getElementById('card-'+id);
+  if(!el) return null;
+  const container=document.getElementById('matrixContainer');
+  const cr=container.getBoundingClientRect();
+  const pad=12;
+  const r=el.getBoundingClientRect();
+  const rec=DATA.records.find(x=>x.id===id);
+  const left=r.left-cr.left-pad, top=r.top-cr.top-pad;
+  const right=r.right-cr.left-pad, bottom=r.bottom-cr.top-pad;
+  return {
+    right, left, top, bottom,
+    cx:(left+right)/2, cy:(top+bottom)/2,
+    stage:rec.stage, role:rec.role,
+  };
+}
+
+function assignLaneOffsets(deps, selected) {
+  const stageIdx = Object.fromEntries(stages.map((s, i) => [s, i]));
+  const roleIdx = Object.fromEntries(ROLE_ORDER.map((r, i) => [r, i]));
+  const groups = {};
+  deps.forEach((d, i) => {
+    d._i = i;
+    const isIn = d.to === selected;
+    const fa = DATA.records.find(r => r.id === d.from);
+    const tb = DATA.records.find(r => r.id === d.to);
+    const cross = stageIdx[tb.stage] !== stageIdx[fa.stage];
+    const key = (isIn ? 'in' : 'out') + '-' + (cross ? 'cross' : 'same') + '|' + fa.stage + '|' + tb.stage;
+    (groups[key] ||= []).push(d);
+  });
+  Object.values(groups).forEach(arr => {
+    const isIn = arr[0].to === selected;
+    arr.sort((a, b) => {
+      const af = DATA.records.find(r => r.id === a.from);
+      const at = DATA.records.find(r => r.id === a.to);
+      const bf = DATA.records.find(r => r.id === b.from);
+      const bt = DATA.records.find(r => r.id === b.to);
+      if (isIn) return roleIdx[af.role] - roleIdx[bf.role] || a._i - b._i;
+      return roleIdx[at.role] - roleIdx[bt.role] || a._i - b._i;
+    });
+    arr.forEach((d, i) => { d.laneIdx = i; });
+  });
+}
+
+function buildOrthogonalPath(a, b, d, stageIdx, roleIdx, isIn) {
+  const crossStage = stageIdx[b.stage] > stageIdx[a.stage];
+  const sameStage = a.stage === b.stage;
+  const sameRole = a.role === b.role;
+  const lane = (d.laneIdx || 0) * 5;
+  const xIn = Math.min(a.left, b.left) + 5 + lane;
+  const xOut = Math.max(a.right, b.right) - 5 - lane;
+
+  if (crossStage) {
+    const y1 = a.cy, y2 = b.cy;
+    const xMid = (a.right + b.left) / 2 + (isIn ? -lane : lane);
+    if (isIn) {
+      return `M${a.right} ${y1} H${xMid} V${y2} H${b.left}`;
+    }
+    return `M${a.right} ${y1} H${xMid} V${y2} H${b.left}`;
+  }
+  if (sameStage && !sameRole) {
+    const vertDown = b.cy > a.cy;
+    const x = isIn ? xIn : xOut;
+    if (vertDown) return `M${x} ${a.bottom} V${b.top}`;
+    return `M${x} ${a.top} V${b.bottom}`;
+  }
+  if (isIn) {
+    return `M${xIn} ${a.bottom} V${b.top}`;
+  }
+  return `M${xOut} ${a.bottom} V${b.top}`;
+}
+
+function renderLinks(visibleIds) {
+  const svg = document.getElementById('linkSvg');
+  const table = document.getElementById('matrix');
+  svg.setAttribute('width', table.offsetWidth);
+  svg.setAttribute('height', table.offsetHeight);
+  [...svg.querySelectorAll('path.link')].forEach(p => p.remove());
+  if (!document.getElementById('toggleDeps').classList.contains('active')) return;
+
+  const selected = window._selectedId;
+  if (!selected) return;
+
+  const depMode = document.getElementById('depFilter').value;
+  const stageIdx = Object.fromEntries(stages.map((s, i) => [s, i]));
+  const roleIdx = Object.fromEntries(ROLE_ORDER.map((r, i) => [r, i]));
+  const tip = document.getElementById('linkTip');
+
+  const toDraw = DATA.deps.filter(d => {
+    if (!visibleIds.has(d.from) || !visibleIds.has(d.to)) return false;
+    if (d.from !== selected && d.to !== selected) return false;
+    if (depMode === 'cross-role' && !d.cross_role) return false;
+    if (depMode === 'cross-stage' && !d.cross_stage) return false;
+    if (depMode === 'serial' && !(d.same_stage && d.cross_role)) return false;
+    return true;
+  });
+  assignLaneOffsets(toDraw, selected);
+
+  toDraw.forEach(d => {
+    const a = getAnchor(d.from), b = getAnchor(d.to);
+    if (!a || !b) return;
+
+    const isIn = d.to === selected;
+    const pathD = buildOrthogonalPath(a, b, d, stageIdx, roleIdx, isIn);
+    const cls = ['link', isIn ? 'link-in' : 'link-out'];
+    if (d.cross_stage) cls.push('cross-stage');
+    const marker = isIn ? 'url(#arrow-in)' : 'url(#arrow-out)';
+
+    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    path.setAttribute('d', pathD);
+    path.setAttribute('class', cls.join(' '));
+    path.setAttribute('marker-end', marker);
+    path.dataset.label = (d.labels || []).join('；') || '';
+    path.onmouseenter = e => {
+      if (!path.dataset.label) return;
+      tip.textContent = path.dataset.label;
+      tip.style.display = 'block';
+      tip.style.left = (e.clientX + 12) + 'px';
+      tip.style.top = (e.clientY + 12) + 'px';
+      path.classList.add('highlight');
+    };
+    path.onmousemove = e => {
+      tip.style.left = (e.clientX + 12) + 'px';
+      tip.style.top = (e.clientY + 12) + 'px';
+    };
+    path.onmouseleave = () => {
+      tip.style.display = 'none';
+      path.classList.remove('highlight');
+    };
+    svg.appendChild(path);
+  });
+}
+
+function getRelatedIds(id) {
+  const related=new Set([id]);
+  DATA.deps.forEach(d=>{ if(d.from===id) related.add(d.to); if(d.to===id) related.add(d.from); });
+  return related;
+}
+
+function uniqueDepRecords(deps, key) {
+  const seen = new Set();
+  return deps.map(d => DATA.records.find(r => r.id === d[key])).filter(r => {
+    if (!r || seen.has(r.id)) return false;
+    seen.add(r.id);
+    return true;
+  });
+}
+
+function selectCard(id) {
+  window._selectedId=window._selectedId===id?null:id;
+  const rec=DATA.records.find(r=>r.id===id);
+  const related=window._selectedId?getRelatedIds(window._selectedId):null;
+  document.querySelectorAll('.card').forEach(c=>{
+    c.classList.toggle('selected', c.dataset.id===window._selectedId);
+    c.classList.toggle('dimmed', related&&!related.has(c.dataset.id));
+  });
+  const panel=document.getElementById('infoPanel');
+  if(!window._selectedId){ panel.classList.remove('show'); renderLinks(new Set(getFilteredRecords().map(r=>r.id))); return; }
+  panel.classList.add('show');
+  document.getElementById('infoTitle').textContent=rec.stage+' · '+rec.role;
+  const up=uniqueDepRecords(DATA.deps.filter(d=>d.to===id), 'from');
+  const down=uniqueDepRecords(DATA.deps.filter(d=>d.from===id), 'to');
+  const renderDepList=(list)=>list.map(r=>`<li>${esc(r.stage)}·${esc(r.role)}</li>`).join('')||'<li>—</li>';
+  document.getElementById('infoBody').innerHTML=`
+    <p class="panel-io-in"><span class="lbl">入：</span>${esc(rec.input)}</p>
+    <p class="panel-io-out"><span class="lbl">出：</span>${esc(rec.output)}</p>
+    ${rec.note?`<p style="margin-top:6px;color:#b45309"><b>注：</b>${esc(rec.note)}</p>`:''}
+    <div class="dep-list"><b>上游 ${up.length}</b><ul>${renderDepList(up)}</ul></div>
+    <div class="dep-list"><b>下游 ${down.length}</b><ul>${renderDepList(down)}</ul></div>`;
+  renderLinks(new Set(getFilteredRecords().map(r=>r.id)));
+}
+
+function applyZoom() {
+  const s = document.getElementById('zoomRange').value / 100;
+  document.documentElement.style.setProperty('--col-w', Math.round(210 * s) + 'px');
+  document.documentElement.style.setProperty('--role-w', Math.round(136 * s) + 'px');
+  document.documentElement.style.setProperty('--cell-inset', Math.round(14 * s) + 'px');
+  document.documentElement.style.setProperty('--hdr-h', Math.round(46 * s) + 'px');
+  document.getElementById('zoomVal').textContent = Math.round(s * 100) + '%';
+  requestAnimationFrame(() => renderLinks(new Set(getFilteredRecords().map(r => r.id))));
+}
+
+function render(){ renderMatrix(); }
+
+document.getElementById('roleFilter').onchange=render;
+document.getElementById('stageFilter').onchange=render;
+document.getElementById('depFilter').onchange=render;
+document.getElementById('toggleDeps').onclick=function(){ this.classList.toggle('active'); render(); };
+document.getElementById('resetView').onclick=()=>{
+  window._selectedId=null; document.getElementById('infoPanel').classList.remove('show');
+  document.getElementById('roleFilter').value=''; document.getElementById('stageFilter').value='';
+  document.getElementById('zoomRange').value=90; document.getElementById('canvasWrap').scrollTo(0,0);
+  applyZoom(); render();
+};
+document.getElementById('closePanel').onclick=()=>{ window._selectedId=null; document.getElementById('infoPanel').classList.remove('show'); document.getElementById('linkTip').style.display='none'; renderLinks(new Set(getFilteredRecords().map(r=>r.id))); };
+document.getElementById('zoomRange').oninput=applyZoom;
+document.getElementById('canvasWrap').addEventListener('click', e => {
+  if (e.target.closest('.card') || e.target.closest('.info-panel') || e.target.closest('select') || e.target.closest('button') || e.target.closest('input')) return;
+  if (!window._selectedId) return;
+  window._selectedId = null;
+  document.getElementById('infoPanel').classList.remove('show');
+  document.getElementById('linkTip').style.display = 'none';
+  document.querySelectorAll('.card').forEach(c => c.classList.remove('selected', 'dimmed'));
+  renderLinks(new Set(getFilteredRecords().map(r => r.id)));
+});
+document.getElementById('canvasWrap').addEventListener('scroll',()=>{
+  requestAnimationFrame(()=>renderLinks(new Set(getFilteredRecords().map(r=>r.id))));
+});
+window.addEventListener('resize',()=>renderLinks(new Set(getFilteredRecords().map(r=>r.id))));
+
+buildFilters();
+applyZoom();
+render();
+</script>
+</body>
+</html>
