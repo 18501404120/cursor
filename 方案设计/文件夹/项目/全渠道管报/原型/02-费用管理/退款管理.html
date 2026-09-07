@@ -30,6 +30,8 @@
     .tag-source.manual { color: #a16207; background: #fffbeb; border: 1px solid #fde68a; }
     .tag-source.excel { color: #1d4ed8; background: #eff6ff; border: 1px solid #bfdbfe; }
     .tag-source.projected { color: #6d28d9; background: #f5f3ff; border: 1px solid #ddd6fe; }
+    .tag-closed { background: #f5f5f5; color: #595959; border: 1px solid #d9d9d9; }
+    .readonly-box { background: #f5f7fa !important; color: #595959 !important; cursor: not-allowed !important; border-color: #d9d9d9 !important; }
     .tag-projected {
       display: inline-flex;
       align-items: center;
@@ -42,6 +44,10 @@
       border: 1px solid #ddd6fe;
       vertical-align: middle;
     }
+    .col-check { width: 36px; text-align: center; }
+    .income-cell { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; }
+    .income-cell .sys { font-size: 11px; color: #94a3b8; font-weight: 400; }
+    .panel-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
     .form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 16px; }
     .form-field { display: flex; flex-direction: column; gap: 6px; }
     .form-field.full { grid-column: 1 / -1; }
@@ -53,7 +59,8 @@
     .form-field textarea { height: 70px; padding: 8px 10px; resize: vertical; }
     .amount-currency-row { display: flex; gap: 8px; align-items: center; }
     .amount-currency-row input[type="number"] { flex: 1; min-width: 0; }
-    .amount-currency-row #fCurrency { width: 72px; text-align: center; background: #f8fafc; color: #475569; }
+    .amount-currency-row #fCurrency,
+    .amount-currency-row #fIncomeCurrency { width: 72px; text-align: center; background: #f8fafc; color: #475569; }
     .hint { margin: 0 16px 12px; border: 1px solid #bfdbfe; background: #eff6ff; padding: 9px 12px; border-radius: 6px; font-size: 12px; color: #1e3a8a; }
     .sub-hint { margin: -4px 16px 12px; font-size: 12px; color: #6b7280; }
     .income-source-note { margin: 0 0 10px; font-size: 12px; color: #64748b; line-height: 1.6; }
@@ -164,7 +171,7 @@
         <div class="panel-head">
           <div>
             <div class="panel-title">退款数据总览</div>
-            <div class="panel-sub">系统按滚动退款规则计算计提和余额，仅“实际退款金额”允许人工录入</div>
+            <div class="panel-sub">系统按滚动退款规则计算计提和余额。销售收入需确认或录入后才作为业务确认值；未确认时仍用系统数参与测算。</div>
           </div>
         </div>
         <div class="stat-row" data-pa-key="stat-overview">
@@ -189,6 +196,18 @@
                 <button type="button" class="ctl-clear" aria-label="清除客户">×</button>
               </span>
             </div>
+            <div class="f-item" data-pa-key="flt-income-status">
+              <label for="qIncomeStatus">收入状态</label>
+              <span class="ctl-wrap">
+                <select id="qIncomeStatus" class="ctl">
+                  <option value="">全部</option>
+                  <option value="未确认">未确认</option>
+                  <option value="已确认">已确认</option>
+                  <option value="已关账">已关账</option>
+                </select>
+                <button type="button" class="ctl-clear" aria-label="清除收入状态">×</button>
+              </span>
+            </div>
             <div class="f-item">
               <button type="button" class="btn" id="btnReset">重置筛选</button>
             </div>
@@ -196,15 +215,16 @@
         </div>
       </section>
 
-      <div class="hint">公式：当月计提退款 = 实际退款金额 + 期末计提退款余额 - 期初计提退款余额。期初计提退款余额按上月滚动退款率 × 目标窗口内计提用收入计算；期末计提退款余额按本月滚动退款率 × 目标窗口内计提用收入计算。<strong>计提用收入 = 销售收入 − 退货退款的收入（金蝶-销售退货单，type=退货退款）</strong>；与实际退款入账分离，不重复扣减；缺失按 0 参与测算。加拿大客户（Costco CA、D&H CA、Synnex-CA、HOME DEPOT CANADA）按人民币口径维护。</div>
+      <div class="hint">公式：当月计提退款 = 实际退款金额 + 期末计提退款余额 - 期初计提退款余额。计提用收入默认取系统计算值（销售收入 − 退货退款的收入），状态为「未确认」时仍参与测算；确认、录入或导入后以业务确认值为准，状态为「已确认」，金蝶后续变动不再覆盖。部门固定比例扣款仍按 ERP 订单金额，不跟本页确认收入。加拿大客户（Costco CA、D&H CA、Synnex-CA、HOME DEPOT CANADA）按人民币口径维护。</div>
 
       <section class="panel panel--table">
         <div class="panel-head">
           <div>
             <div class="panel-title">退款明细</div>
-            <div class="panel-sub" id="resultTip">共 0 条</div>
+            <div class="panel-sub" id="resultTip">共 0 条。改销售收入：点金额或「录入收入/退款」，不要在计算过程弹窗里改。</div>
           </div>
           <div class="panel-actions">
+            <button type="button" class="btn" id="btnBatchConfirm" data-pa-key="btn-batch-confirm">批量确认收入</button>
             <button type="button" class="btn" id="btnExport">导出</button>
             <button type="button" class="btn btn-primary" id="btnImport">导入</button>
           </div>
@@ -213,9 +233,11 @@
           <table class="data-table">
             <thead>
               <tr>
+                <th class="col-check"><input type="checkbox" id="chkAll" aria-label="全选当前页"></th>
                 <th data-pa-key="col-period">期间</th>
                 <th data-pa-key="col-customer">客户</th>
                 <th class="num" data-pa-key="col-sales-income">销售收入</th>
+                <th data-pa-key="col-income-status">收入状态</th>
                 <th class="num" data-pa-key="col-opening">期初计提退款余额</th>
                 <th class="num" data-pa-key="col-actual">实际退款(录入)</th>
                 <th class="num" data-pa-key="col-prev-ratio">上月滚动退款率</th>
@@ -239,7 +261,7 @@
 <div class="modal-mask" id="editModal" aria-hidden="true">
   <div class="modal">
     <div class="modal-hd">
-      <h2>录入实际退款</h2>
+      <h2 id="editModalTitle">录入收入与实际退款</h2>
       <button type="button" class="modal-close" id="btnClose">×</button>
     </div>
     <div class="modal-bd">
@@ -251,6 +273,21 @@
         <div class="form-field">
           <label for="fCustomer">客户</label>
           <input id="fCustomer" type="text" readonly>
+        </div>
+        <div class="form-field" data-pa-key="edit-income">
+          <label for="fSalesIncome" id="lblSalesIncome">销售收入（可改）</label>
+          <div class="amount-currency-row">
+            <input id="fSalesIncome" type="number" step="0.01">
+            <input id="fIncomeCurrency" type="text" readonly aria-label="收入币种">
+          </div>
+          <div class="field-hint" id="fIncomeHint" style="margin-top:4px;font-size:11px;color:#6b7280;line-height:1.5;"></div>
+        </div>
+        <div class="form-field" data-pa-key="edit-preview-accrual">
+          <label for="fActual" id="lblActual">实际退款金额（可改）</label>
+          <div class="amount-currency-row">
+            <input id="fActual" type="number" step="0.01">
+            <input id="fCurrency" type="text" readonly aria-label="币种">
+          </div>
         </div>
         <div class="form-field">
           <label for="fOpening">期初计提退款余额</label>
@@ -267,13 +304,6 @@
         <div class="form-field">
           <label for="fTarget">期末计提退款余额</label>
           <input id="fTarget" type="text" readonly>
-        </div>
-        <div class="form-field" data-pa-key="edit-preview-accrual">
-          <label for="fActual">实际退款金额（用户录入）</label>
-          <div class="amount-currency-row">
-            <input id="fActual" type="number" step="0.01">
-            <input id="fCurrency" type="text" readonly aria-label="币种">
-          </div>
         </div>
         <div class="form-field">
           <label for="fAccrual">系统计提退款</label>
@@ -300,7 +330,7 @@
     </div>
     <div class="modal-bd">
       <div class="calc-panel">
-        <p class="income-source-note">销售收入取值：销售收入 − 退货退款的收入（金蝶-销售退货单，type=退货退款）。</p>
+        <p class="income-source-note">本弹窗只改目标窗口，<strong>不能改销售收入</strong>。要改收入：关闭后点列表金额或「录入收入/退款」，也可点下方「调整销售收入」。</p>
         <div class="calc-summary" id="calcSummary"></div>
         <div class="calc-edit" data-pa-key="calc-window-edit">
           <div class="field">
@@ -352,19 +382,20 @@
       </div>
     </div>
     <div class="modal-ft">
+      <button type="button" class="btn" id="btnCalcEditIncome">调整销售收入</button>
       <button type="button" class="btn" id="btnCalcCancel">取消</button>
       <button type="button" class="btn btn-primary" id="btnCalcSave">保存目标窗口</button>
     </div>
   </div>
 </div>
 
-<script src="fee-mgmt-common.js?v=202608101800"></script>
-<script src="supermarket-accrual-base.js?v=202608101800"></script>
-<script src="supermarket-accrual-store.js?v=202608101800"></script>
+<script src="fee-mgmt-common.js?v=202609071230"></script>
+<script src="supermarket-accrual-base.js?v=202609071230"></script>
+<script src="supermarket-accrual-store.js?v=202609071240"></script>
 <script src="fee-mgmt-op-log.js"></script>
 <script src="../../../../规范/assets/month-range-picker.js"></script>
 <script src="../../../../规范/assets/import-modal-kit.js"></script>
-<script src="退款管理.js?v=202608101800"></script>
+<script src="退款管理.js?v=202609071300"></script>
 
 
 
@@ -398,13 +429,25 @@
       "id": "flt-customer",
       "selector": "#qCustomer",
       "title": "客户筛选",
-      "body": "与客户筛选配合月份范围使用：\n1. 选「全部」不限客户；可点 × 清空。\n2. 点「重置」会清空客户并恢复默认月份范围。\n3. 只影响列表显示，不改动台账里的原始数据。"
+      "body": "与客户筛选配合月份范围使用：\n1. 选「全部」不限客户；可点 × 清空。\n2. 点「重置」会清空客户、收入状态并恢复默认月份范围。\n3. 只影响列表显示，不改动台账里的原始数据。"
+    },
+    {
+      "id": "flt-income-status",
+      "selector": "[data-pa-key=\"flt-income-status\"]",
+      "title": "收入状态筛选",
+      "body": "按销售收入确认状态筛选：未确认 / 已确认 / 全部。与月份、客户同时生效。重置时清空。"
+    },
+    {
+      "id": "btn-batch-confirm",
+      "selector": "[data-pa-key=\"btn-batch-confirm\"]",
+      "title": "批量确认收入",
+      "body": "勾选列表行后，将其中未确认、未关账的记录按当前展示收入确认为业务确认值。已确认和已关账行跳过。确认后状态为已确认，金蝶后续变动不再覆盖。"
     },
     {
       "id": "btn-import",
       "selector": "#btnImport",
-      "title": "导入实际退款",
-      "body": "批量导入说明：\n1. 模版按「期间 + 客户」匹配每一行。\n2. 导入只更新「实际退款」金额，并标记为手工录入。\n3. 保存后，该客户从当月起后续月份的期初、期末、计提退款会自动顺延重算，并记入操作日志。\n4. 滚动退款率、目标窗口不会因导入而改变。\n5. 当前原型为演示：确认导入后模拟更新若干行；正式环境需解析文件并提示失败行。"
+      "title": "导入收入与实际退款",
+      "body": "批量导入说明：\n1. 同一张表按「期间 + 客户」匹配。列：期间、客户、收入金额、实际退款金额、备注。\n2. 收入、退款可只填一列；空单元格表示不更新该列，空不等于 0。\n3. 填了收入金额 → 覆盖确认收入，状态变为已确认。只填退款 → 不改收入状态。\n4. 两列都空则该行失败。已关账月不能导入收入。\n5. 保存后按新收入重算滚动率与计提，并记日志。"
     },
     {
       "id": "rolling-period",
@@ -416,19 +459,19 @@
       "id": "refund-table",
       "selector": "#refundBody",
       "title": "退款明细列表",
-      "body": "列表说明：\n1. 每行 = 一个客户 × 一个自然月。\n2. 只有「实际退款(录入)」可以人工维护或导入；其余金额、比率由系统计算。\n3. 带下划线的数字可点开，查看计算过程。\n4. 若本页录入过实际退款，优先用录入值；否则用历史台账；再否则按滚动规则推算。"
+      "body": "列表说明：\n1. 每行 = 一个客户 × 一个自然月。\n2. 销售收入默认显示系统计算值，状态为未确认；确认、录入或导入收入后显示业务确认值，状态为已确认。已确认且与系统数不同时，金额下显示系统数对照。\n3. 未确认的收入仍参与滚动率和计提测算。\n4. 实际退款可在「录入」弹窗或导入中维护。带下划线的数字可点开计算过程。"
     },
     {
       "id": "matrix-ops",
       "selector": "th[data-pa-key=\"col-ops\"]",
       "title": "操作列",
-      "body": "每行可操作：\n1. 「录入实际值」：只改实际退款金额和备注，其余字段只读。\n2. 「日志」：查看本行的录入、导入、目标窗口调整等记录。\n3. 录入保存后，该客户后续各月的余额应连锁更新；「更新时间」列会变化。"
+      "body": "每行可操作：\n1. 「确认」：未确认且未关账时出现，把当前展示收入定为业务确认值，状态变为已确认。已确认后仍可再录入或导入调整，状态保持已确认。\n2. 「录入收入/退款」：同一弹窗改销售收入和实际退款。也可直接点列表「销售收入」金额打开该弹窗。只改退款不改变收入状态。\n3. 「日志」：查看本行确认、录入、导入、目标窗口等记录。计算过程弹窗不能改收入，请用「调整销售收入」跳到录入弹窗。"
     },
     {
       "id": "edit-modal",
       "selector": "#editModal .modal-hd h2",
-      "title": "录入实际退款弹窗",
-      "body": "弹窗字段说明：\n1. 期间、客户、期初余额、上月率、本月率、期末目标余额均为只读，来自当前行。\n2. 只需填写「实际退款金额」和「备注」。\n3. 首月或缺少历史时，「上月滚动退款率」可用系统预置历史（如 Target 在 2026-01 为 7.17%）。\n4. 打开弹窗时，「系统计提退款」会根据当前填写预览，保存后才真正写入并重算。"
+      "title": "录入收入与实际退款",
+      "body": "弹窗字段说明：\n1. 期间、客户、期初、滚动率、期末余额只读。\n2. 销售收入和实际退款都可编辑（已关账月销售收入只读）。\n3. 改了收入并保存 → 状态已确认；只改退款或备注 → 收入状态不变。\n4. 什么都没改点保存会提示未修改。\n5. 「确认」是列表上的单独按钮，不要和本弹窗保存混用。"
     },
     {
       "id": "edit-preview-accrual",
@@ -439,8 +482,8 @@
     {
       "id": "edit-save",
       "selector": "#btnSave",
-      "title": "保存实际退款",
-      "body": "保存后系统会：\n1. 记下实际退款金额与备注。\n2. 重算该客户从当月起后续各月的滚动率、期初、期末、当月计提。\n3. 在操作日志中记录「录入实际退款」及金额。\n4. 关闭弹窗并刷新列表与顶部汇总。未填金额按 0 处理。"
+      "title": "保存录入",
+      "body": "保存后系统会：\n1. 若改了销售收入：写入业务确认值，状态变为已确认，并重算滚动率、期初、期末、当月计提及扣款页固定比例计提（未关账月）。\n2. 若改了实际退款或备注：按原规则写入并顺延重算。\n3. 只改退款不会把未确认收入打成已确认。\n4. 已关账月不能改收入。"
     },
     {
       "id": "calc-modal",
@@ -478,13 +521,19 @@
       "id": "tip-sales-income",
       "selector": "th[data-pa-key=\"col-sales-income\"]",
       "title": "销售收入",
-      "body": "列名虽为销售收入，实际取「计提用收入」：销售收入减去退货退款对应的收入（来自金蝶销售退货单）。用于算滚动率和目标窗口内的收入合计。"
+      "body": "列名虽为销售收入，实际是计提用收入。未确认时显示并使用系统计算值（销售收入减去退货退款对应收入）。确认、录入或导入后以业务确认值为准，金蝶后续变动不再覆盖。已确认且与系统数不同时，下方小字显示系统数，仅对照。"
+    },
+    {
+      "id": "tip-income-status",
+      "selector": "th[data-pa-key=\"col-income-status\"]",
+      "title": "收入状态",
+      "body": "未确认：列表金额跟系统计算值，仍参与测算。已确认：以业务确认值为准。确认、录入收入、导入收入都会变成已确认；已确认后再调整仍是已确认。没有「恢复未确认」。"
     },
     {
       "id": "tip-actual-refund",
       "selector": "th[data-pa-key=\"col-actual\"]",
       "title": "实际退款(录入)",
-      "body": "唯一可人工录入或导入的字段。未填时按 0 参与计算。入账后会触发当月及后续月份重算。"
+      "body": "可人工录入或导入。未填时按 0 参与计算。与销售收入在同一张导入表、同一个录入弹窗中维护，但两列独立更新。"
     },
     {
       "id": "tip-opening",
@@ -526,15 +575,15 @@
   "pageGuide": {
     "dev": {
       "页面整体定位": "商超渠道销售退款的滚动计提台账：按客户、按月份维护实际退款，并自动算滚动率、期初/期末余额和当月计提。",
-      "页面核心业务逻辑": "数据来自系统初始台账与本页录入、导入的覆盖。未来无历史台账的月份标「滚动测算」。只有实际退款可改；目标窗口可在计算弹窗单独保存。",
-      "关键规则说明": "计提用收入与实际退款分开处理。滚动率按近 12 个月计算。目标窗口默认 3 个月（部分客户为 1）。筛选无数据时自动恢复默认月份。首月上月率可用系统预置历史。",
-      "测试验收要点": "1. 默认应能看到 2026-02～04 数据。2. 录入后后续月份连锁变化。3. 改目标窗口须区分「预览」与「保存」。4. 导入后日志有记录。5. 改筛选后汇总数字跟着变。6. 点不同下划线金额，弹窗定位到对应计算块。",
-      "关联上下游": "上游：财务系统的计提用收入与历史退款；下游：管报费用取数、商超费用计提口径说明。"
+      "页面核心业务逻辑": "数据来自系统初始台账与本页录入、导入、确认的覆盖。销售收入默认未确认、用系统数测算；确认/录入/导入收入后冻结为业务确认值。未来无历史台账的月份标「滚动测算」。实际退款与收入在同一弹窗、同一张导入表中独立更新。目标窗口可在计算弹窗单独保存。",
+      "关键规则说明": "计提用收入与实际退款分开处理。滚动率按近 12 个月计算，分母用各月生效收入（已确认用确认值，否则用系统值）。未确认也参与计提。已关账月不能改收入。部门固定比例不跟本页确认收入。筛选无数据时自动恢复默认月份。",
+      "测试验收要点": "1. 默认应能看到 2026-02～04 数据，收入状态为未确认。2. 点确认后状态变已确认，金额不变。3. 录入只改退款时收入仍未确认。4. 录入改收入后已确认，滚动率变化。5. 导入空收入列不改收入状态。6. 勾选批量确认只处理未确认未关账行。7. 扣款页固定比例用同一份确认收入。",
+      "关联上下游": "上游：财务系统的计提用收入与历史退款；下游：扣款管理固定比例计提、管报费用取数。"
     },
     "user": {
-      "标准操作流程": "1. 确认月份范围。2. 可按客户筛选。3. 账单到达后「录入实际值」或「导入」。4. 点击金额/比率查看计算过程。5. 需改目标窗口时在计算弹窗修改并保存。",
-      "关键按钮与场景": "「导入」用于批量入账；「保存目标窗口」用于合同窗口变更；「日志」查看本行操作记录。",
-      "使用注意事项": "未来月份为滚动测算，实际退款入账后会自动重算。金额单位为美元。"
+      "标准操作流程": "1. 确认月份范围，可用收入状态筛选未确认行。2. 核对系统收入后点「确认」或「批量确认收入」。3. 金额不对时用「录入」或「导入」改收入，状态变为已确认。4. 账单到达后在同一弹窗/同一张表录入实际退款。5. 点击金额/比率查看计算过程。",
+      "关键按钮与场景": "「确认」认当前系统数；「录入」同时改收入和退款；「导入」同一张表两列可空；「批量确认收入」处理勾选行；「保存目标窗口」用于合同窗口变更。",
+      "使用注意事项": "已确认后金蝶补数不会自动覆盖，要用最新系统数只能再录入或再导入。已关账月不能改收入。加拿大客户按人民币。"
     }
   },
   "statusFlow": {

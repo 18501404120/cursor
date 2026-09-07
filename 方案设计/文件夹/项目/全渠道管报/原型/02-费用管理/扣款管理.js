@@ -394,6 +394,13 @@
     document.getElementById('fFeeType').value = row.feeType;
     document.getElementById('fOpening').value = money(row.openingBalance, row.customer);
     document.getElementById('fIncome').value = money(row.income, row.customer);
+    var incomeHint = document.getElementById('fIncomeHint');
+    if (incomeHint) {
+      var sysNote = (row.incomeStatus === '已确认' && row.systemSalesIncome != null && round2(row.systemSalesIncome) !== round2(row.income))
+        ? '；系统计算值 ' + money(row.systemSalesIncome, row.customer)
+        : '';
+      incomeHint.textContent = '只读，与退款管理共用。当前「' + (row.incomeStatus || '未确认') + '」' + sysNote + '。请到退款管理确认或录入收入。';
+    }
     document.getElementById('fRatio').value = ratioDisplay(row);
     document.getElementById('fAccrual').value = money(row.accrualDeduction, row.customer);
     document.getElementById('fActual').value = Number(row.actualDeduction || 0);
@@ -434,7 +441,7 @@
     if (feeType === '销售折扣') {
       base += '销售折扣：当订单上有折扣数据，直接取订单上的折扣比例，没有再用固定比例或部门固定比例；促销扣款、现金折扣按固定比例或部门固定比例计提。';
     }
-    return base + '部门取不到时，比例按0计算。规则在客户计提规则管理页维护；当月销售收入按上述取值口径自财务系统取数。';
+    return base + '部门取不到时，比例按0计算。规则在客户计提规则管理页维护；当月销售收入与退款管理共用（未确认用系统数，已确认用业务确认值）。部门固定比例仍按 ERP 订单金额。';
   }
 
   function renderCalcModal() {
@@ -456,7 +463,8 @@
       '<div class="item"><div class="label">期间</div><div class="value">' + esc(row.period) + '</div></div>' +
       '<div class="item"><div class="label">客户</div><div class="value">' + esc(row.customer) + '</div></div>' +
       '<div class="item"><div class="label">费用项</div><div class="value">' + esc(row.feeType) + '</div></div>' +
-      '<div class="item"><div class="label" title="' + esc(salesIncomeLogicNote()) + '">当月销售收入</div><div class="value">' + money(scenario.income, customer) + '</div></div>';
+      '<div class="item"><div class="label" title="' + esc(salesIncomeLogicNote()) + '">当月销售收入</div><div class="value">' + money(scenario.income, customer) + '</div></div>' +
+      '<div class="item"><div class="label">收入状态</div><div class="value">' + esc(row.incomeStatus || '未确认') + '</div></div>';
 
     document.getElementById('sectionRatio').hidden = scenario.budgetFee;
     document.getElementById('sectionBudget').hidden = !scenario.budgetFee;

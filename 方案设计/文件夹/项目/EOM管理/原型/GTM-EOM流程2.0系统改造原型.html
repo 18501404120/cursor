@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>GTM EOM 管理</title>
-  <link rel="stylesheet" href="assets/eom-proto.css" />
+  <link rel="stylesheet" href="assets/eom-proto.css?v=reverse-close-2" />
 </head>
 <body>
   <div class="toast" id="toast"></div>
@@ -24,6 +24,14 @@
         <div class="menu-group">核料管理</div>
         <div class="menu-item" data-page="materials"><i class="menu-dot"></i>核料信息管理</div>
         <div class="menu-item" data-page="material"><i class="menu-dot"></i>核料信息详情</div>
+        <div class="menu-group">通知</div>
+        <div class="menu-item" data-page="noticeOverview"><i class="menu-dot"></i>总揽</div>
+        <div class="menu-item" data-page="notice" data-role="sales"><i class="menu-dot"></i>销售</div>
+        <div class="menu-item" data-page="notice" data-role="gtm"><i class="menu-dot"></i>GTM</div>
+        <div class="menu-item" data-page="notice" data-role="demand"><i class="menu-dot"></i>需求计划</div>
+        <div class="menu-item" data-page="notice" data-role="plan"><i class="menu-dot"></i>计划</div>
+        <div class="menu-item" data-page="notice" data-role="pmc"><i class="menu-dot"></i>PMC</div>
+        <div class="menu-item" data-page="notice" data-role="buy"><i class="menu-dot"></i>采购</div>
         <div class="menu-group">规则</div>
         <div class="menu-item" data-page="statusFlow"><i class="menu-dot"></i>状态流转</div>
       </aside>
@@ -33,6 +41,8 @@
         <section class="page" id="page-ledger"></section>
         <section class="page" id="page-materials"></section>
         <section class="page" id="page-material"></section>
+        <section class="page" id="page-notice"></section>
+        <section class="page" id="page-noticeOverview"></section>
         <section class="page" id="page-statusFlow"></section>
       </main>
     </div>
@@ -55,20 +65,27 @@
           <div class="form-grid">
             <div class="form-item"><label class="form-label required">业务单元</label><div class="form-control"><select class="select" id="businessUnit"><option>LBU</option><option>ABU</option></select></div></div>
             <div class="form-item"><label class="form-label required">退市类型</label><div class="form-control"><div class="radio-group"><label class="radio"><input type="radio" name="eomType" value="主动退市" checked />主动退市</label><label class="radio"><input type="radio" name="eomType" value="被动退市" />被动退市</label></div></div></div>
-            <div class="form-item"><label class="form-label required">发起节点</label><div class="form-control"><select class="select" id="triggerNode"><option>GR1</option><option>特殊事项实时发起</option></select></div></div>
             <div class="form-item full"><label class="form-label required">退市原因</label><div class="form-control"><select class="select input-wide" id="reason"></select></div></div>
             <div class="form-item full"><label class="form-label">退市说明</label><div class="form-control"><textarea class="textarea" id="createRemark" placeholder="选择“其他”时必须补充说明">试用 H8888 可正常提交；试用 H6199 看重复工单；试用 H9009 看未上市；试用 H9100 看已EOL。</textarea></div></div>
           </div>
         </div>
         <div class="step-panel" data-step="2">
-          <div class="alert">输入 Model 后带出其全部有效 8 位 SKU（含 MSKU）。未勾选必须填排除原因。已 EOL、进行中 EOM 不得提交。</div>
-          <div class="filter-bar">
-            <input class="input" id="modelSearch" value="H8888" placeholder="输入Model，如 H8888 / H6199 / H9009 / H9100" />
-            <button class="btn btn-primary" type="button" data-act="load-model">带出全部SKU</button>
+          <div class="alert">按场景品类、Model、SKU、产品名称和状态搜索带出有效 8 位 SKU。可导入勾选。未勾选必须填排除原因。已 EOL、进行中 EOM 不得提交。</div>
+          <div class="sku-pick-filters">
+            <div class="sku-pick-item"><label>场景品类</label><select class="select" id="skuPickSceneCat" data-act="sku-pick-scene"><option value="">请选择</option></select></div>
+            <div class="sku-pick-item"><label>model</label><select class="select" id="skuPickModel" data-act="sku-pick-model"><option value="">请选择</option></select></div>
+            <div class="sku-pick-item"><label>sku</label><select class="select" id="skuPickSku"><option value="">请选择</option></select></div>
+            <div class="sku-pick-item"><label>产品名称/sku名称</label><input class="input" id="skuPickName" placeholder="产品名称 / SKU 名称" /></div>
+            <div class="sku-pick-item"><label>model产品状态</label><select class="select" id="skuPickModelStatus"><option value="">请选择</option><option>已上市</option><option>未上市</option><option>准备EOM</option><option>EOM</option><option>EOL</option></select></div>
+            <div class="sku-pick-item"><label>sku产品状态</label><select class="select" id="skuPickSkuStatus"><option value="">请选择</option><option>已上市</option><option>未上市</option><option>准备EOM</option><option>EOM</option><option>EOL</option></select></div>
+            <div class="sku-pick-actions">
+              <button class="btn btn-primary" type="button" data-act="search-sku-picker">搜索</button>
+              <button class="btn" type="button" data-act="import-sku">导入SKU</button>
+            </div>
           </div>
           <div class="table-wrap">
             <table>
-              <thead><tr><th><input id="checkAllSku" type="checkbox" checked /></th><th>场景</th><th>品类</th><th>Model</th><th>8位SKU</th><th>MSKU</th><th>产品状态</th><th>上市时间</th><th>国家规格</th><th>进行中EOM</th><th>排除原因</th></tr></thead>
+              <thead><tr><th><input id="checkAllSku" type="checkbox" checked /></th><th>场景</th><th>品类</th><th>Model</th><th>8位SKU</th><th>MSKU</th><th>产品状态</th><th data-pa-key="in-stock">在库库存</th><th data-pa-key="total-stock">总计库存数量</th><th>近月销量</th><th>上市时间</th><th>国家规格</th><th>进行中EOM</th><th>排除原因</th></tr></thead>
               <tbody id="skuSelectBody"></tbody>
             </table>
           </div>
@@ -77,7 +94,7 @@
         <div class="step-panel" data-step="3">
           <div class="section-title">退市与新品衔接计划</div>
           <div class="form-grid">
-            <div class="form-item"><label class="form-label required">预计EOL时间</label><div class="form-control"><input type="date" class="input" id="planEol" value="2026-12-31" /></div></div>
+            <div class="form-item"><label class="form-label">预计EOL时间</label><div class="form-control"><input type="date" class="input" id="planEol" value="2026-12-31" /></div></div>
             <div class="form-item" id="newFlagItem"><label class="form-label">是否新品迭代</label><div class="form-control"><div class="radio-group"><label class="radio"><input type="radio" name="newFlag" value="是" checked />是</label><label class="radio"><input type="radio" name="newFlag" value="否" />否</label></div></div></div>
             <div class="form-item new-only"><label class="form-label">迭代新品SKU</label><div class="form-control"><input class="input" id="newSku" value="H988801" /></div></div>
             <div class="form-item new-only"><label class="form-label">新品预计CR时间</label><div class="form-control"><input type="date" class="input" id="newCr" value="2026-10-15" /></div></div>
@@ -87,16 +104,17 @@
           </div>
         </div>
         <div class="step-panel" data-step="4">
-          <div class="alert success">已根据产品、区域和责任关系自动带出协同人员，可按权限调整。</div>
+          <div class="alert success">计划负责人、销售专员自动带出仅展示。GTM 默认发起人（不可删），可增加其他人（仅通知）。需求计划、PMC、采购为通知对象。抄送按现网名单选人增删。</div>
           <div class="form-grid">
-            <div class="form-item"><label class="form-label required">产品GTM</label><div class="form-control"><select class="select" id="rGtm"><option>王天天</option><option>陈琳</option></select></div></div>
-            <div class="form-item"><label class="form-label required">区域GTM</label><div class="form-control"><select class="select" id="rArea"><option>李薇</option><option>陈琳</option></select></div></div>
-            <div class="form-item"><label class="form-label required">需求计划</label><div class="form-control"><select class="select" id="rPlan"><option>比杰</option></select></div></div>
-            <div class="form-item"><label class="form-label required">销售负责人</label><div class="form-control"><select class="select" id="rSales"><option>周雨</option></select></div></div>
-            <div class="form-item"><label class="form-label required">计划负责人</label><div class="form-control"><select class="select" id="rPmcPlan"><option>刘洋</option></select></div></div>
-            <div class="form-item"><label class="form-label required">PMC对接人</label><div class="form-control"><select class="select" id="rPmc"><option>PMC组长</option></select></div></div>
-            <div class="form-item"><label class="form-label required">采购对接人</label><div class="form-control"><select class="select" id="rBuy"><option>张敏</option></select></div></div>
-            <div class="form-item full"><label class="form-label">抄送人员</label><div class="form-control"><input class="input" id="rCc" value="产品负责人、销售负责人、供应链负责人" /></div></div>
+            <div class="form-item"><label class="form-label required">GTM（发起人）</label><div class="form-control"><input class="input" id="rGtm" disabled /></div></div>
+            <div class="form-item"><label class="form-label">其他GTM（仅通知）</label><div class="form-control"><select class="select" id="rGtmExtra" multiple size="2"></select></div></div>
+            <div class="form-item"><label class="form-label">销售专员</label><div class="form-control"><input class="input" id="rSales" disabled placeholder="按已选 MSKU 带出" /></div></div>
+            <div class="form-item"><label class="form-label">计划负责人</label><div class="form-control"><input class="input" id="rPmcPlan" disabled placeholder="按 SKU 配置带出" /></div></div>
+            <div class="form-item"><label class="form-label required">需求计划</label><div class="form-control"><select class="select" id="rPlan" multiple size="2"><option selected>比杰</option><option>李薇</option></select></div></div>
+            <div class="form-item full"><label class="form-label">草稿通知</label><div class="form-control"><label class="radio"><input type="checkbox" id="draftNotify" />保存草稿时通知抄送人员（只读）。不勾选则仅发起人可见。</label></div></div>
+            <div class="form-item"><label class="form-label required">PMC对接人</label><div class="form-control"><select class="select" id="rPmc" multiple size="2"><option selected>PMC组长</option><option>王工</option></select></div></div>
+            <div class="form-item"><label class="form-label required">采购对接人</label><div class="form-control"><select class="select" id="rBuy" multiple size="2"><option selected>张敏</option><option>李采购</option></select></div></div>
+            <div class="form-item full"><label class="form-label">抄送人员</label><div class="form-control"><div class="muted" style="margin-bottom:6px">默认现网抄送名单，可点请选择增加或删除（示意）</div><input class="input" id="rCc" value="产品负责人、销售负责人、供应链负责人" /></div></div>
           </div>
         </div>
         <div class="step-panel" data-step="5">
@@ -121,7 +139,7 @@
     </div>
   </div>
 
-  <script src="assets/eom-seed.js"></script>
-  <script src="assets/eom-app.js"></script>
+  <script src="assets/eom-seed.js?v=notice-matrix-fix-1"></script>
+  <script src="assets/eom-app.js?v=notice-matrix-fix-1"></script>
 </body>
 </html>

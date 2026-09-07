@@ -1,14 +1,21 @@
 (function (global) {
   'use strict';
 
-  var KEY = 'gtm-eom-2.0-proto-v2';
+  var KEY = 'gtm-eom-2.0-proto-v12';
   var CURRENT_USER = { id: 'wang', name: '王天天', role: '产品GTM' };
   var PLAN_DEPT_LEADER = { id: 'bijie', name: '比杰' };
   var USERS = [
     { id: 'wang', name: '王天天', role: '产品GTM' },
+    { id: 'liwei', name: '李薇', role: '区域GTM' },
     { id: 'liuyang', name: '刘洋', role: '计划' },
     { id: 'chenlin', name: '陈琳', role: '计划' },
-    { id: 'bijie', name: '比杰', role: '计划部门负责人' }
+    { id: 'bijie', name: '比杰', role: '计划部门负责人' },
+    { id: 'zhangmin', name: '张敏', role: '产品经理' },
+    { id: 'liqiang', name: '李强', role: '销售渠道leader' },
+    { id: 'zhaoyan', name: '赵研', role: '研发' },
+    { id: 'sunshen', name: '孙审', role: '项目审核' },
+    { id: 'qianzhu', name: '钱助', role: '项目助理' },
+    { id: 'zhouyu', name: '周雨', role: '销售' }
   ];
 
   function assign(base, extra) {
@@ -26,6 +33,7 @@
       modelStatus: p.modelStatus || p.skuStatus || '已上市',
       sku: p.sku,
       skuStatus: p.skuStatus || '已上市',
+      originStatus: p.originStatus || ((p.mskuStatus === '未上市' || p.skuStatus === '未上市') ? '未上市' : '已上市'),
       avgDailySales: p.avgDailySales != null ? p.avgDailySales : 12.4,
       lastMonthSales: p.lastMonthSales != null ? p.lastMonthSales : 380,
       suggestOrderNum: p.suggestOrderNum != null ? p.suggestOrderNum : 800,
@@ -63,6 +71,32 @@
     }, p);
   }
 
+  function planLine(p) {
+    return assign({
+      clearWays: p.clearWays || ['正常销售'],
+      lbQty: p.lbQty != null ? p.lbQty : 0,
+      scrapFg: p.scrapFg != null ? p.scrapFg : 0,
+      scrapMat: p.scrapMat != null ? p.scrapMat : 0,
+      conclusion: p.conclusion || ''
+    }, p);
+  }
+
+  function planVer(p) {
+    return assign({
+      version: p.version || 'V1',
+      status: p.status || '待确认',
+      reason: p.reason || '',
+      content: p.content || '',
+      lbQty: p.lbQty != null ? p.lbQty : 0,
+      scrapFg: p.scrapFg != null ? p.scrapFg : 0,
+      scrapMat: p.scrapMat != null ? p.scrapMat : 0,
+      decisionBy: p.decisionBy || '',
+      at: p.at || '',
+      files: p.files || [],
+      lines: p.lines || {}
+    }, p);
+  }
+
   function task(p) {
     return assign({
       id: p.id,
@@ -74,7 +108,7 @@
       doneAt: p.doneAt || '',
       status: p.status,
       result: p.result || '',
-      notice: p.notice || '完成后通知下一处理人',
+      notice: p.notice || (p.kind === 'clear' || p.kind === 'lb' || p.kind === 'pmc' ? '只读跟踪，进度以台账拉数为准；不在 GTM 点完成、不留痕' : '完成后通知下一处理人'),
       kind: p.kind || 'common'
     }, p);
   }
@@ -91,6 +125,7 @@
       cat: p.cat || '灯带',
       country: p.country || 'US',
       status: p.status || '准备EOM',
+      originStatus: p.originStatus || (p.status === '未上市' ? '未上市' : '已上市'),
       onMarketDate: p.onMarketDate || '2024-03-12',
       daysOn: p.daysOn || 880,
       type: p.type || '主动退市',
@@ -122,8 +157,38 @@
       channels: p.channels || [],
       lbDetail: p.lbDetail || '',
       stockSplit: p.stockSplit || '',
-      materialSplit: p.materialSplit || ''
+      materialSplit: p.materialSplit || '',
+      mskus: p.mskus || []
     }, p);
+  }
+
+  function shopMeta(shop) {
+    var s = String(shop || '').trim();
+    if (!s || s === '-') return { channel: '-', shop: '-', online: '-' };
+    if (/BBY|Best Buy/i.test(s)) return { channel: 'BBY', shop: s, online: '线下' };
+    if (/Amazon/i.test(s)) return { channel: 'Amazon', shop: s, online: '线上' };
+    if (/Shopify/i.test(s)) return { channel: 'Shopify', shop: s, online: '线上' };
+    return { channel: s, shop: s, online: '线上' };
+  }
+
+  function mskuLine(p) {
+    var meta = shopMeta(p.shop);
+    return {
+      msku: p.msku || '-',
+      channel: p.channel || meta.channel,
+      shop: p.shop || meta.shop,
+      online: p.online || meta.online,
+      stock: p.stock != null ? p.stock : 0,
+      stale: p.stale != null ? p.stale : 0,
+      staleRate: p.staleRate || '0%',
+      m3: p.m3 || 0,
+      m2: p.m2 || 0,
+      m1: p.m1 || 0,
+      forecast: p.forecast || 0,
+      eolForecast: p.eolForecast || 0,
+      dos: p.dos != null ? p.dos : 30,
+      clearPct: p.clearPct != null ? p.clearPct : 0
+    };
   }
 
   function buildSeed() {
@@ -223,7 +288,14 @@
             id: 'd501', model: 'H6208', sku: 'H620801', skuStatus: '准备EOM', msku: 'H620801-US-AMZ',
             suggestOrderNum: 600, lockFlag: true, consumeDay: 40, eomFittings: ['H6208-AD01'], clcEomFittings: ['H6208-AD01'],
             totalMaterialMoney: 168000, finalOrderNum: 600, conclusion: 'lastbuy 后报废',
-            finalScrapAmountReason: 'MOQ 物料结余', totalStock: 1120
+            finalScrapAmountReason: 'MOQ 物料结余', totalStock: 1120, planUser: '刘洋', skuLocked: true
+          }),
+          matLine({
+            id: 'd502', model: 'H6208', sku: 'H620801', skuStatus: '准备EOM', msku: 'H620801-US-SF', mskuShop: 'Shopify US',
+            suggestOrderNum: 600, lockFlag: true, consumeDay: 40, eomFittings: ['H6208-AD01'], clcEomFittings: ['H6208-AD01'],
+            totalMaterialMoney: 168000, finalOrderNum: 600, conclusion: 'lastbuy 后报废',
+            finalScrapAmountReason: 'MOQ 物料结余', totalStock: 1120, planUser: '刘洋', skuLocked: true,
+            mskuAvgDailySales: 5.1
           })
         ]
       },
@@ -265,9 +337,9 @@
       },
       {
         serialNo: 'HL20260810018', eomNo: 'EOM20260810010', initiator: 'wang', initiatorName: '王天天',
-        status: 1, clcStatus: '计算成功', latestReviewTime: '2026-08-14 09:40', finalizeTime: '',
-        confirmFlags: { '刘洋': false },
-        details: [matLine({ id: 'd101', model: 'H6401', sku: 'H640101', skuStatus: '准备EOM', msku: 'H640101-US-AMZ', suggestOrderNum: 450, lockFlag: true, conclusion: 'lastbuy 后报废', skuLocked: false, planUser: '刘洋' })]
+        status: 4, clcStatus: '计算成功', latestReviewTime: '2026-08-14 09:40', finalizeTime: '2026-08-14 16:00',
+        confirmFlags: { '刘洋': true },
+        details: [matLine({ id: 'd101', model: 'H6401', sku: 'H640101', skuStatus: '准备EOM', msku: 'H640101-US-AMZ', suggestOrderNum: 450, lockFlag: true, conclusion: 'lastbuy 后报废', skuLocked: true, planUser: '刘洋', finalOrderNum: 450, finalScrapAmount: 0, finalScrapAmountReason: '销售需求变化' })]
       },
       {
         serialNo: 'HL20260808022', eomNo: 'EOM20260808012', initiator: 'wang', initiatorName: '王天天',
@@ -316,7 +388,7 @@
       },
       {
         serialNo: 'HL20260828002', eomNo: 'EOM20260828002', initiator: 'bijie', initiatorName: '比杰',
-        status: 3, clcStatus: '-', latestReviewTime: '', finalizeTime: '',
+        status: 1, clcStatus: '计算成功（按平均日销，预测未刷新）', latestReviewTime: '2026-08-28 10:06', finalizeTime: '',
         details: [matLine({ id: 'd201', model: 'H8102', sku: 'H810201', skuStatus: '准备EOM', msku: 'H810201-US-AMZ', suggestOrderNum: 0, eomFittings: [], clcEomFittings: [], conclusion: '-', totalStock: 640 })]
       },
       {
@@ -343,43 +415,43 @@
 
     var catalog = [
       {
-        model: 'H8888', scene: '智能照明', cat: '灯带', name: 'H8888 可发起样例',
+        model: 'H8888', scene: '智能照明', cat: '灯带', name: 'H8888 可发起样例', status: '已上市',
         skus: [
-          { sku: 'H888801', status: '已上市', onMarketDate: '2025-01-08', country: 'US', inProgress: false, sales: 120, name: 'H8888 US', shop: 'Amazon US', msku: 'H888801-US-AMZ' },
-          { sku: 'H888802', status: '已上市', onMarketDate: '2025-01-08', country: 'EU', inProgress: false, sales: 80, name: 'H8888 EU', shop: 'Amazon DE', msku: 'H888802-EU-AMZ' }
+          { sku: 'H888801', status: '已上市', onMarketDate: '2025-01-08', country: 'US', inProgress: false, sales: 120, inStock: 2140, totalStock: 3380, stock: 3380, name: 'H8888 US', shop: 'Amazon US', msku: 'H888801-US-AMZ', salesOwner: '周雨' },
+          { sku: 'H888802', status: '已上市', onMarketDate: '2025-01-08', country: 'EU', inProgress: false, sales: 80, inStock: 780, totalStock: 1260, stock: 1260, name: 'H8888 EU', shop: 'Amazon DE', msku: 'H888802-EU-AMZ' }
         ]
       },
       {
-        model: 'H6199', scene: '智能照明', cat: '灯带', name: 'H6199 进行中EOM',
+        model: 'H6199', scene: '智能照明', cat: '灯带', name: 'H6199 进行中EOM', status: 'EOM',
         skus: [
-          { sku: 'H619901', status: 'EOM', onMarketDate: '2024-03-12', country: 'US', inProgress: true, sales: 804, name: 'H6199 US', shop: 'Amazon US', msku: 'H619901-US-AMZ' },
-          { sku: 'H619902', status: 'EOM', onMarketDate: '2024-03-12', country: 'EU', inProgress: true, sales: 418, name: 'H6199 EU', shop: 'Amazon DE', msku: 'H619902-EU-AMZ' },
-          { sku: 'H619903', status: '未上市', onMarketDate: '-', country: 'JP', inProgress: true, sales: 0, name: 'H6199 JP', shop: 'Shopify JP', msku: 'H619903-JP-SF' }
+          { sku: 'H619901', status: 'EOM', onMarketDate: '2024-03-12', country: 'US', inProgress: true, sales: 804, inStock: 1680, totalStock: 2480, stock: 2480, name: 'H6199 US', shop: 'Amazon US', msku: 'H619901-US-AMZ' },
+          { sku: 'H619902', status: 'EOM', onMarketDate: '2024-03-12', country: 'EU', inProgress: true, sales: 418, inStock: 620, totalStock: 940, stock: 940, name: 'H6199 EU', shop: 'Amazon DE', msku: 'H619902-EU-AMZ' },
+          { sku: 'H619903', status: '未上市', onMarketDate: '-', country: 'JP', inProgress: true, sales: 0, inStock: 68, totalStock: 68, stock: 68, name: 'H6199 JP', shop: 'Shopify JP', msku: 'H619903-JP-SF' }
         ]
       },
       {
-        model: 'H9009', scene: '智能家居', cat: '传感器', name: 'H9009 未上市无销售',
+        model: 'H9009', scene: '智能家居', cat: '传感器', name: 'H9009 未上市无销售', status: '未上市',
         skus: [
-          { sku: 'H900901', status: '未上市', onMarketDate: '-', country: 'US', inProgress: false, sales: 0, name: 'H9009 未上市', shop: '-', msku: 'H900901-US' }
+          { sku: 'H900901', status: '未上市', onMarketDate: '-', country: 'US', inProgress: false, sales: 0, inStock: 0, totalStock: 0, stock: 0, name: 'H9009 未上市', shop: '-', msku: 'H900901-US' }
         ]
       },
       {
-        model: 'H9100', scene: '智能照明', cat: '灯带', name: 'H9100 已EOL',
+        model: 'H9100', scene: '智能照明', cat: '灯带', name: 'H9100 已EOL', status: 'EOL',
         skus: [
-          { sku: 'H910001', status: 'EOL', onMarketDate: '2022-04-01', country: 'US', inProgress: false, sales: 0, name: 'H9100 EOL', shop: 'Amazon US', msku: 'H910001-US-AMZ' }
+          { sku: 'H910001', status: 'EOL', onMarketDate: '2022-04-01', country: 'US', inProgress: false, sales: 0, inStock: 0, totalStock: 0, stock: 0, name: 'H9100 EOL', shop: 'Amazon US', msku: 'H910001-US-AMZ' }
         ]
       },
       {
-        model: 'H8001', scene: '智能照明', cat: '灯带', name: 'H8001 草稿在用',
+        model: 'H8001', scene: '智能照明', cat: '灯带', name: 'H8001 草稿在用', status: '已上市',
         skus: [
-          { sku: 'H800101', status: '已上市', onMarketDate: '2025-06-01', country: 'US', inProgress: false, sales: 210, name: 'H8001 US', shop: 'Amazon US', msku: 'H800101-US-AMZ' },
-          { sku: 'H800102', status: '已上市', onMarketDate: '2025-06-01', country: 'EU', inProgress: false, sales: 90, name: 'H8001 EU', shop: 'Amazon DE', msku: 'H800102-EU-AMZ' }
+          { sku: 'H800101', status: '已上市', onMarketDate: '2025-06-01', country: 'US', inProgress: false, sales: 210, inStock: 140, totalStock: 210, stock: 210, name: 'H8001 US', shop: 'Amazon US', msku: 'H800101-US-AMZ', salesOwner: '周雨' },
+          { sku: 'H800102', status: '已上市', onMarketDate: '2025-06-01', country: 'EU', inProgress: false, sales: 90, inStock: 60, totalStock: 90, stock: 90, name: 'H8001 EU', shop: 'Amazon DE', msku: 'H800102-EU-AMZ', salesOwner: '周雨' }
         ]
       }
     ];
 
     return {
-      version: 1,
+      version: 2,
       generatedAt: '2026-09-02 09:00',
       currentUser: CURRENT_USER,
       materials: materials,
@@ -430,7 +502,9 @@
       execution: p.execution || null,
       reverse: p.reverse || null,
       forecast: p.forecast || null,
-      oa: p.oa || null
+      oa: p.oa || null,
+      closeKind: p.closeKind || '',
+      schemeSign: p.schemeSign || null
     }, p);
   }
 
@@ -444,7 +518,13 @@
         { scene: '智能照明', cat: '灯带', model: 'H8001', sku: 'H800101', msku: 'H800101-US-AMZ', status: '已上市', onMarketDate: '2025-06-01', country: 'US', name: 'H8001 US', selected: true },
         { scene: '智能照明', cat: '灯带', model: 'H8001', sku: 'H800102', msku: 'H800102-EU-AMZ', status: '已上市', onMarketDate: '2025-06-01', country: 'EU', name: 'H8001 EU', selected: true }
       ],
-      skus: [skuLedger({ model: 'H8001', sku: 'H800101', status: '已上市', startTime: '', eol: '2026-12-31', stock: 210 })],
+      skus: [skuLedger({
+        model: 'H8001', sku: 'H800101', status: '已上市', startTime: '', eol: '2026-12-31', stock: 210,
+        mskus: [
+          mskuLine({ msku: 'H800101-US-AMZ', shop: 'Amazon US', stock: 140, m1: 140, dos: 32, clearPct: 0 }),
+          mskuLine({ msku: 'H800101-US-SF', shop: 'Shopify US', stock: 70, m1: 70, dos: 26, clearPct: 0 })
+        ]
+      })],
       logs: [log('2026-09-01 16:20', '王天天', '保存草稿', '主动退市草稿，尚未提交')],
       remark: '新品尚未 CR，先保存范围'
     });
@@ -452,19 +532,24 @@
 
   function orderS2() {
     return baseOrder({
-      sceneKey: 'S2', sceneLabel: '主动退市 · 启动 EOM',
-      no: 'EOM20260828002', stage: '启动 EOM', legacyStatus: 2, owner: '周雨（销售）',
+      sceneKey: 'S2', sceneLabel: '主动退市 · 核料中（已提醒销售 Forecast）',
+      no: 'EOM20260828002', stage: '核料中', legacyStatus: 2, owner: '比杰（计划）',
       time: '2026-08-28 10:05', eol: '2026-12-15', materialNo: 'HL20260828002',
       model: 'H8102', skuCount: 1, scope: 'H8102 / 1', fileName: '',
-      reason: '同市场定位的替代新品已立项',
-      products: [{ scene: '智能照明', cat: '灯带', model: 'H8102', sku: 'H810201', msku: 'H810201-US-AMZ', status: '准备EOM', onMarketDate: '2024-11-02', country: 'US', name: 'H8102 US', selected: true }],
-      skus: [skuLedger({ model: 'H8102', sku: 'H810201', status: '准备EOM', startTime: '2026-08-28', eol: '2026-12-15', stock: 640, m3: 210, m2: 188, m1: 160, forecast: 520, eolForecast: 410, dos: 28, newFlag: '是', newSku: 'H910201' })],
-      forecast: { version: 0, current: 520, m3: 210, m2: 188, m1: 160, stock: 640, dos: 28, acceptLb: '', submittedAt: '' },
-      tasks: [task({ id: 't2f', node: '启动EOM', name: '刷新销售预测', role: '销售', owner: '周雨', due: '08-29 18:00', status: '待处理', kind: 'forecast', notice: '完成后通知需求计划发起核料' })],
-      timeline: [
-        { title: '发起主动EOM', meta: '产品GTM：王天天　2026-08-28 10:05', content: 'SKU 进入准备 EOM，等待销售刷新预测。', done: true }
+      reason: '同市场定位的替代新品已立项', exception: '数据异常',
+      cc: '需求计划、生产计划、PMC、周雨（销售）',
+      products: [{ scene: '智能照明', cat: '灯带', model: 'H8102', sku: 'H810201', msku: 'H810201-US-AMZ', status: '准备EOM', originStatus: '已上市', onMarketDate: '2024-11-02', country: 'US', name: 'H8102 US', selected: true }],
+      skus: [skuLedger({ model: 'H8102', sku: 'H810201', status: '准备EOM', originStatus: '已上市', startTime: '2026-08-28', eol: '2026-12-15', stock: 640, m3: 210, m2: 188, m1: 160, forecast: 0, eolForecast: 0, dos: 28, newFlag: '是', newSku: 'H910201' })],
+      forecast: { approved: false, missing: true, version: 0, current: 0, m3: 210, m2: 188, m1: 160, stock: 640, dos: 28, suggestLb: 0, submittedAt: '' },
+      tasks: [
+        task({ id: 't2m', node: '核料', name: '确认核料结论（本人 SKU）', role: '计划', owner: '比杰', due: '09-04 18:00', status: '待处理', kind: 'material', notice: '提交即进核料中；Forecast 并行不卡流程' }),
+        task({ id: 't2pmc', node: '核料', name: '进行核料（专用料/物料测算）', role: 'PMC', owner: 'PMC组长', due: '09-04 18:00', status: '待处理', kind: 'material-pmc', notice: '进入核料中即通知 PMC；不卡计划定版' })
       ],
-      logs: [log('2026-08-28 10:05', '王天天', '发起EOM', '1个SKU状态更新为准备EOM，已生成销售预测刷新任务')]
+      timeline: [
+        { title: '发起主动EOM', meta: '产品GTM：王天天　2026-08-28 10:05', content: 'SKU 进入准备 EOM，工单进入核料中。已通知 PMC 进行核料，钉钉提醒周雨刷新 Forecast。', done: true },
+        { title: '核料中', meta: '计划：比杰　PMC：PMC组长　进行中', content: '已按平均日销/库存/BOM 开算。PMC 核料待办已发出。Forecast 未入库，仅标识数据异常，不挡核料。', done: false }
+      ],
+      logs: [log('2026-08-28 10:05', '王天天', '发起EOM', '1个SKU进入准备EOM，工单进入核料中。已提醒销售刷新 Forecast。')]
     });
   }
 
@@ -472,7 +557,7 @@
     return baseOrder({
       sceneKey: 'S3', sceneLabel: '主动退市 · 核料中',
       no: 'EOM20260818003', type: '主动退市', bu: 'LBU', triggerNode: 'GR1',
-      reason: '同市场定位的替代新品已立项', stage: '核料中', legacyStatus: 2, owner: '比杰（需求计划）',
+      reason: '同市场定位的替代新品已立项', stage: '核料中', legacyStatus: 2, owner: '比杰（计划）',
       user: '王天天', time: '2026-08-18 09:40', eol: '2026-10-31', materialNo: 'HL20260818021',
       model: 'H7050', skuCount: 3, scope: 'H7050 / 3', stock: 12, materialClose: 8.5, planVersion: 'V1',
       fileName: '', planUsers: '刘洋、陈琳、比杰',
@@ -482,23 +567,29 @@
         { scene: '智能家居', cat: '传感器', model: 'H7050', sku: 'H705003', msku: 'H705003-JP-AMZ', status: '准备EOM', onMarketDate: '2023-09-01', country: 'JP', selected: true }
       ],
       skus: [
-        skuLedger({ model: 'H7050', sku: 'H705001', scene: '智能家居', cat: '传感器', status: '准备EOM', type: '主动退市', startTime: '2026-08-18', eol: '2026-10-31', stock: 1560, lbQty: 900, lbStatus: '未发起', specialAmt: 214000, clearPct: 12, dos: 41 }),
+        skuLedger({
+          model: 'H7050', sku: 'H705001', scene: '智能家居', cat: '传感器', status: '准备EOM', type: '主动退市',
+          startTime: '2026-08-18', eol: '2026-10-31', stock: 1560, lbQty: 900, lbStatus: '未发起', specialAmt: 214000, clearPct: 12, dos: 41,
+          mskus: [
+            mskuLine({ msku: 'H705001-US-AMZ', shop: 'Amazon US', stock: 1140, stale: 80, staleRate: '7.0%', m1: 180, forecast: 420, eolForecast: 360, dos: 44, clearPct: 10 }),
+            mskuLine({ msku: 'H705001-EU-SF', shop: 'Shopify DE', stock: 420, stale: 20, staleRate: '4.8%', m1: 61, forecast: 160, eolForecast: 140, dos: 36, clearPct: 16 })
+          ]
+        }),
         skuLedger({ model: 'H7050', sku: 'H705002', scene: '智能家居', cat: '传感器', country: 'EU', status: '准备EOM', type: '主动退市', startTime: '2026-08-18', eol: '2026-10-31', stock: 640, lbQty: 420, lbStatus: '未发起', clearPct: 8 }),
         skuLedger({ model: 'H7050', sku: 'H705003', scene: '智能家居', cat: '传感器', country: 'JP', status: '准备EOM', type: '主动退市', startTime: '2026-08-18', eol: '2026-10-31', stock: 210, lbQty: 180, lbStatus: '未发起', clearPct: 4 })
       ],
-      forecast: { version: 1, current: 980, m3: 310, m2: 274, m1: 241, stock: 2200, dos: 41, acceptLb: '800-1000', submittedAt: '2026-08-19 17:10' },
+      forecast: { approved: true, version: 1, current: 980, m3: 310, m2: 274, m1: 241, stock: 2200, dos: 41, suggestLb: 900, submittedAt: '2026-08-19 17:10' },
       tasks: [
-        task({ id: 't3f', node: '启动EOM', name: '刷新销售预测', role: '销售', owner: '周雨', due: '08-19 18:00', doneAt: '08-19 17:10', status: '已完成', result: '可接受LB 800-1000', kind: 'forecast' }),
-        task({ id: 't3m', node: '核料', name: '完成核料并确认责任', role: '需求计划', owner: '比杰', due: '09-01 18:00', status: '处理中', kind: 'material', notice: '定版后通知方案确认角色', result: '建议下单待锁定' })
+        task({ id: 't3m', node: '核料', name: '确认核料结论（本人 SKU）', role: '计划', owner: '比杰', due: '09-01 18:00', status: '处理中', kind: 'material', notice: '定版后通知方案确认角色', result: '建议下单待锁定' })
       ],
       timeline: [
-        { title: '发起主动EOM', meta: '产品GTM：王天天　2026-08-18 09:40', content: 'GR1 后启动核料。', done: true },
-        { title: '销售刷新预测', meta: '销售：周雨　2026-08-19 17:10', content: '可接受 Last Buy 800—1000 台。', done: true },
-        { title: '核料中', meta: '计划：刘洋 / 陈琳 / 比杰（无主 SKU 兜底）　进行中', content: '已关联核料单 HL20260818021。H705001 刘洋未填；H705002 陈琳已填未确认；H705003 无主已指定计划部门负责人比杰。', done: false }
+        { title: '发起主动EOM', meta: '产品GTM：王天天　2026-08-18 09:40', content: '提交后进入核料中，抄送相关角色，钉钉提醒销售刷新 Forecast。', done: true },
+        { title: 'Forecast审核入库', meta: '系统　2026-08-19 17:10', content: '审核后预测 980，可参考 Last Buy 900。仅刷新台账，不发通知，工单阶段仍为核料中。', done: true },
+        { title: '核料中', meta: '计划：刘洋 / 陈琳 / 比杰　进行中', content: '已关联核料单 HL20260818021。H705001 刘洋未填；H705002 陈琳已填未确认；H705003 无主已指定计划部门负责人比杰。', done: false }
       ],
       logs: [
-        log('2026-08-19 17:10', '周雨', '完成任务', '已刷新预测'),
-        log('2026-08-18 09:40', '王天天', '发起EOM', '主动退市，3个SKU进入准备EOM')
+        log('2026-08-19 17:10', '系统', 'Forecast审核入库', '审核后预测已写入台账，阶段仍为核料中，已确认行不解锁，不发通知'),
+        log('2026-08-18 09:40', '王天天', '发起EOM', '主动退市，3个SKU进入准备EOM，工单进入核料中')
       ]
     });
   }
@@ -506,14 +597,13 @@
   function orderS4() {
     return baseOrder({
       sceneKey: 'S4', sceneLabel: '核料失败 · 数据异常',
-      no: 'EOM20260820004', stage: '核料中', legacyStatus: 2, owner: '比杰（需求计划）',
+      no: 'EOM20260820004', stage: '核料中', legacyStatus: 2, owner: '比杰（计划）',
       time: '2026-08-20 11:30', eol: '2026-11-30', materialNo: 'HL20260820033',
       exception: '数据异常', model: 'H7301', skuCount: 1, scope: 'H7301 / 1',
       products: [{ scene: '智能照明', cat: '灯带', model: 'H7301', sku: 'H730101', msku: 'H730101-US-AMZ', status: '准备EOM', onMarketDate: '2024-05-01', country: 'US', selected: true }],
       skus: [skuLedger({ model: 'H7301', sku: 'H730101', status: '准备EOM', startTime: '2026-08-20', eol: '2026-11-30', stock: 0, dos: 0 })],
       tasks: [
-        task({ id: 't4f', node: '启动EOM', name: '刷新销售预测', role: '销售', owner: '周雨', due: '08-21 18:00', doneAt: '08-20 18:00', status: '已完成', kind: 'forecast' }),
-        task({ id: 't4m', node: '核料', name: '完成核料并确认责任', role: '需求计划', owner: '比杰', due: '08-27 18:00', status: '处理中', kind: 'material', result: '计算失败，不得进入方案决策' })
+        task({ id: 't4m', node: '核料', name: '确认核料结论（本人 SKU）', role: '计划', owner: '比杰', due: '08-27 18:00', status: '处理中', kind: 'material', result: '计算失败，不得进入方案决策' })
       ],
       timeline: [
         { title: '发起主动EOM', meta: '王天天　2026-08-20 11:30', content: '提交成功。', done: true },
@@ -526,21 +616,38 @@
   function orderS5() {
     return baseOrder({
       sceneKey: 'S5', sceneLabel: '主动 · 待方案决策',
-      no: 'EOM20260822005', stage: '待方案决策', legacyStatus: 2, owner: '王天天 / 计划 / PMC / 采购 / 销售',
-      time: '2026-08-22 09:18', eol: '2026-11-20', materialNo: 'HL20260822040', planVersion: 'V1草稿',
-      model: 'H6208', skuCount: 1, scope: 'H6208 / 1', fileName: 'H6208清库方案V1.xlsx',
-      products: [{ scene: '智能照明', cat: '灯带', model: 'H6208', sku: 'H620801', msku: 'H620801-US-AMZ', status: '准备EOM', onMarketDate: '2024-01-10', country: 'US', selected: true }],
-      skus: [skuLedger({ model: 'H6208', sku: 'H620801', status: '准备EOM', startTime: '2026-08-22', eol: '2026-11-20', stock: 1120, lbQty: 600, lbStatus: '未发起', specialAmt: 168000, clearPct: 0, plan: 'V1草稿' })],
+      no: 'EOM20260822005', stage: '待方案决策', legacyStatus: 2, owner: '王天天 / 刘洋',
+      time: '2026-08-22 09:18', eol: '2026-11-20', materialNo: 'HL20260822040', planVersion: 'V1',
+      model: 'H6208', skuCount: 1, scope: 'H6208 / 1',       fileName: 'H6208-EOM方案.xlsx',
+      planUsers: '刘洋',
+      schemeSign: { gtm: false, skus: { 'H620801': false } },
+      products: [{ scene: '智能照明', cat: '灯带', model: 'H6208', sku: 'H620801', msku: 'H620801-US-AMZ', status: '准备EOM', originStatus: '已上市', onMarketDate: '2024-01-10', country: 'US', selected: true }],
+      skus: [skuLedger({
+        model: 'H6208', sku: 'H620801', status: '准备EOM', originStatus: '已上市', startTime: '2026-08-22', eol: '2026-11-20',
+        stock: 1120, lbQty: 600, lbStatus: '未发起', specialAmt: 168000, clearPct: 0, plan: 'V1',
+        mskus: [
+          mskuLine({ msku: 'H620801-US-AMZ', shop: 'Amazon US', stock: 680, m1: 90, dos: 38, clearPct: 0 }),
+          mskuLine({ msku: 'H620801-US-SF', shop: 'Shopify US', stock: 440, m1: 62, dos: 34, clearPct: 0 })
+        ]
+      })],
       tasks: [
-        task({ id: 't5f', node: '启动EOM', name: '刷新销售预测', role: '销售', owner: '周雨', due: '08-23 18:00', doneAt: '08-23 11:00', status: '已完成', kind: 'forecast' }),
-        task({ id: 't5m', node: '核料', name: '完成核料并确认责任', role: '需求计划', owner: '比杰', due: '08-29 18:00', doneAt: '08-28 16:40', status: '已完成', result: '建议LB 600', kind: 'material' }),
-        task({ id: 't5p', node: '方案确认', name: '确认清库及Last Buy方案', role: 'GTM/计划/PMC/采购/销售', owner: '王天天', due: '09-05 18:00', status: '待处理', kind: 'plan', notice: '全部确认后进入EOM执行并通知三路清尾' })
+        task({ id: 't5m', node: '核料', name: '确认核料结论（本人 SKU）', role: '计划', owner: '比杰', due: '08-29 18:00', doneAt: '08-28 16:40', status: '已完成', result: '建议LB 600', kind: 'material' }),
+        task({ id: 't5p', node: '方案确认', name: '确认清库及Last Buy方案', role: 'GTM/计划', owner: '王天天 / 刘洋', due: '09-05 18:00', status: '待处理', kind: 'plan', notice: 'GTM确认整单须过二次校验（GTM确认方案+EOM方案）；计划各自确认自己的SKU。改数后双方确认作废' })
       ],
-      plans: [{ version: 'V1', status: '草稿', content: '按正常销售节奏消耗，Last Buy 600 台。', lbQty: 600, scrapFg: 0, scrapMat: 0, reason: '初始方案', decisionBy: '王天天', at: '2026-08-22 09:18' }],
+      plans: [planVer({
+        version: 'V1', status: '待确认', reason: '初始方案', decisionBy: '王天天', at: '2026-08-22 09:18',
+        lbQty: 600, scrapFg: 0, scrapMat: 0,
+        content: '跟销售节奏消耗，Last Buy 600 台。',
+        files: [
+          { type: 'eom', name: 'H6208-EOM方案.xlsx' },
+          { type: 'clear', name: 'H6208清库方案V1.xlsx' }
+        ],
+        lines: { 'H620801': planLine({ clearWays: ['正常销售'], lbQty: 600, conclusion: '跟销售节奏消耗，Last Buy 600 台。' }) }
+      })],
       timeline: [
         { title: '发起主动EOM', meta: '王天天　2026-08-22 09:18', content: '提交成功。', done: true },
         { title: '核料定版', meta: '比杰　2026-08-28 16:40', content: '建议 Last Buy 600 台。', done: true },
-        { title: '待方案决策', meta: '多人确认中', content: '方案 V1 尚未全员确认。', done: false }
+        { title: '待方案决策', meta: 'GTM 与计划并行确认中', content: '有问题改当前版本，不驳回。可整单关闭。', done: false }
       ],
       logs: [log('2026-08-28 16:40', '比杰', '核料定版', '关联 HL20260822040，建议 Last Buy 600')]
     });
@@ -555,9 +662,9 @@
       fileName: 'H6199清库及LastBuy-V2.xlsx', model: 'H6199', skuCount: 3, scope: 'H6199 / 3',
       reason: '同市场定位的替代新品已立项',
       products: [
-        { scene: '智能照明', cat: '灯带', model: 'H6199', sku: 'H619901', msku: 'H619901-US-AMZ', status: 'EOM', onMarketDate: '2024-03-12', country: 'US', selected: true },
-        { scene: '智能照明', cat: '灯带', model: 'H6199', sku: 'H619902', msku: 'H619902-EU-AMZ', status: 'EOM', onMarketDate: '2024-03-12', country: 'EU', selected: true },
-        { scene: '智能照明', cat: '灯带', model: 'H6199', sku: 'H619903', msku: 'H619903-JP-SF', status: 'EOM', onMarketDate: '-', country: 'JP', selected: true }
+        { scene: '智能照明', cat: '灯带', model: 'H6199', sku: 'H619901', msku: 'H619901-US-AMZ', status: 'EOM', originStatus: '已上市', onMarketDate: '2024-03-12', country: 'US', selected: true },
+        { scene: '智能照明', cat: '灯带', model: 'H6199', sku: 'H619902', msku: 'H619902-EU-AMZ', status: 'EOM', originStatus: '已上市', onMarketDate: '2024-03-12', country: 'EU', selected: true },
+        { scene: '智能照明', cat: '灯带', model: 'H6199', sku: 'H619903', msku: 'H619903-JP-SF', status: 'EOM', originStatus: '未上市', onMarketDate: '-', country: 'JP', selected: true }
       ],
       skus: [
         skuLedger({
@@ -565,35 +672,66 @@
           startTime: '2026-08-25', eol: '2026-11-30', eomDays: 8, lbPlan: '2026-09-05', lbOrder: '2026-09-08', lbDone: '预计2026-09-25',
           lbQty: 1200, lbStatus: '生产中', lbBaseStock: 3860, stock: 2480, stale: 620, staleRate: '25.0%', specialAmt: 386200, commonAmt: 128600, specialQty: 16,
           m3: 1128, m2: 986, m1: 804, forecast: 3242, eolForecast: 2560, dos: 46, clearPct: 35.8, plan: 'V2',
+          mskus: [
+            mskuLine({ msku: 'H619901-US-AMZ', shop: 'Amazon US', stock: 1260, stale: 320, staleRate: '25.4%', m3: 560, m2: 490, m1: 380, forecast: 1600, eolForecast: 1280, dos: 42, clearPct: 32 }),
+            mskuLine({ msku: 'H619901-US-SF', shop: 'Shopify US', stock: 720, stale: 180, staleRate: '25.0%', m3: 348, m2: 296, m1: 244, forecast: 980, eolForecast: 760, dos: 48, clearPct: 38 }),
+            mskuLine({ msku: 'H619901-US-BBY', shop: 'BBY', stock: 500, stale: 120, staleRate: '24.0%', m3: 220, m2: 200, m1: 180, forecast: 662, eolForecast: 520, dos: 50, clearPct: 41 })
+          ],
           channels: ['Amazon US / 线上　库存 1,260', 'Shopify US / 线上　库存 720', 'BBY / 线下　库存 500'],
           lbDetail: '订单 PO20260908031　计划 1,200；已生产 760　已入库 0　预计完成 09-25',
           stockSplit: '国内 420　海外 1,980　在途 80',
           materialSplit: '专用料 16项 / ¥386,200；EOM共用料 8项 / ¥82,400'
         }),
-        skuLedger({ model: 'H6199', sku: 'H619902', country: 'EU', status: 'EOM', newSku: 'H719902', startTime: '2026-08-25', eol: '2026-11-30', lbQty: 500, lbStatus: '待下单', stock: 940, stale: 108, specialAmt: 92800, specialQty: 5, m3: 560, m2: 492, m1: 418, eolForecast: 820, dos: 33, clearPct: 51.2, plan: 'V2' }),
-        skuLedger({ model: 'H6199', sku: 'H619903', country: 'JP', status: 'EOM', startTime: '2026-08-25', eol: '2026-11-30', lbQty: 0, lbStatus: '无需LB', stock: 68, dos: 90, clearPct: 88, plan: 'V2' })
+        skuLedger({
+          model: 'H6199', sku: 'H619902', country: 'EU', status: 'EOM', newSku: 'H719902', startTime: '2026-08-25',
+          eol: '2026-11-30', lbQty: 500, lbStatus: '待下单', stock: 940, stale: 108, specialAmt: 92800, specialQty: 5,
+          m3: 560, m2: 492, m1: 418, eolForecast: 820, dos: 33, clearPct: 51.2, plan: 'V2',
+          mskus: [mskuLine({ msku: 'H619902-EU-AMZ', shop: 'Amazon DE', stock: 940, stale: 108, staleRate: '11.5%', m3: 560, m2: 492, m1: 418, eolForecast: 820, dos: 33, clearPct: 51.2 })]
+        }),
+        skuLedger({
+          model: 'H6199', sku: 'H619903', country: 'JP', status: 'EOM', originStatus: '未上市', startTime: '2026-08-25',
+          eol: '2026-11-30', lbQty: 0, lbStatus: '无需LB', stock: 68, dos: 90, clearPct: 88, plan: 'V2',
+          mskus: [mskuLine({ msku: 'H619903-JP-SF', shop: 'Shopify JP', stock: 68, dos: 90, clearPct: 88 })]
+        })
       ],
       execution: {
         fg: { status: '处理中', base: 3860, current: 2480, pct: 35.8, dos: 46 },
         lb: { status: '生产中', planTime: '2026-09-05', orderTime: '2026-09-08', doneTime: '预计09-25', qty: '760 / 1,200' },
         pmc: { status: '处理中', items: 16, amount: 386200, way: '改制、转卖' },
-        eol: { stock0: false, special0: false, lbDone: false, noReverse: true }
+        eol: { stock0: false }
       },
       tasks: [
-        task({ id: 't6f', node: '启动EOM', name: '刷新销售预测', role: '销售', owner: '周雨', due: '08-27 18:00', doneAt: '08-26 16:42', status: '已完成', result: '可接受LB 1,100—1,300', kind: 'forecast' }),
-        task({ id: 't6m', node: '核料', name: '完成核料并确认责任', role: '需求计划', owner: '比杰', due: '09-01 18:00', doneAt: '08-31 14:20', status: '已完成', result: '建议LB 1,200', kind: 'material' }),
-        task({ id: 't6p', node: '方案确认', name: '确认清库及Last Buy方案', role: 'GTM/计划/PMC/采购/销售', owner: '王天天', due: '09-01 18:00', doneAt: '09-01 09:30', status: '已完成', result: 'V2生效', kind: 'plan' }),
-        task({ id: 't6c', node: 'EOM执行', name: '执行成品清库', role: '销售', owner: '周雨', due: '11-30 18:00', status: '处理中', result: '当前清库35.8%', kind: 'clear', notice: '完成后通知需求计划复核清尾进度' }),
+        task({ id: 't6m', node: '核料', name: '确认核料结论（本人 SKU）', role: '计划', owner: '比杰', due: '09-01 18:00', doneAt: '08-31 14:20', status: '已完成', result: '建议LB 1,200', kind: 'material' }),
+        task({ id: 't6p', node: '方案确认', name: '确认清库及Last Buy方案', role: 'GTM/计划', owner: '王天天 / 刘洋', due: '09-01 18:00', doneAt: '09-01 09:30', status: '已完成', result: 'V2生效', kind: 'plan' }),
+        task({ id: 't6c', node: 'EOM执行', name: '执行成品清库', role: '销售', owner: '周雨', due: '11-30 18:00', status: '处理中', result: '当前清库35.8%', kind: 'clear', notice: '只读跟踪，进度以台账拉数为准；不在 GTM 点完成、不留痕' }),
         task({ id: 't6l', node: 'EOM执行', name: '跟踪Last Buy', role: '采购', owner: '张敏', due: '09-25 18:00', status: '处理中', result: '已生产760', kind: 'lb' }),
         task({ id: 't6x', node: 'EOM执行', name: '清理专用物料', role: 'PMC', owner: 'PMC组长', due: '11-30 18:00', status: '处理中', result: '剩余16项', kind: 'pmc' })
       ],
       plans: [
-        { version: 'V2', status: '生效中', content: '清库方式：海外库存优先销售、区域间调拨、必要时渠道折扣。Last Buy 1,200 台，预计 2026-09-25 入库。专用料优先改制，剩余转卖。', lbQty: 1200, scrapFg: 0, scrapMat: 0, reason: '核料建议上调LB', decisionBy: '王天天', at: '2026-09-01 09:30' },
-        { version: 'V1', status: '已失效', content: '按正常销售节奏消耗，Last Buy 建议 900 台。', lbQty: 900, scrapFg: 0, scrapMat: 0, reason: '初始方案', decisionBy: '王天天', at: '2026-08-25 10:12' }
+        planVer({
+          version: 'V2', status: '生效中', reason: '核料建议上调LB', decisionBy: '王天天', at: '2026-09-01 09:30',
+          lbQty: 1700, scrapFg: 0, scrapMat: 0,
+          content: '海外优先销售、区域调拨。',
+          files: [
+            { type: 'eom', name: 'H6199-EOM方案-V2.xlsx' },
+            { type: 'gtm', name: 'H6199-GTM确认方案-V2.xlsx' },
+            { type: 'clear', name: 'H6199清库及LastBuy-V2.xlsx' }
+          ],
+          lines: {
+            'H619901': planLine({ clearWays: ['正常销售', '渠道调拨', '降价'], lbQty: 1200, conclusion: '海外优先销售，Last Buy 1200' }),
+            'H619902': planLine({ clearWays: ['正常销售', '渠道调拨'], lbQty: 500, conclusion: 'EU 调拨，Last Buy 500' }),
+            'H619903': planLine({ clearWays: ['正常销售'], lbQty: 0, conclusion: '未上市，不补单' })
+          }
+        }),
+        planVer({
+          version: 'V1', status: '已失效', reason: '初始方案', decisionBy: '王天天', at: '2026-08-25 10:12',
+          lbQty: 900, files: [{ type: 'eom', name: 'H6199-EOM方案-V1.xlsx' }],
+          lines: { 'H619901': planLine({ lbQty: 900, conclusion: '按正常销售节奏消耗' }) }
+        })
       ],
       timeline: [
-        { title: '发起主动EOM', meta: '产品GTM：王天天　2026-08-25 10:12', content: '新品 H7199 已进入 GR1，老品 H6199 启动 EOM。', done: true },
-        { title: '销售刷新预测', meta: '销售：周雨　2026-08-26 16:42', content: '预计 EOL 前总预测 2,560 台，可接受 Last Buy 1,100—1,300 台。', done: true },
+        { title: '发起主动EOM', meta: '产品GTM：王天天　2026-08-25 10:12', content: '新品 H7199 已进入 GR1，老品 H6199 发起 EOM。', done: true },
+        { title: 'Forecast审核入库', meta: '系统　2026-08-26 16:42', content: '审核后预测入库，可参考 Last Buy 由预测算出。不发通知。', done: true },
         { title: '核料完成', meta: '需求计划：比杰　2026-08-31 14:20', content: '建议 Last Buy 1,200 台，预计专用料结余金额 386,200 元。', done: true },
         { title: '确认清库及Last Buy方案', meta: 'GTM/计划/PMC/采购/销售　2026-09-01 09:30', content: '方案 V2 生效。', done: true },
         { title: 'EOM执行', meta: '销售、采购、PMC并行　预计完成 2026-09-25', content: 'Last Buy 已生产 760 台；销售持续清库；PMC 处理专用料。', done: false }
@@ -601,7 +739,7 @@
       logs: [
         log('2026-09-01 09:30', '王天天', '方案生效', '清库方案由 V1 升级为 V2，Last Buy 由900调整为1,200'),
         log('2026-08-31 14:20', '比杰', '核料定版', '关联核料单 HL20260825012，建议 Last Buy 1,200'),
-        log('2026-08-26 16:42', '周雨', '完成任务', '已刷新预测，EOL 前总预测 2,560'),
+        log('2026-08-26 16:42', '系统', 'Forecast审核入库', 'EOL 前总预测 2,560，可参考 Last Buy 已带出，不发通知'),
         log('2026-08-25 10:12', '王天天', '发起EOM', '3个SKU状态更新为准备EOM')
       ]
     });
@@ -609,27 +747,41 @@
 
   function orderS7() {
     return baseOrder({
-      sceneKey: 'S7', sceneLabel: '清尾中 · 无需 Last Buy',
-      no: 'EOM20260703004', stage: '清尾中', legacyStatus: 5, owner: '销售/PMC',
+      sceneKey: 'S7', sceneLabel: 'EOM执行 · 无需 Last Buy',
+      no: 'EOM20260703004', stage: 'EOM执行', legacyStatus: 5, owner: '销售/PMC',
       user: '陈琳', time: '2026-07-03 14:22', confirmTime: '2026-07-12 10:00', eol: '2026-10-15',
       materialNo: 'HL20260703008', planVersion: 'V1', stock: 86.1, materialClose: 100,
       fileName: 'H7160无需LB清库.xlsx', model: 'H7160', skuCount: 1, scope: 'H7160 / 1',
       products: [{ scene: '智能家居', cat: '传感器', model: 'H7160', sku: 'H716001', msku: 'H716001-DE-AMZ', status: 'EOM', onMarketDate: '2023-08-20', country: 'EU', selected: true }],
-      skus: [skuLedger({ model: 'H7160', sku: 'H716001', scene: '智能家居', cat: '传感器', country: 'EU', status: 'EOM', newFlag: '是', newSku: 'H816001', startTime: '2026-07-03', eol: '2026-10-15', eomDays: 61, lbQty: 0, lbStatus: '无需LB', lbBaseStock: 1520, stock: 212, stale: 32, staleRate: '15.1%', specialAmt: 0, specialQty: 0, commonAmt: 52800, m3: 486, m2: 405, m1: 362, eolForecast: 830, dos: 12, clearPct: 86.1, plan: 'V1', channels: ['Amazon DE 84台、Amazon FR 62台、Shopify EU 66台'] })],
+      skus: [skuLedger({
+        model: 'H7160', sku: 'H716001', scene: '智能家居', cat: '传感器', country: 'EU', status: 'EOM', newFlag: '是', newSku: 'H816001',
+        startTime: '2026-07-03', eol: '2026-10-15', eomDays: 61, lbQty: 0, lbStatus: '无需LB', lbBaseStock: 1520, stock: 212, stale: 32,
+        staleRate: '15.1%', specialAmt: 0, specialQty: 0, commonAmt: 52800, m3: 486, m2: 405, m1: 362, eolForecast: 830, dos: 12, clearPct: 86.1, plan: 'V1',
+        mskus: [
+          mskuLine({ msku: 'H716001-DE-AMZ', shop: 'Amazon DE', stock: 84, stale: 14, staleRate: '16.7%', m3: 180, m2: 150, m1: 132, eolForecast: 320, dos: 10, clearPct: 88 }),
+          mskuLine({ msku: 'H716001-FR-AMZ', shop: 'Amazon FR', stock: 62, stale: 10, staleRate: '16.1%', m3: 150, m2: 128, m1: 118, eolForecast: 250, dos: 12, clearPct: 85 }),
+          mskuLine({ msku: 'H716001-EU-SF', shop: 'Shopify EU', stock: 66, stale: 8, staleRate: '12.1%', m3: 156, m2: 127, m1: 112, eolForecast: 260, dos: 14, clearPct: 84 })
+        ]
+      })],
       execution: {
         fg: { status: '处理中', base: 1520, current: 212, pct: 86.1, dos: 12 },
         lb: { status: '无需LB', planTime: '-', orderTime: '-', doneTime: '-', qty: '0 / 0' },
         pmc: { status: '已完成', items: 0, amount: 0, way: '-' },
-        eol: { stock0: false, special0: true, lbDone: true, noReverse: true }
+        eol: { stock0: false }
       },
       tasks: [
         task({ id: 't7c', node: 'EOM执行', name: '执行成品清库', role: '销售', owner: '周雨', due: '10-15 18:00', status: '处理中', result: '当前库存212', kind: 'clear' }),
         task({ id: 't7x', node: 'EOM执行', name: '清理专用物料', role: 'PMC', owner: 'PMC组长', due: '08-01 18:00', doneAt: '07-28 11:00', status: '已完成', result: '专用料已为0', kind: 'pmc' })
       ],
-      plans: [{ version: 'V1', status: '生效中', content: '无需 Last Buy，按正常销售清成品。', lbQty: 0, scrapFg: 0, scrapMat: 0, reason: '核料结论不补单', decisionBy: '陈琳', at: '2026-07-12 10:00' }],
+      plans: [planVer({
+        version: 'V1', status: '生效中', reason: '核料结论不补单', decisionBy: '陈琳', at: '2026-07-12 10:00',
+        lbQty: 0, content: '无需 Last Buy，按正常销售清成品。',
+        files: [{ type: 'eom', name: 'H7160无需LB清库.xlsx' }, { type: 'clear', name: 'H7160清库方案V1.xlsx' }],
+        lines: { 'H716001': planLine({ lbQty: 0, conclusion: '无需 Last Buy，按正常销售清成品。' }) }
+      })],
       timeline: [
         { title: '正式EOM', meta: '2026-07-12 10:00', content: '方案确认，无需 Last Buy。', done: true },
-        { title: '清尾中', meta: '销售清成品', content: '专用料已关闭，成品库存 212 台。', done: false }
+        { title: '成品清库', meta: '销售清成品', content: '专用料已关闭，成品库存 212 台。', done: false }
       ],
       logs: [log('2026-07-28 11:00', 'PMC组长', '完成任务', '专用料数量已为0')]
     });
@@ -640,11 +792,11 @@
       sceneKey: 'S8', sceneLabel: '被动退市 · 核料中',
       no: 'EOM20260816008', type: '被动退市', triggerNode: '月度评审 week-0',
       reason: '销量流速大幅下滑且DOS过高', stage: '核料中', legacyStatus: 2,
-      owner: '比杰（需求计划）', user: '李薇', time: '2026-08-16 14:00', eol: '2026-11-15',
+      owner: '比杰（计划）', user: '李薇', time: '2026-08-16 14:00', eol: '2026-11-15',
       materialNo: 'HL20260816019', model: 'H6068', skuCount: 1, scope: 'H6068 / 1',
       products: [{ scene: '智能家居', cat: '传感器', model: 'H6068', sku: 'H606801', msku: 'H606801-US-BBY', status: '准备EOM', onMarketDate: '2023-02-01', country: 'US', selected: true }],
       skus: [skuLedger({ model: 'H6068', sku: 'H606801', scene: '智能家居', cat: '传感器', type: '被动退市', status: '准备EOM', newFlag: '否', startTime: '2026-08-16', eol: '2026-11-15', stock: 1880, dos: 92, lbQty: 300, lbStatus: '未发起' })],
-      tasks: [task({ id: 't8m', node: '核料', name: '完成核料并确认责任', role: '需求计划', owner: '比杰', due: '08-23 18:00', status: '处理中', kind: 'material' })],
+      tasks: [task({ id: 't8m', node: '核料', name: '确认核料结论（本人 SKU）', role: '计划', owner: '比杰', due: '08-23 18:00', status: '处理中', kind: 'material' })],
       timeline: [
         { title: '发起被动EOM', meta: '李薇　2026-08-16 14:00', content: '无新品衔接字段。', done: true },
         { title: '核料中', meta: '比杰', content: '核料单 HL20260816019 计算成功，待定版。', done: false }
@@ -667,33 +819,39 @@
         fg: { status: '已完成', base: 640, current: 0, pct: 100, dos: 0 },
         lb: { status: '已完成', planTime: '-', orderTime: '-', doneTime: '2026-08-10', qty: '0 / 0' },
         pmc: { status: '已完成', items: 0, amount: 0, way: '转卖完成' },
-        eol: { stock0: true, special0: true, lbDone: true, noReverse: true }
+        eol: { stock0: true }
       },
-      tasks: [task({ id: 't9e', node: 'EOL闭环', name: 'EOL复核', role: '需求计划', owner: '比杰', due: '08-28 18:00', doneAt: '08-28 09:10', status: '已完成', result: '四条件均满足，自动EOL', kind: 'eol' })],
+      tasks: [task({ id: 't9e', node: 'EOL闭环', name: 'EOL复核', role: '系统', owner: '系统', due: '08-28 18:00', doneAt: '08-28 09:10', status: '已完成', result: '成品库存为0，自动EOL', kind: 'eol' })],
       timeline: [
         { title: '正式EOM', meta: '2026-07-05', content: '进入执行。', done: true },
-        { title: 'EOL已闭环', meta: '2026-08-28 09:10', content: '成品库存0、专用料0、无未完成LB、无反EOM。', done: true }
+        { title: 'EOL已闭环', meta: '2026-08-28 09:10', content: '成品全链路库存为 0。', done: true }
       ],
-      logs: [log('2026-08-28 09:10', '系统', '自动EOL', 'SKU H606201 进入EOL，工单内全部SKU已闭环')]
+      logs: [log('2026-08-28 09:10', '系统', '自动EOL', 'SKU H606201 成品库存为0，进入EOL')]
     });
   }
 
   function orderS10() {
     return baseOrder({
-      sceneKey: 'S10', sceneLabel: '方案驳回 · 回核料中',
-      no: 'EOM20260810010', stage: '核料中', legacyStatus: 3, owner: '王天天',
-      exception: '已驳回', time: '2026-08-10 09:00', eol: '2026-11-10',
+      sceneKey: 'S10', sceneLabel: '待方案决策 · 改数清空确认',
+      no: 'EOM20260810010', stage: '待方案决策', legacyStatus: 2, owner: '王天天 / 刘洋',
+      time: '2026-08-10 09:00', eol: '2026-11-10',
       materialNo: 'HL20260810018', planVersion: 'V1', model: 'H6401', skuCount: 1, scope: 'H6401 / 1',
-      fileName: 'H6401方案V1.xlsx',
-      products: [{ scene: '智能照明', cat: '灯带', model: 'H6401', sku: 'H640101', msku: 'H640101-US-AMZ', status: '准备EOM', onMarketDate: '2024-06-01', country: 'US', selected: true }],
-      skus: [skuLedger({ model: 'H6401', sku: 'H640101', status: '准备EOM', startTime: '2026-08-10', eol: '2026-11-10', stock: 900, lbQty: 450 })],
-      tasks: [task({ id: 't10p', node: '方案确认', name: '确认清库及Last Buy方案', role: '计划', owner: '刘洋', due: '08-18 18:00', doneAt: '08-18 15:00', status: '已驳回', result: 'LB数量与核料结论不一致', kind: 'plan' })],
-      plans: [{ version: 'V1', status: '已驳回', content: 'Last Buy 200 台，低于核料建议 450。', lbQty: 200, scrapFg: 0, scrapMat: 0, reason: '计划驳回', decisionBy: '刘洋', at: '2026-08-18 15:00' }],
+      fileName: 'H6401方案V1.xlsx', planUsers: '刘洋',
+      schemeSign: { gtm: true, skus: { 'H640101': false } },
+      products: [{ scene: '智能照明', cat: '灯带', model: 'H6401', sku: 'H640101', msku: 'H640101-US-AMZ', status: '准备EOM', originStatus: '已上市', onMarketDate: '2024-06-01', country: 'US', selected: true }],
+      skus: [skuLedger({ model: 'H6401', sku: 'H640101', status: '准备EOM', originStatus: '已上市', startTime: '2026-08-10', eol: '2026-11-10', stock: 900, lbQty: 450 })],
+      tasks: [task({ id: 't10p', node: '方案确认', name: '确认清库及Last Buy方案', role: 'GTM/计划', owner: '王天天 / 刘洋', due: '08-18 18:00', status: '待处理', kind: 'plan', result: 'GTM已确认，计划未确认' })],
+      plans: [planVer({
+        version: 'V1', status: '待确认', reason: '按核料建议', decisionBy: '王天天', at: '2026-08-14 16:00',
+        lbQty: 450, content: 'Last Buy 450 台。改数后双方确认作废。',
+        files: [{ type: 'eom', name: 'H6401方案V1.xlsx' }],
+        lines: { 'H640101': planLine({ lbQty: 450, conclusion: 'Last Buy 450 台。改数后双方确认作废。' }) }
+      })],
       timeline: [
         { title: '核料定版', meta: '比杰　2026-08-14', content: '建议 LB 450。', done: true },
-        { title: '计划驳回', meta: '刘洋　2026-08-18 15:00', content: '方案 LB 与核料建议不一致，退回修改。', done: false, fail: true }
+        { title: '待方案决策', meta: 'GTM 已确认，刘洋未确认', content: '无方案驳回。改当前版本会清空双方确认。', done: false }
       ],
-      logs: [log('2026-08-18 15:00', '刘洋', '计划驳回', '请按核料建议 450 台重新提交方案')]
+      logs: [log('2026-08-16 10:00', '王天天', 'GTM确认方案', 'GTM 已确认；等待计划刘洋确认自己的 SKU')]
     });
   }
 
@@ -707,57 +865,83 @@
       skus: [skuLedger({ model: 'H6502', sku: 'H650201', status: '已上市', startTime: '2026-08-05', eol: '2026-12-01' })],
       logs: [log('2026-08-06 09:00', '王天天', '关闭', '新品立项取消，主动关闭草稿/流程')],
       closeReason: '新品立项取消，主动关闭草稿/流程',
+      closeKind: 'manual',
       timeline: [{ title: '已关闭', meta: '王天天　2026-08-06 09:00', content: '可重新发起。', done: true }]
     });
   }
 
   function orderS12() {
     return baseOrder({
-      sceneKey: 'S12', sceneLabel: '报废超金额 · 待OA',
-      no: 'EOM20260808012', stage: '待方案决策', legacyStatus: 2, owner: '计委会 / GTM',
+      sceneKey: 'S12', sceneLabel: '报废超金额 · 非阻断提示',
+      no: 'EOM20260808012', stage: '待方案决策', legacyStatus: 2, owner: 'GTM / 计划',
       time: '2026-08-08 10:40', eol: '2026-12-20', materialNo: 'HL20260808022',
-      planVersion: 'V1待OA', model: 'H6188', skuCount: 1, scope: 'H6188 / 1',
+      planVersion: 'V1', model: 'H6188', skuCount: 1, scope: 'H6188 / 1',
       fileName: 'H6188报废方案.xlsx', exception: '',
-      oa: { fg: 620000, mat: 268000, status: '审批中', no: 'OA20260818077' },
+      schemeSign: { gtm: true, skus: {} },
+      planUsers: '刘洋',
       products: [{ scene: '智能照明', cat: '灯带', model: 'H6188', sku: 'H618801', msku: 'H618801-US-AMZ', status: '准备EOM', onMarketDate: '2023-04-12', country: 'US', selected: true }],
-      skus: [skuLedger({ model: 'H6188', sku: 'H618801', status: '准备EOM', startTime: '2026-08-08', eol: '2026-12-20', stock: 4200, stale: 2100, staleRate: '50.0%', specialAmt: 268000, lbQty: 0, lbStatus: '未发起', clearPct: 0, plan: 'V1待OA' })],
-      tasks: [task({ id: 't12p', node: '方案确认', name: '确认清库及Last Buy方案', role: 'GTM', owner: '王天天', due: '08-20 18:00', status: '处理中', result: '成品报废62万、物料报废26.8万，OA审批中', kind: 'plan' })],
-      plans: [{ version: 'V1', status: '待OA', content: '库存积压，拟成品报废 62 万元、物料报废 26.8 万元，不追加 Last Buy。', lbQty: 0, scrapFg: 620000, scrapMat: 268000, reason: '库存积压', decisionBy: '王天天', at: '2026-08-16 11:00' }],
+      skus: [skuLedger({ model: 'H6188', sku: 'H618801', status: '准备EOM', startTime: '2026-08-08', eol: '2026-12-20', stock: 4200, stale: 2100, staleRate: '50.0%', specialAmt: 268000, lbQty: 0, lbStatus: '未发起', clearPct: 0, plan: 'V1' })],
+      tasks: [task({ id: 't12p', node: '方案确认', name: '确认清库及Last Buy方案', role: 'GTM/计划', owner: '王天天 / 刘洋', due: '08-20 18:00', status: '处理中', result: '成品报废62万、物料报废26.8万，已提示线下走计委会 OA，不挡确认', kind: 'plan' })],
+      plans: [planVer({
+        version: 'V1', status: '待确认', reason: '库存积压', decisionBy: '王天天', at: '2026-08-16 11:00',
+        lbQty: 0, scrapFg: 620000, scrapMat: 268000,
+        content: '库存积压，拟成品报废 62 万元、物料报废 26.8 万元，不追加 Last Buy。',
+        files: [{ type: 'gtm', name: 'H6188-GTM确认方案.pdf' }, { type: 'eom', name: 'H6188报废方案.xlsx' }, { type: 'clear', name: 'H6188清库方案V1.xlsx' }],
+        lines: { 'H618801': planLine({ clearWays: ['报废'], lbQty: 0, scrapFg: 620000, scrapMat: 268000, conclusion: '不追加 Last Buy，成品与物料报废。' }) }
+      })],
       timeline: [
         { title: '核料定版', meta: '比杰　2026-08-15', content: '结论：不补单报废。', done: true },
-        { title: '报废超金额', meta: '系统已发起 OA20260818077', content: '成品>50万且物料>20万，审批返回前方案不得生效。', done: false }
+        { title: '报废超金额', meta: '仅提示，不挡流程', content: '成品>50万且物料>20万。请线下走计委会 OA。系统不创建 OA，GTM 已确认，计划确认后即可正式 EOM。', done: false }
       ],
-      logs: [log('2026-08-16 11:20', '系统', '发起OA', '成品报废620,000、物料报废268,000，等待计委会')]
+      logs: [log('2026-08-16 11:20', '王天天', '保存方案', '成品报废620,000、物料报废268,000。已提示线下走计委会 OA，不挡确认。')]
     });
   }
 
   function orderS13() {
     return baseOrder({
-      sceneKey: 'S13', sceneLabel: '反EOM执行中',
-      no: 'EOM20260812002', stage: '清尾中', legacyStatus: 5, owner: '计划/采购/PMC',
+      sceneKey: 'S13', sceneLabel: '反EOM · OA审批中',
+      no: 'EOM20260812002', stage: 'EOM执行', legacyStatus: 5, owner: '销售/采购/PMC',
       time: '2026-08-12 11:06', confirmTime: '2026-08-20 09:00', eol: '2026-09-30',
       materialNo: 'HL20260720015', planVersion: 'V3', stock: 82.4, materialClose: 61,
-      exception: '反EOM中', model: 'H617A', skuCount: 1, scope: 'H617A / 4',
+      exception: '', model: 'H617A', skuCount: 1, scope: 'H617A / 4',
       fileName: 'H617A清库V3.xlsx',
-      reverse: { sku: 'H617A01', bom: '已禁用', qty: 300, eta: '2026-10-10', reason: '新品延期，老品库存不足，需追加 Last Buy', status: '执行中' },
-      products: [{ scene: '智能照明', cat: '灯带', model: 'H617A', sku: 'H617A01', msku: 'H617A01-US-AMZ', status: 'EOM', onMarketDate: '2023-12-01', country: 'US', selected: true }],
-      skus: [skuLedger({ model: 'H617A', sku: 'H617A01', status: 'EOM', startTime: '2026-08-12', eol: '2026-09-30', lbQty: 900, lbStatus: '生产中', stock: 480, specialAmt: 142000, specialQty: 9, clearPct: 82.4, plan: 'V3' })],
+      reverse: {
+        skuText: 'H617A01',
+        pskuText: 'H617A',
+        reason: '渠道继续销售，申请反EOL',
+        files: ['反EOL说明.pdf'],
+        pm: ['张敏'],
+        salesLead: ['李强'],
+        rd: ['赵研'],
+        review: ['孙审'],
+        assistant: ['钱助'],
+        cc: ['比杰'],
+        oaNo: 'OA20260826011',
+        oaName: '反EOL流程审批',
+        oaStatus: '审批中'
+      },
+      products: [{ scene: '智能照明', cat: '灯带', model: 'H617A', sku: 'H617A01', msku: 'H617A01-US-AMZ', status: 'EOM', originStatus: '已上市', onMarketDate: '2023-12-01', country: 'US', selected: true }],
+      skus: [skuLedger({ model: 'H617A', sku: 'H617A01', status: 'EOM', originStatus: '已上市', startTime: '2026-08-12', eol: '2026-09-30', lbQty: 900, lbStatus: '生产中', stock: 480, specialAmt: 142000, specialQty: 9, clearPct: 82.4, plan: 'V3' })],
       execution: {
         fg: { status: '处理中', base: 2720, current: 480, pct: 82.4, dos: 18 },
-        lb: { status: '反EOM追加中', planTime: '2026-08-18', orderTime: '2026-08-21', doneTime: '追加300待入库', qty: '900+300' },
+        lb: { status: '生产中', planTime: '2026-08-18', orderTime: '2026-08-21', doneTime: '-', qty: '900' },
         pmc: { status: '处理中', items: 9, amount: 142000, way: '改制' },
-        eol: { stock0: false, special0: false, lbDone: false, noReverse: false }
+        eol: { stock0: false }
       },
       tasks: [
-        task({ id: 't13r', node: '反EOM', name: '追加Last Buy并临时解除BOM禁用', role: '计划', owner: '刘洋', due: '10-10 18:00', status: '处理中', kind: 'reverse', result: 'BOM临时放开，追加300台生产中' }),
-        task({ id: 't13c', node: 'EOM执行', name: '执行成品清库', role: '销售', owner: '周雨', due: '09-30 18:00', status: '处理中', kind: 'clear' })
+        task({ id: 't13c', node: 'EOM执行', name: '执行成品清库', role: '销售', owner: '周雨', due: '09-30 18:00', status: '处理中', result: '当前库存480', kind: 'clear' })
       ],
-      plans: [{ version: 'V3', status: '生效中', content: '新品延期，追加 Last Buy 300 台。', lbQty: 1200, scrapFg: 0, scrapMat: 0, reason: '新品延期', decisionBy: '王天天', at: '2026-08-26 14:00' }],
+      plans: [planVer({
+        version: 'V3', status: '生效中', reason: '按核料建议', decisionBy: '王天天', at: '2026-08-20 09:00',
+        lbQty: 900, content: 'Last Buy 900 台，正常销售清库。',
+        files: [{ type: 'eom', name: 'H617A清库V3.xlsx' }],
+        lines: { 'H617A01': planLine({ lbQty: 900, conclusion: 'Last Buy 900 台。' }) }
+      })],
       timeline: [
-        { title: '正式EOM', meta: '2026-08-20', content: 'BOM已禁用。', done: true },
-        { title: '反EOM', meta: '王天天　2026-08-26 14:00', content: '不得以撤回/关闭/重开代替。执行中不可EOL。', done: false }
+        { title: '正式EOM', meta: '2026-08-20', content: '方案确认后进入执行。', done: true },
+        { title: '发起反EOM', meta: '王天天　2026-08-26 14:00', content: '已创建 OA20260826011 反EOL流程审批，审批中。尚未打「已反 EOM」标签。', done: false }
       ],
-      logs: [log('2026-08-26 14:00', '王天天', '发起反EOM', 'SKU H617A01 追加 Last Buy 300，关联原工单')]
+      logs: [log('2026-08-26 14:00', '王天天', '发起反EOM', '已创建 OA20260826011，状态审批中。SKU H617A01 / PSKU H617A。')]
     });
   }
 
@@ -771,13 +955,26 @@
       products: [{ scene: '智能照明', cat: '灯带', model: 'H7120', sku: 'H712001', msku: 'H712001-US-AMZ', status: 'EOM', onMarketDate: '2024-02-01', country: 'US', selected: true }],
       skus: [skuLedger({ model: 'H7120', sku: 'H712001', status: 'EOM', newFlag: '是', newSku: 'H812001', newList: '2026-11-30', startTime: '2026-07-15', eol: '2026-12-10', lbQty: 1500, lbStatus: '入库中', stock: 3180, dos: 61, clearPct: 22, plan: 'V3', specialAmt: 240000 })],
       tasks: [
-        task({ id: 't14c', node: 'EOM执行', name: '执行成品清库', role: '销售', owner: '周雨', due: '12-10 18:00', status: '处理中', kind: 'clear', result: '新品延期，老品库存不足风险' }),
+        task({ id: 't14c', node: 'EOM执行', name: '执行成品清库', role: '销售', owner: '周雨', due: '12-10 18:00', status: '处理中', kind: 'clear', result: '当前库存见台账' }),
         task({ id: 't14l', node: 'EOM执行', name: '跟踪Last Buy', role: '采购', owner: '张敏', due: '09-30 18:00', status: '处理中', kind: 'lb' })
       ],
       plans: [
-        { version: 'V3', status: '生效中', content: '新品上市推迟至 11-30，上调 Last Buy 至 1,500，加快老品供应。', lbQty: 1500, scrapFg: 0, scrapMat: 0, reason: '新品延期', decisionBy: '王天天', at: '2026-08-20 10:00' },
-        { version: 'V2', status: '已失效', content: '库存不足，提前消耗渠道库存。', lbQty: 1100, scrapFg: 0, scrapMat: 0, reason: '库存不足', decisionBy: '王天天', at: '2026-08-01 10:00' },
-        { version: 'V1', status: '已失效', content: '初始 Last Buy 800。', lbQty: 800, scrapFg: 0, scrapMat: 0, reason: '初始方案', decisionBy: '王天天', at: '2026-07-25 10:00' }
+        planVer({
+          version: 'V3', status: '生效中', reason: '新品延期', decisionBy: '王天天', at: '2026-08-20 10:00',
+          lbQty: 1500, content: '新品上市推迟至 11-30，上调 Last Buy 至 1,500。',
+          files: [{ type: 'eom', name: 'H7120方案V3.xlsx' }, { type: 'clear', name: 'H7120清库V3.xlsx' }],
+          lines: { 'H712001': planLine({ clearWays: ['正常销售'], lbQty: 1500, conclusion: '新品延期，上调 Last Buy 至 1500。' }) }
+        }),
+        planVer({
+          version: 'V2', status: '已失效', reason: '库存不足', decisionBy: '王天天', at: '2026-08-01 10:00',
+          lbQty: 1100, files: [{ type: 'eom', name: 'H7120方案V2.xlsx' }],
+          lines: { 'H712001': planLine({ lbQty: 1100, conclusion: '库存不足，提前消耗渠道库存。' }) }
+        }),
+        planVer({
+          version: 'V1', status: '已失效', reason: '初始方案', decisionBy: '王天天', at: '2026-07-25 10:00',
+          lbQty: 800, files: [{ type: 'eom', name: 'H7120方案V1.xlsx' }],
+          lines: { 'H712001': planLine({ lbQty: 800, conclusion: '初始 Last Buy 800。' }) }
+        })
       ],
       timeline: [
         { title: '正式EOM', meta: '2026-07-25', content: 'V1生效。', done: true },
@@ -789,19 +986,20 @@
 
   function orderS15() {
     return baseOrder({
-      sceneKey: 'S15', sceneLabel: '预测缺失 · 数据异常',
-      no: 'EOM20260821015', stage: '启动 EOM', legacyStatus: 2, owner: '周雨（销售）',
+      sceneKey: 'S15', sceneLabel: '核料中 · Forecast 未入库（强提示不硬拦）',
+      no: 'EOM20260821015', stage: '核料中', legacyStatus: 2, owner: '比杰（计划）',
       exception: '数据异常', time: '2026-08-21 13:00', eol: '2026-11-30',
       materialNo: 'HL20260821028', model: 'H7221', skuCount: 1, scope: 'H7221 / 1',
-      products: [{ scene: '智能照明', cat: '灯带', model: 'H7221', sku: 'H722101', msku: 'H722101-US-AMZ', status: '准备EOM', onMarketDate: '2024-09-01', country: 'US', selected: true }],
-      skus: [skuLedger({ model: 'H7221', sku: 'H722101', status: '准备EOM', startTime: '2026-08-21', eol: '2026-11-30', stock: 860, forecast: 0, eolForecast: 0, dos: 0 })],
-      forecast: { version: 0, current: 0, m3: 0, m2: 0, m1: 0, stock: 860, dos: 0, acceptLb: '', submittedAt: '', missing: true },
-      tasks: [task({ id: 't15f', node: '启动EOM', name: '刷新销售预测', role: '销售', owner: '周雨', due: '08-22 18:00', status: '处理中', kind: 'forecast', result: '当前有效预测缺失，不得带入方案决策' })],
+      cc: '需求计划、生产计划、PMC、周雨（销售）',
+      products: [{ scene: '智能照明', cat: '灯带', model: 'H7221', sku: 'H722101', msku: 'H722101-US-AMZ', status: '准备EOM', originStatus: '已上市', onMarketDate: '2024-09-01', country: 'US', selected: true }],
+      skus: [skuLedger({ model: 'H7221', sku: 'H722101', status: '准备EOM', originStatus: '已上市', startTime: '2026-08-21', eol: '2026-11-30', stock: 860, forecast: 0, eolForecast: 0, dos: 0 })],
+      forecast: { approved: false, version: 0, current: 0, m3: 0, m2: 0, m1: 0, stock: 860, dos: 0, suggestLb: 0, submittedAt: '', missing: true },
+      tasks: [task({ id: 't15m', node: '核料', name: '确认核料结论（本人 SKU）', role: '计划', owner: '比杰', due: '08-28 18:00', status: '处理中', kind: 'material', notice: '空预测仅标识，不挡核料' })],
       timeline: [
-        { title: '发起主动EOM', meta: '王天天　2026-08-21 13:00', content: '提交成功。', done: true },
-        { title: '数据异常', meta: '预测版本缺失', content: '刷新失败或预测为空，不得进入核料定版后的方案决策。', done: false, fail: true }
+        { title: '发起主动EOM', meta: '王天天　2026-08-21 13:00', content: 'SKU 进入准备 EOM，工单进入核料中。已钉钉提醒销售刷新 Forecast。', done: true },
+        { title: '数据异常', meta: 'Forecast 尚未审核入库', content: '空预测只挂数据异常并强提示，不硬拦核料与方案。可用「模拟 Forecast 已审核入库」刷新台账。', done: false, fail: true }
       ],
-      logs: [log('2026-08-22 08:40', '系统', '数据异常', '预测缺失，工单标记数据异常')]
+      logs: [log('2026-08-22 08:40', '系统', '数据异常', 'Forecast 尚未审核入库；工单已在核料中，不硬拦')]
     });
   }
 
@@ -814,7 +1012,7 @@
       materialNo: 'HL20260801016', model: 'H9010', skuCount: 1, scope: 'H9010 / 1',
       products: [{ scene: '智能家居', cat: '传感器', model: 'H9010', sku: 'H901001', msku: 'H901001-US-BBY', status: '准备EOM', onMarketDate: '2023-01-12', country: 'US', selected: true }],
       skus: [skuLedger({ model: 'H9010', sku: 'H901001', scene: '智能家居', cat: '传感器', type: '被动退市', status: '准备EOM', newFlag: '否', startTime: '2026-08-01', eol: '2026-12-31', stock: 760, dos: 70, lbQty: 200 })],
-      tasks: [task({ id: 't16m', node: '核料', name: '完成核料并确认责任', role: '区域GTM', owner: '李薇', due: '08-08 18:00', status: '处理中', kind: 'material' })],
+      tasks: [task({ id: 't16m', node: '核料', name: '确认核料结论（本人 SKU）', role: '计划', owner: '李薇', due: '08-08 18:00', status: '处理中', kind: 'material' })],
       timeline: [
         { title: 'ABU被动发起', meta: '区域GTM 承接产品GTM与需求计划　week-0', content: 'ABU 季度统一正式发起中的月度预排查单据。', done: true }
       ],
@@ -830,21 +1028,21 @@
     buildSeed: buildSeed,
     SCENES: [
       { id: 'S1', no: 'EOM20260901001', label: 'S1 草稿' },
-      { id: 'S2', no: 'EOM20260828002', label: 'S2 启动EOM' },
+      { id: 'S2', no: 'EOM20260828002', label: 'S2 核料中·已提醒Forecast' },
       { id: 'S3', no: 'EOM20260818003', label: 'S3 核料中·按SKU确认' },
       { id: 'S4', no: 'EOM20260820004', label: 'S4 核料失败' },
-      { id: 'S5', no: 'EOM20260822005', label: 'S5 待方案决策' },
+      { id: 'S5', no: 'EOM20260822005', label: 'S5 待方案决策·双确认' },
       { id: 'S6', no: 'EOM20260825001', label: 'S6 三路执行' },
       { id: 'S7', no: 'EOM20260703004', label: 'S7 无需LB' },
       { id: 'S8', no: 'EOM20260816008', label: 'S8 被动核料' },
       { id: 'S9', no: 'EOM20260622006', label: 'S9 EOL闭环' },
-      { id: 'S10', no: 'EOM20260810010', label: 'S10 方案驳回' },
-      { id: 'S10b', no: 'EOM20260805011', label: 'S10 已关闭' },
+      { id: 'S10', no: 'EOM20260810010', label: 'S10 改数清空确认' },
+      { id: 'S10b', no: 'EOM20260805011', label: 'S10 已关闭可重开' },
       { id: 'S11', no: '', label: 'S11 发起校验', action: 'create' },
-      { id: 'S12', no: 'EOM20260808012', label: 'S12 报废OA' },
-      { id: 'S13', no: 'EOM20260812002', label: 'S13 反EOM' },
+      { id: 'S12', no: 'EOM20260808012', label: 'S12 报废超金额·仅提示' },
+      { id: 'S13', no: 'EOM20260812002', label: 'S13 反EOM·OA审批中' },
       { id: 'S14', no: 'EOM20260715014', label: 'S14 新品延期' },
-      { id: 'S15', no: 'EOM20260821015', label: 'S15 预测缺失' },
+      { id: 'S15', no: 'EOM20260821015', label: 'S15 Forecast未入库·不硬拦' },
       { id: 'S16', no: 'EOM20260801016', label: 'S16 ABU被动' }
     ]
   };

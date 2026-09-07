@@ -4,11 +4,14 @@
   var base = global.SupermarketAccrualBaseData || {};
   var STORAGE_KEYS = {
     refundActuals: 'gb-fee-mgmt-refund-actual-overrides-v1',
+    refundIncome: 'gb-fee-mgmt-refund-income-overrides-v1',
     deductionActuals: 'gb-fee-mgmt-deduction-actual-overrides-v1',
     fixedRules: 'gb-fee-mgmt-fixed-rule-overrides-v1',
     refundRules: 'gb-fee-mgmt-refund-rule-overrides-v1',
     customerDeptMaster: 'gb-fee-mgmt-customer-dept-master-v1'
   };
+  var INCOME_STATUS_UNCONFIRMED = '未确认';
+  var INCOME_STATUS_CONFIRMED = '已确认';
   var DEDUCTION_FEE_TYPES = ['促销扣款', '销售折扣', '现金折扣', '销售费用'];
   var REFUND_ROLLING_PAST_MONTHS = 3;
   var REFUND_ROLLING_FUTURE_MONTHS = 3;
@@ -327,12 +330,48 @@
     return template;
   }
 
-  function getRefundSalesIncome(customer, period) {
+  function getIncomeOverride(id) {
+    return readOverrides(STORAGE_KEYS.refundIncome)[id] || null;
+  }
+
+  function isIncomeConfirmed(customer, period) {
+    var override = getIncomeOverride(buildKey([customer, period]));
+    return !!(override && override.status === 'confirmed' && override.confirmedAmount != null);
+  }
+
+  function getIncomeStatus(customer, period) {
+    return isIncomeConfirmed(customer, period) ? INCOME_STATUS_CONFIRMED : INCOME_STATUS_UNCONFIRMED;
+  }
+
+  function hasCustomerIncomeConfirmedUntil(customer, period) {
+    var overrides = readOverrides(STORAGE_KEYS.refundIncome);
+    return Object.keys(overrides).some(function (id) {
+      var parsed = parseRefundRuleId(id);
+      var row = overrides[id] || {};
+      if (!parsed || parsed.customer !== customer) return false;
+      if (row.status !== 'confirmed' || row.confirmedAmount == null) return false;
+      return comparePeriod(parsed.period, period) <= 0;
+    });
+  }
+
+  function getSystemSalesIncome(customer, period) {
     var row = historyRows(customer).find(function (item) {
       return item.period === period;
     });
     if (row) return round2(row.sales);
     return round2(getIncome(customer, period));
+  }
+
+  function getEffectiveSalesIncome(customer, period) {
+    var override = getIncomeOverride(buildKey([customer, period]));
+    if (override && override.status === 'confirmed' && override.confirmedAmount != null) {
+      return round2(override.confirmedAmount);
+    }
+    return getSystemSalesIncome(customer, period);
+  }
+
+  function getRefundSalesIncome(customer, period) {
+    return getEffectiveSalesIncome(customer, period);
   }
 
   function getRefundActualAmount(customer, period) {
@@ -374,10 +413,13 @@
       if (!byPeriod[item]) {
         byPeriod[item] = {
           period: item,
-          sales: getRefundSalesIncome(customer, item),
+          sales: getEffectiveSalesIncome(customer, item),
           refund: getRefundActualAmount(customer, item)
         };
       }
+    });
+    Object.keys(byPeriod).forEach(function (item) {
+      byPeriod[item].sales = getEffectiveSalesIncome(customer, item);
     });
     return Object.keys(byPeriod).sort().map(function (item) {
       return byPeriod[item];
@@ -903,7 +945,7 @@
   }
 
   function getSampleAccrual(customer, feeType, period, method, ratio, baseAmount, useOverrideLogic) {
-    var income = getIncome(customer, period);
+    var income = getEffectiveSalesIncome(customer, period);
     var baseAccrual = getBaseAccrualAmount(customer, feeType, period);
     var ledgerAccrual = getBaseLedgerAccrual(customer, feeType, period);
 
@@ -972,15 +1014,17 @@
       : baseWindow;
     var windowInherited = inheritedWindow != null && !hasValue(overrideRow.windowMonths) && windowMonths !== excelWindow;
     var systemRatio = computeRefundRatio(baseRow.customer, baseRow.period);
-    var ratio = metricsOverridden
+    var incomeAffects = hasCustomerIncomeConfirmedUntil(baseRow.customer, baseRow.period);
+    var ratio = hasValue(overrideRow.ratio)
       ? numericOrNull(overrideRow.ratio)
-      : (hasBaseRule ? numericOrNull(baseRow.ratio) : null);
+      : ((incomeAffects || !hasBaseRule) ? systemRatio : numericOrNull(baseRow.ratio));
     if (ratio == null) ratio = systemRatio != null ? systemRatio : 0;
-    var salesBasis = (metricsOverridden || windowInherited || !hasBaseRule)
+    var forceRecompute = metricsOverridden || windowInherited || !hasBaseRule || incomeAffects;
+    var salesBasis = forceRecompute
       ? computeRefundSalesBasis(baseRow.customer, baseRow.period, windowMonths)
       : round2(baseRow.salesBasis || 0);
     if (!salesBasis) salesBasis = computeRefundSalesBasis(baseRow.customer, baseRow.period, windowMonths);
-    var targetClosing = metricsOverridden || windowInherited || !hasBaseRule
+    var targetClosing = forceRecompute
       ? null
       : (hasBaseRule ? numericOrNull(baseRow.targetClosing) : null);
     if (targetClosing == null) targetClosing = round2(ratio * salesBasis);
@@ -1023,7 +1067,12 @@
   function getDeductionAccrual(customer, feeType, period) {
     var ruleId = buildKey([customer, feeType]);
     var overrideRow = readOverrides(STORAGE_KEYS.fixedRules)[ruleId] || null;
-    return computeDeductionAccrual(customer, feeType, period, hasFixedMetricOverride(overrideRow));
+    return computeDeductionAccrual(
+      customer,
+      feeType,
+      period,
+      hasFixedMetricOverride(overrideRow) || isIncomeConfirmed(customer, period)
+    );
   }
 
   function computeDeductionAccrual(customer, feeType, period, forceRuleFormula) {
@@ -1035,7 +1084,7 @@
     var baseAmount = numericOrNull(overrideRow.baseAmount);
     if (baseAmount == null) baseAmount = numericOrNull(baseRow.baseAmount);
     if (baseAmount == null) baseAmount = 0;
-    var income = getIncome(customer, period);
+    var income = getEffectiveSalesIncome(customer, period);
     var excelAmount = getBaseAccrualAmount(customer, feeType, period);
     var ledgerBase = deductionLedgerBaseMap[buildKey([feeType, customer, period])];
 
@@ -1080,7 +1129,7 @@
       var salesRule = fixedRuleBaseMap[buildKey([customer, '销售折扣'])] ? getFixedRule(buildKey([customer, '销售折扣'])) : null;
       var cashRule = fixedRuleBaseMap[buildKey([customer, '现金折扣'])] ? getFixedRule(buildKey([customer, '现金折扣'])) : null;
       var expenseRule = fixedRuleBaseMap[buildKey([customer, '销售费用'])] ? getFixedRule(buildKey([customer, '销售费用'])) : null;
-      var income = round2(getIncome(customer, period));
+      var income = round2(getEffectiveSalesIncome(customer, period));
       var promoAccrual = computeDeductionAccrual(customer, '促销扣款', period, true);
       var salesAccrual = computeDeductionAccrual(customer, '销售折扣', period, true);
       var cashAccrual = computeDeductionAccrual(customer, '现金折扣', period, true);
@@ -1165,6 +1214,7 @@
   function getRefunds() {
     var actualOverrides = readOverrides(STORAGE_KEYS.refundActuals);
     var ruleOverrides = readOverrides(STORAGE_KEYS.refundRules);
+    var incomeOverrides = readOverrides(STORAGE_KEYS.refundIncome);
     var rowsByCustomer = {};
     var rollingPeriods = getRollingRefundPeriods(getRefundAnchorPeriod());
 
@@ -1193,6 +1243,8 @@
         var baseLedger = refundLedgerBaseMap[id] || {};
         var hasBaseLedger = Object.keys(baseLedger).length > 0;
         var actualOverride = actualOverrides[id] || {};
+        var incomeOverride = incomeOverrides[id] || {};
+        var incomeConfirmed = incomeOverride.status === 'confirmed' && incomeOverride.confirmedAmount != null;
         var isProjected = !hasBaseLedger && !hasValue(actualOverride.actualAmount);
         var ruleOverride = ruleOverrides[id] || {};
         var rule = getRefundRule(id);
@@ -1212,7 +1264,7 @@
         var targetClosing;
         var accrualAmount;
         var closingBalance;
-        var affectsCalc = hasPriorDelta || hasValue(actualOverride.actualAmount) || hasRefundMetricOverride(ruleOverride) || isProjected || windowInherited;
+        var affectsCalc = hasPriorDelta || hasValue(actualOverride.actualAmount) || hasRefundMetricOverride(ruleOverride) || isProjected || windowInherited || incomeConfirmed;
         var needsRecalcOpening = hasPriorDelta || hasRefundMetricOverride(ruleOverride) || isProjected || windowInherited;
 
         if (!affectsCalc && hasBaseLedger) {
@@ -1250,11 +1302,15 @@
           windowMonths: rule.windowMonths,
           salesBasis: rule.salesBasis,
           targetClosing: targetClosing,
-          salesIncome: getRefundSalesIncome(customer, period),
+          salesIncome: getEffectiveSalesIncome(customer, period),
+          systemSalesIncome: getSystemSalesIncome(customer, period),
+          incomeStatus: incomeConfirmed ? INCOME_STATUS_CONFIRMED : INCOME_STATUS_UNCONFIRMED,
+          incomeSource: incomeConfirmed ? (incomeOverride.source || 'confirm') : '',
+          periodClosed: isPeriodClosed(period),
           isProjected: isProjected,
           note: actualOverride.note || '',
           actualSource: hasValue(actualOverride.actualAmount) ? '手工录入' : (isProjected ? '规则测算' : '系统基线'),
-          updatedAt: actualOverride.updatedAt || (isProjected ? '规则测算' : '系统基线'),
+          updatedAt: [actualOverride.updatedAt, incomeOverride.updatedAt].filter(Boolean).sort().slice(-1)[0] || (isProjected ? '规则测算' : '系统基线'),
           excelAccrual: round2(baseLedger.excelAccrual || 0),
           excelClosing: round2(baseLedger.closingBalance || 0)
         });
@@ -1309,11 +1365,12 @@
         var hasBaseLedger = Object.keys(baseLedger).length > 0;
         var actualOverride = actualOverrides[id] || {};
         var isProjected = !hasBaseLedger && !hasValue(actualOverride.actualAmount);
+        var incomeConfirmed = isIncomeConfirmed(customer, period);
         var openingBalance;
         var actualDeduction;
         var accrualDeduction;
         var closingBalance;
-        var affectsCalc = hasPriorDelta || hasValue(actualOverride.actualAmount) || isProjected;
+        var affectsCalc = hasPriorDelta || hasValue(actualOverride.actualAmount) || isProjected || incomeConfirmed;
         var needsRecalcOpening = hasPriorDelta || isProjected;
         var rule = fixedRuleBaseMap[buildKey([customer, feeType])] ? getFixedRule(buildKey([customer, feeType])) : null;
         var ruleDeptItems = rule ? (rule.deptItems || []) : [];
@@ -1354,7 +1411,9 @@
           updatedAt: actualOverride.updatedAt || (isProjected ? '规则测算' : '系统基线'),
           isProjected: isProjected,
           actualSource: hasValue(actualOverride.actualAmount) ? '手工录入' : (isProjected ? '规则测算' : '系统基线'),
-          income: round2(getIncome(customer, period)),
+          income: round2(getEffectiveSalesIncome(customer, period)),
+          systemSalesIncome: getSystemSalesIncome(customer, period),
+          incomeStatus: getIncomeStatus(customer, period),
           orderAmountExTax: round2(getSalesOrderAmountExTax(customer, period)),
           ruleRatio: rule ? Number(rule.ratio || 0) : 0,
           ruleManualRatio: rule ? Number(rule.manualRatio || rule.ratio || 0) : 0,
@@ -1488,8 +1547,13 @@
     var id = payload.id || buildKey([payload.customer, payload.period]);
     var overrides = readOverrides(STORAGE_KEYS.refundActuals);
     var baseLedger = refundLedgerBaseMap[id] || {};
-    var actualAmount = numericOrNull(payload.actualAmount);
-    var note = String(payload.note || '');
+    var existing = overrides[id] || {};
+    var hasActualPayload = Object.prototype.hasOwnProperty.call(payload, 'actualAmount');
+    var hasNotePayload = Object.prototype.hasOwnProperty.call(payload, 'note');
+    var actualAmount = hasActualPayload ? numericOrNull(payload.actualAmount) : (
+      hasValue(existing.actualAmount) ? existing.actualAmount : numericOrNull(baseLedger.actualAmount)
+    );
+    var note = hasNotePayload ? String(payload.note || '') : String(existing.note || '');
     var currency = getDefaultRefundCurrency(payload.customer);
     var baseCurrency = getDefaultRefundCurrency(payload.customer);
 
@@ -1505,6 +1569,53 @@
     }
 
     writeOverrides(STORAGE_KEYS.refundActuals, overrides);
+  }
+
+  function upsertRefundIncome(payload) {
+    var id = payload.id || buildKey([payload.customer, payload.period]);
+    var parsed = parseRefundRuleId(id) || { customer: payload.customer, period: payload.period };
+    if (!parsed.customer || !parsed.period) return { ok: false, reason: 'missing' };
+    if (isPeriodClosed(parsed.period)) return { ok: false, reason: 'closed' };
+
+    var amount = numericOrNull(payload.confirmedAmount);
+    if (amount == null) return { ok: false, reason: 'invalid' };
+
+    var overrides = readOverrides(STORAGE_KEYS.refundIncome);
+    overrides[id] = {
+      confirmedAmount: round2(amount),
+      status: 'confirmed',
+      source: payload.source || 'enter',
+      systemAmountAtConfirm: getSystemSalesIncome(parsed.customer, parsed.period),
+      updatedAt: nowText()
+    };
+    writeOverrides(STORAGE_KEYS.refundIncome, overrides);
+    return { ok: true, id: id };
+  }
+
+  function confirmRefundIncome(id) {
+    var parsed = parseRefundRuleId(id);
+    if (!parsed) return { ok: false, reason: 'missing' };
+    if (isPeriodClosed(parsed.period)) return { ok: false, reason: 'closed' };
+    if (isIncomeConfirmed(parsed.customer, parsed.period)) return { ok: false, reason: 'confirmed' };
+    return upsertRefundIncome({
+      id: id,
+      customer: parsed.customer,
+      period: parsed.period,
+      confirmedAmount: getSystemSalesIncome(parsed.customer, parsed.period),
+      source: 'confirm'
+    });
+  }
+
+  function confirmRefundIncomes(ids) {
+    var results = { ok: 0, skippedConfirmed: 0, skippedClosed: 0, skippedMissing: 0 };
+    (ids || []).forEach(function (id) {
+      var result = confirmRefundIncome(id);
+      if (result.ok) results.ok += 1;
+      else if (result.reason === 'confirmed') results.skippedConfirmed += 1;
+      else if (result.reason === 'closed') results.skippedClosed += 1;
+      else results.skippedMissing += 1;
+    });
+    return results;
   }
 
   function resetRefundActual(id) {
@@ -1569,6 +1680,10 @@
     computeDeptFixedAccrual: computeDeptFixedAccrual,
     buildDeptRatioRows: buildDeptRatioRows,
     getRefundSalesIncome: getRefundSalesIncome,
+    getSystemSalesIncome: getSystemSalesIncome,
+    getEffectiveSalesIncome: getEffectiveSalesIncome,
+    getIncomeStatus: getIncomeStatus,
+    isIncomeConfirmed: isIncomeConfirmed,
     getBaseAccrualAmount: getBaseAccrualAmount,
     computeDeductionAccrual: computeDeductionAccrual,
     getCustomerDeductionRateMatrix: getCustomerDeductionRateMatrix,
@@ -1581,6 +1696,9 @@
     upsertRefundRule: upsertRefundRule,
     resetRefundRule: resetRefundRule,
     upsertRefundActual: upsertRefundActual,
+    upsertRefundIncome: upsertRefundIncome,
+    confirmRefundIncome: confirmRefundIncome,
+    confirmRefundIncomes: confirmRefundIncomes,
     resetRefundActual: resetRefundActual,
     upsertDeductionActual: upsertDeductionActual,
     resetDeductionActual: resetDeductionActual,
