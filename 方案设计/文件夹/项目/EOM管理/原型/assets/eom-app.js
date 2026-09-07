@@ -16,7 +16,8 @@
     ledgerOpen: {},
     noticeRole: 'sales',
     noticeFilter: 'all',
-    noticeOvFilter: 'all'
+    noticeOvFilter: 'all',
+    skuPlan: {}
   };
 
   var MAT_STATUS = { 1: ['核料中', 'orange'], 2: ['核料失败', 'red'], 3: ['草稿', 'blue'], 4: ['定版', 'green'] };
@@ -1434,26 +1435,30 @@
   function orderOps(o) {
     return '<a data-act="open-order" data-no="' + o.no + '">查看</a>';
   }
+  function detailOpBtn(label, attrs, cls) {
+    return '<button type="button" class="btn' + (cls ? ' ' + cls : '') + '" ' + attrs + '>' + label + '</button>';
+  }
   function orderDetailOps(o) {
-    if (isReverseLocked(o)) return '<a data-act="open-logs" data-no="' + o.no + '">日志</a>';
+    if (isReverseLocked(o)) return detailOpBtn('日志', 'data-act="open-logs" data-no="' + o.no + '"');
     var html = '';
-    if (o.stage === '草稿' && o.userId === STATE.currentUser.id) html += '<a data-act="open-create" data-edit="' + o.no + '">编辑</a>';
-    if (canShowMaterialConfirm(o)) html += '<a data-act="material-confirm" data-no="' + o.no + '">确认</a>';
+    if (o.stage === '草稿' && o.userId === STATE.currentUser.id) html += detailOpBtn('编辑', 'data-act="open-create" data-edit="' + o.no + '"');
+    if (canShowMaterialConfirm(o)) html += detailOpBtn('确认', 'data-act="material-confirm" data-no="' + o.no + '"', 'btn-primary');
     if (o.stage === '待方案决策') {
-      if (isGtmOf(o) && !ensureSchemeSign(o).gtm) html += '<a data-act="scheme-sign" data-no="' + o.no + '" data-role="gtm">GTM确认</a>';
-      if (pendingPlanSkus(o).length) html += '<a data-act="scheme-sign" data-no="' + o.no + '" data-role="plan">' + (isPlanLeader() ? '计划确认全部SKU' : '计划确认') + '</a>';
+      if (isGtmOf(o) && !ensureSchemeSign(o).gtm) html += detailOpBtn('GTM确认整单', 'data-act="scheme-sign" data-no="' + o.no + '" data-role="gtm"', 'btn-primary');
+      if (pendingPlanSkus(o).length) html += detailOpBtn(isPlanLeader() ? '计划确认全部SKU' : '计划确认', 'data-act="scheme-sign" data-no="' + o.no + '" data-role="plan"', 'btn-primary');
     }
-    if (o.stage === '核料中' || o.stage === '待方案决策') html += '<a data-act="ingest-forecast" data-no="' + o.no + '">模拟Forecast入库</a>';
-    if (canCloseOrder(o) && o.userId === STATE.currentUser.id) html += '<a data-act="close-order" data-no="' + o.no + '">关闭</a>';
-    if (canStartReverse(o)) html += '<a data-act="open-reverse" data-no="' + o.no + '">反EOM</a>';
-    if (o.stage === '已关闭' && o.userId === STATE.currentUser.id) html += '<a data-act="reopen" data-no="' + o.no + '">重新发起</a>';
+    if (o.stage === '核料中' || o.stage === '待方案决策') html += detailOpBtn('模拟Forecast入库', 'data-act="ingest-forecast" data-no="' + o.no + '"');
+    if (isFormalEom(o) && isGtmOf(o) && UI.planRevise !== o.no) html += detailOpBtn('新增方案版本', 'data-act="new-plan" data-no="' + o.no + '"', 'btn-primary');
+    if (canCloseOrder(o) && o.userId === STATE.currentUser.id) html += detailOpBtn('关闭', 'data-act="close-order" data-no="' + o.no + '"');
+    if (canStartReverse(o)) html += detailOpBtn('反EOM', 'data-act="open-reverse" data-no="' + o.no + '"');
+    if (o.stage === '已关闭' && o.userId === STATE.currentUser.id) html += detailOpBtn('重新发起', 'data-act="reopen" data-no="' + o.no + '"', 'btn-primary');
     var openTask = (o.tasks || []).find(isOpenProcessTask);
     if (openTask) {
       var opLabel = (openTask.kind === 'material' || openTask.kind === 'material-pmc') ? '去核料确认'
         : (openTask.kind === 'plan' ? '去清库方案' : '查看');
-      html += '<a data-act="handle-task" data-no="' + o.no + '" data-tid="' + openTask.id + '">' + opLabel + '</a>';
+      html += detailOpBtn(opLabel, 'data-act="handle-task" data-no="' + o.no + '" data-tid="' + openTask.id + '"');
     }
-    html += '<a data-act="open-logs" data-no="' + o.no + '">日志</a>';
+    html += detailOpBtn('日志', 'data-act="open-logs" data-no="' + o.no + '"');
     return html;
   }
 
@@ -2006,7 +2011,6 @@
   }
   function renderSchemePanel(o, m) {
     var inDecision = o.stage === '待方案决策';
-    var afterFormal = isFormalEom(o);
     var canEdit = canEditPlanFields(o);
     var plan = canEdit ? ensureOrderPlan(o) : ensurePlanLines(o, currentPlan(o) || { version: o.planVersion || '-', status: '-', reason: '', files: [], lines: {}, lbQty: 0, scrapFg: 0, scrapMat: 0 });
     var pgs = inDecision ? schemeProgress(o) : null;
@@ -2041,16 +2045,10 @@
     if (inDecision) {
       var pills = '<span class="sign-pill' + (pgs.gtm ? ' ok' : '') + '">GTM ' + (pgs.gtm ? '已确认' : '未确认') + '</span>' +
         '<span class="sign-pill' + (pgs.planDone === pgs.planTotal && pgs.planTotal ? ' ok' : '') + '">计划 ' + pgs.planDone + '/' + pgs.planTotal + ' SKU</span>';
-      var btns = '';
-      if (isGtmOf(o) && !ensureSchemeSign(o).gtm) btns += '<button class="btn btn-primary" data-act="scheme-sign" data-no="' + o.no + '" data-role="gtm">GTM确认整单</button> ';
-      signHtml = '<div class="alert">表体与核料同一套 Model / SKU / MSKU。核料列只读。发起人填清库方式、Last Buy 数量、报废和方案结论；Last Buy 计划时间等写在附件里。不维护 Last Buy 金额。保存须有 EOM 方案。点「GTM确认整单」须再传 GTM确认方案并二次校验。有问题由发起人改当前方案，不设驳回；改数清空确认。报废超金额仅提示，不挡确认。</div>' +
-        '<div class="sign-row">' + pills + '</div>' + (btns ? '<div class="toolbar">' + btns + '</div>' : '');
+      signHtml = '<div class="alert">表体与核料同一套 Model / SKU / MSKU。核料列只读。发起人填清库方式、Last Buy 数量、报废和方案结论；Last Buy 计划时间等写在附件里。不维护 Last Buy 金额。保存须有 EOM 方案。顶部「GTM确认整单」须再传 GTM确认方案并二次校验。有问题由发起人改当前方案，不设驳回；改数清空确认。报废超金额仅提示，不挡确认。</div>' +
+        '<div class="sign-row">' + pills + '</div>';
     }
     var scrapHint = scrapHintHtml(plan);
-    var bar = '<div class="toolbar">';
-    if (afterFormal && isGtmOf(o) && UI.planRevise !== o.no) bar += '<button class="btn btn-primary" data-act="new-plan" data-no="' + o.no + '">新增方案版本</button> ';
-    if (canCloseOrder(o) && o.userId === STATE.currentUser.id) bar += '<button class="btn" data-act="close-order" data-no="' + o.no + '">关闭</button> ';
-    bar += '</div>';
     var table = m ? renderSchemeTable(o, m, plan, canEdit) : '<div class="alert warning">尚未关联核料单，无法展示 Model / SKU / MSKU。<button class="btn btn-primary" data-act="create-material-for" data-no="' + o.no + '">创建核料单</button></div>';
     var hist = (o.plans || []).map(function (p) {
       var names = (p.files || []).map(function (f) { return f.name; }).join('、') || '-';
@@ -2072,7 +2070,7 @@
     var fcWarn = (!fc.approved || fc.missing)
       ? '<div class="alert warning">当前预测未刷新或为空。保存方案时会强提示，不硬拦。Last Buy 默认仍带核料最终下单数量。</div>'
       : '';
-    return fcWarn + bar + signHtml + scrapHint + head + reasonRow +
+    return fcWarn + signHtml + scrapHint + head + reasonRow +
       '<div class="section-title">方案附件<span class="muted">　每份选择类型；Last Buy 计划时间、处理说明、费用归属、预计 EOL 写在文件里</span></div>' +
       '<div class="plan-file-grid">' + filesHtml + '</div>' +
       table + footer +
@@ -3271,7 +3269,203 @@
     var type = (document.querySelector('input[name=eomType]:checked') || {}).value || '主动退市';
     var list = type === '主动退市' ? ACTIVE : PASSIVE;
     document.getElementById('reason').innerHTML = list.map(function (x) { return '<option>' + x + '</option>'; }).join('');
-    document.querySelectorAll('.new-only,#newFlagItem').forEach(function (el) { el.style.display = type === '被动退市' ? 'none' : ''; });
+    refreshSkuPlanDisabled();
+  }
+  function wizardType() {
+    return (document.querySelector('input[name=eomType]:checked') || {}).value || '主动退市';
+  }
+  function isPassiveEom() {
+    return wizardType() === '被动退市';
+  }
+  function emptySkuPlan() {
+    return { eol: '', newFlag: '', newSku: '', newCr: '', newList: '' };
+  }
+  function planOfSku(sku) {
+    if (!UI.skuPlan) UI.skuPlan = {};
+    if (!UI.skuPlan[sku]) UI.skuPlan[sku] = emptySkuPlan();
+    var p = UI.skuPlan[sku];
+    if (isPassiveEom()) {
+      p.newFlag = '否';
+      p.newSku = '';
+      p.newCr = '';
+      p.newList = '';
+    }
+    return p;
+  }
+  function captureSkuPlanFromDom() {
+    if (!UI.skuPlan) UI.skuPlan = {};
+    document.querySelectorAll('#skuSelectBody tr').forEach(function (tr) {
+      var sku = tr.getAttribute('data-sku');
+      if (!sku) return;
+      UI.skuPlan[sku] = {
+        eol: ((tr.querySelector('.sku-eol') || {}).value || '').trim(),
+        newFlag: ((tr.querySelector('.sku-new-flag') || {}).value || '').trim(),
+        newSku: ((tr.querySelector('.sku-new-sku') || {}).value || '').trim(),
+        newCr: ((tr.querySelector('.sku-new-cr') || {}).value || '').trim(),
+        newList: ((tr.querySelector('.sku-new-list') || {}).value || '').trim()
+      };
+      if (isPassiveEom()) {
+        UI.skuPlan[sku].newFlag = '否';
+        UI.skuPlan[sku].newSku = '';
+        UI.skuPlan[sku].newCr = '';
+        UI.skuPlan[sku].newList = '';
+      } else if (UI.skuPlan[sku].newFlag === '否') {
+        UI.skuPlan[sku].newSku = '';
+        UI.skuPlan[sku].newCr = '';
+        UI.skuPlan[sku].newList = '';
+      }
+    });
+  }
+  function applySkuPlanPatch(sku, patch) {
+    var p = planOfSku(sku);
+    if (patch.eol) p.eol = patch.eol;
+    if (isPassiveEom()) {
+      p.newFlag = '否';
+      p.newSku = '';
+      p.newCr = '';
+      p.newList = '';
+      return p;
+    }
+    if (patch.newFlag) {
+      p.newFlag = patch.newFlag;
+      if (p.newFlag === '否') {
+        p.newSku = '';
+        p.newCr = '';
+        p.newList = '';
+      }
+    }
+    if (p.newFlag !== '否') {
+      if (patch.newSku) p.newSku = patch.newSku;
+      if (patch.newCr) p.newCr = patch.newCr;
+      if (patch.newList) p.newList = patch.newList;
+    }
+    return p;
+  }
+  function paintSkuPlanRows(sku) {
+    var p = planOfSku(sku);
+    document.querySelectorAll('#skuSelectBody tr').forEach(function (tr) {
+      if (tr.getAttribute('data-sku') !== sku) return;
+      var eol = tr.querySelector('.sku-eol');
+      var flag = tr.querySelector('.sku-new-flag');
+      var newSku = tr.querySelector('.sku-new-sku');
+      var cr = tr.querySelector('.sku-new-cr');
+      var list = tr.querySelector('.sku-new-list');
+      if (eol) eol.value = p.eol || '';
+      if (flag) flag.value = p.newFlag || '';
+      if (newSku) newSku.value = p.newSku || '';
+      if (cr) cr.value = p.newCr || '';
+      if (list) list.value = p.newList || '';
+    });
+    refreshSkuPlanDisabled();
+  }
+  function refreshSkuPlanDisabled() {
+    var passive = isPassiveEom();
+    document.querySelectorAll('#skuSelectBody tr').forEach(function (tr) {
+      var ck = tr.querySelector('.sku-check');
+      var selected = !!(ck && ck.checked && !ck.disabled);
+      var flag = (tr.querySelector('.sku-new-flag') || {}).value || '';
+      var eolOff = !selected;
+      var flagOff = !selected || passive;
+      var newOff = !selected || passive || flag !== '是';
+      [['.sku-eol', eolOff], ['.sku-new-flag', flagOff], ['.sku-new-sku', newOff], ['.sku-new-cr', newOff], ['.sku-new-list', newOff]].forEach(function (pair) {
+        var el = tr.querySelector(pair[0]);
+        if (el) el.disabled = pair[1];
+      });
+    });
+  }
+  function skuPlanCellsHtml(sku, selected, block) {
+    var p = planOfSku(sku);
+    var off = block || !selected;
+    var passive = isPassiveEom();
+    var flagOff = off || passive;
+    var newOff = off || passive || p.newFlag !== '是';
+    return '<td><input class="input sku-plan-date sku-eol" type="date" value="' + esc(p.eol || '') + '"' + (off ? ' disabled' : '') + ' /></td>' +
+      '<td><select class="select sku-plan-flag sku-new-flag"' + (flagOff ? ' disabled' : '') + '>' +
+        '<option value=""' + (!p.newFlag ? ' selected' : '') + '>请选择</option>' +
+        '<option value="是"' + (p.newFlag === '是' ? ' selected' : '') + '>是</option>' +
+        '<option value="否"' + (p.newFlag === '否' ? ' selected' : '') + '>否</option>' +
+      '</select></td>' +
+      '<td><input class="input sku-plan-sku sku-new-sku" value="' + esc(p.newSku || '') + '" placeholder="8位SKU"' + (newOff ? ' disabled' : '') + ' /></td>' +
+      '<td><input class="input sku-plan-date sku-new-cr" type="date" value="' + esc(p.newCr || '') + '"' + (newOff ? ' disabled' : '') + ' /></td>' +
+      '<td><input class="input sku-plan-date sku-new-list" type="date" value="' + esc(p.newList || '') + '"' + (newOff ? ' disabled' : '') + ' /></td>';
+  }
+  function bindSkuPlanInputs() {
+    document.querySelectorAll('#skuSelectBody tr').forEach(function (tr) {
+      var sku = tr.getAttribute('data-sku');
+      tr.querySelectorAll('.sku-eol,.sku-new-flag,.sku-new-sku,.sku-new-cr,.sku-new-list').forEach(function (el) {
+        el.onchange = function () {
+          var patch = {
+            eol: ((tr.querySelector('.sku-eol') || {}).value || '').trim(),
+            newFlag: ((tr.querySelector('.sku-new-flag') || {}).value || '').trim(),
+            newSku: ((tr.querySelector('.sku-new-sku') || {}).value || '').trim(),
+            newCr: ((tr.querySelector('.sku-new-cr') || {}).value || '').trim(),
+            newList: ((tr.querySelector('.sku-new-list') || {}).value || '').trim()
+          };
+          if (!UI.skuPlan) UI.skuPlan = {};
+          UI.skuPlan[sku] = patch;
+          if (patch.newFlag === '否' || isPassiveEom()) {
+            UI.skuPlan[sku].newSku = '';
+            UI.skuPlan[sku].newCr = '';
+            UI.skuPlan[sku].newList = '';
+            if (isPassiveEom()) UI.skuPlan[sku].newFlag = '否';
+          }
+          paintSkuPlanRows(sku);
+        };
+      });
+    });
+  }
+  function openSkuPlanBatch() {
+    var n = document.querySelectorAll('#skuSelectBody .sku-check:checked').length;
+    if (!n) { toast('请先勾选要填写的行', 'warning'); return; }
+    var body;
+    if (isPassiveEom()) {
+      body = '<div class="alert">被动退市新品衔接 4 列只读，本弹层只能填预计 EOL。空着的项不覆盖原行。</div>' +
+        '<div class="form-grid"><div class="form-item"><label class="form-label">预计EOL时间</label><div class="form-control"><input class="input" id="batchEol" type="date" /></div></div></div>';
+    } else {
+      body = '<div class="alert">只覆盖已填项，空着的不改原行。同一 8 位 SKU 多行会一起改。填「是否新品迭代 = 否」时清空该 SKU 的新品三列。</div>' +
+        '<div class="form-grid">' +
+          '<div class="form-item"><label class="form-label">预计EOL时间</label><div class="form-control"><input class="input" id="batchEol" type="date" /></div></div>' +
+          '<div class="form-item"><label class="form-label">是否新品迭代</label><div class="form-control"><select class="select" id="batchNewFlag"><option value="">不修改</option><option value="是">是</option><option value="否">否</option></select></div></div>' +
+          '<div class="form-item"><label class="form-label">迭代新品SKU</label><div class="form-control"><input class="input" id="batchNewSku" placeholder="空则不改" /></div></div>' +
+          '<div class="form-item"><label class="form-label">新品预计CR时间</label><div class="form-control"><input class="input" id="batchNewCr" type="date" /></div></div>' +
+          '<div class="form-item"><label class="form-label">新品上市时间</label><div class="form-control"><input class="input" id="batchNewList" type="date" /></div></div>' +
+        '</div>';
+    }
+    openForm('批量填写（已勾选 ' + n + ' 行）', body,
+      '<button class="btn" data-act="close-mask" data-mask="formMask">取消</button><button class="btn btn-primary" data-act="apply-sku-plan-batch">应用到已勾选行</button>');
+  }
+  function applySkuPlanBatch() {
+    var patch = {
+      eol: ((document.getElementById('batchEol') || {}).value || '').trim(),
+      newFlag: ((document.getElementById('batchNewFlag') || {}).value || '').trim(),
+      newSku: ((document.getElementById('batchNewSku') || {}).value || '').trim(),
+      newCr: ((document.getElementById('batchNewCr') || {}).value || '').trim(),
+      newList: ((document.getElementById('batchNewList') || {}).value || '').trim()
+    };
+    if (isPassiveEom()) {
+      patch.newFlag = '';
+      patch.newSku = '';
+      patch.newCr = '';
+      patch.newList = '';
+    }
+    if (!patch.eol && !patch.newFlag && !patch.newSku && !patch.newCr && !patch.newList) {
+      toast('请至少填写一项', 'warning');
+      return;
+    }
+    var skus = [];
+    document.querySelectorAll('#skuSelectBody tr').forEach(function (tr) {
+      var ck = tr.querySelector('.sku-check');
+      if (!ck || !ck.checked || ck.disabled) return;
+      var sku = tr.getAttribute('data-sku');
+      if (sku && skus.indexOf(sku) < 0) skus.push(sku);
+    });
+    if (!skus.length) { toast('请先勾选要填写的行', 'warning'); return; }
+    skus.forEach(function (sku) {
+      applySkuPlanPatch(sku, patch);
+      paintSkuPlanRows(sku);
+    });
+    closeMask('formMask');
+    toast('已覆盖 ' + skus.length + ' 个 8 位 SKU 的已填项', 'success');
   }
   function renderWizardSteps() {
     var names = ['退市类型', '产品范围', '退市计划', '责任人', '提交确认'];
@@ -3286,6 +3480,7 @@
     document.getElementById('saveDraft').style.display = UI.wizardStep === 5 ? 'none' : 'inline-block';
     if (UI.wizardStep === 4) fillOwnerStep();
     if (UI.wizardStep === 5) renderSubmitChecks();
+    if (UI.wizardStep === 2) refreshSkuPlanDisabled();
   }
   function selectedOptionTexts(id) {
     var el = document.getElementById(id);
@@ -3360,18 +3555,23 @@
     }).join('');
   }
   function renderSkuPickerRows(list, msg) {
+    captureSkuPlanFromDom();
     document.getElementById('skuSelectBody').innerHTML = (list || []).map(function (row, i) {
       var c = row.cat, s = row.sku;
       var block = s.inProgress || s.status === 'EOL';
+      var selected = !block;
       return '<tr class="' + (s.inProgress ? 'danger-row' : (s.status === '未上市' && !s.sales ? 'warn-row' : '')) + '" data-model="' + esc(c.model) + '" data-sku="' + esc(s.sku) + '" data-msku="' + esc(s.msku) + '">' +
         '<td><input class="sku-check" type="checkbox" data-i="' + i + '" ' + (block ? 'disabled' : 'checked') + ' /></td>' +
         '<td>' + esc(c.scene) + '</td><td>' + esc(c.cat) + '</td><td>' + esc(c.model) + '</td><td>' + esc(s.sku) + '</td><td>' + esc(s.msku) + '</td>' +
         '<td>' + esc(s.status) + '</td><td>' + num(skuInStock(s)) + '</td><td>' + num(skuTotalStock(s)) + '</td><td>' + num(s.sales) + '</td>' +
         '<td>' + esc(s.onMarketDate) + '</td><td>' + esc(s.country) + '</td>' +
         '<td>' + (s.inProgress ? '是' : '否') + '</td>' +
-        '<td><input class="input w-180 exclusion" ' + (block ? '' : 'disabled') + ' placeholder="' + (block ? '不可纳入' : '勾选后无需填写') + '" value="' + (s.inProgress ? '已存在进行中EOM' : (s.status === 'EOL' ? '已EOL' : '')) + '" /></td></tr>';
+        '<td><input class="input w-180 exclusion" ' + (block ? '' : 'disabled') + ' placeholder="' + (block ? '不可纳入' : '勾选后无需填写') + '" value="' + (s.inProgress ? '已存在进行中EOM' : (s.status === 'EOL' ? '已EOL' : '')) + '" /></td>' +
+        skuPlanCellsHtml(s.sku, selected, block) + '</tr>';
     }).join('');
     bindSkuChecks();
+    bindSkuPlanInputs();
+    refreshSkuPlanDisabled();
     updateSkuCount();
     if (msg) toast(msg, list && list.length ? 'success' : 'warning');
   }
@@ -3428,22 +3628,25 @@
     toast(n ? ('已导入并勾选 ' + n + ' 个 SKU') : '导入的 SKU 均不可纳入（进行中 EOM 或已 EOL）', n ? 'success' : 'warning');
   }
   function bindSkuChecks() {
-    document.querySelectorAll('.sku-check').forEach(function (c) {
+    document.querySelectorAll('#skuSelectBody .sku-check').forEach(function (c) {
       c.onchange = function () {
         var input = this.closest('tr').querySelector('.exclusion');
         input.disabled = this.checked;
         input.placeholder = this.checked ? '勾选后无需填写' : '请输入排除原因';
+        refreshSkuPlanDisabled();
         updateSkuCount();
       };
     });
   }
-  function updateSkuCount() { document.getElementById('selectedSkuCount').textContent = document.querySelectorAll('.sku-check:checked').length; }
+  function updateSkuCount() { document.getElementById('selectedSkuCount').textContent = document.querySelectorAll('#skuSelectBody .sku-check:checked').length; }
   function wizardRows() {
+    captureSkuPlanFromDom();
     return Array.prototype.map.call(document.querySelectorAll('#skuSelectBody tr'), function (tr) {
       var hit = findCatalogSku(tr.getAttribute('data-model'), tr.getAttribute('data-sku'));
       if (!hit) return null;
       var ck = tr.querySelector('.sku-check');
-      return { sku: hit.sku, cat: hit.cat, selected: ck.checked, exclude: tr.querySelector('.exclusion').value.trim() };
+      var plan = planOfSku(hit.sku.sku);
+      return { sku: hit.sku, cat: hit.cat, selected: ck.checked, exclude: tr.querySelector('.exclusion').value.trim(), plan: plan };
     }).filter(Boolean);
   }
   function validateWizard() {
@@ -3486,7 +3689,12 @@
       [selected.length > 0, 'SKU范围完整', selected.length ? ('已选择 ' + selected.length + ' 个') : '未选择'],
       [!selected.some(function (r) { return r.sku.inProgress; }), '无重复工单', blocks.filter(function (x) { return x.indexOf('进行中') >= 0; }).join('；') || '未发现进行中的EOM'],
       [!selected.some(function (r) { return r.sku.status === 'EOL'; }), '产品状态可发起', blocks.filter(function (x) { return x.indexOf('EOL') >= 0; }).join('；') || '状态校验通过'],
-      [true, '预计EOL / 新品衔接', document.getElementById('planEol').value ? ('预计EOL ' + document.getElementById('planEol').value) : '选填，过程中可在台账调整'],
+      [true, '预计EOL / 新品衔接', (function () {
+        var eols = uniqueVals(selected.map(function (r) { return (r.plan && r.plan.eol) || ''; }).filter(Boolean));
+        var news = uniqueVals(selected.map(function (r) { return r.sku.sku; })).filter(function (sku) { return (planOfSku(sku).newFlag === '是'); }).length;
+        var n = uniqueVals(selected.map(function (r) { return r.sku.sku; })).length;
+        return '8位SKU ' + n + ' 个；已填预计EOL ' + eols.length + ' 个' + (isPassiveEom() ? '；被动退市新品衔接只读' : ('；新品迭代 ' + news + ' 个')) + '。选填，后续可在台账补。';
+      })()],
       [true, '销售专员', ((document.getElementById('rSales') || {}).value || '—')],
       [true, 'GTM', '发起人 ' + ((document.getElementById('rGtm') || {}).value || '') + (selectedOptionTexts('rGtmExtra').length ? '；其他仅通知 ' + selectedOptionTexts('rGtmExtra').join('、') : '（可加其他人仅通知）')],
       [true, '通知对象', '需求计划 / PMC / 采购已选，仅通知可查看'],
@@ -3523,17 +3731,17 @@
     var order = {
       sceneKey: 'NEW', sceneLabel: submit ? '新提交工单' : '新草稿',
       no: no, type: type, bu: document.getElementById('businessUnit').value, triggerNode: '-',
-      reason: document.getElementById('reason').value, remark: document.getElementById('createRemark').value,
+      reason: document.getElementById('reason').value, remark: document.getElementById('createRemark').value, planRemark: ((document.getElementById('planRemark') || {}).value || ''),
       user: STATE.currentUser.name, userId: STATE.currentUser.id, gtm: (document.getElementById('rGtm') || {}).value || STATE.currentUser.name, gtmExtra: extraGtm,
       stage: submit ? '核料中' : '草稿', legacyStatus: submit ? 2 : 1,
       owner: submit ? (demand || planUser || '比杰') : STATE.currentUser.name,
-      time: nowStr(), confirmTime: '-', eol: document.getElementById('planEol').value, actualEol: '',
+      time: nowStr(), confirmTime: '-', eol: uniqueVals(selected.map(function (r) { return (r.plan && r.plan.eol) || ''; }).filter(Boolean)).join(' / ') || '', actualEol: '',
       stock: 0, materialClose: 0, planVersion: '-', fileName: (document.getElementById('planFileName').textContent || ''),
       materialNo: hl, planUsers: planUser, cc: cc, draftNotified: !submit && notify,
       exception: submit ? '数据异常' : '', model: models.join('、'), skuCount: selected.length, scope: models.join('、') + ' / ' + selected.length,
       products: products,
       skus: selected.map(function (r) {
-        return { model: r.cat.model, sku: r.sku.sku, scene: r.cat.scene, cat: r.cat.cat, country: r.sku.country, originStatus: r.sku.status, status: submit ? '准备EOM' : r.sku.status, onMarketDate: r.sku.onMarketDate, daysOn: 0, type: type, newFlag: type === '被动退市' ? '否' : (document.querySelector('input[name=newFlag]:checked') || {}).value, newSku: document.getElementById('newSku').value, newCr: document.getElementById('newCr').value, newList: document.getElementById('newList').value, startTime: submit ? nowStr() : '', eol: document.getElementById('planEol').value, eomDays: 0, lbPlan: '-', lbOrder: '-', lbDone: '-', lbQty: 0, lbStatus: '未发起', lbBaseStock: 0, inStock: skuInStock(r.sku), totalStock: skuTotalStock(r.sku), stock: skuTotalStock(r.sku), stale: 0, staleRate: '0%', specialAmt: 0, commonAmt: 0, specialQty: 0, m3: r.sku.sales || 0, m2: 0, m1: 0, forecast: 0, eolForecast: 0, dos: 20, clearPct: 0, plan: '-', channels: [], lbDetail: '', stockSplit: '', materialSplit: '', mskus: r.sku.msku ? [makeMskuRow({ msku: r.sku.msku, shop: r.sku.shop, stock: skuTotalStock(r.sku), m1: r.sku.sales || 0, dos: 20 }, r.sku.sku)] : [] };
+        return { model: r.cat.model, sku: r.sku.sku, scene: r.cat.scene, cat: r.cat.cat, country: r.sku.country, originStatus: r.sku.status, status: submit ? '准备EOM' : r.sku.status, onMarketDate: r.sku.onMarketDate, daysOn: 0, type: type, newFlag: type === '被动退市' ? '否' : ((r.plan && r.plan.newFlag) || '否'), newSku: (r.plan && r.plan.newSku) || '', newCr: (r.plan && r.plan.newCr) || '', newList: (r.plan && r.plan.newList) || '', startTime: submit ? nowStr() : '', eol: (r.plan && r.plan.eol) || '', eomDays: 0, lbPlan: '-', lbOrder: '-', lbDone: '-', lbQty: 0, lbStatus: '未发起', lbBaseStock: 0, inStock: skuInStock(r.sku), totalStock: skuTotalStock(r.sku), stock: skuTotalStock(r.sku), stale: 0, staleRate: '0%', specialAmt: 0, commonAmt: 0, specialQty: 0, m3: r.sku.sales || 0, m2: 0, m1: 0, forecast: 0, eolForecast: 0, dos: 20, clearPct: 0, plan: '-', channels: [], lbDetail: '', stockSplit: '', materialSplit: '', mskus: r.sku.msku ? [makeMskuRow({ msku: r.sku.msku, shop: r.sku.shop, stock: skuTotalStock(r.sku), m1: r.sku.sales || 0, dos: 20 }, r.sku.sku)] : [] };
       }),
       timeline: [{ title: submit ? '发起' + type : '保存草稿', meta: STATE.currentUser.name + '　' + nowStr(), content: submit ? 'SKU 进入准备 EOM，工单进入核料中；已抄送相关角色，钉钉提醒销售刷新 Forecast' : (notify ? '已通知抄送人只读' : '未通知抄送人，仅发起人可编辑'), done: true }],
       tasks: submit ? [
@@ -3672,6 +3880,8 @@
     else if (act === 'search-sku-picker') searchSkuPicker();
     else if (act === 'load-model') searchSkuPicker();
     else if (act === 'import-sku') importSku();
+    else if (act === 'sku-plan-batch') openSkuPlanBatch();
+    else if (act === 'apply-sku-plan-batch') applySkuPlanBatch();
     else if (act === 'edit-ledger') openLedgerEdit(no, t.getAttribute('data-sku'));
     else if (act === 'save-ledger-edit') saveLedgerEdit();
     else if (act === 'toggle-cols') {
@@ -3722,7 +3932,7 @@
     if (e.key === 'Escape') { document.querySelectorAll('.mask').forEach(function (m) { m.classList.remove('show'); }); if (document.getElementById('detailDrawer').classList.contains('show')) closeDrawer(); }
   });
   document.getElementById('checkAllSku').addEventListener('change', function () {
-    document.querySelectorAll('.sku-check').forEach(function (c) {
+    document.querySelectorAll('#skuSelectBody .sku-check').forEach(function (c) {
       if (c.disabled) return;
       c.checked = document.getElementById('checkAllSku').checked;
       c.dispatchEvent(new Event('change'));
@@ -3736,6 +3946,7 @@
 
   function openCreate() {
     UI.wizardStep = 1;
+    UI.skuPlan = {};
     fillReasons();
     fillSkuFilterOptions(false);
     document.getElementById('skuPickModel').value = 'H8888';
