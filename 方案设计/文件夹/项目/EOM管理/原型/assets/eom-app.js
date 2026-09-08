@@ -1381,22 +1381,106 @@
     if (k === 'confirmTime') return esc(o.confirmTime);
     return '-';
   }
+  function uniqSort(arr) {
+    return uniqueVals((arr || []).map(function (x) { return String(x || '').trim(); }).filter(function (x) { return x && x !== '-'; })).sort();
+  }
+  function orderModelList(o) {
+    var list = [];
+    if (o && o.model) list.push(o.model);
+    (o && o.products || []).forEach(function (p) { if (p.model) list.push(p.model); });
+    (o && o.skus || []).forEach(function (s) { if (s.model) list.push(s.model); });
+    return uniqSort(list);
+  }
+  function orderSkuCodes(o) {
+    var list = [];
+    (o && o.products || []).forEach(function (p) { if (p.sku) list.push(p.sku); });
+    (o && o.skus || []).forEach(function (s) { if (s.sku) list.push(s.sku); });
+    return uniqSort(list);
+  }
+  function orderPlanNames(o) {
+    return String(o && o.planUsers || '').split(/[、,，]/).map(function (x) { return x.trim(); }).filter(Boolean);
+  }
+  function dayPart(val) {
+    return String(val || '').slice(0, 10);
+  }
+  function inDayRange(val, start, end) {
+    if (!start && !end) return true;
+    var d = dayPart(val);
+    if (!d || d === '-') return false;
+    if (start && d < start) return false;
+    if (end && d > end) return false;
+    return true;
+  }
+  function filterSelectHtml(id, placeholder, values, selected) {
+    return '<select class="select" id="' + id + '"><option value="">' + placeholder + '</option>' +
+      (values || []).map(function (v) {
+        return '<option value="' + esc(v) + '"' + (selected === v ? ' selected' : '') + '>' + esc(v) + '</option>';
+      }).join('') + '</select>';
+  }
+  function dateRangeHtml(label, startId, endId, startVal, endVal) {
+    return '<div class="date-range">' +
+      '<span class="date-range-label">' + esc(label) + '</span>' +
+      '<input type="date" id="' + startId + '" value="' + esc(startVal) + '" title="' + esc(label) + '-开始" />' +
+      '<span>至</span>' +
+      '<input type="date" id="' + endId + '" value="' + esc(endVal) + '" title="' + esc(label) + '-结束" />' +
+      '</div>';
+  }
+  function collectOrderFilterOptions() {
+    var models = [];
+    var skus = [];
+    var users = [];
+    var planUsers = [];
+    (STATE.orders || []).forEach(function (o) {
+      users.push(o.user);
+      planUsers = planUsers.concat(orderPlanNames(o));
+      models = models.concat(orderModelList(o));
+      skus = skus.concat(orderSkuCodes(o));
+    });
+    (STATE.catalog || []).forEach(function (c) {
+      if (c.model) models.push(c.model);
+      (c.skus || []).forEach(function (s) { if (s.sku) skus.push(s.sku); });
+    });
+    return {
+      users: uniqSort(users),
+      planUsers: uniqSort(planUsers),
+      models: uniqSort(models),
+      skus: uniqSort(skus)
+    };
+  }
   function renderOrders() {
     var qNo = (document.getElementById('qNo') || {}).value || '';
     var qMat = (document.getElementById('qMat') || {}).value || '';
     var qModel = (document.getElementById('qModel') || {}).value || '';
     var qType = (document.getElementById('qType') || {}).value || '';
     var qStage = (document.getElementById('qStage') || {}).value || '';
+    var qUser = (document.getElementById('qUser') || {}).value || '';
+    var qPlanUser = (document.getElementById('qPlanUser') || {}).value || '';
+    var qModelCode = (document.getElementById('qModelCode') || {}).value || '';
+    var qSku = (document.getElementById('qSku') || {}).value || '';
+    var qTimeStart = (document.getElementById('qTimeStart') || {}).value || '';
+    var qTimeEnd = (document.getElementById('qTimeEnd') || {}).value || '';
+    var qConfirmStart = (document.getElementById('qConfirmStart') || {}).value || '';
+    var qConfirmEnd = (document.getElementById('qConfirmEnd') || {}).value || '';
     var vis = orderVisible();
     var colset = {};
     vis.forEach(function (k) { colset[k] = true; });
     var shown = ORDER_COLS.filter(function (c) { return colset[c.k]; });
+    var opts = collectOrderFilterOptions();
     var list = STATE.orders.filter(function (o) {
       if (qNo && o.no.indexOf(qNo) < 0) return false;
       if (qMat && (o.materialNo || '').indexOf(qMat) < 0) return false;
-      if (qModel && (o.scope || '').toLowerCase().indexOf(qModel.toLowerCase()) < 0 && (o.model || '').toLowerCase().indexOf(qModel.toLowerCase()) < 0) return false;
+      if (qModel) {
+        var blob = ((o.scope || '') + ' ' + (o.model || '') + ' ' + orderSkuCodes(o).join(' ')).toLowerCase();
+        if (blob.indexOf(qModel.toLowerCase()) < 0) return false;
+      }
       if (qType && o.type !== qType) return false;
       if (qStage && o.stage !== qStage) return false;
+      if (qUser && o.user !== qUser) return false;
+      if (qPlanUser && orderPlanNames(o).indexOf(qPlanUser) < 0) return false;
+      if (qModelCode && orderModelList(o).indexOf(qModelCode) < 0) return false;
+      if (qSku && orderSkuCodes(o).indexOf(qSku) < 0) return false;
+      if (!inDayRange(o.time, qTimeStart, qTimeEnd)) return false;
+      if (!inDayRange(o.confirmTime, qConfirmStart, qConfirmEnd)) return false;
       return true;
     });
     var span = shown.length + 2;
@@ -1416,8 +1500,14 @@
         '<input class="input" id="qNo" placeholder="EOM流水号" value="' + esc(qNo) + '" />' +
         '<input class="input" id="qMat" placeholder="核料流水号" value="' + esc(qMat) + '" />' +
         '<input class="input" id="qModel" placeholder="Model/SKU" value="' + esc(qModel) + '" />' +
-        '<select class="select" id="qType"><option value="">退市类型</option><option>主动退市</option><option>被动退市</option></select>' +
-        '<select class="select" id="qStage"><option value="">工单阶段</option><option>草稿</option><option>核料中</option><option>待方案决策</option><option>EOM执行</option><option>EOL已闭环</option><option>已关闭</option></select>' +
+        filterSelectHtml('qType', '退市类型', ['主动退市', '被动退市'], qType) +
+        filterSelectHtml('qStage', '工单阶段', ['草稿', '核料中', '待方案决策', 'EOM执行', 'EOL已闭环', '已关闭'], qStage) +
+        filterSelectHtml('qUser', 'EOM发起人', opts.users, qUser) +
+        filterSelectHtml('qPlanUser', '计划确认人员', opts.planUsers, qPlanUser) +
+        filterSelectHtml('qModelCode', 'model', opts.models, qModelCode) +
+        filterSelectHtml('qSku', 'sku', opts.skus, qSku) +
+        dateRangeHtml('发起时间', 'qTimeStart', 'qTimeEnd', qTimeStart, qTimeEnd) +
+        dateRangeHtml('确认时间', 'qConfirmStart', 'qConfirmEnd', qConfirmStart, qConfirmEnd) +
         '<button class="btn btn-primary" data-act="filter-orders">搜索</button>' +
         '<button class="btn" data-act="reset-orders">重置</button>' +
       '</div>' +
@@ -1429,8 +1519,6 @@
         '<th class="col-check"></th>' + shown.map(function (c) { return '<th>' + esc(c.l) + '</th>'; }).join('') + '<th class="col-ops" data-pa-key="order-ops">操作</th>' +
       '</tr></thead><tbody>' + (rows || '<tr><td colspan="' + span + '" class="empty">无数据</td></tr>') + '</tbody></table></div>' +
       '<div class="pager"><span>共 ' + list.length + ' 条</span></div>';
-    if (qType) document.getElementById('qType').value = qType;
-    if (qStage) document.getElementById('qStage').value = qStage;
   }
   function orderOps(o) {
     return '<a data-act="open-order" data-no="' + o.no + '">查看</a>';
@@ -3827,7 +3915,13 @@
     else if (act === 'close-mask') closeMask(t.getAttribute('data-mask'));
     else if (act === 'open-create') { openCreate(); }
     else if (act === 'filter-orders') renderOrders();
-    else if (act === 'reset-orders') { ['qNo', 'qMat', 'qModel', 'qType', 'qStage'].forEach(function (id) { var el = document.getElementById(id); if (el) el.value = ''; }); renderOrders(); }
+    else if (act === 'reset-orders') {
+      ['qNo', 'qMat', 'qModel', 'qType', 'qStage', 'qUser', 'qPlanUser', 'qModelCode', 'qSku', 'qTimeStart', 'qTimeEnd', 'qConfirmStart', 'qConfirmEnd'].forEach(function (id) {
+        var el = document.getElementById(id);
+        if (el) el.value = '';
+      });
+      renderOrders();
+    }
     else if (act === 'filter-mat') renderMaterials();
     else if (act === 'detail-tab') { UI.detailTab = t.getAttribute('data-tab'); renderOrderDetail(); }
     else if (act === 'handle-task') handleTask(no, t.getAttribute('data-tid'));

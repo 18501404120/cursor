@@ -1,0 +1,1126 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="产品研发中台方案框架：模块方案货架、产品方案沉淀、项目前复用决策">
+  <title>产品研发中台 · 方案框架</title>
+  <style>
+    :root {
+      --bg: #f5f7fb;
+      --card: #ffffff;
+      --text: #172033;
+      --muted: #657187;
+      --line: #e2e8f1;
+      --primary: #335cff;
+      --primary-soft: #eef2ff;
+      --green: #087c60;
+      --green-soft: #eaf8f3;
+      --amber: #a96100;
+      --amber-soft: #fff5df;
+      --red: #bd3948;
+      --red-soft: #fff0f2;
+      --navy: #1d2a57;
+      --shadow: 0 8px 28px rgba(28, 39, 66, .07);
+      --radius: 14px;
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      color: var(--text);
+      background: var(--bg);
+      font: 14px/1.68 -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    }
+    button { font: inherit; }
+    a { color: inherit; }
+    strong { color: var(--text); }
+    .page { max-width: 1160px; margin: 0 auto; padding: 28px 22px 72px; }
+
+    .hero {
+      padding: 34px 38px;
+      color: #fff;
+      background: linear-gradient(135deg, #182348, #29428b);
+      border-radius: 18px;
+      box-shadow: var(--shadow);
+    }
+    .hero-kicker { font-size: 12px; letter-spacing: .1em; opacity: .7; }
+    .hero h1 { margin: 8px 0 10px; font-size: 30px; line-height: 1.25; }
+    .hero p { max-width: 860px; margin: 0; opacity: .88; font-size: 15px; }
+    .hero-meta { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; }
+    .hero-pill {
+      padding: 5px 10px;
+      border: 1px solid rgba(255,255,255,.24);
+      border-radius: 999px;
+      font-size: 12px;
+    }
+
+    .toc {
+      position: sticky;
+      top: 10px;
+      z-index: 20;
+      display: flex;
+      gap: 5px;
+      margin: 18px 0 34px;
+      padding: 8px;
+      overflow-x: auto;
+      background: rgba(255,255,255,.94);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(10px);
+    }
+    .toc a {
+      flex: 0 0 auto;
+      padding: 7px 10px;
+      color: var(--muted);
+      text-decoration: none;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 700;
+    }
+    .toc a:hover, .toc a:focus { color: var(--primary); background: var(--primary-soft); outline: none; }
+
+    section { margin-bottom: 48px; scroll-margin-top: 80px; }
+    .section-head { display: flex; align-items: center; gap: 12px; margin-bottom: 18px; }
+    .section-no {
+      display: grid;
+      flex: 0 0 auto;
+      width: 34px;
+      height: 34px;
+      place-items: center;
+      color: #fff;
+      background: var(--primary);
+      border-radius: 9px;
+      font-weight: 800;
+    }
+    h2 { margin: 0; font-size: 22px; }
+    h3 { margin: 0 0 8px; font-size: 17px; }
+    h4 { margin: 0 0 6px; font-size: 14px; }
+    p { margin: 0 0 10px; }
+    ul, ol { margin: 8px 0 0; padding-left: 20px; }
+    li { margin-bottom: 5px; }
+    .muted { color: var(--muted); }
+    .eyebrow { margin-bottom: 5px; color: var(--primary); font-size: 11px; font-weight: 800; letter-spacing: .08em; }
+    .caption { margin-top: 10px; color: var(--muted); font-size: 12px; text-align: center; }
+
+    .card {
+      padding: 20px 22px;
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+    }
+    .grid-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+    .grid-3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+    .grid-4 { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+    .callout { padding: 14px 16px; border-radius: 10px; }
+    .callout.info { color: #27469f; background: var(--primary-soft); }
+    .callout.ok { color: #08674f; background: var(--green-soft); }
+    .callout.warn { color: #805000; background: var(--amber-soft); }
+    .callout.stop { color: #8d2835; background: var(--red-soft); }
+
+    .compare-shell {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 52px minmax(0, 1fr);
+      align-items: stretch;
+      gap: 16px;
+    }
+    .compare-panel {
+      display: grid;
+      grid-template-rows: auto auto 1fr auto;
+      min-height: 540px;
+      padding: 20px 22px 22px;
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+    }
+    .compare-panel::before {
+      content: "";
+      display: block;
+      height: 4px;
+      margin: -20px -22px 16px;
+      border-radius: var(--radius) var(--radius) 0 0;
+      background: #94a3b8;
+    }
+    .compare-panel.target::before { background: var(--primary); }
+    .compare-kicker {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      min-height: 22px;
+      margin-bottom: 6px;
+      color: var(--muted);
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: .08em;
+    }
+    .compare-status {
+      padding: 3px 9px;
+      color: #5c6b7f;
+      background: #f1f4f8;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0;
+    }
+    .compare-panel.target .compare-status {
+      color: var(--primary);
+      background: var(--primary-soft);
+      border-color: #c7d4ff;
+    }
+    .compare-panel h3 {
+      min-height: 52px;
+      margin: 0 0 14px;
+      font-size: 18px;
+      line-height: 1.35;
+    }
+    .compare-diagram {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 8px;
+      min-height: 280px;
+      padding: 14px;
+      background: #f8fafc;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+    }
+    .legacy-flow { display: grid; gap: 6px; width: 100%; }
+    .legacy-node {
+      width: 100%;
+      padding: 10px 12px;
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      text-align: center;
+      font-size: 12px;
+      font-weight: 600;
+      line-height: 1.4;
+    }
+    .legacy-arrow { color: #b8c2d0; font-size: 14px; line-height: 1; text-align: center; }
+    .target-map { display: grid; gap: 8px; width: 100%; }
+    .target-hub {
+      padding: 12px 14px;
+      background: #fff;
+      border: 1px solid #c7d4ff;
+      border-radius: 8px;
+      text-align: center;
+    }
+    .target-hub strong { display: block; margin-bottom: 4px; color: var(--primary); font-size: 13px; }
+    .target-hub span { color: var(--muted); font-size: 10px; line-height: 1.45; }
+    .target-sync { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+    .target-lane {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 54px;
+      padding: 8px 4px;
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      text-align: center;
+      font-size: 11px;
+      font-weight: 700;
+      line-height: 1.35;
+    }
+    .target-lane small {
+      display: block;
+      margin-bottom: 3px;
+      color: var(--primary);
+      font-size: 9px;
+      font-weight: 700;
+    }
+    .target-jp {
+      padding: 10px 12px;
+      color: #fff;
+      background: var(--primary);
+      border-radius: 8px;
+      text-align: center;
+      font-size: 11px;
+      font-weight: 600;
+      line-height: 1.45;
+    }
+    .compare-list {
+      display: grid;
+      gap: 8px;
+      margin: 16px 0 0;
+      padding: 14px 0 0;
+      border-top: 1px solid var(--line);
+      list-style: none;
+    }
+    .compare-list li {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      margin: 0;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.55;
+    }
+    .compare-list li::before {
+      flex: 0 0 auto;
+      width: 16px;
+      margin-top: 1px;
+      font-size: 12px;
+      font-weight: 800;
+      text-align: center;
+    }
+    .compare-panel:not(.target) .compare-list li::before { content: "×"; color: #94a3b8; }
+    .compare-panel.target .compare-list li::before { content: "✓"; color: var(--green); }
+    .compare-shift {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      align-self: center;
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 700;
+      line-height: 1.45;
+      text-align: center;
+    }
+    .compare-shift-icon {
+      display: grid;
+      width: 36px;
+      height: 36px;
+      place-items: center;
+      color: #fff;
+      background: var(--primary);
+      border-radius: 50%;
+      font-size: 18px;
+      line-height: 1;
+    }
+
+    .split-board {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 28px minmax(0, 1fr);
+      gap: 12px;
+      align-items: stretch;
+    }
+    .split-or {
+      display: grid;
+      place-items: center;
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 800;
+    }
+    .q-card { border-top: 4px solid var(--primary); min-height: 168px; }
+    .q-card:nth-child(2) { border-top-color: #4f7cff; }
+    .q-card:nth-child(3) { border-top-color: var(--green); }
+    .q-card:nth-child(4) { border-top-color: var(--amber); }
+    .q-no { color: var(--primary); font-size: 11px; font-weight: 800; letter-spacing: .06em; }
+
+    .arch-board {
+      padding: 16px;
+      background: #dcecff;
+      border: 1px solid #c5dcf7;
+      border-radius: 14px;
+      box-shadow: var(--shadow);
+    }
+    .arch-title {
+      padding: 2px 0 12px;
+      color: #0878cf;
+      text-align: center;
+      font-size: 18px;
+      font-weight: 800;
+    }
+    .arch-layer {
+      display: grid;
+      grid-template-columns: 58px minmax(0, 1fr);
+      gap: 8px;
+      margin-bottom: 8px;
+      padding: 7px;
+      background: rgba(255,255,255,.52);
+      border: 1px solid #c7dcf2;
+      border-radius: 9px;
+    }
+    .arch-layer:last-child { margin-bottom: 0; }
+    .layer-title {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 86px;
+      padding: 7px 4px;
+      color: #1388d3;
+      background: #f5faff;
+      border: 1px solid #c8def3;
+      border-radius: 7px;
+      font-size: 13px;
+      font-weight: 800;
+      line-height: 1.25;
+      text-align: center;
+      writing-mode: vertical-rl;
+      letter-spacing: .08em;
+    }
+    .layer-grid { display: grid; gap: 6px; }
+    .layer-grid.modules { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+    .layer-grid.products { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .layer-grid.decide { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .layer-grid.project { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .mod {
+      min-height: 78px;
+      padding: 10px 8px;
+      background: #fff;
+      border: 1px solid #cddff0;
+      border-radius: 6px;
+      text-align: center;
+    }
+    .mod strong { display: block; margin-bottom: 4px; color: #0878c9; font-size: 12px; }
+    .mod span { display: block; color: #66778b; font-size: 10px; line-height: 1.4; }
+    .arch-note { margin-top: 10px; color: #4e6d8a; font-size: 11px; text-align: center; }
+
+    .flow {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 8px;
+      padding: 16px;
+      background: #f8fafc;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+    }
+    .flow-step {
+      position: relative;
+      padding: 14px 12px;
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+    }
+    .flow-step::after {
+      content: "→";
+      position: absolute;
+      top: 50%;
+      right: -12px;
+      z-index: 1;
+      color: #9ba7b7;
+      font-weight: 800;
+      transform: translateY(-50%);
+    }
+    .flow-step:last-child::after { content: none; }
+    .flow-no { color: var(--primary); font-size: 11px; font-weight: 800; }
+    .flow-step h4 { margin: 4px 0 6px; font-size: 13px; }
+    .flow-step p { margin: 0; color: var(--muted); font-size: 11px; line-height: 1.5; }
+    .flow-step.decide { border-color: #c7d4ff; background: var(--primary-soft); }
+    .flow-step.writeback { border-color: #b7e4d4; background: var(--green-soft); }
+
+    .fork {
+      display: grid;
+      grid-template-columns: 180px minmax(0, 1fr);
+      gap: 14px;
+      align-items: center;
+    }
+    .fork-in {
+      padding: 16px 14px;
+      color: #fff;
+      background: var(--navy);
+      border-radius: 12px;
+      text-align: center;
+      font-weight: 700;
+    }
+    .fork-in small { display: block; margin-top: 4px; opacity: .75; font-size: 11px; font-weight: 500; }
+    .fork-out { display: grid; gap: 8px; }
+    .fork-item {
+      display: grid;
+      grid-template-columns: 88px minmax(0, 1fr);
+      gap: 10px;
+      align-items: center;
+      padding: 10px 12px;
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+    }
+    .fork-tag {
+      padding: 4px 0;
+      border-radius: 6px;
+      text-align: center;
+      font-size: 12px;
+      font-weight: 800;
+    }
+    .fork-tag.reuse { color: #08674f; background: var(--green-soft); }
+    .fork-tag.change { color: #805000; background: var(--amber-soft); }
+    .fork-tag.fresh { color: #27469f; background: var(--primary-soft); }
+    .fork-item p { margin: 0; color: var(--muted); font-size: 12px; }
+
+    .obj-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    .obj-card { min-height: 100%; }
+    .field-chips { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 12px; }
+    .chip {
+      padding: 5px 9px;
+      background: #f8faff;
+      border: 1px solid #dde5f4;
+      border-radius: 7px;
+      font-size: 11px;
+      font-weight: 600;
+    }
+
+    .phase-switch { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+    .phase-button {
+      padding: 8px 14px;
+      color: var(--muted);
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 9px;
+      cursor: pointer;
+    }
+    .phase-button:hover { border-color: #9bacef; }
+    .phase-button.active { color: #fff; background: var(--primary); border-color: var(--primary); }
+    .phase-panel { display: none; }
+    .phase-panel.active { display: block; }
+
+    .story {
+      display: grid;
+      grid-template-columns: 160px minmax(0, 1fr);
+      gap: 12px;
+    }
+    .story-side {
+      padding: 14px;
+      background: var(--navy);
+      color: #fff;
+      border-radius: 12px;
+    }
+    .story-side .eyebrow { color: #9db4ff; }
+    .story-side h3 { margin: 0 0 8px; color: #fff; font-size: 16px; }
+    .story-side p { margin: 0; opacity: .82; font-size: 12px; }
+    .story-path { display: grid; gap: 8px; }
+    .story-row {
+      display: grid;
+      grid-template-columns: 72px minmax(0, 1fr) 92px;
+      gap: 10px;
+      align-items: center;
+      padding: 10px 12px;
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+    }
+    .story-mod { color: var(--primary); font-size: 12px; font-weight: 800; }
+    .story-pick { color: var(--muted); font-size: 12px; }
+    .story-act {
+      padding: 3px 0;
+      border-radius: 6px;
+      text-align: center;
+      font-size: 11px;
+      font-weight: 800;
+    }
+    .act-reuse { color: #08674f; background: var(--green-soft); }
+    .act-change { color: #805000; background: var(--amber-soft); }
+    .act-fresh { color: #27469f; background: var(--primary-soft); }
+
+    .role-table, .criteria-table {
+      width: 100%;
+      border-collapse: collapse;
+      overflow: hidden;
+      background: #fff;
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      font-size: 12px;
+    }
+    .role-table th, .role-table td, .criteria-table th, .criteria-table td {
+      padding: 11px 13px;
+      text-align: left;
+      vertical-align: top;
+      border-bottom: 1px solid var(--line);
+    }
+    .role-table th, .criteria-table th { color: var(--muted); background: #f8fafc; font-weight: 800; }
+    .role-table tr:last-child td, .criteria-table tr:last-child td { border-bottom: 0; }
+    .role-name { color: var(--primary); font-weight: 800; white-space: nowrap; }
+    .not-role { color: var(--red); }
+
+    .rel-grid { display: grid; grid-template-columns: 1fr auto 1fr; gap: 12px; align-items: stretch; }
+    .rel-plus {
+      display: grid;
+      place-items: center;
+      color: var(--muted);
+      font-size: 22px;
+      font-weight: 800;
+    }
+    .loop {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      margin-top: 14px;
+      padding: 18px;
+      background: #f8fafc;
+      border: 1px solid var(--line);
+      border-radius: 11px;
+    }
+    .loop-node { padding: 7px 11px; color: #27469f; background: var(--primary-soft); border-radius: 7px; font-size: 12px; font-weight: 700; }
+    .loop-arrow { color: #9ba7b7; }
+
+    .dont-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    .footer { padding-top: 24px; color: var(--muted); border-top: 1px solid var(--line); font-size: 12px; }
+
+    @media (max-width: 960px) {
+      .grid-3, .grid-4, .obj-grid, .dont-grid, .rel-grid, .fork, .story { grid-template-columns: 1fr; }
+      .flow { grid-template-columns: 1fr; }
+      .flow-step::after {
+        content: "↓";
+        top: auto;
+        right: auto;
+        bottom: -14px;
+        left: 50%;
+        transform: translateX(-50%);
+      }
+      .layer-grid.modules, .layer-grid.products, .layer-grid.decide, .layer-grid.project { grid-template-columns: 1fr 1fr; }
+      .compare-shell { grid-template-columns: 1fr; }
+      .compare-panel { min-height: 0; }
+      .compare-shift { flex-direction: row; padding: 4px 0 8px; }
+      .compare-shift-icon { transform: rotate(90deg); }
+      .split-board { grid-template-columns: 1fr; }
+      .split-or { padding: 4px 0; }
+      .story-row { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 680px) {
+      .page { padding: 14px 12px 48px; }
+      .hero { padding: 26px 22px; }
+      .hero h1 { font-size: 25px; }
+      .target-sync { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .layer-grid.modules, .layer-grid.products, .layer-grid.decide, .layer-grid.project { grid-template-columns: 1fr; }
+      .role-table, .criteria-table { display: block; overflow-x: auto; }
+    }
+    @media print {
+      body { background: #fff; }
+      .page { max-width: none; padding: 0; }
+      .toc, .phase-switch { display: none !important; }
+      .phase-panel { display: block !important; }
+      .hero, .card, .role-table, .criteria-table { box-shadow: none; }
+      section, .card, table, .phase-panel { break-inside: avoid; }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <header class="hero">
+      <div class="hero-kicker">SOLUTION FRAMEWORK · 中台化 · V0.1</div>
+      <h1>产品研发中台：先立货架，再做项目</h1>
+      <p>解耦的目的不是把项目文档切细，而是把各研发单元从单项目沉没里抽出来，做成可复用的模块方案；新产品先匹配，再决定复用、二次开发或新做。</p>
+      <div class="hero-meta">
+        <span class="hero-pill">平台化</span>
+        <span class="hero-pill">模块化</span>
+        <span class="hero-pill">复用决策</span>
+        <span class="hero-pill">上市回写</span>
+      </div>
+    </header>
+
+    <nav class="toc" aria-label="页面目录">
+      <a href="#comparison">现状目标</a>
+      <a href="#split">两件事拆开</a>
+      <a href="#questions">四个问题</a>
+      <a href="#architecture">中台对象</a>
+      <a href="#flow">主流程</a>
+      <a href="#example">举例</a>
+      <a href="#requirements">方案要求</a>
+      <a href="#relation">与解耦关系</a>
+      <a href="#boundary">粒度与边界</a>
+    </nav>
+
+    <section id="comparison">
+      <div class="section-head"><span class="section-no">1</span><h2>现状与目标终态</h2></div>
+      <div class="compare-shell">
+        <article class="compare-panel">
+          <div class="compare-kicker"><span>CURRENT</span><span class="compare-status">项目沉没</span></div>
+          <h3>人跟着项目走，能力走不出项目</h3>
+          <div class="compare-diagram" aria-label="当前以项目为中心的研发方式">
+            <div class="legacy-flow">
+              <div class="legacy-node">产品经理写出一版需求文档</div>
+              <span class="legacy-arrow">↓</span>
+              <div class="legacy-node">结构 / 电子 / 光学 / 嵌入式 进项目</div>
+              <span class="legacy-arrow">↓</span>
+              <div class="legacy-node">各专业在项目里从零设计</div>
+              <span class="legacy-arrow">↓</span>
+              <div class="legacy-node">经验留在文档、群聊和个人目录</div>
+              <span class="legacy-arrow">↓</span>
+              <div class="legacy-node">下一款产品再从头想一遍</div>
+            </div>
+          </div>
+          <ul class="compare-list">
+            <li>没有跨产品的模块货架，不知道公司已经具备哪些能力</li>
+            <li>缺架构师做组合决策，专业分头负责，整机方案无人拍板</li>
+            <li>复用靠熟人记忆，不是对照方案做决策</li>
+            <li>项目做完，能力没有回写成可引用对象</li>
+          </ul>
+        </article>
+
+        <div class="compare-shift" aria-hidden="true">
+          <span class="compare-shift-icon">→</span>
+          <span>中台化<br>先决策后立项</span>
+        </div>
+
+        <article class="compare-panel target">
+          <div class="compare-kicker"><span>TARGET</span><span class="compare-status">货架驱动</span></div>
+          <h3>中台管复用，项目只做增量</h3>
+          <div class="compare-diagram" aria-label="目标产品研发中台">
+            <div class="target-map">
+              <div class="target-hub">
+                <strong>产品研发中台</strong>
+                <span>模块解决方案货架 · 产品解决方案沉淀 · 决策记录</span>
+              </div>
+              <div class="target-sync">
+                <div class="target-lane"><small>结构</small>模块方案</div>
+                <div class="target-lane"><small>电子</small>模块方案</div>
+                <div class="target-lane"><small>光学</small>模块方案</div>
+                <div class="target-lane"><small>嵌入式</small>模块方案</div>
+              </div>
+              <div class="legacy-node" style="font-size:11px">新产品需求 → 对照货架匹配 → 复用 / 二次开发 / 新做</div>
+              <div class="target-jp">项目只承接增量 · 上市后整机方案回写中台</div>
+            </div>
+          </div>
+          <ul class="compare-list">
+            <li>各专业能力先抽象成模块方案，跨产品可引用</li>
+            <li>架构师 / 技术负责人在组项目前完成匹配和拍板</li>
+            <li>已复用部分不再进项目开发清单</li>
+            <li>做完一款，中台多一套产品方案，也可能多几条模块能力</li>
+          </ul>
+        </article>
+      </div>
+      <p class="caption">依据：2026-08-27《研发知识解耦与中台方案讨论》。中台目的是平台化、模块化、复用，不是先把文档结构化。</p>
+    </section>
+
+    <section id="split">
+      <div class="section-head"><span class="section-no">2</span><h2>两件事必须拆开</h2></div>
+      <div class="split-board">
+        <article class="card">
+          <div class="eyebrow">LINE A · 本页主线</div>
+          <h3>中台 / 解决方案</h3>
+          <p class="muted">回答：公司已经有哪些能力？新产品用哪套？做完怎么沉回来？</p>
+          <ul>
+            <li>对象是<strong>模块方案 + 产品方案</strong></li>
+            <li>决策发生在<strong>组项目之前</strong></li>
+            <li>这是解耦要达成的组织目的</li>
+          </ul>
+        </article>
+        <div class="split-or">不是</div>
+        <article class="card">
+          <div class="eyebrow">LINE B · 并行另一条</div>
+          <h3>结构化 / 知识库</h3>
+          <p class="muted">回答：字段怎么拆、检索怎么准、AI 怎么认、角色怎么找上下文？</p>
+          <ul>
+            <li>对象是<strong>文档切片 / 元字段 / 工作台</strong></li>
+            <li>服务识别、检索和下钻，<strong>不替代货架</strong></li>
+            <li>已经明确要做，但是另一件事</li>
+          </ul>
+        </article>
+      </div>
+      <div class="callout info" style="margin-top:14px">
+        <strong>并行关系：</strong>不做中台，结构化也能做；做了中台，结构化会让匹配、检索、AI 识别更准。方案对外先讲中台，避免把工作台 demo 讲成解耦目的。
+      </div>
+    </section>
+
+    <section id="questions">
+      <div class="section-head"><span class="section-no">3</span><h2>中台要回答的四个问题</h2></div>
+      <div class="grid-4">
+        <article class="card q-card">
+          <div class="q-no">Q1 · 货架</div>
+          <h3>已经有什么</h3>
+          <p class="muted">各专业沉淀了哪些模块方案，性能指标、通用能力、适用产品分别是什么。</p>
+        </article>
+        <article class="card q-card">
+          <div class="q-no">Q2 · 匹配</div>
+          <h3>新产品怎么选</h3>
+          <p class="muted">产品需求拆开后，每个模块是直接复用、二次开发，还是立新方案。</p>
+        </article>
+        <article class="card q-card">
+          <div class="q-no">Q3 · 分流</div>
+          <h3>项目里做什么</h3>
+          <p class="muted">只有新方案和二次开发进入项目拆任务；已复用部分不再从零开发。</p>
+        </article>
+        <article class="card q-card">
+          <div class="q-no">Q4 · 回写</div>
+          <h3>做完怎么回来</h3>
+          <p class="muted">上市后整机方案回写为产品方案；新能力回写到模块货架，供下一款引用。</p>
+        </article>
+      </div>
+    </section>
+
+    <section id="architecture">
+      <div class="section-head"><span class="section-no">4</span><h2>中台对象：两层解决方案</h2></div>
+      <div class="arch-board" aria-label="产品研发中台对象分层">
+        <div class="arch-title">产品研发中台</div>
+        <div class="arch-layer">
+          <div class="layer-title">产品方案</div>
+          <div class="layer-grid products">
+            <div class="mod"><strong>产品 / SKU 绑定</strong><span>这款产品怎么做出来的</span></div>
+            <div class="mod"><strong>模块组合</strong><span>用了哪些模块方案</span></div>
+            <div class="mod"><strong>决策记录</strong><span>复用 / 改 / 新做 谁拍的</span></div>
+          </div>
+        </div>
+        <div class="arch-layer">
+          <div class="layer-title">模块方案</div>
+          <div class="layer-grid modules">
+            <div class="mod"><strong>结构</strong><span>箱体 / 机构 / 灯体</span></div>
+            <div class="mod"><strong>电子</strong><span>电源 / 驱动 / 主控</span></div>
+            <div class="mod"><strong>光学</strong><span>灯珠 / 透镜 / 配光</span></div>
+            <div class="mod"><strong>嵌入式</strong><span>固件 / 协议 / 控制</span></div>
+            <div class="mod"><strong>软件</strong><span>APP / 通用交互能力</span></div>
+          </div>
+        </div>
+        <div class="arch-layer">
+          <div class="layer-title">决策层</div>
+          <div class="layer-grid decide">
+            <div class="mod"><strong>复用</strong><span>现成方案直接引用，不进项目开发</span></div>
+            <div class="mod"><strong>二次开发</strong><span>在已有方案上改一版，增量进项目</span></div>
+            <div class="mod"><strong>新做</strong><span>货架都不满足，立新方案再进项目</span></div>
+          </div>
+        </div>
+        <div class="arch-layer">
+          <div class="layer-title">项目层</div>
+          <div class="layer-grid project">
+            <div class="mod"><strong>只承接增量</strong><span>二次开发 + 新做 才拆工作包</span></div>
+            <div class="mod"><strong>上市回写</strong><span>产品方案落档，新模块能力回货架</span></div>
+          </div>
+        </div>
+        <p class="arch-note">模块方案是跨产品抽象；产品方案是一款产品上市后的整机承接。两者都挂文档，但第一入口是方案卡片，不是文件夹。</p>
+      </div>
+
+      <div class="obj-grid" style="margin-top:16px">
+        <article class="card obj-card">
+          <div class="eyebrow">对象 A</div>
+          <h3>模块解决方案</h3>
+          <p class="muted">跨产品抽象出来的可复用单元，对应结构、电子、光学、嵌入式等专业拆细后的能力块。</p>
+          <div class="field-chips">
+            <span class="chip">方案名称 / 命名规则</span>
+            <span class="chip">性能指标</span>
+            <span class="chip">通用能力</span>
+            <span class="chip">适用产品范围</span>
+            <span class="chip">关联文档全集</span>
+          </div>
+        </article>
+        <article class="card obj-card">
+          <div class="eyebrow">对象 B</div>
+          <h3>产品解决方案</h3>
+          <p class="muted">一款产品上市后的整机承接结果，记录这款产品用了哪些模块方案、当时怎么决策。</p>
+          <div class="field-chips">
+            <span class="chip">产品 / SKU 绑定</span>
+            <span class="chip">模块组合关系</span>
+            <span class="chip">决策记录</span>
+            <span class="chip">上市回写时点</span>
+            <span class="chip">摘要 → 结构化 / 原文</span>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section id="flow">
+      <div class="section-head"><span class="section-no">5</span><h2>主流程：项目前决策，项目后沉淀</h2></div>
+      <div class="flow" aria-label="中台主流程五步">
+        <article class="flow-step">
+          <div class="flow-no">1</div>
+          <h4>产品定义</h4>
+          <p>产品经理给出性能、上市日期、场景和要求。还不是项目任务书。</p>
+        </article>
+        <article class="flow-step">
+          <div class="flow-no">2</div>
+          <h4>按模块拆解</h4>
+          <p>对照中台货架，把需求拆到结构、电子、光学等模块清单。</p>
+        </article>
+        <article class="flow-step decide">
+          <div class="flow-no">3</div>
+          <h4>匹配拍板</h4>
+          <p>架构师 / 技术负责人逐模块决定：复用、二次开发或新做。</p>
+        </article>
+        <article class="flow-step">
+          <div class="flow-no">4</div>
+          <h4>增量进项目</h4>
+          <p>只有二次开发和新做拆成项目工作包；复用项只引用方案。</p>
+        </article>
+        <article class="flow-step writeback">
+          <div class="flow-no">5</div>
+          <h4>上市回写</h4>
+          <p>整机方案写成产品方案；新能力沉入模块货架。</p>
+        </article>
+      </div>
+
+      <div class="grid-2" style="margin-top:16px">
+        <article class="card">
+          <h3>决策怎么分</h3>
+          <div class="fork" style="margin-top:12px">
+            <div class="fork-in">模块需求<small>对照货架后</small></div>
+            <div class="fork-out">
+              <div class="fork-item">
+                <div class="fork-tag reuse">复用</div>
+                <p>直接引用模块方案，不进项目开发清单。</p>
+              </div>
+              <div class="fork-item">
+                <div class="fork-tag change">二次开发</div>
+                <p>基于已有方案改一版，只把增量推进项目。</p>
+              </div>
+              <div class="fork-item">
+                <div class="fork-tag fresh">新做</div>
+                <p>货架都不满足，先立新方案，再进项目开发。</p>
+              </div>
+            </div>
+          </div>
+        </article>
+        <article class="card">
+          <h3>谁来拍板</h3>
+          <p class="muted">现网是结构、电子、光学分头负责，缺组合决策人。中台不能假装系统能替代这个角色。</p>
+          <table class="role-table" style="box-shadow:none;margin-top:8px">
+            <thead><tr><th>角色</th><th>在中台里做什么</th></tr></thead>
+            <tbody>
+              <tr><td class="role-name">产品经理</td><td>定义产品要求和上市约束，不代替模块选方案。</td></tr>
+              <tr><td class="role-name">架构师 / 技术负责人</td><td>拆模块、对照货架、拍板复用 / 改 / 新做。</td></tr>
+              <tr><td class="role-name">各专业负责人</td><td>维护本专业模块方案，对专业指标负责。</td></tr>
+              <tr><td class="role-name">项目侧</td><td>只执行增量任务，不重新发明已复用方案。</td></tr>
+            </tbody>
+          </table>
+        </article>
+      </div>
+      <div class="callout warn" style="margin-top:14px">
+        <strong>时点要求：</strong>匹配和拍板发生在组项目之前。不能等项目拉起后，再让没经验的人在项目里从头设计；否则能力永远沉不回中台。
+      </div>
+    </section>
+
+    <section id="example">
+      <div class="section-head"><span class="section-no">6</span><h2>用一个例子看懂</h2></div>
+      <div class="phase-switch" role="tablist" aria-label="举例切换">
+        <button class="phase-button active" type="button" role="tab" aria-selected="true" data-phase-target="ex-light">硬件 · 居家灯</button>
+        <button class="phase-button" type="button" role="tab" aria-selected="false" data-phase-target="ex-soft">软件 · 通用下拉</button>
+      </div>
+
+      <div class="phase-panel active" id="ex-light" role="tabpanel">
+        <div class="story">
+          <aside class="story-side">
+            <div class="eyebrow">HARDWARE</div>
+            <h3>新居家灯</h3>
+            <p>产品经理提出新灯的亮度、色温、成本和上市时间。架构师先打开光学 / 电子 / 结构货架，而不是直接组项目。</p>
+          </aside>
+          <div class="story-path">
+            <div class="story-row">
+              <div class="story-mod">灯珠</div>
+              <div class="story-pick">货架已有灯珠方案一 / 二 / 三。方案一指标满足，且已用于两款在售灯。</div>
+              <div class="story-act act-reuse">复用</div>
+            </div>
+            <div class="story-row">
+              <div class="story-mod">电源</div>
+              <div class="story-pick">现有驱动功率接近，但不满足新的调光范围，需在方案二上改一版。</div>
+              <div class="story-act act-change">二次开发</div>
+            </div>
+            <div class="story-row">
+              <div class="story-mod">灯体结构</div>
+              <div class="story-pick">外观和安装方式都是新品类，货架没有可引用结构方案。</div>
+              <div class="story-act act-fresh">新做</div>
+            </div>
+            <div class="callout ok">
+              <strong>项目只接两件事：</strong>电源二次开发 + 灯体结构新做。灯珠方案一只引用，不再进开发清单。上市后，这款灯写成产品方案；新电源和新结构回写到模块货架。
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="phase-panel" id="ex-soft" role="tabpanel">
+        <div class="story">
+          <aside class="story-side">
+            <div class="eyebrow">SOFTWARE</div>
+            <h3>通用下拉框</h3>
+            <p>用来帮助理解「模块方案」：先写清能力边界，再决定新页面是引用还是新做。</p>
+          </aside>
+          <div class="story-path">
+            <div class="story-row">
+              <div class="story-mod">方案卡片</div>
+              <div class="story-pick">名称、适用条件、单选 / 多选、交互流程、已用在哪些页面和系统。</div>
+              <div class="story-act act-reuse">货架对象</div>
+            </div>
+            <div class="story-row">
+              <div class="story-mod">新页面</div>
+              <div class="story-pick">条件匹配则直接复用；要增加搜索或多选上限，就二次开发。</div>
+              <div class="story-act act-change">按需增量</div>
+            </div>
+            <div class="story-row">
+              <div class="story-mod">都不满足</div>
+              <div class="story-pick">立一条新的通用能力方案，做完回写中台，避免下一页再发明一次。</div>
+              <div class="story-act act-fresh">新做回写</div>
+            </div>
+            <div class="callout info">
+              <strong>类比边界：</strong>软件例子只帮助理解对象，不表示硬件中台按前端组件来建。硬件按灯珠、电源、结构等专业单元建货架。
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="requirements">
+      <div class="section-head"><span class="section-no">7</span><h2>方案要求清单</h2></div>
+      <table class="criteria-table">
+        <thead>
+          <tr>
+            <th>编号</th>
+            <th>要求</th>
+            <th>验收口径</th>
+            <th>本阶段粒度</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="role-name">M1</td>
+            <td>先立「产品研发中台」概念，而不是先做项目工作台。</td>
+            <td>对外能讲清：中台管复用，项目管增量。</td>
+            <td>方向必须讲清</td>
+          </tr>
+          <tr>
+            <td class="role-name">M2</td>
+            <td>模块方案可增删改查，字段覆盖指标、能力、适用产品、文档。</td>
+            <td>能列出货架，能判断「有没有现成方案」。</td>
+            <td>先做增删改感</td>
+          </tr>
+          <tr>
+            <td class="role-name">M3</td>
+            <td>产品方案可增删改查，并绑定产品 / SKU 与模块组合。</td>
+            <td>能从一款产品回看到用了哪些模块方案。</td>
+            <td>先做增删改感</td>
+          </tr>
+          <tr>
+            <td class="role-name">M4</td>
+            <td>产品需求生成后，能拆到模块并关联已有方案。</td>
+            <td>每条拆解都能落到复用 / 二次开发 / 新做。</td>
+            <td>讲清关系即可</td>
+          </tr>
+          <tr>
+            <td class="role-name">M5</td>
+            <td>决策权在架构师 / 技术负责人，不在项目执行岗。</td>
+            <td>方案写清谁匹配、谁拍板、谁执行。</td>
+            <td>组织前提需同步</td>
+          </tr>
+          <tr>
+            <td class="role-name">M6</td>
+            <td>项目只承接增量任务，不把整套方案重新做一遍。</td>
+            <td>复用项不再进项目开发清单。</td>
+            <td>讲清分流规则</td>
+          </tr>
+          <tr>
+            <td class="role-name">M7</td>
+            <td>上市后必须回写，形成「做一款、沉一套能力」。</td>
+            <td>新产品能引用上一款沉淀的模块 / 产品方案。</td>
+            <td>闭环必须写进方案</td>
+          </tr>
+          <tr>
+            <td class="role-name">M8</td>
+            <td>方案卡片先看归纳，再下钻结构化字段和原始文档。</td>
+            <td>几十个字能判断，质疑时能点开证据。</td>
+            <td>与知识库衔接，后做细</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section id="relation">
+      <div class="section-head"><span class="section-no">8</span><h2>和知识解耦方案框架怎么并存</h2></div>
+      <div class="rel-grid">
+        <article class="card">
+          <div class="eyebrow">已有框架</div>
+          <h3>项目内解耦</h3>
+          <p class="muted">拆块并行、汇入点、机制规则、字段化、试点沉淀。解决的是<strong>一个项目里</strong>怎么少等待、少问人、到点汇合。</p>
+        </article>
+        <div class="rel-plus">+</div>
+        <article class="card">
+          <div class="eyebrow">本页框架</div>
+          <h3>跨项目中台</h3>
+          <p class="muted">模块货架、产品方案、项目前匹配、上市回写。解决的是<strong>公司一层</strong>怎么复用能力，而不是每款从零做。</p>
+        </article>
+      </div>
+      <div class="loop" aria-label="两条线如何衔接">
+        <span class="loop-node">中台选出模块方案</span><span class="loop-arrow">→</span>
+        <span class="loop-node">增量进入项目解耦单元</span><span class="loop-arrow">→</span>
+        <span class="loop-node">项目内按条件并行与 JP 汇入</span><span class="loop-arrow">→</span>
+        <span class="loop-node">上市回写产品 / 模块方案</span><span class="loop-arrow">→</span>
+        <span class="loop-node">下钻结构化字段与原文</span>
+      </div>
+      <p class="caption">两套框架不互相替代。中台决定「用什么能力」；知识解耦决定「选定之后项目里怎么跑」。方案卡片通过结构化知识库下钻证据。</p>
+    </section>
+
+    <section id="boundary">
+      <div class="section-head"><span class="section-no">9</span><h2>做到什么粒度，以及先不要做什么</h2></div>
+      <div class="dont-grid">
+        <article class="card">
+          <div class="eyebrow">本阶段要做</div>
+          <h3>浅层对象关系，能对外讲通</h3>
+          <ul>
+            <li>把两层对象、五步主流程、三类决策讲清楚</li>
+            <li>模块方案 / 产品方案先做到可感知的增删改</li>
+            <li>用 1 个品类（如照明）试命名和粒度</li>
+            <li>立项前先跟老板 / 老范对「解耦目的」</li>
+          </ul>
+        </article>
+        <article class="card">
+          <div class="eyebrow">本阶段不做细</div>
+          <h3>不要做成完整 PLM</h3>
+          <ul>
+            <li class="not-role">不按完整系统细拆页面、审批流、权限模型</li>
+            <li class="not-role">不把角色工作台、协作图、文档切片写成中台主叙事</li>
+            <li class="not-role">不假设先有数字化才能做复用；没有系统也可以先立货架</li>
+            <li class="not-role">不在目的未对齐前投入细需求</li>
+          </ul>
+        </article>
+      </div>
+
+      <h3 style="margin:22px 0 10px">还没拍板、会影响方案对错的点</h3>
+      <table class="criteria-table">
+        <thead>
+          <tr>
+            <th>假设</th>
+            <th>为什么危险</th>
+            <th>建议怎么验</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="role-name">老大解耦 = 平台化复用</td>
+            <td>会议明确这是猜测；猜偏则整套方案错。</td>
+            <td>立项前先跟老板 / 老范对目的。</td>
+          </tr>
+          <tr>
+            <td class="role-name">必须先有架构师 / 架构部</td>
+            <td>现网缺组合决策人，系统替代不了拍板。</td>
+            <td>方案里写组织前提，不假装系统能决策。</td>
+          </tr>
+          <tr>
+            <td class="role-name">模块切多细</td>
+            <td>切到部门还是切到灯珠级，范围差一个数量级。</td>
+            <td>先用 1 个品类试命名和粒度。</td>
+          </tr>
+          <tr>
+            <td class="role-name">软硬件是否同一套中台</td>
+            <td>会议倾向整机都要拆，但视角还不完整。</td>
+            <td>对象模型先统一，专业字段分域。</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <footer class="footer">
+      <p>产品研发中台 · 方案框架 V0.1 ｜ 模块方案货架 → 产品需求拆解 → 复用 / 二次开发 / 新做 → 增量进项目 → 上市回写 ｜ 2026-09-08</p>
+      <p>本页用于方向对齐，不替代完整 PRD。结构化 / 工作台仍按《研发知识解耦方案框架》推进，不并进中台主叙事。</p>
+    </footer>
+  </main>
+
+  <script>
+    (() => {
+      const buttons = document.querySelectorAll(".phase-button");
+      const panels = document.querySelectorAll(".phase-panel");
+
+      buttons.forEach((button) => {
+        button.addEventListener("click", () => {
+          const target = document.getElementById(button.dataset.phaseTarget);
+          if (!target) return;
+
+          buttons.forEach((item) => {
+            item.classList.remove("active");
+            item.setAttribute("aria-selected", "false");
+          });
+          panels.forEach((item) => item.classList.remove("active"));
+
+          button.classList.add("active");
+          button.setAttribute("aria-selected", "true");
+          target.classList.add("active");
+        });
+      });
+    })();
+  </script>
+</body>
+</html>
