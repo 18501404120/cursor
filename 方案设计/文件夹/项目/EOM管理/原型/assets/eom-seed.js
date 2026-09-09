@@ -422,6 +422,30 @@
         ]
       },
       {
+        model: 'H6099', scene: '智能照明', cat: '灯带', name: 'H6099 跨选样例', status: '已上市',
+        skus: [
+          { sku: 'H609901', status: '已上市', onMarketDate: '2024-08-01', country: 'US', inProgress: false, sales: 96, inStock: 520, totalStock: 810, stock: 810, name: 'H6099 US', shop: 'Amazon US', msku: 'H609901-US-AMZ', salesOwner: '周雨' },
+          { sku: 'H609902', status: '已上市', onMarketDate: '2024-08-01', country: 'EU', inProgress: false, sales: 64, inStock: 310, totalStock: 480, stock: 480, name: 'H6099 EU', shop: 'Amazon DE', msku: 'H609902-EU-AMZ' },
+          { sku: 'H609903', status: '已上市', onMarketDate: '2024-08-01', country: 'UK', inProgress: false, sales: 41, inStock: 180, totalStock: 260, stock: 260, name: 'H6099 UK', shop: 'Amazon UK', msku: 'H609903-UK-AMZ' },
+          { sku: 'H609904', status: '已上市', onMarketDate: '2024-09-12', country: 'JP', inProgress: false, sales: 22, inStock: 90, totalStock: 140, stock: 140, name: 'H6099 JP', shop: 'Amazon JP', msku: 'H609904-JP-AMZ' }
+        ]
+      },
+      {
+        model: 'H6098', scene: '智能照明', cat: '灯带', name: 'H6098 跨选样例', status: '已上市',
+        skus: [
+          { sku: 'H609801', status: '已上市', onMarketDate: '2024-07-18', country: 'US', inProgress: false, sales: 58, inStock: 240, totalStock: 390, stock: 390, name: 'H6098 US', shop: 'Amazon US', msku: 'H609801-US-AMZ' },
+          { sku: 'H609802', status: '已上市', onMarketDate: '2024-07-18', country: 'EU', inProgress: false, sales: 33, inStock: 120, totalStock: 190, stock: 190, name: 'H6098 EU', shop: 'Amazon DE', msku: 'H609802-EU-AMZ' }
+        ]
+      },
+      {
+        model: 'H3301', scene: '居家', cat: '氛围灯', name: 'H3301 居家样例', status: '已上市',
+        skus: [
+          { sku: 'H330101', status: '已上市', onMarketDate: '2025-03-02', country: 'US', inProgress: false, sales: 75, inStock: 360, totalStock: 520, stock: 520, name: 'H3301 US', shop: 'Amazon US', msku: 'H330101-US-AMZ' },
+          { sku: 'H330102', status: '已上市', onMarketDate: '2025-03-02', country: 'EU', inProgress: false, sales: 48, inStock: 210, totalStock: 300, stock: 300, name: 'H3301 EU', shop: 'Amazon DE', msku: 'H330102-EU-AMZ' },
+          { sku: 'H330103', status: '已上市', onMarketDate: '2025-04-16', country: 'CN', inProgress: false, sales: 39, inStock: 150, totalStock: 220, stock: 220, name: 'H3301 CN', shop: '天猫', msku: 'H330103-CN-TM' }
+        ]
+      },
+      {
         model: 'H6199', scene: '智能照明', cat: '灯带', name: 'H6199 进行中EOM', status: 'EOM',
         skus: [
           { sku: 'H619901', status: 'EOM', onMarketDate: '2024-03-12', country: 'US', inProgress: true, sales: 804, inStock: 1680, totalStock: 2480, stock: 2480, name: 'H6199 US', shop: 'Amazon US', msku: 'H619901-US-AMZ' },

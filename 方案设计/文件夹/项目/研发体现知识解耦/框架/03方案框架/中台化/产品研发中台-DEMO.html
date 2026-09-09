@@ -1,0 +1,823 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>产品研发中台 · DEMO</title>
+  <style>
+    :root {
+      --bg: #f3f5fa;
+      --card: #fff;
+      --text: #172033;
+      --muted: #657187;
+      --line: #e2e8f1;
+      --primary: #335cff;
+      --primary-soft: #eef2ff;
+      --green: #087c60;
+      --green-soft: #eaf8f3;
+      --amber: #a96100;
+      --amber-soft: #fff5df;
+      --navy: #1d2a57;
+      --shadow: 0 8px 24px rgba(28, 39, 66, .07);
+      --radius: 12px;
+      --sidebar: 220px;
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+      margin: 0;
+      color: var(--text);
+      background: var(--bg);
+      font: 13px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    }
+    button, input, select, textarea { font: inherit; }
+    button { cursor: pointer; }
+    .app { display: grid; grid-template-columns: var(--sidebar) minmax(0, 1fr); min-height: 100%; }
+
+    .side { color: #d7def0; background: var(--navy); padding: 18px 14px; }
+    .brand { padding: 4px 8px 18px; }
+    .brand small { display: block; opacity: .55; letter-spacing: .08em; font-size: 10px; }
+    .brand b { display: block; margin-top: 4px; color: #fff; font-size: 16px; }
+    .nav-btn {
+      display: block; width: 100%; margin-bottom: 6px; padding: 10px 12px;
+      color: #c9d3ea; background: transparent; border: 0; border-radius: 8px; text-align: left;
+    }
+    .nav-btn:hover { background: rgba(255,255,255,.06); color: #fff; }
+    .nav-btn.active { color: #fff; background: #335cff; }
+    .side-foot { margin-top: 24px; padding: 10px 12px; color: #9aa6c4; background: rgba(255,255,255,.05); border-radius: 8px; font-size: 11px; }
+
+    .main { min-width: 0; }
+    .top {
+      display: flex; align-items: center; justify-content: space-between; gap: 12px;
+      padding: 14px 22px; background: #fff; border-bottom: 1px solid var(--line);
+    }
+    .top h1 { margin: 0; font-size: 16px; }
+    .top p { margin: 2px 0 0; color: var(--muted); font-size: 12px; }
+    .workspace { padding: 20px 22px 40px; }
+    .view { display: none; }
+    .view.show { display: block; }
+
+    .stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+    .stat {
+      padding: 16px 18px; background: var(--card); border: 1px solid var(--line);
+      border-radius: var(--radius); box-shadow: var(--shadow);
+    }
+    .stat b { display: block; margin-top: 4px; font-size: 24px; line-height: 1.2; }
+    .stat span { color: var(--muted); font-size: 12px; }
+
+    .card {
+      padding: 16px 18px; background: var(--card); border: 1px solid var(--line);
+      border-radius: var(--radius); box-shadow: var(--shadow);
+    }
+    .grid-2 { display: grid; grid-template-columns: 1.15fr .85fr; gap: 12px; }
+    .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+    .muted { color: var(--muted); }
+    h2 { margin: 0 0 10px; font-size: 15px; }
+    h3 { margin: 0 0 8px; font-size: 14px; }
+
+    .btn { padding: 7px 12px; color: var(--text); background: #fff; border: 1px solid var(--line); border-radius: 8px; }
+    .btn:hover { border-color: #9bacef; }
+    .btn.primary { color: #fff; background: var(--primary); border-color: var(--primary); }
+    .btn.green { color: #fff; background: var(--green); border-color: var(--green); }
+    .btn.ghost { background: transparent; }
+
+    .tag { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 700; }
+    .tag.reuse { color: #08674f; background: var(--green-soft); }
+    .tag.change { color: #805000; background: var(--amber-soft); }
+    .tag.fresh { color: #27469f; background: var(--primary-soft); }
+    .tag.idle { color: #5c6b7f; background: #f1f4f8; }
+    .tag.done { color: #08674f; background: var(--green-soft); }
+
+    table { width: 100%; border-collapse: collapse; }
+    th, td { padding: 8px 8px; text-align: left; vertical-align: top; border-bottom: 1px solid var(--line); }
+    th { color: var(--muted); background: #f8fafc; font-size: 11px; }
+
+    .search {
+      width: 100%; padding: 8px 12px; border: 1px solid var(--line); border-radius: 8px; background: #fff;
+    }
+    .split { display: grid; grid-template-columns: 260px minmax(0, 1fr); gap: 12px; min-height: 560px; }
+    .tree {
+      padding: 10px; background: #fff; border: 1px solid var(--line); border-radius: 12px; overflow: auto;
+    }
+    .tree-node {
+      display: block; width: 100%; margin: 1px 0; padding: 6px 8px; color: var(--text);
+      background: transparent; border: 0; border-radius: 6px; text-align: left;
+    }
+    .tree-node:hover { background: #f4f7ff; }
+    .tree-node.on { color: var(--primary); background: var(--primary-soft); font-weight: 700; }
+    .tree-node .meta { color: var(--muted); font-weight: 500; font-size: 11px; }
+    .mod-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+    .mod-card {
+      padding: 14px; background: #fff; border: 1px solid var(--line); border-radius: 12px; cursor: pointer;
+    }
+    .mod-card:hover { border-color: #9bacef; }
+    .mod-card h3 { margin: 6px 0 6px; }
+    .chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; }
+    .mini { padding: 3px 7px; background: #f8fafc; border: 1px solid var(--line); border-radius: 6px; font-size: 11px; }
+
+    .steps { display: flex; gap: 8px; margin-bottom: 14px; }
+    .step {
+      flex: 1; padding: 8px 10px; color: var(--muted); background: #fff; border: 1px solid var(--line);
+      border-radius: 8px; text-align: center; font-size: 12px; font-weight: 700;
+    }
+    .step.on { color: #fff; background: var(--primary); border-color: var(--primary); }
+    .step.done { color: #08674f; background: var(--green-soft); border-color: #b7e4d4; }
+    .field { margin-bottom: 10px; }
+    .field label { display: block; margin-bottom: 4px; color: var(--muted); font-size: 11px; }
+    .field input, .field select, .field textarea {
+      width: 100%; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: #fff;
+    }
+    .decide { display: grid; gap: 12px; }
+    .decide-item { padding: 14px; background: #f8fafc; border: 1px solid var(--line); border-radius: 10px; }
+    .decide-ops { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+    .opt { padding: 6px 10px; border: 1px solid var(--line); border-radius: 8px; background: #fff; }
+    .opt.on.reuse { color: #08674f; background: var(--green-soft); border-color: #b7e4d4; }
+    .opt.on.change { color: #805000; background: var(--amber-soft); border-color: #f0d59a; }
+    .opt.on.fresh { color: #27469f; background: var(--primary-soft); border-color: #c7d4ff; }
+
+    .mask {
+      position: fixed; inset: 0; display: none; align-items: center; justify-content: center;
+      padding: 20px; background: rgba(23, 32, 51, .4); z-index: 40;
+    }
+    .mask.show { display: flex; }
+    .dialog {
+      width: 760px; max-width: 100%; max-height: 90vh; overflow: auto;
+      background: #fff; border-radius: 14px; box-shadow: var(--shadow);
+    }
+    .dh, .df { display: flex; justify-content: space-between; align-items: center; padding: 14px 18px; }
+    .dh { border-bottom: 1px solid var(--line); font-weight: 700; }
+    .df { border-top: 1px solid var(--line); justify-content: flex-end; gap: 8px; }
+    .db { padding: 16px 18px; }
+
+    .toast {
+      position: fixed; right: 20px; bottom: 20px; display: none;
+      padding: 10px 14px; color: #fff; background: #1d2a57; border-radius: 8px; z-index: 50;
+    }
+    .toast.show { display: block; }
+    .hint { padding: 10px 12px; color: #27469f; background: var(--primary-soft); border-radius: 8px; font-size: 12px; }
+    .okbox { padding: 10px 12px; color: #08674f; background: var(--green-soft); border-radius: 8px; font-size: 12px; }
+    .crumb { margin-bottom: 10px; color: var(--muted); font-size: 12px; }
+
+    @media (max-width: 1100px) {
+      .split, .grid-2, .mod-grid, .stats { grid-template-columns: 1fr; }
+      .app { grid-template-columns: 1fr; }
+      .side { display: flex; flex-wrap: wrap; gap: 8px; }
+      .brand, .side-foot { width: 100%; }
+      .nav-btn { width: auto; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <aside class="side">
+      <div class="brand">
+        <small>PRODUCT R&D PLATFORM</small>
+        <b>产品研发中台</b>
+      </div>
+      <button class="nav-btn active" data-view="home" type="button">总览</button>
+      <button class="nav-btn" data-view="shelf" type="button">模块货架</button>
+      <button class="nav-btn" data-view="match" type="button">新产品匹配</button>
+      <button class="nav-btn" data-view="products" type="button">产品方案库</button>
+      <div class="side-foot">当前角色：解耦组负责人<br>中台管复用，项目只做增量</div>
+    </aside>
+    <div class="main">
+      <header class="top">
+        <div>
+          <h1 id="pageTitle">总览</h1>
+          <p id="pageDesc">货架按树管理，产品按 model 回看。先匹配，再立项增量。</p>
+        </div>
+        <button class="btn ghost" id="resetBtn" type="button">重置演示</button>
+      </header>
+      <div class="workspace">
+        <section class="view show" id="view-home"></section>
+        <section class="view" id="view-shelf"></section>
+        <section class="view" id="view-match"></section>
+        <section class="view" id="view-products"></section>
+      </div>
+    </div>
+  </div>
+  <div class="mask" id="mask"><div class="dialog" id="dialog"></div></div>
+  <div class="toast" id="toast"></div>
+
+  <script>
+    const CATEGORY = "照明";
+    const TITLES = {
+      home: ["总览", "货架按树管理，产品按 model 回看。先匹配，再立项增量。"],
+      shelf: ["模块货架", "品类 → 专业域 → 方案族 → 具体方案。搜索 model、方案名或指标。"],
+      match: ["新产品匹配", "组项目之前，解耦组负责人对照结构化指标拍板。"],
+      products: ["产品方案库", "按品类 / 系列 / model 回看模块组合。支持搜索。"]
+    };
+    const SPEC_LABEL = {
+      watt: "功率", cct: "色温", cri: "CRI", lumen: "光通量", beam: "光束角", dimming: "调光深度", life: "寿命", scene: "适用场景",
+      vin: "输入电压", pout: "输出功率", dimMethod: "调光方式", dimRange: "调光范围", pf: "效率 / PF", certs: "认证", protect: "保护",
+      mount: "安装方式", size: "外形尺寸", material: "材质", load: "承重", ip: "防护等级", iface: "接口",
+      control: "控制方式", channels: "通道", protocol: "协议", ota: "OTA", standby: "待机功耗"
+    };
+    const FAMILIES = {
+      光学: ["灯珠"],
+      电子: ["电源驱动"],
+      结构: ["灯体结构"],
+      嵌入式: ["控制固件"]
+    };
+
+    const seedModules = () => ([
+      {
+        id: "LED-01", category: CATEGORY, domain: "光学", family: "灯珠", name: "灯珠方案一",
+        capability: "可调色温主照明，适合落地灯和墙灯复用",
+        products: ["H6091", "H6076"],
+        docs: ["灯珠规格书-01.pdf", "LM-80报告.pdf"],
+        specs: { watt: "8W", cct: "2700-6500K", cri: "90", lumen: "720 lm", beam: "120°", dimming: "10%-100%", life: "25000h / LM-80", scene: "客厅主照明" }
+      },
+      {
+        id: "LED-02", category: CATEGORY, domain: "光学", family: "灯珠", name: "灯珠方案二",
+        capability: "高亮度单色温，适合台灯阅读",
+        products: ["H6052"],
+        docs: ["灯珠规格书-02.pdf"],
+        specs: { watt: "12W", cct: "4000K", cri: "80", lumen: "1100 lm", beam: "90°", dimming: "20%-100%", life: "20000h", scene: "桌面阅读" }
+      },
+      {
+        id: "LED-03", category: CATEGORY, domain: "光学", family: "灯珠", name: "灯珠方案三",
+        capability: "低功率暖光，氛围点缀",
+        products: [],
+        docs: ["灯珠规格书-03.pdf"],
+        specs: { watt: "6W", cct: "3000K", cri: "80", lumen: "480 lm", beam: "140°", dimming: "不支持", life: "15000h", scene: "氛围点缀" }
+      },
+      {
+        id: "PSU-A", category: CATEGORY, domain: "电子", family: "电源驱动", name: "电源方案A",
+        capability: "基础恒流，无调光",
+        products: ["H6091"],
+        docs: ["驱动规格-A.pdf"],
+        specs: { vin: "100-240V", pout: "8-10W", dimMethod: "无调光", dimRange: "100%", pf: "0.90 / 86%", certs: "CE / FCC", protect: "过压 / 短路" }
+      },
+      {
+        id: "PSU-B", category: CATEGORY, domain: "电子", family: "电源驱动", name: "电源方案B",
+        capability: "分段调光，不支持 1% 深调",
+        products: ["H6076"],
+        docs: ["驱动规格-B.pdf", "调光曲线.xlsx"],
+        specs: { vin: "100-240V", pout: "8-12W", dimMethod: "分段 PWM", dimRange: "10%-100%", pf: "0.92 / 88%", certs: "CE / FCC / UL", protect: "过压 / 过温 / 短路" }
+      },
+      {
+        id: "PSU-C", category: CATEGORY, domain: "电子", family: "电源驱动", name: "电源方案C",
+        capability: "较高功率无极调光",
+        products: ["H6052"],
+        docs: ["驱动规格-C.pdf"],
+        specs: { vin: "100-240V", pout: "12W", dimMethod: "无极 PWM", dimRange: "5%-100%", pf: "0.93 / 89%", certs: "CE / FCC", protect: "过压 / 短路" }
+      },
+      {
+        id: "STR-S1", category: CATEGORY, domain: "结构", family: "灯体结构", name: "落地结构方案S1",
+        capability: "落地杆体与配重底座",
+        products: ["H6076"],
+        docs: ["结构3D-S1.step"],
+        specs: { mount: "落地", size: "φ250 × 1650mm", material: "铝合金 + ABS", load: "整机 3.8kg", ip: "IP20", iface: "M8 杆体接口" }
+      },
+      {
+        id: "STR-S2", category: CATEGORY, domain: "结构", family: "灯体结构", name: "墙装结构方案S2",
+        capability: "墙面拼装与暗线走线",
+        products: ["H6091"],
+        docs: ["结构3D-S2.step"],
+        specs: { mount: "墙面拼装", size: "单片 180 × 180mm", material: "PC 扩散 + 铝合金背板", load: "单片 0.28kg", ip: "IP20", iface: "磁吸拼接 + 底盒" }
+      },
+      {
+        id: "STR-S4", category: CATEGORY, domain: "结构", family: "灯体结构", name: "台灯结构方案S4",
+        capability: "桌面摇臂与配重底座",
+        products: ["H6052"],
+        docs: ["结构3D-S4.step"],
+        specs: { mount: "桌面", size: "底座 φ160 × 高度 420mm", material: "铝合金", load: "整机 1.1kg", ip: "IP20", iface: "摇臂阻尼铰链" }
+      },
+      {
+        id: "FW-F1", category: CATEGORY, domain: "嵌入式", family: "控制固件", name: "固件方案F1",
+        capability: "开关 + 色温两路，墙板控制",
+        products: ["H6091", "H6076"],
+        docs: ["固件版本说明-F1.md"],
+        specs: { control: "墙板 / 机身按键", channels: "开关 + 色温", protocol: "无外部通讯", ota: "不支持", standby: "0.3W" }
+      },
+      {
+        id: "FW-F2", category: CATEGORY, domain: "嵌入式", family: "控制固件", name: "固件方案F2",
+        capability: "台灯触摸调光",
+        products: ["H6052"],
+        docs: ["固件版本说明-F2.md"],
+        specs: { control: "触摸滑条", channels: "亮度", protocol: "无外部通讯", ota: "不支持", standby: "0.2W" }
+      }
+    ]);
+
+    const seedProducts = () => ([
+      {
+        model: "H6091", name: "幻彩墙灯", category: CATEGORY, series: "墙灯", launched: "2024-08",
+        modules: [
+          { domain: "光学", moduleId: "LED-01", decision: "reuse" },
+          { domain: "电子", moduleId: "PSU-A", decision: "reuse" },
+          { domain: "结构", moduleId: "STR-S2", decision: "fresh" },
+          { domain: "嵌入式", moduleId: "FW-F1", decision: "reuse" }
+        ]
+      },
+      {
+        model: "H6076", name: "落地灯 Pro", category: CATEGORY, series: "落地灯", launched: "2025-03",
+        modules: [
+          { domain: "光学", moduleId: "LED-01", decision: "reuse" },
+          { domain: "电子", moduleId: "PSU-B", decision: "change" },
+          { domain: "结构", moduleId: "STR-S1", decision: "fresh" },
+          { domain: "嵌入式", moduleId: "FW-F1", decision: "reuse" }
+        ]
+      },
+      {
+        model: "H6052", name: "台灯", category: CATEGORY, series: "台灯", launched: "2025-09",
+        modules: [
+          { domain: "光学", moduleId: "LED-02", decision: "reuse" },
+          { domain: "电子", moduleId: "PSU-C", decision: "reuse" },
+          { domain: "结构", moduleId: "STR-S4", decision: "fresh" },
+          { domain: "嵌入式", moduleId: "FW-F2", decision: "reuse" }
+        ]
+      }
+    ]);
+
+    const seedMatch = () => ({
+      model: "B8011",
+      name: "磁吸轨道灯",
+      category: CATEGORY,
+      series: "磁吸轨道",
+      launch: "2026-12",
+      scene: "客厅轨道主照明",
+      status: "待匹配",
+      step: 1,
+      reqs: {
+        光学: { watt: "8W", cct: "2700-6500K", cri: "≥90", dimming: "可调", scene: "客厅主照明" },
+        电子: { pout: "8-12W", dimMethod: "需支持深调", dimRange: "1%-100%", certs: "CE / FCC" },
+        结构: { mount: "磁吸轨道", size: "单节约 400mm", iface: "轨道扣位" },
+        嵌入式: { control: "墙板即可", channels: "开关 + 色温", protocol: "无外部通讯也可" }
+      },
+      rows: [
+        { domain: "光学", family: "灯珠", moduleId: "LED-01", decision: "reuse", note: "灯珠方案一的功率、色温、CRI 满足，已用于 H6091 / H6076。" },
+        { domain: "电子", family: "电源驱动", moduleId: "PSU-B", decision: "change", note: "电源方案B功率接近，但调光只到 10%，B8011 需要 1% 深调。" },
+        { domain: "结构", family: "灯体结构", moduleId: "", decision: "fresh", note: "货架只有落地、墙装、台灯，没有磁吸轨道结构。" },
+        { domain: "嵌入式", family: "控制固件", moduleId: "FW-F1", decision: "reuse", note: "固件方案F1 的墙板 + 色温通道可直接用。" }
+      ]
+    });
+
+    const state = {
+      view: "home",
+      modules: seedModules(),
+      products: seedProducts(),
+      match: seedMatch(),
+      shelfQuery: "",
+      shelfNode: "cat",
+      prodQuery: "",
+      prodNode: "cat"
+    };
+
+    const decLabel = { reuse: "复用", change: "二次开发", fresh: "新做" };
+    const $ = (id) => document.getElementById(id);
+    const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+    function toast(text) {
+      const el = $("toast");
+      el.textContent = text;
+      el.classList.add("show");
+      setTimeout(() => el.classList.remove("show"), 1800);
+    }
+    function closeDialog() { $("mask").classList.remove("show"); }
+    function openDialog(html) { $("dialog").innerHTML = html; $("mask").classList.add("show"); }
+    function moduleById(id) { return state.modules.find((m) => m.id === id); }
+    function incrementRows() { return state.match.rows.filter((r) => r.decision !== "reuse"); }
+    function reuseRows() { return state.match.rows.filter((r) => r.decision === "reuse"); }
+    function specSummary(m) {
+      const s = m.specs || {};
+      if (m.domain === "光学") return [s.watt, s.cct, "CRI" + s.cri, s.dimming].filter(Boolean);
+      if (m.domain === "电子") return [s.pout, s.dimMethod, s.dimRange].filter(Boolean);
+      if (m.domain === "结构") return [s.mount, s.size, s.ip].filter(Boolean);
+      return [s.control, s.channels, s.protocol].filter(Boolean);
+    }
+    function specTable(specs) {
+      return `<table><tbody>${Object.entries(specs || {}).map(([k, v]) => `<tr><th style="width:28%">${SPEC_LABEL[k] || k}</th><td>${esc(v)}</td></tr>`).join("")}</tbody></table>`;
+    }
+    function moduleHaystack(m) {
+      return [m.id, m.name, m.family, m.domain, m.category, m.capability, ...(m.products || []), ...Object.values(m.specs || {}), ...(m.docs || [])].join(" ").toLowerCase();
+    }
+    function productHaystack(p) {
+      const mods = p.modules.map((x) => moduleById(x.moduleId)?.name || "").join(" ");
+      return [p.model, p.name, p.series, p.category, p.launched, mods].join(" ").toLowerCase();
+    }
+
+    function showView(name) {
+      state.view = name;
+      document.querySelectorAll(".nav-btn").forEach((btn) => btn.classList.toggle("active", btn.dataset.view === name));
+      document.querySelectorAll(".view").forEach((el) => el.classList.remove("show"));
+      $("view-" + name).classList.add("show");
+      $("pageTitle").textContent = TITLES[name][0];
+      $("pageDesc").textContent = TITLES[name][1];
+      render();
+    }
+
+    function render() {
+      renderHome();
+      renderShelf();
+      renderMatch();
+      renderProducts();
+    }
+
+    function renderHome() {
+      const pending = state.match.status === "已上市回写" ? 0 : 1;
+      const wrote = state.products.some((p) => p.model === "B8011") ? 1 : 0;
+      $("view-home").innerHTML = `
+        <div class="stats">
+          <div class="stat"><span>模块方案</span><b>${state.modules.length}</b></div>
+          <div class="stat"><span>已上市 model</span><b>${state.products.length}</b></div>
+          <div class="stat"><span>待匹配</span><b>${pending}</b></div>
+          <div class="stat"><span>本演示已回写</span><b>${wrote}</b></div>
+        </div>
+        <div class="grid-2" style="margin-top:14px">
+          <article class="card">
+            <h2>待处理</h2>
+            ${pending ? `
+              <p>产品经理已提交 <strong>${state.match.name}</strong>（${state.match.model}）。上市 ${state.match.launch}。</p>
+              <p class="muted">要求：8W / 2700-6500K / CRI≥90 / 1% 深调 / 磁吸轨道。</p>
+              <button class="btn primary" type="button" id="goMatch">开始匹配拍板</button>
+            ` : `<div class="okbox">B8011 已上市回写。货架新增深调电源和磁吸结构，产品方案库可按 model 回看。</div>`}
+          </article>
+          <article class="card">
+            <h2>货架树怎么读</h2>
+            <p class="muted">照明 → 光学 / 电子 / 结构 / 嵌入式 → 灯珠 / 电源驱动 / 灯体结构 / 控制固件 → 具体方案。</p>
+            <p class="muted">已挂 model：H6091、H6076、H6052。新品 B8011 先匹配再立项。</p>
+          </article>
+        </div>
+      `;
+      const go = $("goMatch");
+      if (go) go.onclick = () => showView("match");
+    }
+
+    function shelfFilter() {
+      const q = state.shelfQuery.trim().toLowerCase();
+      const node = state.shelfNode;
+      return state.modules.filter((m) => {
+        if (q && !moduleHaystack(m).includes(q)) return false;
+        if (node === "cat") return true;
+        if (node.startsWith("d:")) return m.domain === node.slice(2);
+        if (node.startsWith("f:")) {
+          const [domain, family] = node.slice(2).split("/");
+          return m.domain === domain && m.family === family;
+        }
+        return true;
+      });
+    }
+
+    function renderShelfTree() {
+      const counts = (pred) => state.modules.filter(pred).length;
+      let html = `<button class="tree-node ${state.shelfNode === "cat" ? "on" : ""}" data-node="cat" type="button">${CATEGORY} <span class="meta">${state.modules.length}</span></button>`;
+      Object.keys(FAMILIES).forEach((domain) => {
+        html += `<button class="tree-node ${state.shelfNode === "d:" + domain ? "on" : ""}" data-node="d:${domain}" type="button" style="padding-left:18px">${domain} <span class="meta">${counts((m) => m.domain === domain)}</span></button>`;
+        FAMILIES[domain].forEach((family) => {
+          html += `<button class="tree-node ${state.shelfNode === "f:" + domain + "/" + family ? "on" : ""}" data-node="f:${domain}/${family}" type="button" style="padding-left:32px">${family} <span class="meta">${counts((m) => m.domain === domain && m.family === family)}</span></button>`;
+        });
+      });
+      return html;
+    }
+
+    function renderShelf() {
+      const list = shelfFilter();
+      const crumb = state.shelfNode === "cat" ? CATEGORY
+        : state.shelfNode.startsWith("d:") ? CATEGORY + " / " + state.shelfNode.slice(2)
+        : CATEGORY + " / " + state.shelfNode.slice(2).replace("/", " / ");
+      $("view-shelf").innerHTML = `
+        <div class="split">
+          <aside class="tree" id="shelfTree">${renderShelfTree()}</aside>
+          <div>
+            <div class="row" style="margin-bottom:10px">
+              <input class="search" id="shelfSearch" placeholder="搜索方案名、专业域、指标、model，如 H6076、1%、磁吸">
+              <button class="btn primary" type="button" id="addModule">新增方案</button>
+            </div>
+            <div class="crumb">${esc(crumb)} · ${list.length} 条${state.shelfQuery ? "（搜索过滤后）" : ""}</div>
+            <div class="mod-grid">
+              ${list.map((m) => `
+                <article class="mod-card" data-id="${m.id}">
+                  <div class="row"><span class="tag idle">${m.domain}</span><span class="tag idle">${m.family}</span></div>
+                  <h3>${esc(m.name)}</h3>
+                  <div class="chips">${specSummary(m).map((x) => `<span class="mini">${esc(x)}</span>`).join("")}</div>
+                  <div class="muted">已挂 ${m.products.join("、") || "尚未挂 model"}</div>
+                </article>
+              `).join("") || `<div class="muted">没有匹配的方案。</div>`}
+            </div>
+          </div>
+        </div>
+      `;
+      $("shelfSearch").value = state.shelfQuery;
+      $("shelfSearch").oninput = (e) => { state.shelfQuery = e.target.value; renderShelf(); };
+      $("addModule").onclick = openAddModule;
+      $("shelfTree").querySelectorAll("[data-node]").forEach((btn) => {
+        btn.onclick = () => { state.shelfNode = btn.dataset.node; renderShelf(); };
+      });
+      $("view-shelf").querySelectorAll(".mod-card").forEach((card) => {
+        card.onclick = () => openModule(card.dataset.id);
+      });
+    }
+
+    function openModule(id) {
+      const m = moduleById(id);
+      if (!m) return;
+      openDialog(`
+        <div class="dh"><span>${esc(m.name)}</span><button class="btn ghost" type="button" id="dlgClose">关闭</button></div>
+        <div class="db">
+          <p><span class="tag idle">${m.category}</span> <span class="tag idle">${m.domain}</span> <span class="tag idle">${m.family}</span> <strong>${m.id}</strong></p>
+          <p class="muted">${esc(m.capability)}</p>
+          <h3>结构化指标</h3>
+          ${specTable(m.specs)}
+          <div class="field" style="margin-top:12px"><label>已挂 model</label><div>${m.products.join("、") || "—"}</div></div>
+          <div class="field"><label>关联文档</label><div>${m.docs.join("、")}</div></div>
+        </div>
+        <div class="df"><button class="btn" type="button" id="dlgEdit">编辑名称与能力</button></div>
+      `);
+      $("dlgClose").onclick = closeDialog;
+      $("dlgEdit").onclick = () => openEditModule(id);
+    }
+
+    function moduleForm(m, mode) {
+      const isEdit = mode === "edit";
+      openDialog(`
+        <div class="dh"><span>${isEdit ? "编辑模块方案" : "新增模块方案"}</span><button class="btn ghost" type="button" id="dlgClose">关闭</button></div>
+        <div class="db">
+          <div class="field"><label>名称</label><input id="fName" value="${esc(m?.name || "")}"></div>
+          <div class="field"><label>专业域</label>
+            <select id="fDomain">${Object.keys(FAMILIES).map((d) => `<option ${m?.domain === d ? "selected" : ""}>${d}</option>`).join("")}</select>
+          </div>
+          <div class="field"><label>方案族</label><select id="fFamily"></select></div>
+          <div class="field"><label>通用能力</label><input id="fCap" value="${esc(m?.capability || "")}"></div>
+          <div class="field"><label>关联文档</label><input id="fDocs" value="${esc(m?.docs?.join("、") || "")}"></div>
+        </div>
+        <div class="df"><button class="btn primary" type="button" id="dlgSave">保存</button></div>
+      `);
+      const fillFamily = () => {
+        const domain = $("fDomain").value;
+        $("fFamily").innerHTML = FAMILIES[domain].map((f) => `<option ${m?.family === f ? "selected" : ""}>${f}</option>`).join("");
+      };
+      fillFamily();
+      $("fDomain").onchange = fillFamily;
+      $("dlgClose").onclick = closeDialog;
+      $("dlgSave").onclick = () => {
+        const payload = {
+          name: $("fName").value.trim(),
+          domain: $("fDomain").value,
+          family: $("fFamily").value,
+          capability: $("fCap").value.trim(),
+          docs: $("fDocs").value.split("、").map((s) => s.trim()).filter(Boolean)
+        };
+        if (!payload.name) { toast("请填写方案名称"); return; }
+        if (isEdit) Object.assign(m, payload);
+        else state.modules.unshift({ id: "NEW-" + Date.now().toString().slice(-4), category: CATEGORY, products: [], specs: {}, ...payload });
+        closeDialog();
+        toast("模块方案已保存");
+        render();
+      };
+    }
+    function openAddModule() { moduleForm(null, "add"); }
+    function openEditModule(id) { moduleForm(moduleById(id), "edit"); }
+
+    function reqTable(domain) {
+      const req = state.match.reqs[domain] || {};
+      return `<table><tbody>${Object.entries(req).map(([k, v]) => `<tr><th style="width:28%">${SPEC_LABEL[k] || k}</th><td>${esc(v)}</td></tr>`).join("")}</tbody></table>`;
+    }
+
+    function renderMatch() {
+      const m = state.match;
+      const step = m.step;
+      let body = "";
+      if (step === 1) {
+        body = `
+          <div class="grid-2">
+            <div>
+              <div class="field"><label>Model</label><input id="pModel" value="${esc(m.model)}"></div>
+              <div class="field"><label>产品名称</label><input id="pName" value="${esc(m.name)}"></div>
+              <div class="field"><label>品类 / 系列</label><input value="${esc(m.category)} / ${esc(m.series)}" disabled></div>
+              <div class="field"><label>上市日期</label><input id="pLaunch" value="${esc(m.launch)}"></div>
+            </div>
+            <div class="hint">B8011 只先定义产品和结构化要求，还不是项目任务书。下一步按专业域拆开对照货架。</div>
+          </div>
+        `;
+      } else if (step === 2) {
+        body = Object.keys(m.reqs).map((domain) => `
+          <h3 style="margin-top:12px">${domain} · ${m.rows.find((r) => r.domain === domain)?.family || ""}</h3>
+          ${reqTable(domain)}
+        `).join("");
+      } else if (step === 3) {
+        body = `<div class="decide">${m.rows.map((r, i) => decideBlock(r, i)).join("")}</div>`;
+      } else {
+        const inc = incrementRows();
+        const reuse = reuseRows();
+        body = `
+          <div class="okbox">复用 ${reuse.length} 项不进项目。B8011 项目只接 ${inc.length} 项增量。</div>
+          <h3 style="margin-top:14px">引用，不开发</h3>
+          <table>
+            <thead><tr><th>专业域</th><th>引用方案</th><th>已验证于</th><th>决策</th></tr></thead>
+            <tbody>
+              ${reuse.map((r) => `<tr><td>${r.domain}</td><td>${esc(moduleById(r.moduleId)?.name || "—")}</td><td>${esc((moduleById(r.moduleId)?.products || []).join("、"))}</td><td><span class="tag reuse">复用</span></td></tr>`).join("")}
+            </tbody>
+          </table>
+          <h3 style="margin-top:14px">进入项目的增量</h3>
+          <table>
+            <thead><tr><th>专业域</th><th>基线方案</th><th>决策</th><th>项目工作包</th></tr></thead>
+            <tbody>
+              ${inc.map((r) => `<tr>
+                <td>${r.domain}</td>
+                <td>${r.moduleId ? esc(moduleById(r.moduleId)?.name || r.moduleId) : "无现成方案"}</td>
+                <td><span class="tag ${r.decision}">${decLabel[r.decision]}</span></td>
+                <td>${esc(r.note)}</td>
+              </tr>`).join("")}
+            </tbody>
+          </table>
+          <p class="muted" style="margin-top:10px">当前状态：${m.status}</p>
+        `;
+      }
+
+      $("view-match").innerHTML = `
+        <div class="steps">
+          ${["1 产品定义", "2 指标拆解", "3 匹配拍板", "4 增量清单"].map((t, i) => {
+            const n = i + 1;
+            return `<div class="step ${n === step ? "on" : (n < step ? "done" : "")}">${t}</div>`;
+          }).join("")}
+        </div>
+        <article class="card">
+          ${m.status === "已上市回写" ? `<div class="okbox" style="margin-bottom:12px">B8011 已回写。可在货架和产品方案库按 model 查看。</div>` : ""}
+          ${body}
+          <div class="row" style="margin-top:14px">
+            ${step > 1 && m.status !== "已上市回写" ? `<button class="btn" type="button" id="prevStep">上一步</button>` : ""}
+            ${step < 4 ? `<button class="btn primary" type="button" id="nextStep">下一步</button>` : ""}
+            ${step === 4 && m.status !== "已上市回写" ? `<button class="btn" type="button" id="lockInc">确认增量立项</button>` : ""}
+            ${step === 4 && m.status !== "已上市回写" ? `<button class="btn green" type="button" id="writeBack">模拟上市回写</button>` : ""}
+          </div>
+        </article>
+      `;
+      const next = $("nextStep");
+      const prev = $("prevStep");
+      if (prev) prev.onclick = () => { m.step -= 1; renderMatch(); };
+      if (next) next.onclick = () => {
+        if (step === 1) {
+          m.model = $("pModel").value.trim() || m.model;
+          m.name = $("pName").value.trim() || m.name;
+          m.launch = $("pLaunch").value.trim() || m.launch;
+        }
+        m.step += 1;
+        renderMatch();
+      };
+      $("view-match").querySelectorAll("[data-dec]").forEach((btn) => {
+        btn.onclick = () => { m.rows[Number(btn.dataset.i)].decision = btn.dataset.dec; renderMatch(); };
+      });
+      $("view-match").querySelectorAll("[data-mod]").forEach((sel) => {
+        sel.onchange = () => { m.rows[Number(sel.dataset.i)].moduleId = sel.value; renderMatch(); };
+      });
+      const lock = $("lockInc");
+      if (lock) lock.onclick = () => { m.status = "已立项增量"; toast("增量已进入项目，复用项未进开发清单"); render(); };
+      const wb = $("writeBack");
+      if (wb) wb.onclick = writeBack;
+    }
+
+    function decideBlock(row, i) {
+      const options = state.modules.filter((m) => m.domain === row.domain && m.family === row.family);
+      const picked = moduleById(row.moduleId);
+      return `
+        <div class="decide-item">
+          <div class="row"><strong>${row.domain} · ${row.family}</strong></div>
+          <div class="grid-2" style="margin-top:8px">
+            <div>
+              <div class="muted">B8011 要求</div>
+              ${reqTable(row.domain)}
+            </div>
+            <div>
+              <div class="field">
+                <label>对照货架</label>
+                <select data-mod data-i="${i}">
+                  <option value="">无现成方案</option>
+                  ${options.map((x) => `<option value="${x.id}" ${row.moduleId === x.id ? "selected" : ""}>${x.name} · 已挂 ${x.products.join("/") || "无"}</option>`).join("")}
+                </select>
+              </div>
+              ${picked ? specTable(picked.specs) : `<div class="muted">选择方案后显示其指标。</div>`}
+            </div>
+          </div>
+          <p class="muted">${esc(row.note)}</p>
+          <div class="decide-ops">
+            ${["reuse", "change", "fresh"].map((d) => `<button class="opt ${d} ${row.decision === d ? "on" : ""}" type="button" data-dec="${d}" data-i="${i}">${decLabel[d]}</button>`).join("")}
+          </div>
+        </div>
+      `;
+    }
+
+    function writeBack() {
+      const m = state.match;
+      if (state.products.some((p) => p.model === m.model)) { toast("该 model 已经回写过"); return; }
+      const combo = m.rows.map((r) => {
+        let moduleId = r.moduleId;
+        if (r.decision === "change" && r.domain === "电子") {
+          const neu = {
+            id: "PSU-B2", category: CATEGORY, domain: "电子", family: "电源驱动", name: "电源方案B-深调版",
+            capability: "在方案B上扩展到 1% 深调，供磁吸轨道复用",
+            products: [m.model],
+            docs: ["驱动规格-B2.pdf"],
+            specs: { vin: "100-240V", pout: "8-12W", dimMethod: "无极 PWM", dimRange: "1%-100%", pf: "0.92 / 88%", certs: "CE / FCC / UL", protect: "过压 / 过温 / 短路" }
+          };
+          if (!moduleById(neu.id)) state.modules.unshift(neu);
+          moduleId = neu.id;
+        }
+        if (r.decision === "fresh" && r.domain === "结构") {
+          const neu = {
+            id: "STR-S3", category: CATEGORY, domain: "结构", family: "灯体结构", name: "磁吸轨道结构方案S3",
+            capability: "新品类轨道安装，单节可拼接",
+            products: [m.model],
+            docs: ["结构3D-S3.step"],
+            specs: { mount: "磁吸轨道", size: "单节 400mm", material: "铝合金型材", load: "单节 0.45kg", ip: "IP20", iface: "轨道扣位 12mm" }
+          };
+          if (!moduleById(neu.id)) state.modules.unshift(neu);
+          moduleId = neu.id;
+        }
+        if (r.decision === "reuse" && moduleId) {
+          const base = moduleById(moduleId);
+          if (base && !base.products.includes(m.model)) base.products.push(m.model);
+        }
+        return { domain: r.domain, moduleId, decision: r.decision };
+      });
+      state.products.unshift({
+        model: m.model, name: m.name, category: m.category, series: m.series, launched: m.launch, modules: combo
+      });
+      m.status = "已上市回写";
+      toast("B8011 已回写到产品方案库，新模块进入货架");
+      render();
+    }
+
+    function productFilter() {
+      const q = state.prodQuery.trim().toLowerCase();
+      return state.products.filter((p) => {
+        if (q && !productHaystack(p).includes(q)) return false;
+        if (state.prodNode === "cat") return true;
+        if (state.prodNode.startsWith("s:")) return p.series === state.prodNode.slice(2);
+        if (state.prodNode.startsWith("m:")) return p.model === state.prodNode.slice(2);
+        return true;
+      });
+    }
+
+    function renderProductTree() {
+      const series = [...new Set(state.products.map((p) => p.series))];
+      let html = `<button class="tree-node ${state.prodNode === "cat" ? "on" : ""}" data-node="cat" type="button">${CATEGORY} <span class="meta">${state.products.length}</span></button>`;
+      series.forEach((s) => {
+        const items = state.products.filter((p) => p.series === s);
+        html += `<button class="tree-node ${state.prodNode === "s:" + s ? "on" : ""}" data-node="s:${s}" type="button" style="padding-left:18px">${s} <span class="meta">${items.length}</span></button>`;
+        items.forEach((p) => {
+          html += `<button class="tree-node ${state.prodNode === "m:" + p.model ? "on" : ""}" data-node="m:${p.model}" type="button" style="padding-left:32px">${p.model} <span class="meta">${p.name}</span></button>`;
+        });
+      });
+      return html;
+    }
+
+    function renderProducts() {
+      const list = productFilter();
+      $("view-products").innerHTML = `
+        <div class="split">
+          <aside class="tree" id="prodTree">${renderProductTree()}</aside>
+          <div>
+            <input class="search" id="prodSearch" placeholder="搜索 model、系列、方案名，如 H6091、落地灯、灯珠方案一">
+            <div class="crumb" style="margin-top:10px">${list.length} 个产品方案</div>
+            <div class="mod-grid">
+              ${list.map((p) => `
+                <article class="card">
+                  <div class="row"><span class="tag done">已上市</span><strong>${p.model}</strong><span class="tag idle">${p.series}</span></div>
+                  <h3 style="margin-top:8px">${esc(p.name)}</h3>
+                  <p class="muted">上市 ${p.launched}</p>
+                  <table>
+                    <thead><tr><th>专业域</th><th>模块方案</th><th>决策</th></tr></thead>
+                    <tbody>
+                      ${p.modules.map((x) => `<tr>
+                        <td>${x.domain}</td>
+                        <td><button class="btn ghost" type="button" data-open="${x.moduleId || ""}">${esc(moduleById(x.moduleId)?.name || x.moduleId || "—")}</button></td>
+                        <td><span class="tag ${x.decision}">${decLabel[x.decision]}</span></td>
+                      </tr>`).join("")}
+                    </tbody>
+                  </table>
+                </article>
+              `).join("") || `<div class="muted">没有匹配的产品方案。</div>`}
+            </div>
+          </div>
+        </div>
+      `;
+      $("prodSearch").value = state.prodQuery;
+      $("prodSearch").oninput = (e) => { state.prodQuery = e.target.value; renderProducts(); };
+      $("prodTree").querySelectorAll("[data-node]").forEach((btn) => {
+        btn.onclick = () => { state.prodNode = btn.dataset.node; renderProducts(); };
+      });
+      $("view-products").querySelectorAll("[data-open]").forEach((btn) => {
+        btn.onclick = () => { if (btn.dataset.open) openModule(btn.dataset.open); };
+      });
+    }
+
+    document.querySelectorAll(".nav-btn").forEach((btn) => {
+      btn.onclick = () => showView(btn.dataset.view);
+    });
+    $("resetBtn").onclick = () => {
+      state.modules = seedModules();
+      state.products = seedProducts();
+      state.match = seedMatch();
+      state.shelfQuery = "";
+      state.shelfNode = "cat";
+      state.prodQuery = "";
+      state.prodNode = "cat";
+      toast("演示数据已重置");
+      showView("home");
+    };
+    $("mask").addEventListener("click", (e) => { if (e.target.id === "mask") closeDialog(); });
+    render();
+  </script>
+</body>
+</html>

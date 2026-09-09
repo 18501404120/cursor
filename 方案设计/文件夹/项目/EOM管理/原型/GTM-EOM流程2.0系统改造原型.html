@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>GTM EOM 管理</title>
-  <link rel="stylesheet" href="assets/eom-proto.css?v=order-filters-1" />
+  <link rel="stylesheet" href="assets/eom-proto.css?v=sku-cart-2" />
 </head>
 <body>
   <div class="toast" id="toast"></div>
@@ -66,11 +66,11 @@
             <div class="form-item"><label class="form-label required">业务单元</label><div class="form-control"><select class="select" id="businessUnit"><option>LBU</option><option>ABU</option></select></div></div>
             <div class="form-item"><label class="form-label required">退市类型</label><div class="form-control"><div class="radio-group"><label class="radio"><input type="radio" name="eomType" value="主动退市" checked />主动退市</label><label class="radio"><input type="radio" name="eomType" value="被动退市" />被动退市</label></div></div></div>
             <div class="form-item full"><label class="form-label required">退市原因</label><div class="form-control"><select class="select input-wide" id="reason"></select></div></div>
-            <div class="form-item full"><label class="form-label">退市说明</label><div class="form-control"><textarea class="textarea" id="createRemark" placeholder="选择“其他”时必须补充说明">试用 H8888 可正常提交；试用 H6199 看重复工单；试用 H9009 看未上市；试用 H9100 看已EOL。</textarea></div></div>
+            <div class="form-item full"><label class="form-label">退市说明</label><div class="form-control"><textarea class="textarea" id="createRemark" placeholder="选择“其他”时必须补充说明">试用：先搜 H6099 勾 3 个，再搜 H6098 勾 1 个，再按场景品类「居家」继续加选。H8888 可正常提交；H6199 看重复工单；H9009 看未上市；H9100 看已EOL。</textarea></div></div>
           </div>
         </div>
         <div class="step-panel" data-step="2">
-          <div class="alert">按场景品类、Model、SKU、产品名称和状态搜索带出有效 8 位 SKU。可导入勾选。未勾选必须填排除原因。已 EOL、进行中 EOM 不得提交。预计 EOL、是否新品迭代、迭代新品 SKU、新品预计 CR、新品上市时间按 8 位 SKU 在列表中填写，同一 SKU 多行 MSKU 共用一套数；可勾选后批量填写（空项不覆盖）。预计 EOL 选填，后续可在台账补。</div>
+          <div class="alert">搜索只刷新上方候选，不会清空已选。勾选加入本单范围，可换 Model / 场景继续加选。未勾选不视为排除、不必填排除原因，不强制整 Model 齐套。已选清单可查看、删除。已 EOL、进行中 EOM 不得加入。预计 EOL / 新品衔接按 8 位 SKU 填写，换筛选不丢失；可勾选后批量填写（空项不覆盖）。预计 EOL 选填，后续可在台账补。</div>
           <div class="sku-pick-filters">
             <div class="sku-pick-item"><label>场景品类</label><select class="select" id="skuPickSceneCat" data-act="sku-pick-scene"><option value="">请选择</option></select></div>
             <div class="sku-pick-item"><label>model</label><select class="select" id="skuPickModel" data-act="sku-pick-model"><option value="">请选择</option></select></div>
@@ -85,15 +85,29 @@
           </div>
           <div class="sku-plan-toolbar">
             <button class="btn btn-primary" type="button" data-act="sku-plan-batch">批量填写</button>
-            <span class="muted">先勾选纳入 EOM 的行，再批量覆盖已填项。被动退市时新品衔接 4 列只读。</span>
+            <span class="muted">勾选加入已选清单。全选只作用于当前搜索结果。批量填写覆盖当前勾选行的已填项。被动退市时新品衔接 4 列只读。</span>
           </div>
           <div class="table-wrap">
             <table>
-              <thead><tr><th><input id="checkAllSku" type="checkbox" checked /></th><th>场景</th><th>品类</th><th>Model</th><th>8位SKU</th><th>MSKU</th><th>产品状态</th><th data-pa-key="in-stock">在库库存</th><th data-pa-key="total-stock">总计库存数量</th><th>近月销量</th><th>上市时间</th><th>国家规格</th><th>进行中EOM</th><th>排除原因</th><th>预计EOL</th><th>是否新品迭代</th><th>迭代新品SKU</th><th>新品预计CR</th><th>新品上市时间</th></tr></thead>
+              <thead><tr><th><input id="checkAllSku" type="checkbox" /></th><th>场景</th><th>品类</th><th>Model</th><th>8位SKU</th><th>MSKU</th><th>产品状态</th><th data-pa-key="in-stock">在库库存</th><th data-pa-key="total-stock">总计库存数量</th><th>近月销量</th><th>上市时间</th><th>国家规格</th><th>进行中EOM</th><th>排除原因</th><th>预计EOL</th><th>是否新品迭代</th><th>迭代新品SKU</th><th>新品预计CR</th><th>新品上市时间</th></tr></thead>
               <tbody id="skuSelectBody"></tbody>
             </table>
           </div>
-          <div style="margin-top:10px;color:var(--text3)">已选择 <b id="selectedSkuCount" style="color:var(--primary)">0</b> 个 SKU。</div>
+          <div class="sku-cart" id="skuCartPanel" data-pa-key="sku-cart">
+            <div class="sku-cart-head">
+              <div>
+                <b>已选产品范围</b>
+                <span class="muted">本单只认下方清单。已选择 <b id="selectedSkuCount">0</b> 个 SKU，换筛选不会丢失。</span>
+              </div>
+              <button class="btn" type="button" data-act="clear-sku-cart" id="clearSkuCart">清空已选</button>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>场景</th><th>品类</th><th>Model</th><th>8位SKU</th><th>MSKU</th><th>产品状态</th><th>在库库存</th><th>总计库存数量</th><th>近月销量</th><th>上市时间</th><th>国家规格</th><th>进行中EOM</th><th>排除原因</th><th>预计EOL</th><th>是否新品迭代</th><th>迭代新品SKU</th><th>新品预计CR</th><th>新品上市时间</th><th>操作</th></tr></thead>
+                <tbody id="skuCartBody"></tbody>
+              </table>
+            </div>
+          </div>
         </div>
         <div class="step-panel" data-step="3">
           <div class="section-title">附件与备注</div>
@@ -139,7 +153,7 @@
     </div>
   </div>
 
-  <script src="assets/eom-seed.js?v=sku-plan-list-1"></script>
-  <script src="assets/eom-app.js?v=order-filters-1"></script>
+  <script src="assets/eom-seed.js?v=sku-cart-1"></script>
+  <script src="assets/eom-app.js?v=sku-cart-2"></script>
 </body>
 </html>

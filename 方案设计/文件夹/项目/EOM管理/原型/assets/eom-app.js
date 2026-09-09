@@ -17,7 +17,8 @@
     noticeRole: 'sales',
     noticeFilter: 'all',
     noticeOvFilter: 'all',
-    skuPlan: {}
+    skuPlan: {},
+    skuCart: []
   };
 
   var MAT_STATUS = { 1: ['核料中', 'orange'], 2: ['核料失败', 'red'], 3: ['草稿', 'blue'], 4: ['定版', 'green'] };
@@ -3380,9 +3381,12 @@
     }
     return p;
   }
+  function skuPlanRowEls() {
+    return document.querySelectorAll('#skuSelectBody tr[data-sku], #skuCartBody tr[data-sku]');
+  }
   function captureSkuPlanFromDom() {
     if (!UI.skuPlan) UI.skuPlan = {};
-    document.querySelectorAll('#skuSelectBody tr').forEach(function (tr) {
+    skuPlanRowEls().forEach(function (tr) {
       var sku = tr.getAttribute('data-sku');
       if (!sku) return;
       UI.skuPlan[sku] = {
@@ -3431,7 +3435,7 @@
   }
   function paintSkuPlanRows(sku) {
     var p = planOfSku(sku);
-    document.querySelectorAll('#skuSelectBody tr').forEach(function (tr) {
+    skuPlanRowEls().forEach(function (tr) {
       if (tr.getAttribute('data-sku') !== sku) return;
       var eol = tr.querySelector('.sku-eol');
       var flag = tr.querySelector('.sku-new-flag');
@@ -3448,9 +3452,10 @@
   }
   function refreshSkuPlanDisabled() {
     var passive = isPassiveEom();
-    document.querySelectorAll('#skuSelectBody tr').forEach(function (tr) {
+    skuPlanRowEls().forEach(function (tr) {
       var ck = tr.querySelector('.sku-check');
-      var selected = !!(ck && ck.checked && !ck.disabled);
+      var inCart = tr.closest('#skuCartBody') || (ck && ck.checked && !ck.disabled);
+      var selected = !!inCart;
       var flag = (tr.querySelector('.sku-new-flag') || {}).value || '';
       var eolOff = !selected;
       var flagOff = !selected || passive;
@@ -3478,7 +3483,7 @@
       '<td><input class="input sku-plan-date sku-new-list" type="date" value="' + esc(p.newList || '') + '"' + (newOff ? ' disabled' : '') + ' /></td>';
   }
   function bindSkuPlanInputs() {
-    document.querySelectorAll('#skuSelectBody tr').forEach(function (tr) {
+    skuPlanRowEls().forEach(function (tr) {
       var sku = tr.getAttribute('data-sku');
       tr.querySelectorAll('.sku-eol,.sku-new-flag,.sku-new-sku,.sku-new-cr,.sku-new-list').forEach(function (el) {
         el.onchange = function () {
@@ -3553,6 +3558,7 @@
       paintSkuPlanRows(sku);
     });
     closeMask('formMask');
+    renderSkuCart();
     toast('已覆盖 ' + skus.length + ' 个 8 位 SKU 的已填项', 'success');
   }
   function renderWizardSteps() {
@@ -3642,26 +3648,112 @@
       return '<option value="' + esc(x) + '"' + (x === prevSku ? ' selected' : '') + '>' + esc(x) + '</option>';
     }).join('');
   }
-  function renderSkuPickerRows(list, msg) {
+  function isSkuBlocked(s) {
+    return !!(s && (s.inProgress || s.status === 'EOL'));
+  }
+  function isSkuInCart(sku) {
+    return (UI.skuCart || []).some(function (x) { return x.sku === sku; });
+  }
+  function addSkuToCart(row) {
+    if (!row || !row.sku || isSkuBlocked(row.sku)) return false;
+    if (!UI.skuCart) UI.skuCart = [];
+    if (isSkuInCart(row.sku.sku)) return true;
+    UI.skuCart.push({ model: row.cat.model, sku: row.sku.sku });
+    return true;
+  }
+  function removeSkuFromCart(sku) {
+    UI.skuCart = (UI.skuCart || []).filter(function (x) { return x.sku !== sku; });
+  }
+  function catalogRowsForSku(sku) {
+    return catalogFlat().filter(function (row) { return row.sku.sku === sku; });
+  }
+  function syncCandidateChecks() {
+    document.querySelectorAll('#skuSelectBody tr[data-sku]').forEach(function (tr) {
+      var ck = tr.querySelector('.sku-check');
+      if (!ck || ck.disabled) return;
+      ck.checked = isSkuInCart(tr.getAttribute('data-sku'));
+    });
+    syncCheckAllBox();
+    refreshSkuPlanDisabled();
+  }
+  function syncCheckAllBox() {
+    var all = document.getElementById('checkAllSku');
+    if (!all) return;
+    var boxes = document.querySelectorAll('#skuSelectBody .sku-check:not(:disabled)');
+    if (!boxes.length) {
+      all.checked = false;
+      all.indeterminate = false;
+      return;
+    }
+    var n = 0;
+    boxes.forEach(function (c) { if (c.checked) n++; });
+    all.checked = n === boxes.length;
+    all.indeterminate = n > 0 && n < boxes.length;
+  }
+  function renderSkuCart() {
     captureSkuPlanFromDom();
-    document.getElementById('skuSelectBody').innerHTML = (list || []).map(function (row, i) {
+    var body = document.getElementById('skuCartBody');
+    var countEl = document.getElementById('selectedSkuCount');
+    var cart = UI.skuCart || [];
+    if (countEl) countEl.textContent = cart.length;
+    if (!body) return;
+    if (!cart.length) {
+      body.innerHTML = '<tr><td class="sku-cart-empty" colspan="19">尚未选择 SKU。请在上方搜索后勾选，可换筛选继续加选。</td></tr>';
+      return;
+    }
+    var lines = [];
+    cart.forEach(function (item) {
+      var hits = catalogRowsForSku(item.sku);
+      if (!hits.length) {
+        var hit = findCatalogSku(item.model, item.sku);
+        if (hit) hits = [hit];
+      }
+      hits.forEach(function (hit) { lines.push(hit); });
+    });
+    body.innerHTML = lines.map(function (row) {
       var c = row.cat, s = row.sku;
-      var block = s.inProgress || s.status === 'EOL';
-      var selected = !block;
-      return '<tr class="' + (s.inProgress ? 'danger-row' : (s.status === '未上市' && !s.sales ? 'warn-row' : '')) + '" data-model="' + esc(c.model) + '" data-sku="' + esc(s.sku) + '" data-msku="' + esc(s.msku) + '">' +
-        '<td><input class="sku-check" type="checkbox" data-i="' + i + '" ' + (block ? 'disabled' : 'checked') + ' /></td>' +
+      return '<tr data-model="' + esc(c.model) + '" data-sku="' + esc(s.sku) + '" data-msku="' + esc(s.msku) + '">' +
         '<td>' + esc(c.scene) + '</td><td>' + esc(c.cat) + '</td><td>' + esc(c.model) + '</td><td>' + esc(s.sku) + '</td><td>' + esc(s.msku) + '</td>' +
         '<td>' + esc(s.status) + '</td><td>' + num(skuInStock(s)) + '</td><td>' + num(skuTotalStock(s)) + '</td><td>' + num(s.sales) + '</td>' +
         '<td>' + esc(s.onMarketDate) + '</td><td>' + esc(s.country) + '</td>' +
         '<td>' + (s.inProgress ? '是' : '否') + '</td>' +
-        '<td><input class="input w-180 exclusion" ' + (block ? '' : 'disabled') + ' placeholder="' + (block ? '不可纳入' : '勾选后无需填写') + '" value="' + (s.inProgress ? '已存在进行中EOM' : (s.status === 'EOL' ? '已EOL' : '')) + '" /></td>' +
+        '<td><input class="input w-180 exclusion" disabled placeholder="已纳入，无需填写" value="" /></td>' +
+        skuPlanCellsHtml(s.sku, true, false) +
+        '<td><button class="btn" type="button" data-act="remove-cart-sku" data-sku="' + esc(s.sku) + '">删除</button></td></tr>';
+    }).join('');
+    bindSkuPlanInputs();
+    refreshSkuPlanDisabled();
+  }
+  function updateSkuCount() { renderSkuCart(); }
+  function renderSkuPickerRows(list, msg) {
+    captureSkuPlanFromDom();
+    var rows = list || [];
+    if (!rows.length) {
+      document.getElementById('skuSelectBody').innerHTML = '<tr><td colspan="19" class="sku-cart-empty">请先搜索或导入 SKU。勾选后进入下方已选清单，换筛选不会丢失。</td></tr>';
+      syncCheckAllBox();
+      renderSkuCart();
+      if (msg) toast(msg, 'warning');
+      return;
+    }
+    document.getElementById('skuSelectBody').innerHTML = rows.map(function (row, i) {
+      var c = row.cat, s = row.sku;
+      var block = isSkuBlocked(s);
+      var selected = !block && isSkuInCart(s.sku);
+      return '<tr class="' + (s.inProgress ? 'danger-row' : (s.status === '未上市' && !s.sales ? 'warn-row' : '')) + '" data-model="' + esc(c.model) + '" data-sku="' + esc(s.sku) + '" data-msku="' + esc(s.msku) + '">' +
+        '<td><input class="sku-check" type="checkbox" data-i="' + i + '" ' + (block ? 'disabled' : '') + (selected ? ' checked' : '') + ' /></td>' +
+        '<td>' + esc(c.scene) + '</td><td>' + esc(c.cat) + '</td><td>' + esc(c.model) + '</td><td>' + esc(s.sku) + '</td><td>' + esc(s.msku) + '</td>' +
+        '<td>' + esc(s.status) + '</td><td>' + num(skuInStock(s)) + '</td><td>' + num(skuTotalStock(s)) + '</td><td>' + num(s.sales) + '</td>' +
+        '<td>' + esc(s.onMarketDate) + '</td><td>' + esc(s.country) + '</td>' +
+        '<td>' + (s.inProgress ? '是' : '否') + '</td>' +
+        '<td><input class="input w-180 exclusion" disabled placeholder="' + (block ? '不可纳入' : '未选不纳入，无需填写') + '" value="' + (s.inProgress ? '已存在进行中EOM' : (s.status === 'EOL' ? '已EOL' : '')) + '" /></td>' +
         skuPlanCellsHtml(s.sku, selected, block) + '</tr>';
     }).join('');
     bindSkuChecks();
     bindSkuPlanInputs();
     refreshSkuPlanDisabled();
-    updateSkuCount();
-    if (msg) toast(msg, list && list.length ? 'success' : 'warning');
+    syncCheckAllBox();
+    renderSkuCart();
+    if (msg) toast(msg, rows.length ? 'success' : 'warning');
   }
   function searchSkuPicker(silent) {
     var sceneCat = ((document.getElementById('skuPickSceneCat') || {}).value || '').trim();
@@ -3670,6 +3762,11 @@
     var name = ((document.getElementById('skuPickName') || {}).value || '').trim().toLowerCase();
     var modelSt = ((document.getElementById('skuPickModelStatus') || {}).value || '').trim();
     var skuSt = ((document.getElementById('skuPickSkuStatus') || {}).value || '').trim();
+    var hasFilter = !!(sceneCat || model || sku || name || modelSt || skuSt);
+    if (!hasFilter) {
+      renderSkuPickerRows([], silent ? '' : '请先选择筛选条件后搜索，或导入 SKU');
+      return;
+    }
     var list = catalogFlat().filter(function (row) {
       var c = row.cat, s = row.sku;
       if (sceneCat && (c.scene + ' / ' + c.cat) !== sceneCat) return false;
@@ -3680,62 +3777,56 @@
       if (skuSt && (s.status || '') !== skuSt) return false;
       return true;
     });
-    renderSkuPickerRows(list, silent ? '' : (list.length ? ('已带出 ' + list.length + ' 个 SKU') : '未找到匹配 SKU，可改筛选条件或导入'));
+    renderSkuPickerRows(list, silent ? '' : (list.length ? ('已带出 ' + list.length + ' 个候选 SKU，已选清单未清空') : '未找到匹配 SKU，可改筛选条件或导入'));
   }
   function loadModelSkus() { searchSkuPicker(); }
   function importSku() {
-    var text = prompt('粘贴要勾选的 SKU，逗号或换行分隔');
+    var text = prompt('粘贴要加入已选清单的 SKU，逗号或换行分隔');
     if (text == null) return;
     var set = {};
     String(text).split(/[\s,;，；]+/).forEach(function (x) { if (x) set[x.trim().toUpperCase()] = 1; });
     var extra = catalogFlat().filter(function (row) { return set[String(row.sku.sku).toUpperCase()]; });
     if (!extra.length) { toast('未匹配到可导入 SKU', 'warning'); return; }
-    var checked = {};
-    var merged = [];
-    var seen = {};
-    document.querySelectorAll('#skuSelectBody tr').forEach(function (tr) {
-      var hit = findCatalogSku(tr.getAttribute('data-model'), tr.getAttribute('data-sku'));
-      if (!hit) return;
-      var ck = tr.querySelector('.sku-check');
-      if (ck && ck.checked) checked[hit.sku.sku] = 1;
-      merged.push(hit);
-      seen[hit.sku.sku] = 1;
-    });
-    extra.forEach(function (row) {
-      if (!seen[row.sku.sku]) { merged.push(row); seen[row.sku.sku] = 1; }
-      if (!row.sku.inProgress && row.sku.status !== 'EOL') checked[row.sku.sku] = 1;
-    });
-    renderSkuPickerRows(merged, '');
-    document.querySelectorAll('#skuSelectBody tr').forEach(function (tr) {
-      var ck = tr.querySelector('.sku-check');
-      if (ck && !ck.disabled) ck.checked = !!checked[tr.getAttribute('data-sku')];
-      if (ck) ck.dispatchEvent(new Event('change'));
-    });
-    updateSkuCount();
-    var n = extra.filter(function (row) { return checked[row.sku.sku]; }).length;
-    toast(n ? ('已导入并勾选 ' + n + ' 个 SKU') : '导入的 SKU 均不可纳入（进行中 EOM 或已 EOL）', n ? 'success' : 'warning');
+    var before = {};
+    (UI.skuCart || []).forEach(function (x) { before[x.sku] = 1; });
+    extra.forEach(function (row) { addSkuToCart(row); });
+    var added = (UI.skuCart || []).filter(function (x) { return !before[x.sku]; }).length;
+    syncCandidateChecks();
+    renderSkuCart();
+    toast(added ? ('已加入已选清单 ' + added + ' 个 SKU') : '导入的 SKU 均已在清单中，或不可纳入（进行中 EOM / 已 EOL）', added ? 'success' : 'warning');
   }
   function bindSkuChecks() {
     document.querySelectorAll('#skuSelectBody .sku-check').forEach(function (c) {
       c.onchange = function () {
-        var input = this.closest('tr').querySelector('.exclusion');
-        input.disabled = this.checked;
-        input.placeholder = this.checked ? '勾选后无需填写' : '请输入排除原因';
+        var tr = this.closest('tr');
+        var hit = findCatalogSku(tr.getAttribute('data-model'), tr.getAttribute('data-sku'));
+        if (hit) {
+          if (this.checked) addSkuToCart(hit);
+          else removeSkuFromCart(hit.sku.sku);
+        }
+        document.querySelectorAll('#skuSelectBody tr[data-sku="' + tr.getAttribute('data-sku') + '"] .sku-check:not(:disabled)').forEach(function (box) {
+          box.checked = c.checked;
+        });
         refreshSkuPlanDisabled();
-        updateSkuCount();
+        syncCheckAllBox();
+        renderSkuCart();
       };
     });
   }
-  function updateSkuCount() { document.getElementById('selectedSkuCount').textContent = document.querySelectorAll('#skuSelectBody .sku-check:checked').length; }
   function wizardRows() {
     captureSkuPlanFromDom();
-    return Array.prototype.map.call(document.querySelectorAll('#skuSelectBody tr'), function (tr) {
-      var hit = findCatalogSku(tr.getAttribute('data-model'), tr.getAttribute('data-sku'));
-      if (!hit) return null;
-      var ck = tr.querySelector('.sku-check');
-      var plan = planOfSku(hit.sku.sku);
-      return { sku: hit.sku, cat: hit.cat, selected: ck.checked, exclude: tr.querySelector('.exclusion').value.trim(), plan: plan };
-    }).filter(Boolean);
+    var lines = [];
+    (UI.skuCart || []).forEach(function (item) {
+      var hits = catalogRowsForSku(item.sku);
+      if (!hits.length) {
+        var hit = findCatalogSku(item.model, item.sku);
+        if (hit) hits = [hit];
+      }
+      hits.forEach(function (hit) {
+        lines.push({ sku: hit.sku, cat: hit.cat, selected: true, exclude: '', plan: planOfSku(hit.sku.sku) });
+      });
+    });
+    return lines;
   }
   function validateWizard() {
     if (UI.wizardStep === 1) {
@@ -3744,10 +3835,7 @@
       return true;
     }
     if (UI.wizardStep === 2) {
-      var rows = wizardRows();
-      if (!rows.length) { toast('请先搜索带出 SKU', 'warning'); return false; }
-      if (!rows.some(function (r) { return r.selected; })) { toast('请至少选择一个准备EOM的SKU', 'warning'); return false; }
-      if (rows.some(function (r) { return !r.selected && !r.exclude; })) { toast('未纳入EOM的SKU必须填写排除原因', 'warning'); return false; }
+      if (!(UI.skuCart || []).length) { toast('请至少选择一个准备EOM的SKU', 'warning'); return false; }
       return true;
     }
     if (UI.wizardStep === 3) {
@@ -3774,7 +3862,7 @@
       if (r.sku.status === '未上市' && !r.sku.sales) warns.push(r.sku.sku + ' 未上市且无销售，建议主数据治理，不强制完整清库');
     });
     var items = [
-      [selected.length > 0, 'SKU范围完整', selected.length ? ('已选择 ' + selected.length + ' 个') : '未选择'],
+      [selected.length > 0, 'SKU范围完整', selected.length ? ('已选择 ' + uniqueVals(selected.map(function (r) { return r.sku.sku; })).length + ' 个 8 位 SKU') : '未选择'],
       [!selected.some(function (r) { return r.sku.inProgress; }), '无重复工单', blocks.filter(function (x) { return x.indexOf('进行中') >= 0; }).join('；') || '未发现进行中的EOM'],
       [!selected.some(function (r) { return r.sku.status === 'EOL'; }), '产品状态可发起', blocks.filter(function (x) { return x.indexOf('EOL') >= 0; }).join('；') || '状态校验通过'],
       [true, '预计EOL / 新品衔接', (function () {
@@ -3815,6 +3903,7 @@
     var products = selected.map(function (r) {
       return { scene: r.cat.scene, cat: r.cat.cat, model: r.cat.model, sku: r.sku.sku, msku: r.sku.msku, originStatus: r.sku.status, status: submit ? '准备EOM' : r.sku.status, onMarketDate: r.sku.onMarketDate, country: r.sku.country, name: r.sku.name, selected: true };
     });
+    var skuCount = uniqueVals(selected.map(function (r) { return r.sku.sku; })).length;
     var models = uniqueVals(selected.map(function (r) { return r.cat.model; }));
     var order = {
       sceneKey: 'NEW', sceneLabel: submit ? '新提交工单' : '新草稿',
@@ -3826,7 +3915,7 @@
       time: nowStr(), confirmTime: '-', eol: uniqueVals(selected.map(function (r) { return (r.plan && r.plan.eol) || ''; }).filter(Boolean)).join(' / ') || '', actualEol: '',
       stock: 0, materialClose: 0, planVersion: '-', fileName: (document.getElementById('planFileName').textContent || ''),
       materialNo: hl, planUsers: planUser, cc: cc, draftNotified: !submit && notify,
-      exception: submit ? '数据异常' : '', model: models.join('、'), skuCount: selected.length, scope: models.join('、') + ' / ' + selected.length,
+      exception: submit ? '数据异常' : '', model: models.join('、'), skuCount: skuCount, scope: models.join('、') + ' / ' + skuCount,
       products: products,
       skus: selected.map(function (r) {
         return { model: r.cat.model, sku: r.sku.sku, scene: r.cat.scene, cat: r.cat.cat, country: r.sku.country, originStatus: r.sku.status, status: submit ? '准备EOM' : r.sku.status, onMarketDate: r.sku.onMarketDate, daysOn: 0, type: type, newFlag: type === '被动退市' ? '否' : ((r.plan && r.plan.newFlag) || '否'), newSku: (r.plan && r.plan.newSku) || '', newCr: (r.plan && r.plan.newCr) || '', newList: (r.plan && r.plan.newList) || '', startTime: submit ? nowStr() : '', eol: (r.plan && r.plan.eol) || '', eomDays: 0, lbPlan: '-', lbOrder: '-', lbDone: '-', lbQty: 0, lbStatus: '未发起', lbBaseStock: 0, inStock: skuInStock(r.sku), totalStock: skuTotalStock(r.sku), stock: skuTotalStock(r.sku), stale: 0, staleRate: '0%', specialAmt: 0, commonAmt: 0, specialQty: 0, m3: r.sku.sales || 0, m2: 0, m1: 0, forecast: 0, eolForecast: 0, dos: 20, clearPct: 0, plan: '-', channels: [], lbDetail: '', stockSplit: '', materialSplit: '', mskus: r.sku.msku ? [makeMskuRow({ msku: r.sku.msku, shop: r.sku.shop, stock: skuTotalStock(r.sku), m1: r.sku.sales || 0, dos: 20 }, r.sku.sku)] : [] };
@@ -3836,7 +3925,7 @@
         { id: 't' + Date.now(), node: '核料', name: '确认核料结论（本人 SKU）', role: '计划', owner: planUser || '刘洋', due: today(), status: '待处理', kind: 'material', notice: '请在核料页确认自己负责的 SKU；部门负责人可确认全部', result: '', doneAt: '' },
         { id: 't' + Date.now() + 'p', node: '核料', name: '进行核料（专用料/物料测算）', role: 'PMC', owner: pmc || 'PMC组长', due: today(), status: '待处理', kind: 'material-pmc', notice: '进入核料中即通知 PMC；不卡计划定版', result: '', doneAt: '' }
       ] : [],
-      plans: [], logs: [{ time: nowStr(), user: STATE.currentUser.name, action: submit ? '发起EOM' : '保存草稿', content: selected.length + '个SKU' + (submit ? '；已进核料中，销售仅提醒Forecast' : (notify ? '；已通知抄送人' : '')) }],
+      plans: [], logs: [{ time: nowStr(), user: STATE.currentUser.name, action: submit ? '发起EOM' : '保存草稿', content: skuCount + '个SKU' + (submit ? '；已进核料中，销售仅提醒Forecast' : (notify ? '；已通知抄送人' : '')) }],
       execution: null, reverse: null,
       forecast: { approved: false, missing: true, version: 0, current: 0, m3: 0, m2: 0, m1: 0, stock: 0, dos: 20, suggestLb: 0, submittedAt: '' },
       oa: null
@@ -3974,6 +4063,18 @@
     else if (act === 'search-sku-picker') searchSkuPicker();
     else if (act === 'load-model') searchSkuPicker();
     else if (act === 'import-sku') importSku();
+    else if (act === 'remove-cart-sku') {
+      removeSkuFromCart(t.getAttribute('data-sku'));
+      syncCandidateChecks();
+      renderSkuCart();
+    }
+    else if (act === 'clear-sku-cart') {
+      if (!(UI.skuCart || []).length) return;
+      if (!confirm('清空全部已选 SKU？候选列表不会一起清空。')) return;
+      UI.skuCart = [];
+      syncCandidateChecks();
+      renderSkuCart();
+    }
     else if (act === 'sku-plan-batch') openSkuPlanBatch();
     else if (act === 'apply-sku-plan-batch') applySkuPlanBatch();
     else if (act === 'edit-ledger') openLedgerEdit(no, t.getAttribute('data-sku'));
@@ -4026,11 +4127,19 @@
     if (e.key === 'Escape') { document.querySelectorAll('.mask').forEach(function (m) { m.classList.remove('show'); }); if (document.getElementById('detailDrawer').classList.contains('show')) closeDrawer(); }
   });
   document.getElementById('checkAllSku').addEventListener('change', function () {
-    document.querySelectorAll('#skuSelectBody .sku-check').forEach(function (c) {
-      if (c.disabled) return;
-      c.checked = document.getElementById('checkAllSku').checked;
-      c.dispatchEvent(new Event('change'));
+    var on = this.checked;
+    document.querySelectorAll('#skuSelectBody tr[data-sku]').forEach(function (tr) {
+      var ck = tr.querySelector('.sku-check');
+      if (!ck || ck.disabled) return;
+      var hit = findCatalogSku(tr.getAttribute('data-model'), tr.getAttribute('data-sku'));
+      if (!hit) return;
+      if (on) addSkuToCart(hit);
+      else removeSkuFromCart(hit.sku.sku);
+      ck.checked = on;
     });
+    refreshSkuPlanDisabled();
+    syncCheckAllBox();
+    renderSkuCart();
   });
   document.querySelectorAll('input[name=eomType]').forEach(function (r) { r.addEventListener('change', fillReasons); });
   document.getElementById('planUpload').addEventListener('click', function () { document.getElementById('planFile').click(); });
@@ -4041,16 +4150,15 @@
   function openCreate() {
     UI.wizardStep = 1;
     UI.skuPlan = {};
+    UI.skuCart = [];
     fillReasons();
     fillSkuFilterOptions(false);
-    document.getElementById('skuPickModel').value = 'H8888';
-    fillSkuFilterOptions(true);
     document.getElementById('skuPickName').value = '';
     document.getElementById('skuPickModelStatus').value = '';
     document.getElementById('skuPickSkuStatus').value = '';
     document.getElementById('createMask').classList.add('show');
     renderWizardSteps();
-    searchSkuPicker();
+    renderSkuPickerRows([], '');
   }
 
   document.addEventListener('change', function (e) {
