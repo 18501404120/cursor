@@ -1,7 +1,7 @@
 (function (global) {
   'use strict';
 
-  var KEY = 'gtm-eom-2.0-proto-v12';
+  var KEY = 'gtm-eom-2.0-proto-v13';
   var CURRENT_USER = { id: 'wang', name: '王天天', role: '产品GTM' };
   var PLAN_DEPT_LEADER = { id: 'bijie', name: '比杰' };
   var USERS = [
@@ -15,7 +15,12 @@
     { id: 'zhaoyan', name: '赵研', role: '研发' },
     { id: 'sunshen', name: '孙审', role: '项目审核' },
     { id: 'qianzhu', name: '钱助', role: '项目助理' },
-    { id: 'zhouyu', name: '周雨', role: '销售' }
+    { id: 'zhouyu', name: '周雨', role: '销售' },
+    { id: 'lixiao', name: '李销', role: '销售' },
+    { id: 'pmcleader', name: 'PMC组长', role: 'PMC' },
+    { id: 'wangong', name: '王工', role: 'PMC' },
+    { id: 'licaigou', name: '李采购', role: '采购' },
+    { id: 'chenlian', name: '陈链', role: '供应链负责人' }
   ];
 
   function assign(base, extra) {
@@ -418,7 +423,7 @@
         model: 'H8888', scene: '智能照明', cat: '灯带', name: 'H8888 可发起样例', status: '已上市',
         skus: [
           { sku: 'H888801', status: '已上市', onMarketDate: '2025-01-08', country: 'US', inProgress: false, sales: 120, inStock: 2140, totalStock: 3380, stock: 3380, name: 'H8888 US', shop: 'Amazon US', msku: 'H888801-US-AMZ', salesOwner: '周雨' },
-          { sku: 'H888802', status: '已上市', onMarketDate: '2025-01-08', country: 'EU', inProgress: false, sales: 80, inStock: 780, totalStock: 1260, stock: 1260, name: 'H8888 EU', shop: 'Amazon DE', msku: 'H888802-EU-AMZ' }
+          { sku: 'H888802', status: '已上市', onMarketDate: '2025-01-08', country: 'EU', inProgress: false, sales: 80, inStock: 780, totalStock: 1260, stock: 1260, name: 'H8888 EU', shop: 'Amazon DE', msku: 'H888802-EU-AMZ', salesOwner: '李销' }
         ]
       },
       {

@@ -18,8 +18,11 @@
     noticeFilter: 'all',
     noticeOvFilter: 'all',
     skuPlan: {},
-    skuCart: []
+    skuCart: [],
+    ownerPick: null
   };
+  var OWNER_FIELDS = ['gtmExtra', 'demand', 'pmc', 'buy', 'cc'];
+  var AVATAR_COLORS = ['#409eff', '#67c23a', '#e6a23c', '#f56c6c', '#9b59b6', '#00bcd4', '#3498db', '#1abc9c'];
 
   var MAT_STATUS = { 1: ['核料中', 'orange'], 2: ['核料失败', 'red'], 3: ['草稿', 'blue'], 4: ['定版', 'green'] };
   var STAGE_TAG = { '草稿': 'gray', '核料中': 'orange', '待方案决策': 'orange', 'EOM执行': 'blue', 'EOL已闭环': 'green', '已关闭': 'gray' };
@@ -3576,31 +3579,106 @@
     if (UI.wizardStep === 5) renderSubmitChecks();
     if (UI.wizardStep === 2) refreshSkuPlanDisabled();
   }
-  function selectedOptionTexts(id) {
+  function defaultOwnerPick() {
+    return { gtmExtra: [], demand: ['比杰'], pmc: ['PMC组长'], buy: ['张敏'], cc: ['张敏', '李强', '陈链'], open: '' };
+  }
+  function ensureOwnerPick() {
+    if (!UI.ownerPick) UI.ownerPick = defaultOwnerPick();
+  }
+  function ownerNames(field) {
+    ensureOwnerPick();
+    return (UI.ownerPick[field] || []).slice();
+  }
+  function ownerText(id) {
+    var t = ((document.getElementById(id) || {}).textContent || '').trim();
+    return t === '—' ? '' : t;
+  }
+  function setOwnerText(id, val) {
     var el = document.getElementById(id);
-    if (!el) return [];
-    return Array.prototype.filter.call(el.options || [], function (o) { return o.selected; }).map(function (o) { return o.text; });
+    if (!el) return;
+    el.textContent = val || '—';
+    el.classList.toggle('empty', !val);
+  }
+  function avatarChar(name) {
+    var s = String(name || '');
+    return s ? s.charAt(s.length - 1) : '?';
+  }
+  function avatarColor(name) {
+    var n = 0;
+    String(name || '').split('').forEach(function (c) { n += c.charCodeAt(0); });
+    return AVATAR_COLORS[n % AVATAR_COLORS.length];
+  }
+  function ownerPickHtml(field) {
+    ensureOwnerPick();
+    var selected = ownerNames(field);
+    var open = UI.ownerPick.open === field;
+    var chain = selected.map(function (n, i) {
+      return (i ? '<span class="cc-plus">+</span>' : '') +
+        '<span class="cc-person">' +
+        '<span class="cc-avatar" style="background:' + avatarColor(n) + '">' + esc(avatarChar(n)) + '</span>' +
+        '<button type="button" class="cc-x" data-act="owner-remove" data-field="' + field + '" data-name="' + esc(n) + '">×</button>' +
+        '<span class="cc-name" title="' + esc(n) + '">' + esc(n) + '</span></span>';
+    }).join('');
+    var me = (STATE.currentUser && STATE.currentUser.name) || '';
+    var users = (EomSeed.USERS || []).filter(function (u) {
+      if (field === 'gtmExtra' && (u.name === me || String(u.role || '').indexOf('GTM') < 0)) return false;
+      return true;
+    });
+    var menu = '';
+    if (open) {
+      menu = '<div class="cc-menu">' + users.map(function (u) {
+        var on = selected.indexOf(u.name) >= 0;
+        return '<button type="button" class="cc-opt' + (on ? ' on' : '') + '" data-act="owner-toggle" data-field="' + field + '" data-name="' + esc(u.name) + '">' +
+          '<span class="cc-opt-avatar" style="background:' + avatarColor(u.name) + '">' + esc(avatarChar(u.name)) + '</span>' +
+          '<span>' + esc(u.name) + '<span class="muted"> ' + esc(u.role) + '</span></span></button>';
+      }).join('') + (users.length ? '' : '<div class="cc-opt muted">无可选人员</div>') + '</div>';
+    }
+    return '<div class="cc-pick">' +
+      (chain ? '<div class="cc-chain">' + chain + '</div>' : '') +
+      '<div class="cc-select' + (open ? ' open' : '') + '">' +
+      '<button type="button" class="cc-select-btn" data-act="owner-pick" data-field="' + field + '">请选择 ▾</button>' +
+      menu + '</div></div>';
+  }
+  function renderOwnerPicks() {
+    ensureOwnerPick();
+    OWNER_FIELDS.forEach(function (f) {
+      var el = document.getElementById('pick-' + f);
+      if (el) el.innerHTML = ownerPickHtml(f);
+    });
+  }
+  function closeOwnerMenu() {
+    if (!UI.ownerPick || !UI.ownerPick.open) return;
+    UI.ownerPick.open = '';
+    renderOwnerPicks();
+  }
+  function ownerPick(field) {
+    ensureOwnerPick();
+    UI.ownerPick.open = UI.ownerPick.open === field ? '' : field;
+    renderOwnerPicks();
+  }
+  function ownerToggle(field, name) {
+    ensureOwnerPick();
+    var list = ownerNames(field);
+    var i = list.indexOf(name);
+    if (i >= 0) list.splice(i, 1);
+    else list.push(name);
+    UI.ownerPick[field] = list;
+    renderOwnerPicks();
+  }
+  function ownerRemove(field, name) {
+    ensureOwnerPick();
+    UI.ownerPick[field] = ownerNames(field).filter(function (n) { return n !== name; });
+    renderOwnerPicks();
   }
   function fillOwnerStep() {
-    var gtm = document.getElementById('rGtm');
-    if (gtm) gtm.value = (STATE.currentUser && STATE.currentUser.name) || '';
-    var extra = document.getElementById('rGtmExtra');
-    if (extra) {
-      var me = (STATE.currentUser && STATE.currentUser.name) || '';
-      var prev = selectedOptionTexts('rGtmExtra');
-      extra.innerHTML = (EomSeed.USERS || []).filter(function (u) {
-        return u.name !== me && String(u.role || '').indexOf('GTM') >= 0;
-      }).map(function (u) {
-        return '<option' + (prev.indexOf(u.name) >= 0 ? ' selected' : '') + '>' + esc(u.name) + '</option>';
-      }).join('');
-    }
+    ensureOwnerPick();
+    setOwnerText('rGtm', (STATE.currentUser && STATE.currentUser.name) || '');
     var selected = wizardRows().filter(function (r) { return r.selected; });
     var sales = uniqueVals(selected.map(function (r) { return r.sku.salesOwner; }).filter(Boolean));
     var plans = uniqueVals(selected.map(function (r) { return defaultPlanForSku(r.sku.sku).name; }));
-    var salesEl = document.getElementById('rSales');
-    if (salesEl) salesEl.value = sales.join('、');
-    var planEl = document.getElementById('rPmcPlan');
-    if (planEl) planEl.value = plans.join('、');
+    setOwnerText('rSales', sales.join('、'));
+    setOwnerText('rPmcPlan', plans.join('、'));
+    renderOwnerPicks();
   }
   function catalogFlat() {
     var rows = [];
@@ -3843,7 +3921,7 @@
     }
     if (UI.wizardStep === 4) {
       fillOwnerStep();
-      if (!selectedOptionTexts('rPlan').length || !selectedOptionTexts('rPmc').length || !selectedOptionTexts('rBuy').length) {
+      if (!ownerNames('demand').length || !ownerNames('pmc').length || !ownerNames('buy').length) {
         toast('需求计划、PMC、采购为通知对象，必须至少各选一人', 'warning');
         return false;
       }
@@ -3871,9 +3949,9 @@
         var n = uniqueVals(selected.map(function (r) { return r.sku.sku; })).length;
         return '8位SKU ' + n + ' 个；已填预计EOL ' + eols.length + ' 个' + (isPassiveEom() ? '；被动退市新品衔接只读' : ('；新品迭代 ' + news + ' 个')) + '。选填，后续可在台账补。';
       })()],
-      [true, '销售专员', ((document.getElementById('rSales') || {}).value || '—')],
-      [true, 'GTM', '发起人 ' + ((document.getElementById('rGtm') || {}).value || '') + (selectedOptionTexts('rGtmExtra').length ? '；其他仅通知 ' + selectedOptionTexts('rGtmExtra').join('、') : '（可加其他人仅通知）')],
-      [true, '通知对象', '需求计划 / PMC / 采购已选，仅通知可查看'],
+      [true, '销售专员', ownerText('rSales') || '—'],
+      [true, 'GTM', '发起人 ' + (ownerText('rGtm') || '') + (ownerNames('gtmExtra').length ? '；其他仅通知 ' + ownerNames('gtmExtra').join('、') : '（可加其他人仅通知）')],
+      [true, '通知对象', '需求计划 ' + (ownerNames('demand').join('、') || '—') + '；PMC ' + ownerNames('pmc').join('、') + '；采购 ' + ownerNames('buy').join('、')],
       [warns.length === 0, '主数据完整', warns.join('；') || '未发现关键字段缺失']
     ];
     document.getElementById('submitChecks').innerHTML = '<div class="section-title">提交检查</div><div class="check-summary">' + items.map(function (it) {
@@ -3893,13 +3971,13 @@
     var no = nextNo('EOM', 'eom');
     var hl = nextNo('HL', 'hl');
     var notify = !!(document.getElementById('draftNotify') && document.getElementById('draftNotify').checked);
-    var sales = (document.getElementById('rSales') || {}).value || '';
-    var planUser = (document.getElementById('rPmcPlan') || {}).value || '';
-    var demand = selectedOptionTexts('rPlan').join('、');
-    var pmc = selectedOptionTexts('rPmc').join('、');
-    var buy = selectedOptionTexts('rBuy').join('、');
-    var extraGtm = selectedOptionTexts('rGtmExtra');
-    var cc = [document.getElementById('rCc').value, extraGtm.length ? '其他GTM(仅通知) ' + extraGtm.join('、') : '', '需求计划 ' + demand, '生产计划 ' + planUser, 'PMC ' + pmc, '采购 ' + buy, '销售 ' + sales].filter(Boolean).join('、');
+    var sales = ownerText('rSales');
+    var planUser = ownerText('rPmcPlan');
+    var demand = ownerNames('demand').join('、');
+    var pmc = ownerNames('pmc').join('、');
+    var buy = ownerNames('buy').join('、');
+    var extraGtm = ownerNames('gtmExtra');
+    var cc = ownerNames('cc').join('、');
     var products = selected.map(function (r) {
       return { scene: r.cat.scene, cat: r.cat.cat, model: r.cat.model, sku: r.sku.sku, msku: r.sku.msku, originStatus: r.sku.status, status: submit ? '准备EOM' : r.sku.status, onMarketDate: r.sku.onMarketDate, country: r.sku.country, name: r.sku.name, selected: true };
     });
@@ -3909,7 +3987,7 @@
       sceneKey: 'NEW', sceneLabel: submit ? '新提交工单' : '新草稿',
       no: no, type: type, bu: document.getElementById('businessUnit').value, triggerNode: '-',
       reason: document.getElementById('reason').value, remark: document.getElementById('createRemark').value, planRemark: ((document.getElementById('planRemark') || {}).value || ''),
-      user: STATE.currentUser.name, userId: STATE.currentUser.id, gtm: (document.getElementById('rGtm') || {}).value || STATE.currentUser.name, gtmExtra: extraGtm,
+      user: STATE.currentUser.name, userId: STATE.currentUser.id, gtm: ownerText('rGtm') || STATE.currentUser.name, gtmExtra: extraGtm,
       stage: submit ? '核料中' : '草稿', legacyStatus: submit ? 2 : 1,
       owner: submit ? (demand || planUser || '比杰') : STATE.currentUser.name,
       time: nowStr(), confirmTime: '-', eol: uniqueVals(selected.map(function (r) { return (r.plan && r.plan.eol) || ''; }).filter(Boolean)).join(' / ') || '', actualEol: '',
@@ -3960,6 +4038,7 @@
   }
 
   document.addEventListener('click', function (e) {
+    if (UI.ownerPick && UI.ownerPick.open && !e.target.closest('.cc-pick')) closeOwnerMenu();
     var t = e.target.closest('[data-act]');
     if (!t) return;
     var act = t.getAttribute('data-act');
@@ -4055,6 +4134,9 @@
     else if (act === 'open-reverse') openReverse(no);
     else if (act === 'save-reverse') saveReverse();
     else if (act === 'reverse-oa') reverseOaWriteback(no, t.getAttribute('data-result'));
+    else if (act === 'owner-pick') ownerPick(t.getAttribute('data-field'));
+    else if (act === 'owner-toggle') ownerToggle(t.getAttribute('data-field'), t.getAttribute('data-name'));
+    else if (act === 'owner-remove') ownerRemove(t.getAttribute('data-field'), t.getAttribute('data-name'));
     else if (act === 'rv-pick') rvPick(t.getAttribute('data-role'));
     else if (act === 'rv-toggle') rvToggle(t.getAttribute('data-role'), t.getAttribute('data-name'));
     else if (act === 'rv-remove') rvRemove(t.getAttribute('data-role'), t.getAttribute('data-name'));
@@ -4151,6 +4233,9 @@
     UI.wizardStep = 1;
     UI.skuPlan = {};
     UI.skuCart = [];
+    UI.ownerPick = defaultOwnerPick();
+    var draft = document.getElementById('draftNotify');
+    if (draft) draft.checked = false;
     fillReasons();
     fillSkuFilterOptions(false);
     document.getElementById('skuPickName').value = '';
