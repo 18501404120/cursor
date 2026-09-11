@@ -72,7 +72,7 @@
     { k: 'time', l: '发起时间' }, { k: 'confirmTime', l: '确认时间' }
   ];
   var NOTICE_ROLES = [
-    { id: 'sales', name: '销售', sample: '周雨', hint: '有销售专员的 MSKU 在发起后收预测刷新提醒（钉钉消息，跳转 Forecast），不卡核料，GTM 不生成销售待办。方案确认只收消息、不会签。正式 EOM 后只收钉钉消息看台账，不在 GTM 点完成、不留痕。工单关闭时收知情消息。' },
+    { id: 'sales', name: '销售', sample: '周雨 / STL / TL', hint: '有销售专员的 MSKU 在发起后收预测刷新提醒（钉钉消息，跳转 Forecast），并抄送该专员的 STL、TL。不卡核料，GTM 不生成销售待办。方案确认只收消息、不会签。正式 EOM 后只收钉钉消息看台账，不在 GTM 点完成、不留痕。凡发给销售专员的钉钉消息均抄送 STL、TL。' },
     { id: 'gtm', name: 'GTM', sample: '王天天 / 其他GTM', hint: '仅发起人收方案提交、改版、关闭相关待办。本期不做撤回。名单中其他 GTM 全程只收消息，可查看、不能点确认。报废超金额不发 OA 通知。反 EOM 不限发起人，但仅正式 EOM 后可发。核料计算失败不通知发起人。Forecast 审核入库不通知。' },
     { id: 'demand', name: '需求计划', sample: '比杰', hint: '发起时为必选通知对象，无必办待办。提交后工单已在核料中，可查看。Forecast 入库只刷新台账，不发通知。正式 EOM、正式 EOM 后改版、反 EOL OA（发起与回写）及 EOL 闭环均会通知需求计划。清尾进度更新不通知；核料失败不通知（仅通知计划/PMC）。' },
     { id: 'plan', name: '计划', sample: '刘洋 / 陈琳 / 比杰', hint: '核料页按自己负责的 SKU 确认，计划部门负责人可确认全部。待方案决策收确认待办。改数后原确认作废，重新收待办。核料计算失败时收钉钉消息。' },
@@ -81,7 +81,9 @@
   ];
   var NOTICES = {
     sales: [
-      { unread: true, kind: 'msg', channel: '钉钉消息', ch: 'gray', time: '2026-08-28 10:06', title: '请刷新销售预测（不卡流程）', body: '王天天已发起主动退市 EOM20260828002（H8102 / H810201），工单已进入核料中。你是该 MSKU 销售专员，请在 Forecast 审核并刷新预测、填写可接受 Last Buy。空预测不硬拦方案提交，页面会强提示。', no: 'EOM20260828002', sku: 'H810201', stage: '核料中', action: 'forecast', actLabel: '打开 Forecast' },
+      { unread: true, kind: 'msg', channel: '钉钉消息', ch: 'gray', time: '2026-08-28 10:06', title: '请刷新销售预测（不卡流程）', body: '王天天已发起主动退市 EOM20260828002（H8102 / H810201），工单已进入核料中。你是该 MSKU 销售专员，请在 Forecast 审核并刷新预测、填写可接受 Last Buy。已同时抄送你的 STL、TL。空预测不硬拦方案提交，页面会强提示。', no: 'EOM20260828002', sku: 'H810201', stage: '核料中', action: 'forecast', actLabel: '打开 Forecast' },
+      { unread: true, kind: 'msg', channel: '钉钉消息', ch: 'gray', time: '2026-08-28 10:06', title: '请刷新销售预测（抄送 STL）', body: '周雨负责的 MSKU H810201 已进入核料中。你是其 STL，请知悉并跟进预测刷新。不在 GTM 点完成。', no: 'EOM20260828002', sku: 'H810201', stage: '核料中' },
+      { unread: true, kind: 'msg', channel: '钉钉消息', ch: 'gray', time: '2026-08-28 10:06', title: '请刷新销售预测（抄送 TL）', body: '周雨负责的 MSKU H810201 已进入核料中。你是其 TL，请知悉。不在 GTM 点完成。', no: 'EOM20260828002', sku: 'H810201', stage: '核料中' },
       { unread: false, kind: 'msg', channel: '钉钉消息', ch: 'gray', time: '2026-08-28 10:05', title: 'EOM 已发起（抄送）', body: '工单 EOM20260828002 已提交，SKU 进入准备 EOM，工单进入核料中。销售本节点仅提醒刷新预测，不在 GTM 点确认。未带出销售专员的 MSKU 不发本类提醒。', no: 'EOM20260828002', sku: 'H810201', stage: '核料中' },
       { unread: true, kind: 'msg', channel: '钉钉消息', ch: 'gray', time: '2026-09-01 09:32', title: '已正式 EOM，请按方案清库', body: 'EOM20260825001（H6199）方案 V2 已生效。请按清库方式处理成品库存，进度看产品台账 / 工单 SKU 台账。不在 GTM 点完成、不留痕。采购、PMC 并行，不互相等待。', no: 'EOM20260825001', sku: 'H6199 / 3', stage: 'EOM执行' },
       { unread: false, kind: 'msg', channel: '钉钉消息', ch: 'gray', time: '2026-09-01 09:31', title: '方案已更新为 V2', body: '发起人已改方案并完成会签。请按当前生效版本执行成品清库，勿沿用 V1。', no: 'EOM20260825001', sku: 'H6199', stage: 'EOM执行' },
@@ -162,10 +164,10 @@
       name: '提交发起 EOM',
       when: '草稿提交成功：SKU 进入准备 EOM，工单进入核料中',
       stage: '核料中',
-      note: 'Forecast 与核料并行。未带出销售专员的 MSKU 不发预测刷新提醒。',
+      note: 'Forecast 与核料并行。未带出销售专员的 MSKU 不发预测刷新提醒。发给专员的钉钉消息同时抄送其 STL、TL。',
       cells: {
         sales: { items: [
-          { kind: 'msg', channel: '钉钉消息', title: '请刷新销售预测（不卡流程）', body: '工单已进入核料中。你是该 MSKU 销售专员，请在 Forecast 审核并刷新预测、填写可接受 Last Buy。空预测不硬拦方案提交。未带出专员的 MSKU 不发本条。', jump: 'forecast' },
+          { kind: 'msg', channel: '钉钉消息', title: '请刷新销售预测（不卡流程）', body: '工单已进入核料中。你是该 MSKU 销售专员，请在 Forecast 审核并刷新预测、填写可接受 Last Buy。已同时抄送你的 STL、TL。空预测不硬拦方案提交。未带出专员的 MSKU 不发本条。', jump: 'forecast' },
           { kind: 'msg', channel: '钉钉消息', title: 'EOM 已发起（抄送）', body: '工单已提交，SKU 进入准备 EOM。销售本节点不在 GTM 点确认，也不生成销售待办。' }
         ] },
         gtm: { kind: 'none', why: '本人提交，不给自己发。' },
@@ -269,7 +271,7 @@
       stage: 'EOM执行',
       note: '销售、采购、PMC 三路并行跟踪。三路只发消息、不发待办。需求计划只收这一条知情消息，后续清尾进度不再通知。发起人也收一条生效知情消息（最后一枪可能是计划点的）。报废超金额不挡生效。',
       cells: {
-        sales: { kind: 'msg', channel: '钉钉消息', title: '已正式 EOM，请按方案清库', body: '方案已生效，进入正式 EOM。请按清库方式处理成品库存，进度看台账。不在 GTM 点完成、不留痕。采购、PMC 并行，不互相等待。' },
+        sales: { kind: 'msg', channel: '钉钉消息', title: '已正式 EOM，请按方案清库', body: '方案已生效，进入正式 EOM。请按清库方式处理成品库存，进度看台账。已同时抄送你的 STL、TL。不在 GTM 点完成、不留痕。采购、PMC 并行，不互相等待。' },
         gtm: { kind: 'msg', channel: '钉钉消息', title: '方案已生效，进入正式 EOM', body: '计划确认已齐。工单进入 EOM 执行，三路清尾看台账。' },
         gtmExtra: { kind: 'msg', channel: '钉钉消息', title: '方案已生效，进入正式 EOM', body: '发起人已提交、计划已确认。你仅知情，后续清尾由销售 / 采购 / PMC 处理。' },
         demand: { kind: 'msg', channel: '钉钉消息', title: '已正式 EOM，进度请看台账', body: '方案已生效。成品清库、Last Buy、专用料以产品台账 / 工单 SKU 台账为准，后续不再通知。' },
@@ -284,7 +286,7 @@
       name: '正式 EOM 后改版',
       when: '发起人改版并完成会签，留下新版本，阶段不退回',
       stage: 'EOM执行',
-      note: '执行角色按当前生效版本执行，勿沿用旧版。通知销售、需求计划、计划、PMC、采购及其他 GTM。',
+      note: '执行角色按当前生效版本执行，勿沿用旧版。通知销售（含 STL、TL）、需求计划、计划、PMC、采购及其他 GTM。',
       cells: {
         sales: { kind: 'msg', channel: '钉钉消息', title: '方案已更新', body: '发起人已改方案并完成会签。请按当前生效版本执行成品清库，勿沿用上一版本。' },
         gtm: { kind: 'none', why: '本人改版，不给自己发。' },
@@ -337,7 +339,7 @@
       stage: '阶段不变',
       note: '草稿、核料中、待方案决策尚未 EOM，不出现反 EOM，取消走关闭。审批中不打「已反 EOM」标签，不可再发。不限发起人。通过后关单、SKU 回提交前、禁止重开。通知相关人员（含需求计划）。',
       cells: {
-        sales: { kind: 'msg', channel: '钉钉消息', title: '反 EOL OA 已发起', body: '已创建反EOL流程审批，当前审批中。通过后关单、SKU 回提交前、禁止重开。' },
+        sales: { kind: 'msg', channel: '钉钉消息', title: '反 EOL OA 已发起', body: '已创建反EOL流程审批，当前审批中。通过后关单、SKU 回提交前、禁止重开。已同时抄送销售专员的 STL、TL。' },
         gtm: { kind: 'msg', channel: '钉钉消息', title: '反 EOL OA 审批中', body: '已创建 OA。通过后关单并禁止重开；驳回/撤销可再发。' },
         gtmExtra: { kind: 'msg', channel: '钉钉消息', title: '反 EOL OA 已发起', body: '不限发起人。审批中不可再发；通过后关单、禁止重开。' },
         demand: { kind: 'msg', channel: '钉钉消息', title: '反 EOL OA 已发起', body: '工单相关人员知情。反EOL流程审批中，阶段与 SKU 状态暂保持不变。' },
@@ -3161,14 +3163,16 @@
     addLog(o, '方案会签', ver + ' 生效；工单阶段仍为 ' + o.stage);
     persist(); toast('会签通过，阶段不退回', 'success'); go('order', o.no);
   }
-  var REVERSE_ROLES = [
-    { k: 'pm', l: '产品经理', required: true },
-    { k: 'salesLead', l: '销售渠道leader', required: true },
-    { k: 'rd', l: '研发确认', required: true },
-    { k: 'review', l: '项目审核', required: true },
-    { k: 'assistant', l: '项目助理', required: true },
-    { k: 'cc', l: '抄送人', required: false }
+  var REVERSE_FLOW = [
+    { type: 'pick', k: 'pm', l: '产品经理', required: true },
+    { type: 'pick', k: 'salesLead', l: '对应销售渠道leader', required: true },
+    { type: 'oa', l: 'Sourcing', name: '周琼' },
+    { type: 'oa', l: '审批人', name: '胡勇强' },
+    { type: 'pick', k: 'rd', l: '研发确认', required: true },
+    { type: 'pick', k: 'review', l: '项目审核', required: true },
+    { type: 'pick', k: 'cc', l: '抄送人', required: false }
   ];
+  var REVERSE_ROLES = REVERSE_FLOW.filter(function (x) { return x.type === 'pick'; });
   function reversePending(o) {
     return !!(o && o.reverse && o.reverse.oaStatus === '审批中');
   }
@@ -3200,7 +3204,7 @@
       '。' + extra + btns + '</div>';
   }
   function emptyReversePeople() {
-    return { pm: [], salesLead: [], rd: [], review: [], assistant: [], cc: [] };
+    return { pm: [], salesLead: [], rd: [], review: [], cc: [] };
   }
   function snapshotReverseForm() {
     if (!UI.form || UI.form.type !== 'reverse') return;
@@ -3231,26 +3235,25 @@
     var files = (f.files || []).map(function (n, i) {
       return '<span class="file-chip">' + esc(n) + ' <a data-act="rv-del-file" data-idx="' + i + '">删除</a></span>';
     }).join('') || '<span class="muted">暂无附件</span>';
-    var roles = REVERSE_ROLES.map(function (r) {
-      return '<div class="form-item full"><label class="form-label' + (r.required ? ' required' : '') + '">' + r.l + '</label><div class="form-control">' +
-        personBoxHtml(r.k, f.people[r.k] || [], f.pickRole === r.k) + '</div></div>';
+    var flow = REVERSE_FLOW.map(function (r) {
+      if (r.type === 'oa') {
+        return '<div class="oa-chain-item"><span>' + esc(r.l) + '<small>OA带出 · 1人审批</small></span><b>' + esc(r.name) + '</b></div>';
+      }
+      return '<div class="oa-chain-item oa-chain-pick"><span>' + esc(r.l) + (r.required ? ' <em>*</em>' : '') + '</span>' +
+        personBoxHtml(r.k, f.people[r.k] || [], f.pickRole === r.k) + '</div>';
     }).join('');
     openForm('发起反EOM',
       '<div class="oa-form">' +
-        '<div class="alert">仅正式 EOM 后（EOM执行 / EOL已闭环）可发起。提交后自动创建钉钉 OA「反EOL流程审批」。Sourcing、审批人由 OA 带出，本页不维护。会签规则由 OA 处理。审批通过后关单、打「已反 EOM」、SKU 回提交前，禁止重开。</div>' +
+        '<div class="alert">对齐现网 OA「反EOL流程审批」：无项目助理；PSKU 非必填；Sourcing、审批人由 OA 带出。仅正式 EOM 后可发。审批通过后关单、打「已反 EOM」、SKU 回提交前，禁止重开。</div>' +
         '<div class="form-grid">' +
           '<div class="form-item full"><label class="form-label required">SKU</label><div class="form-control"><textarea class="textarea" id="rvSku" rows="2" placeholder="手填，多个用逗号或换行">' + esc(f.skuText || '') + '</textarea></div></div>' +
-          '<div class="form-item full"><label class="form-label required">PSKU</label><div class="form-control"><textarea class="textarea" id="rvPsku" rows="2" placeholder="手填，多个用逗号或换行">' + esc(f.pskuText || '') + '</textarea></div></div>' +
+          '<div class="form-item full"><label class="form-label">PSKU</label><div class="form-control"><textarea class="textarea" id="rvPsku" rows="2" placeholder="非必填，多个用逗号或换行">' + esc(f.pskuText || '') + '</textarea></div></div>' +
           '<div class="form-item full"><label class="form-label required">反EOL原因</label><div class="form-control"><textarea class="textarea" id="rvReason" rows="3" placeholder="请输入">' + esc(f.reason || '') + '</textarea></div></div>' +
           '<div class="form-item full"><label class="form-label">附件</label><div class="form-control">' + files +
             ' <button type="button" class="btn" data-act="rv-add-file">+ 添加附件</button></div></div>' +
-          roles +
         '</div>' +
-        '<div class="section-title">OA 自动带出（本页不维护）</div>' +
-        '<div class="oa-chain">' +
-          '<div class="oa-chain-item"><span>Sourcing</span><b>周琼</b></div>' +
-          '<div class="oa-chain-item"><span>审批人</span><b>胡勇强</b></div>' +
-        '</div>' +
+        '<div class="section-title">流程</div>' +
+        '<div class="oa-chain">' + flow + '</div>' +
       '</div>',
       '<button class="btn" data-act="close-mask" data-mask="formMask">取消</button><button class="btn btn-primary" data-act="save-reverse">提交并生成OA</button>', true);
   }
@@ -3301,7 +3304,6 @@
     var psku = (UI.form.pskuText || '').trim();
     var reason = (UI.form.reason || '').trim();
     if (!sku) { toast('请填写 SKU', 'warning'); return; }
-    if (!psku) { toast('请填写 PSKU', 'warning'); return; }
     if (!reason) { toast('请填写反EOL原因', 'warning'); return; }
     var missing = REVERSE_ROLES.filter(function (r) {
       return r.required && !(UI.form.people[r.k] || []).length;
@@ -3311,7 +3313,7 @@
     o.reverse = {
       skuText: sku, pskuText: psku, reason: reason, files: UI.form.files || [],
       pm: p.pm.slice(), salesLead: p.salesLead.slice(), rd: p.rd.slice(),
-      review: p.review.slice(), assistant: p.assistant.slice(), cc: p.cc.slice(),
+      review: p.review.slice(), cc: p.cc.slice(),
       oaNo: 'OA' + Date.now().toString().slice(-8),
       oaName: '反EOL流程审批',
       oaStatus: '审批中'

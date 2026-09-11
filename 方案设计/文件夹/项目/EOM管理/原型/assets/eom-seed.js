@@ -1,7 +1,7 @@
 (function (global) {
   'use strict';
 
-  var KEY = 'gtm-eom-2.0-proto-v13';
+  var KEY = 'gtm-eom-2.0-proto-v14';
   var CURRENT_USER = { id: 'wang', name: '王天天', role: '产品GTM' };
   var PLAN_DEPT_LEADER = { id: 'bijie', name: '比杰' };
   var USERS = [
@@ -14,8 +14,9 @@
     { id: 'liqiang', name: '李强', role: '销售渠道leader' },
     { id: 'zhaoyan', name: '赵研', role: '研发' },
     { id: 'sunshen', name: '孙审', role: '项目审核' },
-    { id: 'qianzhu', name: '钱助', role: '项目助理' },
     { id: 'zhouyu', name: '周雨', role: '销售' },
+    { id: 'zhoustl', name: '周STL', role: '销售STL' },
+    { id: 'wangtl', name: '王TL', role: '销售TL' },
     { id: 'lixiao', name: '李销', role: '销售' },
     { id: 'pmcleader', name: 'PMC组长', role: 'PMC' },
     { id: 'wangong', name: '王工', role: 'PMC' },
@@ -943,7 +944,6 @@
         salesLead: ['李强'],
         rd: ['赵研'],
         review: ['孙审'],
-        assistant: ['钱助'],
         cc: ['比杰'],
         oaNo: 'OA20260826011',
         oaName: '反EOL流程审批',
