@@ -1,0 +1,1213 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>H8120 项目知识库 · 试用</title>
+  <style>
+    :root {
+      --bg: #eef1f7;
+      --card: #fff;
+      --text: #1a2332;
+      --muted: #5c6b7f;
+      --line: #e2e8f0;
+      --primary: #4f46e5;
+      --primary-soft: #eef2ff;
+      --ok: #059669;
+      --ok-soft: #ecfdf5;
+      --amber: #b45309;
+      --amber-soft: #fff7ed;
+      --blue: #2563eb;
+      --blue-soft: #eff6ff;
+      --warn: #d97706;
+      --warn-soft: #fffbeb;
+      --sidebar: 232px;
+      --top: 56px;
+      --sub: 44px;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      font-size: 13px;
+      line-height: 1.5;
+    }
+    button, input, textarea, select { font-family: inherit; font-size: inherit; }
+    button { cursor: pointer; }
+    #app { height: 100%; display: flex; flex-direction: column; }
+
+    .topbar {
+      height: var(--top); background: #1e1b4b; color: #fff;
+      display: flex; align-items: center; gap: 16px; padding: 0 16px; flex-shrink: 0;
+    }
+    .brand { font-weight: 700; font-size: 14px; letter-spacing: .02em; white-space: nowrap; }
+    .brand small { display: block; font-weight: 400; font-size: 11px; opacity: .65; }
+    .search-wrap { flex: 1; max-width: 420px; position: relative; }
+    .search-wrap input {
+      width: 100%; height: 32px; border: 0; border-radius: 8px; padding: 0 12px;
+      background: rgba(255,255,255,.12); color: #fff; outline: none;
+    }
+    .search-wrap input::placeholder { color: rgba(255,255,255,.55); }
+    .search-pop {
+      position: absolute; top: 38px; left: 0; right: 0; background: #fff; color: var(--text);
+      border-radius: 10px; box-shadow: 0 12px 40px rgba(15,23,42,.18); z-index: 30; overflow: hidden;
+    }
+    .search-item { padding: 10px 12px; cursor: pointer; border-bottom: 1px solid var(--line); }
+    .search-item:hover { background: var(--primary-soft); }
+    .search-item .k { font-size: 11px; color: var(--muted); }
+    .top-actions { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+    .role-sel {
+      height: 32px; border-radius: 8px; border: 1px solid rgba(255,255,255,.2);
+      background: rgba(255,255,255,.1); color: #fff; padding: 0 8px;
+    }
+    .btn-ghost {
+      height: 32px; padding: 0 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,.2);
+      background: transparent; color: #fff;
+    }
+    .btn-ghost:hover { background: rgba(255,255,255,.1); }
+
+    .subnav {
+      height: var(--sub); background: #fff; border-bottom: 1px solid var(--line);
+      display: flex; align-items: center; gap: 4px; padding: 0 12px; flex-shrink: 0;
+    }
+    .tab {
+      height: 28px; padding: 0 12px; border: 0; background: transparent; border-radius: 6px;
+      color: var(--muted); font-weight: 600;
+    }
+    .tab.on { background: var(--primary-soft); color: var(--primary); }
+
+    .body { flex: 1; display: flex; min-height: 0; }
+    .side {
+      width: var(--sidebar); background: #fff; border-right: 1px solid var(--line);
+      padding: 12px; overflow: auto; flex-shrink: 0;
+    }
+    .side h3 { font-size: 11px; color: var(--muted); margin: 0 8px 8px; letter-spacing: .06em; }
+    .folder {
+      width: 100%; text-align: left; padding: 8px 10px; border: 0; background: transparent;
+      border-radius: 8px; color: var(--text); display: flex; justify-content: space-between; align-items: center;
+    }
+    .folder:hover { background: #f8fafc; }
+    .folder.on { background: var(--primary-soft); color: var(--primary); font-weight: 600; }
+    .folder .n { font-size: 11px; color: var(--muted); font-weight: 400; }
+    .main { flex: 1; overflow: auto; padding: 18px 22px 40px; }
+    .crumb { font-size: 12px; color: var(--muted); margin-bottom: 12px; }
+    .crumb a { color: var(--primary); cursor: pointer; text-decoration: none; }
+    .hrow { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
+    .hrow h1 { font-size: 20px; font-weight: 700; }
+    .hrow p { color: var(--muted); margin-top: 4px; }
+
+    .btn {
+      height: 32px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--line);
+      background: #fff; color: var(--text); font-weight: 600;
+    }
+    .btn:hover { background: #f8fafc; }
+    .btn.pri { background: var(--primary); border-color: var(--primary); color: #fff; }
+    .btn.pri:hover { filter: brightness(1.05); }
+    .btn.ok { background: var(--ok); border-color: var(--ok); color: #fff; }
+    .btn.warn { background: var(--warn-soft); border-color: #fde68a; color: var(--amber); }
+    .btn:disabled { opacity: .45; cursor: not-allowed; }
+    .btns { display: flex; gap: 8px; flex-wrap: wrap; }
+
+    .card {
+      background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px;
+    }
+    .file-list { display: flex; flex-direction: column; gap: 8px; }
+    .file-row {
+      background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px;
+      display: flex; justify-content: space-between; align-items: center; cursor: pointer; text-align: left; width: 100%;
+    }
+    .file-row:hover { border-color: #c7d2fe; }
+    .file-row b { font-size: 14px; display: block; }
+    .file-row span { color: var(--muted); font-size: 12px; }
+
+    .group { margin-bottom: 18px; }
+    .group-h { font-size: 12px; font-weight: 700; color: var(--muted); margin-bottom: 8px; }
+    .atom-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 10px; }
+    .atom-card {
+      border: 1px solid var(--line); border-radius: 12px; padding: 12px; background: #fff; text-align: left;
+      width: 100%; cursor: pointer; position: relative;
+    }
+    .atom-card:hover { border-color: #c7d2fe; }
+    .atom-card .t { font-weight: 700; font-size: 14px; color: var(--primary); }
+    .atom-card .meta { color: var(--muted); font-size: 12px; margin-top: 4px; }
+    .stale-bar {
+      margin-top: 8px; background: var(--warn-soft); border-radius: 8px; padding: 8px;
+      display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap;
+    }
+    .stale-bar span { font-size: 12px; color: var(--amber); }
+
+    .tag {
+      display: inline-block; font-size: 11px; font-weight: 600; padding: 1px 7px; border-radius: 999px;
+      background: var(--primary-soft); color: var(--primary); margin-right: 4px;
+    }
+    .tag.ok { background: var(--ok-soft); color: var(--ok); }
+    .tag.amber { background: var(--amber-soft); color: var(--amber); }
+    .tag.blue { background: var(--blue-soft); color: var(--blue); }
+    .tag.gray { background: #f1f5f9; color: #64748b; }
+    .banner {
+      border-radius: 10px; padding: 10px 12px; margin-bottom: 12px; font-size: 13px;
+    }
+    .banner.warn { background: var(--warn-soft); color: #92400e; }
+    .banner.ok { background: var(--ok-soft); color: #065f46; }
+    .banner.info { background: var(--primary-soft); color: #3730a3; }
+
+    .vers { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
+    .ver {
+      border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; background: #fff;
+      text-align: left; width: 100%; display: flex; justify-content: space-between; gap: 8px;
+    }
+    .ver.on { border-color: var(--primary); background: var(--primary-soft); }
+    .split { display: grid; grid-template-columns: 220px 1fr; gap: 16px; }
+    @media (max-width: 900px) { .split { grid-template-columns: 1fr; } .side { display: none; } }
+
+    .look {
+      height: 180px; border-radius: 12px; position: relative; overflow: hidden; margin-bottom: 10px;
+      background: linear-gradient(160deg, #1e293b, #334155);
+    }
+    .look.v2 { background: linear-gradient(160deg, #0f172a, #4338ca); }
+    .ice {
+      width: 88px; height: 128px; background: #cbd5e1; border-radius: 10px 10px 8px 8px;
+      position: absolute; left: 50%; top: 26px; transform: translateX(-50%);
+      box-shadow: inset 0 0 0 3px #94a3b8;
+    }
+    .handle {
+      position: absolute; width: 8px; height: 36px; background: #e2e8f0; border-radius: 4px;
+      top: 52px; left: 50%; transform: translateX(-50%);
+    }
+    .look.v2 .handle { left: 68%; transform: none; background: #a5b4fc; }
+    .look-label {
+      position: absolute; left: 12px; bottom: 10px; color: #e2e8f0; font-size: 12px; font-weight: 600;
+    }
+
+    textarea, .field, select.field {
+      width: 100%; border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; background: #fff;
+    }
+    textarea { min-height: 90px; resize: vertical; }
+    label.lbl { display: block; font-size: 12px; color: var(--muted); margin: 8px 0 4px; }
+
+    .graph { overflow: auto; }
+    .ggrid {
+      display: grid; grid-template-columns: 72px repeat(3, minmax(180px, 1fr)); gap: 8px; min-width: 720px;
+    }
+    .gh { font-size: 11px; color: var(--muted); font-weight: 700; text-align: center; padding: 6px; }
+    .glane { font-weight: 700; display: flex; align-items: center; }
+    .gcell { min-height: 86px; }
+    .wnode {
+      width: 100%; text-align: left; border-radius: 10px; padding: 10px; border: 1px solid var(--line);
+      background: #fff; position: relative; min-height: 76px;
+    }
+    .wnode.blocked { background: #f8fafc; color: #64748b; }
+    .wnode.ready { background: var(--amber-soft); border-color: #fdba74; }
+    .wnode.doing { background: var(--blue-soft); border-color: #93c5fd; }
+    .wnode.done { background: var(--ok-soft); border-color: #6ee7b7; }
+    .wnode.skip { background: #fff; border-style: dashed; color: #94a3b8; }
+    .wnode b { display: block; font-size: 13px; }
+    .badge {
+      position: absolute; top: -7px; right: -6px; background: var(--warn); color: #fff;
+      font-size: 10px; font-weight: 700; border-radius: 999px; padding: 2px 6px;
+    }
+
+    .mine-col h3 { font-size: 13px; margin-bottom: 8px; }
+    .mine-item {
+      width: 100%; text-align: left; background: #fff; border: 1px solid var(--line);
+      border-radius: 10px; padding: 10px 12px; margin-bottom: 8px;
+    }
+    .gap { color: var(--muted); font-size: 12px; margin-top: 4px; }
+
+    .modal-bg {
+      position: fixed; inset: 0; background: rgba(15,23,42,.45); display: flex; align-items: center;
+      justify-content: center; z-index: 50; padding: 20px;
+    }
+    .modal {
+      background: #fff; border-radius: 14px; width: min(860px, 100%); max-height: 88vh; overflow: auto;
+      padding: 18px 20px;
+    }
+    .cmp { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    @media (max-width: 700px) { .cmp { grid-template-columns: 1fr; } }
+    .toast {
+      position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+      background: #1e1b4b; color: #fff; padding: 8px 14px; border-radius: 999px; z-index: 60;
+      font-size: 13px;
+    }
+    .refs { font-size: 12px; color: var(--muted); }
+    .refs a { color: var(--primary); cursor: pointer; }
+    .drawer-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+    .jp-panel { background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 14px; margin-bottom: 16px; }
+    .jp-row { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid #f1f5f9; font-size: 12px; }
+    .jp-row:last-child { border-bottom: 0; }
+    .hint-bar { background: var(--primary-soft); border-radius: 10px; padding: 10px 12px; margin-bottom: 14px; font-size: 12px; color: #3730a3; }
+    .snap-list { display: flex; flex-direction: column; gap: 8px; }
+    .snap-row { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; background: #fff; }
+    .collab-item { border: 1px dashed #fdba74; background: var(--amber-soft); border-radius: 10px; padding: 10px 12px; margin-bottom: 8px; font-size: 12px; }
+    .ggrid-wide { grid-template-columns: 72px repeat(6, minmax(140px, 1fr)); min-width: 980px; }
+  </style>
+</head>
+<body>
+  <div id="app"></div>
+  <script>
+(function () {
+  const STORE = "h8120-kb-demo-v2";
+  const ROLES = {
+    pm: { name: "平台/PM", person: "王敏" },
+    id: { name: "ID", person: "陈可" },
+    structure: { name: "结构", person: "刘工" },
+    cool: { name: "制冷", person: "周工" },
+    elec: { name: "电子", person: "吴工" },
+    embed: { name: "嵌入式", person: "郑工" },
+    quality: { name: "质量", person: "孙工" },
+    pack: { name: "包材", person: "赵工" },
+    sourcing: { name: "供应链", person: "钱工" }
+  };
+  const STAGES = ["KO", "ES", "TL", "DR", "BT", "CR"];
+  const GRAPH_LANES = [
+    { key: "平台", owner: "pm" },
+    { key: "ID", owner: "id" },
+    { key: "结构", owner: "structure" },
+    { key: "制冷", owner: "cool" },
+    { key: "电子", owner: "elec" },
+    { key: "包材", owner: "pack" },
+    { key: "质量", owner: "quality" }
+  ];
+
+  function today() {
+    const d = new Date();
+    const p = (n) => String(n).padStart(2, "0");
+    return d.getFullYear() + "-" + p(d.getMonth() + 1) + "-" + p(d.getDate());
+  }
+  function esc(s) {
+    return String(s == null ? "" : s)
+      .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  }
+  function clone(o) { return JSON.parse(JSON.stringify(o)); }
+
+  function seed() {
+    return {
+      role: "structure",
+      atoms: [
+        { id: "a-prd", name: "PRD版本", owner: "pm", kind: "text", tier: "A", jpGates: ["KO","ES","TL"], parentId: null,
+          versions: [
+            { id: "v1", status: "published", summary: "KO 立项 PRD", freezeTags: ["KO"], at: "2026-02-18", body: "日产量 12kg/24h；台式制冰；目标价带 899-999。" },
+            { id: "v2", status: "published", summary: "ES 后 PRD 微调", freezeTags: ["ES"], at: "2026-04-15", body: "确认压缩机型号；外观圆角门体；APP 联调纳入 ES。" }
+          ]},
+        { id: "a-look", name: "外观主视觉", owner: "id", kind: "look", tier: "A", jpGates: ["ES","TL","DR"], parentId: null,
+          versions: [
+            { id: "v1", status: "published", summary: "ES：圆角门体，把手居中", freezeTags: ["ES"], at: "2026-03-12", look: "v1", body: "黑晶面板。供 ES 手板与结构开孔。" },
+            { id: "v2", status: "published", summary: "TL：把手外移 8mm", freezeTags: ["TL"], at: "2026-06-22", look: "v2", body: "开模前把手外移，避开制冰口。" },
+            { id: "v3", status: "draft", summary: "DR 意向：面板纹理调整", freezeTags: [], at: "2026-08-01", look: "v2", body: "试产后客户反馈纹理，未定稿。" }
+          ]},
+        { id: "a-size", name: "外形尺寸", owner: "id", kind: "text", tier: "A", jpGates: ["ES","TL"], parentId: null,
+          versions: [
+            { id: "v1", status: "published", summary: "ES 外形", freezeTags: ["ES"], at: "2026-03-12", body: "宽 280 × 深 420 × 高 860 mm（含脚垫）" },
+            { id: "v2", status: "published", summary: "TL 外形冻结", freezeTags: ["TL"], at: "2026-06-20", body: "同 ES，把手外移后外形包络不变。" }
+          ]},
+        { id: "a-frame", name: "板框方案", owner: "structure", kind: "text", tier: "A", jpGates: ["ES","TL","DR"], parentId: null,
+          versions: [
+            { id: "v1", status: "published", summary: "ES 板框", freezeTags: ["ES"], at: "2026-04-02", body: "主板位 120×80；压缩机仓按 ES 样机。" },
+            { id: "v2", status: "published", summary: "TL 开模冻结", freezeTags: ["TL"], at: "2026-06-25", body: "开模 3D/2D 冻结；安装位不再改。" }
+          ]},
+        { id: "a-cool-es", name: "制冷ES结论", owner: "cool", kind: "status", tier: "A", jpGates: ["ES"], parentId: null,
+          versions: [
+            { id: "v1", status: "published", summary: "冰量达标", freezeTags: ["ES"], at: "2026-04-20", body: "达标 · 单系统调试 11.8kg/24h" }
+          ]},
+        { id: "a-elec-es", name: "电控联调状态", owner: "elec", kind: "status", tier: "A", jpGates: ["ES"], parentId: null,
+          versions: [
+            { id: "v1", status: "published", summary: "ES 点亮", freezeTags: ["ES"], at: "2026-04-18", body: "点亮 · 主控+显示联调通过" }
+          ]},
+        { id: "a-es-test", name: "ES测试结论", owner: "quality", kind: "text", tier: "A", jpGates: ["ES"], parentId: null,
+          versions: [
+            { id: "v1", status: "published", summary: "首轮电性能+可靠性", freezeTags: ["ES"], at: "2026-04-22", body: "电性能通过；可靠性 2 项待 DR 跟踪。" }
+          ]},
+        { id: "a-jp-es", name: "JP-ES结论", owner: "pm", kind: "status", tier: "A", jpGates: ["ES"], parentId: null,
+          versions: [
+            { id: "v1", status: "published", summary: "整机可行性通过", freezeTags: ["ES"], at: "2026-04-25", body: "通过 · 带条件：包材尺寸待 TL 后确认" }
+          ]},
+        { id: "a-dr-round", name: "DR试产轮次", owner: "pm", kind: "text", tier: "A", jpGates: ["DR"], parentId: null,
+          versions: [
+            { id: "v1", status: "published", summary: "第 1 轮试产", freezeTags: ["DR"], at: "2026-07-10", body: "轮次=1；制冷噪音项回退结构+制冷" }
+          ]},
+        { id: "a-bt", name: "BT结论", owner: "pm", kind: "status", tier: "A", jpGates: ["BT"], parentId: null,
+          versions: [
+            { id: "v1", status: "draft", summary: "用户测试进行中", freezeTags: [], at: "2026-08-05", body: "整改中" }
+          ]},
+        { id: "a-es", name: "ES样机状态", owner: "structure", kind: "status", tier: "B", jpGates: [], parentId: null,
+          versions: [
+            { id: "v1", status: "published", summary: "手板可用", freezeTags: [], at: "2026-04-10", body: "已出样 · 可用" }
+          ]},
+        { id: "a-pack", name: "包装方案要点", owner: "pack", kind: "text", tier: "B", jpGates: [], parentId: null,
+          versions: [
+            { id: "v1", status: "draft", summary: "包装方案草案", freezeTags: [], at: "2026-05-08", body: "珍珠棉+外箱；尺寸跟 TL 外形。" }
+          ]},
+        { id: "a-schematic", name: "原理图版本", owner: "elec", kind: "text", tier: "B", jpGates: [], parentId: null,
+          versions: [
+            { id: "v1", status: "published", summary: "ES 原理图", freezeTags: [], at: "2026-04-05", body: "v2.1 · 主控+电源+显示" }
+          ]},
+        { id: "a-firmware", name: "固件版本", owner: "embed", kind: "text", tier: "B", jpGates: [], parentId: null,
+          versions: [
+            { id: "v1", status: "published", summary: "ES 固件", freezeTags: [], at: "2026-04-16", body: "ES-0.9.2 · 受控测试中" }
+          ]},
+        { id: "a-dfmea", name: "DFMEA版本", owner: "quality", kind: "text", tier: "B", jpGates: [], parentId: null,
+          versions: [
+            { id: "v1", status: "published", summary: "KO 初版", freezeTags: [], at: "2026-03-01", body: "DFMEA v1 · 核心 12 项" }
+          ]},
+        { id: "a-mold", name: "模具进度", owner: "sourcing", kind: "text", tier: "B", jpGates: ["TL"], parentId: null,
+          versions: [
+            { id: "v1", status: "published", summary: "模具合同已签", freezeTags: ["TL"], at: "2026-06-28", body: "T1 计划 7/15" }
+          ]}
+      ],
+      files: [
+        { id: "f-pm-ko", name: "KO 立项包", owner: "pm", tags: ["阶段:KO","解耦组:平台"], glue: "KO 评审用摘要页（胶水，不复用）。",
+          groups: [{ name: "产品定义", atomIds: ["a-prd"] }], pins: { "a-prd": "v1" }, dismissed: {} },
+        { id: "f-id", name: "ID 外观包", owner: "id", tags: ["阶段:ES","解耦组:ID"], glue: "ID 对外评审材料索引。",
+          groups: [{ name: "外观", atomIds: ["a-look", "a-size"] }], pins: { "a-look": "v1", "a-size": "v1" }, dismissed: {} },
+        { id: "f-st", name: "结构说明", owner: "structure", tags: ["阶段:ES","阶段:TL","解耦组:结构"], glue: "结构组 ES→TL 说明；开孔依据见板框。",
+          groups: [
+            { name: "外观", atomIds: ["a-look", "a-size"] },
+            { name: "规格", atomIds: ["a-frame"] },
+            { name: "结论", atomIds: ["a-es"] }
+          ], pins: { "a-look": "v1", "a-size": "v1", "a-frame": "v1", "a-es": "v1" }, dismissed: {} },
+        { id: "f-pk", name: "包材页", owner: "pack", tags: ["阶段:ES","解耦组:包材"], glue: "包材核价用组装页。",
+          groups: [
+            { name: "外观", atomIds: ["a-look", "a-size"] },
+            { name: "规格", atomIds: ["a-pack"] }
+          ], pins: { "a-look": "v1", "a-size": "v1" }, dismissed: {} },
+        { id: "f-cool", name: "制冷 ES 调试", owner: "cool", tags: ["阶段:ES","解耦组:制冷"], glue: "",
+          groups: [{ name: "结论", atomIds: ["a-cool-es"] }], pins: { "a-cool-es": "v1" }, dismissed: {} },
+        { id: "f-elec", name: "电控 ES 包", owner: "elec", tags: ["阶段:ES","解耦组:电子"], glue: "",
+          groups: [
+            { name: "联调", atomIds: ["a-elec-es"] },
+            { name: "设计", atomIds: ["a-schematic", "a-firmware"] }
+          ], pins: { "a-elec-es": "v1", "a-schematic": "v1", "a-firmware": "v1" }, dismissed: {} },
+        { id: "f-jp-es", name: "JP-ES 汇入材料", owner: "pm", tags: ["JP:ES","阶段:ES"], glue: "ES 整机可行性评审汇编。",
+          groups: [
+            { name: "必看结论", atomIds: ["a-jp-es", "a-cool-es", "a-elec-es", "a-es-test"] },
+            { name: "外观规格", atomIds: ["a-look", "a-size", "a-frame"] }
+          ], pins: { "a-jp-es": "v1", "a-cool-es": "v1", "a-elec-es": "v1", "a-es-test": "v1", "a-look": "v1", "a-size": "v1", "a-frame": "v1" }, dismissed: {} }
+      ],
+      folders: [
+        { id: "fd-all", name: "全部组装页", tag: null },
+        { id: "fd-es", name: "标签 · 阶段 ES", tag: "阶段:ES" },
+        { id: "fd-tl", name: "标签 · 阶段 TL", tag: "阶段:TL" },
+        { id: "fd-st", name: "标签 · 结构组", tag: "解耦组:结构" },
+        { id: "fd-jp-es", name: "JP-ES 汇入", tag: "JP:ES", jp: "ES" },
+        { id: "fd-jp-tl", name: "JP-TL 汇入", tag: "JP:TL", jp: "TL" },
+        { id: "fd-snap", name: "JP 快照库", tag: "__snapshots__" }
+      ],
+      jpSnapshots: [
+        { id: "snap-es", jp: "ES", at: "2026-04-25", by: "pm", fileId: "f-jp-es",
+          title: "JP-ES 汇入快照", pins: { "a-jp-es": "v1", "a-look": "v1", "a-cool-es": "v1", "a-elec-es": "v1", "a-es-test": "v1", "a-frame": "v1", "a-size": "v1" },
+          glue: "ES 评审当时汇编（不可变）" }
+      ],
+      collabs: [
+        { id: "c1", from: "structure", to: "id", atomId: "a-look", status: "open",
+          title: "开孔区域外观确认", body: "结构手板开孔需确认把手外移后局部外观，请 ID 评估是否接受或走 PRD 变更。" }
+      ],
+      works: [
+        { id: "w-ko-prd", name: "KO PRD 发布", group: "平台", owner: "pm", stage: "KO", inputs: [], outputs: [{ atomId: "a-prd", required: true, minFreeze: "KO" }], started: true, completed: true, inputPins: {}, dismissed: {}, cut: false },
+        { id: "w-ko-id", name: "ID 需求确认", group: "ID", owner: "id", stage: "KO", inputs: [{ atomId: "a-prd", required: true, minFreeze: "KO" }], outputs: [], started: true, completed: true, inputPins: { "a-prd": "v1" }, dismissed: {}, cut: false },
+        { id: "w-es-look", name: "外观 ES 冻结", group: "ID", owner: "id", stage: "ES", inputs: [{ atomId: "a-prd", required: true, minFreeze: "ES" }], outputs: [{ atomId: "a-look", required: true, minFreeze: "ES" }, { atomId: "a-size", required: true, minFreeze: "ES" }], started: true, completed: true, inputPins: { "a-prd": "v2" }, dismissed: {}, cut: false },
+        { id: "w-es-cool", name: "制冷 ES 调试", group: "制冷", owner: "cool", stage: "ES", inputs: [{ atomId: "a-prd", required: true, minFreeze: "ES" }], outputs: [{ atomId: "a-cool-es", required: true, minFreeze: "ES" }], started: true, completed: true, inputPins: { "a-prd": "v2" }, dismissed: {}, cut: false },
+        { id: "w-es-hand", name: "结构 ES 手板", group: "结构", owner: "structure", stage: "ES",
+          inputs: [{ atomId: "a-look", required: true, minFreeze: "ES" }, { atomId: "a-frame", required: true, minFreeze: null }],
+          outputs: [{ atomId: "a-es", required: true, minFreeze: null }],
+          started: true, completed: true, inputPins: { "a-look": "v1", "a-frame": "v1" }, dismissed: {}, cut: false },
+        { id: "w-es-elec", name: "电控 ES 联调", group: "电子", owner: "elec", stage: "ES",
+          inputs: [{ atomId: "a-frame", required: true, minFreeze: null }, { atomId: "a-prd", required: true, minFreeze: "ES" }],
+          outputs: [{ atomId: "a-elec-es", required: true, minFreeze: "ES" }, { atomId: "a-schematic", required: true, minFreeze: null }],
+          started: true, completed: true, inputPins: { "a-frame": "v1", "a-prd": "v2" }, dismissed: {}, cut: false },
+        { id: "w-es-pack", name: "包材包装方案", group: "包材", owner: "pack", stage: "ES",
+          inputs: [{ atomId: "a-look", required: true, minFreeze: "ES" }, { atomId: "a-size", required: true, minFreeze: null }],
+          outputs: [{ atomId: "a-pack", required: true, minFreeze: null }],
+          started: true, completed: false, inputPins: { "a-look": "v1", "a-size": "v1" }, dismissed: {}, cut: false },
+        { id: "w-es-test", name: "质量 ES 测试", group: "质量", owner: "quality", stage: "ES",
+          inputs: [{ atomId: "a-prd", required: true, minFreeze: "ES" }, { atomId: "a-es", required: true, minFreeze: null }],
+          outputs: [{ atomId: "a-es-test", required: true, minFreeze: "ES" }],
+          started: true, completed: true, inputPins: { "a-prd": "v2", "a-es": "v1" }, dismissed: {}, cut: false },
+        { id: "w-jp-es", name: "JP-ES 整机评审", group: "平台", owner: "pm", stage: "ES",
+          inputs: [
+            { atomId: "a-look", required: true, minFreeze: "ES" }, { atomId: "a-cool-es", required: true, minFreeze: "ES" },
+            { atomId: "a-elec-es", required: true, minFreeze: "ES" }, { atomId: "a-es-test", required: true, minFreeze: "ES" },
+            { atomId: "a-frame", required: true, minFreeze: "ES" }
+          ],
+          outputs: [{ atomId: "a-jp-es", required: true, minFreeze: "ES" }],
+          started: true, completed: true, inputPins: {}, dismissed: {}, cut: false },
+        { id: "w-tl-look", name: "外观 TL 冻结", group: "ID", owner: "id", stage: "TL",
+          inputs: [], outputs: [{ atomId: "a-look", required: true, minFreeze: "TL" }, { atomId: "a-size", required: true, minFreeze: "TL" }],
+          started: true, completed: true, inputPins: {}, dismissed: {}, cut: false },
+        { id: "w-tl-mold", name: "结构开模冻结", group: "结构", owner: "structure", stage: "TL",
+          inputs: [{ atomId: "a-look", required: true, minFreeze: "TL" }, { atomId: "a-frame", required: true, minFreeze: "TL" }],
+          outputs: [{ atomId: "a-frame", required: true, minFreeze: "TL" }],
+          started: true, completed: true, inputPins: { "a-look": "v2", "a-frame": "v2" }, dismissed: {}, cut: false },
+        { id: "w-tl-sourcing", name: "模具合同", group: "供应链", owner: "sourcing", stage: "TL",
+          inputs: [{ atomId: "a-frame", required: true, minFreeze: "TL" }],
+          outputs: [{ atomId: "a-mold", required: true, minFreeze: "TL" }],
+          started: true, completed: true, inputPins: { "a-frame": "v2" }, dismissed: {}, cut: false },
+        { id: "w-dr-1", name: "DR 试产第1轮", group: "结构", owner: "structure", stage: "DR",
+          inputs: [{ atomId: "a-prd", required: true, minFreeze: null }, { atomId: "a-look", required: true, minFreeze: "TL" }],
+          outputs: [{ atomId: "a-dr-round", required: true, minFreeze: "DR" }],
+          started: true, completed: false, inputPins: { "a-prd": "v2", "a-look": "v2" }, dismissed: {}, cut: false },
+        { id: "w-bt", name: "BT 用户测试", group: "平台", owner: "pm", stage: "BT",
+          inputs: [], outputs: [{ atomId: "a-bt", required: true, minFreeze: null }],
+          started: true, completed: false, inputPins: {}, dismissed: {}, cut: false }
+      ]
+    };
+  }
+
+  const ui = {
+    tab: "kb",
+    folderId: "fd-st",
+    fileId: null,
+    atomId: null,
+    viewVer: null,
+    workId: null,
+    snapId: null,
+    q: "",
+    searchOpen: false,
+    modal: null,
+    toast: ""
+  };
+
+  let S = load();
+
+  function load() {
+    try {
+      const raw = localStorage.getItem(STORE);
+      if (raw) {
+        const d = JSON.parse(raw);
+        if (d && d.atoms && d.files) {
+          if (!d.jpSnapshots) d.jpSnapshots = [];
+          if (!d.collabs) d.collabs = [];
+          d.files.forEach((f) => {
+            if (!f.tags) f.tags = [];
+            if (!f.glue) f.glue = "";
+          });
+          return d;
+        }
+      }
+    } catch (e) {}
+    return seed();
+  }
+  function persist() {
+    localStorage.setItem(STORE, JSON.stringify(S));
+  }
+
+  function atom(id) { return S.atoms.find((a) => a.id === id); }
+  function file(id) { return S.files.find((f) => f.id === id); }
+  function folder(id) { return S.folders.find((f) => f.id === id); }
+  function work(id) { return S.works.find((w) => w.id === id); }
+  function latest(a) { return a.versions[a.versions.length - 1]; }
+  function pubs(a) { return a.versions.filter((v) => v.status === "published"); }
+  function latestPub(a) { const p = pubs(a); return p.length ? p[p.length - 1] : null; }
+  function ver(a, vid) { return a.versions.find((v) => v.id === vid); }
+  function freezeLabel(v) {
+    return (v.freezeTags || []).map((t) => t + "定版").join(" · ") || (v.status === "published" ? "已定稿" : "未定稿");
+  }
+  function nextVid(a) { return "v" + (a.versions.length + 1); }
+
+  function meets(a, minFreeze) {
+    const p = pubs(a);
+    if (!p.length) return false;
+    if (!minFreeze) return true;
+    return p.some((v) => (v.freezeTags || []).includes(minFreeze));
+  }
+  function bestFor(a, minFreeze) {
+    const p = pubs(a);
+    if (!p.length) return null;
+    if (minFreeze) {
+      const hit = [...p].reverse().find((v) => (v.freezeTags || []).includes(minFreeze));
+      if (hit) return hit;
+    }
+    return p[p.length - 1];
+  }
+  function pinStale(f, atomId) {
+    const a = atom(atomId);
+    const lp = latestPub(a);
+    const pin = f.pins[atomId];
+    if (!lp || !pin) return false;
+    if (pin === lp.id) return false;
+    if (f.dismissed && f.dismissed[atomId] === lp.id) return false;
+    return true;
+  }
+  function filesUsing(atomId) {
+    return S.files.filter((f) => f.groups.some((g) => g.atomIds.includes(atomId)));
+  }
+  function foldersUsingFile(fileId) {
+    const f = file(fileId);
+    if (!f || !f.tags) return [];
+    return S.folders.filter((fd) => fd.tag && fd.tag !== "__snapshots__" && f.tags.includes(fd.tag));
+  }
+  function childrenOf(atomId) {
+    return S.atoms.filter((a) => a.parentId === atomId);
+  }
+  function filesByTag(tag) {
+    if (!tag) return S.files;
+    if (tag === "__snapshots__") return [];
+    return S.files.filter((f) => (f.tags || []).includes(tag));
+  }
+  function folderFiles(fd) {
+    return filesByTag(fd.tag);
+  }
+  function hasFreeze(a, tag) {
+    return pubs(a).some((v) => (v.freezeTags || []).includes(tag));
+  }
+  function jpChecklist(jp) {
+    return S.atoms
+      .filter((a) => a.tier === "A" && (a.jpGates || []).includes(jp))
+      .map((a) => ({ a, ok: hasFreeze(a, jp), owner: ROLES[a.owner].name }));
+  }
+  function openCollabsForRole() {
+    return (S.collabs || []).filter((c) => c.to === S.role && c.status === "open");
+  }
+
+  function workComputed(w) {
+    if (w.cut) return { status: "skip", gaps: [], badge: 0, outReady: false };
+    const gaps = [];
+    (w.inputs || []).forEach((inp) => {
+      const a = atom(inp.atomId);
+      if (!a) return;
+      const ok = meets(a, inp.minFreeze);
+      if (inp.required && !ok) {
+        gaps.push(a.name + (inp.minFreeze ? " 缺" + inp.minFreeze + "冻结" : " 尚未定稿"));
+      }
+    });
+    let outReady = true;
+    (w.outputs || []).forEach((out) => {
+      if (!out.required) return;
+      const a = atom(out.atomId);
+      if (!meets(a, out.minFreeze)) outReady = false;
+    });
+    if (!w.outputs || !w.outputs.length) outReady = w.completed;
+    let status = "blocked";
+    if (w.completed) status = "done";
+    else if (w.started) status = "doing";
+    else if (!gaps.length) status = "ready";
+    let badge = 0;
+    if (w.started || w.completed) {
+      (w.inputs || []).forEach((inp) => {
+        const a = atom(inp.atomId);
+        const lp = latestPub(a);
+        const pin = w.inputPins[inp.atomId];
+        if (lp && pin && pin !== lp.id && w.dismissed[inp.atomId] !== lp.id) badge++;
+      });
+    }
+    return { status, gaps, badge, outReady };
+  }
+
+  const STATUS_TXT = { blocked: "未就绪", ready: "可开始", doing: "进行中", done: "已完成", skip: "不做" };
+
+  function toast(msg) {
+    ui.toast = msg;
+    render();
+    setTimeout(() => { if (ui.toast === msg) { ui.toast = ""; render(); } }, 2200);
+  }
+
+  function lookHtml(v) {
+    const lk = v.look || "v1";
+    return `<div class="look ${lk}"><div class="ice"></div><div class="handle"></div><div class="look-label">${esc(lk === "v2" ? "把手外移 8mm" : "把手居中 · ES")}</div></div>`;
+  }
+  function bodyHtml(a, v) {
+    if (a.kind === "look") return lookHtml(v) + `<p>${esc(v.body || "")}</p>`;
+    return `<p style="white-space:pre-wrap">${esc(v.body || "")}</p>`;
+  }
+
+  function render() {
+    persist();
+    const app = document.getElementById("app");
+    app.innerHTML = shell();
+    bind();
+  }
+
+  function shell() {
+    const r = ROLES[S.role];
+    return `
+      <div class="topbar">
+        <div class="brand">H8120 项目知识库<small>试点 MVP · 全链 KO→CR · 标签文件夹 · JP 快照</small></div>
+        <div class="search-wrap">
+          <input id="q" placeholder="搜索知识原子" value="${esc(ui.q)}" />
+          ${ui.searchOpen ? searchPop() : ""}
+        </div>
+        <div class="top-actions">
+          <select class="role-sel" id="role">
+            ${Object.keys(ROLES).map((k) => `<option value="${k}" ${S.role===k?"selected":""}>我是${ROLES[k].name} · ${ROLES[k].person}</option>`).join("")}
+          </select>
+          <button class="btn-ghost" data-act="reset">恢复预置</button>
+        </div>
+      </div>
+      <div class="subnav">
+        <button class="tab ${ui.tab==="kb"?"on":""}" data-act="tab" data-tab="kb">知识库</button>
+        <button class="tab ${ui.tab==="graph"?"on":""}" data-act="tab" data-tab="graph">工作图</button>
+        <button class="tab ${ui.tab==="mine"?"on":""}" data-act="tab" data-tab="mine">我的工作</button>
+        <button class="tab ${ui.tab==="collab"?"on":""}" data-act="tab" data-tab="collab">协同单</button>
+      </div>
+      <div class="body">
+        ${ui.tab === "kb" ? kbLayout() : `<div class="main">${ui.tab==="graph" ? graphView() : ui.tab==="collab" ? collabView() : mineView()}</div>`}
+      </div>
+      ${ui.modal ? modalHtml() : ""}
+      ${ui.toast ? `<div class="toast">${esc(ui.toast)}</div>` : ""}
+    `;
+  }
+
+  function searchPop() {
+    const q = ui.q.trim();
+    const hits = S.atoms.filter((a) => !q || a.name.includes(q) || a.versions.some((v) => (v.body||"").includes(q) || (v.summary||"").includes(q)));
+    if (!hits.length) return `<div class="search-pop"><div class="search-item">没有匹配的知识原子</div></div>`;
+    return `<div class="search-pop">${hits.map((a) => `<div class="search-item" data-act="open-atom" data-id="${a.id}"><b>${esc(a.name)}</b><div class="k">${esc(ROLES[a.owner].name)}负责 · ${esc(freezeLabel(latest(a)))}</div></div>`).join("")}</div>`;
+  }
+
+  function kbLayout() {
+    return `
+      <aside class="side">
+        <h3>标签 / 汇入</h3>
+        ${S.folders.map((fd) => {
+          const n = fd.tag === "__snapshots__" ? (S.jpSnapshots || []).length : folderFiles(fd).length;
+          return `<button class="folder ${ui.folderId===fd.id?"on":""}" data-act="folder" data-id="${fd.id}">${esc(fd.name)}<span class="n">${n}</span></button>`;
+        }).join("")}
+      </aside>
+      <div class="main">${kbMain()}</div>
+    `;
+  }
+
+  function kbMain() {
+    if (ui.atomId) return atomView();
+    if (ui.fileId) return fileView();
+    const fd = folder(ui.folderId);
+    if (!fd) return "";
+    if (fd.tag === "__snapshots__") return snapshotsView();
+    const list = folderFiles(fd);
+    const jpPanel = fd.jp ? jpPanelHtml(fd.jp) : "";
+    return `
+      <div class="crumb">${esc(fd.name)}</div>
+      <div class="hrow">
+        <div>
+          <h1>${esc(fd.name)}</h1>
+          <p>${fd.jp ? "汇入点视图：检查 A 档原子冻结 + 组装页引用。" : "标签导航：不钉版本，只筛组装页。"} 共 ${list.length} 份组装页。</p>
+        </div>
+      </div>
+      ${jpPanel}
+      <div class="file-list">
+        ${list.map((f) => {
+          const n = f.groups.reduce((s, g) => s + g.atomIds.length, 0);
+          const stale = Object.keys(f.pins).some((aid) => pinStale(f, aid));
+          const fds = foldersUsingFile(f.id).map((x) => x.name.replace(/^标签 · /, "")).join("、");
+          return `<button class="file-row" data-act="file" data-id="${f.id}">
+            <div><b>${esc(f.name)}</b><span>责任人 ${esc(ROLES[f.owner].name)} · ${n} 个原子 · 标签 ${esc((f.tags||[]).join(" · "))}${fds ? " · 也在 " + esc(fds) : ""}</span></div>
+            <div>${stale ? '<span class="tag amber">源已更新</span>' : '<span class="tag gray">组装页</span>'}</div>
+          </button>`;
+        }).join("") || "<p class='muted'>此标签下暂无组装页。</p>"}
+      </div>
+    `;
+  }
+
+  function jpPanelHtml(jp) {
+    const rows = jpChecklist(jp);
+    const okN = rows.filter((r) => r.ok).length;
+    const snap = (S.jpSnapshots || []).find((s) => s.jp === jp);
+    return `
+      <div class="jp-panel">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+          <b>JP-${jp} · A 档必看原子</b>
+          <span class="tag ${okN === rows.length ? "ok" : "amber"}">${okN}/${rows.length} 已打 ${jp} 冻结</span>
+        </div>
+        ${rows.map((r) => `<div class="jp-row"><span>${r.ok ? "✓" : "✗"} ${esc(r.a.name)} <span class="tag gray">${esc(r.owner)}</span></span>
+          <span>${r.ok ? '<span class="tag ok">已冻结</span>' : '<span class="tag amber">未冻结</span>'}</span></div>`).join("")}
+        ${snap ? `<p class="gap" style="margin-top:8px;">已有快照：<a data-act="view-snap" data-id="${snap.id}">${esc(snap.title)}</a> · ${esc(snap.at)}</p>` : `<p class="gap" style="margin-top:8px;">尚无 JP-${jp} 快照。JP 通过后可从汇入材料页导出。</p>`}
+      </div>`;
+  }
+
+  function snapshotsView() {
+    const snaps = S.jpSnapshots || [];
+    return `
+      <div class="hrow"><div><h1>JP 快照库</h1><p>汇入验收时刻的不可变包。打开可复现当时钉扎与胶水。</p></div></div>
+      <div class="snap-list">
+        ${snaps.map((s) => `<div class="snap-row">
+          <b>${esc(s.title)}</b> <span class="tag ok">JP-${esc(s.jp)}</span>
+          <div class="gap">${esc(s.at)} · 导出人 ${esc(ROLES[s.by].name)} · 组装页 ${esc(file(s.fileId)?.name || "")}</div>
+          <button class="btn" style="margin-top:6px" data-act="view-snap" data-id="${s.id}">打开快照</button>
+        </div>`).join("") || "<p class='muted'>还没有快照。在 JP 汇入材料页可导出。</p>"}
+      </div>
+      ${ui.snapId ? snapDetail(ui.snapId) : ""}
+    `;
+  }
+
+  function snapDetail(sid) {
+    const s = (S.jpSnapshots || []).find((x) => x.id === sid);
+    if (!s) return "";
+    const f = file(s.fileId);
+    return `<div class="card" style="margin-top:14px;">
+      <h3 style="font-size:15px;margin-bottom:8px;">${esc(s.title)} · 钉扎明细</h3>
+      <p class="muted" style="margin-bottom:8px;">胶水：${esc(s.glue || f?.glue || "")}</p>
+      ${Object.keys(s.pins).map((aid) => {
+        const a = atom(aid); const v = ver(a, s.pins[aid]);
+        return `<div class="jp-row"><span>${esc(a.name)}</span><span>${esc(s.pins[aid])} · ${esc(v?.summary || "")}</span></div>`;
+      }).join("")}
+    </div>`;
+  }
+
+  function fileView() {
+    const f = file(ui.fileId);
+    const fd = folder(ui.folderId);
+    const isOwner = S.role === f.owner;
+    const staleIds = Object.keys(f.pins).filter((aid) => pinStale(f, aid));
+    const canBatch = isOwner && staleIds.length;
+    return `
+      <div class="crumb"><a data-act="folder" data-id="${fd.id}">${esc(fd.name)}</a> / ${esc(f.name)}</div>
+      <div class="hrow">
+        <div>
+          <h1>${esc(f.name)}</h1>
+          <p>组装页 · 责任人 ${esc(ROLES[f.owner].name)} · 引用自 ${esc(foldersUsingFile(f.id).map(x=>x.name).join("、"))}</p>
+        </div>
+        <div class="btns">
+          ${canBatch ? `<button class="btn warn" data-act="batch-up">升级全部落后钉扎</button>` : ""}
+          ${isOwner ? `<button class="btn" data-act="ref-atom">引用知识原子</button>` : ""}
+          ${isOwner && (f.tags || []).some((t) => t.startsWith("JP:")) ? `<button class="btn ok" data-act="export-snap">导出 JP 快照</button>` : ""}
+        </div>
+      </div>
+      ${staleIds.length && !isOwner ? `<div class="banner warn">有 ${staleIds.length} 个引用源已更新。改钉扎需要组装页责任人（${esc(ROLES[f.owner].name)}）。</div>` : ""}
+      ${staleIds.length && isOwner ? `<div class="banner warn">有 ${staleIds.length} 个引用源已更新。内容仍钉在旧版，不会自动替换。</div>` : ""}
+      ${f.glue ? `<div class="banner info">胶水文本（仅本页）：${esc(f.glue)}</div>` : ""}
+      ${f.groups.map((g) => `
+        <div class="group">
+          <div class="group-h">${esc(g.name)}</div>
+          <div class="atom-grid">
+            ${g.atomIds.map((aid) => atomCard(f, aid, isOwner)).join("")}
+          </div>
+        </div>
+      `).join("")}
+    `;
+  }
+
+  function atomCard(f, aid, isOwner) {
+    const a = atom(aid);
+    const pinId = f.pins[aid];
+    const pv = pinId ? ver(a, pinId) : latestPub(a);
+    const lp = latestPub(a);
+    const lt = latest(a);
+    const stale = pinStale(f, aid);
+    const unpublished = lt.status === "draft";
+    return `
+      <div class="atom-card" data-act="open-atom" data-id="${a.id}">
+        <div class="t" data-act="open-atom" data-id="${a.id}">${esc(a.name)} ${a.tier === "A" ? '<span class="tag ok">A</span>' : '<span class="tag gray">B</span>'}</div>
+        <div class="meta">
+          ${pv ? `本页钉 <b>${esc(pv.id)}</b> · ${esc(freezeLabel(pv))}` : '<span class="tag amber">尚未钉定稿</span>'}
+          ${lp && pv && lp.id !== pv.id ? ` · 最新定稿 ${esc(lp.id)} ${esc(freezeLabel(lp))}` : ""}
+          ${unpublished && a.owner === S.role ? ` · <span class="tag amber">你有未定稿</span>` : ""}
+        </div>
+        ${stale ? `<div class="stale-bar" onclick="event.stopPropagation()">
+          <span>源已更新到 ${esc(lp.id)} · ${esc(lp.summary)}</span>
+          <span class="btns">
+            <button class="btn" data-act="compare" data-file="${f.id}" data-atom="${a.id}">看差异</button>
+            ${isOwner ? `<button class="btn pri" data-act="upgrade" data-file="${f.id}" data-atom="${a.id}">升级</button>
+            <button class="btn" data-act="keep" data-file="${f.id}" data-atom="${a.id}">保持</button>` : ""}
+          </span>
+        </div>` : ""}
+      </div>
+    `;
+  }
+
+  function atomView() {
+    const a = atom(ui.atomId);
+    const vid = ui.viewVer || latest(a).id;
+    const v = ver(a, vid) || latest(a);
+    const isOwner = S.role === a.owner;
+    const canEdit = isOwner && v.status === "draft" && v.id === latest(a).id;
+    const fd = folder(ui.folderId);
+    const f = ui.fileId ? file(ui.fileId) : null;
+    const refs = filesUsing(a.id);
+    const unpublished = latest(a).status === "draft";
+    return `
+      <div class="crumb">
+        ${fd ? `<a data-act="folder" data-id="${fd.id}">${esc(fd.name)}</a>` : "知识库"}
+        ${f ? ` / <a data-act="file" data-id="${f.id}">${esc(f.name)}</a>` : ""}
+        / ${esc(a.name)}
+      </div>
+      <div class="hrow">
+        <div>
+          <h1>${esc(a.name)}</h1>
+          <p>知识原子 · 责任人 ${esc(ROLES[a.owner].name)} · ${esc(ROLES[a.owner].person)}</p>
+        </div>
+        <div class="btns">
+          ${isOwner && latest(a).status === "published" ? `<button class="btn pri" data-act="new-draft">开始改下一版</button>` : ""}
+          ${f && S.role === f.owner && S.role !== a.owner ? `<button class="btn warn" data-act="collab-request">发起协同（试点不派生）</button>` : ""}
+        </div>
+      </div>
+      ${unpublished && isOwner ? `<div class="banner warn">你有未定稿的最新版。下游组装页仍钉在已定稿版本上。</div>` : ""}
+      ${unpublished && !isOwner ? `<div class="banner info">责任人正在改最新未定稿。本页若已钉定稿，内容不会跟着草稿变。</div>` : ""}
+      ${a.tier === "A" ? `<div class="banner info">A 档原子 · JP 关口：${esc((a.jpGates || []).join("、")) || "—"}</div>` : ""}
+      <div class="split">
+        <div>
+          <div class="group-h">版本链</div>
+          <div class="vers">
+            ${[...a.versions].reverse().map((x) => `
+              <button class="ver ${x.id===v.id?"on":""}" data-act="ver" data-id="${x.id}">
+                <div><b>${esc(x.id)}</b> ${x.id===latest(a).id?'<span class="tag amber">最新</span>':''}
+                <div class="gap">${esc(x.summary)} · ${esc(x.at)}</div></div>
+                <div>${x.status==="draft"?'<span class="tag amber">未定稿</span>':'<span class="tag ok">'+esc(freezeLabel(x))+'</span>'}</div>
+              </button>
+            `).join("")}
+          </div>
+        </div>
+        <div class="card">
+          <div class="meta" style="margin-bottom:8px;">${esc(v.id)} · ${esc(freezeLabel(v))} · ${esc(v.at)}</div>
+          ${canEdit ? editForm(a, v) : bodyHtml(a, v)}
+          ${!canEdit && v.body && a.kind!=="look" ? "" : ""}
+          ${isOwner && v.status === "published" ? freezeBtns(a, v) : ""}
+          ${isOwner && canEdit ? `<div class="btns" style="margin-top:10px;">
+            <button class="btn" data-act="save-atom">保存草稿</button>
+            <button class="btn ok" data-act="publish">定稿</button>
+          </div>` : ""}
+          <div class="refs" style="margin-top:14px;">被这些组装页引用：${refs.map((rf)=>`<a data-act="file" data-id="${rf.id}">${esc(rf.name)}</a>`).join("、") || "暂无"}</div>
+        </div>
+      </div>
+    `;
+  }
+
+  function editForm(a, v) {
+    if (a.kind === "look") {
+      return `${lookHtml(v)}
+        <label class="lbl">外观示意</label>
+        <select class="field" id="ed-look"><option value="v1" ${v.look==="v1"?"selected":""}>把手居中</option><option value="v2" ${v.look==="v2"?"selected":""}>把手外移</option></select>
+        <label class="lbl">修改摘要</label>
+        <input class="field" id="ed-sum" value="${esc(v.summary)}" />
+        <label class="lbl">说明</label>
+        <textarea id="ed-body">${esc(v.body||"")}</textarea>`;
+    }
+    if (a.kind === "status") {
+      return `<label class="lbl">状态</label>
+        <select class="field" id="ed-body">
+          ${["未出样","已出样可用","整改中"].map((s)=>`<option ${v.body===s?"selected":""}>${s}</option>`).join("")}
+        </select>
+        <label class="lbl">修改摘要</label>
+        <input class="field" id="ed-sum" value="${esc(v.summary)}" />`;
+    }
+    return `<label class="lbl">修改摘要</label>
+      <input class="field" id="ed-sum" value="${esc(v.summary)}" />
+      <label class="lbl">内容</label>
+      <textarea id="ed-body">${esc(v.body||"")}</textarea>`;
+  }
+
+  function freezeBtns(a, v) {
+    const tags = ["ES", "TL", "DR", "BT", "CR"];
+    return `<div class="btns" style="margin-top:12px;">
+      ${tags.map((t) => {
+        const on = (v.freezeTags || []).includes(t);
+        return `<button class="btn ${on?"ok":""}" ${on?"disabled":""} data-act="freeze" data-tag="${t}">${on ? t+" 已冻结" : "打 "+t+" 定版"}</button>`;
+      }).join("")}
+    </div><p class="gap">定稿和打冻结点是两步。冻结点打上后不能改指。</p>`;
+  }
+
+  function graphView() {
+    return `
+      <div class="hint-bar">
+        <b>可试场景：</b>① 切「结构」看 ES 手板已完成 + 改版角标；② 结构说明页外观钉 v1、源已到 v2(TL)；③ 包材进行中；④ JP-ES 看 A 档清单。
+      </div>
+      <div class="hrow"><div><h1>项目工作图 · KO→CR</h1><p>全链模板。底色=状态，角标=源已更新。不排日计划。</p></div></div>
+      <div class="graph card">
+        <div class="ggrid ggrid-wide">
+          <div></div>${STAGES.map((s) => `<div class="gh">${s}</div>`).join("")}
+          ${GRAPH_LANES.map((ln) => {
+            const cells = STAGES.map((st) => {
+              const ws = S.works.filter((w) => w.group === ln.key && w.stage === st);
+              if (!ws.length) return `<div class="gcell"></div>`;
+              return `<div class="gcell">${ws.map((w) => workNode(w)).join("")}</div>`;
+            }).join("");
+            return `<div class="glane">${ln.key}</div>${cells}`;
+          }).join("")}
+        </div>
+      </div>
+      ${ui.workId ? workPanel() : ""}
+    `;
+  }
+
+  function collabView() {
+    const mine = (S.collabs || []).filter((c) => c.to === S.role || c.from === S.role);
+    return `
+      <div class="hrow"><div><h1>协同单</h1><p>试点不做派生原子；跨组改不了源时走协同（P1/P2）。</p></div></div>
+      ${mine.length ? mine.map((c) => {
+        const a = atom(c.atomId);
+        const dir = c.to === S.role ? "待我处理" : "我发起";
+        return `<div class="collab-item">
+          <b>${esc(c.title)}</b> <span class="tag ${c.status === "open" ? "amber" : "ok"}">${dir} · ${c.status === "open" ? "进行中" : "已关闭"}</span>
+          <div class="gap">${esc(ROLES[c.from].name)} → ${esc(ROLES[c.to].name)} · 原子 <a data-act="open-atom" data-id="${a.id}">${esc(a.name)}</a></div>
+          <p class="gap">${esc(c.body)}</p>
+          ${c.to === S.role && c.status === "open" ? `<button class="btn ok" style="margin-top:6px" data-act="collab-close" data-id="${c.id}">标记已协同闭环</button>` : ""}
+        </div>`;
+      }).join("") : "<p class='muted'>当前角色没有协同单。切「结构」可看一条待 ID 处理的示例。</p>"}
+    `;
+  }
+
+  function workNode(w) {
+    const c = workComputed(w);
+    const badge = c.badge ? `<span class="badge">评${c.badge}</span>` : "";
+    return `<button class="wnode ${c.status}" data-act="work" data-id="${w.id}">${badge}<b>${esc(w.name)}</b><span class="tag ${c.status==="ready"?"amber":c.status==="doing"?"blue":c.status==="done"?"ok":"gray"}">${STATUS_TXT[c.status]}</span></button>`;
+  }
+
+  function workPanel() {
+    const w = work(ui.workId);
+    const c = workComputed(w);
+    const isOwner = S.role === w.owner;
+    return `
+      <div class="card" style="margin-top:14px;">
+        <div class="hrow"><div><h1 style="font-size:16px">${esc(w.name)}</h1>
+        <p>${esc(w.group)} · ${esc(w.stage)} · 责任人 ${esc(ROLES[w.owner].name)} · ${STATUS_TXT[c.status]}</p></div></div>
+        ${c.gaps.length ? `<div class="banner warn">缺口：${esc(c.gaps.join("；"))}</div>` : ""}
+        ${c.badge && isOwner ? `<div class="banner warn">有 ${c.badge} 条已钉输入落后于最新定稿。</div>` : ""}
+        <div class="group-h">输入</div>
+        ${(w.inputs||[]).map((inp) => {
+          const a = atom(inp.atomId);
+          const pin = w.inputPins[inp.atomId];
+          const lp = latestPub(a);
+          const stale = lp && pin && pin !== lp.id && w.dismissed[inp.atomId] !== lp.id;
+          return `<div class="mine-item">
+            <a data-act="open-atom" data-id="${a.id}">${esc(a.name)}</a>
+            ${inp.required ? '<span class="tag">必要</span>' : '<span class="tag gray">可选</span>'}
+            ${inp.minFreeze ? `<span class="tag ok">最低 ${inp.minFreeze} 定版</span>` : '<span class="tag gray">已定稿即可</span>'}
+            <div class="gap">${meets(a, inp.minFreeze) ? "条件已满足" : "条件未满足"} ${pin ? "· 本工作钉 "+pin : "· 未开工未钉"} ${stale ? "· 源已更新 "+lp.id : ""}</div>
+            ${stale && isOwner ? `<div class="btns" style="margin-top:6px;">
+              <button class="btn" data-act="w-compare" data-atom="${a.id}">看差异</button>
+              <button class="btn pri" data-act="w-up" data-atom="${a.id}">升级钉扎</button>
+              <button class="btn" data-act="w-keep" data-atom="${a.id}">不升级</button>
+              <button class="btn warn" data-act="w-redo">改输出（进入改版）</button>
+            </div>` : ""}
+          </div>`;
+        }).join("") || '<p class="gap">无输入绑定</p>'}
+        <div class="group-h">输出</div>
+        ${(w.outputs||[]).map((out) => {
+          const a = atom(out.atomId);
+          return `<div class="mine-item">
+            <a data-act="open-atom" data-id="${a.id}">${esc(a.name)}</a>
+            ${out.minFreeze ? `<span class="tag ok">需 ${out.minFreeze} 定版</span>` : '<span class="tag gray">需定稿</span>'}
+            <div class="gap">${meets(a, out.minFreeze) ? "已达到" : "未达到"}</div>
+          </div>`;
+        }).join("") || '<p class="gap">无输出绑定</p>'}
+        <div class="drawer-actions">
+          ${isOwner && c.status === "ready" ? `<button class="btn pri" data-act="w-start">开工（钉死当前适用定版）</button>` : ""}
+          ${isOwner && c.status === "doing" && c.outReady && !w.completed ? `<button class="btn ok" data-act="w-done">确认完成</button>` : ""}
+          ${isOwner && c.status === "doing" && !c.outReady ? `<span class="gap">请先把必要输出定稿（到对应知识原子里操作）</span>` : ""}
+          ${!isOwner ? `<span class="gap">当前身份不能操作此工作，请切换为 ${esc(ROLES[w.owner].name)}</span>` : ""}
+        </div>
+      </div>
+    `;
+  }
+
+  function mineView() {
+    const mine = S.works.filter((w) => w.owner === S.role && !w.cut);
+    const todo = [];
+    const wait = [];
+    const done = [];
+    mine.forEach((w) => {
+      const c = workComputed(w);
+      const item = { w, c };
+      if (c.status === "done" && !c.badge) done.push(item);
+      else if (c.status === "blocked") wait.push(item);
+      else todo.push(item);
+    });
+    const col = (title, arr, empty) => `
+      <div class="mine-col">
+        <h3>${title} · ${arr.length}</h3>
+        ${arr.map(({w,c}) => `
+          <button class="mine-item" data-act="goto-work" data-id="${w.id}">
+            <b>${esc(w.name)}</b> <span class="tag ${c.status==="ready"?"amber":c.status==="doing"?"blue":c.status==="done"?"ok":"gray"}">${STATUS_TXT[c.status]}</span>
+            ${c.badge ? '<span class="tag amber">需评估 '+c.badge+'</span>' : ""}
+            <div class="gap">${c.gaps.length ? esc(c.gaps.join("；")) : w.stage+" 阶段"}</div>
+          </button>
+        `).join("") || `<p class="gap">${empty}</p>`}
+      </div>`;
+    return `
+      <div class="hrow"><div><h1>我的工作</h1><p>当前 ${esc(ROLES[S.role].name)} · ${esc(ROLES[S.role].person)}。协同单见「协同单」页。</p></div></div>
+      <div class="grid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;">
+        ${col("待我处理", todo, "没有待处理")}
+        ${col("等待中", wait, "没有在等的输入")}
+        ${col("已完成", done, "还没有完成项")}
+      </div>
+    `;
+  }
+
+  function modalHtml() {
+    const m = ui.modal;
+    if (m.type === "compare") {
+      const a = atom(m.atomId);
+      const f = m.fileId ? file(m.fileId) : null;
+      const w = m.workId ? work(m.workId) : null;
+      const pinId = f ? f.pins[a.id] : (w ? w.inputPins[a.id] : null);
+      const oldV = pinId ? ver(a, pinId) : a.versions[0];
+      const lp = latestPub(a);
+      return `<div class="modal-bg" data-act="close-modal"><div class="modal" onclick="event.stopPropagation()">
+        <div class="hrow"><h1 style="font-size:16px">差异 · ${esc(a.name)}</h1><button class="btn" data-act="close-modal">关闭</button></div>
+        <div class="cmp">
+          <div class="card"><div class="tag gray">当前钉 ${esc(oldV.id)}</div><div class="gap">${esc(oldV.summary)}</div>${bodyHtml(a, oldV)}</div>
+          <div class="card"><div class="tag ok">最新定稿 ${esc(lp.id)} · ${esc(freezeLabel(lp))}</div><div class="gap">${esc(lp.summary)}</div>${bodyHtml(a, lp)}</div>
+        </div>
+      </div></div>`;
+    }
+    if (m.type === "ref") {
+      const f = file(ui.fileId);
+      const used = new Set(f.groups.flatMap((g) => g.atomIds));
+      const avail = S.atoms.filter((a) => !used.has(a.id) && latestPub(a));
+      return `<div class="modal-bg" data-act="close-modal"><div class="modal" onclick="event.stopPropagation()">
+        <div class="hrow"><h1 style="font-size:16px">引用知识原子到「${esc(f.name)}」</h1><button class="btn" data-act="close-modal">关闭</button></div>
+        ${avail.length ? avail.map((a)=>`<button class="file-row" data-act="do-ref" data-id="${a.id}"><div><b>${esc(a.name)}</b><span>${esc(ROLES[a.owner].name)} · ${esc(freezeLabel(latestPub(a)))}</span></div></button>`).join("") : "<p class='gap'>没有可引用的已定稿原子，或都已在本页。</p>"}
+      </div></div>`;
+    }
+    return "";
+  }
+
+  function readEdit(a, v) {
+    const sum = document.getElementById("ed-sum");
+    const body = document.getElementById("ed-body");
+    const look = document.getElementById("ed-look");
+    if (sum) v.summary = sum.value.trim() || v.summary;
+    if (body) v.body = body.value;
+    if (look) v.look = look.value;
+    v.at = today();
+  }
+
+  function bind() {
+    const q = document.getElementById("q");
+    if (q) {
+      q.oninput = () => { ui.q = q.value; ui.searchOpen = true; render(); document.getElementById("q").focus(); const n=document.getElementById("q"); n.setSelectionRange(n.value.length,n.value.length); };
+      q.onfocus = () => { if (!ui.searchOpen) { ui.searchOpen = true; render(); const n = document.getElementById("q"); if (n) n.focus(); } };
+    }
+    const role = document.getElementById("role");
+    if (role) role.onchange = () => { S.role = role.value; toast("已切换为 " + ROLES[S.role].name + " · " + ROLES[S.role].person); };
+    document.getElementById("app").onclick = onClick;
+  }
+
+  function onKey(e) {
+    if (e.key === "Escape") { ui.searchOpen = false; ui.modal = null; render(); }
+  }
+  document.addEventListener("keydown", onKey);
+
+  function onClick(e) {
+    const el = e.target.closest("[data-act]");
+    if (!el) {
+      if (!e.target.closest(".search-wrap")) { if (ui.searchOpen) { ui.searchOpen = false; render(); } }
+      return;
+    }
+    const act = el.dataset.act;
+    const id = el.dataset.id;
+    if (act === "tab") { ui.tab = el.dataset.tab; ui.workId = ui.tab==="graph" ? ui.workId : null; render(); return; }
+    if (act === "reset") {
+      if (confirm("恢复成预置的 H8120 试用数据？当前改过的内容会丢掉。")) { S = seed(); ui.fileId = null; ui.atomId = null; ui.workId = null; ui.snapId = null; toast("已恢复预置数据"); }
+      return;
+    }
+    if (act === "folder") { ui.folderId = id; ui.fileId = null; ui.atomId = null; ui.viewVer = null; ui.snapId = null; ui.tab = "kb"; render(); return; }
+    if (act === "file") {
+      ui.fileId = id; ui.atomId = null; ui.viewVer = null; ui.snapId = null; ui.searchOpen = false; ui.modal = null; ui.tab = "kb";
+      const ff = file(id);
+      const fd = S.folders.find((x) => x.tag && ff.tags && ff.tags.includes(x.tag));
+      if (fd) ui.folderId = fd.id;
+      render(); return;
+    }
+    if (act === "view-snap") { ui.snapId = id; ui.folderId = "fd-snap"; ui.tab = "kb"; render(); return; }
+    if (act === "export-snap") {
+      const f = file(ui.fileId);
+      const jpTag = (f.tags || []).find((t) => t.startsWith("JP:"));
+      if (!jpTag) return;
+      const jp = jpTag.replace("JP:", "");
+      const stale = Object.keys(f.pins).some((aid) => pinStale(f, aid));
+      if (stale) { toast("仍有落后钉扎，建议先升级或确认保持"); return; }
+      const sid = "snap-" + jp + "-" + Date.now();
+      S.jpSnapshots.push({ id: sid, jp, at: today(), by: S.role, fileId: f.id, title: "JP-" + jp + " 汇入快照", pins: clone(f.pins), glue: f.glue || "" });
+      toast("已导出 JP-" + jp + " 快照"); ui.folderId = "fd-snap"; ui.snapId = sid; render(); return;
+    }
+    if (act === "collab-request") {
+      const a = atom(ui.atomId);
+      if (!confirm("向 " + ROLES[a.owner].name + " 发起协同？试点不创建派生原子。")) return;
+      S.collabs.push({ id: "c" + Date.now(), from: S.role, to: a.owner, atomId: a.id, status: "open", title: "组装页引用变更请求", body: "请评估 " + a.name + " 是否需调整或走 P1 变更。" });
+      toast("协同单已发起"); render(); return;
+    }
+    if (act === "collab-close") {
+      const c = (S.collabs || []).find((x) => x.id === id);
+      if (c) c.status = "closed";
+      toast("协同已闭环"); render(); return;
+    }
+    if (act === "open-atom") { ui.atomId = id; ui.viewVer = latest(atom(id)).id; ui.searchOpen = false; ui.tab = "kb"; render(); return; }
+    if (act === "ver") { ui.viewVer = id; render(); return; }
+    if (act === "save-atom") { const a = atom(ui.atomId); const v = latest(a); readEdit(a, v); toast("草稿已保存"); return; }
+    if (act === "publish") {
+      const a = atom(ui.atomId); const v = latest(a); readEdit(a, v);
+      if (!v.summary) { toast("定稿需要填写修改摘要"); return; }
+      if (!confirm("定稿后这一版不能再改，下游也不会自动换成这一版。确定？")) return;
+      v.status = "published"; v.at = today();
+      toast("已定稿 " + v.id); render(); return;
+    }
+    if (act === "new-draft") {
+      const a = atom(ui.atomId); const lp = latest(a);
+      if (lp.status === "draft") return;
+      const nv = clone(lp); nv.id = nextVid(a); nv.status = "draft"; nv.freezeTags = []; nv.summary = "基于 " + lp.id + " 继续改"; nv.at = today();
+      a.versions.push(nv); ui.viewVer = nv.id; toast("已开最新未定稿 " + nv.id); render(); return;
+    }
+    if (act === "freeze") {
+      const a = atom(ui.atomId); const v = ver(a, ui.viewVer) || latest(a);
+      if (v.status !== "draft" && S.role === a.owner) {
+        const t = el.dataset.tag;
+        if (!(v.freezeTags || []).includes(t)) {
+          v.freezeTags = (v.freezeTags || []).concat([t]);
+          toast(v.id + " 已打 " + t + " 定版");
+        }
+      }
+      render(); return;
+    }
+    if (act === "compare") { ui.modal = { type: "compare", fileId: el.dataset.file, atomId: el.dataset.atom }; render(); return; }
+    if (act === "close-modal") { ui.modal = null; render(); return; }
+    if (act === "upgrade") {
+      const f = file(el.dataset.file); const a = atom(el.dataset.atom); const lp = latestPub(a);
+      f.pins[a.id] = lp.id; delete f.dismissed[a.id]; toast(f.name + " 已升级到 " + lp.id); render(); return;
+    }
+    if (act === "keep") {
+      const f = file(el.dataset.file); const a = atom(el.dataset.atom); const lp = latestPub(a);
+      f.dismissed[a.id] = lp.id; toast("保持当前钉扎，同一版不再追问"); render(); return;
+    }
+    if (act === "batch-up") {
+      const f = file(ui.fileId);
+      Object.keys(f.pins).forEach((aid) => { if (pinStale(f, aid)) { f.pins[aid] = latestPub(atom(aid)).id; delete f.dismissed[aid]; } });
+      toast("已升级本页全部落后钉扎"); render(); return;
+    }
+    if (act === "ref-atom") { ui.modal = { type: "ref" }; render(); return; }
+    if (act === "do-ref") {
+      const f = file(ui.fileId); const a = atom(id); const lp = latestPub(a);
+      let g = f.groups.find((x) => x.name === "其他");
+      if (!g) { g = { name: "其他", atomIds: [] }; f.groups.push(g); }
+      g.atomIds.push(a.id); f.pins[a.id] = lp.id; ui.modal = null; toast("已引用 " + a.name + "，钉 " + lp.id); render(); return;
+    }
+    if (act === "work") { ui.workId = id; ui.tab = "graph"; render(); return; }
+    if (act === "goto-work") { ui.workId = id; ui.tab = "graph"; render(); return; }
+    if (act === "w-start") {
+      const w = work(ui.workId);
+      w.started = true;
+      (w.inputs || []).forEach((inp) => {
+        const b = bestFor(atom(inp.atomId), inp.minFreeze);
+        if (b) w.inputPins[inp.atomId] = b.id;
+      });
+      toast("已开工，输入版本已钉死"); render(); return;
+    }
+    if (act === "w-done") {
+      const w = work(ui.workId); const c = workComputed(w);
+      if (!c.outReady) { toast("必要输出还未定稿"); return; }
+      w.completed = true; toast("工作已完成"); render(); return;
+    }
+    if (act === "w-up") {
+      const w = work(ui.workId); const a = atom(el.dataset.atom); const lp = latestPub(a);
+      w.inputPins[a.id] = lp.id; delete w.dismissed[a.id]; toast("工作钉扎已升级到 " + lp.id); render(); return;
+    }
+    if (act === "w-keep") {
+      const w = work(ui.workId); const a = atom(el.dataset.atom); const lp = latestPub(a);
+      w.dismissed[a.id] = lp.id; toast("本工作保持当前钉扎"); render(); return;
+    }
+    if (act === "w-redo") {
+      const w = work(ui.workId);
+      if (w.completed) w.completed = false;
+      w.started = true;
+      toast("进入改版进行中：请改输出原子并重新定稿"); render(); return;
+    }
+    if (act === "w-compare") {
+      ui.modal = { type: "compare", workId: ui.workId, atomId: el.dataset.atom }; render(); return;
+    }
+  }
+
+  render();
+})();
+  </script>
+</body>
+</html>

@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>BP 分发任务</title>
+  <link rel="stylesheet" href="bp-mgmt-common.css">
+</head>
+<body>
+<div class="layout">
+  <aside class="sider">
+    <div class="sider-logo"></div>
+    <a class="sider-item" href="#">GTM</a>
+    <a class="sider-item active" href="index.html">BP</a>
+    <a class="sider-item" href="#">管报</a>
+  </aside>
+  <div class="main">
+    <header class="header">
+      <div class="title">GTM 经营管理系统</div>
+      <nav class="nav-links">
+        <a href="#">GTM 看板</a>
+        <a href="BP管理总览.html">BP 管理</a>
+        <a href="BP分发任务.html" class="active">分发任务</a>
+        <a href="渠道BP填报.html">我的填报</a>
+      </nav>
+    </header>
+    <div class="page">
+      <p class="breadcrumb"><a href="index.html">BP 管理</a> / 分发任务</p>
+
+      <div class="panel panel--filter">
+        <div class="filter-panel">
+          <div class="filter-grid">
+            <div class="f-item">
+              <label>BP 版本</label>
+              <select class="ctl wide"><option>2025 年度 BP v3</option><option>2025 年度 BP v2</option></select>
+            </div>
+            <div class="f-item">
+              <label>年份</label>
+              <select class="ctl"><option>2025</option></select>
+            </div>
+            <div class="f-item">
+              <label>区域</label>
+              <div class="ctl-wrap"><select class="ctl"><option value="">全部</option><option>北美</option><option>西欧</option></select><button type="button" class="ctl-clear">×</button></div>
+            </div>
+            <div class="f-item">
+              <label>渠道/店铺</label>
+              <div class="ctl-wrap"><select class="ctl wide"><option value="">全部</option><option>Govee_US</option><option>Govee_UK</option></select><button type="button" class="ctl-clear">×</button></div>
+            </div>
+            <div class="f-item">
+              <label>任务状态</label>
+              <div class="ctl-wrap"><select class="ctl wide" id="filterStatus"><option value="">全部</option><option>待填报</option><option>填报中</option><option>已提交</option><option>已通过</option><option>已驳回</option><option>已逾期</option></select><button type="button" class="ctl-clear">×</button></div>
+            </div>
+            <div class="f-item">
+              <label>负责人</label>
+              <div class="ctl-wrap"><select class="ctl"><option value="">全部</option><option>张三</option><option>李四</option></select><button type="button" class="ctl-clear">×</button></div>
+            </div>
+            <button type="button" class="btn btn-primary">搜索</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="stat-row" style="grid-template-columns: repeat(4, 1fr);">
+          <div class="stat-card"><div class="label">任务总数</div><div class="value">18</div></div>
+          <div class="stat-card ok" style="border-color:#b7eb8f;background:var(--green-soft)"><div class="label">已完成</div><div class="value">12</div></div>
+          <div class="stat-card highlight"><div class="label">待审核</div><div class="value">5</div></div>
+          <div class="stat-card" style="border-color:#ffa39e;background:var(--red-soft)"><div class="label">已逾期</div><div class="value">1</div></div>
+        </div>
+      </div>
+
+      <div class="panel panel--table">
+        <div class="panel-head">
+          <div>
+            <div class="panel-title">分发任务列表</div>
+            <div class="panel-sub">按渠道/店铺拆分 SKU 级填报任务，审核通过后自动汇总至 BP 主表</div>
+          </div>
+          <div class="toolbar">
+            <button type="button" class="btn btn-primary" id="btnNewDist">新建分发</button>
+            <button type="button" class="btn">批量催办</button>
+            <button type="button" class="btn">批量通过</button>
+            <button type="button" class="btn">导出任务清单</button>
+          </div>
+        </div>
+        <div class="table-scroll-wrap" style="max-height:calc(100vh - 380px);min-width:0;">
+          <table class="biz-table" style="min-width:1400px;">
+            <thead>
+              <tr>
+                <th style="width:40px"><input type="checkbox" id="checkAll"></th>
+                <th style="min-width:140px">任务编号</th>
+                <th style="min-width:120px">BP 版本</th>
+                <th style="min-width:100px">店铺</th>
+                <th style="min-width:80px">负责人</th>
+                <th style="min-width:140px">SKU 范围</th>
+                <th style="min-width:100px">进度</th>
+                <th style="min-width:100px">截止日期</th>
+                <th style="min-width:88px">状态</th>
+                <th style="min-width:120px">最近更新</th>
+                <th class="is-sticky-right" style="min-width:180px">操作</th>
+              </tr>
+            </thead>
+            <tbody id="taskBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 新建分发向导 -->
+<div class="modal-mask" id="wizardModal">
+  <div class="modal modal-lg">
+    <div class="modal-hd">
+      <h2>新建 BP 分发</h2>
+      <div class="modal-hd-actions"><button type="button" class="modal-close" data-close="wizardModal" aria-label="关闭">×</button></div>
+    </div>
+    <div class="modal-bd">
+      <div class="wizard-steps">
+        <div class="wizard-step active" data-step="1">1. 基础信息</div>
+        <div class="wizard-step" data-step="2">2. 范围选择</div>
+        <div class="wizard-step" data-step="3">3. 负责人</div>
+        <div class="wizard-step" data-step="4">4. 预填与确认</div>
+      </div>
+      <div class="wizard-panel" data-panel="1">
+        <div class="form-grid">
+          <div class="form-field"><label><span class="req">*</span> BP 版本</label><select><option>2025 年度 BP v3（草稿）</option></select></div>
+          <div class="form-field"><label><span class="req">*</span> 填报周期</label><select><option>年度（1–12 月）</option><option>季度 Q1</option></select></div>
+          <div class="form-field"><label><span class="req">*</span> 截止日期</label><input type="date" value="2025-07-15"></div>
+          <div class="form-field full"><label>说明</label><textarea placeholder="例：2025 年度 BP 渠道填报，请按 SKU 填写销量、销售额、毛利"></textarea></div>
+        </div>
+      </div>
+      <div class="wizard-panel" data-panel="2" hidden>
+        <div class="form-grid">
+          <div class="form-field"><label>区域</label><select multiple style="height:80px"><option selected>北美</option><option selected>西欧</option><option>亚太</option></select></div>
+          <div class="form-field"><label>渠道/店铺</label><select multiple style="height:80px"><option selected>Govee_US</option><option selected>Govee_UK</option><option>Govee_DE</option><option>Offline-CA</option></select></div>
+          <div class="form-field"><label>品线</label><select><option value="">全部品线</option><option>灯带</option><option>户外</option></select></div>
+          <div class="form-field"><label>GTM 标签</label><select><option value="">全部</option><option>2025 新品</option></select></div>
+        </div>
+        <p class="hint-bar" style="margin:12px 0 0">预计生成 <strong>4</strong> 个店铺任务包，共 <strong>512</strong> 个 SKU。</p>
+      </div>
+      <div class="wizard-panel" data-panel="3" hidden>
+        <table class="biz-table" style="min-width:100%;font-size:13px;">
+          <thead><tr><th>店铺</th><th>默认负责人</th><th>调整负责人</th><th>SKU 数</th></tr></thead>
+          <tbody>
+            <tr><td>Govee_US</td><td>张三</td><td><select class="ctl"><option>张三</option><option>王五</option></select></td><td class="num">156</td></tr>
+            <tr><td>Govee_UK</td><td>李四</td><td><select class="ctl"><option>李四</option></select></td><td class="num">128</td></tr>
+            <tr><td>Govee_DE</td><td>赵六</td><td><select class="ctl"><option>赵六</option></select></td><td class="num">112</td></tr>
+            <tr><td>Offline-CA</td><td>钱七</td><td><select class="ctl"><option>钱七</option></select></td><td class="num">116</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="wizard-panel" data-panel="4" hidden>
+        <div class="form-field" style="margin-bottom:14px">
+          <label>预填策略</label>
+          <select id="prefillStrategy"><option value="none">不预填</option><option value="yoy" selected>按去年同期</option><option value="last">按上版 BP</option></select>
+        </div>
+        <div class="hint-bar">
+          确认后将创建 4 个分发任务并通知负责人。预填数据渠道可修改后提交；提交前需补全全部 SKU 的 12 个月指标。
+        </div>
+        <table class="biz-table" style="min-width:100%;margin-top:12px;font-size:13px;">
+          <thead><tr><th>店铺</th><th>负责人</th><th>SKU 数</th><th>预填方式</th></tr></thead>
+          <tbody>
+            <tr><td>Govee_US</td><td>张三</td><td class="num">156</td><td>按去年同期</td></tr>
+            <tr><td>Govee_UK</td><td>李四</td><td class="num">128</td><td>按去年同期</td></tr>
+            <tr><td>Govee_DE</td><td>赵六</td><td class="num">112</td><td>按去年同期</td></tr>
+            <tr><td>Offline-CA</td><td>钱七</td><td class="num">116</td><td>按去年同期</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="modal-ft">
+      <button type="button" class="btn" id="wizardPrev" disabled>上一步</button>
+      <button type="button" class="btn btn-primary" id="wizardNext">下一步</button>
+      <button type="button" class="btn btn-primary" id="wizardConfirm" hidden>确认分发</button>
+    </div>
+  </div>
+</div>
+
+<!-- 审核抽屉 -->
+<div class="drawer-mask" id="reviewDrawer">
+  <div class="drawer">
+    <div class="drawer-hd">
+      <h2 id="reviewTitle">审核任务</h2>
+      <div class="modal-hd-actions"><button type="button" class="modal-close" data-close="reviewDrawer">×</button></div>
+    </div>
+    <div class="drawer-bd">
+      <div class="hint-bar" id="reviewSummary"></div>
+      <p style="font-size:13px;font-weight:600;margin:16px 0 8px">提交摘要（预填 vs 提交）</p>
+      <table class="biz-table" style="min-width:100%;font-size:12px;">
+        <thead><tr><th>SKU</th><th>全年销量（预填→提交）</th><th>全年销售额</th><th>异常提示</th></tr></thead>
+        <tbody>
+          <tr><td class="mono">H61A001</td><td class="num">10,200 → 12,000</td><td class="num">408,000 → 480,000</td><td><span class="tag tag-pending">销量 +17.6%</span></td></tr>
+          <tr><td class="mono">H61A002</td><td class="num">8,100 → 8,500</td><td class="num">324,000 → 340,000</td><td>—</td></tr>
+          <tr><td class="mono">H61B001</td><td class="num">5,000 → 4,200</td><td class="num">200,000 → 168,000</td><td><span class="tag tag-rejected">销量 -16%</span></td></tr>
+        </tbody>
+      </table>
+      <div class="form-field full" style="margin-top:16px">
+        <label>驳回原因（驳回时必填）</label>
+        <textarea id="rejectReason" placeholder="请说明需修改的内容"></textarea>
+      </div>
+    </div>
+    <div class="drawer-ft">
+      <button type="button" class="btn btn-danger" id="btnReject">驳回</button>
+      <button type="button" class="btn btn-primary" id="btnApprove">通过并汇总</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-mask" id="toastModal" style="align-items:flex-start;padding-top:80px;">
+  <div class="modal" style="width:360px;">
+    <div class="modal-bd" id="toastMsg" style="text-align:center;padding:24px;"></div>
+  </div>
+</div>
+
+<script>
+(function () {
+  var tasks = [
+    { id: 'BP-DIST-2025-0042', version: '2025 年度 BP v3', store: 'Govee_US', owner: '张三', scope: '灯带品线 156 SKU', filled: 156, total: 156, deadline: '2025-07-15', status: '已提交', updated: '2025-06-04 14:20' },
+    { id: 'BP-DIST-2025-0043', version: '2025 年度 BP v3', store: 'Govee_UK', owner: '李四', scope: '灯带品线 128 SKU', filled: 98, total: 128, deadline: '2025-07-15', status: '填报中', updated: '2025-06-03 09:10' },
+    { id: 'BP-DIST-2025-0044', version: '2025 年度 BP v3', store: 'Govee_DE', owner: '赵六', scope: '全品线 112 SKU', filled: 112, total: 112, deadline: '2025-07-15', status: '已通过', updated: '2025-06-01 16:00' },
+    { id: 'BP-DIST-2025-0045', version: '2025 年度 BP v3', store: 'Offline-CA', owner: '钱七', scope: '户外 116 SKU', filled: 45, total: 116, deadline: '2025-06-01', status: '已逾期', updated: '2025-05-28 11:30' },
+    { id: 'BP-DIST-2025-0046', version: '2025 年度 BP v3', store: 'APP-UK', owner: '孙八', scope: '智能家居 88 SKU', filled: 88, total: 88, deadline: '2025-07-15', status: '已提交', updated: '2025-06-04 10:05' }
+  ];
+
+  var statusTag = {
+    '待填报': 'tag-draft', '填报中': 'tag-pending', '已提交': 'tag-submitted',
+    '已通过': 'tag-approved', '已驳回': 'tag-rejected', '已逾期': 'tag-overdue'
+  };
+
+  var tbody = document.getElementById('taskBody');
+  tasks.forEach(function (t) {
+    var pct = Math.round(t.filled / t.total * 100);
+    var tr = document.createElement('tr');
+    tr.dataset.status = t.status;
+    tr.innerHTML =
+      '<td><input type="checkbox"></td>' +
+      '<td class="mono">' + t.id + '</td><td>' + t.version + '</td><td>' + t.store + '</td><td>' + t.owner + '</td>' +
+      '<td>' + t.scope + '</td>' +
+      '<td><div style="display:flex;align-items:center;gap:8px"><div class="progress-bar"><i style="width:' + pct + '%"></i></div><span>' + t.filled + '/' + t.total + '</span></div></td>' +
+      '<td>' + t.deadline + '</td>' +
+      '<td><span class="tag ' + (statusTag[t.status] || '') + '">' + t.status + '</span></td>' +
+      '<td>' + t.updated + '</td>' +
+      '<td class="is-sticky-right">' +
+        '<a href="渠道BP填报.html" class="btn-link">查看明细</a>' +
+        (t.status === '已提交' ? '<button type="button" class="btn-link btn-review" data-id="' + t.id + '" data-store="' + t.store + '">审核</button>' : '') +
+        '<button type="button" class="btn-link">催办</button>' +
+        '<button type="button" class="btn-link">日志</button></td>';
+    tbody.appendChild(tr);
+  });
+
+  document.getElementById('filterStatus').addEventListener('change', function () {
+    var val = this.value;
+    tbody.querySelectorAll('tr').forEach(function (tr) {
+      tr.style.display = !val || tr.dataset.status === val ? '' : 'none';
+    });
+  });
+
+  /* 向导 */
+  var step = 1;
+  var wizardModal = document.getElementById('wizardModal');
+  document.getElementById('btnNewDist').onclick = function () { step = 1; updateWizard(); wizardModal.classList.add('open'); };
+  document.getElementById('wizardPrev').onclick = function () { if (step > 1) { step--; updateWizard(); } };
+  document.getElementById('wizardNext').onclick = function () { if (step < 4) { step++; updateWizard(); } };
+  document.getElementById('wizardConfirm').onclick = function () {
+    wizardModal.classList.remove('open');
+    showToast('已创建 4 个分发任务，已通知相关负责人');
+  };
+
+  function updateWizard() {
+    document.querySelectorAll('.wizard-step').forEach(function (el) {
+      var s = +el.dataset.step;
+      el.classList.toggle('active', s === step);
+      el.classList.toggle('done', s < step);
+    });
+    document.querySelectorAll('.wizard-panel').forEach(function (p) {
+      p.hidden = +p.dataset.panel !== step;
+    });
+    document.getElementById('wizardPrev').disabled = step === 1;
+    document.getElementById('wizardNext').hidden = step === 4;
+    document.getElementById('wizardConfirm').hidden = step !== 4;
+  }
+
+  /* 审核 */
+  var reviewDrawer = document.getElementById('reviewDrawer');
+  document.querySelectorAll('.btn-review').forEach(function (btn) {
+    btn.onclick = function () {
+      document.getElementById('reviewTitle').textContent = '审核 · ' + btn.dataset.id;
+      document.getElementById('reviewSummary').innerHTML =
+        '店铺 <strong>' + btn.dataset.store + '</strong> 已提交 BP 填报，共 156 SKU。请核对异常波动后通过或驳回。';
+      reviewDrawer.classList.add('open');
+    };
+  });
+  document.getElementById('btnApprove').onclick = function () {
+    reviewDrawer.classList.remove('open');
+    showToast('审核通过，数据已汇总至 BP 主表');
+  };
+  document.getElementById('btnReject').onclick = function () {
+    var reason = document.getElementById('rejectReason').value.trim();
+    if (!reason) { alert('请填写驳回原因'); return; }
+    reviewDrawer.classList.remove('open');
+    showToast('已驳回，渠道负责人将收到修改通知');
+  };
+
+  function showToast(msg) {
+    document.getElementById('toastMsg').textContent = msg;
+    var t = document.getElementById('toastModal');
+    t.classList.add('open');
+    setTimeout(function () { t.classList.remove('open'); }, 2200);
+  }
+
+  document.querySelectorAll('[data-close]').forEach(function (btn) {
+    btn.onclick = function () { document.getElementById(btn.dataset.close).classList.remove('open'); };
+  });
+  document.querySelectorAll('.ctl-wrap').forEach(function (wrap) {
+    var sel = wrap.querySelector('select'); var btn = wrap.querySelector('.ctl-clear');
+    if (!sel || !btn) return;
+    function sync() { wrap.classList.toggle('has-val', !!sel.value); }
+    sel.addEventListener('change', sync);
+    btn.addEventListener('click', function () { sel.value = ''; sync(); });
+    sync();
+  });
+})();
+</script>
+</body>
+</html>

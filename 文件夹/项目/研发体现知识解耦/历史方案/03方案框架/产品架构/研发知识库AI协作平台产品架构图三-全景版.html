@@ -1,0 +1,805 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>研发知识库 AI 协作平台产品架构图</title>
+  <style>
+    :root {
+      --bg: #eef4fb;
+      --paper: #fff;
+      --text: #17243a;
+      --muted: #63718a;
+      --line: #cfdcec;
+      --blue: #1769e0;
+      --blue-dark: #174a93;
+      --blue-soft: #eaf3ff;
+      --cyan-soft: #ebf8fb;
+      --green: #15805e;
+      --green-soft: #eaf7f1;
+      --purple: #6c49bd;
+      --purple-soft: #f1efff;
+      --amber: #a86600;
+      --amber-soft: #fff7e8;
+      --slate-soft: #f2f5f9;
+      --navy: #101f40;
+      --shadow: 0 8px 28px rgba(24, 43, 76, .07);
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      color: var(--text);
+      background: var(--bg);
+      font: 12px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    }
+    button { font: inherit; cursor: pointer; }
+    #app { min-height: 100vh; }
+    .page {
+      width: min(1480px, calc(100vw - 20px));
+      margin: 8px auto;
+      padding: 14px 16px 12px;
+      background: var(--paper);
+      border: 1px solid #dbe5f1;
+      border-radius: 12px;
+      box-shadow: var(--shadow);
+    }
+    .hero { padding: 0 2px 8px; border-bottom: 1px solid var(--line); }
+    .hero h1 { margin: 0; font-size: 22px; line-height: 1.25; }
+    .position {
+      display: grid;
+      grid-template-columns: 72px 1fr;
+      gap: 8px;
+      align-items: center;
+      margin: 8px 0;
+      padding: 7px 10px;
+      background: #f7faff;
+      border: 1px solid #d5e2f2;
+      border-radius: 8px;
+    }
+    .position b { color: var(--blue-dark); font-size: 11px; }
+    .position span { font-size: 12px; font-weight: 700; }
+    .legend { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+    .legend button, .phase {
+      display: inline-flex;
+      align-items: center;
+      width: fit-content;
+      padding: 4px 12px;
+      border: 1px solid transparent;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+    .phase { padding: 1px 5px; font-size: 8px; }
+    .phase.mvp, .legend .mvp { color: #fff; background: var(--blue); }
+    .phase.p2, .legend .p2 { color: var(--green); background: var(--green-soft); }
+    .phase.p3, .legend .p3 { color: var(--purple); background: var(--purple-soft); }
+    .phase.p4, .legend .p4 { color: var(--amber); background: var(--amber-soft); }
+    .legend button.on { box-shadow: 0 0 0 2px #fff, 0 0 0 4px var(--navy); }
+
+    .architecture {
+      padding: 8px;
+      background: #dfeeff;
+      border: 1px solid #bdd6f2;
+      border-radius: 10px;
+    }
+    .arch-title { padding: 1px 0 7px; color: var(--blue-dark); text-align: center; font-size: 14px; font-weight: 850; }
+    .layer {
+      display: grid;
+      grid-template-columns: 92px minmax(0, 1fr);
+      gap: 6px;
+      margin-bottom: 6px;
+      padding: 5px;
+      background: rgba(255,255,255,.66);
+      border: 1px solid #c5d9ee;
+      border-radius: 7px;
+    }
+    .layer:last-child { margin-bottom: 0; }
+    .layer.collab-layer { border-color: #c7b7ef; background: #f4f0ff; }
+    .layer-name {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 44px;
+      padding: 5px 4px;
+      color: var(--blue-dark);
+      background: #f8fbff;
+      border: 1px solid #c8dcef;
+      border-radius: 6px;
+      text-align: center;
+      font-size: 11px;
+      font-weight: 850;
+    }
+    .collab-layer .layer-name { color: #4a2f8f; background: #f8f5ff; border-color: #d2c4f0; }
+    .layer-name small { margin-top: 2px; color: #70809a; font-size: 8px; font-weight: 600; }
+    .groups { display: grid; gap: 7px; }
+    .group {
+      padding: 7px;
+      background: rgba(255,255,255,.52);
+      border: 1px solid #d0dfef;
+      border-radius: 7px;
+    }
+    .group-title { margin: 0 0 6px; color: #54708f; font-size: 10px; font-weight: 800; }
+    .cards { display: grid; gap: 5px; }
+    .cards.four { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    .cards.five { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+    .cards.six { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+    .capability {
+      position: relative;
+      min-width: 0;
+      min-height: 52px;
+      padding: 7px 5px 6px;
+      color: var(--text);
+      background: #fff;
+      border: 1px solid #cfdeee;
+      border-radius: 5px;
+      text-align: center;
+      transition: border-color .15s, transform .15s;
+    }
+    .capability:hover { z-index: 2; transform: translateY(-1px); border-color: var(--blue); }
+    .capability.core { border-color: #6ba4ed; }
+    .capability .phase { position: absolute; top: 3px; right: 3px; }
+    .capability strong { display: block; margin: 8px 0 2px; color: #21446f; font-size: 10px; line-height: 1.25; }
+    .capability small { display: block; color: var(--muted); font-size: 8px; line-height: 1.3; }
+    .layer[data-layer="workbench"] .capability { background: var(--blue-soft); }
+    .layer[data-layer="collab"] .capability { background: var(--purple-soft); }
+    .layer[data-layer="ai"] .capability { background: var(--cyan-soft); }
+    .layer[data-layer="knowledge"] .capability { background: var(--green-soft); }
+    .layer[data-layer="skill"] .capability { background: var(--purple-soft); }
+    .layer[data-layer="project"] .capability { background: #eef6ff; }
+    .layer[data-layer="support"] .capability { background: var(--slate-soft); }
+
+    .bottom { margin-top: 8px; }
+    .flow, .boundary {
+      padding: 8px 10px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+    }
+    .flow h2, .boundary h2 { margin: 0 0 7px; font-size: 12px; }
+    .steps { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 8px; }
+    .step {
+      position: relative;
+      display: grid;
+      min-height: 40px;
+      place-items: center;
+      padding: 5px 4px;
+      color: #284665;
+      background: #f7faff;
+      border: 1px solid #d4e0ee;
+      border-radius: 7px;
+      text-align: center;
+      font-size: 9px;
+      font-weight: 700;
+    }
+    .step:not(:last-child)::after {
+      content: "→";
+      position: absolute;
+      right: -11px;
+      color: var(--blue);
+      font-size: 14px;
+    }
+    .boundary p { margin: 0; color: var(--muted); font-size: 11px; }
+    .roadmap {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 6px;
+      margin-top: 8px;
+    }
+    .roadmap-item { padding: 8px 9px; border: 1px solid var(--line); border-radius: 7px; background: #fff; }
+    .roadmap-item b { display: block; margin-bottom: 4px; }
+    .roadmap-item p { margin: 0; color: var(--muted); font-size: 10px; }
+    .roadmap-item.mvp { border-color: #b9cff0; background: var(--blue-soft); }
+    .roadmap-item.p2 { border-color: #bcded0; background: var(--green-soft); }
+    .roadmap-item.p3 { border-color: #d2c7ef; background: var(--purple-soft); }
+    .roadmap-item.p4 { border-color: #ead2a1; background: var(--amber-soft); }
+    .foot { display: flex; justify-content: space-between; gap: 15px; padding: 13px 3px 0; color: #7a8799; font-size: 9px; }
+
+    .detail-page { padding: 0; overflow: hidden; }
+    .detail-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 15px;
+      padding: 13px 18px;
+      color: #fff;
+      background: var(--navy);
+    }
+    .back {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 10px;
+      color: #fff;
+      background: rgba(255,255,255,.08);
+      border: 1px solid rgba(255,255,255,.2);
+      border-radius: 7px;
+    }
+    .detail-top span { color: rgba(255,255,255,.7); font-size: 10px; }
+    .detail-hero {
+      display: flex;
+      justify-content: space-between;
+      gap: 20px;
+      padding: 20px 24px 18px;
+      border-bottom: 1px solid var(--line);
+    }
+    .detail-code { color: var(--blue); font-size: 11px; font-weight: 850; letter-spacing: .08em; }
+    .detail-hero h1 { margin: 4px 0 6px; font-size: 25px; }
+    .detail-hero p { margin: 0; color: var(--muted); font-size: 14px; }
+    .detail-content {
+      display: grid;
+      grid-template-columns: .82fr 1.18fr;
+      gap: 18px;
+      padding: 20px 24px 25px;
+      background: #f8fafc;
+    }
+    .explain-block { padding: 0 0 15px; margin-bottom: 15px; border-bottom: 1px solid var(--line); }
+    .explain-block:last-child { margin: 0; border-bottom: 0; }
+    .explain-label { margin-bottom: 6px; color: #6d788b; font-size: 10px; font-weight: 850; }
+    .explain p { margin: 0; font-size: 13px; }
+    .rules { margin: 6px 0 0; padding-left: 18px; }
+    .rules li { margin-bottom: 5px; }
+    .screen {
+      align-self: start;
+      min-height: 340px;
+      overflow: hidden;
+      background: #f3f6fa;
+      border: 1px solid #cfd9e6;
+      border-radius: 11px;
+    }
+    .screen-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 12px;
+      color: #31415b;
+      background: #fff;
+      border-bottom: 1px solid #dfe5ed;
+      font-size: 11px;
+      font-weight: 800;
+    }
+    .dots { color: #b7c0ce; letter-spacing: 3px; }
+    .screen-layout { display: grid; grid-template-columns: 112px minmax(0, 1fr); min-height: 300px; }
+    .screen-nav { padding: 13px 9px; color: #93a0b4; background: #102345; font-size: 9px; }
+    .screen-nav b { display: block; margin-bottom: 10px; color: #fff; font-size: 10px; }
+    .screen-nav span { display: block; padding: 7px 8px; margin-bottom: 4px; border-radius: 5px; }
+    .screen-nav span.on { color: #fff; background: #2265d0; }
+    .screen-main { padding: 14px; }
+    .mock-head { display: flex; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
+    .mock-head strong { font-size: 13px; }
+    .mock-action { padding: 3px 7px; color: #fff; background: var(--blue); border-radius: 5px; font-size: 8px; }
+    .mock-summary {
+      padding: 11px;
+      margin-bottom: 9px;
+      background: #fff;
+      border: 1px solid #dfe5ed;
+      border-radius: 7px;
+      font-size: 9px;
+    }
+    .mock-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; }
+    .mock-card { padding: 10px; background: #fff; border: 1px solid #dfe5ed; border-radius: 7px; font-size: 8px; }
+    .mock-card b { display: block; margin-bottom: 4px; color: #2e4463; font-size: 9px; }
+    .mock-row { display: flex; justify-content: space-between; gap: 8px; padding: 5px 0; border-bottom: 1px solid #edf0f4; }
+    .mock-row:last-child { border-bottom: 0; }
+    .mock-state { padding: 1px 5px; color: var(--green); background: var(--green-soft); border-radius: 999px; }
+    .related { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 24px 22px; background: #f8fafc; }
+    .related-label { width: 100%; color: #6d788b; font-size: 10px; font-weight: 850; }
+    .related button { padding: 5px 8px; color: #385779; background: #fff; border: 1px solid #d7e0eb; border-radius: 6px; font-size: 10px; }
+
+    @media (max-width: 1150px) {
+      .cards.four, .cards.five, .cards.six { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+      .detail-content, .bottom { grid-template-columns: 1fr; }
+      .steps { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+      .step:not(:last-child)::after { display: none; }
+    }
+    @media (max-width: 750px) {
+      .page { width: calc(100vw - 16px); margin: 8px auto; padding: 14px; }
+      .hero { grid-template-columns: 1fr; }
+      .layer { grid-template-columns: 1fr; }
+      .cards.four, .cards.five, .cards.six { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .roadmap { grid-template-columns: 1fr 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div id="app"></div>
+  <script>
+  (() => {
+    "use strict";
+
+    const PHASES = {
+      mvp: { label: "一期", name: "一期 · AI 项目知识协作 MVP" },
+      p2: { label: "二期", name: "二期 · 受控知识与用户协作图" },
+      p3: { label: "三期", name: "三期 · 项目自主协作" },
+      p4: { label: "四期", name: "四期 · 汇入验收与智能运营" }
+    };
+
+    const PHASE_RANK = { mvp: 1, p2: 2, p3: 3, p4: 4 };
+    let viewPhase = "p4";
+
+    const LAYERS = [
+      { id: "workbench", name: "角色项目工作台", note: "人从当前工作进入" },
+      { id: "collab", name: "用户协作图", note: "看见人与角色依赖" },
+      { id: "ai", name: "AI 协作工作区", note: "问答、生成与确认归档" },
+      { id: "knowledge", name: "项目知识库", note: "AI 可调度的事实空间" },
+      { id: "skill", name: "Skill 规范中心", note: "把专家经验转成规则" },
+      { id: "project", name: "项目协作与智能运营", note: "解耦、能力、汇入与运营" },
+      { id: "support", name: "基础支撑", note: "项目、权限、模型与连接" }
+    ];
+
+    const F = (id, layer, group, phase, title, subtitle, problem, solution, rules, mock, core = false) => ({
+      id, layer, group, phase, title, subtitle, problem, solution, rules, mock, core
+    });
+
+    const FEATURES = [
+      F("W-01","workbench","版本二已有","mvp","当前项目","项目类型 / 项目知识上下文",
+        "成员进入系统后先面对一堆模块，无法快速进入当前项目及其知识上下文。",
+        "工作台以当前项目为入口，自动加载项目类型、阶段和项目知识库上下文。",
+        ["工作必须以当前项目为上下文；","切换项目时同步切换知识、角色和待办；","项目上下文是 AI 问答与生成的边界。"],
+        ["当前项目 H8120","类型：新品研发","阶段：ES","知识上下文已加载"]),
+      F("W-02","workbench","版本二已有","mvp","当前角色","岗位职责 / 角色工作范围",
+        "同一人在不同项目中承担不同职责，系统无法按角色给出应看资料和应交付内容。",
+        "绑定当前角色后，只展示该角色的工作范围、输入输出和 AI 协作入口。",
+        ["角色切换同步权限与待处理事项；","同一用户可在不同项目承担不同角色；","角色范围由 Skill 定义。"],
+        ["当前角色：制冷工程师","工作范围已绑定","输入 5 项","输出 3 项"]),
+      F("W-03","workbench","版本二已有","mvp","当前环节","项目节点 / 当前工作目标",
+        "资料和工作目标与项目节点脱节，用户不清楚当前该完成什么。",
+        "按项目环节加载当前工作目标、应关注资料和输出清单。",
+        ["环节变化时刷新输入输出清单；","目标必须可对应到交付资料；","允许提前准备后续环节资料。"],
+        ["当前环节：ES 工程样机","本周目标 3","关联资料 12","待交付 2"]),
+      F("W-04","workbench","版本二已有","mvp","上游输入","应有资料 / 已有与缺失项",
+        "用户不知道开始工作前缺哪些上游资料，只能在群里反复询问。",
+        "按角色输入 Skill 列出应有资料，并标识已有、缺失和待确认项。",
+        ["缺少输入时允许继续工作，但必须提示影响；","输入状态随归档结果更新；","缺失项可定位责任角色。"],
+        ["应有输入 6","已就绪 5","缺失 1","影响：制冷校核"]),
+      F("W-05","workbench","版本二已有","mvp","本角色输出","应交付资料 / 完成状态",
+        "角色交付物不清晰，完成后也不知道该归档到哪里、该通知谁。",
+        "集中展示本角色应交付资料、完成状态、归档位置和确认入口。",
+        ["输出必须绑定目录和版本；","AI 生成结果需责任人确认后归档；","完成后提醒下游角色。"],
+        ["应交付 3","已完成 2","待确认 1","待通知角色 2"]),
+      F("W-06","workbench","后续加法","p2","审核与知识工作台","待更新、退回意见与正式发布",
+        "知识责任人和审核人分散在多个目录中处理更新、退回和发布。",
+        "在工作台追加审核与知识维护入口，不改原有五项工作上下文。",
+        ["只展示有权处理的知识；","正式版本不能被直接覆盖；","退回必须记录原因。"],
+        ["待更新 3","待我审核 12","审核退回 1","本月发布 26"]),
+      F("W-07","workbench","后续加法","p3","主责人工作台","目标、授权、输入输出与协同",
+        "主责人缺少责任边界、授权范围和跨组协同的一站式视图。",
+        "围绕解耦单元展示目标、授权、输入齐套、输出进度和协同事项。",
+        ["不管理每日任务；","输入输出绑定具体版本；","跨组诉求通过协同请求闭环。"],
+        ["责任目标：制冷验证","输入 8/10","输出 5/7","待响应协同 2"]),
+      F("W-08","workbench","后续加法","p3","PM/PJM 机制工作台","依赖、风险与机制介入",
+        "PM/PJM 靠反复询问才能发现依赖缺口和跨组阻塞。",
+        "聚合跨单元依赖、长期等待、重大调整和需要机制介入的异常。",
+        ["只呈现需要机制介入的事项；","正常推进工作不进催办队列；","风险关联责任人与状态。"],
+        ["健康度 78%","需介入 3","跨组等待 5","平均响应 1.8天"]),
+      F("W-09","workbench","后续加法","p3","能力方工作台","能力请求、承诺与交付",
+        "实验室、专家和设备请求散落在聊天中，无法统一评估输入与优先级。",
+        "集中展示待响应请求、输入条件、承诺时间和交付结果。",
+        ["请求必须说明所需能力与输出；","确认后形成可追踪承诺；","交付结果回写原请求。"],
+        ["待响应 7","本周承诺 12","容量冲突 2","按时交付率 91%"]),
+      F("W-10","workbench","后续加法","p4","JP 汇入驾驶舱","齐套、证据、结论与快照",
+        "汇入前靠人工收集材料，会上才发现条件不齐。",
+        "集中呈现汇入清单、证据、风险例外、通过策略和回退范围。",
+        ["支持通过、带条件通过和不通过；","结论必须关联证据版本；","快照形成后不得原地修改。"],
+        ["A档齐套 87%","有效证据 42","带条件项 3","阻断项 1"]),
+
+      F("C-01","collab","用户协作图 · 版本三核心加法","p2","角色协作关系图","项目中谁与谁协作",
+        "项目成员只看见自己的输入输出，看不到人与人、角色与角色之间的协作结构。",
+        "以角色为节点绘制项目协作图，展示主责、配合、评审和能力支持关系。这是人/角色关系图，不是知识图谱。",
+        ["节点是角色或责任人，不是知识原子；","关系必须来自角色输入输出 Skill 或协同记录；","图随项目成员和角色变化更新。"],
+        ["角色节点 8","协作边 14","当前角色已高亮","跨组关系 4"]),
+      F("C-02","collab","用户协作图 · 版本三核心加法","p2","输入输出链路","谁给谁提供什么资料",
+        "上下游资料依赖藏在目录和聊天里，无法一眼看出交付链路。",
+        "把角色输入输出连成链路：上游交付什么、下游等待什么、当前卡在哪一环。",
+        ["链路绑定具体资料对象和版本；","一条边对应一种输入输出关系；","资料归档后自动刷新链路状态。"],
+        ["产品→结构","结构→制冷","制冷→测试","测试反馈→产品"]),
+      F("C-03","collab","用户协作图 · 版本三核心加法","p2","协作状态与等待","进行中、已交付、等待中",
+        "成员不知道对方是否已开始、已交付还是在等待，协同只能靠催问。",
+        "在协作图上标注每个角色和每条链路的状态：未就绪、进行中、已交付、等待中。",
+        ["状态来自资料版本和工作完成结果；","等待必须显示等待对象和时长；","不过度把日常沟通做成任务看板。"],
+        ["已交付 9","进行中 5","等待中 3","平均等待 1.4天"]),
+      F("C-04","collab","用户协作图 · 版本三核心加法","p2","缺口与责任定位","缺什么、该找谁",
+        "发现资料缺失后，仍不清楚该由哪个角色补齐。",
+        "将缺口挂到协作图节点上，直接定位责任角色、缺失资料和建议联系人。",
+        ["缺口必须落到具体角色；","同一缺口避免重复提醒；","责任人以当前项目角色为准。"],
+        ["输入缺口 1","责任角色：结构","缺失：风道方案","建议联系人：王工"]),
+      F("C-05","collab","用户协作图 · 版本三核心加法","p2","协同提醒闭环","通知下游、回写状态",
+        "资料更新或输出完成后，下游角色不能及时感知，提醒也没有回写。",
+        "当输出归档、输入补齐或缺口关闭时，按协作图通知相关角色，并回写链路状态。",
+        ["按关系通知，不群发全员；","提醒携带资料版本和处理入口；","被提醒人处理后关闭该提醒。"],
+        ["今日提醒 6","已响应 4","待处理 2","重复通知 0"]),
+      F("C-06","collab","用户协作图 · 版本三核心加法","p2","协作图感知","供 AI 识别依赖与该找谁",
+        "AI 只基于文档问答，无法回答“现在卡在谁、该找谁、缺什么”。",
+        "把协作图作为 AI 可调用的项目上下文，使问答和缺口提醒能引用角色依赖。",
+        ["AI 引用协作关系必须可回溯；","不能把协作图误当成知识图谱；","超出权限的角色关系不可见。"],
+        ["已加载协作边 14","可定位缺口 1","建议找：结构主责","来源：输入输出链路"]),
+
+      F("A-01","ai","版本二已有","mvp","AI 对话问答","按项目上下文理解与回答", true,
+        "项目问题散落在文档和聊天中，成员难以快速得到有来源的答案。",
+        "在当前项目、角色和资料范围内问答，并返回来源。",
+        ["回答范围限定在当前项目与权限；","没有来源的结论不能作为正式依据；","可结合协作图回答该找谁。"],
+        ["已加载资料 9","来源引用 5","协作关系已接入","无来源回答 0"]),
+      F("A-02","ai","版本二已有","mvp","资料引用","检索项目资料 / 返回来源",
+        "AI 回答后用户无法核对依据，也无法跳回原文件。",
+        "检索项目资料并返回可点击的来源位置。",
+        ["优先使用当前有效版本；","引用必须可回到原文；","检索范围受权限限制。"],
+        ["命中资料 6","当前版本 5","历史版本 1","可跳转来源 6"]),
+      F("A-03","ai","版本二已有","mvp","内容生成","按角色与 Skill 生成工作初稿",
+        "各角色反复手写同类文档，口径和结构不稳定。",
+        "按角色、环节和文档生成 Skill 生成工作初稿。",
+        ["生成结果默认不是正式事实；","必须按对应 Skill 组织内容；","缺失内容必须显式标记。"],
+        ["适用 Skill 文档生成","初稿章节 7","待补缺口 2","待确认 1"]),
+      F("A-04","ai","版本二已有","mvp","文件上传","上传存量资料 / 补充工作上下文",
+        "存量资料仍在个人电脑和群文件中，项目上下文不完整。",
+        "支持上传常用文件，进入解析、分类建议和归档确认。",
+        ["原文件必须保留；","解析失败不得丢文件；","上传后进入智能归档流程。"],
+        ["待解析 3","支持格式 8","本次上传 2","补充上下文成功"]),
+      F("A-05","ai","版本二已有","mvp","结果预览确认","人工检查修改 / 确认正式输出",
+        "AI 输出若直接落库，会把未校验内容变成正式资料。",
+        "提供预览、修改和确认动作，由责任人决定是否成为正式输出。",
+        ["未确认结果不得覆盖正式版本；","确认人必须是对应责任角色；","修改痕迹可查看。"],
+        ["待确认初稿 1","已修改 3处","确认人：制冷","状态：待归档"]),
+      F("A-06","ai","版本二已有","mvp","归档与缺口提醒","确认归档位置 / 提示资料缺失",
+        "生成或上传后仍需手工找目录，也容易遗漏缺口。",
+        "确认归档位置，更新角色输入输出，并提示缺失项及相关角色。",
+        ["AI 只建议归档位置，由用户确认；","归档后刷新输入输出状态；","缺口可定位到协作图责任人。"],
+        ["建议目录：制冷验证","确认归档","下游待提醒 2","仍缺输入 1"]),
+      F("A-07","ai","后续加法","p3","角色 Agent","面向岗位的专业工作辅助",
+        "通用问答无法稳定理解产品、结构、制冷、测试等岗位步骤。",
+        "为主要角色配置专业 Agent，组合角色 Skill、项目上下文和协作关系。",
+        ["Agent 只能访问角色授权资料；","关键判断由责任人确认；","Agent 不替代岗位责任。"],
+        ["产品 Agent","结构 Agent","制冷 Agent","测试 Agent"]),
+      F("A-08","ai","后续加法","p4","智能编排与复用","多 Agent、历史经验与处置建议",
+        "复杂场景需要跨角色调用知识和能力，推荐与执行链路分散。",
+        "通过编排器调用角色 Agent 和 Skill，推荐相似项目、知识和历史处置。",
+        ["推荐必须说明相似依据；","高风险动作必须人工确认；","编排过程可暂停和中止。"],
+        ["参与 Agent 4","调用 Skill 9","推荐资产 18","待人工确认 3"]),
+
+      F("K-01","knowledge","版本二已有","mvp","项目知识目录","按项目类型组织资料结构", true,
+        "项目资料没有稳定目录，AI 和成员都找不到统一上下文。",
+        "按项目类型组织标准资料结构，作为项目知识库骨架。",
+        ["目录可由模板生成并允许项目补充；","目录是归档和检索的基本单元；","不在此层建设复杂知识图谱。"],
+        ["标准目录 8","项目资料 36","本周更新 5","责任人覆盖 100%"]),
+      F("K-02","knowledge","版本二已有","mvp","目录预生成","新建项目时自动创建框架",
+        "每个新项目都从空白文件夹开始，结构依赖个人习惯。",
+        "选择项目类型后，按知识目录 Skill 自动生成目录框架。",
+        ["预生成后允许项目级增补；","不得删除仍被引用的标准目录；","生成结果可追溯到模板版本。"],
+        ["项目类型：新品研发","预生成目录 8","可增补","模板版本 V3"]),
+      F("K-03","knowledge","版本二已有","mvp","文件解析","读取文档内容 / 提取基础信息",
+        "文件上传后仍是黑盒，无法被检索和问答使用。",
+        "读取常用文档，提取文本、表格和基础元数据。",
+        ["解析失败必须保留原文件；","提取信息需可人工校正；","解析结果进入索引。"],
+        ["已解析 328","失败 2","提取字段 6","可检索"]),
+      F("K-04","knowledge","版本二已有","mvp","自动分类归档","AI 建议目录 / 用户确认归档",
+        "手工命名和选目录口径不一致，维护成本高。",
+        "AI 识别文件类型并建议目录，由用户确认后归档。",
+        ["AI 不自动覆盖文件；","低置信度必须人工选择；","确认后更新角色输入状态。"],
+        ["自动识别率 94%","待人工确认 1","归档成功 28","建议目录命中"]),
+      F("K-05","knowledge","版本二已有","mvp","资料版本管理","保留历史版本 / 标识当前版本",
+        "新文件直接覆盖旧文件后，无法判断当前有效版本。",
+        "每次确认归档形成新版本，并标识当前有效版本。",
+        ["历史版本始终可查看；","当前版本必须唯一；","生成引用优先使用当前版本。"],
+        ["当前版本 V3","历史 4","引用指向当前","可回看"]),
+      F("K-06","knowledge","版本二已有","mvp","更新与来源追溯","资料变化提醒 / 查看生成依据",
+        "上游资料更新后，下游和 AI 生成内容不知道依据是否过期。",
+        "资料变化时提醒引用方，并支持查看 AI 生成所依据的来源。",
+        ["提醒必须说明变化对象；","来源可跳转到原文件版本；","不自动改写下游正式资料。"],
+        ["本周更新 5","待评估引用 3","来源可追溯","提醒已发送"]),
+      F("K-07","knowledge","后续加法","p2","受控知识与知识原子","责任、范围、正文、附件和来源",
+        "关键结论藏在整份文档中，无法独立引用和复用。",
+        "将高价值结论提炼为有责任人、适用范围、正文和来源的知识原子。",
+        ["知识原子必须有责任人与适用范围；","草稿不能作为正式依据；","这不是用户协作图。"],
+        ["正式知识 126","待更新 8","引用关系 348","平均复用 4.2次"]),
+      F("K-08","knowledge","后续加法","p2","知识生命周期与发布","草稿、审核、发布与废止",
+        "同一知识被持续覆盖，无法判断哪个版本经过审核。",
+        "建立草稿、待审核、已发布、已废止生命周期，发布形成正式版本。",
+        ["正式发布必须经过授权审核；","废止需记录原因与替代知识；","历史版本始终可追溯。"],
+        ["草稿 16","待审核 9","已发布 126","已废止 11"]),
+      F("K-09","knowledge","后续加法","p2","搜索、组装与知识复用","权限内检索、专题与模板",
+        "知识沉淀后仍因命名和目录复杂而难以组合使用。",
+        "在权限范围内语义检索，并通过引用组装专题和项目模板。",
+        ["专题只引用正式版本；","源知识更新时提醒维护人；","引用不复制源知识正文。"],
+        ["检索命中 24","专题设计包 18","模板 12","待升级引用 3"]),
+
+      F("S-01","skill","版本二已有","mvp","文件识别分类 Skill","识别文件类型 / 建议归属目录", true,
+        "不同人上传同类文件时分类口径不一致，AI 缺少统一规则。",
+        "把文件类型识别和目录建议固化为平台维护的 Skill。",
+        ["Skill 必须声明适用场景；","建议结果需带置信度；","低置信度转人工。"],
+        ["覆盖文件类型 18","目录建议命中率 94%","待校准 2","平台统一维护"]),
+      F("S-02","skill","版本二已有","mvp","知识目录 Skill","定义项目类型及标准资料结构",
+        "项目目录靠个人经验搭建，不同类型项目结构不复用。",
+        "按项目类型定义标准目录、必选资料和可选项。",
+        ["标准目录可被项目增补；","变更需同步到新建项目；","已有项目不强制覆盖。"],
+        ["项目类型 4","标准目录 8","必选资料 22","可选项 9"]),
+      F("S-03","skill","版本二已有","mvp","角色输入输出 Skill","定义角色应获取及应交付资料",
+        "角色职责停留在口头分工，系统无法判断输入缺口和应交付物。",
+        "为每个角色定义应获取资料和应交付资料，供工作台和协作图使用。",
+        ["输入输出必须能落到资料对象；","协作图优先使用本 Skill 生成边；","角色变化时同步更新图。"],
+        ["角色 6","输入定义 28","输出定义 19","已映射到协作图"]),
+      F("S-04","skill","版本二已有","mvp","文档生成 Skill","定义内容框架与生成步骤",
+        "AI 生成文档时结构随提示词变化，无法形成稳定输出。",
+        "定义文档章节、必填项、引用资料和生成步骤。",
+        ["生成必须遵循对应 Skill；","缺资料时标记待补；","输出后进入预览确认。"],
+        ["文档模板 9","必填章节 7","引用资料 5","生成步骤 4"]),
+      F("S-05","skill","版本二已有","mvp","文档格式 Skill","统一标题、版本、署名与格式",
+        "各角色输出标题、版本和署名格式不统一，难以归档和追溯。",
+        "统一文档标题、版本号、责任人署名和基础格式。",
+        ["正式归档必须满足格式规则；","版本号不可重复；","署名取当前责任角色。"],
+        ["标题规范","版本规范","署名规范","格式检查通过"]),
+      F("S-06","skill","版本二已有","mvp","完整性检查 Skill","检查必需内容 / 提示缺口",
+        "文档看起来完整，但仍缺关键输入、签署或测试结论。",
+        "按角色和环节检查必需内容，并提示缺口。",
+        ["缺口必须可定位到字段或资料；","检查结果供归档确认使用；","可映射到协作图责任人。"],
+        ["检查项 16","通过 14","缺口 2","责任角色已定位"]),
+      F("S-07","skill","后续加法","p2","Skill 生命周期与治理","版本、测试、发布与反馈",
+        "Skill 散落在提示词中，无法统一管理、验证和升级。",
+        "为 Skill 增加负责人、版本、测试案例、发布和反馈闭环。",
+        ["已发布 Skill 不得原地覆盖；","规则升级必须通过测试案例；","质量反馈回到具体 Skill。"],
+        ["已发布 Skill 36","测试通过率 94%","待处理反馈 8","负责人覆盖 100%"]),
+      F("S-08","skill","后续加法","p2","项目模板中心","项目类型、目录、角色与协作模板",
+        "新项目无法复用成熟的目录、角色输入输出和协作关系。",
+        "沉淀项目模板，包含目录、角色、Skill 组合和协作图骨架。",
+        ["模板发布需审核；","引用模板生成项目后允许裁剪；","协作图骨架可随项目调整。"],
+        ["项目模板 9","含协作图骨架","角色组合 6","目录复用"]),
+
+      F("P-01","project","三期加法","p3","项目解耦设计","解耦单元、主责人与授权",
+        "项目按岗位和文档串行推进，谁对可独立结果负责并不清晰。",
+        "将项目划分为可独立策划、推进、验证和汇入的解耦单元。",
+        ["不能把岗位工作简单改名为解耦单元；","每个单元必须有结果边界；","主责人授权必须可追溯。"],
+        ["解耦单元 11","主责人 11","授权范围已定义","下一汇入点 JP-ES"]),
+      F("P-02","project","三期加法","p3","条件工作网","输入条件、开工判断与版本钉扎",
+        "PJM 靠排期和催办判断谁该开始，系统看不到开工条件。",
+        "根据必要输入是否就绪判断未就绪、可开始、进行中和已完成。",
+        ["工作粒度是可独立验收的结果包；","源更新不直接抹掉历史完成状态；","条件计算结果必须可解释。"],
+        ["结果型工作 35","可开始 8","等待输入 5","已钉扎 12"]),
+      F("P-03","project","三期加法","p3","协同与调整","跨组请求、分级与结论回写",
+        "跨组诉求和重大变化主要靠私聊或临时拉会。",
+        "提供协同请求、P0/P1/P2 分级、响应留痕，并把结论回写工作和协作图。",
+        ["协同结论必须回写关联对象；","P0/P1 进入机制工作台；","避免把日常聊天全量工单化。"],
+        ["待响应协同 4","P0/P1 1","已回写 9","平均响应 1.8天"]),
+      F("P-04","project","三期加法","p3","组织能力协作","能力目录、请求、承诺与交付",
+        "测试、专家、设备和供应商支持依赖临时找人。",
+        "建立可复用能力目录，并将请求、承诺和交付绑定到项目工作。",
+        ["能力必须定义标准输入输出；","请求确认后形成承诺；","交付结果回写原请求。"],
+        ["可用能力 46","开放请求 18","容量紧张 5","按时交付率 91%"]),
+
+      F("J-01","project","项目协作与智能运营","p4","JP 汇入验收","清单、证据、结论与快照",
+        "评审材料靠人临时凑，过不过依赖会议经验。",
+        "固化汇入清单、验收规则、回退/继续策略和 JP 快照。",
+        ["支持通过、带条件通过和不通过；","快照形成后不可修改；","每个结论关联证据版本。"],
+        ["重点 JP 4","有效证据 286","带条件 3","一次通过率 72%"]),
+      F("J-02","project","项目协作与智能运营","p4","综合影响分析","数据、工作、能力与商业影响",
+        "上游变化后，无法系统判断影响哪些工作、能力和汇入点。",
+        "基于对象关系和协作图分析影响范围，给出处置建议但不自动改写。",
+        ["影响建议不能自动改写下游对象；","必须能下钻到具体角色和工作；","高风险处置需人工确认。"],
+        ["影响对象 24","受影响角色 6","建议处置 9","待确认 3"]),
+      F("J-03","project","项目协作与智能运营","p4","跨项目智能运营","风险、能力、复用与机制度量",
+        "管理者无法从多个项目识别共性风险、能力瓶颈和协作效果。",
+        "聚合跨项目风险、能力容量、知识复用和协作效率。",
+        ["指标必须能回溯到业务对象；","AI 建议与正式管理结论分离；","跨项目数据按权限汇总。"],
+        ["在飞项目 24","容量冲突 7","知识复用率 68%","协作等待下降"]),
+
+      F("U-01","support","版本二已有","mvp","项目与成员","项目创建 / 成员加入",
+        "没有最小项目空间，知识、AI 和角色都无法落地。",
+        "支持创建项目、加入成员，并作为后续权限和上下文基础。",
+        ["项目是资料和协作的边界；","成员加入后才可见项目知识；","MVP 先采用简单成员制。"],
+        ["项目 1","成员 15","待加入 0","空间已建立"]),
+      F("U-02","support","版本二已有","mvp","角色识别","角色绑定 / 工作上下文切换",
+        "系统无法识别当前用户在本项目中的角色，工作台和 Skill 无法生效。",
+        "为成员绑定项目角色，并在切换时加载对应上下文。",
+        ["角色绑定以项目为范围；","一人可多角色但当前工作台只取一个；","角色变化刷新输入输出。"],
+        ["已绑定角色 6","当前：制冷","可切换","上下文已刷新"]),
+      F("U-03","support","版本二已有","mvp","大模型调度","模型调用 / 上下文组织",
+        "问答、分类和生成需要统一组织项目上下文并调用模型。",
+        "按场景调度模型，组装项目资料、角色和 Skill 上下文。",
+        ["模型输出不得直接写入正式数据；","上下文必须经过权限过滤；","调用过程可留痕。"],
+        ["问答场景","分类场景","生成场景","上下文已过滤"]),
+      F("U-04","support","版本二已有","mvp","文档解析","常用格式读取 / 文本内容提取",
+        "缺少解析能力时，上传文件无法进入知识库和检索。",
+        "支持常用办公文档格式读取和文本提取。",
+        ["解析失败保留原文件；","不在 MVP 做 CAD 深度解析；","提取结果进入索引。"],
+        ["格式：PDF/Word/Excel","已解析 328","失败 2","进入索引"]),
+      F("U-05","support","版本二已有","mvp","基础检索","项目内检索 / 来源定位",
+        "成员和 AI 都无法在项目内找到资料原文。",
+        "提供项目内检索和来源定位，支撑引用问答。",
+        ["检索范围限于当前项目权限；","命中结果可回到原文；","优先当前有效版本。"],
+        ["索引片段 2,846","检索成功率 96%","可定位来源","权限已过滤"]),
+      F("U-06","support","版本二已有","mvp","简单权限","项目成员可见 / 责任人可维护",
+        "MVP 需要最小权限边界，避免资料对项目外可见。",
+        "项目成员可查看，资料责任人可维护，先不建设复杂 ACL。",
+        ["项目外默认不可见；","责任人维护本角色输出；","复杂权限放到二期。"],
+        ["成员可见","责任人可维护","项目外不可见","例外 0"]),
+      F("U-07","support","后续加法","p2","权限、生命周期与审计","RBAC、审核留痕和维护待办",
+        "正式知识和 Skill 需要比简单权限更完整的访问与审计。",
+        "增加角色权限、对象生命周期、审核待办和变更审计。",
+        ["关键状态变化必须记录操作人；","审计记录不可由普通用户删除；","对象例外不能扩大禁止权限。"],
+        ["角色 8","权限策略 24","审计事件 846","待处理异常 2"]),
+      F("U-08","support","后续加法","p3","规则、事件与消息","条件计算、通知和待办",
+        "输入就绪、资料更新、协同超时需要统一事件机制。",
+        "通过规则和事件中心触发状态变化、消息和待办。",
+        ["规则结果必须可解释；","同一事件避免重复通知；","失败事件支持重试。"],
+        ["今日事件 126","触发规则 38","通知 74","失败重试 2"]),
+      F("U-09","support","后续加法","p3","外部系统连接","PLM、ERP、测试与协作系统",
+        "专业主数据仍在外部系统，手工搬运导致版本不一致。",
+        "通过连接器同步必要元数据和状态，并提供原系统跳转。",
+        ["不在平台重建专业主数据；","同步失败不得覆盖最后有效状态；","连接范围按授权配置。"],
+        ["连接系统 6","同步对象 444","今日更新 28","失败队列 2"]),
+      F("U-10","support","后续加法","p4","模型与 Agent 运行时","网关、工具授权、编排与安全",
+        "多 Agent 场景需要统一模型路由、工具权限和运行监控。",
+        "提供模型网关、Agent 注册、工具授权、限额和异常处理。",
+        ["工具按最小权限授权；","高风险动作必须人工确认；","调用全量留痕。"],
+        ["可用模型 4","注册 Agent 12","工具 28","异常率 1.2%"])
+    ];
+
+    function phaseBadge(phase) {
+      return `<span class="phase ${phase}">${PHASES[phase].label}</span>`;
+    }
+
+    function cardsClass(count) {
+      if (count <= 4) return "cards four";
+      if (count === 5 || count === 10) return "cards five";
+      return "cards six";
+    }
+
+    function visibleFeatures() {
+      const rank = PHASE_RANK[viewPhase];
+      return FEATURES.filter(item => PHASE_RANK[item.phase] <= rank);
+    }
+
+    function architecturePage() {
+      return `
+        <main class="page">
+          <header class="hero">
+            <h1>研发知识库 AI 协作平台产品架构图</h1>
+          </header>
+          <div class="position"><b>产品定位</b><span>以项目知识库为上下文，以 Skill 固化规范，以用户协作图看见人与角色依赖，用 AI 辅助完成归档、协作与标准化输出。</span></div>
+          <div class="legend">
+            <button class="mvp ${viewPhase === "mvp" ? "on" : ""}" data-phase="mvp">一期</button>
+            <button class="p2 ${viewPhase === "p2" ? "on" : ""}" data-phase="p2">二期</button>
+            <button class="p3 ${viewPhase === "p3" ? "on" : ""}" data-phase="p3">三期</button>
+            <button class="p4 ${viewPhase === "p4" ? "on" : ""}" data-phase="p4">四期</button>
+          </div>
+          <section class="architecture">
+            ${LAYERS.map(layerHtml).join("")}
+          </section>
+          <section class="bottom">
+            <div class="flow">
+              <h2>一期 MVP 业务闭环</h2>
+              <div class="steps">
+                <div class="step">选择项目类型</div>
+                <div class="step">预生成知识目录</div>
+                <div class="step">上传项目资料</div>
+                <div class="step">AI 解析并建议归档</div>
+                <div class="step">识别角色输入与缺口</div>
+                <div class="step">AI 对话并生成输出</div>
+                <div class="step">用户确认归档新版本</div>
+                <div class="step">更新进度并提醒角色</div>
+              </div>
+            </div>
+          </section>
+          <section class="roadmap">
+            <div class="roadmap-item mvp"><b>一期 · MVP</b><p>上传、智能归档、角色缺口、AI 生成和确认归档闭环。</p></div>
+            <div class="roadmap-item p2"><b>二期 · 协作图与知识治理</b><p>先看见人/角色依赖，再建设知识原子、审核发布和 Skill 治理。</p></div>
+            <div class="roadmap-item p3"><b>三期 · 项目自主协作</b><p>跑通解耦单元、条件工作网、协同调整和组织能力。</p></div>
+            <div class="roadmap-item p4"><b>四期 · 汇入与智能运营</b><p>形成 JP、影响分析、多 Agent 和跨项目运营。</p></div>
+          </section>
+          <footer class="foot"><span>点击任一能力查看详情；左上角可返回本图</span><span>版本：V3.2 · 2026-08-20</span></footer>
+        </main>
+      `;
+    }
+
+    function layerHtml(layer) {
+      const items = visibleFeatures().filter(item => item.layer === layer.id);
+      if (!items.length) return "";
+      return `
+        <div class="layer ${layer.id === "collab" ? "collab-layer" : ""}" data-layer="${layer.id}">
+          <div class="layer-name">${layer.name}<small>${layer.note}</small></div>
+          <div class="${cardsClass(items.length)}">${items.map(capabilityCard).join("")}</div>
+        </div>
+      `;
+    }
+
+    function capabilityCard(item) {
+      return `<button class="capability ${item.core ? "core" : ""}" data-feature="${item.id}" aria-label="查看${item.title}详情">
+        ${phaseBadge(item.phase)}<strong>${item.title}</strong><small>${item.subtitle}</small>
+      </button>`;
+    }
+
+    function detailPage(item) {
+      const layer = LAYERS.find(layerItem => layerItem.id === item.layer);
+      const related = FEATURES.filter(feature => feature.id !== item.id && (feature.layer === item.layer || feature.group === item.group)).slice(0, 6);
+      return `
+        <main class="page detail-page">
+          <div class="detail-top">
+            <button class="back" data-back>← 返回产品架构图</button>
+            <span>${layer.name}</span>
+          </div>
+          <section class="detail-hero">
+            <div>
+              <div class="detail-code">${item.id}</div>
+              <h1>${item.title}</h1>
+              <p>${item.subtitle}</p>
+            </div>
+            ${phaseBadge(item.phase)}
+          </section>
+          <section class="detail-content">
+            <div class="explain">
+              <div class="explain-block"><div class="explain-label">解决什么问题</div><p>${item.problem}</p></div>
+              <div class="explain-block"><div class="explain-label">怎么解决</div><p>${item.solution}</p></div>
+              <div class="explain-block"><div class="explain-label">关键规则</div><ul class="rules">${item.rules.map(rule => `<li>${rule}</li>`).join("")}</ul></div>
+              <div class="explain-block"><div class="explain-label">建设阶段</div><p><b>${PHASES[item.phase].name}</b>。</p></div>
+            </div>
+            ${mockScreen(item)}
+          </section>
+          <section class="related">
+            <div class="related-label">相关能力</div>
+            ${related.map(feature => `<button data-feature="${feature.id}">${feature.id} · ${feature.title}</button>`).join("")}
+          </section>
+        </main>
+      `;
+    }
+
+    function mockScreen(item) {
+      return `
+        <div class="screen">
+          <div class="screen-bar"><span>研发知识库 · H8120 制冰机项目</span><span class="dots">●●●</span></div>
+          <div class="screen-layout">
+            <aside class="screen-nav"><b>${LAYERS.find(layerItem => layerItem.id === item.layer).name}</b><span class="on">${item.title}</span><span>相关对象</span><span>版本记录</span><span>消息与待办</span></aside>
+            <div class="screen-main">
+              <div class="mock-head"><strong>${item.title}</strong><span class="mock-action">${PHASES[item.phase].label}</span></div>
+              <div class="mock-summary">${item.solution}</div>
+              <div class="mock-grid">
+                ${item.mock.map((text, index) => `<div class="mock-card"><b>${index + 1}. ${text}</b><div class="mock-row"><span>${index % 2 ? "当前状态" : "业务信息"}</span><span class="mock-state">${index % 2 ? "处理中" : "已就绪"}</span></div></div>`).join("")}
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function showArchitecture(push = true, scroll = true) {
+      document.getElementById("app").innerHTML = architecturePage();
+      document.title = "研发知识库 AI 协作平台产品架构图";
+      if (push) history.pushState({ view: "architecture", phase: viewPhase }, "", location.pathname + location.search);
+      if (scroll) window.scrollTo(0, 0);
+    }
+
+    function showDetail(id, push = true) {
+      const item = FEATURES.find(feature => feature.id === id);
+      if (!item) return showArchitecture(push);
+      document.getElementById("app").innerHTML = detailPage(item);
+      document.title = `${item.title} · 产品架构图`;
+      if (push) history.pushState({ view: "detail", id }, "", `#${id}`);
+      window.scrollTo(0, 0);
+    }
+
+    document.addEventListener("click", event => {
+      const phaseButton = event.target.closest("[data-phase]");
+      if (phaseButton) {
+        viewPhase = phaseButton.dataset.phase;
+        showArchitecture(false, false);
+        return;
+      }
+      const featureButton = event.target.closest("[data-feature]");
+      if (featureButton) {
+        showDetail(featureButton.dataset.feature);
+        return;
+      }
+      if (event.target.closest("[data-back]")) showArchitecture();
+    });
+
+    window.addEventListener("popstate", () => {
+      const id = location.hash.replace("#", "");
+      if (id && FEATURES.some(item => item.id === id)) showDetail(id, false);
+      else showArchitecture(false);
+    });
+
+    const initialId = location.hash.replace("#", "");
+    if (initialId && FEATURES.some(item => item.id === initialId)) showDetail(initialId, false);
+    else showArchitecture(false);
+  })();
+  </script>
+</body>
+</html>

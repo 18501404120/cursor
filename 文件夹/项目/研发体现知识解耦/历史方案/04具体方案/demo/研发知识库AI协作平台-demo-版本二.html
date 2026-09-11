@@ -1,0 +1,2163 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>研发知识库 AI 协作平台 Demo · 版本二</title>
+  <style>
+    :root {
+      --bg: #f3f6fa;
+      --surface: #ffffff;
+      --surface-2: #f8fafc;
+      --text: #172033;
+      --muted: #667085;
+      --line: #e1e7ef;
+      --primary: #2367d1;
+      --primary-dark: #174b9b;
+      --primary-soft: #eaf2ff;
+      --cyan-soft: #eaf8fb;
+      --green: #13835f;
+      --green-soft: #e9f7f1;
+      --amber: #a76000;
+      --amber-soft: #fff5e3;
+      --red: #c23c4b;
+      --red-soft: #fff0f2;
+      --purple: #6847be;
+      --purple-soft: #f1edff;
+      --nav: 218px;
+      --shadow: 0 8px 28px rgba(23, 42, 77, .07);
+    }
+
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+      margin: 0;
+      color: var(--text);
+      background: var(--bg);
+      font: 13px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    }
+    button, input, select, textarea { font: inherit; }
+    button { cursor: pointer; }
+    #app { min-height: 100%; }
+
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 30;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      height: 58px;
+      padding: 0 18px;
+      color: #fff;
+      background: #17264a;
+    }
+    .brand { min-width: 250px; font-size: 15px; font-weight: 800; }
+    .brand small { display: block; margin-top: -2px; color: rgba(255,255,255,.62); font-size: 10px; font-weight: 500; }
+    .version {
+      padding: 3px 9px;
+      color: #dce9ff;
+      background: rgba(255,255,255,.08);
+      border: 1px solid rgba(255,255,255,.2);
+      border-radius: 999px;
+      font-size: 10px;
+      font-weight: 700;
+    }
+    .top-spacer { flex: 1; }
+    .top-select {
+      height: 34px;
+      min-width: 190px;
+      padding: 0 9px;
+      color: #fff;
+      background: #223868;
+      border: 1px solid rgba(255,255,255,.24);
+      border-radius: 8px;
+      outline: none;
+    }
+    .top-button {
+      height: 34px;
+      padding: 0 11px;
+      color: #fff;
+      background: transparent;
+      border: 1px solid rgba(255,255,255,.22);
+      border-radius: 8px;
+    }
+    .top-button:hover { background: rgba(255,255,255,.08); }
+
+    .layout {
+      display: grid;
+      grid-template-columns: var(--nav) minmax(0, 1fr);
+      min-height: calc(100vh - 58px);
+    }
+    .nav {
+      position: sticky;
+      top: 58px;
+      height: calc(100vh - 58px);
+      overflow: auto;
+      padding: 15px 11px;
+      background: var(--surface);
+      border-right: 1px solid var(--line);
+    }
+    .nav-title {
+      padding: 0 10px 7px;
+      color: #98a2b3;
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: .08em;
+    }
+    .nav-button {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      width: 100%;
+      min-height: 42px;
+      margin: 2px 0;
+      padding: 8px 10px;
+      color: #475467;
+      background: transparent;
+      border: 0;
+      border-radius: 9px;
+      text-align: left;
+      font-weight: 700;
+    }
+    .nav-button:hover { background: #f5f7fa; }
+    .nav-button.on { color: var(--primary); background: var(--primary-soft); }
+    .nav-icon {
+      display: grid;
+      width: 25px;
+      height: 25px;
+      place-items: center;
+      color: #667085;
+      background: #f0f3f7;
+      border-radius: 7px;
+      font-size: 10px;
+      font-weight: 800;
+    }
+    .nav-button.on .nav-icon { color: #fff; background: var(--primary); }
+    .nav-count {
+      min-width: 20px;
+      margin-left: auto;
+      padding: 1px 6px;
+      color: #667085;
+      background: #eef1f5;
+      border-radius: 999px;
+      text-align: center;
+      font-size: 10px;
+    }
+    .role-note {
+      margin: 17px 5px 0;
+      padding: 11px;
+      color: #385375;
+      background: #f6f9ff;
+      border: 1px solid #dce6f6;
+      border-radius: 10px;
+      font-size: 11px;
+    }
+    .role-note b { display: block; margin-bottom: 3px; color: var(--primary-dark); }
+    .main { min-width: 0; padding: 18px 22px 42px; }
+
+    .page-head {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 14px;
+    }
+    .page-head h1 { margin: 0; font-size: 22px; line-height: 1.25; }
+    .page-head p { margin: 4px 0 0; color: var(--muted); }
+    .btns { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+    .btn {
+      min-height: 34px;
+      padding: 6px 12px;
+      color: #344054;
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      font-weight: 700;
+    }
+    .btn:hover { background: #f8fafc; }
+    .btn.primary { color: #fff; background: var(--primary); border-color: var(--primary); }
+    .btn.primary:hover { background: var(--primary-dark); }
+    .btn.green { color: #fff; background: var(--green); border-color: var(--green); }
+    .btn.small { min-height: 28px; padding: 3px 9px; font-size: 11px; }
+    .btn:disabled { opacity: .45; cursor: not-allowed; }
+
+    .project-strip {
+      display: grid;
+      grid-template-columns: 1.2fr repeat(4, minmax(0, .72fr));
+      gap: 9px;
+      margin-bottom: 13px;
+    }
+    .project-main, .metric {
+      padding: 12px 14px;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 11px;
+    }
+    .project-main { background: #f8fbff; border-color: #cdddf2; }
+    .project-main strong { display: block; margin-bottom: 2px; color: var(--primary-dark); font-size: 15px; }
+    .project-main span, .metric span { color: var(--muted); font-size: 10px; }
+    .metric b { display: block; margin-bottom: 1px; font-size: 17px; }
+    .metric b.good { color: var(--green); }
+    .metric b.warn { color: var(--amber); }
+
+    .workspace {
+      display: grid;
+      grid-template-columns: 238px minmax(360px, 1fr) 330px;
+      gap: 12px;
+      min-height: 650px;
+    }
+    .panel {
+      min-width: 0;
+      overflow: hidden;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      box-shadow: 0 1px 2px rgba(16,24,40,.02);
+    }
+    .panel-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      min-height: 48px;
+      padding: 10px 13px;
+      background: #fbfcfe;
+      border-bottom: 1px solid var(--line);
+    }
+    .panel-head h2 { margin: 0; font-size: 14px; }
+    .panel-head small { color: var(--muted); }
+
+    .tree { padding: 8px; }
+    .tree-project {
+      width: 100%;
+      padding: 9px 10px;
+      margin-bottom: 5px;
+      color: var(--primary-dark);
+      background: var(--primary-soft);
+      border: 0;
+      border-radius: 8px;
+      text-align: left;
+      font-weight: 800;
+    }
+    .folder { margin-bottom: 3px; }
+    .folder-row {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      width: 100%;
+      min-height: 34px;
+      padding: 6px 8px;
+      color: #344054;
+      background: transparent;
+      border: 0;
+      border-radius: 7px;
+      text-align: left;
+    }
+    .folder-row:hover, .folder-row.on { background: #f3f6fa; }
+    .folder-code { color: #8090a6; font-size: 10px; font-weight: 800; }
+    .folder-count { margin-left: auto; color: #98a2b3; font-size: 10px; }
+    .doc-list { padding: 2px 5px 5px 27px; }
+    .doc-item {
+      display: block;
+      width: 100%;
+      padding: 5px 6px;
+      overflow: hidden;
+      color: #667085;
+      background: transparent;
+      border: 0;
+      border-radius: 5px;
+      text-align: left;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-size: 10px;
+    }
+    .doc-item:hover { color: var(--primary); background: var(--primary-soft); }
+
+    .chat-panel { display: grid; grid-template-rows: auto auto auto minmax(0, 1fr) auto; }
+    .context-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      padding: 9px 12px;
+      background: #f7faff;
+      border-bottom: 1px solid var(--line);
+    }
+    .context-chip {
+      padding: 3px 7px;
+      color: #36567c;
+      background: #fff;
+      border: 1px solid #d6e2f2;
+      border-radius: 999px;
+      font-size: 10px;
+    }
+    .quick-prompts {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 6px;
+      padding: 8px 12px;
+      overflow-x: auto;
+    }
+    .quick {
+      flex: 0 0 auto;
+      height: 28px;
+      padding: 0 10px;
+      color: #37557b;
+      background: #fff;
+      border: 1px solid #d7e1ef;
+      border-radius: 7px;
+      font-size: 12px;
+      line-height: 26px;
+      white-space: nowrap;
+    }
+    .quick:hover { color: var(--primary); background: var(--primary-soft); border-color: #bcd0ef; }
+    .messages {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      min-height: 0;
+      padding: 10px 14px 14px;
+      overflow: auto;
+    }
+    .message {
+      max-width: 88%;
+      padding: 10px 12px;
+      border-radius: 10px;
+      white-space: pre-line;
+    }
+    .message.user { align-self: flex-end; color: #fff; background: var(--primary); }
+    .message.ai { align-self: flex-start; color: #30425d; background: #f4f7fb; border: 1px solid #e1e7ef; }
+    .message strong { display: block; margin-bottom: 4px; color: #1f3c64; }
+    .sources {
+      margin-top: 8px;
+      padding-top: 7px;
+      color: #486b9f;
+      border-top: 1px solid #dce5f0;
+      font-size: 10px;
+    }
+    .composer {
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      gap: 8px;
+      padding: 11px;
+      background: #fbfcfe;
+      border-top: 1px solid var(--line);
+    }
+    .composer input {
+      min-width: 0;
+      height: 36px;
+      padding: 0 10px;
+      border: 1px solid #cfd8e5;
+      border-radius: 8px;
+      outline: none;
+    }
+    .composer.kb-ask { grid-template-columns: 1fr auto; }
+
+    .context-panel { display: flex; flex-direction: column; }
+    .context-body { padding: 12px; overflow: auto; }
+    .role-card {
+      padding: 11px;
+      color: #294465;
+      background: #f6f9ff;
+      border: 1px solid #d9e5f5;
+      border-radius: 9px;
+    }
+    .role-card b { display: block; margin-bottom: 3px; color: var(--primary-dark); }
+    .section-title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin: 14px 0 7px;
+      font-size: 12px;
+      font-weight: 800;
+    }
+    .check-list { display: grid; gap: 6px; }
+    .check-item {
+      display: grid;
+      grid-template-columns: 18px minmax(0, 1fr) auto;
+      gap: 7px;
+      align-items: center;
+      width: 100%;
+      padding: 8px;
+      color: inherit;
+      background: #fafbfc;
+      border: 1px solid #e8ecf2;
+      border-radius: 7px;
+      text-align: left;
+    }
+    .check-item.has-doc { cursor: pointer; }
+    .check-item.has-doc:hover { border-color: #c5d8f0; background: #f7fbff; }
+    .check-item.unread { background: #fff8f8; border-color: #f3c4c8; }
+    .unread-dot {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      margin-right: 4px;
+      background: #e11d48;
+      border-radius: 50%;
+      vertical-align: middle;
+    }
+    .status.red { color: #e11d48; background: #fff1f2; }
+    .check {
+      display: grid;
+      width: 18px;
+      height: 18px;
+      place-items: center;
+      color: #fff;
+      background: #aeb8c6;
+      border-radius: 50%;
+      font-size: 10px;
+      font-weight: 800;
+    }
+    .check.ok { background: var(--green); }
+    .check.missing { color: var(--amber); background: var(--amber-soft); border: 1px solid #edc77f; }
+    .check-item strong { display: block; overflow: hidden; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+    .check-item small { display: block; color: var(--muted); font-size: 9px; }
+    .status {
+      display: inline-flex;
+      align-items: center;
+      width: fit-content;
+      padding: 2px 6px;
+      border-radius: 999px;
+      font-size: 9px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+    .status.green { color: var(--green); background: var(--green-soft); }
+    .status.amber { color: var(--amber); background: var(--amber-soft); }
+    .status.blue { color: var(--primary); background: var(--primary-soft); }
+    .status.gray { color: #667085; background: #eef1f5; }
+    .status.purple { color: var(--purple); background: var(--purple-soft); }
+
+    .draft {
+      margin-top: 12px;
+      padding: 11px;
+      background: #fffdf8;
+      border: 1px solid #ead8b2;
+      border-radius: 9px;
+    }
+    .draft h3 { margin: 0 0 6px; color: #80571d; font-size: 13px; }
+    .draft p { margin: 0 0 7px; color: #665842; font-size: 10px; }
+    .draft ul { margin: 5px 0 9px; padding-left: 17px; color: #665842; font-size: 10px; }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+    .stat { padding: 14px; }
+    .stat b { display: block; margin: 2px 0; font-size: 23px; }
+    .stat span { color: var(--muted); font-size: 10px; }
+    .content-grid { display: grid; grid-template-columns: 255px minmax(0, 1fr); gap: 12px; }
+    .kb-grid { display: grid; grid-template-columns: 238px minmax(0, 1fr) 340px; gap: 12px; align-items: start; }
+    .kb-search {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+    .kb-search input, .kb-ask input {
+      min-width: 0;
+      height: 36px;
+      padding: 0 10px;
+      border: 1px solid #cfd8e5;
+      border-radius: 8px;
+      outline: none;
+    }
+    .kb-search input:focus, .kb-ask input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(35,103,209,.1); }
+    .kb-filters { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+    .chip {
+      min-height: 26px;
+      padding: 2px 9px;
+      color: #475467;
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 700;
+    }
+    .chip.on { color: var(--primary); background: var(--primary-soft); border-color: #b9d0f3; }
+    .folder-row.filter-on { color: var(--primary); background: var(--primary-soft); }
+    .cite-list { display: grid; gap: 8px; margin-top: 8px; }
+    .cite-card {
+      width: 100%;
+      padding: 8px 9px;
+      color: inherit;
+      background: #fff;
+      border: 1px solid #d6e2f2;
+      border-radius: 8px;
+      text-align: left;
+    }
+    .cite-card:hover { border-color: var(--primary); background: #f7fbff; }
+    .cite-quote {
+      margin-top: 5px;
+      padding: 6px 8px;
+      color: #294465;
+      background: #f4f8ff;
+      border-left: 3px solid var(--primary);
+      font-size: 11px;
+      line-height: 1.45;
+    }
+    .kb-ask-panel { display: flex; flex-direction: column; min-height: 560px; }
+    .kb-messages {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      min-height: 320px;
+      max-height: 460px;
+      padding: 12px;
+      overflow: auto;
+    }
+    .history-list { display: grid; gap: 8px; margin-top: 10px; }
+    .history-item {
+      padding: 9px 10px;
+      background: #fafbfc;
+      border: 1px solid #e8ecf2;
+      border-radius: 8px;
+    }
+    .history-item b { display: block; margin-bottom: 2px; }
+    .diff-row { display: grid; gap: 6px; margin-top: 8px; }
+    .diff-line { padding: 7px 9px; border-radius: 6px; font-size: 12px; line-height: 1.45; }
+    .diff-line.del { color: #9f1239; background: #fff1f2; text-decoration: line-through; }
+    .diff-line.add { color: #047857; background: #ecfdf5; }
+    .legend-note { color: var(--muted); font-size: 10px; }
+    .card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; }
+    .card-pad { padding: 15px; }
+    .card-title { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
+    .card-title h2, .card-title h3 { margin: 0; }
+    .doc-table { width: 100%; border-collapse: collapse; }
+    .doc-table th, .doc-table td { padding: 10px 9px; border-bottom: 1px solid #edf0f4; text-align: left; vertical-align: top; }
+    .doc-table th { color: #667085; background: #f8fafc; font-size: 10px; }
+    .doc-table tr:last-child td { border-bottom: 0; }
+    .doc-table tbody tr { cursor: pointer; }
+    .doc-table tbody tr:hover { background: #f8fbff; }
+    .doc-name { font-weight: 750; }
+    .doc-meta { color: var(--muted); font-size: 10px; }
+    .change-sum { margin-top: 3px; font-size: 10px; font-weight: 700; color: #667085; }
+    .change-sum.hot { color: #b45309; }
+
+    .skills {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 11px;
+    }
+    .skill-card {
+      min-height: 190px;
+      padding: 15px;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+    }
+    .skill-head { display: flex; justify-content: space-between; gap: 8px; margin-bottom: 10px; }
+    .skill-code { color: var(--purple); font-size: 10px; font-weight: 800; }
+    .skill-card h3 { margin: 2px 0 0; font-size: 15px; }
+    .skill-card p { color: var(--muted); font-size: 11px; }
+    .rule-list { margin: 8px 0 0; padding-left: 17px; color: #475467; font-size: 10px; }
+
+    .modal-mask {
+      position: fixed;
+      inset: 0;
+      z-index: 50;
+      display: grid;
+      place-items: center;
+      padding: 20px;
+      background: rgba(17, 28, 51, .52);
+    }
+    .modal {
+      width: min(680px, 96vw);
+      max-height: 88vh;
+      overflow: auto;
+      background: #fff;
+      border-radius: 14px;
+      box-shadow: var(--shadow);
+    }
+    .modal.wide { width: min(980px, 96vw); }
+    .doc-tabs { display: flex; gap: 6px; margin: 0 0 12px; }
+    .doc-tab {
+      min-height: 30px;
+      padding: 4px 12px;
+      color: #475467;
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 700;
+    }
+    .doc-tab.on { color: #fff; background: var(--primary); border-color: var(--primary); }
+    .field-summary {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin: 10px 0;
+      padding: 9px 11px;
+      color: #3d4f68;
+      background: #f7faff;
+      border: 1px solid #d9e6f6;
+      border-radius: 8px;
+      font-size: 11px;
+    }
+    .field-summary b { color: var(--primary-dark); }
+    .field-filters { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+    .field-list { display: grid; gap: 7px; }
+    .field-row {
+      padding: 10px 11px;
+      background: #fafbfc;
+      border: 1px solid #e8ecf2;
+      border-radius: 9px;
+      cursor: pointer;
+      text-align: left;
+    }
+    .field-row:hover { border-color: #c5d8f0; background: #f7fbff; }
+    .field-row.on { border-color: #b9d0f3; background: #f4f8ff; }
+    .field-row.removed { background: #fafafa; }
+    .field-row.lv2 { margin-left: 18px; }
+    .field-value.removed { color: #98a2b3; text-decoration: line-through; }
+    .field-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+    .field-top strong { display: block; font-size: 13px; }
+    .field-path { color: #8090a6; font-size: 10px; font-weight: 700; }
+    .field-tags { display: flex; flex-wrap: wrap; gap: 4px; justify-content: flex-end; }
+    .field-value { margin-top: 6px; color: #344054; font-size: 12px; line-height: 1.45; }
+    .field-panel {
+      margin-top: 10px;
+      padding: 10px;
+      background: #fff;
+      border: 1px dashed #d5deea;
+      border-radius: 8px;
+    }
+    .field-panel h4 { margin: 0 0 6px; font-size: 12px; }
+    .slice-paper {
+      padding: 10px 12px;
+      color: #2c3a4d;
+      background: #fffdf8;
+      border: 1px solid #ead8b2;
+      border-radius: 8px;
+      font-size: 12px;
+      line-height: 1.55;
+      white-space: pre-line;
+    }
+    .file-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+    .file-paper {
+      padding: 16px 18px 20px;
+      background: #f6f4ee;
+      border: 1px solid #e4dcc8;
+      border-radius: 10px;
+    }
+    .file-paper-head {
+      margin-bottom: 12px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid #e4dcc8;
+    }
+    .file-paper-head b { display: block; font-size: 15px; }
+    .file-sec {
+      margin-top: 10px;
+      padding: 10px 12px;
+      background: #fff;
+      border: 1px solid #e8e2d6;
+      border-radius: 8px;
+    }
+    .file-sec.on { border-color: var(--primary); box-shadow: 0 0 0 2px rgba(35,103,209,.18); }
+    .file-sec small { display: block; color: #9a8f78; font-size: 10px; font-weight: 800; }
+    .file-sec b { display: block; margin: 2px 0 4px; }
+    .file-sec p { margin: 0; color: #44506a; font-size: 12px; white-space: pre-line; }
+    .ver-chain { display: grid; gap: 6px; margin-top: 8px; }
+    .ver-node {
+      display: grid;
+      grid-template-columns: 64px 1fr;
+      gap: 8px;
+      align-items: start;
+      padding: 8px 9px;
+      background: #fafbfc;
+      border: 1px solid #e8ecf2;
+      border-radius: 8px;
+      font-size: 12px;
+    }
+    .ver-node.current { border-color: #b9d0f3; background: #f4f8ff; }
+    .ver-node.frozen { border-color: #b7e0cf; background: #f3fbf6; }
+    .attach-list { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+    .attach {
+      padding: 4px 8px;
+      color: #385375;
+      background: #fff;
+      border: 1px solid #d6e2f2;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 700;
+    }
+    .modal-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 15px 18px;
+      border-bottom: 1px solid var(--line);
+    }
+    .modal-head h2 { margin: 0; font-size: 17px; }
+    .modal-body { padding: 17px 18px; }
+    .modal-foot { display: flex; justify-content: flex-end; gap: 8px; padding: 13px 18px; background: #f8fafc; border-top: 1px solid var(--line); }
+    .analysis-box { padding: 13px; margin-top: 12px; background: #f6f9ff; border: 1px solid #d8e5f5; border-radius: 9px; }
+    .analysis-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-top: 9px; }
+    .analysis-item { padding: 9px; background: #fff; border: 1px solid #e0e7f0; border-radius: 7px; }
+    .analysis-item small { display: block; color: var(--muted); }
+    .analysis-item b { display: block; margin-top: 2px; }
+    .close { color: #667085; background: transparent; border: 0; font-size: 20px; }
+    .toast {
+      position: fixed;
+      right: 22px;
+      bottom: 22px;
+      z-index: 80;
+      max-width: 380px;
+      padding: 11px 14px;
+      color: #fff;
+      background: #22314f;
+      border-radius: 9px;
+      box-shadow: var(--shadow);
+    }
+    .empty { padding: 25px 12px; color: var(--muted); text-align: center; }
+    .metric.action {
+      appearance: none;
+      font: inherit;
+      color: inherit;
+      cursor: pointer;
+      text-align: left;
+      border-color: #c5d8f0;
+    }
+    .metric.action:hover { background: #f7fbff; border-color: var(--primary); }
+    .metric-hint { display: block; margin-top: 3px; color: var(--primary); font-size: 10px; font-weight: 700; }
+    .map-mask {
+      position: fixed;
+      inset: 0;
+      z-index: 70;
+      display: grid;
+      grid-template-rows: auto auto 1fr;
+      background: #e8ecf4;
+    }
+    .map-top {
+      padding: 14px 20px 10px;
+      color: #fff;
+      background: linear-gradient(135deg, #17264a, #2754c5);
+    }
+    .map-top h2 { margin: 0 0 4px; font-size: 18px; }
+    .map-top p { margin: 0; opacity: .88; font-size: 12px; }
+    .map-toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+      padding: 8px 20px;
+      background: #fff;
+      border-bottom: 1px solid var(--line);
+      font-size: 11px;
+      color: var(--muted);
+    }
+    .map-legend { display: flex; flex-wrap: wrap; gap: 12px; }
+    .swatch { display: inline-flex; align-items: center; justify-content: center; width: 16px; height: 16px; border-radius: 4px; border: 1px solid var(--line); font-size: 9px; font-weight: 800; }
+    .map-canvas { overflow: auto; padding: 12px; }
+    .map-table { border-collapse: separate; border-spacing: 0; min-width: 980px; background: #fff; }
+    .map-table th, .map-table td { border: 1px solid #e2e8f0; vertical-align: top; }
+    .map-corner { position: sticky; left: 0; top: 0; z-index: 4; width: 108px; background: #f1f5f9; font-size: 11px; }
+    .map-stage { position: sticky; top: 0; z-index: 3; min-width: 168px; padding: 8px 6px; background: #fff; text-align: center; font-size: 12px; font-weight: 800; }
+    .map-stage small { display: block; color: var(--muted); font-weight: 500; font-size: 10px; }
+    .map-stage.s-CD { border-top: 3px solid #94a3b8; background: #f8fafc; }
+    .map-stage.s-KO { border-top: 3px solid #6366f1; background: #eef2ff; }
+    .map-stage.s-ES { border-top: 3px solid #10b981; background: #ecfdf5; }
+    .map-stage.s-TL { border-top: 3px solid #f59e0b; background: #fffbeb; }
+    .map-stage.s-DR { border-top: 3px solid #ef4444; background: #fef2f2; }
+    .map-stage.s-BT { border-top: 3px solid #8b5cf6; background: #f5f3ff; }
+    .map-stage.s-CR { border-top: 3px solid #22c55e; background: #f0fdf4; }
+    .map-role { position: sticky; left: 0; z-index: 2; width: 108px; padding: 8px; background: #f8fafc; font-size: 12px; font-weight: 700; text-align: right; }
+    .map-cell { min-width: 168px; min-height: 92px; padding: 8px; background: #fff; }
+    .map-cell.empty { background: #fafbfc; }
+    .map-card {
+      width: 100%;
+      padding: 7px;
+      margin: 0 0 6px;
+      color: inherit;
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      text-align: left;
+      font-size: 10px;
+      line-height: 1.35;
+    }
+    .map-card:last-child { margin-bottom: 0; }
+    .map-card.mine { cursor: pointer; }
+    .map-card.mine:hover { border-color: #93c5fd; box-shadow: 0 0 0 2px rgba(35,103,209,.12); }
+    .map-card.current { border-color: var(--primary); box-shadow: 0 0 0 2px rgba(35,103,209,.22); }
+    .map-card.other { opacity: .45; cursor: default; }
+    .map-io { margin-bottom: 3px; }
+    .map-tag { display: inline-block; margin-right: 3px; padding: 0 4px; border-radius: 3px; font-size: 8px; font-weight: 800; }
+    .map-tag.in { color: #059669; background: #ecfdf5; }
+    .map-tag.out { color: #2563eb; background: #eff6ff; }
+    .map-note { color: var(--amber); font-size: 9px; }
+
+    @media (max-width: 1180px) {
+      .workspace { grid-template-columns: 210px minmax(340px, 1fr); }
+      .context-panel { grid-column: 1 / -1; }
+      .context-body { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+      .role-card, .draft { grid-column: 1 / -1; }
+      .project-strip { grid-template-columns: repeat(3, minmax(0,1fr)); }
+      .project-main { grid-column: span 2; }
+    }
+    @media (max-width: 820px) {
+      :root { --nav: 68px; }
+      .brand { min-width: auto; }
+      .brand small, .version, .nav-title, .nav-button > span:not(.nav-icon):not(.nav-count), .role-note { display: none; }
+      .nav-button { justify-content: center; padding: 8px 4px; }
+      .nav-count { position: absolute; margin: -26px 0 0 25px; }
+      .kb-grid { grid-template-columns: 1fr; }
+      .tree-panel { max-height: 320px; }
+      .skills { grid-template-columns: 1fr 1fr; }
+      .stats { grid-template-columns: repeat(2, 1fr); }
+      .top-select { min-width: 130px; }
+    }
+    @media (max-width: 560px) {
+      .main { padding: 14px 10px 35px; }
+      .topbar { padding: 0 10px; }
+      .top-select { min-width: 105px; max-width: 125px; }
+      .top-button { display: none; }
+      .project-strip, .skills, .context-body { grid-template-columns: 1fr; }
+      .project-main { grid-column: auto; }
+      .workspace { min-height: 0; }
+      .composer { grid-template-columns: 1fr auto; }
+      .composer .upload { grid-column: 1 / -1; }
+    }
+  </style>
+</head>
+<body>
+  <div id="app"></div>
+  <script>
+  (() => {
+    "use strict";
+
+    const STORE_KEY = "rd-ai-collab-demo-v2-all-fields";
+    const TODAY = "2026-08-20";
+    const STAGES = [
+      { id: "CD", name: "概念设计" },
+      { id: "KO", name: "立项" },
+      { id: "ES", name: "工程样机" },
+      { id: "TL", name: "开模" },
+      { id: "DR", name: "设计释放" },
+      { id: "BT", name: "批量试产" },
+      { id: "CR", name: "结项转量" }
+    ];
+    const ROLE_ORDER = ["product", "structure", "cooling", "test"];
+    const FOLDERS = [
+      { id: "manage", code: "00", name: "项目管理" },
+      { id: "product", code: "01", name: "产品定义" },
+      { id: "structure", code: "02", name: "结构设计" },
+      { id: "cooling", code: "03", name: "制冷系统" },
+      { id: "electric", code: "04", name: "电控软件" },
+      { id: "quality", code: "05", name: "质量验证" },
+      { id: "cost", code: "06", name: "成本与供应链" },
+      { id: "output", code: "99", name: "项目正式输出" }
+    ];
+
+    const seed = () => ({
+      projectId: "h8120",
+      roleId: "cooling",
+      roles: {
+        product: { name: "产品经理", person: "陈经理", desc: "负责确认产品目标、规格边界和跨角色需求输入。" },
+        cooling: { name: "制冷工程师", person: "李工", desc: "负责制冷方案、关键件选型和性能验证结论。" },
+        structure: { name: "结构工程师", person: "王工", desc: "负责整机结构、板框接口、安装空间和手板问题闭环。" },
+        test: { name: "测试工程师", person: "孙工", desc: "负责测试方案、环境准备、数据采集和测试结论输出。" }
+      },
+      folders: FOLDERS,
+      projects: [
+        {
+          id: "h8120",
+          name: "H8120 制冰机研发项目",
+          type: "新品研发",
+          stage: "ES 工程样机",
+          members: 15,
+          currentNodeByRole: { product: "h8120-product-es", cooling: "h8120-cooling-es", structure: "h8120-structure-es", test: "h8120-test-es" },
+          docs: [
+            { id: "market", folderId: "product", name: "北美台式制冰机市场洞察报告", type: "市场洞察", version: "v1.1", status: "confirmed", owner: "陈经理", updated: "2026-07-18", source: "产品经理上传", loc: "§2 需求规模", excerpt: "北美台式制冰机以家庭场景为主，用户核心诉求是高温环境下稳定出冰、低噪音和外观一体感。", file: { name: "H8120_北美台式制冰机市场洞察_V1.1.pdf", format: "PDF", pages: 12, size: "2.1 MB", uploadedBy: "陈经理", uploadedAt: "2026-07-18" }, history: [
+              { version: "v1.0", status: "confirmed", date: "2026-07-02", owner: "陈经理", note: "调研初稿归档", body: "2025 北美台式制冰机零售规模约 4.2 亿美元。", changes: [] },
+              { version: "v1.1", status: "confirmed", date: "2026-07-18", owner: "陈经理", note: "补渠道与规模口径", body: "2025 北美台式制冰机零售规模约 4.8 亿美元。", changes: [
+                { type: "del", text: "2025 零售规模约 4.2 亿美元。" },
+                { type: "add", text: "2025 零售规模约 4.8 亿美元；补齐 Costco / Amazon 渠道结构。" }
+              ] }
+            ], fields: [
+              { id: "mkt-scope", path: "1 市场范围", level: 1, name: "市场范围", change: "unchanged", value: "北美台式家用制冰机，不含商用与嵌入式。", slice: "研究范围限定北美零售渠道的台式家用制冰机，不含商用吧台机与嵌入式整机。", loc: "§1 / p.1", relevant: ["product"], attachments: [] },
+              { id: "mkt-size", path: "2 需求规模", level: 1, name: "需求规模", change: "changed", prev: "2025 零售规模约 4.2 亿美元", value: "2025 北美台式零售规模约 4.8 亿美元，CAGR 约 6%。", slice: "第三方零售口径：2025 北美台式家用制冰机约 4.8 亿美元，较上一包上修 0.6 亿（补齐 Costco 会员店未覆盖量）。2023–2025 CAGR 约 6%。", loc: "§2 / p.3–4", relevant: ["product"], attachments: [{ name: "市场规模口径说明.xlsx" }] },
+              { id: "mkt-need", path: "3 用户诉求", level: 1, name: "用户诉求", change: "unchanged", value: "高温稳定出冰、低噪音、外观一体感。", slice: "家庭客厅/厨房场景。核心诉求：夏季房间 35℃ 以上仍能稳定出冰、运行噪音不影响客厅使用、外观与台面一体。", loc: "§3 / p.5–7", relevant: ["product", "structure"], attachments: [] },
+              { id: "mkt-ch", path: "4 渠道结构", level: 1, name: "渠道结构", change: "added", value: "Costco / Amazon / 家电连锁，会员店占比约 28%。", slice: "本包新增渠道切片。Costco 等会员店约 28%，Amazon 约 31%，家电连锁与独立零售其余。会员店对噪音与外观一体感更敏感。", loc: "§4 / p.8–9", relevant: ["product"], attachments: [] },
+              { id: "mkt-comp", path: "5 竞争格局", level: 1, name: "竞争格局", change: "unchanged", value: "头部以 10–12kg 日产冰量为主，R290 开始进入。", slice: "头部竞品日产冰量集中在 10–12kg。R290 开始进入北美家用台式，价格带仍高于传统工质。", loc: "§5 / p.10–11", relevant: ["product", "cooling"], attachments: [] }
+            ] },
+            { id: "voc", folderId: "product", name: "目标用户需求与痛点清单", type: "用户需求", version: "v1.0", status: "confirmed", owner: "陈经理", updated: "2026-07-20", source: "访谈纪要整理", loc: "痛点 03", excerpt: "用户最不可接受的是夏季房间 35℃ 以上时出冰变慢或停机，其次是振动噪音影响客厅使用。", file: { name: "H8120_目标用户需求与痛点清单_V1.0.pdf", format: "PDF", pages: 6, size: "0.8 MB", uploadedBy: "陈经理", uploadedAt: "2026-07-20" }, fields: [
+              { id: "voc-user", path: "1 目标用户", level: 1, name: "目标用户", change: "unchanged", value: "北美郊区家庭，客厅/开放厨房使用。", slice: "主力用户为北美郊区家庭，1–2 台置于客厅或开放厨房岛台，兼顾聚会出冰与日常饮品。", loc: "§1 / p.1", relevant: ["product"], attachments: [] },
+              { id: "voc-scene", path: "2 核心场景", level: 1, name: "核心场景", change: "unchanged", value: "夏季聚会连续出冰；工作日低噪音待机。", slice: "高峰场景是夏季周末聚会连续出冰；日常场景要求待机与制冰噪音不影响看电视、通话。", loc: "§2 / p.2", relevant: ["product"], attachments: [] },
+              { id: "voc-pain", path: "3 痛点清单 / 3.1 不可接受项", level: 2, name: "不可接受项", change: "unchanged", value: "35℃ 以上出冰变慢或停机；客厅可感知振动噪音。", slice: "痛点 03：用户最不可接受夏季房间 35℃ 以上出冰变慢或停机。其次是压缩机振动传到台面，影响客厅使用。", loc: "§3.1 / p.3–4", relevant: ["product", "cooling", "test"], attachments: [{ name: "访谈纪要摘录.docx" }] },
+              { id: "voc-pri", path: "4 需求优先级", level: 1, name: "需求优先级", change: "unchanged", value: "P0 高温出冰与噪音；P1 外观一体；P2 除霜便利。", slice: "P0：高温稳定出冰、低噪音。P1：外观一体感、易清洁。P2：除霜少维护、满冰提示。", loc: "§4 / p.5–6", relevant: ["product"], attachments: [] }
+            ] },
+            { id: "prd", folderId: "product", name: "H8120 产品定义书", type: "产品定义", version: "v2.0", status: "confirmed", owner: "陈经理", updated: "2026-08-12", source: "KO 评审确认", loc: "§3.1 性能指标", excerpt: "日产冰量目标 12kg（38℃ 环境）；制冷剂路线明确为 R290；目标市场为北美台式家用场景。", file: { name: "H8120_产品定义书_V2.0.pdf", format: "PDF", pages: 18, size: "3.4 MB", uploadedBy: "陈经理", uploadedAt: "2026-08-12" }, history: [
+              { version: "v1.0", status: "confirmed", date: "2026-07-28", owner: "陈经理", note: "立项初版确认", body: "日产冰量目标 11kg；压缩机路线待定；目标市场北美台式。", changes: [] },
+              { version: "v2.0", status: "confirmed", date: "2026-08-12", owner: "陈经理", note: "KO 评审确认", body: "日产冰量目标 12kg（38℃ 环境）；制冷剂路线明确为 R290；目标市场北美台式。", changes: [
+                { type: "del", text: "日产冰量目标 11kg；压缩机路线待定。" },
+                { type: "add", text: "日产冰量目标 12kg（38℃ 环境）；制冷剂路线明确为 R290。" }
+              ] }
+            ], fields: [
+              { id: "prd-pos", path: "1 产品定位", level: 1, name: "产品定位", change: "unchanged", value: "北美台式家用制冰机，主打高温稳定出冰与一体外观。", slice: "H8120 定位北美台式家用。不以商用产能为卖点，强调 38℃ 环境仍能稳定出冰，以及与台面一体的外观。", loc: "§1 / p.1–2", relevant: ["product"], attachments: [] },
+              { id: "prd-perf", path: "3 性能指标 / 3.1 产冰量", level: 2, name: "日产冰量", change: "changed", prev: "11 kg / 24h（环境温度待定）", value: "12 kg / 24h（环境温度 38℃），允许偏差 ±5%。", slice: "日产冰量目标 12kg（38℃ 环境、24 小时有效产冰）。相对上一包由 11kg 上修。允许偏差 ±5%。测试方法见企业 38℃ 工况规范。", loc: "§3.1 / p.6–7", relevant: ["cooling", "test", "product"], attachments: [] },
+              { id: "prd-ref", path: "3 性能指标 / 3.2 制冷剂", level: 2, name: "制冷剂路线", change: "changed", prev: "压缩机 / 制冷剂路线待定", value: "制冷剂明确为 R290。", slice: "KO 评审确认制冷剂路线为 R290，不再并列待选工质。压缩机按 R290 曲线选型。", loc: "§3.2 / p.8", relevant: ["cooling", "product"], attachments: [] },
+              { id: "prd-mkt", path: "2 目标市场", level: 1, name: "目标市场", change: "unchanged", value: "北美台式家用场景，零售与会员店。", slice: "目标市场为北美台式家用。渠道以零售电商与会员店为主。", loc: "§2 / p.3–5", relevant: ["product"], attachments: [] },
+              { id: "prd-cost", path: "4 成本边界", level: 1, name: "目标成本边界", change: "unchanged", value: "整机目标成本按 KO 立项包，本包未改。", slice: "整机目标成本沿用立项包，本包未改数字。详细拆分见成本附件，不在本定义书展开。", loc: "§4 / p.12", relevant: ["product"], attachments: [{ name: "目标成本边界.xlsx" }] }
+            ] },
+            { id: "perf", folderId: "product", name: "制冷性能目标", type: "性能目标", version: "v1.2", status: "confirmed", owner: "李工", updated: "2026-08-10", source: "产品定义书 v2.0", loc: "表 1 额定工况", excerpt: "额定工况：环境温度 38℃，24 小时有效产冰量 ≥ 12kg，允许偏差 ±5%。", file: { name: "H8120_制冷性能目标_V1.2.xlsx", format: "XLSX", pages: 4, size: "0.4 MB", uploadedBy: "李工", uploadedAt: "2026-08-10" }, history: [
+              { version: "v1.0", status: "confirmed", date: "2026-07-30", owner: "李工", note: "随 PRD v1.0 同步", body: "额定工况产冰量 ≥ 11kg。", changes: [] },
+              { version: "v1.2", status: "confirmed", date: "2026-08-10", owner: "李工", note: "随产品定义书 v2.0 上修", body: "额定工况产冰量 ≥ 12kg。", changes: [
+                { type: "del", text: "24 小时有效产冰量 ≥ 11kg。" },
+                { type: "add", text: "24 小时有效产冰量 ≥ 12kg，允许偏差 ±5%。" }
+              ] }
+            ], fields: [
+              { id: "perf-rate", path: "表1 额定工况", level: 1, name: "额定工况", change: "changed", prev: "环境 38℃，有效产冰量 ≥ 11kg / 24h", value: "环境 38℃，有效产冰量 ≥ 12kg / 24h，允许偏差 ±5%。", slice: "额定工况：环境温度 38℃。24 小时有效产冰量 ≥ 12kg，允许偏差 ±5%。相对上一包由 11kg 上修，与产品定义书 v2.0 对齐。", loc: "表 1 / Sheet1", relevant: ["cooling", "test"], attachments: [] },
+              { id: "perf-noise", path: "表2 噪声", level: 1, name: "噪声目标", change: "unchanged", value: "1m 处 A 计权 ≤ 42 dB(A)（制冰工况）。", slice: "制冰工况、距机 1m、A 计权 ≤ 42 dB(A)。本包未改。", loc: "表 2 / Sheet1", relevant: ["structure", "test"], attachments: [] },
+              { id: "perf-defrost", path: "表3 除霜", level: 1, name: "除霜要求", change: "unchanged", value: "满冰后自动停机；除霜周期不进入额定产冰统计。", slice: "满冰停机。除霜过程产冰不计入 24 小时有效产冰量。", loc: "表 3 / Sheet2", relevant: ["cooling", "test"], attachments: [] },
+              { id: "perf-note", path: "4 引用说明", level: 1, name: "引用说明", change: "added", value: "本表数字以产品定义书 v2.0 为准，测试方法见 38℃ 工况规范。", slice: "本包新增：性能目标表是产品定义书的切片视图，冲突时以产品定义书为准。测试执行见《38℃ 工况测试方法》。", loc: "§4 / Sheet3", relevant: ["product", "test"], attachments: [] }
+            ] },
+            { id: "appearance", folderId: "structure", name: "ID 外观冻结稿", type: "外观输入", version: "v2.0", status: "confirmed", owner: "周工", updated: "2026-08-20", source: "ID 设计输出", loc: "§2.1 整机包络", excerpt: "对照上一包：外形尺寸、开孔已改；CMF 未改；氛围灯说明已删除。", file: { name: "H8120_ID外观冻结稿_V2.0.pdf", format: "PDF", pages: 8, size: "4.2 MB", uploadedBy: "周工", uploadedAt: "2026-08-20" }, parse: { status: "confirmed", by: "周工", at: "2026-08-20", note: "按标题对照上一包后打未改/修改/新增/删除。" }, history: [
+              { version: "v1.0", status: "confirmed", date: "2026-08-02", owner: "周工", note: "ES 外观冻结包首次归档", body: "外形 365×310×410 mm，通风孔距底 54 mm，CMF 深空灰。", changes: [] },
+              { version: "v2.0", status: "confirmed", date: "2026-08-20", owner: "周工", note: "手板后更新外形与开孔，CMF 未改", body: "外形 368×312×418 mm，通风孔距底 62 mm；CMF 与 Logo 未变。", changes: [
+                { type: "del", text: "整机包络 365×310×410 mm；通风孔距底 54 mm。" },
+                { type: "add", text: "整机包络 368×312×418 mm；通风孔距底 62 mm。CMF 未改。" }
+              ] }
+            ], fields: [
+              { id: "app-bg", path: "1 设计背景", level: 1, name: "设计背景", change: "unchanged", value: "北美台式家用场景，主视觉一体感；ES 后不再接受改变主视轮廓的外观变更。", slice: "本项目目标市场为北美台式家用制冰机。外观以一体感、低噪音视觉为原则。ES 评审后，主视轮廓冻结，结构拆件不得改变外观主视觉。", loc: "§1 / p.1", relevant: ["structure"], attachments: [] },
+              { id: "app-size", path: "2 外形尺寸 / 2.1 整机包络", level: 2, name: "外形尺寸", change: "changed", prev: "365 × 310 × 410 mm", value: "368 × 312 × 418 mm；压缩机仓净空 ≥ 186×142×128 mm。", slice: "整机包络：宽 368 mm × 深 312 mm × 高 418 mm。相对上一包高度 +8 mm（顶盖加筋）。压缩机仓有效净空不得低于 186×142×128 mm，冷凝器厚度不得超过 22 mm。", loc: "§2.1 / p.2–3", relevant: ["cooling", "structure"], attachments: [{ name: "外形尺寸标注图.pdf" }, { name: "主视轮廓.STEP" }] },
+              { id: "app-vent", path: "3 开孔与接口 / 3.1 出冰口与通风", level: 2, name: "出冰口与通风开孔", change: "changed", prev: "通风孔距底 54 mm", value: "出冰口 86×42 mm；后板通风 2×φ28，距底 62 mm。", slice: "出冰口窗口位于前脸右侧，开口 86×42 mm。后板通风开孔 2×φ28，孔心距底 62 mm（相对上一包上移 8 mm，避开冷凝器）。", loc: "§3.1 / p.4", relevant: ["cooling", "structure"], attachments: [{ name: "开孔定位图.pdf" }] },
+              { id: "app-cmf", path: "4 CMF", level: 1, name: "CMF", change: "unchanged", value: "主色深空灰；顶盖高光注塑；把手同色免喷涂。", slice: "主色 Deep Space Gray；顶盖高光；把手同色免喷涂。本包相对上一包未改。", loc: "§4 / p.5–6", relevant: ["structure"], attachments: [{ name: "CMF色板.pdf" }] },
+              { id: "app-logo", path: "5 品牌与丝印", level: 1, name: "品牌与丝印", change: "unchanged", value: "前脸居中品牌 Logo，不透光，不接受发光。", slice: "品牌 Logo 居中丝印，不透光。", loc: "§5 / p.7", relevant: [], attachments: [] },
+              { id: "app-chg", path: "6 变更说明", level: 1, name: "变更说明", change: "added", value: "本包只改外形高度与通风孔位，CMF / Logo 未改；氛围灯说明已从稿中拿掉。", slice: "2026-08-20 周工：手板后顶盖加筋，整机高度 +8 mm；通风孔上移避开冷凝器。CMF、Logo 未改。氛围灯说明本包已删除。", loc: "§6 / p.8", relevant: ["cooling", "structure", "product"], attachments: [] },
+              { id: "app-light", path: "上一包 · 氛围灯说明", level: 1, name: "氛围灯说明", change: "removed", prev: "前脸氛围灯方案", value: "前脸氛围灯方案（上一包有，本包已删除）", slice: "上一包写了前脸氛围灯。本包原文件中已无此节。", loc: "上一包 §5", relevant: ["structure"], attachments: [] }
+            ] },
+            { id: "envelope", folderId: "structure", name: "整机结构与安装包络", type: "接口定义", version: "v1.3", status: "confirmed", owner: "王工", updated: "2026-08-14", source: "结构方案", loc: "§4 制冷安装空间", excerpt: "压缩机仓有效安装空间 186×142×128mm，冷凝器厚度不得超过 22mm。", file: { name: "H8120_整机结构与安装包络_V1.3.pdf", format: "PDF", pages: 9, size: "2.6 MB", uploadedBy: "王工", uploadedAt: "2026-08-14" }, history: [
+              { version: "v1.2", status: "confirmed", date: "2026-08-06", owner: "王工", note: "ES 初版包络", body: "压缩机仓有效安装空间 180×140×120mm，冷凝器厚度不得超过 25mm。", changes: [] },
+              { version: "v1.3", status: "confirmed", date: "2026-08-14", owner: "王工", note: "按手板反馈收紧包络", body: "压缩机仓有效安装空间 186×142×128mm，冷凝器厚度不得超过 22mm。", changes: [
+                { type: "del", text: "压缩机仓 180×140×120mm，冷凝器厚度不得超过 25mm。" },
+                { type: "add", text: "压缩机仓 186×142×128mm，冷凝器厚度不得超过 22mm。" }
+              ] }
+            ], fields: [
+              { id: "env-out", path: "1 整机外形", level: 1, name: "整机外形约束", change: "unchanged", value: "外形服从 ID 冻结稿，结构不得改主视轮廓。", slice: "整机外形以 ID 外观冻结稿为准。结构拆件不得改变主视轮廓。本包未改这条。", loc: "§1 / p.1", relevant: ["structure"], attachments: [] },
+              { id: "env-comp", path: "4 制冷安装空间 / 4.1 压缩机仓", level: 2, name: "压缩机仓净空", change: "changed", prev: "180 × 140 × 120 mm", value: "有效安装空间 186 × 142 × 128 mm。", slice: "压缩机仓有效安装空间 186×142×128 mm。相对上一包加高加宽，给翻边避让和减振垫留量。制冷选型必须落在此净空内。", loc: "§4.1 / p.4–5", relevant: ["cooling", "structure"], attachments: [{ name: "压缩机仓净空.STEP" }] },
+              { id: "env-cond", path: "4 制冷安装空间 / 4.2 冷凝器", level: 2, name: "冷凝器厚度上限", change: "changed", prev: "冷凝器厚度不得超过 25 mm", value: "冷凝器厚度不得超过 22 mm。", slice: "冷凝器厚度不得超过 22 mm（上一包 25 mm）。手板后后板通风孔上移，厚度余量收紧。", loc: "§4.2 / p.6", relevant: ["cooling", "structure"], attachments: [] },
+              { id: "env-hole", path: "5 安装孔位", level: 1, name: "安装孔位", change: "unchanged", value: "压缩机安装孔与制冷总图对齐，本包未改孔距。", slice: "压缩机四孔安装，孔距与 KO 制冷总图一致。本包只改净空，不改孔距。", loc: "§5 / p.7", relevant: ["cooling"], attachments: [{ name: "安装孔位图.pdf" }] },
+              { id: "env-if", path: "6 接口清单", level: 1, name: "结构-制冷接口清单", change: "unchanged", value: "排水、线束过孔、减振垫厚度沿用。", slice: "排水口、线束过孔、减振垫厚度本包未改。变更只发生在压缩机仓净空和冷凝器厚度。", loc: "§6 / p.8–9", relevant: ["cooling", "structure"], attachments: [] }
+            ] },
+            { id: "structure-plan", folderId: "structure", name: "H8120 整机结构方案", type: "结构方案", version: "v0.9", status: "draft", owner: "王工", updated: "2026-08-16", source: "结构工程师上传", loc: "§5 手板问题", excerpt: "ES 手板发现压缩机仓翻边干涉，整改方案尚未经责任人确认。", file: { name: "H8120_整机结构方案_V0.9.pdf", format: "PDF", pages: 14, size: "5.1 MB", uploadedBy: "王工", uploadedAt: "2026-08-16" }, fields: [
+              { id: "sp-frame", path: "1 板框方案", level: 1, name: "板框方案", change: "unchanged", value: "主结构板框沿用 KO 拆件，顶盖加筋。", slice: "主结构板框沿用 KO 拆件。ES 顶盖内侧加筋，整机高度已反映到 ID 冻结稿。本方案尚未确认。", loc: "§1 / p.1–3", relevant: ["structure"], attachments: [] },
+              { id: "sp-comp", path: "3 压缩机仓", level: 1, name: "压缩机仓结构", change: "unchanged", value: "仓壁翻边避让管路，净空对齐包络 v1.3。", slice: "压缩机仓按包络 v1.3 做翻边。手板已发现干涉，整改写在第 5 节，待确认。", loc: "§3 / p.6–8", relevant: ["structure", "cooling"], attachments: [{ name: "压缩机仓爆炸图.pdf" }] },
+              { id: "sp-issue", path: "5 手板问题", level: 1, name: "手板问题", change: "unchanged", value: "压缩机仓翻边与吸气管干涉，整改未确认。", slice: "ES 手板：仓壁翻边与吸气管最小间隙 < 2 mm。拟切翻边并改支架，方案未评审。", loc: "§5 / p.11–12", relevant: ["structure", "cooling"], attachments: [{ name: "手板照片.zip" }] },
+              { id: "sp-risk", path: "6 开模风险", level: 1, name: "开模风险", change: "unchanged", value: "顶盖加筋后浇口位置待模流，未冻结。", slice: "顶盖加筋后浇口与顶出待模流。在责任人确认前，不能作为开模输入。", loc: "§6 / p.13–14", relevant: ["structure"], attachments: [] }
+            ] },
+            { id: "curve", folderId: "cooling", name: "R290 压缩机性能曲线", type: "供应商参数", version: "R6", status: "confirmed", owner: "李工", updated: "2026-08-08", source: "供应商 A", loc: "38℃ 工况点", excerpt: "供应商 A 提供 R6 曲线：38℃ 冷凝条件下制冷量满足 12kg/24h 目标的选型窗口。", file: { name: "供应商A_R290压缩机性能曲线_R6.pdf", format: "PDF", pages: 5, size: "1.1 MB", uploadedBy: "李工", uploadedAt: "2026-08-08" }, history: [
+              { version: "R5", status: "confirmed", date: "2026-07-22", owner: "李工", note: "供应商 R5 曲线", body: "38℃ 工况制冷量按 11kg 目标校核。", changes: [] },
+              { version: "R6", status: "confirmed", date: "2026-08-08", owner: "李工", note: "按 12kg 目标重出曲线", body: "38℃ 工况制冷量满足 12kg/24h 选型窗口。", changes: [
+                { type: "del", text: "按 11kg 目标校核。" },
+                { type: "add", text: "38℃ 冷凝条件下制冷量满足 12kg/24h 选型窗口。" }
+              ] }
+            ], fields: [
+              { id: "cv-name", path: "铭牌参数", level: 1, name: "铭牌参数", change: "unchanged", value: "工质 R290；排量与供电沿用供应商 A 该机型。", slice: "供应商 A、工质 R290。铭牌排量、电压、频率相对 R5 未改。变化只在工况点表。", loc: "封面 / p.1", relevant: ["cooling"], attachments: [] },
+              { id: "cv-38", path: "工况点 / 38℃ 冷凝", level: 2, name: "38℃ 工况点", change: "changed", prev: "按 11kg/24h 目标校核的制冷量点", value: "38℃ 冷凝下制冷量覆盖 12kg/24h 选型窗口。", slice: "R6 重测 38℃ 冷凝工况。制冷量窗口按 12kg/24h 有效产冰反算，相对 R5 上修。具体点表见附件。", loc: "工况表 / p.3", relevant: ["cooling", "test"], attachments: [{ name: "38℃工况点表.xlsx" }] },
+              { id: "cv-win", path: "选型窗口", level: 1, name: "选型窗口", change: "unchanged", value: "推荐工作点落在 COP 较优区，避开喘振边界。", slice: "推荐工作点落在 COP 较优区，远离喘振。窗口形状相对 R5 未改，只是 38℃ 目标点上移。", loc: "选型图 / p.4", relevant: ["cooling"], attachments: [] },
+              { id: "cv-lim", path: "使用限制", level: 1, name: "使用限制", change: "unchanged", value: "冷凝压力、过热度按供应商说明书。", slice: "最高冷凝压力、过热度下限按供应商说明书。本包未改限制值。", loc: "§限制 / p.5", relevant: ["cooling"], attachments: [] }
+            ] },
+            { id: "cooling-plan", folderId: "cooling", name: "H8120 制冷系统方案", type: "制冷方案", version: "v0.8", status: "draft", owner: "李工", updated: "2026-08-17", source: "AI 初稿后人工修订", loc: "§2 压缩机选型", excerpt: "按 R6 曲线初选压缩机，冷凝器按结构包络校核中；该稿尚未经责任人确认，不能作为 AI 默认可用来源。", file: { name: "H8120_制冷系统方案_V0.8.pdf", format: "PDF", pages: 11, size: "2.8 MB", uploadedBy: "李工", uploadedAt: "2026-08-17" }, history: [
+              { version: "v0.6", status: "draft", date: "2026-08-01", owner: "李工", note: "方案草稿", body: "压缩机初选型号待定，冷凝器按经验布置。", changes: [] },
+              { version: "v0.8", status: "draft", date: "2026-08-17", owner: "李工", note: "AI 初稿后人工修订", body: "按 R6 曲线初选压缩机，冷凝器按结构包络校核中，待测试结果后确认。", changes: [
+                { type: "del", text: "压缩机初选型号待定，冷凝器按经验布置。" },
+                { type: "add", text: "按 R6 曲线初选压缩机，冷凝器按结构包络校核中，待测试结果后确认。" }
+              ] }
+            ], fields: [
+              { id: "cp-arch", path: "1 系统架构", level: 1, name: "系统架构", change: "unchanged", value: "单系统蒸汽压缩，R290，风冷冷凝。", slice: "单系统蒸汽压缩循环，工质 R290，风冷冷凝、毛细管节流。架构相对 v0.6 未改。", loc: "§1 / p.1–2", relevant: ["cooling"], attachments: [] },
+              { id: "cp-comp", path: "2 压缩机选型", level: 1, name: "压缩机选型", change: "changed", prev: "压缩机初选型号待定", value: "按 R6 曲线初选，待 38℃ 实测后确认。", slice: "按供应商 A 的 R6 曲线初选压缩机，工作点落在 12kg 窗口。型号待高温实测后确认，本方案尚未经责任人确认。", loc: "§2 / p.3–5", relevant: ["cooling"], attachments: [{ name: "初选对照表.xlsx" }] },
+              { id: "cp-cond", path: "3 冷凝器布置", level: 1, name: "冷凝器布置", change: "changed", prev: "冷凝器按经验布置", value: "按结构包络校核，厚度 ≤ 22 mm。", slice: "冷凝器按结构包络 v1.3 校核，厚度不得超过 22 mm。相对上一包不再按经验厚度。校核尚未闭环。", loc: "§3 / p.6–7", relevant: ["cooling", "structure"], attachments: [] },
+              { id: "cp-cap", path: "4 节流与除霜", level: 1, name: "节流与除霜", change: "unchanged", value: "毛细管节流；满冰停机，除霜不计入产冰。", slice: "毛细管节流。满冰停机。除霜逻辑沿用性能目标表，本包未改。", loc: "§4 / p.8–9", relevant: ["cooling"], attachments: [] },
+              { id: "cp-open", path: "5 待确认项", level: 1, name: "待确认项", change: "added", value: "缺 38℃ 实测前，选型与冷凝器不能定稿。", slice: "本包新增待确认清单：38℃ 产冰实测、冷凝器压降、翻边干涉整改后的管道路由。责任人确认前默认可用来源不包括本稿。", loc: "§5 / p.10–11", relevant: ["cooling", "test", "structure"], attachments: [] }
+            ] },
+            { id: "cooling-drawing", folderId: "cooling", name: "H8120 制冷器件图纸", type: "制冷图纸", version: "v1.0", status: "confirmed", owner: "李工", updated: "2026-08-06", source: "KO 阶段输出", loc: "总图修订说明", excerpt: "KO 阶段输出制冷器件布置图，压缩机安装孔位与结构包络对齐。", file: { name: "H8120_制冷器件图纸_V1.0.pdf", format: "PDF", pages: 7, size: "6.4 MB", uploadedBy: "李工", uploadedAt: "2026-08-06" }, fields: [
+              { id: "cd-ga", path: "A0 制冷总图", level: 1, name: "制冷总图", change: "unchanged", value: "KO 布置：压缩机、冷凝器、蒸发器相对位置。", slice: "KO 阶段制冷器件总图。压缩机、冷凝器、蒸发器相对位置按当时包络。安装孔位与结构对齐。", loc: "A0 / p.1", relevant: ["cooling", "structure"], attachments: [{ name: "制冷总图.dwg" }] },
+              { id: "cd-mount", path: "A1 压缩机安装", level: 1, name: "压缩机安装图", change: "unchanged", value: "四孔安装，孔距与结构包络安装孔一致。", slice: "压缩机四孔安装。孔距与结构包络安装孔对齐。本包为首版。", loc: "A1 / p.2–3", relevant: ["cooling", "structure"], attachments: [] },
+              { id: "cd-cond", path: "A2 冷凝器", level: 1, name: "冷凝器图纸", change: "unchanged", value: "KO 厚度按当时 25 mm 包络绘制。", slice: "冷凝器按 KO 包络绘制，厚度按当时 25 mm 上限。后续包络已收到 22 mm，本图尚未改版。", loc: "A2 / p.4–5", relevant: ["cooling"], attachments: [] },
+              { id: "cd-pipe", path: "A3 管路", level: 1, name: "管路走向", change: "unchanged", value: "吸排气管走向示意，不作为开模依据。", slice: "吸排气管走向示意。KO 输出，不作为开模依据。", loc: "A3 / p.6", relevant: ["cooling"], attachments: [] },
+              { id: "cd-rev", path: "修订说明", level: 1, name: "修订说明", change: "unchanged", value: "KO 首次归档，孔位与当时结构包络对齐。", slice: "2026-08-06 李工：KO 首次归档制冷器件布置图，压缩机安装孔位与结构包络对齐。", loc: "修订说明 / p.7", relevant: ["cooling"], attachments: [] }
+            ] },
+            { id: "test-method", folderId: "quality", name: "38℃ 工况测试方法", type: "测试方法", version: "v2.0", status: "confirmed", owner: "孙工", updated: "2026-07-25", source: "企业测试规范", loc: "§6 数据采集", excerpt: "试样在 38℃ 环境稳定运行后，连续称重 24 小时有效产冰量；中途停机视为无效试验。", file: { name: "企业规范_38℃工况测试方法_V2.0.pdf", format: "PDF", pages: 8, size: "1.0 MB", uploadedBy: "孙工", uploadedAt: "2026-07-25" }, history: [
+              { version: "v1.0", status: "confirmed", date: "2026-06-10", owner: "孙工", note: "企业规范初版", body: "连续称重 24 小时；采样间隔 30 分钟。", changes: [] },
+              { version: "v2.0", status: "confirmed", date: "2026-07-25", owner: "孙工", note: "加密采样并明确无效判定", body: "连续称重 24 小时；采样间隔 10 分钟；中途停机视为无效。", changes: [
+                { type: "del", text: "采样间隔 30 分钟。" },
+                { type: "add", text: "采样间隔 10 分钟；中途停机视为无效试验。" }
+              ] }
+            ], fields: [
+              { id: "tm-scope", path: "1 适用范围", level: 1, name: "适用范围", change: "unchanged", value: "台式家用制冰机 38℃ 高温产冰试验。", slice: "适用于台式家用制冰机在 38℃ 环境的有效产冰量试验。不覆盖噪声与跌落。", loc: "§1 / p.1", relevant: ["test"], attachments: [] },
+              { id: "tm-prep", path: "3 预处理", level: 1, name: "预处理", change: "unchanged", value: "试样在 38℃ 环境稳定运行后再开始称重。", slice: "试样放入 38℃ 环境箱，稳定运行至出冰节奏正常后再进入 24 小时称重。预处理时间不计入有效产冰。", loc: "§3 / p.3", relevant: ["test"], attachments: [] },
+              { id: "tm-data", path: "6 数据采集", level: 1, name: "数据采集", change: "changed", prev: "称重采样间隔 30 分钟", value: "连续称重 24 小时，采样间隔 10 分钟。", slice: "稳定运行后连续称重 24 小时有效产冰量。采样间隔由 30 分钟改为 10 分钟。除霜产冰不计入。", loc: "§6 / p.5–6", relevant: ["test", "cooling"], attachments: [{ name: "记录模板.xlsx" }] },
+              { id: "tm-fail", path: "7 无效判定", level: 1, name: "无效判定", change: "added", value: "中途停机、环境超差、满冰未及时清空，均视为无效试验。", slice: "本包新增无效判定：试验中途停机、环境温度超差、满冰未及时清空导致停机，均视为无效，需重做。", loc: "§7 / p.7", relevant: ["test"], attachments: [] },
+              { id: "tm-rec", path: "8 记录", level: 1, name: "记录要求", change: "unchanged", value: "记录环境温度、称重曲线、停机事件。", slice: "必须记录环境温度曲线、称重曲线和停机事件。本包未改记录项，只改了采样间隔。", loc: "§8 / p.8", relevant: ["test"], attachments: [] }
+            ] },
+            { id: "test-plan", folderId: "quality", name: "ES 性能测试计划", type: "测试计划", version: "v1.0", status: "confirmed", owner: "孙工", updated: "2026-08-18", source: "测试工程师上传", loc: "§1 试验矩阵", excerpt: "ES 阶段先做 38℃ 高温产冰试验，通过后再补噪声与除霜工况。", file: { name: "H8120_ES性能测试计划_V1.0.pdf", format: "PDF", pages: 5, size: "0.6 MB", uploadedBy: "孙工", uploadedAt: "2026-08-18" }, fields: [
+              { id: "tp-mx", path: "1 试验矩阵", level: 1, name: "试验矩阵", change: "unchanged", value: "ES 先 38℃ 产冰，通过后再做噪声与除霜。", slice: "ES 阶段顺序：38℃ 高温产冰 → 噪声 → 除霜。产冰不通过则不展开后两项。", loc: "§1 / p.1–2", relevant: ["test", "cooling"], attachments: [] },
+              { id: "tp-hot", path: "2 高温产冰", level: 1, name: "高温产冰试验", change: "unchanged", value: "方法用 v2.0；判定 ≥ 12kg ±5%。", slice: "执行《38℃ 工况测试方法》v2.0。判定：24 小时有效产冰量 ≥ 12kg，允许偏差 ±5%。", loc: "§2 / p.3", relevant: ["test", "cooling"], attachments: [] },
+              { id: "tp-noise", path: "3 噪声试验", level: 1, name: "噪声试验", change: "unchanged", value: "1m 处 ≤ 42 dB(A)，产冰通过后才做。", slice: "制冰工况、距机 1m。判定 ≤ 42 dB(A)。安排在高温产冰通过之后。", loc: "§3 / p.4", relevant: ["test", "structure"], attachments: [] },
+              { id: "tp-pass", path: "4 通过准则", level: 1, name: "通过准则", change: "unchanged", value: "产冰为门禁；噪声与除霜为 ES 报告项。", slice: "产冰量是 ES 制冷验证门禁。噪声与除霜写入 ES 报告，不阻断压缩机初选讨论，但报告必须给出。", loc: "§4 / p.5", relevant: ["test", "product"], attachments: [] }
+            ] },
+          ],
+          nodes: [
+            { id: "h8120-product-cd", roleId: "product", stage: "CD", title: "ID 设计输入", note: "概念阶段输出给 ID/结构", inputs: [{ name: "市场洞察报告", docId: "market" }, { name: "用户需求清单", docId: "voc" }], outputs: [{ name: "ID 设计输入", docId: null }] },
+            { id: "h8120-product-ko", roleId: "product", stage: "KO", title: "立项产品定义", note: "输出 PRD 供各组并行", inputs: [{ name: "ID 外观冻结稿", docId: "appearance" }, { name: "市场洞察报告", docId: "market" }], outputs: [{ name: "产品定义书", docId: "prd" }] },
+            { id: "h8120-product-es", roleId: "product", stage: "ES", title: "ES 规格确认", note: "根据样机反馈更新规格", inputs: [{ name: "产品定义书", docId: "prd" }, { name: "用户需求清单", docId: "voc" }, { name: "目标成本边界", docId: "cost-target" }], outputs: [{ name: "产品定义书", docId: "prd" }, { name: "ES 规格确认单", docId: null }] },
+            { id: "h8120-product-dr", roleId: "product", stage: "DR", title: "DR 规格迭代", note: "试产后更新 PRD", inputs: [{ name: "产品定义书", docId: "prd" }, { name: "ES 制冷验证结论", docId: "cooling-result" }], outputs: [{ name: "PRD 更新", docId: null }] },
+            { id: "h8120-structure-cd", roleId: "structure", stage: "CD", title: "ID 拆件反馈", note: "给 ID 闭环", inputs: [{ name: "ID 外观冻结稿", docId: "appearance" }], outputs: [{ name: "ID 拆件意见反馈", docId: null }] },
+            { id: "h8120-structure-ko", roleId: "structure", stage: "KO", title: "板框与 ES 样机", note: "可在后续阶段迭代", inputs: [{ name: "产品定义书", docId: "prd" }, { name: "ID 外观冻结稿", docId: "appearance" }], outputs: [{ name: "整机结构方案", docId: "structure-plan" }, { name: "ES 样机", docId: null }] },
+            { id: "h8120-structure-es", roleId: "structure", stage: "ES", title: "ES 手板验证", note: "校核安装空间", inputs: [{ name: "产品定义书", docId: "prd" }, { name: "ID 外观冻结稿", docId: "appearance" }, { name: "制冷系统接口需求", docId: "cooling-plan" }], outputs: [{ name: "整机结构方案", docId: "structure-plan" }, { name: "ES 板框校核结论", docId: null }] },
+            { id: "h8120-structure-tl", roleId: "structure", stage: "TL", title: "开模图纸冻结", note: "输出 3D/2D", inputs: [{ name: "产品定义书", docId: "prd" }, { name: "整机结构方案", docId: "structure-plan" }], outputs: [{ name: "结构 3D/2D 图", docId: null }] },
+            { id: "h8120-cooling-ko", roleId: "cooling", stage: "KO", title: "制冷方案与图纸", note: "仅需 PRD 即可并行", inputs: [{ name: "产品定义书", docId: "prd" }], outputs: [{ name: "制冷器件图纸", docId: "cooling-drawing" }] },
+            { id: "h8120-cooling-es", roleId: "cooling", stage: "ES", title: "ES 单系统验证", note: "缺测试结果仍可先完善方案", inputs: [{ name: "产品定义书", docId: "prd" }, { name: "制冷性能目标", docId: "perf" }, { name: "结构接口包络", docId: "envelope" }, { name: "压缩机性能曲线", docId: "curve" }, { name: "38℃高温性能测试结果", docId: "test-report" }], outputs: [{ name: "制冷系统方案", docId: "cooling-plan" }, { name: "压缩机选型确认单", docId: null }, { name: "ES 制冷验证结论", docId: "cooling-result" }] },
+            { id: "h8120-cooling-dr", roleId: "cooling", stage: "DR", title: "制冷图纸更新", note: "根据测试结果改版", inputs: [{ name: "产品定义书", docId: "prd" }, { name: "ES 制冷验证结论", docId: "cooling-result" }], outputs: [{ name: "更新的制冷器件图纸", docId: null }] },
+            { id: "h8120-test-es", roleId: "test", stage: "ES", title: "ES 性能验证", note: "输出测试计划与结果", inputs: [{ name: "制冷性能目标", docId: "perf" }, { name: "38℃ 工况测试方法", docId: "test-method" }, { name: "ES 样机状态确认", docId: null }], outputs: [{ name: "ES 性能测试计划", docId: "test-plan" }, { name: "38℃高温性能测试结果", docId: "test-report" }] },
+            { id: "h8120-test-dr", roleId: "test", stage: "DR", title: "试产测试报告", note: "多轮试产可迭代", inputs: [{ name: "ES 性能测试计划", docId: "test-plan" }, { name: "38℃ 工况测试方法", docId: "test-method" }], outputs: [{ name: "电性能/可靠性测试报告", docId: null }] }
+          ]
+        },
+        {
+          id: "h8130",
+          name: "H8130 衍生机型项目",
+          type: "衍生研发",
+          stage: "KO 立项",
+          members: 9,
+          currentNodeByRole: { product: "h8130-product-ko", cooling: "h8130-cooling-ko", structure: "h8130-structure-ko", test: "h8130-test-ko" },
+          docs: [
+            { id: "h8130-base", folderId: "product", name: "H8120 可复用基线包", type: "复用基线", version: "v1.0", status: "confirmed", owner: "陈经理", updated: "2026-08-15", source: "从 H8120 引用", loc: "复用范围", excerpt: "H8130 可复用 H8120 制冷系统与主结构板框，差异仅限 CMF 与控制面板丝印。", file: { name: "H8130_H8120可复用基线包_V1.0.pdf", format: "PDF", pages: 6, size: "1.5 MB", uploadedBy: "陈经理", uploadedAt: "2026-08-15" }, fields: [
+              { id: "b-scope", path: "1 复用范围", level: 1, name: "复用范围", change: "unchanged", value: "制冷系统与主结构板框可复用；CMF 与丝印不复用。", slice: "H8130 可复用 H8120 制冷系统与主结构板框。差异仅限 CMF 与控制面板丝印。本包为首版。", loc: "§1 / p.1–2", relevant: ["product", "cooling", "structure"], attachments: [] },
+              { id: "b-cool", path: "2 制冷复用", level: 1, name: "制冷系统", change: "unchanged", value: "压缩机、冷凝器、蒸发器沿用 H8120 已确认方案。", slice: "制冷器件与循环沿用 H8120。衍生机不再重做压缩机选型，除非产品定义改产冰量。", loc: "§2 / p.3", relevant: ["cooling"], attachments: [] },
+              { id: "b-str", path: "3 结构复用", level: 1, name: "主结构板框", change: "unchanged", value: "主结构板框沿用；外观件随 CMF 另出。", slice: "主结构板框、压缩机仓与安装孔沿用 H8120。外观件（面板、把手）随 CMF 调整。", loc: "§3 / p.4–5", relevant: ["structure"], attachments: [] },
+              { id: "b-out", path: "4 不复用项", level: 1, name: "不复用项", change: "unchanged", value: "CMF、控制面板丝印、包装语言。", slice: "不复用：主色与表面处理、控制面板丝印、包装与说明书语言。详见差异清单。", loc: "§4 / p.6", relevant: ["product", "structure"], attachments: [] }
+            ] },
+            { id: "h8130-prd", folderId: "product", name: "H8130 产品定义书", type: "产品定义", version: "v0.6", status: "draft", owner: "陈经理", updated: "2026-08-19", source: "衍生差异裁剪中", loc: "§1 差异确认", excerpt: "衍生机定义仍在裁剪，产冰量是否沿用 12kg 尚未确认。", file: { name: "H8130_产品定义书_V0.6.pdf", format: "PDF", pages: 8, size: "1.2 MB", uploadedBy: "陈经理", uploadedAt: "2026-08-19" }, fields: [
+              { id: "dprd-pos", path: "1 衍生定位", level: 1, name: "衍生定位", change: "unchanged", value: "H8120 的 CMF / 丝印衍生，制冷拟沿用。", slice: "H8130 是 H8120 衍生机。定位不变，只改外观识别。本稿尚未确认。", loc: "§1 / p.1–2", relevant: ["product"], attachments: [] },
+              { id: "dprd-ice", path: "2 产冰量", level: 1, name: "产冰量", change: "unchanged", value: "是否沿用 12kg 尚未确认。", slice: "产冰量是否沿用 H8120 的 12kg（38℃）尚未确认。未确认前制冷按复用评估，不能当新目标。", loc: "§2 / p.3–4", relevant: ["product", "cooling"], attachments: [] },
+              { id: "dprd-cut", path: "3 差异裁剪", level: 1, name: "差异裁剪", change: "unchanged", value: "面板颜色、手把、包装语言；制冷拟沿用。", slice: "已列出差异：面板颜色、手把、包装语言。制冷系统拟沿用。裁剪未评审。", loc: "§3 / p.5–6", relevant: ["product"], attachments: [] },
+              { id: "dprd-open", path: "4 待确认", level: 1, name: "待确认项", change: "unchanged", value: "产冰量、认证差异、包装语言终稿。", slice: "待确认：产冰量是否改、认证标签是否与 H8120 相同、包装语言终稿。责任人确认前不能引用为规格。", loc: "§4 / p.7–8", relevant: ["product", "test"], attachments: [] }
+            ] },
+            { id: "h8130-delta", folderId: "product", name: "H8130 相对 H8120 差异清单", type: "差异清单", version: "v0.4", status: "draft", owner: "陈经理", updated: "2026-08-18", source: "产品经理整理", loc: "差异项 02", excerpt: "差异项包含面板颜色、手把和包装语言，制冷系统拟沿用。", file: { name: "H8130_相对H8120差异清单_V0.4.xlsx", format: "XLSX", pages: 3, size: "0.3 MB", uploadedBy: "陈经理", uploadedAt: "2026-08-18" }, fields: [
+              { id: "dl-cmf", path: "差异项 01 面板颜色", level: 1, name: "面板颜色", change: "unchanged", value: "深空灰 → 浅砂银（草案）。", slice: "面板主色拟由 H8120 深空灰改为浅砂银。未冻结。", loc: "行 01", relevant: ["structure", "product"], attachments: [] },
+              { id: "dl-handle", path: "差异项 02 手把", level: 1, name: "手把", change: "unchanged", value: "手把造型/颜色随 CMF，结构安装拟沿用。", slice: "手把外观随 CMF。安装孔拟沿用 H8120，结构需评估。", loc: "行 02", relevant: ["structure"], attachments: [] },
+              { id: "dl-pack", path: "差异项 03 包装语言", level: 1, name: "包装语言", change: "unchanged", value: "包装与说明书语言待定。", slice: "包装与说明书语言待定，不进入制冷与结构复用判断。", loc: "行 03", relevant: ["product"], attachments: [] },
+              { id: "dl-cool", path: "差异项 04 制冷系统", level: 1, name: "制冷系统", change: "unchanged", value: "拟沿用 H8120，不列入开模差异。", slice: "制冷系统拟沿用 H8120。不列入开模差异。若产品定义改产冰量，本项需重开。", loc: "行 04", relevant: ["cooling", "product"], attachments: [] }
+            ] },
+            { id: "h8130-appearance", folderId: "structure", name: "H8130 CMF 调整说明", type: "外观输入", version: "v0.3", status: "draft", owner: "周工", updated: "2026-08-17", source: "ID 初稿", loc: "CMF 草案", excerpt: "主色由深空灰改为浅砂银，尚未冻结。", file: { name: "H8130_CMF调整说明_V0.3.pdf", format: "PDF", pages: 4, size: "2.2 MB", uploadedBy: "周工", uploadedAt: "2026-08-17" }, fields: [
+              { id: "ha-color", path: "1 主色", level: 1, name: "主色", change: "unchanged", value: "浅砂银草案，尚未冻结。", slice: "主色拟由深空灰改为浅砂银。仅 ID 初稿，未冻结，不能当结构开色依据。", loc: "§1 / p.1–2", relevant: ["structure"], attachments: [{ name: "浅砂银色板.jpg" }] },
+              { id: "ha-print", path: "2 丝印", level: 1, name: "控制面板丝印", change: "unchanged", value: "丝印随浅砂银底反白，草稿。", slice: "控制面板丝印随浅色底改为深色字。布局未改。草稿。", loc: "§2 / p.3", relevant: ["structure"], attachments: [] },
+              { id: "ha-status", path: "3 冻结状态", level: 1, name: "冻结状态", change: "unchanged", value: "未冻结；主视轮廓沿用 H8120。", slice: "CMF 未冻结。主视轮廓沿用 H8120 ID 冻结稿，本说明只动颜色与丝印。", loc: "§3 / p.4", relevant: ["structure", "product"], attachments: [] }
+            ] }
+          ],
+          nodes: [
+            { id: "h8130-product-ko", roleId: "product", stage: "KO", title: "衍生立项定义", note: "复用 H8120 基线，只确认差异", inputs: [{ name: "H8120 可复用基线包", docId: "h8130-base" }, { name: "H8130 差异清单", docId: "h8130-delta" }], outputs: [{ name: "H8130 产品定义书", docId: "h8130-prd" }] },
+            { id: "h8130-product-es", roleId: "product", stage: "ES", title: "衍生规格确认", note: "待 KO 后再展开", inputs: [{ name: "H8130 产品定义书", docId: "h8130-prd" }], outputs: [{ name: "ES 规格确认单", docId: null }] },
+            { id: "h8130-structure-ko", roleId: "structure", stage: "KO", title: "衍生结构裁剪", note: "评估能否复用板框", inputs: [{ name: "H8130 产品定义书", docId: "h8130-prd" }, { name: "H8130 CMF 调整说明", docId: "h8130-appearance" }], outputs: [{ name: "结构复用结论", docId: null }] },
+            { id: "h8130-cooling-ko", roleId: "cooling", stage: "KO", title: "制冷复用评估", note: "判断压缩机是否沿用", inputs: [{ name: "H8130 产品定义书", docId: "h8130-prd" }, { name: "H8120 可复用基线包", docId: "h8130-base" }], outputs: [{ name: "制冷复用结论", docId: null }] },
+            { id: "h8130-cooling-es", roleId: "cooling", stage: "ES", title: "衍生机单系统验证", note: "KO 后才需要", inputs: [{ name: "制冷复用结论", docId: null }, { name: "H8130 产品定义书", docId: "h8130-prd" }], outputs: [{ name: "ES 制冷验证结论", docId: null }] },
+            { id: "h8130-test-ko", roleId: "test", stage: "KO", title: "测试范围裁剪", note: "明确哪些沿用 H8120 报告", inputs: [{ name: "H8130 差异清单", docId: "h8130-delta" }], outputs: [{ name: "测试范围说明", docId: null }] }
+          ]
+        }
+      ],
+      skills: [
+        { id: "classify", code: "SK-01", name: "文件识别分类 Skill", desc: "读取上传文件，识别文件类型并建议项目目录。", rules: ["识别标题、版本、作者与项目", "匹配标准目录及角色输入输出", "低于 85% 置信度必须人工确认"] },
+        { id: "catalog", code: "SK-02", name: "项目知识目录 Skill", desc: "按新品研发项目预生成标准知识目录。", rules: ["目录覆盖产品、结构、制冷、电控、质量、成本", "允许项目成员补充自定义目录", "保留 99 项目正式输出目录"] },
+        { id: "role-io", code: "SK-03", name: "角色输入输出 Skill", desc: "按项目环节识别各角色应有输入与交付结果。", rules: ["区分必需输入与参考输入", "缺项不强制阻断工作", "输出确认后更新角色进度"] },
+        { id: "generate", code: "SK-04", name: "文档生成 Skill", desc: "基于项目上下文生成对应角色的工作文档初稿。", rules: ["只引用项目内已确认资料", "缺失内容明确标记待补充", "生成结果必须由责任人确认"] },
+        { id: "format", code: "SK-05", name: "文档格式 Skill", desc: "统一标题、章节、版本、署名和变更记录。", rules: ["统一一级至三级标题", "自动写入版本和生成日期", "保留责任人与来源清单"] },
+        { id: "complete", code: "SK-06", name: "资料完整性检查 Skill", desc: "检查角色输入、输出和文档必需章节是否齐全。", rules: ["按角色和当前环节检查", "输出缺口及影响说明", "仅提醒，不自动判定验收通过"] }
+      ],
+      messages: [
+        { type: "ai", text: "你好，李工。当前项目是 H8120。\n当前工作节点是“ES 单系统验证”，已有 4/5 项输入，缺少“38℃高温性能测试结果”。\n上游输入「整机结构与安装包络」已从你已读的 v1.2 升到 v1.3，右侧该条有红点，打开即视为已读。", sources: "角色输入输出 Skill · 输入更新提醒 · 截至 2026-08-20" }
+      ],
+      generated: null,
+      readAt: {
+        "h8120:product": { market: "v1.1", voc: "v1.0", prd: "v2.0", appearance: "v1.0" },
+        "h8120:cooling": { prd: "v2.0", perf: "v1.2", envelope: "v1.2", curve: "R6", appearance: "v1.0" },
+        "h8120:structure": { prd: "v2.0", appearance: "v1.0", "cooling-plan": "v0.8", "structure-plan": "v0.9" },
+        "h8120:test": { perf: "v1.2", "test-method": "v2.0", "test-plan": "v1.0" },
+        "h8130:product": { "h8130-base": "v1.0", "h8130-delta": "v0.4", "h8130-prd": "v0.6" },
+        "h8130:cooling": { "h8130-prd": "v0.6", "h8130-base": "v1.0" },
+        "h8130:structure": { "h8130-prd": "v0.6", "h8130-appearance": "v0.3" },
+        "h8130:test": { "h8130-delta": "v0.4" }
+      }
+    });
+
+    let state = loadState();
+    const ui = { view: "workbench", openFolders: ["product", "structure", "cooling", "quality"], modal: null, toast: "", kbQuery: "", kbFilter: "all", folderFilter: "", kbAsk: "", kbMessages: [] };
+
+    function loadState() {
+      try {
+        const raw = localStorage.getItem(STORE_KEY);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (parsed && Array.isArray(parsed.projects) && parsed.projects[0]?.docs?.[0]?.status) return parsed;
+        }
+      } catch (error) {}
+      return seed();
+    }
+    function persist() { localStorage.setItem(STORE_KEY, JSON.stringify(state)); }
+    function esc(value) {
+      return String(value == null ? "" : value)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+    }
+    function currentProject() { return state.projects.find(item => item.id === state.projectId); }
+    function currentRole() { return state.roles[state.roleId]; }
+    function currentNode() {
+      const project = currentProject();
+      const nodeId = project.currentNodeByRole[state.roleId];
+      return project.nodes.find(item => item.id === nodeId) || project.nodes.find(item => item.roleId === state.roleId);
+    }
+    function nodeLabel(node) { return node ? `${node.stage} ${node.title}` : ""; }
+    function docs() { return currentProject().docs; }
+    function doc(id) { return docs().find(item => item.id === id); }
+    function folder(id) { return state.folders.find(item => item.id === id); }
+    function hasDoc(id) { return Boolean(id && doc(id)); }
+    function isConfirmed(item) { return Boolean(item && item.status === "confirmed"); }
+    function readKey() { return `${state.projectId}:${state.roleId}`; }
+    function readMap() {
+      state.readAt = state.readAt || {};
+      state.readAt[readKey()] = state.readAt[readKey()] || {};
+      return state.readAt[readKey()];
+    }
+    function lastReadVersion(docId) { return readMap()[docId]; }
+    function isUnreadDoc(itemDoc) { return Boolean(itemDoc && lastReadVersion(itemDoc.id) !== itemDoc.version); }
+    function unreadInputs() { return currentNode().inputs.filter(item => isUnreadDoc(doc(item.docId))); }
+    function markDocRead(id) {
+      const item = doc(id);
+      if (!item) return;
+      readMap()[id] = item.version;
+    }
+    function openDoc(id) {
+      const item = doc(id);
+      ui.modal = {
+        type: "doc",
+        id,
+        fromVersion: item ? lastReadVersion(id) : "",
+        tab: item && item.fields ? "fields" : "simple",
+        fieldId: "",
+        highlightField: "",
+        fieldFilter: "all"
+      };
+      markDocRead(id);
+      render();
+    }
+    function fieldChangeLabel(change) {
+      return { changed: "修改", unchanged: "未改", added: "新增", removed: "删除" }[change] || "未改";
+    }
+    function fieldChangeTone(change) {
+      return { changed: "amber", unchanged: "gray", added: "blue", removed: "red" }[change] || "gray";
+    }
+    function isFieldRelevant(field) {
+      return Array.isArray(field.relevant) && field.relevant.includes(state.roleId);
+    }
+    function isFirstPack(item) {
+      return !(item.history && item.history.length > 1);
+    }
+    function fieldCounts(item) {
+      const fields = item.fields || [];
+      return {
+        changed: fields.filter(field => field.change === "changed").length,
+        added: fields.filter(field => field.change === "added").length,
+        removed: fields.filter(field => field.change === "removed").length,
+        unchanged: fields.filter(field => field.change === "unchanged").length
+      };
+    }
+    function packChangeTotal(item) {
+      if (isFirstPack(item) || !(item.fields || []).length) return 0;
+      const counts = fieldCounts(item);
+      return counts.changed + counts.added + counts.removed;
+    }
+    function packChangeLine(item) {
+      const n = (item.fields || []).length;
+      if (!n) return { text: "尚未拆切片", hot: false };
+      if (isFirstPack(item)) return { text: `首版 · 已拆 ${n} 节`, hot: false };
+      const counts = fieldCounts(item);
+      const parts = [];
+      if (counts.changed) parts.push(`修改 ${counts.changed}`);
+      if (counts.added) parts.push(`新增 ${counts.added}`);
+      if (counts.removed) parts.push(`删除 ${counts.removed}`);
+      if (!parts.length) return { text: `相对上一包未改 · ${n} 节`, hot: false };
+      return { text: parts.join(" · "), hot: true };
+    }
+    function visibleFields(item) {
+      const filter = ui.modal.fieldFilter || "all";
+      return (item.fields || []).filter(field => {
+        if (filter === "mine") return isFieldRelevant(field);
+        if (filter === "changed") return !isFirstPack(item) && field.change !== "unchanged";
+        return true;
+      });
+    }
+    function findField(item, fieldId) {
+      return (item.fields || []).find(field => field.id === fieldId);
+    }
+    function statusLabel(item) { return isConfirmed(item) ? "已确认" : "工作稿"; }
+    function statusTone(item) { return isConfirmed(item) ? "green" : "amber"; }
+    function versionTone(version) { return String(version || "").startsWith("v0") ? "amber" : "green"; }
+    function confirmedDocs() { return docs().filter(isConfirmed); }
+    function docHistory(item) { return item.history && item.history.length ? item.history : [{ version: item.version, status: item.status, date: item.updated, owner: item.owner, note: item.source, body: item.excerpt || "", changes: [] }]; }
+    function roleProgress(items) { return items.filter(item => hasDoc(item.docId)).length; }
+    function welcomeMessage() {
+      const project = currentProject();
+      const role = currentRole();
+      const node = currentNode();
+      const related = docs().length;
+      const unread = unreadInputs().length;
+      return {
+        type: "ai",
+        text: `你好，${role.person}。当前项目是“${project.name}”。\n当前工作节点是“${nodeLabel(node)}”，已有 ${roleProgress(node.inputs)}/${node.inputs.length} 项输入、${roleProgress(node.outputs)}/${node.outputs.length} 项输出。项目内共 ${related} 份资料。${unread ? `\n有 ${unread} 项上游输入有更新，请看右侧红点；打开资料即视为已读。` : "你可以查看完整协作图、检查缺口或生成工作输出。"}`,
+        sources: `角色输入输出 Skill · ${project.name} 知识目录 · 截至 ${TODAY}`
+      };
+    }
+    function switchContext({ projectId, roleId, nodeId, announce }) {
+      if (projectId) state.projectId = projectId;
+      if (roleId) state.roleId = roleId;
+      if (nodeId) currentProject().currentNodeByRole[state.roleId] = nodeId;
+      state.generated = null;
+      if (announce !== false) state.messages = [welcomeMessage()];
+      ui.kbMessages = [];
+      ui.kbQuery = "";
+      ui.folderFilter = "";
+    }
+    function toast(message) {
+      ui.toast = message;
+      render();
+      window.setTimeout(() => {
+        if (ui.toast === message) {
+          ui.toast = "";
+          render();
+        }
+      }, 2200);
+    }
+
+    function render() {
+      persist();
+      document.getElementById("app").innerHTML = shell();
+      requestAnimationFrame(() => {
+        const messages = document.querySelector(".messages");
+        if (messages) messages.scrollTop = messages.scrollHeight;
+        const kbMessages = document.querySelector(".kb-messages");
+        if (kbMessages) kbMessages.scrollTop = kbMessages.scrollHeight;
+      });
+    }
+
+    function shell() {
+      const role = currentRole();
+      return `
+        <header class="topbar">
+          <div class="brand">研发知识库 AI 协作平台<small>项目知识库 × Skill × AI 角色工作台</small></div>
+          <span class="version">DEMO · VERSION 2</span>
+          <div class="top-spacer"></div>
+          <select class="top-select" id="projectSelect" aria-label="选择项目">
+            ${state.projects.map(item => `<option value="${item.id}" ${item.id === state.projectId ? "selected" : ""}>${esc(item.name)}</option>`).join("")}
+          </select>
+          <select class="top-select" id="roleSelect" aria-label="切换角色">
+            ${Object.entries(state.roles).map(([id, item]) => `<option value="${id}" ${id === state.roleId ? "selected" : ""}>${esc(item.name)} · ${esc(item.person)}</option>`).join("")}
+          </select>
+          <button class="top-button" data-act="reset">恢复示例数据</button>
+        </header>
+        <div class="layout">
+          <aside class="nav">
+            <div class="nav-title">MVP 核心页面</div>
+            ${navButton("workbench", "AI", "AI 角色工作台", missingCount())}
+            ${navButton("knowledge", "KB", "项目知识库", docs().length)}
+            ${navButton("skills", "SK", "Skill 规范中心", state.skills.length)}
+            <div class="role-note"><b>${esc(role.name)} · ${esc(role.person)}</b>${esc(role.desc)}</div>
+          </aside>
+          <main class="main">${mainView()}</main>
+        </div>
+        ${ui.modal ? modalHtml() : ""}
+        ${ui.toast ? `<div class="toast">${esc(ui.toast)}</div>` : ""}
+      `;
+    }
+
+    function navButton(view, icon, label, count) {
+      return `<button class="nav-button ${ui.view === view ? "on" : ""}" data-act="view" data-view="${view}">
+        <span class="nav-icon">${icon}</span><span>${label}</span><span class="nav-count">${count}</span>
+      </button>`;
+    }
+    function missingCount() {
+      const node = currentNode();
+      return node.inputs.filter(item => !hasDoc(item.docId)).length + node.outputs.filter(item => !hasDoc(item.docId)).length;
+    }
+    function mainView() {
+      if (ui.view === "knowledge") return knowledgeView();
+      if (ui.view === "skills") return skillsView();
+      return workbenchView();
+    }
+
+    function workbenchView() {
+      const project = currentProject();
+      const role = currentRole();
+      const node = currentNode();
+      const inputDone = roleProgress(node.inputs);
+      const outputDone = roleProgress(node.outputs);
+      return `
+        <div class="page-head">
+          <div><h1>${esc(role.name)} AI 工作台</h1><p>系统根据你的角色、当前工作节点和项目资料，组织上下文并辅助完成工作输出。</p></div>
+          <div class="btns"><button class="btn" data-act="upload">上传资料</button><button class="btn primary" data-act="quick" data-prompt="基于现有资料生成我的下一份工作输出">生成工作输出</button></div>
+        </div>
+        <div class="project-strip">
+          <div class="project-main"><strong>${esc(project.name)}</strong><span>${esc(project.type)} · 项目当前阶段：${esc(project.stage)} · ${project.members} 位项目成员</span></div>
+          <div class="metric"><span>当前角色</span><b>${esc(role.person)}</b><span>${esc(role.name)}</span></div>
+          <button class="metric action" data-act="open-map"><span>当前环节</span><b>${esc(nodeLabel(node))}</b><span>点击查看完整项目协作图</span><span class="metric-hint">只能切换自己的格子</span></button>
+          <div class="metric"><span>上游输入</span><b class="${inputDone === node.inputs.length ? "good" : "warn"}">${inputDone}/${node.inputs.length}</b><span>${node.inputs.length - inputDone} 项待补充</span></div>
+          <div class="metric"><span>本角色输出</span><b class="${outputDone === node.outputs.length ? "good" : "warn"}">${outputDone}/${node.outputs.length}</b><span>${node.outputs.length - outputDone} 项待完成</span></div>
+        </div>
+        <div class="workspace">
+          <section class="panel tree-panel">
+            <div class="panel-head"><h2>项目知识目录</h2><small>${docs().length} 份资料</small></div>
+            ${treeHtml()}
+          </section>
+          <section class="panel chat-panel">
+            <div class="panel-head"><div><h2>AI 协作工作区</h2><small>回答、生成和归档均基于当前项目与当前节点</small></div><span class="status blue">上下文已加载</span></div>
+            <div class="context-bar">
+              <span class="context-chip">项目：${esc(project.id.toUpperCase())}</span>
+              <span class="context-chip">角色：${esc(role.name)}</span>
+              <span class="context-chip">节点：${esc(nodeLabel(node))}</span>
+              <span class="context-chip">默认可引用 ${confirmedDocs().length} 份已确认资料</span>
+            </div>
+            <div class="quick-prompts">
+              <button class="quick" data-act="quick" data-prompt="当前还有哪些输入缺口？">当前输入缺口</button>
+              <button class="quick" data-act="quick" data-prompt="基于现有资料生成我的下一份工作输出">生成工作输出</button>
+              <button class="quick" data-act="quick" data-prompt="本周有哪些资料更新？">本周资料更新</button>
+              <button class="quick" data-act="quick" data-prompt="说明当前资料的主要风险">识别资料风险</button>
+            </div>
+            <div class="messages">
+              ${state.messages.map(item => `<div class="message ${item.type}">${item.type === "ai" ? "<strong>AI 项目助手</strong>" : ""}${esc(item.text)}${item.sources ? `<div class="sources">来源：${esc(item.sources)}</div>` : ""}</div>`).join("")}
+            </div>
+            <div class="composer">
+              <button class="btn upload" data-act="upload">上传文件</button>
+              <input id="chatInput" placeholder="询问项目资料，或让 AI 帮你生成工作输出">
+              <button class="btn primary" data-act="send">发送</button>
+            </div>
+          </section>
+          <aside class="panel context-panel">
+            <div class="panel-head"><h2>角色输入与输出</h2><span class="status ${unreadInputs().length ? "red" : (missingCount() ? "amber" : "green")}">${unreadInputs().length ? `${unreadInputs().length} 项输入有更新` : (missingCount() ? "存在缺口" : "已齐套")}</span></div>
+            <div class="context-body">
+              <div class="role-card"><b>${esc(role.name)} · ${esc(role.person)}</b>当前工作：${esc(nodeLabel(node))}<br>${esc(node.note)}<br>${esc(role.desc)}</div>
+              ${ioSection("上游输入", node.inputs, true)}
+              ${ioSection("本角色输出", node.outputs, false)}
+              ${draftHtml()}
+            </div>
+          </aside>
+        </div>
+      `;
+    }
+
+    function ioSection(title, items, trackUnread) {
+      const done = roleProgress(items);
+      const unread = trackUnread ? items.filter(item => isUnreadDoc(doc(item.docId))).length : 0;
+      return `
+        <div class="section-title"><span>${title}${unread ? ` <span class="unread-dot"></span>` : ""}</span><span class="status ${unread ? "red" : (done === items.length ? "green" : "amber")}">${unread ? `${unread} 项有更新` : `${done}/${items.length}`}</span></div>
+        <div class="check-list">
+          ${items.map(item => {
+            const itemDoc = doc(item.docId);
+            const unreadItem = trackUnread && isUnreadDoc(itemDoc);
+            const tag = !itemDoc ? ["amber", "缺失"] : unreadItem ? ["red", "有更新"] : [statusTone(itemDoc), statusLabel(itemDoc)];
+            const body = `<span class="check ${itemDoc ? "ok" : "missing"}">${itemDoc ? "✓" : "!"}</span>
+              <div><strong>${unreadItem ? `<span class="unread-dot"></span>` : ""}${esc(item.name)}</strong><small>${itemDoc ? `${esc(itemDoc.version)} · ${esc(itemDoc.owner)}${unreadItem && lastReadVersion(itemDoc.id) ? ` · 已读 ${esc(lastReadVersion(itemDoc.id))}` : ""}` : "尚未归档"}</small></div>
+              <span class="status ${tag[0]}">${tag[1]}</span>`;
+            return itemDoc
+              ? `<button class="check-item has-doc ${unreadItem ? "unread" : ""}" data-act="open-doc" data-id="${itemDoc.id}">${body}</button>`
+              : `<div class="check-item">${body}</div>`;
+          }).join("")}
+        </div>
+      `;
+    }
+
+    function draftHtml() {
+      if (!state.generated || state.generated.roleId !== state.roleId || state.generated.nodeId !== currentNode().id) return "";
+      return `
+        <div class="draft">
+          <h3>${esc(state.generated.title)}</h3>
+          <p>${esc(state.generated.summary)}</p>
+          <ul>${state.generated.sections.map(item => `<li>${esc(item)}</li>`).join("")}</ul>
+          <div class="btns">
+            <button class="btn small" data-act="preview-draft">预览全文</button>
+            <button class="btn green small" data-act="archive" ${state.generated.archived ? "disabled" : ""}>${state.generated.archived ? "已归档" : "确认并归档"}</button>
+          </div>
+        </div>
+      `;
+    }
+
+    function treeHtml() {
+      const project = currentProject();
+      return `<div class="tree"><button class="tree-project" data-act="clear-folder">${esc(project.id.toUpperCase())} 项目知识库</button>${state.folders.map(item => {
+        const folderDocs = docs().filter(docItem => docItem.folderId === item.id);
+        const open = ui.openFolders.includes(item.id);
+        return `<div class="folder">
+          <button class="folder-row ${open ? "on" : ""} ${ui.folderFilter === item.id ? "filter-on" : ""}" data-act="toggle-folder" data-id="${item.id}">
+            <span class="folder-code">${item.code}</span><span>${esc(item.name)}</span><span class="folder-count">${folderDocs.length}</span>
+          </button>
+          ${open ? `<div class="doc-list">${folderDocs.map(docItem => `<button class="doc-item" data-act="open-doc" data-id="${docItem.id}" title="${esc(docItem.name)}">${esc(docItem.name)}</button>`).join("") || `<span class="doc-item">暂无资料</span>`}</div>` : ""}
+        </div>`;
+      }).join("")}</div>`;
+    }
+
+    function filteredDocs() {
+      const query = (ui.kbQuery || "").trim().toLowerCase();
+      return docs().filter(item => {
+        if (ui.folderFilter && item.folderId !== ui.folderFilter) return false;
+        if (ui.kbFilter === "confirmed" && !isConfirmed(item)) return false;
+        if (ui.kbFilter === "draft" && isConfirmed(item)) return false;
+        if (ui.kbFilter === "changed" && !packChangeTotal(item)) return false;
+        if (!query) return true;
+        const blob = [item.name, item.type, item.owner, item.source, item.excerpt, item.loc, ...(item.fields || []).map(field => field.name + " " + (field.value || ""))].join(" ").toLowerCase();
+        return blob.includes(query);
+      });
+    }
+
+    function citeButtons(cites) {
+      if (!cites?.length) return "";
+      return `<div class="cite-list">${cites.map(item => `<button class="cite-card" data-act="open-doc" data-id="${item.id}">
+        <div class="btns" style="margin-bottom:4px"><b>${esc(item.name)}</b><span class="status ${statusTone(item)}">${statusLabel(item)}</span><span class="status ${versionTone(item.version)}">${esc(item.version)}</span></div>
+        <div class="cite-quote">「${esc(item.excerpt || "")}」<div class="doc-meta">${esc(item.loc || "原文摘录")} · 点击查看资料</div></div>
+      </button>`).join("")}</div>`;
+    }
+
+    function knowledgeView() {
+      const projectDocs = docs();
+      const confirmed = confirmedDocs().length;
+      const drafts = projectDocs.length - confirmed;
+      const recent = projectDocs.filter(item => item.updated >= "2026-08-14").length;
+      const list = filteredDocs();
+      const folderName = ui.folderFilter ? folder(ui.folderFilter)?.name : "全部目录";
+      return `
+        <div class="page-head">
+          <div><h1>项目知识库</h1><p>一行一份资料包。名称下列出相对上一包的切片变化；点开看字段树。问资料仍引用整份已确认稿，工作稿可检索、默认不引用。</p></div>
+          <div class="btns"><button class="btn primary" data-act="upload">上传并智能归档</button></div>
+        </div>
+        <div class="stats">
+          <div class="card stat"><span>项目资料</span><b>${projectDocs.length}</b><span>${esc(currentProject().name)}</span></div>
+          <div class="card stat"><span>已确认</span><b>${confirmed}</b><span>问资料默认可引用整份</span></div>
+          <div class="card stat"><span>工作稿</span><b>${drafts}</b><span>可检索，默认不引用</span></div>
+          <div class="card stat"><span>本周更新</span><b>${recent}</b><span>本周换过的资料包</span></div>
+        </div>
+        <div class="kb-grid">
+          <section class="card"><div class="card-pad"><div class="card-title"><h3>标准知识目录</h3><span class="status purple">点击目录筛选</span></div></div>${treeHtml()}</section>
+          <section class="card">
+            <div class="card-pad">
+              <div class="card-title"><div><h2>资料检索</h2><span class="doc-meta">当前范围：${esc(folderName)} · ${list.length} 份</span></div></div>
+              <div class="kb-search">
+                <input id="kbSearch" value="${esc(ui.kbQuery)}" placeholder="搜索标题或切片要点">
+                <button class="btn" data-act="kb-search">检索</button>
+              </div>
+              <div class="kb-filters">
+                <button class="chip ${ui.kbFilter === "all" ? "on" : ""}" data-act="kb-filter" data-filter="all">全部</button>
+                <button class="chip ${ui.kbFilter === "confirmed" ? "on" : ""}" data-act="kb-filter" data-filter="confirmed">只看已确认</button>
+                <button class="chip ${ui.kbFilter === "draft" ? "on" : ""}" data-act="kb-filter" data-filter="draft">只看工作稿</button>
+                <button class="chip ${ui.kbFilter === "changed" ? "on" : ""}" data-act="kb-filter" data-filter="changed">有变化</button>
+              </div>
+            </div>
+            <table class="doc-table">
+              <thead><tr><th>资料名称</th><th>类型 / 目录</th><th>状态</th><th>版本</th><th>责任人</th><th>更新</th><th></th></tr></thead>
+              <tbody>${list.map(item => {
+                const change = packChangeLine(item);
+                return `<tr data-act="open-doc" data-id="${item.id}">
+                <td><div class="doc-name">${esc(item.name)}</div><div class="change-sum ${change.hot ? "hot" : ""}">${esc(change.text)}</div><div class="doc-meta">${esc(item.source)}</div></td>
+                <td><div>${esc(item.type)}</div><div class="doc-meta">${folder(item.folderId)?.code || ""} ${esc(folder(item.folderId)?.name || "")}</div></td>
+                <td><span class="status ${statusTone(item)}">${statusLabel(item)}</span></td>
+                <td><span class="status ${versionTone(item.version)}">${esc(item.version)}</span></td>
+                <td>${esc(item.owner)}</td>
+                <td class="doc-meta">${esc(item.updated)}</td>
+                <td>${docHistory(item).length > 1 ? `<button class="btn small" data-act="open-history" data-id="${item.id}">历史</button>` : ""}</td>
+              </tr>`;
+              }).join("") || `<tr><td colspan="7" class="empty">${ui.kbFilter === "changed" ? "当前没有对照变化的资料包" : "没有符合条件的资料"}</td></tr>`}</tbody>
+            </table>
+          </section>
+          <section class="card kb-ask-panel">
+            <div class="panel-head"><div><h2>问资料</h2><small>独立于工作台 · 只引已确认原文</small></div><span class="status green">${confirmed} 份可引用</span></div>
+            <div class="quick-prompts">
+              <button class="quick" data-act="kb-quick" data-prompt="38℃ 日产冰量目标是多少？">产冰量目标</button>
+              <button class="quick" data-act="kb-quick" data-prompt="制冷系统方案怎么写的？">制冷方案</button>
+              <button class="quick" data-act="kb-quick" data-prompt="压缩机安装空间是多少？">安装包络</button>
+            </div>
+            <div class="kb-messages">
+              ${(ui.kbMessages.length ? ui.kbMessages : [{ type: "ai", text: `当前项目「${currentProject().name}」共 ${projectDocs.length} 份资料，其中 ${confirmed} 份已确认。\n问资料只会引用已确认稿，并给出原文摘录。工作稿能在左侧检索到，但不会进入答案。` }]).map(item => `<div class="message ${item.type}">${item.type === "ai" ? "<strong>知识库检索</strong>" : ""}${esc(item.text)}${citeButtons(item.cites || [])}${item.blocked ? `<div class="sources">未引用工作稿：${esc(item.blocked)}</div>` : ""}</div>`).join("")}
+            </div>
+            <div class="composer kb-ask">
+              <input id="kbAsk" value="${esc(ui.kbAsk)}" placeholder="用问题检索已确认资料，例如：38℃ 产冰量是多少？">
+              <button class="btn primary" data-act="kb-ask">提问</button>
+            </div>
+          </section>
+        </div>
+      `;
+    }
+
+    function skillsView() {
+      return `
+        <div class="page-head">
+          <div><h1>Skill 规范中心</h1><p>把项目目录、角色输入输出和文档规范固化为可被 AI 调用的业务规则。</p></div>
+          <span class="status purple">6 个 MVP 通配 Skill</span>
+        </div>
+        <div class="skills">
+          ${state.skills.map(item => `<article class="skill-card">
+            <div class="skill-head"><div><span class="skill-code">${esc(item.code)}</span><h3>${esc(item.name)}</h3></div><span class="status green">已启用</span></div>
+            <p>${esc(item.desc)}</p>
+            <ul class="rule-list">${item.rules.map(rule => `<li>${esc(rule)}</li>`).join("")}</ul>
+          </article>`).join("")}
+        </div>
+      `;
+    }
+
+    function modalHtml() {
+      if (ui.modal.type === "map") return mapModal();
+      if (ui.modal.type === "upload") return uploadModal();
+      if (ui.modal.type === "doc") return docModal(ui.modal.id);
+      if (ui.modal.type === "reupload") return reuploadModal();
+      if (ui.modal.type === "history") return historyModal(ui.modal.id);
+      if (ui.modal.type === "diff") return diffModal(ui.modal.id);
+      if (ui.modal.type === "draft") return draftModal();
+      return "";
+    }
+
+    function uploadPreset() {
+      if (state.projectId === "h8130") {
+        return {
+          id: "h8130-test-scope",
+          fileName: "H8130-测试范围裁剪说明-v0.5.pdf",
+          title: "H8130 测试范围说明",
+          type: "测试范围",
+          folderId: "quality",
+          owner: "孙工",
+          hint: "识别到：沿用 H8120 高温性能报告，本机仅补做外观与电控差异项。可补齐测试工程师 KO 节点输出。",
+          related: "测试工程师、产品经理"
+        };
+      }
+      return {
+        id: "test-report",
+        fileName: "H8120-38℃高温性能测试报告-v1.0.pdf",
+        title: "H8120 38℃高温性能测试报告",
+        type: "性能测试结果",
+        folderId: "quality",
+        owner: "孙工",
+        hint: "识别到：环境温度 38℃、24 小时有效产冰量 12.4kg、额定目标 12kg。可补齐制冷工程师 ES 节点输入“38℃高温性能测试结果”。",
+        related: "测试工程师、制冷工程师"
+      };
+    }
+
+    function mapModal() {
+      const project = currentProject();
+      const mineId = currentNode().id;
+      return `
+        <div class="map-mask">
+          <div class="map-top">
+            <h2>${esc(project.name)} · 项目协作图</h2>
+            <p>这是当前工作节点的上下文图，不是开工阻断引擎。你可以看全图，但只能切换自己角色下的格子。</p>
+          </div>
+          <div class="map-toolbar">
+            <div class="map-legend">
+              <span><span class="swatch" style="border-color:#2367d1;box-shadow:0 0 0 2px rgba(35,103,209,.22)">我</span> 当前节点</span>
+              <span><span class="swatch" style="background:#eff6ff;border-color:#93c5fd">可</span> 自己的其他节点，可点击切换</span>
+              <span><span class="swatch" style="opacity:.45">他</span> 其他角色只读</span>
+            </div>
+            <div class="top-spacer"></div>
+            <button class="btn" data-act="close-modal">关闭协作图</button>
+          </div>
+          <div class="map-canvas">
+            <table class="map-table">
+              <thead>
+                <tr>
+                  <th class="map-corner">角色 \\ 阶段</th>
+                  ${STAGES.map(stage => `<th class="map-stage s-${stage.id}">${stage.id}<small>${esc(stage.name)}</small></th>`).join("")}
+                </tr>
+              </thead>
+              <tbody>
+                ${ROLE_ORDER.map(roleId => {
+                  const role = state.roles[roleId];
+                  return `<tr>
+                    <th class="map-role">${esc(role.name)}<small style="display:block;color:var(--muted);font-weight:500">${esc(role.person)}</small></th>
+                    ${STAGES.map(stage => {
+                      const cells = project.nodes.filter(item => item.roleId === roleId && item.stage === stage.id);
+                      if (!cells.length) return `<td class="map-cell empty"></td>`;
+                      return `<td class="map-cell">${cells.map(item => {
+                        const mine = item.roleId === state.roleId;
+                        const current = item.id === mineId;
+                        const cls = current ? "current mine" : (mine ? "mine" : "other");
+                        const act = mine ? `data-act="select-node" data-id="${item.id}"` : `data-act="locked-node"`;
+                        return `<button class="map-card ${cls}" ${act}>
+                          <b>${esc(item.title)}</b>
+                          <div class="map-io"><span class="map-tag in">入 ${item.inputs.length}</span><span class="map-tag out">出 ${item.outputs.length}</span></div>
+                          <div class="map-note">${esc(item.note)}</div>
+                        </button>`;
+                      }).join("")}</td>`;
+                    }).join("")}
+                  </tr>`;
+                }).join("")}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      `;
+    }
+
+    function uploadModal() {
+      const preset = uploadPreset();
+      const already = hasDoc(preset.id);
+      return `
+        <div class="modal-mask">
+          <section class="modal">
+            <div class="modal-head"><div><h2>上传资料并智能归档</h2><span class="doc-meta">演示文件已预置，归档到当前项目</span></div><button class="close" data-act="close-modal">×</button></div>
+            <div class="modal-body">
+              <div class="card card-pad">
+                <div class="card-title"><div><h3>${esc(preset.fileName)}</h3><span class="doc-meta">PDF · 上传人：${esc(preset.owner)}</span></div><span class="status blue">解析完成</span></div>
+              </div>
+              <div class="analysis-box">
+                <div class="card-title"><div><h3>AI 分类与归档建议</h3><span class="doc-meta">依据“文件识别分类 Skill”分析</span></div><span class="status green">置信度 96%</span></div>
+                <div class="analysis-grid">
+                  <div class="analysis-item"><small>识别类型</small><b>${esc(preset.type)}</b></div>
+                  <div class="analysis-item"><small>建议目录</small><b>${esc(folder(preset.folderId)?.code)} ${esc(folder(preset.folderId)?.name)}</b></div>
+                  <div class="analysis-item"><small>关联角色</small><b>${esc(preset.related)}</b></div>
+                  <div class="analysis-item"><small>当前项目</small><b>${esc(currentProject().id.toUpperCase())}</b></div>
+                </div>
+                <p class="doc-meta" style="margin:10px 0 0">${esc(preset.hint)}</p>
+              </div>
+            </div>
+            <div class="modal-foot"><button class="btn" data-act="close-modal">取消</button><button class="btn primary" data-act="confirm-upload" ${already ? "disabled" : ""}>${already ? "已归档" : "确认归档并通知角色"}</button></div>
+          </section>
+        </div>
+      `;
+    }
+
+    function docModal(id) {
+      const item = doc(id);
+      if (!item) return "";
+      return item.fields && item.fields.length ? richDocModal(item) : simpleDocModal(item);
+    }
+
+    function simpleDocModal(item) {
+      const history = docHistory(item);
+      const canCite = isConfirmed(item);
+      const fromVersion = ui.modal.fromVersion;
+      const updated = fromVersion && fromVersion !== item.version;
+      const isInput = currentNode().inputs.some(entry => entry.docId === item.id);
+      return `
+        <div class="modal-mask">
+          <section class="modal">
+            <div class="modal-head"><div><h2>${esc(item.name)}</h2><span class="doc-meta">${esc(item.type)} · <span class="status ${statusTone(item)}">${statusLabel(item)}</span> · <span class="status ${versionTone(item.version)}">${esc(item.version)}</span></span></div><button class="close" data-act="close-modal">×</button></div>
+            <div class="modal-body">
+              ${updated ? `<div class="analysis-box" style="border-color:#f3c4c8;background:#fff8f8"><b>输入有更新</b><p class="doc-meta" style="margin:6px 0 0">你上次已读 ${esc(fromVersion)}，当前为 ${esc(item.version)}。打开本页即视为已读，红点将消失。${canCite ? "生成将使用最新已确认稿。" : "该资料为工作稿，仅提醒你查看，AI 仍不引用。"}</p></div>` : ""}
+              <div class="analysis-grid">
+                <div class="analysis-item"><small>归档目录</small><b>${esc(folder(item.folderId)?.code)} ${esc(folder(item.folderId)?.name)}</b></div>
+                <div class="analysis-item"><small>资料责任人</small><b>${esc(item.owner)}</b></div>
+                <div class="analysis-item"><small>当前节点关系</small><b>${isInput ? "上游输入" : "项目资料"}</b></div>
+                <div class="analysis-item"><small>AI 默认可引用</small><b>${canCite ? "是" : "否，工作稿"}</b></div>
+              </div>
+              <div class="cite-quote">「${esc(item.excerpt || "暂无正文摘录")}」<div class="doc-meta">${esc(item.loc || "原文摘录")}</div></div>
+              <div class="analysis-box"><b>AI 可用说明</b><p class="doc-meta" style="margin:6px 0 0">${canCite ? "该资料为已确认稿，问资料和工作台生成时可作为来源，并应回链到本摘录。" : "该资料为工作稿，知识库可检索，但问资料默认不会引用。责任人确认后才会进入 AI 上下文。"}</p></div>
+            </div>
+            <div class="modal-foot">
+              ${history.length > 1 ? `<button class="btn" data-act="open-history" data-id="${item.id}">查看历史版本</button>` : ""}
+              ${history.length > 1 ? `<button class="btn" data-act="open-diff" data-id="${item.id}">与上一版对比</button>` : ""}
+              <button class="btn primary" data-act="close-modal">关闭</button>
+            </div>
+          </section>
+        </div>
+      `;
+    }
+
+    function richDocModal(item) {
+      const history = docHistory(item);
+      const fromVersion = ui.modal.fromVersion;
+      const updated = fromVersion && fromVersion !== item.version;
+      const tab = ui.modal.tab || "fields";
+      const filter = ui.modal.fieldFilter || "all";
+      const file = item.file || {};
+      const counts = fieldCounts(item);
+      return `
+        <div class="modal-mask">
+          <section class="modal wide">
+            <div class="modal-head"><div><h2>${esc(item.name)}</h2><span class="doc-meta">${esc(item.type)} · <span class="status ${statusTone(item)}">${statusLabel(item)}</span> · 文件 ${esc(item.version)}</span></div><button class="close" data-act="close-modal">×</button></div>
+            <div class="modal-body">
+              ${updated ? `<div class="analysis-box" style="border-color:#f3c4c8;background:#fff8f8"><b>资料包有更新</b><p class="doc-meta" style="margin:6px 0 0">你上次看过文件 ${esc(fromVersion)}，当前是 ${esc(item.version)}。下面只标相对上一包的变化，未改的可以不看。</p></div>` : ""}
+              <p class="doc-meta" style="margin:0 0 10px">${esc(file.uploadedBy || item.owner)} 于 ${esc(file.uploadedAt || item.updated)} 上传 · ${esc(file.name || item.name)} · ${esc(folder(item.folderId)?.code)} ${esc(folder(item.folderId)?.name)}</p>
+              <div class="field-summary">${isFirstPack(item)
+                ? `本包为首版，共 ${(item.fields || []).length} 个切片。再次上传后才会对照打未改 / 修改 / 新增 / 删除。内容只能重新上传修改。`
+                : `对照上一包：<b>修改 ${counts.changed}</b> · 新增 ${counts.added} · 删除 ${counts.removed} · 未改 ${counts.unchanged}。内容只能重新上传修改，不能在切片上直接改。`}</div>
+              <div class="doc-tabs">
+                <button class="doc-tab ${tab === "fields" ? "on" : ""}" data-act="doc-tab" data-tab="fields">字段视图</button>
+                <button class="doc-tab ${tab === "file" ? "on" : ""}" data-act="doc-tab" data-tab="file">原文件</button>
+              </div>
+              ${tab === "file" ? originalFileView(item) : fieldView(item, filter)}
+            </div>
+            <div class="modal-foot">
+              <button class="btn" data-act="open-reupload" data-id="${item.id}">重新上传</button>
+              ${history.length > 1 ? `<button class="btn" data-act="open-history" data-id="${item.id}">文件版本历史</button>` : ""}
+              <button class="btn primary" data-act="close-modal">关闭</button>
+            </div>
+          </section>
+        </div>
+      `;
+    }
+
+    function fieldView(item, filter) {
+      const list = visibleFields(item);
+      const chips = isFirstPack(item)
+        ? [["all", "全部"], ["mine", "与我相关"]]
+        : [["all", "全部"], ["mine", "与我相关"], ["changed", "有变化"]];
+      const empty = isFirstPack(item) && filter === "changed"
+        ? "本包为首版，还没有对照变化"
+        : "当前筛选下没有切片";
+      return `
+        <div class="field-filters">${chips.map(([id, label]) => `<button class="chip ${filter === id ? "on" : ""}" data-act="field-filter" data-filter="${id}">${label}</button>`).join("")}</div>
+        <div class="field-list">${list.map(field => fieldRowHtml(item, field)).join("") || `<div class="empty">${empty}</div>`}</div>
+      `;
+    }
+
+    function fieldRowHtml(item, field) {
+      const open = ui.modal.fieldId === field.id;
+      const removed = field.change === "removed";
+      return `
+        <div class="field-row ${open ? "on" : ""} ${removed ? "removed" : ""} ${field.level > 1 ? "lv2" : ""}" role="button" tabindex="0" data-act="toggle-field" data-field="${field.id}">
+          <div class="field-top">
+            <div>
+              <span class="field-path">${esc(field.path)}</span>
+              <strong>${esc(field.name)}</strong>
+            </div>
+            ${isFirstPack(item) ? "" : `<span class="status ${fieldChangeTone(field.change)}">${esc(fieldChangeLabel(field.change))}</span>`}
+          </div>
+          <div class="field-value ${removed ? "removed" : ""}">${esc(field.value || "")}</div>
+          ${open ? fieldPanelHtml(item, field) : ""}
+        </div>
+      `;
+    }
+
+    function fieldPanelHtml(item, field) {
+      const removed = field.change === "removed";
+      return `
+        <div class="field-panel" data-act="noop">
+          ${field.prev && field.change === "changed" ? `<div class="doc-meta" style="margin-bottom:6px">上一包：${esc(field.prev)}</div>` : ""}
+          <div class="slice-paper">${esc(field.slice || field.value || "")}</div>
+          <div class="doc-meta" style="margin-top:6px">${removed ? "本包原文件中已无此节" : `原文件位置：${esc(field.loc || "原文件")}`}</div>
+          ${!removed && field.attachments && field.attachments.length ? `<div class="attach-list">${field.attachments.map(file => `<button class="attach" data-act="open-attach" data-name="${esc(file.name)}">${esc(file.name)}</button>`).join("")}</div>` : ""}
+          <div class="btns" style="margin-top:10px">
+            ${removed ? `<span class="doc-meta">删除的切片不能定位到本包原文件</span>` : `<button class="btn small" data-act="locate-file" data-field="${field.id}">定位到原文件</button>`}
+          </div>
+        </div>
+      `;
+    }
+
+    function originalFileView(item) {
+      const file = item.file || {};
+      const highlight = ui.modal.highlightField;
+      const sections = (item.fields || []).filter(field => field.change !== "removed");
+      return `
+        <div class="file-toolbar">
+          <span class="doc-meta">${esc(file.format || "PDF")} · ${esc(String(file.pages || "-"))} 页 · ${esc(file.size || "")} · ${esc(file.uploadedBy || item.owner)} 于 ${esc(file.uploadedAt || item.updated)} 上传</span>
+          <button class="btn small" data-act="open-attach" data-name="${esc(file.name || item.name)}">打开原文件</button>
+        </div>
+        <div class="file-paper">
+          <div class="file-paper-head"><b>${esc(file.name || item.name)}</b><span class="doc-meta">原文件预览 · 与字段视图按标题对应</span></div>
+          ${sections.map(field => `
+            <div class="file-sec ${highlight === field.id ? "on" : ""}">
+              <small>${esc(field.path)} · ${esc(field.loc || "")}</small>
+              <b>${esc(field.name)}</b>
+              <p>${esc(field.slice || field.value || "")}</p>
+            </div>
+          `).join("")}
+        </div>
+      `;
+    }
+
+    function reuploadModal() {
+      const item = doc(ui.modal.id);
+      if (!item) return "";
+      const file = item.file || {};
+      const counts = fieldCounts(item);
+      return `
+        <div class="modal-mask">
+          <section class="modal">
+            <div class="modal-head"><div><h2>重新上传 · ${esc(item.name)}</h2><span class="doc-meta">只能上传新文件修改，不能在切片上直接改</span></div><button class="close" data-act="close-modal">×</button></div>
+            <div class="modal-body">
+              <p>上传后系统按标题对照上一包，给每条打 <b>未改 / 修改 / 新增 / 删除</b>。未改的切片保持原样，不会让下游误以为整包都变了。</p>
+              <div class="analysis-box"><b>本次文件</b><p class="doc-meta" style="margin:6px 0 0">${esc(file.name || item.name)} · 将追加为新的文件 ${esc(item.version)}，不覆盖旧包。</p></div>
+              <div class="field-summary" style="margin-top:10px">${isFirstPack(item)
+                ? `本包为首版，共 ${(item.fields || []).length} 个切片。上传新文件后才会对照打标签。`
+                : `对照结果：修改 ${counts.changed} · 新增 ${counts.added} · 删除 ${counts.removed} · 未改 ${counts.unchanged}`}</div>
+            </div>
+            <div class="modal-foot">
+              <button class="btn" data-act="open-doc" data-id="${item.id}">返回</button>
+              <button class="btn primary" data-act="confirm-reupload" data-id="${item.id}">确认上传并对照</button>
+            </div>
+          </section>
+        </div>
+      `;
+    }
+
+    function historyModal(id) {
+      const item = doc(id);
+      if (!item) return "";
+      const history = docHistory(item);
+      return `
+        <div class="modal-mask">
+          <section class="modal">
+            <div class="modal-head"><div><h2>版本历史 · ${esc(item.name)}</h2><span class="doc-meta">示意能力：不覆盖旧版，只追加</span></div><button class="close" data-act="close-modal">×</button></div>
+            <div class="modal-body">
+              <div class="history-list">${history.map((ver, index) => `<div class="history-item">
+                <b><span class="status ${versionTone(ver.version)}">${esc(ver.version)}</span> <span class="status ${ver.status === "confirmed" ? "green" : "amber"}">${ver.status === "confirmed" ? "已确认" : "工作稿"}</span> ${index === history.length - 1 ? "<span class='status blue'>当前</span>" : ""}</b>
+                <div class="doc-meta">${esc(ver.date)} · ${esc(ver.owner)} · ${esc(ver.note)}</div>
+                <p style="margin:6px 0 0">${esc(ver.body || "")}</p>
+              </div>`).join("")}</div>
+            </div>
+            <div class="modal-foot">
+              ${history.length > 1 ? `<button class="btn" data-act="open-diff" data-id="${item.id}">查看版本差异</button>` : ""}
+              <button class="btn" data-act="open-doc" data-id="${item.id}">返回资料</button>
+            </div>
+          </section>
+        </div>
+      `;
+    }
+
+    function diffModal(id) {
+      const item = doc(id);
+      if (!item) return "";
+      const history = docHistory(item);
+      const current = history[history.length - 1];
+      const prev = history[history.length - 2];
+      const changes = current?.changes?.length ? current.changes : [
+        { type: "del", text: prev?.body || "上一版正文" },
+        { type: "add", text: current?.body || item.excerpt || "当前版正文" }
+      ];
+      return `
+        <div class="modal-mask">
+          <section class="modal">
+            <div class="modal-head"><div><h2>版本差异 · ${esc(item.name)}</h2><span class="doc-meta">${esc(prev?.version || "上一版")} → ${esc(current?.version || item.version)} · 文本类示意</span></div><button class="close" data-act="close-modal">×</button></div>
+            <div class="modal-body">
+              <p class="legend-note">Demo 仅对方案/定义类文本做段落对比。图纸和 PDF 后续只提供换版说明，不做像素 diff。</p>
+              <div class="diff-row">${changes.map(line => `<div class="diff-line ${line.type}">${line.type === "add" ? "新增：" : "删除："}${esc(line.text)}</div>`).join("")}</div>
+            </div>
+            <div class="modal-foot"><button class="btn" data-act="open-history" data-id="${item.id}">返回历史</button><button class="btn primary" data-act="close-modal">关闭</button></div>
+          </section>
+        </div>
+      `;
+    }
+
+    function draftModal() {
+      const draft = state.generated;
+      const node = currentNode();
+      const missing = node.inputs.filter(item => !hasDoc(item.docId)).map(item => item.name);
+      return `
+        <div class="modal-mask">
+          <section class="modal">
+            <div class="modal-head"><div><h2>${esc(draft.title)}</h2><span class="doc-meta">AI 生成初稿 · 等待责任人确认</span></div><button class="close" data-act="close-modal">×</button></div>
+            <div class="modal-body">
+              <p><b>1. 工作目标</b></p><p>${esc(node.note)}。输出面向当前节点“${esc(nodeLabel(node))}”，不自动判定下游开工。</p>
+              <p><b>2. 输入依据</b></p><p>${node.inputs.map(item => {
+                const itemDoc = doc(item.docId);
+                return itemDoc ? `${itemDoc.name} ${itemDoc.version}` : `${item.name}（尚未归档）`;
+              }).join("、")}。</p>
+              <p><b>3. 当前判断</b></p><p>${missing.length ? `初稿可先形成，但正式结论仍缺：${missing.join("、")}。` : "当前节点输入已齐套，可形成责任人确认稿。"}</p>
+              <p><b>4. 待跟踪事项</b></p><p>${node.outputs.filter(item => !hasDoc(item.docId)).map(item => item.name).join("、") || "本节点输出均已有对应资料。"}</p>
+              <div class="analysis-box"><b>来源清单</b><p class="doc-meta" style="margin:6px 0 0">${esc(draft.sources)}</p></div>
+            </div>
+            <div class="modal-foot"><button class="btn" data-act="close-modal">返回修改</button><button class="btn green" data-act="archive" ${draft.archived ? "disabled" : ""}>${draft.archived ? "已归档" : "确认并归档"}</button></div>
+          </section>
+        </div>
+      `;
+    }
+
+    function addMessage(type, text, sources = "") { state.messages.push({ type, text, sources }); }
+
+    function answerPrompt(prompt) {
+      const role = currentRole();
+      const node = currentNode();
+      const project = currentProject();
+      addMessage("user", prompt);
+      if (prompt.includes("缺口")) {
+        const inputMissing = node.inputs.filter(item => !hasDoc(item.docId)).map(item => item.name);
+        const outputMissing = node.outputs.filter(item => !hasDoc(item.docId)).map(item => item.name);
+        addMessage("ai", `当前节点“${nodeLabel(node)}”还有以下缺口：\n输入缺口：${inputMissing.length ? inputMissing.join("、") : "无"}。\n输出缺口：${outputMissing.length ? outputMissing.join("、") : "无"}。\n缺项不会强制阻断你继续工作，但正式归档前应由责任人确认影响。`, "角色输入输出 Skill · 当前项目资料清单");
+      } else if (prompt.includes("更新")) {
+        const recent = docs().filter(item => item.updated >= "2026-08-14").slice(0, 4);
+        addMessage("ai", recent.length
+          ? `本项目近期资料更新：\n${recent.map((item, index) => `${index + 1}. ${item.name} ${item.version}（${item.updated}）`).join("\n")}\n是否影响当前节点，由你对照右侧输入清单判断。`
+          : "当前项目暂无 8 月 14 日之后的资料更新。", `项目资料更新时间 · ${project.name}`);
+      } else if (prompt.includes("风险")) {
+        const missing = [...node.inputs, ...node.outputs].filter(item => !hasDoc(item.docId)).map(item => item.name);
+        addMessage("ai", missing.length
+          ? `识别到当前节点资料风险：${missing.join("、")} 尚未归档。\n系统只提醒缺口，不自动判定下游是否可开工。`
+          : "当前节点输入输出均已有对应资料，主要风险转为版本是否需升版。", "资料完整性检查 Skill");
+      } else if (prompt.includes("生成") || prompt.includes("输出") || prompt.includes("验证结论")) {
+        generateDraft();
+        addMessage("ai", `${state.generated.title} 初稿已生成，并显示在右侧“角色输入与输出”区域。\n${state.generated.summary}\n你可以预览全文，确认后归档为当前项目新版本。`, state.generated.sources);
+      } else {
+        addMessage("ai", `已基于“${role.name} / ${nodeLabel(node)}”处理你的问题。当前默认可引用 ${confirmedDocs().length} 份已确认资料；工作稿不会进入生成上下文。如需形成正式输出，请使用“生成工作输出”，并在归档前人工确认。`, `${project.name} · 当前节点上下文`);
+      }
+      render();
+    }
+
+    function generateDraft() {
+      const node = currentNode();
+      const project = currentProject();
+      const ready = node.inputs.filter(item => isConfirmed(doc(item.docId)));
+      const missing = node.inputs.filter(item => !hasDoc(item.docId));
+      const unconfirmed = node.inputs.filter(item => hasDoc(item.docId) && !isConfirmed(doc(item.docId)));
+      const pendingOut = node.outputs.find(item => !hasDoc(item.docId)) || node.outputs[0];
+      state.generated = {
+        roleId: state.roleId,
+        nodeId: node.id,
+        title: `${project.id.toUpperCase()} ${pendingOut.name}`,
+        summary: missing.length || unconfirmed.length
+          ? `已确认输入 ${ready.length} 项。缺档 ${missing.map(item => item.name).join("、") || "无"}；工作稿未引用 ${unconfirmed.map(item => item.name).join("、") || "无"}。`
+          : "当前节点已确认输入已齐套，初稿可提交责任人确认。",
+        sections: ["目标与适用范围", "输入资料与版本", "关键数据与判断", "风险及待跟踪事项", "来源与版本记录"],
+        sources: ready.length ? ready.map(item => `${doc(item.docId).name} ${doc(item.docId).version}（已确认）`).join(" · ") : "当前节点尚无已确认输入",
+        archived: false
+      };
+    }
+
+    function askKnowledge(prompt) {
+      const text = prompt.toLowerCase();
+      const tokens = prompt.split(/[\s，。？?、]/).filter(item => item.length >= 2);
+      const hit = item => tokens.some(token => `${item.name} ${item.excerpt || ""} ${item.type}`.toLowerCase().includes(token.toLowerCase()));
+      const pick = ids => ids.map(id => doc(id)).filter(isConfirmed);
+      let cites = [];
+      let answer = "";
+      let blocked = docs().filter(item => !isConfirmed(item) && hit(item)).map(item => `${item.name} ${item.version}`).join("、");
+      if (state.projectId === "h8120" && /产冰|12kg|性能目标/.test(text)) {
+        cites = pick(["prd", "perf", "test-method"]);
+        answer = "按已确认资料：38℃ 环境下日产冰量目标为 12kg，允许偏差 ±5%；测试需在 38℃ 稳定后连续称重 24 小时有效产冰量。";
+      } else if (/制冷方案|制冷系统方案/.test(text)) {
+        cites = pick(["prd", "curve", "envelope"]);
+        answer = "「制冷系统方案」当前是工作稿，问资料默认不引用。下面只给出已确认资料里与制冷相关的原文。";
+        blocked = blocked || "H8120 制冷系统方案 v0.8";
+      } else if (/包络|安装空间|压缩机仓/.test(text)) {
+        cites = pick(["envelope"]);
+        answer = "按已确认的结构包络：压缩机仓有效安装空间 186×142×128mm，冷凝器厚度不得超过 22mm。";
+      } else if (state.projectId === "h8130") {
+        cites = pick(["h8130-base"]);
+        answer = cites.length
+          ? "衍生项目目前只有基线包为已确认稿。产品定义、差异清单仍是工作稿，未纳入引用。"
+          : "当前没有可引用的已确认资料。";
+      } else {
+        cites = confirmedDocs().filter(hit).slice(0, 3);
+        answer = cites.length
+          ? "根据已确认资料，相关原文如下。答案只绑定这些摘录，工作稿未纳入引用。"
+          : "在已确认资料中没有找到可引用原文。可用上方检索查看工作稿，但不能把工作稿当作答案依据。";
+      }
+      ui.kbMessages.push({ type: "user", text: prompt });
+      ui.kbMessages.push({ type: "ai", text: answer, cites, blocked });
+      ui.kbAsk = "";
+      render();
+    }
+
+    function confirmReupload(id) {
+      const item = doc(id);
+      if (!item) return;
+      ui.modal = {
+        type: "doc",
+        id,
+        fromVersion: item.version,
+        tab: "fields",
+        fieldId: "",
+        highlightField: "",
+        fieldFilter: "all"
+      };
+      toast("已按标题对照上一包归档。之后改内容请再上传新文件，不能在切片上直接改。");
+    }
+
+    function confirmUpload() {
+      const preset = uploadPreset();
+      if (!hasDoc(preset.id)) {
+        docs().push({
+          id: preset.id, folderId: preset.folderId, name: preset.title, type: preset.type,
+          version: "v1.0", status: "confirmed", owner: preset.owner, updated: TODAY,
+          source: `AI 分类后由${preset.owner}确认归档`, loc: "智能归档摘录", excerpt: preset.hint
+        });
+        currentProject().nodes.forEach(node => {
+          node.inputs.concat(node.outputs).forEach(item => {
+            if (!item.docId && (item.name === preset.title || item.name.includes(preset.type) || preset.title.includes(item.name))) item.docId = preset.id;
+          });
+        });
+      }
+      ui.modal = null;
+      addMessage("ai", `新资料“${preset.title}”已归档至“${folder(preset.folderId).code} ${folder(preset.folderId).name}”。\n已按文件名和类型尝试回写当前项目节点的输入/输出项。`, "文件识别分类 Skill · 角色输入输出 Skill");
+      toast("资料已归档到当前项目，并尝试回写节点齐套状态");
+    }
+
+    function archiveDraft() {
+      if (!state.generated) return;
+      state.generated.archived = true;
+      const node = currentNode();
+      const outputId = `${node.id}-out`;
+      if (!hasDoc(outputId)) {
+        docs().push({
+          id: outputId, folderId: "output", name: state.generated.title, type: "角色工作输出",
+          version: "v0.9", status: "confirmed", owner: currentRole().person, updated: TODAY,
+          source: "AI 初稿经责任人确认", loc: "确认归档摘要", excerpt: state.generated.summary
+        });
+      }
+      const target = node.outputs.find(item => !hasDoc(item.docId)) || node.outputs.find(item => !item.docId);
+      if (target) target.docId = outputId;
+      markDocRead(outputId);
+      ui.modal = null;
+      addMessage("ai", `“${state.generated.title}”已归档至“99 项目正式输出”。\n状态为已确认，版本为 v0.9（版本号仍为 v0.x 黄色，但状态为绿色已确认，问资料可以引用）。`, "文档格式 Skill · 项目知识目录 Skill");
+      toast("已确认归档：状态=已确认，版本=v0.9");
+    }
+
+    document.addEventListener("click", event => {
+      if (event.target.classList.contains("modal-mask")) {
+        ui.modal = null;
+        render();
+        return;
+      }
+      const target = event.target.closest("[data-act]");
+      if (!target) return;
+      const act = target.dataset.act;
+      if (act === "view") { ui.view = target.dataset.view; render(); return; }
+      if (act === "toggle-folder") {
+        const id = target.dataset.id;
+        ui.openFolders = ui.openFolders.includes(id) ? ui.openFolders.filter(item => item !== id) : [...ui.openFolders, id];
+        ui.folderFilter = ui.folderFilter === id ? "" : id;
+        render();
+        return;
+      }
+      if (act === "clear-folder") { ui.folderFilter = ""; render(); return; }
+      if (act === "kb-filter") { ui.kbFilter = target.dataset.filter; render(); return; }
+      if (act === "kb-search") {
+        ui.kbQuery = document.getElementById("kbSearch")?.value || "";
+        render();
+        return;
+      }
+      if (act === "kb-ask" || act === "kb-quick") {
+        const prompt = act === "kb-quick" ? (target.dataset.prompt || "") : (document.getElementById("kbAsk")?.value.trim() || "");
+        if (prompt) askKnowledge(prompt);
+        return;
+      }
+      if (act === "noop") return;
+      if (act === "doc-tab") {
+        ui.modal.tab = target.dataset.tab;
+        render();
+        return;
+      }
+      if (act === "field-filter") {
+        ui.modal.fieldFilter = target.dataset.filter;
+        render();
+        return;
+      }
+      if (act === "toggle-field") {
+        const fieldId = target.dataset.field;
+        ui.modal.fieldId = ui.modal.fieldId === fieldId ? "" : fieldId;
+        ui.modal.highlightField = ui.modal.fieldId;
+        render();
+        return;
+      }
+      if (act === "locate-file") {
+        const docId = target.dataset.id || ui.modal.id || ui.modal.docId;
+        ui.modal = {
+          type: "doc",
+          id: docId,
+          fromVersion: ui.modal.fromVersion,
+          tab: "file",
+          fieldId: target.dataset.field || "",
+          highlightField: target.dataset.field || "",
+          fieldFilter: ui.modal.fieldFilter || "all"
+        };
+        render();
+        return;
+      }
+      if (act === "open-reupload") {
+        ui.modal = { type: "reupload", id: target.dataset.id, fromVersion: ui.modal.fromVersion, fieldFilter: ui.modal.fieldFilter || "all" };
+        render();
+        return;
+      }
+      if (act === "confirm-reupload") {
+        confirmReupload(target.dataset.id);
+        return;
+      }
+      if (act === "open-attach") {
+        toast(`Demo 示意打开「${target.dataset.name}」。正式环境将打开原件。`);
+        return;
+      }
+      if (act === "open-history") { ui.modal = { type: "history", id: target.dataset.id }; render(); return; }
+      if (act === "open-diff") { ui.modal = { type: "diff", id: target.dataset.id }; render(); return; }
+      if (act === "upload") { ui.modal = { type: "upload" }; render(); return; }
+      if (act === "open-map") { ui.modal = { type: "map" }; render(); return; }
+      if (act === "select-node") {
+        switchContext({ nodeId: target.dataset.id });
+        ui.modal = null;
+        toast("已切换到自己的工作节点，输入输出与 AI 上下文已更新");
+        return;
+      }
+      if (act === "locked-node") {
+        toast("只能切换归属自己角色的格子，其他人的节点仅供查看依赖");
+        return;
+      }
+      if (act === "confirm-upload") { confirmUpload(); return; }
+      if (act === "open-doc") { openDoc(target.dataset.id); return; }
+      if (act === "close-modal") { ui.modal = null; render(); return; }
+      if (act === "quick") { answerPrompt(target.dataset.prompt || ""); return; }
+      if (act === "send") {
+        const input = document.getElementById("chatInput");
+        const prompt = input?.value.trim();
+        if (prompt) answerPrompt(prompt);
+        return;
+      }
+      if (act === "preview-draft") { ui.modal = { type: "draft" }; render(); return; }
+      if (act === "archive") { archiveDraft(); return; }
+      if (act === "reset") {
+        if (window.confirm("恢复版本二 Demo 的预置示例数据？当前演示操作将被清除。")) {
+          state = seed();
+          ui.openFolders = ["product", "structure", "cooling", "quality"];
+          ui.kbMessages = [];
+          ui.kbQuery = "";
+          ui.kbFilter = "all";
+          ui.folderFilter = "";
+          ui.view = "workbench";
+          toast("已恢复预置示例数据");
+        }
+      }
+    });
+
+    document.addEventListener("change", event => {
+      if (event.target.id === "projectSelect") {
+        switchContext({ projectId: event.target.value });
+        ui.view = "workbench";
+        toast(`已切换到 ${currentProject().name}`);
+        return;
+      }
+      if (event.target.id === "roleSelect") {
+        switchContext({ roleId: event.target.value });
+        toast(`已切换为 ${currentRole().name} 上下文`);
+      }
+    });
+
+    document.addEventListener("keydown", event => {
+      if (event.key === "Enter" && event.target.id === "chatInput") {
+        event.preventDefault();
+        const prompt = event.target.value.trim();
+        if (prompt) answerPrompt(prompt);
+      }
+      if (event.key === "Enter" && event.target.id === "kbSearch") {
+        event.preventDefault();
+        ui.kbQuery = event.target.value;
+        render();
+      }
+      if (event.key === "Enter" && event.target.id === "kbAsk") {
+        event.preventDefault();
+        const prompt = event.target.value.trim();
+        if (prompt) askKnowledge(prompt);
+      }
+      if (event.key === "Escape" && ui.modal) {
+        ui.modal = null;
+        render();
+      }
+    });
+
+    render();
+  })();
+  </script>
+</body>
+</html>

@@ -1,0 +1,591 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>WFS 仓共享库存设置 · ERP 原型</title>
+  <style>
+    :root {
+      --brand: #1677ff; --brand-soft: #e6f4ff;
+      --wfs: #7c3aed; --wfs-soft: #f5f3ff;
+      --border: #d9d9d9; --line: #f0f0f0;
+      --text: #1e293b; --muted: #64748b; --label: #595959;
+      --good: #0f766e; --warn: #b45309; --danger: #b91c1c;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+      font-size: 13px; color: var(--text); background: #f5f7fa;
+    }
+    .erp-layout { min-height: 100vh; display: flex; flex-direction: column; }
+    .topbar {
+      background: #001529; color: #fff; padding: 0 20px; height: 48px;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .topbar .logo { font-weight: 700; font-size: 14px; }
+    .topbar nav a { color: #91caff; font-size: 12px; text-decoration: none; margin-left: 14px; }
+    .topbar nav a:hover { text-decoration: underline; }
+    .breadcrumb {
+      background: #fff; padding: 10px 20px; border-bottom: 1px solid var(--line);
+      font-size: 12px; color: var(--muted);
+    }
+    .breadcrumb a { color: var(--brand); text-decoration: none; }
+    .page-hd {
+      background: #fff; padding: 14px 20px; border-bottom: 1px solid var(--line);
+      display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 12px;
+    }
+    .page-hd h1 { margin: 0 0 6px; font-size: 18px; color: #0f2f63; }
+    .page-hd .desc { margin: 0; color: var(--muted); font-size: 12px; max-width: 640px; line-height: 1.6; }
+    .mode-tag {
+      display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px;
+      background: var(--wfs-soft); border: 1px solid #c4b5fd; border-radius: 8px;
+      font-size: 12px; font-weight: 700; color: var(--wfs);
+    }
+    .mutex-banner {
+      margin: 12px 20px 0; padding: 10px 14px; background: #fff7ed;
+      border: 1px solid #fdba74; border-radius: 8px; font-size: 12px; line-height: 1.65;
+    }
+    .mutex-banner a { color: var(--brand); font-weight: 600; }
+    .tabs {
+      display: flex; gap: 0; padding: 0 20px; background: #fff;
+      border-bottom: 1px solid var(--line);
+    }
+    .tab {
+      padding: 12px 18px; font-size: 13px; font-weight: 600; color: var(--muted);
+      border: none; background: none; cursor: pointer; border-bottom: 2px solid transparent;
+      margin-bottom: -1px; font-family: inherit;
+    }
+    .tab.on { color: var(--brand); border-bottom-color: var(--brand); }
+    .panel { display: none; }
+    .panel.on { display: block; }
+    .filter-panel {
+      background: #fff; padding: 14px 20px 16px; border-bottom: 1px solid var(--line);
+    }
+    .filter-grid {
+      display: flex; flex-wrap: wrap; gap: 12px 16px; align-items: center;
+    }
+    .f-item { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+    .f-item > label { color: var(--label); font-size: 13px; white-space: nowrap; }
+    .ctl-wrap { position: relative; display: inline-flex; align-items: center; }
+    select.ctl, input.ctl-text {
+      height: 32px; border: 1px solid var(--border); border-radius: 6px; font-size: 13px;
+    }
+    select.ctl {
+      min-width: 88px; max-width: 120px; padding: 0 28px 0 10px; background: #fff;
+    }
+    input.ctl-text { width: 120px; padding: 0 10px; }
+    select.ctl:focus, input.ctl-text:focus {
+      border-color: var(--brand); outline: none; box-shadow: 0 0 0 2px rgba(22,119,255,.12);
+    }
+    .ctl-clear {
+      position: absolute; right: 22px; top: 50%; transform: translateY(-50%);
+      border: none; background: transparent; color: rgba(0,0,0,.25);
+      cursor: pointer; font-size: 12px; padding: 2px 4px; z-index: 1;
+    }
+    .ctl-clear[hidden] { display: none; }
+    .sku-group {
+      display: inline-flex; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; background: #fff;
+    }
+    .sku-group:focus-within { border-color: var(--brand); box-shadow: 0 0 0 2px rgba(22,119,255,.12); }
+    .sku-group select {
+      border: none; border-right: 1px solid var(--line); height: 30px; width: 68px; flex: 0 0 68px;
+      padding: 0 6px; font-size: 12px; background: #fafafa;
+    }
+    .sku-group input {
+      border: none; height: 30px; width: 112px; padding: 0 10px; font-size: 13px;
+    }
+    .btn {
+      height: 32px; padding: 0 14px; border-radius: 6px; font-size: 13px; cursor: pointer;
+      border: 1px solid var(--border); background: #fff; font-family: inherit;
+    }
+    .btn-primary { background: var(--brand); color: #fff; border-color: var(--brand); }
+    .btn-primary:hover { background: #4096ff; }
+    .btn-wfs { background: var(--wfs); color: #fff; border-color: var(--wfs); }
+    .btn-ghost:hover { color: var(--brand); border-color: var(--brand); }
+    .toolbar {
+      display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
+      padding: 12px 20px; background: #fff; border-bottom: 1px solid var(--line);
+    }
+    .main { flex: 1; padding: 0 20px 24px; }
+    .summary-bar {
+      margin-top: 12px; padding: 12px 14px; background: var(--wfs-soft);
+      border: 1px solid #ddd6fe; border-radius: 8px; font-size: 12px;
+      display: flex; flex-wrap: wrap; gap: 16px 24px;
+    }
+    .summary-bar .item strong { color: var(--wfs); font-size: 15px; margin-left: 4px; }
+    .table-wrap {
+      background: #fff; border: 1px solid var(--line); border-radius: 8px; margin-top: 12px;
+    }
+    .table-scroll { overflow: auto; max-height: calc(100vh - 380px); }
+    table.data {
+      width: 100%; border-collapse: collapse; font-size: 12px;
+    }
+    table.data th, table.data td {
+      border: 1px solid var(--line); padding: 8px 10px; text-align: center; vertical-align: middle;
+    }
+    table.data thead th {
+      position: sticky; top: 0; z-index: 2; background: #fafafa;
+      font-weight: 600; color: var(--label); box-shadow: 0 1px 0 var(--line);
+    }
+    table.data tbody tr:hover { background: #fafbff; }
+    table.data tr.trig td { background: #fef2f2; }
+    table.data tr.trig td:first-child { box-shadow: inset 3px 0 0 var(--danger); }
+    .tag {
+      display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600;
+    }
+    .tag-wfs { background: var(--wfs-soft); color: var(--wfs); }
+    .tag-gc { background: #f1f5f9; color: #64748b; }
+    .tag-on { background: #ecfdf5; color: var(--good); }
+    .tag-off { background: #f1f5f9; color: #94a3b8; }
+    .tag-yes { background: #fef2f2; color: var(--danger); }
+    .link { color: var(--brand); cursor: pointer; text-decoration: none; }
+    .link:hover { text-decoration: underline; }
+    .calc-hd {
+      margin-top: 12px; padding: 12px 14px; background: #fff; border: 1px solid var(--line);
+      border-radius: 8px 8px 0 0; border-bottom: none;
+    }
+    .calc-hd h3 { margin: 0 0 6px; font-size: 14px; color: #0f2f63; }
+    .calc-hd p { margin: 0; font-size: 12px; color: var(--muted); line-height: 1.6; }
+    .rule-box {
+      margin-top: 12px; padding: 12px 14px; background: #f8fafc;
+      border: 1px dashed var(--border); border-radius: 8px; font-size: 12px; line-height: 1.75;
+    }
+    .modal-mask {
+      position: fixed; inset: 0; background: rgba(15,23,42,.45); z-index: 100;
+      display: none; align-items: center; justify-content: center; padding: 20px;
+    }
+    .modal-mask.show { display: flex; }
+    .modal {
+      background: #fff; border-radius: 10px; width: 100%; max-width: 480px;
+      box-shadow: 0 20px 50px rgba(0,0,0,.15);
+    }
+    .modal-hd {
+      padding: 14px 18px; border-bottom: 1px solid var(--line);
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .modal-hd h3 { margin: 0; font-size: 15px; }
+    .modal-bd { padding: 16px 18px; }
+    .form-row { margin-bottom: 14px; }
+    .form-row label { display: block; font-size: 12px; color: var(--label); margin-bottom: 6px; }
+    .form-row input, .form-row select {
+      width: 100%; height: 32px; border: 1px solid var(--border); border-radius: 6px; padding: 0 10px;
+    }
+    .form-hint { font-size: 11px; color: var(--muted); margin-top: 4px; }
+    .modal-ft {
+      padding: 12px 18px; border-top: 1px solid var(--line);
+      display: flex; justify-content: flex-end; gap: 8px;
+    }
+    .toast {
+      position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+      background: #0f172a; color: #fff; padding: 10px 18px; border-radius: 8px;
+      font-size: 13px; z-index: 200; display: none;
+    }
+    .toast.show { display: block; }
+  </style>
+</head>
+<body>
+  <div class="erp-layout">
+    <header class="topbar">
+      <span class="logo">智岩科技 ERP · 原型</span>
+      <nav>
+        <a href="index.html">商超3P 原型目录</a>
+        <a href="WFS共享库存与自动借货-方案说明-v2.html">方案说明 v2</a>
+        <a href="谷仓共享库存设置-原型.html">谷仓共享设置（对照）</a>
+      </nav>
+    </header>
+
+    <div class="breadcrumb">
+      <a href="index.html">商超3P</a> / 库存管理 / <strong>WFS 仓共享库存设置</strong>
+    </div>
+
+    <div class="page-hd">
+      <div>
+        <h1>WFS 仓共享库存设置</h1>
+        <p class="desc">
+          形态对齐墨刀「共享库存设置」：按 <strong>8 位 SKU + 店铺</strong> 配置共享比例与安全库存；
+          实物总量取 <strong>WFS 实查</strong>；触发：<strong>当前可售 &lt; 安全库存 + 本批销量锁定</strong> 时自动虚拟配平（非真调拨）。
+        </p>
+      </div>
+      <span class="mode-tag">共享模式：WFS 仓</span>
+    </div>
+
+    <div class="mutex-banner" id="mutex-banner">
+      <strong>与谷仓互斥：</strong>同一 8 位 SKU 不能同时启用「谷仓共享」与「WFS 仓共享」。
+      若需切换，请先在 <a href="谷仓共享库存设置-原型.html">谷仓共享库存设置</a> 停用该 SKU，再在此保存 WFS 配置。
+    </div>
+
+    <div class="tabs" role="tablist">
+      <button type="button" class="tab on" data-tab="config">共享配置列表</button>
+      <button type="button" class="tab" data-tab="board">SKU 演算看板</button>
+      <button type="button" class="tab" data-tab="log">设置日志</button>
+    </div>
+
+    <!-- 配置列表 -->
+    <div id="panel-config" class="panel on">
+      <section class="filter-panel">
+        <div class="filter-grid">
+          <div class="f-item">
+            <label>8 位 SKU</label>
+            <div class="sku-group">
+              <select id="sku-mode" aria-label="SKU 模式">
+                <option value="fuzzy">模糊</option>
+                <option value="exact">精确</option>
+                <option value="8">8位</option>
+              </select>
+              <input type="text" id="sku-inp" placeholder="请输入SKU" value="B6062A01">
+            </div>
+          </div>
+          <div class="f-item">
+            <label>店铺</label>
+            <span class="ctl-wrap">
+              <select class="ctl" id="flt-shop">
+                <option value="">全部</option>
+                <option>WM 3P-US</option>
+                <option>BBY 3P-US</option>
+                <option>Lowes 3P-US</option>
+              </select>
+              <button type="button" class="ctl-clear" hidden aria-label="清除店铺">×</button>
+            </span>
+          </div>
+          <div class="f-item">
+            <label>共享模式</label>
+            <span class="ctl-wrap">
+              <select class="ctl" id="flt-mode">
+                <option value="">全部</option>
+                <option value="wfs">WFS 仓</option>
+                <option value="gc">谷仓</option>
+                <option value="none">未配置</option>
+              </select>
+              <button type="button" class="ctl-clear" hidden aria-label="清除模式">×</button>
+            </span>
+          </div>
+          <div class="f-item">
+            <label>启用</label>
+            <span class="ctl-wrap">
+              <select class="ctl" id="flt-enabled">
+                <option value="">全部</option>
+                <option value="1">启用</option>
+                <option value="0">停用</option>
+              </select>
+              <button type="button" class="ctl-clear" hidden aria-label="清除启用">×</button>
+            </span>
+          </div>
+          <button type="button" class="btn btn-primary" id="btn-query">查询</button>
+        </div>
+      </section>
+
+      <div class="toolbar">
+        <button type="button" class="btn btn-primary" id="btn-add">+ 新增配置</button>
+        <button type="button" class="btn btn-wfs" id="btn-balance">执行虚拟配平（演示）</button>
+        <button type="button" class="btn btn-ghost" id="btn-refresh-wfs">刷新 WFS 实查</button>
+        <span style="font-size:12px;color:var(--muted);margin-left:8px">比例合计须 100%；保存时校验谷仓互斥</span>
+      </div>
+
+      <div class="main">
+        <div class="table-wrap">
+          <div class="table-scroll">
+            <table class="data" id="config-table">
+              <thead>
+                <tr>
+                  <th>8 位 SKU</th>
+                  <th>共享模式</th>
+                  <th>店铺</th>
+                  <th>共享比例</th>
+                  <th>安全库存</th>
+                  <th>启用</th>
+                  <th>操作</th>
+                </tr>
+              </thead>
+              <tbody id="config-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 演算看板 -->
+    <div id="panel-board" class="panel">
+      <section class="filter-panel">
+        <div class="filter-grid">
+          <div class="f-item">
+            <label>查看 SKU</label>
+            <input type="text" class="ctl-text" id="board-sku" value="B6062A01">
+          </div>
+          <button type="button" class="btn btn-primary" id="btn-board-calc">重新演算</button>
+        </div>
+      </section>
+      <div class="main">
+        <div class="summary-bar" id="board-summary">
+          <span class="item">WFS 实查<strong id="sum-wfs">200</strong></span>
+          <span class="item">锁定合计<strong id="sum-lock">30</strong></span>
+          <span class="item">可分配基数<strong id="sum-qeff">170</strong></span>
+          <span class="item">可分配池<strong id="sum-pool">70</strong></span>
+        </div>
+        <div class="calc-hd">
+          <h3>SKU 演算表 · <span id="board-sku-label">B6062A01</span></h3>
+          <p>拉单后同步<strong>当前可售</strong>；<strong>本批销量锁定</strong> = 本 10 分钟销量；触发条件：<strong>当前可售 &lt; 安全库存 + 本批销量锁定</strong>。</p>
+        </div>
+        <div class="table-wrap" style="margin-top:0;border-radius:0 0 8px 8px">
+          <div class="table-scroll">
+            <table class="data" id="board-table">
+              <thead>
+                <tr>
+                  <th>店铺</th>
+                  <th>当前可售</th>
+                  <th>本批销量锁定</th>
+                  <th>待拉单预占</th>
+                  <th>安全库存</th>
+                  <th>安全+本批锁定</th>
+                  <th>是否触发</th>
+                  <th>共享比例</th>
+                  <th>应有可售</th>
+                  <th>缺料</th>
+                  <th>富余</th>
+                  <th>平台同步</th>
+                </tr>
+              </thead>
+              <tbody id="board-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+        <div class="rule-box">
+          <strong>配平规则（一次）：</strong>按缺料从大到小，从富余店虚拟借入；配平后当前可售 = 应有可售；同步平台（&lt;1 停售）。<br>
+          <strong>应有可售</strong> = 按共享比例分到的份额 + 安全库存 + 本批销量锁定。<br>
+          <a class="link" href="WFS共享库存与自动借货-方案说明-v2.html#s4">查看 10 分钟拉单说明</a>
+        </div>
+      </div>
+    </div>
+
+    <!-- 设置日志 -->
+    <div id="panel-log" class="panel">
+      <div class="main">
+        <div class="table-wrap" style="margin-top:12px">
+          <div class="table-scroll">
+            <table class="data">
+              <thead>
+                <tr><th>时间</th><th>操作人</th><th>8 位 SKU</th><th>类型</th><th>变更说明</th></tr>
+              </thead>
+              <tbody>
+                <tr><td>2026-05-22 10:15</td><td>张三</td><td>B6062A01</td><td>配置</td><td>BBY 安全库存 30 → 70</td></tr>
+                <tr><td>2026-05-22 09:00</td><td>系统</td><td>B6062A01</td><td>模式</td><td>谷仓共享 → WFS 仓共享（MODE_SWITCH）</td></tr>
+                <tr><td>2026-05-21 16:40</td><td>李四</td><td>B6062A01</td><td>配置</td><td>新增 Lowes 3P-US 比例 40%</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 新增/编辑弹窗 -->
+  <div class="modal-mask" id="modal-mask">
+    <div class="modal" role="dialog" aria-labelledby="modal-title">
+      <div class="modal-hd">
+        <h3 id="modal-title">新增 WFS 共享配置</h3>
+        <button type="button" class="btn btn-ghost" id="modal-close" style="min-width:32px">×</button>
+      </div>
+      <div class="modal-bd">
+        <div class="form-row">
+          <label>8 位 SKU</label>
+          <input type="text" id="f-sku" maxlength="8" value="B6062A01">
+        </div>
+        <div class="form-row">
+          <label>店铺</label>
+          <select id="f-shop">
+            <option>WM 3P-US</option>
+            <option>BBY 3P-US</option>
+            <option>Lowes 3P-US</option>
+          </select>
+        </div>
+        <div class="form-row">
+          <label>共享比例（%）</label>
+          <input type="number" id="f-pct" min="0" max="100" value="30">
+          <p class="form-hint">同一 SKU 下三店比例合计须为 100%</p>
+        </div>
+        <div class="form-row">
+          <label>安全库存（固定件数）</label>
+          <input type="number" id="f-safe" min="0" value="30">
+        </div>
+        <div class="form-row">
+          <label>启用</label>
+          <select id="f-enabled">
+            <option value="1">启用</option>
+            <option value="0">停用</option>
+          </select>
+        </div>
+        <p class="form-hint" id="modal-mutex-hint" style="color:var(--danger);display:none">
+          该 SKU 已启用谷仓共享，无法保存 WFS 配置。请先停用谷仓共享。
+        </p>
+      </div>
+      <div class="modal-ft">
+        <button type="button" class="btn" id="modal-cancel">取消</button>
+        <button type="button" class="btn btn-primary" id="modal-save">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+  (function () {
+    var CONFIG = [
+      { sku: 'B6062A01', mode: 'wfs', shop: 'WM 3P-US', pct: 30, safe: 30, on: true },
+      { sku: 'B6062A01', mode: 'wfs', shop: 'BBY 3P-US', pct: 30, safe: 70, on: true },
+      { sku: 'B6062A01', mode: 'wfs', shop: 'Lowes 3P-US', pct: 40, safe: 40, on: true },
+      { sku: 'H61991A1', mode: 'gc', shop: 'WM 3P-US', pct: 50, safe: 20, on: true },
+      { sku: 'H61991A1', mode: 'gc', shop: 'BBY 3P-US', pct: 50, safe: 20, on: true }
+    ];
+
+    var BOARD = {
+      wfs: 200,
+      rows: [
+        { shop: 'WM 3P-US', c: 60, batch: 0, proxy: 0, safe: 30, pct: 30 },
+        { shop: 'BBY 3P-US', c: 80, batch: 20, proxy: 10, safe: 70, pct: 30 },
+        { shop: 'Lowes 3P-US', c: 80, batch: 0, proxy: 0, safe: 40, pct: 40 }
+      ]
+    };
+
+    function $(id) { return document.getElementById(id); }
+    function toast(msg) {
+      var t = $('toast');
+      t.textContent = msg;
+      t.classList.add('show');
+      setTimeout(function () { t.classList.remove('show'); }, 2800);
+    }
+
+    function wireClearable(selectId) {
+      var sel = $(selectId);
+      var wrap = sel.closest('.ctl-wrap');
+      if (!wrap) return;
+      var btn = wrap.querySelector('.ctl-clear');
+      function sync() {
+        if (!btn) return;
+        btn.hidden = sel.value === '';
+      }
+      sel.addEventListener('change', sync);
+      if (btn) btn.addEventListener('click', function () {
+        sel.value = '';
+        sel.dispatchEvent(new Event('change', { bubbles: true }));
+        sync();
+      });
+      sync();
+    }
+    ['flt-shop', 'flt-mode', 'flt-enabled'].forEach(wireClearable);
+
+    function renderConfig() {
+      var sku = $('sku-inp').value.trim().toUpperCase();
+      var shop = $('flt-shop').value;
+      var mode = $('flt-mode').value;
+      var en = $('flt-enabled').value;
+      var rows = CONFIG.filter(function (r) {
+        if (sku && r.sku.indexOf(sku) < 0) return false;
+        if (shop && r.shop !== shop) return false;
+        if (mode && r.mode !== mode) return false;
+        if (en === '1' && !r.on) return false;
+        if (en === '0' && r.on) return false;
+        return true;
+      });
+      $('config-tbody').innerHTML = rows.map(function (r) {
+        var modeTag = r.mode === 'wfs'
+          ? '<span class="tag tag-wfs">WFS 仓</span>'
+          : '<span class="tag tag-gc">谷仓</span>';
+        return '<tr><td>' + r.sku + '</td><td>' + modeTag + '</td><td>' + r.shop + '</td><td>' + r.pct + '%</td><td>' + r.safe + '</td><td>' +
+          (r.on ? '<span class="tag tag-on">启用</span>' : '<span class="tag tag-off">停用</span>') +
+          '</td><td><a class="link btn-edit" data-sku="' + r.sku + '">编辑</a> · <a class="link btn-board-jump" data-sku="' + r.sku + '">演算</a></td></tr>';
+      }).join('') || '<tr><td colspan="7" style="color:var(--muted)">无数据</td></tr>';
+
+      document.querySelectorAll('.btn-board-jump').forEach(function (a) {
+        a.addEventListener('click', function () {
+          $('board-sku').value = a.dataset.sku;
+          document.querySelector('.tab[data-tab="board"]').click();
+          renderBoard();
+        });
+      });
+    }
+
+    function renderBoard() {
+      var wfs = BOARD.wfs;
+      var lockSum = BOARD.rows.reduce(function (s, r) { return s + r.batch + r.proxy; }, 0);
+      var safeSum = BOARD.rows.reduce(function (s, r) { return s + r.safe; }, 0);
+      var qeff = wfs - lockSum;
+      var pool = Math.max(0, qeff - safeSum);
+      $('sum-wfs').textContent = wfs;
+      $('sum-lock').textContent = lockSum;
+      $('sum-qeff').textContent = qeff;
+      $('sum-pool').textContent = pool;
+      $('board-sku-label').textContent = $('board-sku').value || 'B6062A01';
+
+      $('board-tbody').innerHTML = BOARD.rows.map(function (r) {
+        var sl = r.safe + r.batch;
+        var target = Math.round(pool * r.pct / 100) + r.safe + r.batch;
+        var trig = r.c < sl;
+        var shortage = Math.max(0, target - r.c);
+        var surplus = Math.max(0, r.c - target);
+        return '<tr class="' + (trig ? 'trig' : '') + '">' +
+          '<td style="text-align:left">' + r.shop + '</td>' +
+          '<td><strong>' + r.c + '</strong></td>' +
+          '<td>' + r.batch + '</td>' +
+          '<td>' + r.proxy + '</td>' +
+          '<td>' + r.safe + '</td>' +
+          '<td>' + sl + '</td>' +
+          '<td>' + (trig ? '<span class="tag tag-yes">是</span>' : '否') + '</td>' +
+          '<td>' + r.pct + '%</td>' +
+          '<td><strong>' + target + '</strong></td>' +
+          '<td>' + shortage + '</td>' +
+          '<td>' + surplus + '</td>' +
+          '<td>' + target + '</td></tr>';
+      }).join('');
+    }
+
+    document.querySelectorAll('.tab').forEach(function (tab) {
+      tab.addEventListener('click', function () {
+        document.querySelectorAll('.tab').forEach(function (t) { t.classList.remove('on'); });
+        document.querySelectorAll('.panel').forEach(function (p) { p.classList.remove('on'); });
+        tab.classList.add('on');
+        $('panel-' + tab.dataset.tab).classList.add('on');
+      });
+    });
+
+    $('btn-query').addEventListener('click', renderConfig);
+    $('btn-board-calc').addEventListener('click', renderBoard);
+    $('btn-refresh-wfs').addEventListener('click', function () {
+      toast('已刷新 WFS 实查（演示：仍为 200）');
+      renderBoard();
+    });
+    $('btn-balance').addEventListener('click', function () {
+      toast('已触发虚拟配平（演示）：BBY 当前可售 80 → 应有可售；已发群告警');
+      BOARD.rows[1].c = Math.round(70 * 0.3) + 70 + 20;
+      renderBoard();
+    });
+
+    function openModal(title, sku) {
+      $('modal-title').textContent = title;
+      $('f-sku').value = sku || 'B6062A01';
+      var gc = CONFIG.some(function (r) { return r.sku === $('f-sku').value && r.mode === 'gc'; });
+      $('modal-mutex-hint').style.display = gc ? 'block' : 'none';
+      $('modal-mask').classList.add('show');
+    }
+    $('btn-add').addEventListener('click', function () { openModal('新增 WFS 共享配置'); });
+    $('modal-close').addEventListener('click', function () { $('modal-mask').classList.remove('show'); });
+    $('modal-cancel').addEventListener('click', function () { $('modal-mask').classList.remove('show'); });
+    $('f-sku').addEventListener('input', function () {
+      var gc = CONFIG.some(function (r) { return r.sku === $('f-sku').value.toUpperCase() && r.mode === 'gc'; });
+      $('modal-mutex-hint').style.display = gc ? 'block' : 'none';
+    });
+    $('modal-save').addEventListener('click', function () {
+      var sku = $('f-sku').value.trim().toUpperCase();
+      if (CONFIG.some(function (r) { return r.sku === sku && r.mode === 'gc'; })) {
+        toast('保存失败：该 SKU 已启用谷仓共享');
+        return;
+      }
+      toast('保存成功（演示）');
+      $('modal-mask').classList.remove('show');
+      renderConfig();
+    });
+
+    renderConfig();
+    renderBoard();
+  })();
+  </script>
+</body>
+</html>

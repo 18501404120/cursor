@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>商超3P · WFS 共享库存与自动借货 · 方案 v2</title>
+  <style>
+    :root {
+      --bg: #eef3fb; --surface: #fff; --text: #0f172a; --muted: #475569;
+      --line: #dbe4f0; --brand: #0b5ed7; --brand-soft: #e7f1ff;
+      --good: #0f766e; --warn: #b45309; --danger: #b91c1c;
+      --wfs: #7c3aed; --shadow: 0 8px 24px rgba(15,23,42,.07); --radius: 12px;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; font-family: "PingFang SC", "Microsoft YaHei", sans-serif;
+      background: linear-gradient(165deg, #eaf0fb, var(--bg) 60%, #f8fafc);
+      color: var(--text); line-height: 1.65;
+    }
+    .page { max-width: 1100px; margin: 0 auto; padding: 20px 16px 48px; }
+    h1 { margin: 0 0 6px; font-size: 22px; color: #0f2f63; }
+    .sub { margin: 0 0 14px; font-size: 13px; color: var(--muted); }
+    .sub a { color: var(--brand); font-weight: 600; }
+    .hero {
+      padding: 16px 18px; background: #fff; border: 1px solid var(--line);
+      border-radius: var(--radius); box-shadow: var(--shadow); margin-bottom: 14px;
+    }
+    .hero p { margin: 0; font-size: 14px; }
+    .nav {
+      position: sticky; top: 0; z-index: 30; display: flex; flex-wrap: wrap; gap: 6px;
+      padding: 8px 0 12px; background: linear-gradient(180deg, #eef3fb 80%, transparent);
+    }
+    .nav a {
+      font-size: 12px; text-decoration: none; color: var(--brand);
+      padding: 5px 10px; border-radius: 999px; border: 1px solid #bfdbfe; background: #fff;
+    }
+    section {
+      margin-top: 14px; background: var(--surface); border: 1px solid var(--line);
+      border-radius: var(--radius); box-shadow: var(--shadow); overflow: hidden;
+    }
+    section > header {
+      padding: 12px 16px; font-size: 14px; font-weight: 800; color: #0f2f63;
+      border-bottom: 1px solid var(--line); background: #f8fbff;
+    }
+    section > .bd { padding: 16px; }
+    .lead { font-size: 15px; font-weight: 600; color: #0f2f63; margin: 0 0 10px; }
+    .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; }
+    .card {
+      padding: 12px; border: 1px solid var(--line); border-radius: 10px; background: #fafbff;
+      font-size: 13px;
+    }
+    .card strong { display: block; margin-bottom: 4px; color: #0f2f63; }
+    .pill-row { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0; }
+    .pill {
+      padding: 8px 12px; border-radius: 8px; font-size: 13px; font-weight: 600;
+      border: 1px solid var(--line); background: #fff;
+    }
+    .pill.b { border-color: #93c5fd; background: var(--brand-soft); }
+    .pipe {
+      display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 14px 0;
+      font-size: 12px;
+    }
+    .pipe .n {
+      padding: 10px 12px; border-radius: 10px; text-align: center; min-width: 88px;
+      border: 2px solid var(--line); background: #fff;
+    }
+    .pipe .n.purple { border-color: #c4b5fd; background: #f5f3ff; }
+    .pipe .n.warn { border-color: #fcd34d; background: #fffbeb; }
+    .pipe .n.brand { border-color: #93c5fd; background: var(--brand-soft); }
+    .pipe .n .v { font-size: 20px; font-weight: 800; display: block; margin-top: 4px; }
+    .pipe .arr { color: #94a3b8; font-weight: 800; font-size: 18px; }
+    .stores {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 12px;
+    }
+    @media (max-width: 700px) { .stores { grid-template-columns: 1fr; } }
+    .store {
+      border: 2px solid var(--line); border-radius: 10px; padding: 10px; font-size: 12px;
+    }
+    .store h4 { margin: 0 0 6px; font-size: 13px; }
+    .store .m { display: flex; justify-content: space-between; margin: 3px 0; color: var(--muted); }
+    .store .m b { color: var(--text); }
+    .store.trig { border-color: var(--danger); box-shadow: 0 0 0 3px rgba(185,28,28,.1); }
+
+    .win-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 12px 0; }
+    @media (max-width: 600px) { .win-grid { grid-template-columns: 1fr; } }
+    .win { padding: 12px; border-radius: 10px; font-size: 13px; }
+    .win.a { background: #fff7ed; border: 1px solid #fdba74; }
+    .win.b { background: #ecfdf5; border: 1px solid #6ee7b7; }
+    .win h5 { margin: 0 0 6px; }
+
+    .timeline-bar { width: 100%; max-width: 860px; display: block; margin: 10px auto; }
+    .moments { display: flex; flex-direction: column; gap: 10px; margin-top: 12px; }
+    .moment {
+      border: 1px solid var(--line); border-radius: 10px; overflow: hidden; font-size: 12px;
+    }
+    .moment .mh {
+      display: flex; align-items: center; gap: 8px; padding: 8px 12px;
+      background: #f8fbff; border-bottom: 1px solid var(--line);
+    }
+    .moment .mh .t { font-weight: 800; color: #0f2f63; min-width: 100px; }
+    .badge { font-size: 10px; padding: 2px 7px; border-radius: 999px; font-weight: 700; }
+    .badge.blind { background: #fef3c7; color: #92400e; }
+    .badge.known { background: #dcfce7; color: #166534; }
+    .moment .mb { padding: 10px 12px; display: grid; grid-template-columns: 1fr 160px; gap: 10px; }
+    @media (max-width: 650px) { .moment .mb { grid-template-columns: 1fr; } }
+    .moment ul { margin: 0; padding-left: 18px; line-height: 1.7; }
+    .nums {
+      background: #f8fafc; border-radius: 8px; padding: 8px; font-size: 11px;
+    }
+    .nums div { display: flex; justify-content: space-between; margin: 2px 0; }
+    .nums .sum { font-weight: 800; border-top: 1px dashed var(--line); margin-top: 4px; padding-top: 4px; }
+
+    .flow-svg { width: 100%; max-width: 720px; display: block; margin: 12px auto; }
+
+    .calc-grid {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+      gap: 8px; margin-bottom: 12px;
+    }
+    .calc-grid label { font-size: 11px; color: var(--muted); display: block; margin-bottom: 2px; }
+    .calc-grid input {
+      width: 100%; padding: 6px 8px; border: 1px solid var(--line); border-radius: 6px;
+    }
+    table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    th, td { border: 1px solid var(--line); padding: 7px 8px; text-align: center; }
+    th { background: #f1f5f9; }
+    tr.trig td { background: #fef2f2; }
+
+    .constraints {
+      font-size: 13px; color: var(--muted); line-height: 1.75;
+    }
+    .constraints ol { padding-left: 1.3em; }
+    .constraints li { margin: 6px 0; }
+    .tag { display: inline-block; font-size: 11px; font-weight: 700; padding: 2px 7px; border-radius: 5px; }
+    .tag-warn { background: #fff7ed; color: var(--warn); }
+    .tag-danger { background: #fef2f2; color: var(--danger); }
+    .exhaust {
+      padding: 12px; border: 2px solid var(--danger); border-radius: 10px;
+      background: #fef2f2; font-size: 13px; line-height: 1.7;
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <p style="font-size:12px;margin:0 0 8px"><a href="index.html">← 原型目录</a> · <a href="WFS共享库存与自动借货-方案-v2.md">MD v2</a> · <a href="WFS共享库存与自动借货-详细方案.md">详细方案 v1</a></p>
+    <h1>WFS 共享库存与自动借货 · 方案说明 v2</h1>
+    <p class="sub">易懂版 v2.2 · 全文中文术语 · 触发：<strong>当前可售 &lt; 安全库存 + 本批销量锁定</strong></p>
+
+    <div class="hero">
+      <p><strong>一句话：</strong>WM / BBY / Lowes 共卖 <strong>同一 WFS 仓</strong>；拉单时同步<strong>当前可售库存</strong>，统计<strong>本批销量锁定</strong>；若 <strong>当前可售 &lt; 安全库存 + 本批销量锁定</strong> 则虚拟配平，<strong>应有可售</strong> = 比例份额 + 安全库存 + 本批销量锁定。</p>
+    </div>
+    <div class="hero" style="margin-top:-8px;background:#f0fdf4;border-color:#86efac">
+      <p style="margin:0;font-size:13px"><strong>确认示例（BBY）：</strong>上次可售 100、上轮销量 10；本次拉单可售 <strong>80</strong>、安全 <strong>70</strong>、本批锁定 <strong>20</strong> → 80 &lt; 70+20=90 → <strong style="color:var(--danger)">触发配平</strong></p>
+    </div>
+
+    <nav class="nav">
+      <a href="#s1">解决什么</a>
+      <a href="#s2">四句话</a>
+      <a href="#s3">怎么分货</a>
+      <a href="#s4">锁定与10分钟</a>
+      <a href="#s5">主流程与演算</a>
+      <a href="#s6">池耗尽</a>
+      <a href="#s7">约束附录</a>
+    </nav>
+
+    <!-- S1 -->
+    <section id="s1">
+      <header>1 · 我们要解决什么？</header>
+      <div class="bd">
+        <div class="cards">
+          <div class="card"><strong>实物一份</strong>三店共用一个 WFS 池，容易超卖或分配不均。</div>
+          <div class="card"><strong>拉单不实时</strong>BBY/Lowes 约每 10 分钟才拉一批单进 ERP，拉单前系统不知道平台又卖了多少。</div>
+          <div class="card"><strong>要自动配平</strong>某店低于安全库存时，从富余店「借」数字，并同步三店平台可售。</div>
+          <div class="card"><strong>不做真调拨</strong>只改逻辑份额和平台展示，不产生 WFS 调拨单。</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- S2 -->
+    <section id="s2">
+      <header>2 · 先记住四句话</header>
+      <div class="bd">
+        <div class="pill-row">
+          <span class="pill b">① 只信 WFS 实查总数</span>
+          <span class="pill b">② 三店卖的是「份额」不是三堆货</span>
+          <span class="pill b">③ 先扣锁定，再分可卖池</span>
+          <span class="pill b">④ 可售&lt;安全+锁定 → 配平</span>
+        </div>
+        <p style="font-size:13px;margin:0;color:var(--muted)">另：同一 SKU 的 <strong>WFS 仓共享</strong> 与 <strong>谷仓共享</strong> 只能开一种。</p>
+      </div>
+    </section>
+
+    <!-- S3 -->
+    <section id="s3">
+      <header>3 · 怎么分货？（从 WFS 实查到三店应有）</header>
+      <div class="bd">
+        <p class="lead">扣减顺序固定，不要跳步。</p>
+        <div class="pipe" id="pipe-viz">
+          <div class="n purple"><span>WFS 实查</span><span class="v" id="v-qwfs">200</span></div>
+          <span class="arr">−</span>
+          <div class="n warn"><span>锁定合计</span><span class="v" id="v-l">30</span></div>
+          <span class="arr">=</span>
+          <div class="n"><span>可分配基数</span><span class="v" id="v-qeff">170</span></div>
+          <span class="arr">−</span>
+          <div class="n"><span>安全库存合计</span><span class="v" id="v-safe">100</span></div>
+          <span class="arr">=</span>
+          <div class="n brand"><span>可分配池</span><span class="v" id="v-p">70</span></div>
+        </div>
+
+        <svg class="flow-svg" viewBox="0 0 720 120" aria-label="三店分池示意">
+          <defs><marker id="ar" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="#94a3b8"/></marker></defs>
+          <rect x="260" y="8" width="200" height="44" rx="8" fill="#7c3aed" opacity=".15" stroke="#7c3aed"/>
+          <text x="360" y="28" text-anchor="middle" font-size="12" font-weight="bold" fill="#5b21b6">WFS 仓库（实物唯一）</text>
+          <text x="360" y="44" text-anchor="middle" font-size="11" fill="#5b21b6">WFS 实查库存</text>
+          <line x1="360" y1="52" x2="360" y2="68" stroke="#94a3b8" marker-end="url(#ar)"/>
+          <rect x="280" y="68" width="160" height="28" rx="6" fill="#0b5ed7" opacity=".12" stroke="#0b5ed7"/>
+          <text x="360" y="86" text-anchor="middle" font-size="10" fill="#1e40af">比例份额+安全+锁定→应有可售</text>
+          <rect x="40" y="96" width="180" height="22" rx="5" fill="#dbeafe" stroke="#93c5fd"/>
+          <text x="130" y="111" text-anchor="middle" font-size="10">WM 应有可售</text>
+          <rect x="270" y="96" width="180" height="22" rx="5" fill="#d1fae5" stroke="#6ee7b7"/>
+          <text x="360" y="111" text-anchor="middle" font-size="10">BBY 应有可售</text>
+          <rect x="500" y="96" width="180" height="22" rx="5" fill="#ede9fe" stroke="#c4b5fd"/>
+          <text x="590" y="111" text-anchor="middle" font-size="10">Lowes 应有可售</text>
+        </svg>
+
+        <p style="font-size:13px;margin:12px 0 8px"><strong>每店两个数：</strong></p>
+        <div class="cards">
+          <div class="card"><strong>当前可售库存</strong>平台卖出即减；拉单时同步到 ERP。</div>
+          <div class="card"><strong>订单锁定库存</strong>本批销量锁定 + 待拉单预占；算池时从 WFS 实查中扣除。</div>
+        </div>
+
+        <div class="stores" id="store-cards">
+          <div class="store" data-k="wm"><h4>WM 3P-US</h4><div class="m">当前可售 <b id="sc-wm-c">60</b></div><div class="m">本批锁定 <b id="sc-wm-l">0</b></div><div class="m">安全库存 <b id="sc-wm-s">30</b></div><div class="m">应有可售 <b id="sc-wm-t">51</b></div></div>
+          <div class="store" data-k="bby"><h4>BBY 3P-US</h4><div class="m">当前可售 <b id="sc-bby-c">80</b></div><div class="m">本批锁定 <b id="sc-bby-l">20</b></div><div class="m">安全库存 <b id="sc-bby-s">70</b></div><div class="m">应有可售 <b id="sc-bby-t">—</b></div></div>
+          <div class="store" data-k="low"><h4>Lowes 3P-US</h4><div class="m">当前可售 <b id="sc-low-c">80</b></div><div class="m">本批锁定 <b id="sc-low-l">0</b></div><div class="m">安全库存 <b id="sc-low-s">40</b></div><div class="m">应有可售 <b id="sc-low-t">68</b></div></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- S4 -->
+    <section id="s4">
+      <header>4 · 订单锁定 + 10 分钟拉单（BBY 示例）</header>
+      <div class="bd">
+        <p class="lead"><strong>当前可售库存</strong>：顾客下单当场减少；拉单时从平台同步到 ERP。<strong>本批销量锁定</strong> = 本 10 分钟销量。<strong>待拉单预占</strong> = 上轮 10 分钟销量（拉单前占池用）。</p>
+
+        <div class="win-grid">
+          <div class="win a"><h5>拉单前</h5>平台在卖，ERP 可售可能旧；<strong>待拉单预占 = 上轮销量</strong>（如 10）。</div>
+          <div class="win b"><h5>拉单时</h5>同步当前可售（如 80），统计本批销量锁定（如 20）；<strong>若 当前可售 &lt; 安全库存 + 本批销量锁定 → 触发</strong>。</div>
+        </div>
+
+        <p><span class="tag tag-danger">易错</span> 没有 10:03、10:07 逐笔进单——只有 <strong>10:00、10:10 定时拉单</strong> 才知道本批合计。</p>
+
+        <svg class="timeline-bar" viewBox="0 0 860 48" aria-label="可见性">
+          <rect x="0" y="16" width="860" height="14" rx="4" fill="#e2e8f0"/>
+          <rect x="0" y="16" width="380" height="14" rx="4" fill="#fde68a"/>
+          <rect x="380" y="16" width="70" height="14" fill="#86efac"/>
+          <rect x="450" y="16" width="410" height="14" rx="4" fill="#fde68a"/>
+          <text x="190" y="12" text-anchor="middle" font-size="10" fill="#92400e">盲区（仅预占）</text>
+          <text x="415" y="12" text-anchor="middle" font-size="10" fill="#166534" font-weight="bold">10:00 任务</text>
+          <text x="655" y="12" text-anchor="middle" font-size="10" fill="#92400e">盲区</text>
+        </svg>
+
+        <div class="moments" id="moments"></div>
+
+        <p style="font-size:12px;margin-top:14px;color:var(--muted)">拉单任务内以「平台当前可售 + 本批销量锁定」为准；推 WFS 按回执履约（详见 v1 §13）。</p>
+      </div>
+    </section>
+
+    <!-- S5 -->
+    <section id="s5">
+      <header>5 · 主流程 + 可调演算（改数字，上图自动变）</header>
+      <div class="bd">
+        <svg class="flow-svg" viewBox="0 0 700 200" aria-label="主流程">
+          <rect x="20" y="20" width="120" height="36" rx="8" fill="#e7f1ff" stroke="#0b5ed7"/>
+          <text x="80" y="42" text-anchor="middle" font-size="11">拉 WFS 实查</text>
+          <line x1="140" y1="38" x2="170" y2="38" stroke="#94a3b8" marker-end="url(#ar)"/>
+          <rect x="170" y="20" width="120" height="36" rx="8" fill="#fff7ed" stroke="#f59e0b"/>
+          <text x="230" y="42" text-anchor="middle" font-size="10">汇总销量锁定</text>
+          <line x1="290" y1="38" x2="320" y2="38" stroke="#94a3b8" marker-end="url(#ar)"/>
+          <polygon points="320,20 420,20 440,38 420,56 320,56 300,38" fill="#fef2f2" stroke="#b91c1c"/>
+          <text x="370" y="38" text-anchor="middle" font-size="9">可售&lt;安全+锁定?</text>
+          <line x1="440" y1="38" x2="470" y2="38" stroke="#94a3b8" marker-end="url(#ar)"/>
+          <rect x="470" y="20" width="100" height="36" rx="8" fill="#fef2f2" stroke="#b91c1c"/>
+          <text x="520" y="42" text-anchor="middle" font-size="10">告警+配平</text>
+          <line x1="570" y1="38" x2="600" y2="38" stroke="#94a3b8" marker-end="url(#ar)"/>
+          <rect x="600" y="20" width="80" height="36" rx="8" fill="#ecfdf5" stroke="#0f766e"/>
+          <text x="640" y="42" text-anchor="middle" font-size="10">同步平台</text>
+          <text x="370" y="90" text-anchor="middle" font-size="10" fill="#64748b">批末：待拉单预占 := 本批销量锁定</text>
+        </svg>
+
+        <p class="lead" style="margin-top:16px">演算参数</p>
+        <div class="calc-grid">
+          <div><label>WFS 实查</label><input type="number" id="in-wfs" value="200"></div>
+          <div><label>WM 当前</label><input type="number" id="in-wm-c" value="60"></div>
+          <div><label>WM 安全</label><input type="number" id="in-wm-s" value="30"></div>
+          <div><label>WM 本批锁定</label><input type="number" id="in-wm-batch" value="0"></div>
+          <div><label>WM 上轮预占</label><input type="number" id="in-wm-proxy" value="0"></div>
+          <div><label>BBY 当前可售</label><input type="number" id="in-bby-c" value="80"></div>
+          <div><label>BBY 安全</label><input type="number" id="in-bby-s" value="70"></div>
+          <div><label>BBY 本批锁定</label><input type="number" id="in-bby-batch" value="20"></div>
+          <div><label>BBY 上轮预占</label><input type="number" id="in-bby-proxy" value="10"></div>
+          <div><label>Lowes 当前</label><input type="number" id="in-low-c" value="80"></div>
+          <div><label>Lowes 安全</label><input type="number" id="in-low-s" value="40"></div>
+          <div><label>Lowes 本批锁定</label><input type="number" id="in-low-batch" value="0"></div>
+          <div><label>Lowes 上轮预占</label><input type="number" id="in-low-proxy" value="0"></div>
+          <div><label>WM 比例 %</label><input type="number" id="in-wm-pct" value="30"></div>
+          <div><label>BBY 比例 %</label><input type="number" id="in-bby-pct" value="30"></div>
+        </div>
+        <p id="trig-msg" style="font-size:13px;margin:0 0 10px"></p>
+        <div style="overflow-x:auto">
+          <table>
+            <thead>
+              <tr><th>店</th><th>当前可售</th><th>本批销量锁定</th><th>待拉单预占</th><th>扣池锁定合计</th><th>安全库存</th><th>安全+本批锁定</th><th>触发</th><th>应有可售</th></tr>
+            </thead>
+            <tbody id="calc-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- S6 -->
+    <section id="s6">
+      <header>6 · 池耗尽（极端情况）</header>
+      <div class="bd">
+        <div class="exhaust">
+          <strong>何时：</strong>虚拟配平之后，三店仍全部 <strong>当前可售 &lt; 安全库存 + 本批销量锁定</strong>（或仍达不到应有可售）。<br>
+          <strong>做什么：</strong>BBY、Lowes 平台可售 → <strong>0</strong>；<strong>WM 不置 0</strong>；该 8 位 SKU <strong>关闭 WFS 仓共享</strong>（WM 也不再与子店共享）。<br>
+          <strong>恢复：</strong>需运营人工确认后重新开启共享。
+        </div>
+      </div>
+    </section>
+
+    <!-- S7 -->
+    <section id="s7">
+      <header>7 · 约束与边界（文字附录）</header>
+      <div class="bd constraints">
+        <ol>
+          <li>参与店：WM / BBY / Lowes 3P-US；8 位生产 SKU。</li>
+          <li>只信 WFS 接口实查；失败时不静默用旧值做配平。</li>
+          <li>WFS 仓共享与谷仓共享同一 SKU <strong>二选一</strong>。</li>
+          <li>自动配平不产生调拨单、不搬实物。</li>
+          <li>触发（已定）：<strong>当前可售 &lt; 安全库存 + 本批销量锁定</strong>；应有可售 = <strong>比例份额 + 安全库存 + 本批销量锁定</strong>。</li>
+          <li>可售以拉单时平台同步为准；待拉单预占 = 上轮销量；禁止按 10:03 等逐笔建账。</li>
+          <li>10 分钟窗口无法 100% 消除超卖；依赖预占 + 风险扫描 + 配平。</li>
+          <li>池耗尽关共享后不自动恢复。</li>
+          <li>接口、表结构、验收、非功能见 <a href="WFS共享库存与自动借货-详细方案.md">详细方案 v1</a>。</li>
+        </ol>
+        <p style="margin-top:12px"><strong>待确认：</strong>上轮销量为 0 时预占是否严格为 0；拉单与推 WFS 是否同一任务。</p>
+      </div>
+    </section>
+  </div>
+
+  <script>
+  (function () {
+    var $ = function (id) { return document.getElementById(id); };
+    var STORES = [
+      { key: 'wm', name: 'WM', pctId: 'in-wm-pct' },
+      { key: 'bby', name: 'BBY', pctId: 'in-bby-pct' },
+      { key: 'low', name: 'Lowes', pctId: null }
+    ];
+
+    function read() {
+      var wmPct = +$('in-wm-pct').value || 0;
+      var bbyPct = +$('in-bby-pct').value || 0;
+      var lowPct = Math.max(0, 100 - wmPct - bbyPct);
+      function st(k) {
+        return {
+          c: +$('in-' + k + '-c').value || 0,
+          s: +$('in-' + k + '-s').value || 0,
+          batch: +$('in-' + k + '-batch').value || 0,
+          proxy: +$('in-' + k + '-proxy').value || 0
+        };
+      }
+      var wm = st('wm'), bby = st('bby'), low = st('low');
+      wm.poolLock = wm.batch + wm.proxy;
+      bby.poolLock = bby.batch + bby.proxy;
+      low.poolLock = low.batch + low.proxy;
+      return {
+        wfs: +$('in-wfs').value || 0,
+        wm: wm, bby: bby, low: low,
+        pcts: { wm: wmPct / 100, bby: bbyPct / 100, low: lowPct / 100 }
+      };
+    }
+
+    function compute(d) {
+      var lockSum = d.wm.poolLock + d.bby.poolLock + d.low.poolLock;
+      var safeSum = d.wm.s + d.bby.s + d.low.s;
+      var qEff = d.wfs - lockSum;
+      var pool = Math.max(0, qEff - safeSum);
+      var rows = STORES.map(function (st) {
+        var m = d[st.key];
+        var pct = d.pcts[st.key];
+        var t = Math.round(pool * pct) + m.s + m.batch;
+        var sl = m.s + m.batch;
+        return {
+          key: st.key, name: st.name,
+          c: m.c, batch: m.batch, proxy: m.proxy, poolLock: m.poolLock, s: m.s, sl: sl,
+          t: t, trig: m.c < sl
+        };
+      });
+      return { lockSum: lockSum, safeSum: safeSum, qEff: qEff, pool: pool, rows: rows,
+        triggered: rows.some(function (r) { return r.trig; }) };
+    }
+
+    function renderMoments(c, s, batch, proxy) {
+      var sl = s + batch;
+      var trig = c < sl;
+      var cards = [
+        { t: '上轮结束', b: 'blind', bt: '预占 10', ul: [
+          'ERP 曾同步当前可售为 100（示例）',
+          '上轮销量 → <strong>待拉单预占</strong> = ' + proxy
+        ], c: '100', batch: '—', proxy: String(proxy), chk: '—' },
+        { t: '10:00 拉单', b: 'known', bt: '同步+统计', ul: [
+          '从平台读到<strong>当前可售库存 ' + c + '</strong>（已扣本段销量）',
+          '<strong>本批销量锁定</strong> = <strong>' + batch + '</strong>（如 100−80）',
+          '判断：当前可售 ' + c + ' &lt; 安全库存 ' + s + ' + 本批锁定 ' + batch + ' = ' + sl + ' → ' + (trig ? '<strong style="color:var(--danger)">触发配平</strong>' : '不触发')
+        ], c: String(c), batch: String(batch), proxy: '0', chk: c + '&lt;' + sl },
+        { t: '本批结束', b: 'blind', bt: '写下轮预占', ul: [
+          '<strong>待拉单预占</strong> := 本批销量锁定（' + batch + '）',
+          '<strong>应有可售</strong> ≈ 比例份额 + 安全库存 + 本批销量锁定'
+        ], c: String(c), batch: String(batch), proxy: String(batch), chk: '—' }
+      ];
+      $('moments').innerHTML = cards.map(function (card) {
+        return '<div class="moment"><div class="mh"><span class="t">' + card.t + '</span><span class="badge ' + card.b + '">' + card.bt + '</span></div>' +
+          '<div class="mb"><ul>' + card.ul.map(function (li) { return '<li>' + li + '</li>'; }).join('') +
+          '</ul><div class="nums"><div><span>当前可售</span><b>' + card.c + '</b></div><div><span>本批锁定</span><b>' + card.batch + '</b></div>' +
+          '<div><span>待拉单预占</span><b>' + card.proxy + '</b></div><div class="sum"><span>可售&lt;安全+锁定?</span><b>' + card.chk + '</b></div></div></div></div>';
+      }).join('');
+    }
+
+    function render() {
+      var d = read();
+      var r = compute(d);
+      $('v-qwfs').textContent = d.wfs;
+      $('v-l').textContent = r.lockSum;
+      $('v-qeff').textContent = r.qEff;
+      $('v-safe').textContent = r.safeSum;
+      $('v-p').textContent = r.pool;
+      r.rows.forEach(function (row) {
+        $('sc-' + row.key + '-c').textContent = row.c;
+        $('sc-' + row.key + '-l').textContent = row.batch;
+        $('sc-' + row.key + '-s').textContent = row.s;
+        $('sc-' + row.key + '-t').textContent = row.t;
+        var el = document.querySelector('.store[data-k="' + row.key + '"]');
+        if (el) el.classList.toggle('trig', row.trig);
+      });
+      renderMoments(d.bby.c, d.bby.s, d.bby.batch, d.bby.proxy);
+      $('trig-msg').innerHTML = r.triggered
+        ? '<span class="tag tag-warn">已触发</span> 有店 <strong>当前可售 &lt; 安全库存 + 本批销量锁定</strong> → 告警 + 配平'
+        : '<span style="color:var(--good);font-weight:700">未触发</span> 各店当前可售 ≥ 安全库存 + 本批销量锁定';
+      $('calc-tbody').innerHTML = r.rows.map(function (row) {
+        return '<tr class="' + (row.trig ? 'trig' : '') + '"><td>' + row.name + '</td><td>' + row.c +
+          '</td><td><b>' + row.batch + '</b></td><td>' + row.proxy + '</td><td>' + row.poolLock +
+          '</td><td>' + row.s + '</td><td>' + row.sl + '</td><td>' + (row.trig ? '<b style="color:var(--danger)">是</b>' : '否') +
+          '</td><td><b>' + row.t + '</b></td></tr>';
+      }).join('');
+    }
+
+    ['in-wfs','in-wm-c','in-wm-s','in-wm-batch','in-wm-proxy',
+     'in-bby-c','in-bby-s','in-bby-batch','in-bby-proxy',
+     'in-low-c','in-low-s','in-low-batch','in-low-proxy','in-wm-pct','in-bby-pct'].forEach(function (id) {
+      $(id).addEventListener('input', render);
+    });
+    render();
+  })();
+  </script>
+</body>
+</html>

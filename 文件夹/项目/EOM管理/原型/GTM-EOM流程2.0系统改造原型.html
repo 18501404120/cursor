@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>GTM EOM 管理</title>
+  <link rel="stylesheet" href="assets/eom-proto.css?v=owner-pick-1" />
+</head>
+<body>
+  <div class="toast" id="toast"></div>
+  <div class="app">
+    <header class="topbar">
+      <div class="brand">蓝鲸 ERP</div>
+      <div class="breadcrumb" id="breadcrumb">GTM系统 / 管理 / EOM管理</div>
+      <button class="btn" data-act="reset-seed" title="清空本地操作，恢复 S1-S16 示例">恢复示例数据</button>
+      <div class="user" id="userBox"></div>
+    </header>
+    <div class="layout">
+      <aside class="sidebar">
+        <div class="menu-group">EOM管理</div>
+        <div class="menu-item active" data-page="workbench"><i class="menu-dot"></i>EOM工作台</div>
+        <div class="menu-item" data-page="orders"><i class="menu-dot"></i>EOM工单</div>
+        <div class="menu-item" data-page="ledger"><i class="menu-dot"></i>EOM产品台账</div>
+        <div class="menu-group">核料管理</div>
+        <div class="menu-item" data-page="materials"><i class="menu-dot"></i>核料信息管理</div>
+        <div class="menu-item" data-page="material"><i class="menu-dot"></i>核料信息详情</div>
+        <div class="menu-group">通知</div>
+        <div class="menu-item" data-page="noticeOverview"><i class="menu-dot"></i>总揽</div>
+        <div class="menu-item" data-page="notice" data-role="sales"><i class="menu-dot"></i>销售</div>
+        <div class="menu-item" data-page="notice" data-role="gtm"><i class="menu-dot"></i>GTM</div>
+        <div class="menu-item" data-page="notice" data-role="demand"><i class="menu-dot"></i>需求计划</div>
+        <div class="menu-item" data-page="notice" data-role="plan"><i class="menu-dot"></i>计划</div>
+        <div class="menu-item" data-page="notice" data-role="pmc"><i class="menu-dot"></i>PMC</div>
+        <div class="menu-item" data-page="notice" data-role="buy"><i class="menu-dot"></i>采购</div>
+        <div class="menu-group">规则</div>
+        <div class="menu-item" data-page="statusFlow"><i class="menu-dot"></i>状态流转</div>
+      </aside>
+      <main class="main">
+        <section class="page active" id="page-workbench"></section>
+        <section class="page" id="page-orders"></section>
+        <section class="page" id="page-ledger"></section>
+        <section class="page" id="page-materials"></section>
+        <section class="page" id="page-material"></section>
+        <section class="page" id="page-notice"></section>
+        <section class="page" id="page-noticeOverview"></section>
+        <section class="page" id="page-statusFlow"></section>
+      </main>
+    </div>
+  </div>
+
+  <div class="drawer-mask" id="detailDrawer">
+    <div class="drawer">
+      <div class="drawer-header" id="detailHeader"></div>
+      <div class="drawer-body" id="detailBody"></div>
+    </div>
+  </div>
+
+  <div class="mask" id="createMask">
+    <div class="dialog xl">
+      <div class="dialog-header"><span>发起EOM流程</span><span class="dialog-close" data-act="close-mask" data-mask="createMask">×</span></div>
+      <div class="dialog-body">
+        <div class="steps" id="createSteps"></div>
+        <div class="step-panel active" data-step="1">
+          <div class="section-title">退市基本信息</div>
+          <div class="form-grid">
+            <div class="form-item"><label class="form-label required">业务单元</label><div class="form-control"><select class="select" id="businessUnit"><option>LBU</option><option>ABU</option></select></div></div>
+            <div class="form-item"><label class="form-label required">退市类型</label><div class="form-control"><div class="radio-group"><label class="radio"><input type="radio" name="eomType" value="主动退市" checked />主动退市</label><label class="radio"><input type="radio" name="eomType" value="被动退市" />被动退市</label></div></div></div>
+            <div class="form-item full"><label class="form-label required">退市原因</label><div class="form-control"><select class="select input-wide" id="reason"></select></div></div>
+            <div class="form-item full"><label class="form-label">退市说明</label><div class="form-control"><textarea class="textarea" id="createRemark" placeholder="选择“其他”时必须补充说明">试用：先搜 H6099 勾 3 个，再搜 H6098 勾 1 个，再按场景品类「居家」继续加选。H8888 可正常提交；H6199 看重复工单；H9009 看未上市；H9100 看已EOL。</textarea></div></div>
+          </div>
+        </div>
+        <div class="step-panel" data-step="2">
+          <div class="alert">搜索只刷新上方候选，不会清空已选。勾选加入本单范围，可换 Model / 场景继续加选。未勾选不视为排除、不必填排除原因，不强制整 Model 齐套。已选清单可查看、删除。已 EOL、进行中 EOM 不得加入。预计 EOL / 新品衔接按 8 位 SKU 填写，换筛选不丢失；可勾选后批量填写（空项不覆盖）。预计 EOL 选填，后续可在台账补。</div>
+          <div class="sku-pick-filters">
+            <div class="sku-pick-item"><label>场景品类</label><select class="select" id="skuPickSceneCat" data-act="sku-pick-scene"><option value="">请选择</option></select></div>
+            <div class="sku-pick-item"><label>model</label><select class="select" id="skuPickModel" data-act="sku-pick-model"><option value="">请选择</option></select></div>
+            <div class="sku-pick-item"><label>sku</label><select class="select" id="skuPickSku"><option value="">请选择</option></select></div>
+            <div class="sku-pick-item"><label>产品名称/sku名称</label><input class="input" id="skuPickName" placeholder="产品名称 / SKU 名称" /></div>
+            <div class="sku-pick-item"><label>model产品状态</label><select class="select" id="skuPickModelStatus"><option value="">请选择</option><option>已上市</option><option>未上市</option><option>准备EOM</option><option>EOM</option><option>EOL</option></select></div>
+            <div class="sku-pick-item"><label>sku产品状态</label><select class="select" id="skuPickSkuStatus"><option value="">请选择</option><option>已上市</option><option>未上市</option><option>准备EOM</option><option>EOM</option><option>EOL</option></select></div>
+            <div class="sku-pick-actions">
+              <button class="btn btn-primary" type="button" data-act="search-sku-picker">搜索</button>
+              <button class="btn" type="button" data-act="import-sku">导入SKU</button>
+            </div>
+          </div>
+          <div class="sku-plan-toolbar">
+            <button class="btn btn-primary" type="button" data-act="sku-plan-batch">批量填写</button>
+            <span class="muted">勾选加入已选清单。全选只作用于当前搜索结果。批量填写覆盖当前勾选行的已填项。被动退市时新品衔接 4 列只读。</span>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th><input id="checkAllSku" type="checkbox" /></th><th>场景</th><th>品类</th><th>Model</th><th>8位SKU</th><th>MSKU</th><th>产品状态</th><th data-pa-key="in-stock">在库库存</th><th data-pa-key="total-stock">总计库存数量</th><th>近月销量</th><th>上市时间</th><th>国家规格</th><th>进行中EOM</th><th>排除原因</th><th>预计EOL</th><th>是否新品迭代</th><th>迭代新品SKU</th><th>新品预计CR</th><th>新品上市时间</th></tr></thead>
+              <tbody id="skuSelectBody"></tbody>
+            </table>
+          </div>
+          <div class="sku-cart" id="skuCartPanel" data-pa-key="sku-cart">
+            <div class="sku-cart-head">
+              <div>
+                <b>已选产品范围</b>
+                <span class="muted">本单只认下方清单。已选择 <b id="selectedSkuCount">0</b> 个 SKU，换筛选不会丢失。</span>
+              </div>
+              <button class="btn" type="button" data-act="clear-sku-cart" id="clearSkuCart">清空已选</button>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>场景</th><th>品类</th><th>Model</th><th>8位SKU</th><th>MSKU</th><th>产品状态</th><th>在库库存</th><th>总计库存数量</th><th>近月销量</th><th>上市时间</th><th>国家规格</th><th>进行中EOM</th><th>排除原因</th><th>预计EOL</th><th>是否新品迭代</th><th>迭代新品SKU</th><th>新品预计CR</th><th>新品上市时间</th><th>操作</th></tr></thead>
+                <tbody id="skuCartBody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+        <div class="step-panel" data-step="3">
+          <div class="section-title">附件与备注</div>
+          <div class="alert">预计 EOL 与新品衔接已在「产品范围」按 8 位 SKU 填写。本步只维护工单级附件和备注。</div>
+          <div class="form-grid">
+            <div class="form-item full"><label class="form-label">关联附件</label><div class="form-control"><div class="upload" id="planUpload">点击上传 EOM 方案（保存并提交时必填）<input id="planFile" type="file" hidden /></div><div class="muted" id="planFileName"></div></div></div>
+            <div class="form-item full"><label class="form-label">备注</label><div class="form-control"><textarea class="textarea" id="planRemark"></textarea></div></div>
+          </div>
+        </div>
+        <div class="step-panel" data-step="4">
+          <div class="alert success">带出的人不可改。需求计划、PMC、采购必选。</div>
+          <div class="section-title" style="margin-top:0">系统带出</div>
+          <div class="form-grid owner-auto">
+            <div class="form-item"><label class="form-label required">GTM（发起人）</label><div class="form-control"><div class="owner-text" id="rGtm"></div></div></div>
+            <div class="form-item"><label class="form-label">销售专员</label><div class="form-control"><div class="owner-text empty" id="rSales">—</div></div></div>
+            <div class="form-item"><label class="form-label">计划负责人</label><div class="form-control"><div class="owner-text empty" id="rPmcPlan">—</div></div></div>
+          </div>
+          <div class="section-title">需指定</div>
+          <div class="form-grid owner-select">
+            <div class="form-item full"><label class="form-label">其他GTM（仅通知）</label><div class="form-control" id="pick-gtmExtra"></div></div>
+            <div class="form-item full"><label class="form-label required">需求计划</label><div class="form-control" id="pick-demand"></div></div>
+            <div class="form-item full"><label class="form-label required">PMC对接人</label><div class="form-control" id="pick-pmc"></div></div>
+            <div class="form-item full"><label class="form-label required">采购对接人</label><div class="form-control" id="pick-buy"></div></div>
+            <div class="form-item full"><label class="form-label">抄送人员</label><div class="form-control" id="pick-cc"></div></div>
+          </div>
+          <div class="owner-draft">
+            <label class="radio"><input type="checkbox" id="draftNotify" />保存草稿时通知抄送人员（只读）。不勾选则仅发起人可见。</label>
+          </div>
+        </div>
+        <div class="step-panel" data-step="5">
+          <div id="submitChecks"></div>
+        </div>
+      </div>
+      <div class="dialog-footer">
+        <button class="btn" type="button" data-act="close-mask" data-mask="createMask">取消</button>
+        <button class="btn" id="prevStep" type="button" data-act="wizard-prev" disabled>上一步</button>
+        <button class="btn btn-primary" id="nextStep" type="button" data-act="wizard-next">下一步</button>
+        <button class="btn" id="saveDraft" type="button" data-act="wizard-draft">保存草稿</button>
+        <button class="btn btn-primary" id="submitEom" type="button" data-act="wizard-submit" style="display:none">提交</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="mask" id="formMask">
+    <div class="dialog" id="formDialog">
+      <div class="dialog-header"><span id="formTitle">处理</span><span class="dialog-close" data-act="close-mask" data-mask="formMask">×</span></div>
+      <div class="dialog-body" id="formBody"></div>
+      <div class="dialog-footer" id="formFooter"></div>
+    </div>
+  </div>
+
+  <script src="assets/eom-seed.js?v=owner-pick-1"></script>
+  <script src="assets/eom-app.js?v=owner-pick-1"></script>
+</body>
+</html>
