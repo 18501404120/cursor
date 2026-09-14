@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>研发任务中心 · DEMO</title>
+  <title>任务中心 · DEMO</title>
   <style>
     :root {
       --bg: #f3f5f9; --card: #fff; --text: #1a2336; --muted: #6b7690;
@@ -39,12 +39,14 @@
     .item.on { background: var(--soft); }
     .item b { display: block; font-size: 13px; }
     .item small { color: var(--muted); font-size: 11px; }
+    .item .todo { color: var(--amber); font-weight: 700; }
     .main { padding: 16px 20px 36px; overflow: auto; }
     .panel { background: #fff; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
     .hd { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; padding: 16px 18px; border-bottom: 1px solid var(--line); }
     .hd h1 { margin: 0 0 4px; font-size: 17px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
     .hd p { margin: 0; color: var(--muted); font-size: 12px; max-width: 52em; }
     .bd { padding: 16px 18px 20px; }
+    .btn { border: 1px solid var(--line); background: #fff; border-radius: 8px; padding: 6px 10px; }
     .btn:disabled { opacity: .4; cursor: not-allowed; }
     .btn.pri { background: var(--primary); border-color: var(--primary); color: #fff; }
     .btn.ok { background: var(--green); border-color: var(--green); color: #fff; }
@@ -52,7 +54,6 @@
     .btn.sm { padding: 5px 9px; font-size: 12px; }
     .btn.link { border: 0; background: transparent; color: var(--muted); font-weight: 600; padding: 4px 6px; }
     .btn.link:hover { color: var(--red); background: var(--rsoft); }
-    .btn:disabled { opacity: .4; cursor: not-allowed; }
     .chip { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 700; white-space: nowrap; }
     .s-draft { background: #f1f5f9; color: #475569; }
     .s-pub { background: #eef2f7; color: #4b5874; }
@@ -60,13 +61,14 @@
     .s-wait { background: var(--asoft); color: var(--amber); }
     .s-done { background: var(--gsoft); color: var(--green); }
     .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-    .form-2 { display: grid; grid-template-columns: 1fr 220px; gap: 12px; margin-bottom: 12px; }
+    .form-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
     .box { padding: 12px; border: 1px solid var(--line); border-radius: 10px; background: #f8fafc; }
     .box label, .fld label { display: block; font-size: 11px; font-weight: 800; color: var(--navy); margin-bottom: 6px; }
     .fld { padding: 12px; border: 1px solid var(--line); border-radius: 10px; background: #fff; }
     .fld.acc { background: var(--gsoft); border-color: #b7e4d4; }
     input, textarea, select { border: 1px solid var(--line); border-radius: 7px; padding: 7px 8px; background: #fff; }
     .bd input, .bd textarea, .bd select, .box input { width: 100%; }
+    .title-input { font: inherit; font-size: 17px; font-weight: 700; width: min(100%, 22em); }
     table { width: 100%; border-collapse: collapse; font-size: 12px; }
     table tr[data-act="sel"] { cursor: pointer; }
     table tr.on td { background: var(--soft); }
@@ -77,8 +79,8 @@
     .task-table th, .task-table td { background: #fff; }
     .task-table thead th { background: #f7f9fc; }
     .task-table .col-id { width: 64px; color: var(--muted); font-weight: 700; }
-    .task-table .col-owner { width: 108px; }
-    .task-table .col-st { width: 118px; }
+    .task-table .col-owner { width: 88px; }
+    .task-table .col-st { width: 148px; }
     .task-table .col-act { width: 132px; white-space: nowrap; }
     .task-table .name { font-weight: 700; }
     .task-table .name.ph { color: var(--muted); font-weight: 600; }
@@ -108,28 +110,37 @@
     .modal .hd { border-bottom: 1px solid var(--line); }
     .modal .bd textarea { min-height: 180px; resize: vertical; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; }
     .modal .hint-box { margin: 0 0 10px; padding: 10px 12px; background: #f7f9fc; border-radius: 8px; color: var(--muted); font-size: 12px; }
+    .steps { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin: 8px 0 0; }
+    .step { display: inline-block; padding: 4px 10px; border-radius: 999px; background: #f1f5f9; color: #64748b; font-size: 11px; font-weight: 700; }
+    .step.on { background: var(--soft); color: #27469f; }
+    .step.done { background: var(--gsoft); color: var(--green); }
+    .steps-arr { color: var(--muted); font-size: 12px; }
+    .nodes { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+    .node-pill { border: 1px solid var(--line); background: #fff; border-radius: 999px; padding: 4px 10px; font-size: 12px; }
+    .node-pill.on { border-color: #b7e4d4; background: var(--gsoft); color: var(--green); }
+    .mem { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 999px; background: var(--soft); font-size: 12px; margin: 0 6px 6px 0; }
     @media (max-width: 960px) { .split, .grid, .form-2 { grid-template-columns: 1fr; } }
   </style>
 </head>
 <body>
   <div class="app">
     <header class="top">
-      <div class="brand">任务中心<span>DEMO · 不管上下文</span></div>
+      <div class="brand">任务中心<span>DEMO · 一期先跑研发</span></div>
       <nav class="tabs">
-        <button class="tab" data-view="dispatch" type="button">解耦投放</button>
+        <button class="tab" data-view="dispatch" type="button">组委会</button>
         <button class="tab" data-view="mine" type="button">我的任务</button>
         <button class="tab" data-view="accept" type="button">验收</button>
-        <button class="tab" data-view="sum" type="button">项目汇总</button>
+        <button class="tab" data-view="sum" type="button">任务看板</button>
       </nav>
       <select id="role"></select>
       <button class="ghost" type="button" id="reset">重置</button>
     </header>
-    <div class="hint"><b>演示：</b>组委会写任务并发布 → 可中途增补独立任务（写完再发布）→ 开工 → 主责确认完工。禁止把已有对象拆成下一阶段。尺子归组委会。</div>
+    <div class="hint"><b>演示：</b>引用项目 → 拆任务并发布（尺子可后补）→ 开工进入设计 → 主责拉成员写参数 → 组委会锁定尺子后进入开发 → 确认完工钉钉推 TE 验收。一条任务内部走设计 / 开发 / 测试，不拆成两条任务。</div>
     <div class="shell" id="app"></div>
   </div>
   <div class="toast" id="toast"></div>
   <script>
-    const KEY = "rd-task-demo-v7";
+    const KEY = "rd-task-demo-v8";
     const ST = {
       draft: { l: "待发布", c: "s-draft" },
       published: { l: "已发布 · 未开工", c: "s-pub" },
@@ -139,94 +150,205 @@
     };
     const ROLES = [
       { id: "committee", name: "组委会", home: "dispatch" },
-      { id: "rd", name: "陈结构 · 主责人", home: "mine" },
-      { id: "te", name: "李 TE", home: "accept" },
+      { id: "zhou", name: "周ID", home: "mine", person: "zhou" },
+      { id: "chen", name: "陈结构", home: "mine", person: "chen" },
+      { id: "sun", name: "孙制冷", home: "mine", person: "sun" },
+      { id: "wu", name: "吴电子", home: "mine", person: "wu" },
+      { id: "te", name: "李 TE", home: "mine", person: "te" },
       { id: "pjm", name: "王项目", home: "sum" }
     ];
     const PEOPLE = [
       { id: "zhou", name: "周ID", role: "id" },
       { id: "chen", name: "陈结构", role: "rd" },
       { id: "sun", name: "孙制冷", role: "rf" },
-      { id: "wu", name: "吴电子", role: "ee" }
+      { id: "wu", name: "吴电子", role: "ee" },
+      { id: "te", name: "李TE", role: "te" }
+    ];
+    const TEMPLATES = [
+      { id: "ice", name: "商用制冷", tasks: [
+        { name: "ID 外观", ownerId: "zhou", nodeId: "n-plan" },
+        { name: "整机结构", ownerId: "chen", nodeId: "n-plan" },
+        { name: "蒸发器", ownerId: "chen", nodeId: "n-hand" },
+        { name: "压缩机", ownerId: "sun", nodeId: "n-hand" },
+        { name: "电子主控", ownerId: "wu", nodeId: "n-hand" }
+      ]},
+      { id: "oven", name: "商用加热", tasks: [
+        { name: "外观 ID", ownerId: "zhou", nodeId: "n-plan" },
+        { name: "腔体结构", ownerId: "chen", nodeId: "n-plan" },
+        { name: "加热管", ownerId: "wu", nodeId: "n-hand" }
+      ]}
     ];
     const ui = { role: "committee", view: "dispatch", pid: "PX12", sel: "T03", modal: "" };
 
     function P(label, value) { return { id: "p" + Math.random().toString(36).slice(2, 7), label, value }; }
     function C(name, target) { return { id: "c" + Math.random().toString(36).slice(2, 7), name, target }; }
     function person(id) { return PEOPLE.find(x => x.id === id); }
+    function defaultNodes(readyProto) {
+      return [
+        { id: "n-plan", name: "方案", ready: true },
+        { id: "n-hand", name: "手板", ready: true },
+        { id: "n-proto", name: "样机", ready: !!readyProto }
+      ];
+    }
+    function baseProj(id, name, type, endDate, readyProto) {
+      return {
+        id, name, type, endDate, published: false, source: "项目平台",
+        nodes: defaultNodes(readyProto), tasks: []
+      };
+    }
+    const CATALOG = [
+      baseProj("PX12", "PX-12 商用制冰机", "立项", "2026-12-31", false),
+      baseProj("PX08", "PX-08 商用烤箱", "立项", "2026-11-30", false),
+      baseProj("REQ01", "需求池 · 通用", "需求", "2026-12-31", true),
+      baseProj("OTH01", "其他 · 通用", "其他", "2026-12-31", true)
+    ];
+    function cloneProj(src) {
+      const p = JSON.parse(JSON.stringify(src));
+      p.tasks = [];
+      p.published = false;
+      return p;
+    }
     function applyOwner(task, ownerId) {
       const p = person(ownerId);
       task.ownerId = ownerId || "";
       task.owner = p ? p.name : "待指定";
       task.ownerRole = p ? p.role : "";
     }
-    function t(id, name, ownerId, helpers, params, criteria, content, block) {
-      const row = { id, name, helpers: helpers || [], params, criteria,
-        content: content || "", block: block || "", status: "draft", records: [], changes: [], asks: [] };
+    function t(id, name, ownerId, helpers, params, criteria, content, extra) {
+      extra = extra || {};
+      const row = {
+        id, name, helpers: helpers || [], params, criteria,
+        content: content || "", block: extra.block || "",
+        status: "draft", records: [], changes: [], asks: [], notices: [],
+        nodeId: extra.nodeId || "", dueDate: extra.dueDate || "",
+        members: extra.members || [], phase: "", rulerLocked: false, designSubmitted: false
+      };
       applyOwner(row, ownerId);
       return row;
     }
     function proj(id) { return db.projects.find(x => x.id === (id || ui.pid)); }
     function current() { return proj(ui.pid) || db.projects[0]; }
     function task(id, pid) { const p = proj(pid || ui.pid); return p && p.tasks.find(x => x.id === id); }
+    function nodeOf(p, id) { return (p.nodes || []).find(x => x.id === id); }
+    function nodeName(p, id) { const n = nodeOf(p, id); return n ? n.name : "未绑定"; }
+    function roleMe() { const r = ROLES.find(x => x.id === ui.role); return r && r.person; }
+    function isOwner(row) { return roleMe() && row.ownerId === roleMe(); }
+    function isMember(row) { return roleMe() && (row.members || []).includes(roleMe()); }
+    function phaseOf(row) {
+      if (row.status === "review" || row.status === "done") return "test";
+      return row.phase || "";
+    }
+    function statusText(row) {
+      if (row.status === "active") {
+        if (row.phase === "design") return row.designSubmitted ? "已开工 · 待锁定" : "已开工 · 设计";
+        if (row.phase === "dev") return "已开工 · 开发";
+      }
+      return (ST[row.status] || ST.draft).l;
+    }
+    function chip(row) {
+      const s = ST[row.status] || ST.draft;
+      const wait = row.status === "active" && row.phase === "design" && row.designSubmitted;
+      return `<span class="chip ${wait ? "s-wait" : s.c}">${statusText(row)}</span>`;
+    }
+    function todoLabel(p, row) {
+      if (row.status === "draft") return "待发布";
+      if (row.status === "published") return "待组委会开工";
+      if (row.status === "active" && row.phase === "design") {
+        return row.designSubmitted ? "待组委会锁定尺子" : (row.owner + " · 设计");
+      }
+      if (row.status === "active" && row.phase === "dev") return row.owner + " · 开发";
+      if (row.status === "review") return "李 TE · 验收";
+      return "—";
+    }
+    function waitingMe(row) {
+      if (ui.role === "te") return row.status === "review";
+      if (ui.role === "committee") return row.status === "active" && row.phase === "design" && row.designSubmitted;
+      if (isOwner(row) && row.status === "active" && row.phase === "design" && !row.designSubmitted) return true;
+      if (isOwner(row) && row.status === "active" && row.phase === "dev") return true;
+      if (isMember(row) && row.status === "active" && row.phase === "design" && !row.designSubmitted) return true;
+      return false;
+    }
+    function canEditRuler(row) {
+      if (!row || row.status === "review" || row.status === "done") return false;
+      if (ui.role === "committee") return true;
+      return row.status === "active" && row.phase === "design" && !row.designSubmitted && (isOwner(row) || isMember(row));
+    }
+    function canPullMembers(row) {
+      return isOwner(row) && row.status === "active" && row.phase === "design" && !row.designSubmitted;
+    }
+    function canSubmitDesign(row) {
+      return isOwner(row) && row.status === "active" && row.phase === "design" && !row.designSubmitted;
+    }
+    function canFinish(row) {
+      return isOwner(row) && row.status === "active" && row.phase === "dev" && row.rulerLocked;
+    }
+    function canLock(row) {
+      return ui.role === "committee" && row && row.status === "active" && row.phase === "design";
+    }
+    function canRejectDesign(row) {
+      return canLock(row) && row.designSubmitted;
+    }
 
     function seed() {
-      return {
-        projects: [
-          {
-            id: "PX12", name: "PX-12 商用制冰机", published: false,
-            tasks: [
-              t("T01", "ID 外观", "zhou", ["结构 · 陈结构"],
-                [P("交付对象", "可独立验收的外观手板"), P("台面高度", "860±5mm")],
-                [C("外观色差", "ΔE≤1.5")],
-                "面向量产外观手板，可脱离整机验收。"),
-              t("T02", "整机结构", "chen", ["ID · 周ID", "工艺 · 赵工"],
-                [P("交付对象", "可承载蒸发器的整机骨架"), P("过门宽度", "≤700mm"), P("接口约束", "不改蒸发器外廓")],
-                [C("振动后结构", "无裂纹")],
-                "可承载蒸发器的整机骨架，不按节点拆两阶段。"),
-              t("T03", "蒸发器", "chen", ["制冷 · 孙制冷", "TE · 李TE"],
-                [P("交付对象", "蒸发箱式挤冰器，可脱离整机验收"), P("出冰量", "≥120kg/24h"), P("安装接口", "286×164mm，4-M6")],
-                [C("测试台出冰", "≥120kg/24h"), C("保压", "2.5MPa / 30min 无泄漏")],
-                "蒸发箱式挤冰器，可脱离整机在测试台验收。"),
-              t("T04", "压缩机", "sun", ["结构 · 陈结构"],
-                [P("交付对象", "可台架验收的压缩机"), P("匹配接口", "按蒸发器安装面匹配")],
-                [C("台架制冷量", "达到匹配曲线")],
-                "可台架验收的压缩机，接口跟随蒸发器。",
-                "蒸发器安装接口未确认"),
-              t("T05", "电子主控", "wu", ["嵌入式 · 冯嵌入式"],
-                [P("交付对象", "可独立功能验收的主控板"), P("待机功耗", "≤3W")],
-                [C("保护动作", "过流/过温可测")],
-                "可独立功能验收的主控板。"),
-              t("T06", "挤冰电机", "chen", ["电子 · 吴电子"],
-                [P("交付对象", "可台架验收的挤冰电机"), P("堵转扭矩", "≥2.8N·m")],
-                [C("扭矩台架", "≥2.8N·m")],
-                "可台架验收的挤冰电机。"),
-              t("T07", "水路模块", "sun", ["结构 · 陈结构"],
-                [P("交付对象", "可打压验收的水路"), P("打压", "0.6MPa 无渗漏")],
-                [C("打压", "0.6MPa 无渗漏")],
-                "可打压验收的水路模块。"),
-              t("T08", "冷凝器", "sun", ["结构 · 陈结构"],
-                [P("交付对象", "可风洞验收的冷凝器"), P("风道空间", "待结构确认")],
-                [C("风洞换热", "达标")],
-                "可风洞验收的冷凝器。")
-            ]
-          },
-          {
-            id: "PX08", name: "PX-08 商用烤箱", published: false,
-            tasks: [
-              t("T01", "外观 ID", "zhou", ["结构 · 陈结构"],
-                [P("交付对象", "烤箱门板与把手")], [C("色差", "ΔE≤1.5")],
-                "可独立验收的外观件，不绑整机腔体。"),
-              t("T02", "腔体结构", "chen", ["ID · 周ID"],
-                [P("交付对象", "可独立打压的腔体")], [C("打压", "无泄漏")],
-                "面向量产腔体，不拆成两阶段任务。"),
-              t("T03", "加热管", "wu", ["结构 · 陈结构"],
-                [P("交付对象", "可台架验收的加热管")], [C("功率", "达标")],
-                "脱离整机台架验收。")
-            ]
-          }
-        ]
-      };
+      const px12 = cloneProj(CATALOG[0]);
+      px12.tasks = [
+        t("T01", "ID 外观", "zhou", ["结构 · 陈结构"],
+          [P("交付对象", "可独立验收的外观手板"), P("台面高度", "860±5mm")],
+          [C("外观色差", "ΔE≤1.5")],
+          "面向量产外观手板，可脱离整机验收。",
+          { nodeId: "n-plan", dueDate: "2026-10-15" }),
+        t("T02", "整机结构", "chen", ["ID · 周ID", "工艺 · 赵工"],
+          [P("交付对象", "可承载蒸发器的整机骨架"), P("过门宽度", "≤700mm"), P("接口约束", "不改蒸发器外廓")],
+          [C("振动后结构", "无裂纹")],
+          "可承载蒸发器的整机骨架。一条对象一条任务，不按项目节点拆两阶段。",
+          { nodeId: "n-plan", dueDate: "2026-10-31" }),
+        t("T03", "蒸发器", "chen", ["制冷 · 孙制冷", "TE · 李TE"],
+          [P("交付对象", "蒸发箱式挤冰器，可脱离整机验收"), P("出冰量", "≥120kg/24h"), P("安装接口", "286×164mm，4-M6")],
+          [C("测试台出冰", "≥120kg/24h"), C("保压", "2.5MPa / 30min 无泄漏")],
+          "蒸发箱式挤冰器，可脱离整机在测试台验收。",
+          { nodeId: "n-hand", dueDate: "2026-11-15" }),
+        t("T04", "压缩机", "sun", ["结构 · 陈结构"],
+          [P("交付对象", "可台架验收的压缩机"), P("匹配接口", "按蒸发器安装面匹配")],
+          [C("台架制冷量", "达到匹配曲线")],
+          "可台架验收的压缩机，接口跟随蒸发器。依赖用推迟开工处理，不拆两阶段任务。",
+          { nodeId: "n-hand", dueDate: "2026-11-20" }),
+        t("T05", "电子主控", "wu", ["嵌入式 · 冯嵌入式"],
+          [P("交付对象", "可独立功能验收的主控板"), P("待机功耗", "≤3W")],
+          [C("保护动作", "过流/过温可测")],
+          "可独立功能验收的主控板。",
+          { nodeId: "n-hand", dueDate: "2026-11-20" }),
+        t("T06", "挤冰电机", "chen", ["电子 · 吴电子"],
+          [P("交付对象", "可台架验收的挤冰电机"), P("堵转扭矩", "≥2.8N·m")],
+          [C("扭矩台架", "≥2.8N·m")],
+          "可台架验收的挤冰电机。",
+          { nodeId: "n-hand", dueDate: "2026-11-15" }),
+        t("T07", "水路模块", "sun", ["结构 · 陈结构"],
+          [P("交付对象", "可打压验收的水路"), P("打压", "0.6MPa 无渗漏")],
+          [C("打压", "0.6MPa 无渗漏")],
+          "可打压验收的水路模块。",
+          { nodeId: "n-hand", dueDate: "2026-11-30" }),
+        t("T08", "冷凝器", "sun", ["结构 · 陈结构"],
+          [P("交付对象", "可风洞验收的冷凝器"), P("风道空间", "待结构确认")],
+          [C("风洞换热", "达标")],
+          "可风洞验收的冷凝器。挂在未释放的样机节点上，演示只发布不开工。",
+          { nodeId: "n-proto", dueDate: "2026-12-15" })
+      ];
+      const px08 = cloneProj(CATALOG[1]);
+      px08.tasks = [
+        t("T01", "外观 ID", "zhou", ["结构 · 陈结构"],
+          [P("交付对象", "烤箱门板与把手")], [C("色差", "ΔE≤1.5")],
+          "可独立验收的外观件，不绑整机腔体。",
+          { nodeId: "n-plan", dueDate: "2026-10-20" }),
+        t("T02", "腔体结构", "chen", ["ID · 周ID"],
+          [P("交付对象", "可独立打压的腔体")], [C("打压", "无泄漏")],
+          "面向量产腔体，不拆成两阶段任务。",
+          { nodeId: "n-plan", dueDate: "2026-11-05" }),
+        t("T03", "加热管", "wu", ["结构 · 陈结构"],
+          [P("交付对象", "可台架验收的加热管")], [C("功率", "达标")],
+          "脱离整机台架验收。",
+          { nodeId: "n-hand", dueDate: "2026-11-15" })
+      ];
+      return { projects: [px12, px08] };
     }
 
     let db = load();
@@ -241,47 +363,49 @@
     function toast(m) {
       const el = document.getElementById("toast");
       el.textContent = m; el.style.display = "block";
-      clearTimeout(toast._t); toast._t = setTimeout(() => el.style.display = "none", 4000);
+      clearTimeout(toast._t); toast._t = setTimeout(() => el.style.display = "none", 4200);
     }
-    function chip(s) { const x = ST[s] || ST.draft; return `<span class="chip ${x.c}">${x.l}</span>`; }
     function now() { return new Date().toLocaleString("zh-CN", { hour12: false }); }
-    function log(t, text, by) { t.changes.unshift({ time: now(), by, text }); }
+    function log(row, text, by) { row.changes.unshift({ time: now(), by, text }); }
+    function notice(row, text) { row.notices.unshift({ time: now(), text }); }
     function ownerOpts(id) {
-      return `<option value="">待指定</option>` + PEOPLE.map(p =>
+      return `<option value="">待指定</option>` + PEOPLE.filter(p => p.role !== "te").map(p =>
         `<option value="${p.id}" ${p.id === id ? "selected" : ""}>${esc(p.name)}</option>`).join("");
+    }
+    function nodeOpts(p, id) {
+      return `<option value="">请选择项目节点</option>` + (p.nodes || []).map(n =>
+        `<option value="${n.id}" ${n.id === id ? "selected" : ""}>${esc(n.name)}${n.ready ? "" : " · 未释放"}</option>`).join("");
     }
     function nextTaskId(p) {
       let n = p.tasks.length + 1, id;
       do { id = "T" + String(n).padStart(2, "0"); n++; } while (p.tasks.some(x => x.id === id));
       return id;
     }
-    function nextProjId() {
-      let n = db.projects.length + 1, id;
-      do { id = "P" + String(n).padStart(2, "0"); n++; } while (db.projects.some(x => x.id === id));
-      return id;
-    }
     function walkTasks(fn) {
       const out = [];
-      db.projects.forEach(p => p.tasks.forEach(t => out.push(fn(p, t))));
+      db.projects.forEach(p => p.tasks.forEach(row => out.push(fn(p, row))));
       return out;
     }
     function listed(kind) {
-      return walkTasks((p, t) => ({ p, t })).filter(({ p, t }) => {
-        if (t.status === "draft") return false;
-        if (kind === "mine" && ui.role === "rd") return t.ownerRole === "rd";
-        return true;
+      const items = walkTasks((p, row) => ({ p, t: row })).filter(({ t: row }) => {
+        if (row.status === "draft") return false;
+        if (kind === "accept") return true;
+        if (ui.role === "committee" || ui.role === "pjm" || ui.role === "te") return true;
+        const me = roleMe();
+        return row.ownerId === me || (row.members || []).includes(me);
       });
+      items.sort((a, b) => (waitingMe(b.t) ? 1 : 0) - (waitingMe(a.t) ? 1 : 0));
+      return items;
     }
     function draftsOf(p) { return p.tasks.filter(x => x.status === "draft"); }
-    function openAsks(t) { return (t.asks || []).filter(a => a.open); }
-    function rulerOk(t) { return ui.role === "committee" && t && t.status !== "review" && t.status !== "done"; }
+    function openAsks(row) { return (row.asks || []).filter(a => a.open); }
     function incompleteRuler(x) {
       return !x.params.length || x.params.some(pr => !String(pr.label || "").trim() || !String(pr.value || "").trim())
         || !x.criteria.length || x.criteria.some(c => !String(c.name || "").trim() || !String(c.target || "").trim());
     }
-    function closeAsks(t) { (t.asks || []).forEach(a => { a.open = false; }); }
-    function asksHtml(t) {
-      const list = t.asks || [];
+    function closeAsks(row) { (row.asks || []).forEach(a => { a.open = false; }); }
+    function asksHtml(row) {
+      const list = row.asks || [];
       if (!list.length) return `<p class="muted">还没有改参申请。</p>`;
       return `<div class="log">${list.map(a => `<article>
         <div class="muted">${esc(a.time)} · ${esc(a.by)} · ${a.open ? "待组委会确认" : "已处理"}</div>
@@ -332,25 +456,43 @@
         <tbody>${rows || `<tr><td colspan="${cols.length}" class="muted">${emptyText}</td></tr>`}</tbody>
       </table></div>`;
     }
-    function rulerFields(t, p, editable) {
+    function nodeBar(row) {
+      const ph = phaseOf(row);
+      const order = ["design", "dev", "test"];
+      const names = { design: "设计", dev: "开发", test: "测试（验收）" };
+      const started = row.status === "active" || row.status === "review" || row.status === "done";
+      return `<div class="steps" aria-label="任务内部节点">${order.map((k, i) => {
+        let cls = "step";
+        if (started) {
+          const i0 = order.indexOf(k);
+          const i1 = order.indexOf(ph);
+          if (row.status === "done" || (i1 >= 0 && i0 < i1)) cls += " done";
+          else if (k === ph) cls += " on";
+        }
+        return `${i ? `<span class="steps-arr">→</span>` : ""}<span class="${cls}">${names[k]}</span>`;
+      }).join("")}</div>
+      <p class="muted" style="margin:6px 0 0">${started ? "当前节点决定谁的待办、谁能改参。锁定尺子后才能进入开发。" : "开工后进入设计。尚未开工。"}</p>`;
+    }
+    function rulerFields(row, p, editable) {
       const pid = p.id;
-      const params = t.params.map((pr, i) => `<tr>
-        <td>${editable ? `<input data-act="param-label" data-pid="${pid}" data-id="${t.id}" data-i="${i}" value="${esc(pr.label)}" placeholder="如 出冰量">` : esc(pr.label)}</td>
-        <td>${editable ? `<input data-act="param-val" data-pid="${pid}" data-id="${t.id}" data-i="${i}" value="${esc(pr.value)}" placeholder="量产向目标值">` : esc(pr.value)}</td>
-        ${editable ? `<td class="col-act"><button class="btn link sm" type="button" data-act="del-param" data-pid="${pid}" data-id="${t.id}" data-i="${i}">删除</button></td>` : ""}
+      const params = row.params.map((pr, i) => `<tr>
+        <td>${editable ? `<input data-act="param-label" data-pid="${pid}" data-id="${row.id}" data-i="${i}" value="${esc(pr.label)}" placeholder="如 出冰量">` : esc(pr.label)}</td>
+        <td>${editable ? `<input data-act="param-val" data-pid="${pid}" data-id="${row.id}" data-i="${i}" value="${esc(pr.value)}" placeholder="量产向目标值">` : esc(pr.value)}</td>
+        ${editable ? `<td class="col-act"><button class="btn link sm" type="button" data-act="del-param" data-pid="${pid}" data-id="${row.id}" data-i="${i}">删除</button></td>` : ""}
       </tr>`).join("");
-      const crits = t.criteria.map((c, i) => `<tr>
-        <td>${editable ? `<input data-act="crit-name" data-pid="${pid}" data-id="${t.id}" data-i="${i}" value="${esc(c.name)}" placeholder="如 保压">` : esc(c.name)}</td>
-        <td>${editable ? `<input data-act="crit-tgt" data-pid="${pid}" data-id="${t.id}" data-i="${i}" value="${esc(c.target)}" placeholder="目标值">` : esc(c.target)}</td>
-        ${editable ? `<td class="col-act"><button class="btn link sm" type="button" data-act="del-crit" data-pid="${pid}" data-id="${t.id}" data-i="${i}">删除</button></td>` : ""}
+      const crits = row.criteria.map((c, i) => `<tr>
+        <td>${editable ? `<input data-act="crit-name" data-pid="${pid}" data-id="${row.id}" data-i="${i}" value="${esc(c.name)}" placeholder="如 保压">` : esc(c.name)}</td>
+        <td>${editable ? `<input data-act="crit-tgt" data-pid="${pid}" data-id="${row.id}" data-i="${i}" value="${esc(c.target)}" placeholder="目标值">` : esc(c.target)}</td>
+        ${editable ? `<td class="col-act"><button class="btn link sm" type="button" data-act="del-crit" data-pid="${pid}" data-id="${row.id}" data-i="${i}">删除</button></td>` : ""}
       </tr>`).join("");
+      const who = ui.role === "committee" ? "组委会写尺子" : "设计节点可改，锁定后只读";
       return `
         <div class="section">
           <div class="section-hd">
-            <h3>参数（${t.params.length}）${editable ? " · 组委会写尺子" : " · 只读"}</h3>
+            <h3>参数（${row.params.length}）${editable ? " · " + who : " · 只读"}</h3>
             ${editable ? `<div class="toolbar">
-              <button class="btn sm" type="button" data-act="add-param" data-pid="${pid}" data-id="${t.id}">增加参数</button>
-              <button class="btn sm" type="button" data-act="open-import" data-pid="${pid}" data-id="${t.id}">导入参数</button>
+              <button class="btn sm" type="button" data-act="add-param" data-pid="${pid}" data-id="${row.id}">增加参数</button>
+              <button class="btn sm" type="button" data-act="open-import" data-pid="${pid}" data-id="${row.id}">导入参数</button>
             </div>` : ""}
           </div>
           ${kvTable(
@@ -361,9 +503,9 @@
         </div>
         <div class="section">
           <div class="section-hd">
-            <h3>验收条件（${t.criteria.length}）${editable ? " · 组委会写尺子" : " · 只读"}</h3>
+            <h3>验收条件（${row.criteria.length}）${editable ? " · " + who : " · 只读"}</h3>
             ${editable ? `<div class="toolbar">
-              <button class="btn sm" type="button" data-act="add-crit" data-pid="${pid}" data-id="${t.id}">增加验收条件</button>
+              <button class="btn sm" type="button" data-act="add-crit" data-pid="${pid}" data-id="${row.id}">增加验收条件</button>
             </div>` : ""}
           </div>
           ${kvTable(
@@ -373,16 +515,16 @@
           )}
         </div>`;
     }
-    function importModal(t, p) {
-      if (ui.modal !== "import" || !t) return "";
-      return `<div class="mask" data-act="close-import">
+    function importModal(row, p) {
+      if (ui.modal !== "import" || !row) return "";
+      return `<div class="mask" data-act="close-modal">
         <div class="modal" data-act="noop">
           <div class="hd">
             <div>
-              <h1>导入参数 · ${esc(t.id)} ${esc(t.name || "未命名任务")}</h1>
+              <h1>导入参数 · ${esc(row.id)} ${esc(row.name || "未命名任务")}</h1>
               <p>导入到当前选中任务，不影响其他任务。</p>
             </div>
-            <button class="btn sm" type="button" data-act="close-import">关闭</button>
+            <button class="btn sm" type="button" data-act="close-modal">关闭</button>
           </div>
           <div class="bd">
             <p class="hint-box">每行一条：参数名,目标值。也支持 Tab 分隔，或 JSON 数组 [{"label":"出冰量","value":"≥120kg/24h"}]。</p>
@@ -393,14 +535,56 @@
               <textarea id="imp-text" placeholder="交付对象,可台架验收的加热管&#10;功率,2.0kW±5%&#10;安装接口,待结构确认"></textarea>
             </label>
             <div class="row" style="margin-top:12px">
-              <button class="btn pri" type="button" data-act="import-append" data-pid="${p.id}" data-id="${t.id}">追加导入</button>
-              <button class="btn" type="button" data-act="import-replace" data-pid="${p.id}" data-id="${t.id}">覆盖后导入</button>
+              <button class="btn pri" type="button" data-act="import-append" data-pid="${p.id}" data-id="${row.id}">追加导入</button>
+              <button class="btn" type="button" data-act="import-replace" data-pid="${p.id}" data-id="${row.id}">覆盖后导入</button>
             </div>
           </div>
         </div>
       </div>`;
     }
-
+    function citeModal() {
+      if (ui.modal !== "cite") return "";
+      const used = new Set(db.projects.map(p => p.id));
+      const left = CATALOG.filter(x => !used.has(x.id));
+      return `<div class="mask" data-act="close-modal">
+        <div class="modal" data-act="noop">
+          <div class="hd">
+            <div>
+              <h1>引用项目</h1>
+              <p>任务中心不新建立项。从项目平台引用；未立项可挂到需求 / 其他通用项目。</p>
+            </div>
+            <button class="btn sm" type="button" data-act="close-modal">关闭</button>
+          </div>
+          <div class="bd">
+            ${left.length ? left.map(x => `<div class="fld" style="margin-bottom:8px;display:flex;justify-content:space-between;gap:12px;align-items:center">
+              <div><b>${esc(x.name)}</b><div class="muted">${esc(x.type)} · 结束 ${esc(x.endDate)} · 来自项目平台</div></div>
+              <button class="btn pri sm" type="button" data-act="cite-proj" data-id="${x.id}">引用</button>
+            </div>`).join("") : `<p class="muted">可引用的项目都已挂上。</p>`}
+          </div>
+        </div>
+      </div>`;
+    }
+    function tplModal(p) {
+      if (ui.modal !== "tpl") return "";
+      return `<div class="mask" data-act="close-modal">
+        <div class="modal" data-act="noop">
+          <div class="hd">
+            <div>
+              <h1>按模板拆（规划）</h1>
+              <p>实例可改，不回写模板。一期先方便填写，不是自动编排。</p>
+            </div>
+            <button class="btn sm" type="button" data-act="close-modal">关闭</button>
+          </div>
+          <div class="bd">
+            <p class="hint-box">选择模板后，任务追加为待发布。名称、责任人、节点都可以再改。</p>
+            ${TEMPLATES.map(tp => `<div class="fld" style="margin-bottom:8px;display:flex;justify-content:space-between;gap:12px;align-items:center">
+              <div><b>${esc(tp.name)}</b><div class="muted">${tp.tasks.map(x => x.name).join(" / ")}</div></div>
+              <button class="btn pri sm" type="button" data-act="apply-tpl" data-pid="${p.id}" data-id="${tp.id}">追加</button>
+            </div>`).join("")}
+          </div>
+        </div>
+      </div>`;
+    }
     function render() {
       if (!proj(ui.pid) && db.projects[0]) ui.pid = db.projects[0].id;
       document.querySelectorAll(".tab").forEach(b => b.classList.toggle("on", b.dataset.view === ui.view));
@@ -414,12 +598,14 @@
       const can = ui.role === "committee";
       return `<aside class="list">
         <h2>项目</h2>
-        <p>每个项目各自拆任务、可分批发布，也可中途增补。</p>
+        <p>引用项目平台。每个项目各自拆任务、可分批发布。</p>
         ${db.projects.map(p => `<button class="item ${p.id === ui.pid ? "on" : ""}" data-act="sel-proj" data-id="${p.id}" type="button">
           <b>${esc(p.name)}</b>
-          <small>${draftsOf(p).length ? (p.published ? "可增补" : "拆解中") : (p.published ? "已发布" : "拆解中")} · ${p.tasks.length} 条任务${draftsOf(p).length ? " · 待发布 " + draftsOf(p).length : ""}</small>
+          <small>${esc(p.type)} · ${draftsOf(p).length ? (p.published ? "可增补" : "拆解中") : (p.published ? "已发布" : "拆解中")} · ${p.tasks.length} 条${draftsOf(p).length ? " · 待发布 " + draftsOf(p).length : ""}</small>
         </button>`).join("")}
-        ${can ? `<div style="padding:12px 16px"><button class="btn" type="button" data-act="add-proj">新建项目</button></div>` : ""}
+        ${can ? `<div style="padding:12px 16px" class="toolbar">
+          <button class="btn" type="button" data-act="open-cite">引用项目</button>
+        </div>` : ""}
         ${extra || ""}
       </aside>`;
     }
@@ -432,47 +618,59 @@
       if (p.tasks.length && !p.tasks.find(x => x.id === ui.sel)) ui.sel = p.tasks[0].id;
       if (!p.tasks.length) ui.sel = "";
       const sel = p.tasks.find(x => x.id === ui.sel);
-      const ruler = sel && rulerOk(sel);
+      const ruler = sel && canEditRuler(sel);
       const ident = can && sel && sel.status === "draft";
+      const nameEdit = can && p.type !== "立项" && !p.published;
       return `<div class="split">
         ${projList()}
         <div class="main">
           <section class="panel">
             <div class="hd">
               <div>
-                <h1>${can && !p.published ? `<input class="title-input" data-act="proj-name" data-pid="${p.id}" value="${esc(p.name)}" placeholder="项目名称">` : esc(p.name)}</h1>
-                <p>未发布任务可删除。参数可删、可导入。已发布任务的名称 / 内容 / 责任人冻结。</p>
+                <h1>${nameEdit ? `<input class="title-input" data-act="proj-name" data-pid="${p.id}" value="${esc(p.name)}" placeholder="项目名称">` : esc(p.name)}</h1>
+                <p>引用自项目平台 · ${esc(p.type)} · 项目结束 ${esc(p.endDate)}。发布要有名称、内容、责任人、项目节点和计划结束时间；尺子可后补，设计节点再写，组委会锁定后进入开发。</p>
+                <div class="nodes">${(p.nodes || []).map(n => `<button class="node-pill ${n.ready ? "on" : ""}" type="button" data-act="toggle-node" data-pid="${p.id}" data-nid="${n.id}" ${can ? "" : "disabled"}>${esc(n.name)} · ${n.ready ? "已释放" : "未释放"}</button>`).join("")}</div>
               </div>
               <div class="row">
+                <button class="btn" type="button" data-act="open-tpl" ${can ? "" : "disabled"}>按模板拆（规划）</button>
                 <button class="btn" type="button" data-act="add-task" ${can ? "" : "disabled"}>再拆一条</button>
                 <button class="btn pri" type="button" data-act="publish" ${can && drafts.length ? "" : "disabled"}>${drafts.length ? (p.published ? "发布新增任务（" + drafts.length + "）" : "发布本项目任务") : "没有待发布任务"}</button>
               </div>
             </div>
             <div class="bd">
               ${p.tasks.length ? `<div class="task-table"><table>
-                <thead><tr><th class="col-id">编号</th><th>任务名称</th><th class="col-owner">责任人</th><th class="col-st">状态</th><th class="col-act">操作</th></tr></thead>
+                <thead><tr><th class="col-id">编号</th><th>任务名称</th><th>节点</th><th class="col-owner">责任人</th><th class="col-st">状态</th><th class="col-act">操作</th></tr></thead>
                 <tbody>
                   ${p.tasks.map(row => `<tr data-act="sel" data-pid="${p.id}" data-id="${row.id}" class="${row.id === ui.sel ? "on" : ""}">
-                    <td class="col-id">${row.id}${openAsks(row).length ? `<div class="muted">待改参 ${openAsks(row).length}</div>` : ""}</td>
+                    <td class="col-id">${row.id}${openAsks(row).length ? `<div class="muted">待改参 ${openAsks(row).length}</div>` : ""}${row.designSubmitted && row.phase === "design" ? `<div class="muted">待锁定</div>` : ""}</td>
                     <td class="name${row.name ? "" : " ph"}">${esc(row.name || "未命名任务")}</td>
+                    <td>${esc(nodeName(p, row.nodeId))}</td>
                     <td>${esc(row.owner)}</td>
-                    <td>${chip(row.status)}</td>
+                    <td>${chip(row)}</td>
                     <td class="col-act">
                       ${can && row.status === "published" ? `<button class="btn pri sm" data-act="activate" data-pid="${p.id}" data-id="${row.id}" type="button">开工</button>` : ""}
                       ${can && row.status === "draft" ? `<button class="btn link sm" data-act="del-task" data-pid="${p.id}" data-id="${row.id}" type="button">删除</button>` : ""}
                     </td>
                   </tr>`).join("")}
                 </tbody>
-              </table></div>` : `<p class="muted">还没有任务。点「再拆一条」，在下方填写后发布。</p>`}
+              </table></div>` : `<p class="muted">还没有任务。点「再拆一条」，或用模板追加后发布。</p>`}
               ${sel ? `<div class="editor">
-                <h2>${sel.id} ${esc(sel.name || "未命名任务")} · ${ident ? "待发布，可改名称 / 内容 / 责任人" : (ruler ? "名称已冻结，组委会可改尺子" : "当前不可改尺子")}</h2>
-                ${ident ? `<div class="form-2">
+                <h2>${sel.id} ${esc(sel.name || "未命名任务")} · ${ident ? "待发布，可改名称 / 内容 / 责任人 / 节点 / 结束时间" : (ruler ? "名称已冻结，尺子可改" : "当前不可改尺子")}</h2>
+                ${nodeBar(sel)}
+                ${ident ? `<div class="form-2" style="margin-top:12px">
                   <div class="fld"><label>任务名称</label><input data-act="task-name" data-pid="${p.id}" data-id="${sel.id}" value="${esc(sel.name)}" placeholder="如 蒸发器"></div>
                   <div class="fld"><label>责任人</label><select data-act="task-owner" data-pid="${p.id}" data-id="${sel.id}">${ownerOpts(sel.ownerId)}</select></div>
+                  <div class="fld"><label>项目节点</label><select data-act="task-node" data-pid="${p.id}" data-id="${sel.id}">${nodeOpts(p, sel.nodeId)}</select></div>
+                  <div class="fld"><label>计划结束</label><input type="date" data-act="task-due" data-pid="${p.id}" data-id="${sel.id}" value="${esc(sel.dueDate)}"></div>
                 </div>
                 <div class="fld" style="margin-bottom:12px"><label>任务内容</label><textarea data-act="task-content" data-pid="${p.id}" data-id="${sel.id}" rows="2" placeholder="量产向交付说明，可独立验收">${esc(sel.content)}</textarea></div>`
-                : `<div class="fld" style="margin-bottom:12px"><label>任务内容 · 责任人 ${esc(sel.owner)}</label><div>${esc(sel.content) || "—"}</div></div>`}
+                : `<div class="fld" style="margin:12px 0"><label>任务内容 · 责任人 ${esc(sel.owner)} · 节点 ${esc(nodeName(p, sel.nodeId))} · 计划结束 ${esc(sel.dueDate) || "—"}</label><div>${esc(sel.content) || "—"}</div></div>`}
                 ${openAsks(sel).length ? `<div class="banner wait">主责待确认的改参申请，改完尺子即视为已对齐。</div>` : ""}
+                ${sel.designSubmitted && sel.phase === "design" ? `<div class="banner wait">主责已提交设计，请评审参数和验收条件后锁定尺子。</div>` : ""}
+                ${canLock(sel) ? `<div class="row" style="margin-bottom:12px">
+                  <button class="btn pri" type="button" data-act="lock-ruler" data-pid="${p.id}" data-id="${sel.id}">锁定尺子并进入开发</button>
+                  ${canRejectDesign(sel) ? `<button class="btn warn" type="button" data-act="reject-design" data-pid="${p.id}" data-id="${sel.id}">退回设计</button>` : ""}
+                </div>` : ""}
                 ${rulerFields(sel, p, ruler)}
                 <div class="section">
                   <div class="section-hd"><h3>改参申请</h3></div>
@@ -482,7 +680,7 @@
             </div>
           </section>
         </div>
-        ${importModal(sel, p)}
+        ${importModal(sel, p)}${citeModal()}${tplModal(p)}
       </div>`;
     }
 
@@ -493,73 +691,98 @@
         ui.pid = items[0].p.id; ui.sel = items[0].t.id;
       }
       const hit = items.find(x => x.p.id === ui.pid && x.t.id === ui.sel);
-      const title = isAcc ? ["验收", "提验前可看条件、做准备。主责确认完工后才能交记录。"]
-        : ["我的任务", "按人看任务。参数和验收条件只读。主责推进任务并确认完工；有问题向组委会提改参。"];
+      const title = isAcc ? ["验收", "提验前可看条件、做准备。进入测试节点后才能交记录。"]
+        : ["我的任务", "按当前待办人看。设计节点主责和被拉成员可改参；锁定后开发；完工后推 TE。一期先覆盖研发角色。"];
       return `<div class="split">
         <aside class="list">
           <h2>${title[0]}</h2>
           <p>${title[1]}</p>
           ${items.map(x => `<button class="item ${x.p.id === ui.pid && x.t.id === ui.sel ? "on" : ""}" data-act="sel" data-pid="${x.p.id}" data-id="${x.t.id}" type="button">
             <b>${x.t.id} ${esc(x.t.name)}</b>
-            <small>${esc(x.p.name)} · ${esc(x.t.owner)} · ${ST[x.t.status].l}</small>
-          </button>`).join("") || `<div class="empty">还没有已发布的任务。<br>请组委会先按项目拆任务并发布。</div>`}
+            <small>${esc(x.p.name)} · ${esc(todoLabel(x.p, x.t))} · ${statusText(x.t)}</small>
+            ${waitingMe(x.t) ? `<small class="todo">待我处理</small>` : ""}
+          </button>`).join("") || `<div class="empty">还没有已发布的任务。<br>请组委会先引用项目、拆任务并发布。</div>`}
         </aside>
-        <div class="main">${hit ? (isAcc ? viewAccept(hit.t, hit.p) : viewMine(hit.t, hit.p)) : `<div class="empty">选择左侧任务</div>`}</div>
+        <div class="main">${hit ? (isAcc || (ui.role === "te" && hit.t.status === "review") ? viewAccept(hit.t, hit.p) : viewMine(hit.t, hit.p)) : `<div class="empty">选择左侧任务</div>`}</div>
       </div>`;
     }
 
-    function viewMine(t, p) {
+    function membersHtml(row, p) {
+      const can = canPullMembers(row);
+      const opts = PEOPLE.filter(x => x.role !== "te" && x.id !== row.ownerId && !(row.members || []).includes(x.id));
+      return `<div class="section">
+        <div class="section-hd"><h3>设计成员</h3></div>
+        <div>${(row.members || []).length ? (row.members || []).map(mid => `<span class="mem">${esc(person(mid) && person(mid).name || mid)}${can ? `<button class="btn link sm" type="button" data-act="rem-member" data-pid="${p.id}" data-id="${row.id}" data-i="${mid}">×</button>` : ""}</span>`).join("") : `<span class="muted">还没有拉成员。辅助 ${row.helpers.join(" / ") || "—"}</span>`}</div>
+        ${can ? `<div class="row" style="margin-top:8px">
+          <select id="mem-add" style="width:auto">${opts.map(x => `<option value="${x.id}">${esc(x.name)}</option>`).join("") || `<option value="">无人可拉</option>`}</select>
+          <button class="btn sm" type="button" data-act="add-member" data-pid="${p.id}" data-id="${row.id}" ${opts.length ? "" : "disabled"}>拉进设计</button>
+        </div>` : ""}
+      </div>`;
+    }
+
+    function viewMine(row, p) {
       const pid = p.id;
-      const own = ui.role === "rd" && t.ownerRole === "rd";
-      const canFinish = own && t.status === "active";
-      const last = t.records[0];
+      const last = row.records[0];
       const failed = last && !last.pass;
-      const pending = openAsks(t);
+      const pending = openAsks(row);
+      const ding = (row.notices || [])[0];
       return `<section class="panel">
         <div class="hd">
-          <div>${chip(t.status)}<h1 style="margin-top:8px">${t.id} ${esc(t.name)}</h1>
-            <p>${esc(p.name)} · 主责 ${esc(t.owner)} · 辅助 ${t.helpers.join(" / ") || "—"}</p></div>
-          ${canFinish ? `<button class="btn pri" type="button" data-act="finish" data-pid="${pid}" data-id="${t.id}">确认研发完工</button>` : ""}
+          <div>${chip(row)}<h1 style="margin-top:8px">${row.id} ${esc(row.name)}</h1>
+            <p>${esc(p.name)} · 主责 ${esc(row.owner)} · 当前待办 ${esc(todoLabel(p, row))} · 节点 ${esc(nodeName(p, row.nodeId))} · 计划结束 ${esc(row.dueDate) || "—"}</p>
+            ${nodeBar(row)}
+          </div>
+          <div class="row">
+            ${canSubmitDesign(row) ? `<button class="btn pri" type="button" data-act="submit-design" data-pid="${pid}" data-id="${row.id}">提交设计评审</button>` : ""}
+            ${canFinish(row) ? `<button class="btn pri" type="button" data-act="finish" data-pid="${pid}" data-id="${row.id}">确认研发完工</button>` : ""}
+          </div>
         </div>
         <div class="bd">
-          ${t.content ? `<div class="fld" style="margin-bottom:12px"><label>任务内容</label><div>${esc(t.content)}</div></div>` : ""}
-          ${t.status === "review" ? `<div class="banner wait">已提验，尺子冻结。等待 TE 按当前验收条件落记录。</div>` : ""}
-          ${t.status === "done" ? `<div class="banner ok">已闭环。对象结束，不是下一圈。</div>` : ""}
-          ${t.status === "active" && failed ? `<div class="banner no">上次验收不通过。请与组委会对齐后改尺子，或按原尺子返工，再次确认完工才能再验。</div>` : ""}
-          ${t.status === "published" ? `<div class="banner wait">已发布未开工。组委会开工后才能确认完工。尺子只读。</div>` : ""}
-          ${pending.length ? `<div class="banner wait">已向组委会提改参，等待改尺子。当前参数仍按原尺子执行。</div>` : ""}
-          ${rulerFields(t, p, false)}
-          ${canFinish ? `<h3 style="margin:16px 0 8px;font-size:13px">向组委会提改参</h3>
+          ${row.content ? `<div class="fld" style="margin-bottom:12px"><label>任务内容</label><div>${esc(row.content)}</div></div>` : ""}
+          ${ding ? `<div class="banner wait">钉钉示意：${esc(ding.text)}</div>` : ""}
+          ${row.status === "review" ? `<div class="banner wait">已提验，尺子冻结。等待 TE 按当前验收条件落记录。</div>` : ""}
+          ${row.status === "done" ? `<div class="banner ok">已闭环。对象结束，不是下一圈。</div>` : ""}
+          ${row.status === "active" && failed ? `<div class="banner no">上次验收不通过，回到开发节点。请按锁定尺子返工，或向组委会提改参后再确认完工。</div>` : ""}
+          ${row.status === "published" ? `<div class="banner wait">已发布未开工。组委会开工后进入设计。</div>` : ""}
+          ${row.designSubmitted && row.phase === "design" ? `<div class="banner wait">已提交组委会评审。尺子暂不可改，等待锁定后进入开发。</div>` : ""}
+          ${row.phase === "dev" && row.rulerLocked ? `<div class="banner ok">尺子已锁定，按当前参数开发。有问题向组委会提改参。</div>` : ""}
+          ${pending.length ? `<div class="banner wait">已向组委会提改参，等待改尺子。当前仍按锁定尺子执行。</div>` : ""}
+          ${membersHtml(row, p)}
+          ${rulerFields(row, p, canEditRuler(row))}
+          ${canFinish(row) ? `<h3 style="margin:16px 0 8px;font-size:13px">向组委会提改参</h3>
             <textarea id="ask-txt" rows="2" placeholder="写明建议改哪一项参数或验收条件，以及原因"></textarea>
-            <p style="margin:8px 0 16px"><button class="btn warn" type="button" data-act="propose" data-pid="${pid}" data-id="${t.id}">提交改参申请</button></p>` : ""}
+            <p style="margin:8px 0 16px"><button class="btn warn" type="button" data-act="propose" data-pid="${pid}" data-id="${row.id}">提交改参申请</button></p>` : ""}
           <h3 style="margin:16px 0 8px;font-size:13px">改参申请</h3>
-          ${asksHtml(t)}
+          ${asksHtml(row)}
           <h3 style="margin:16px 0 8px;font-size:13px">验收记录</h3>
-          ${recordsHtml(t)}
+          ${recordsHtml(row)}
           <h3 style="margin:16px 0 8px;font-size:13px">变更</h3>
-          ${changeHtml(t)}
+          ${changeHtml(row)}
         </div>
       </section>`;
     }
 
-    function viewAccept(t, p) {
+    function viewAccept(row, p) {
       const te = ui.role === "te";
-      const canRecord = te && t.status === "review";
+      const canRecord = te && row.status === "review";
       const pid = p.id;
+      const ding = (row.notices || [])[0];
       return `<section class="panel">
-        <div class="hd"><div>${chip(t.status)}<h1 style="margin-top:8px">${t.id} ${esc(t.name)}</h1>
-          <p>${esc(p.name)} · 提验前只看条件。主责确认完工后才能交记录。</p></div></div>
+        <div class="hd"><div>${chip(row)}<h1 style="margin-top:8px">${row.id} ${esc(row.name)}</h1>
+          <p>${esc(p.name)} · 提验前只看条件。进入测试节点后才能交记录。</p>
+          ${nodeBar(row)}</div></div>
         <div class="bd">
-          ${t.content ? `<div class="fld" style="margin-bottom:12px"><label>任务内容</label><div>${esc(t.content)}</div></div>` : ""}
-          ${t.status === "done" ? `<div class="banner ok">已闭环。对象结束，不是下一圈。</div>` : ""}
-          ${t.status === "review" && te ? `<div class="banner wait">主责已确认完工。按当前验收条件检，结果必须留下记录。</div>` : ""}
+          ${row.content ? `<div class="fld" style="margin-bottom:12px"><label>任务内容</label><div>${esc(row.content)}</div></div>` : ""}
+          ${ding ? `<div class="banner wait">钉钉示意：${esc(ding.text)}</div>` : ""}
+          ${row.status === "done" ? `<div class="banner ok">已闭环。对象结束，不是下一圈。</div>` : ""}
+          ${row.status === "review" && te ? `<div class="banner wait">主责已确认完工。按当前验收条件检，结果必须留下记录。</div>` : ""}
           <h3 style="margin:0 0 8px;font-size:13px">验收条件（只读）</h3>
           <div class="grid">
-            ${t.criteria.map(c => `<div class="fld acc"><label>${esc(c.name)}</label><div>${esc(c.target)}</div></div>`).join("")}
+            ${row.criteria.map(c => `<div class="fld acc"><label>${esc(c.name)}</label><div>${esc(c.target)}</div></div>`).join("") || `<p class="muted">还没有验收条件。</p>`}
           </div>
           <h3 style="margin:16px 0 8px;font-size:13px">本次验收</h3>
           ${canRecord ? `<div class="grid">
-            ${t.criteria.map((c, i) => `<div class="box">
+            ${row.criteria.map((c, i) => `<div class="box">
               <label>${esc(c.name)} · 目标 ${esc(c.target)}</label>
               <input id="a-${i}" placeholder="实测值">
               <label style="margin-top:8px"><input type="checkbox" id="ap-${i}"> 本项通过</label>
@@ -567,58 +790,60 @@
           </div>
           <textarea id="a-note" rows="2" placeholder="说明" style="margin:10px 0"></textarea>
           <div class="row">
-            <button class="btn ok" type="button" data-act="rec-pass" data-pid="${pid}" data-id="${t.id}">提交验收记录 · 通过</button>
-            <button class="btn warn" type="button" data-act="rec-fail" data-pid="${pid}" data-id="${t.id}">提交验收记录 · 不通过</button>
-          </div>` : teNote(t)}
+            <button class="btn ok" type="button" data-act="rec-pass" data-pid="${pid}" data-id="${row.id}">提交验收记录 · 通过</button>
+            <button class="btn warn" type="button" data-act="rec-fail" data-pid="${pid}" data-id="${row.id}">提交验收记录 · 不通过</button>
+          </div>` : teNote(row)}
           <h3 style="margin:18px 0 8px;font-size:13px">已落记录</h3>
-          ${recordsHtml(t)}
+          ${recordsHtml(row)}
         </div>
       </section>`;
     }
 
-    function teNote(t) {
-      if (t.status === "done") return "";
-      if (t.status === "published") return `<p class="muted">已发布未开工。可先看验收条件、准备实验室，不能交记录。</p>`;
-      if (t.status === "active") return `<p class="muted">已开工，主责尚未确认完工。可看条件、做准备，不能交记录。</p>`;
-      if (t.status === "review" && ui.role !== "te") return `<p class="muted">请切到李 TE 提交验收记录。</p>`;
+    function teNote(row) {
+      if (row.status === "done") return "";
+      if (row.status === "published") return `<p class="muted">已发布未开工。可先看验收条件、准备实验室，不能交记录。</p>`;
+      if (row.status === "active") return `<p class="muted">已开工，当前在${row.phase === "design" ? "设计" : "开发"}节点。可看条件、做准备，不能交记录。</p>`;
+      if (row.status === "review" && ui.role !== "te") return `<p class="muted">请切到李 TE 提交验收记录。</p>`;
       return `<p class="muted">当前不能交验收记录。</p>`;
     }
 
-    function recordsHtml(t) {
-      if (!t.records.length) return `<p class="muted">还没有验收记录。</p>`;
-      return `<div class="log">${t.records.map(r => `<article>
+    function recordsHtml(row) {
+      if (!row.records.length) return `<p class="muted">还没有验收记录。</p>`;
+      return `<div class="log">${row.records.map(r => `<article>
         <div class="muted">${esc(r.time)} · ${esc(r.by)} · ${r.pass ? "通过" : "不通过"}</div>
         ${r.items.map(i => `<div>${esc(i.name)}：目标 ${esc(i.target)} / 实测 ${esc(i.actual)} · ${i.ok ? "过" : "不过"}</div>`).join("")}
         ${r.note ? `<div>说明：${esc(r.note)}</div>` : ""}
       </article>`).join("")}</div>`;
     }
-    function changeHtml(t) {
-      if (!t.changes.length) return `<p class="muted">还没有变更。</p>`;
-      return `<div class="log">${t.changes.map(c => `<article><span class="muted">${esc(c.time)} · ${esc(c.by)}</span><div>${esc(c.text)}</div></article>`).join("")}</div>`;
+    function changeHtml(row) {
+      if (!row.changes.length) return `<p class="muted">还没有变更。</p>`;
+      return `<div class="log">${row.changes.map(c => `<article><span class="muted">${esc(c.time)} · ${esc(c.by)}</span><div>${esc(c.text)}</div></article>`).join("")}</div>`;
     }
 
     function viewSum() {
       const p = current();
-      const n = p.tasks.filter(t => t.status !== "draft").length;
-      const rec = p.tasks.reduce((s, t) => s + t.records.length, 0);
+      const n = p.tasks.filter(row => row.status !== "draft").length;
+      const rec = p.tasks.reduce((s, row) => s + row.records.length, 0);
       return `<div class="split">
-        ${projList(`<p class="muted" style="padding:0 14px 14px">只读汇总。人的入口不是这张表。</p>`)}
+        ${projList(`<p class="muted" style="padding:0 14px 14px">管理层看项目全局。人的日常入口仍是「我的任务」。</p>`)}
         <div class="main"><section class="panel">
-          <div class="hd"><div><h1>项目汇总 · ${esc(p.name)}</h1>
-            <p>只读。上下文不在任务中心。</p></div></div>
+          <div class="hd"><div><h1>任务看板 · ${esc(p.name)}</h1>
+            <p>看节点、状态、截止和当前待办人。</p></div>
+          </div>
           <div class="bd">
-            <p class="muted">${p.published ? "已发布" : "未发布"} · 任务 ${n} · 验收记录 ${rec}</p>
+            <p class="muted">${p.published ? "已发布" : "未发布"} · ${esc(p.type)} · 结束 ${esc(p.endDate)} · 任务 ${n} · 验收记录 ${rec}</p>
             <table>
-              <thead><tr><th>任务</th><th>责任人</th><th>任务内容</th><th>状态</th><th>验收记录</th><th>待改参</th><th>闸门</th></tr></thead>
+              <thead><tr><th>任务</th><th>项目节点</th><th>责任人</th><th>当前待办</th><th>计划结束</th><th>状态</th><th>验收记录</th><th>待改参</th></tr></thead>
               <tbody>${p.tasks.map(row => `<tr>
                 <td><b>${row.id}</b> ${esc(row.name)}</td>
+                <td>${esc(nodeName(p, row.nodeId))}${nodeOf(p, row.nodeId) && !nodeOf(p, row.nodeId).ready ? " · 未释放" : ""}</td>
                 <td>${esc(row.owner)}</td>
-                <td>${esc(row.content)}</td>
-                <td>${chip(row.status)}</td>
+                <td>${esc(todoLabel(p, row))}</td>
+                <td>${esc(row.dueDate) || "—"}</td>
+                <td>${chip(row)}</td>
                 <td>${row.records.length}</td>
                 <td>${openAsks(row).length || "—"}</td>
-                <td>${row.block && row.status === "published" ? esc(row.block) : "—"}</td>
-              </tr>`).join("") || `<tr><td colspan="7" class="muted">还没有任务。</td></tr>`}</tbody>
+              </tr>`).join("") || `<tr><td colspan="8" class="muted">还没有任务。</td></tr>`}</tbody>
             </table>
           </div>
         </section></div>
@@ -628,18 +853,20 @@
     function esc(s) { return String(s || "").replace(/[&<>"']/g, m => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[m])); }
     function who() { return ROLES.find(r => r.id === ui.role).name; }
     function flushFields() {
-      document.querySelectorAll("[data-act='proj-name'],[data-act='task-name'],[data-act='task-content'],[data-act='task-owner'],[data-act='param-label'],[data-act='param-val'],[data-act='crit-name'],[data-act='crit-tgt']").forEach(el => {
+      document.querySelectorAll("[data-act='proj-name'],[data-act='task-name'],[data-act='task-content'],[data-act='task-owner'],[data-act='task-node'],[data-act='task-due'],[data-act='param-label'],[data-act='param-val'],[data-act='crit-name'],[data-act='crit-tgt']").forEach(el => {
         const pr = proj(el.dataset.pid || ui.pid);
         if (!pr) return;
-        if (el.dataset.act === "proj-name") { if (!pr.published) pr.name = el.value; return; }
+        if (el.dataset.act === "proj-name") { if (pr.type !== "立项" && !pr.published) pr.name = el.value; return; }
         const row = task(el.dataset.id, pr.id);
         if (!row) return;
         if (row.status === "draft") {
           if (el.dataset.act === "task-name") row.name = el.value;
           if (el.dataset.act === "task-content") row.content = el.value;
           if (el.dataset.act === "task-owner") applyOwner(row, el.value);
+          if (el.dataset.act === "task-node") row.nodeId = el.value;
+          if (el.dataset.act === "task-due") row.dueDate = el.value;
         }
-        if (rulerOk(row) && el.dataset.i != null) {
+        if (canEditRuler(row) && el.dataset.i != null) {
           const i = +el.dataset.i;
           if (el.dataset.act === "param-label" && row.params[i]) row.params[i].label = el.value;
           if (el.dataset.act === "param-val" && row.params[i]) row.params[i].value = el.value;
@@ -649,8 +876,8 @@
       });
     }
 
-    function collectRecord(t) {
-      return t.criteria.map((c, i) => ({
+    function collectRecord(row) {
+      return row.criteria.map((c, i) => ({
         name: c.name, target: c.target,
         actual: (document.getElementById("a-" + i) || {}).value || "",
         ok: !!(document.getElementById("ap-" + i) && document.getElementById("ap-" + i).checked)
@@ -666,24 +893,56 @@
       db = seed(); localStorage.removeItem(KEY);
       ui.role = "committee"; ui.view = "dispatch"; ui.pid = "PX12"; ui.sel = "T03"; ui.modal = "";
       document.getElementById("role").value = "committee";
-      toast("已重置。从组委会选项目、拆任务开始。"); render();
+      toast("已重置。从组委会引用项目、拆任务开始。"); render();
     };
     document.body.addEventListener("click", e => {
       const b = e.target.closest("[data-view], [data-act]");
       if (!b) return;
-      if (b.dataset.view) { ui.view = b.dataset.view; render(); return; }
+      if (b.dataset.view) { ui.view = b.dataset.view; ui.modal = ""; render(); return; }
       const act = b.dataset.act, id = b.dataset.id, pid = b.dataset.pid || ui.pid;
-      if (["task-name", "task-content", "task-owner", "param-label", "param-val", "crit-name", "crit-tgt", "noop"].includes(act)) return;
+      if (["task-name", "task-content", "task-owner", "task-node", "task-due", "param-label", "param-val", "crit-name", "crit-tgt", "noop"].includes(act)) return;
       const t0 = id && task(id, pid);
       if (act === "sel-proj") { ui.pid = id; ui.modal = ""; render(); return; }
       if (act === "sel") { ui.pid = pid; ui.sel = id; ui.modal = ""; render(); return; }
-      if (act === "close-import") { ui.modal = ""; render(); return; }
+      if (act === "close-modal") { ui.modal = ""; render(); return; }
+      if (act === "open-cite") { if (ui.role !== "committee") return; ui.modal = "cite"; render(); return; }
+      if (act === "open-tpl") { if (ui.role !== "committee") return; ui.modal = "tpl"; render(); return; }
+      if (act === "cite-proj") {
+        if (ui.role !== "committee") return;
+        const src = CATALOG.find(x => x.id === id);
+        if (!src) return;
+        if (db.projects.some(x => x.id === id)) return toast("该项目已引用。");
+        const row = cloneProj(src);
+        db.projects.push(row);
+        ui.pid = row.id; ui.sel = ""; ui.modal = "";
+        save(); toast("已引用项目平台「" + row.name + "」。在项目下拆任务。"); render(); return;
+      }
+      if (act === "apply-tpl") {
+        if (ui.role !== "committee") return;
+        const p = proj(pid);
+        const tp = TEMPLATES.find(x => x.id === id);
+        if (!p || !tp) return;
+        tp.tasks.forEach(x => {
+          const row = t(nextTaskId(p), x.name, x.ownerId, [], [], [], "", { nodeId: x.nodeId, dueDate: p.endDate });
+          p.tasks.push(row);
+        });
+        ui.sel = p.tasks[p.tasks.length - 1].id; ui.modal = "";
+        save(); toast("已按「" + tp.name + "」追加待发布任务。实例可改，不回写模板。"); render(); return;
+      }
+      if (act === "toggle-node") {
+        if (ui.role !== "committee") return;
+        const p = proj(pid);
+        const n = nodeOf(p, b.dataset.nid);
+        if (!n) return;
+        n.ready = !n.ready;
+        save(); toast(n.name + (n.ready ? " 已释放，绑定该节点的任务可以开工。" : " 未释放，绑定该节点的任务只发布不开工。")); render(); return;
+      }
       if (act === "open-import") {
-        if (!rulerOk(t0)) return;
+        if (!canEditRuler(t0)) return;
         ui.pid = pid; ui.sel = id; ui.modal = "import"; render(); return;
       }
       if (act === "import-append" || act === "import-replace") {
-        if (!rulerOk(t0)) return;
+        if (!canEditRuler(t0)) return;
         const rows = parseParams((document.getElementById("imp-text") || {}).value || "");
         if (rows === null) return toast("JSON 无法解析。请检查格式。");
         if (!rows.length) return toast("没有读到参数。每行一条：参数名,目标值。");
@@ -691,7 +950,7 @@
         const n = rows.length;
         if (act === "import-replace") t0.params = rows;
         else t0.params = t0.params.concat(rows);
-        if (openAsks(t0).length) { closeAsks(t0); log(t0, "组委会已改尺子，改参申请关闭", who()); }
+        if (ui.role === "committee" && openAsks(t0).length) { closeAsks(t0); log(t0, "组委会已改尺子，改参申请关闭", who()); }
         log(t0, (act === "import-replace" ? "覆盖导入参数 " : "追加导入参数 ") + n + " 项", who());
         ui.modal = "";
         save(); toast("已导入 " + n + " 项参数。"); render(); return;
@@ -705,39 +964,33 @@
         save(); toast("已删除未发布任务。已发布任务不能删。"); render(); return;
       }
       if (act === "del-param") {
-        if (!rulerOk(t0)) return;
+        if (!canEditRuler(t0)) return;
         flushFields();
         const i = +b.dataset.i;
         const row = t0.params[i];
         if (!row) return;
         t0.params.splice(i, 1);
-        if (openAsks(t0).length) { closeAsks(t0); log(t0, "组委会已改尺子，改参申请关闭", who()); }
+        if (ui.role === "committee" && openAsks(t0).length) { closeAsks(t0); log(t0, "组委会已改尺子，改参申请关闭", who()); }
         log(t0, "删除参数「" + (row.label || "未命名") + "」", who());
         save(); render(); return;
       }
       if (act === "del-crit") {
-        if (!rulerOk(t0)) return;
+        if (!canEditRuler(t0)) return;
         const i = +b.dataset.i;
         const row = t0.criteria[i];
         if (!row) return;
         t0.criteria.splice(i, 1);
-        if (openAsks(t0).length) { closeAsks(t0); log(t0, "组委会已改尺子，改参申请关闭", who()); }
+        if (ui.role === "committee" && openAsks(t0).length) { closeAsks(t0); log(t0, "组委会已改尺子，改参申请关闭", who()); }
         log(t0, "删除验收条件「" + (row.name || "未命名") + "」", who());
         save(); render(); return;
-      }
-      if (act === "add-proj") {
-        if (ui.role !== "committee") return;
-        const nid = nextProjId();
-        db.projects.push({ id: nid, name: "新项目", published: false, tasks: [] });
-        ui.pid = nid; ui.modal = ""; save(); toast("已新建项目。先写项目下的任务名称、内容和责任人。"); render();
       }
       if (act === "add-task") {
         const p = current();
         if (ui.role !== "committee") return;
-        const row = t(nextTaskId(p), "", "", [], [], [], "");
+        const row = t(nextTaskId(p), "", "", [], [], [], "", { dueDate: p.endDate });
         p.tasks.push(row);
         ui.sel = row.id; ui.modal = "";
-        save(); toast(p.published ? "已增补一条待发布任务。必须是可独立验收的新对象，不要把已有任务拆成两阶段。" : "已加一条。请填写名称、内容、责任人，并写参数和验收条件。"); render();
+        save(); toast(p.published ? "已增补一条待发布任务。必须是可独立验收的新对象。" : "已加一条。请填写名称、内容、责任人、节点和结束时间。尺子可后补。"); render();
       }
       if (act === "publish") {
         const p = current();
@@ -745,8 +998,10 @@
         const drafts = draftsOf(p);
         if (!drafts.length) return toast(p.published ? "没有待发布的新增任务。" : "请先拆至少一条任务。");
         flushFields();
-        const miss = drafts.find(x => !String(x.name || "").trim() || !String(x.content || "").trim() || !x.ownerId || incompleteRuler(x));
-        if (miss) return toast("待发布任务都要有名称、内容、责任人，以及完整参数和验收条件。");
+        const miss = drafts.find(x => !String(x.name || "").trim() || !String(x.content || "").trim() || !x.ownerId || !x.nodeId || !x.dueDate);
+        if (miss) return toast("待发布任务都要有名称、内容、责任人、项目节点和计划结束时间。尺子可后补。");
+        const late = drafts.find(x => x.dueDate > p.endDate);
+        if (late) return toast(late.id + " 计划结束不能晚于项目结束 " + p.endDate + "。");
         const n = drafts.length;
         p.published = true;
         drafts.forEach(x => { x.status = "published"; });
@@ -755,24 +1010,55 @@
       if (act === "activate") {
         if (ui.role !== "committee" || !t0) return;
         const p = proj(pid);
-        if (p.id === "PX12" && t0.id === "T04") {
-          const ev = task("T03", p.id);
-          const ready = ev && ["active", "review", "done"].includes(ev.status);
-          if (!ready) return toast("不能开工：蒸发器尚未就绪。推迟开工，不要拆成两阶段任务。");
-          t0.block = "";
-        }
-        if (t0.block) return toast("开工条件未满足，保持未开工。");
-        t0.status = "active"; save(); toast(t0.name + " 已开工。不等于可验收。"); render();
+        const n = nodeOf(p, t0.nodeId);
+        if (!t0.nodeId || !n) return toast("未绑定项目节点，不能开工。");
+        if (!n.ready) return toast("项目节点「" + n.name + "」未释放，只发布不开工。");
+        t0.status = "active";
+        t0.phase = "design";
+        t0.rulerLocked = false;
+        t0.designSubmitted = false;
+        log(t0, "开工，进入设计节点", who());
+        save(); toast(t0.name + " 已开工，进入设计。主责可拉成员写尺子，组委会锁定后才进入开发。"); render();
+      }
+      if (act === "submit-design") {
+        if (!canSubmitDesign(t0)) return;
+        flushFields();
+        if (incompleteRuler(t0)) return toast("请先写完整参数和验收条件，再提交组委会锁定。");
+        t0.designSubmitted = true;
+        log(t0, "提交设计评审，等待组委会锁定尺子", who());
+        notice(t0, "请组委会评审并锁定「" + t0.name + "」尺子");
+        save(); toast("已提交组委会。尺子暂不可改，锁定后进入开发。"); render();
+      }
+      if (act === "lock-ruler") {
+        if (!canLock(t0)) return;
+        flushFields();
+        if (incompleteRuler(t0)) return toast("参数和验收条件不完整，不能锁定。");
+        t0.rulerLocked = true;
+        t0.designSubmitted = false;
+        t0.phase = "dev";
+        closeAsks(t0);
+        log(t0, "锁定尺子，进入开发", who());
+        notice(t0, "提醒" + t0.owner + "：尺子已锁定，「" + t0.name + "」进入开发");
+        save(); toast("尺子已锁定，进入开发。主责可按尺子执行，完成后提验。"); render();
+      }
+      if (act === "reject-design") {
+        if (!canRejectDesign(t0)) return;
+        t0.designSubmitted = false;
+        log(t0, "退回设计，主责可继续改尺子", who());
+        notice(t0, "提醒" + t0.owner + "：「" + t0.name + "」设计已退回，请继续改参数");
+        save(); toast("已退回设计。主责可继续改参后再次提交。"); render();
       }
       if (act === "finish") {
-        if (!(ui.role === "rd" && t0 && t0.ownerRole === "rd") || t0.status !== "active") return;
-        if (incompleteRuler(t0)) return toast("验收条件不完整，请组委会先写完尺子。");
+        if (!canFinish(t0)) return;
+        if (incompleteRuler(t0)) return toast("验收条件不完整，请组委会先写完并锁定尺子。");
         t0.status = "review";
+        t0.phase = "test";
         log(t0, "确认研发完工，提验", who());
-        save(); toast("已提验。尺子冻结，TE 可以开始验收。"); render();
+        notice(t0, "提醒李 TE：「" + t0.name + "」已提验，请按验收条件检");
+        save(); toast("已提验。已通过钉钉通知李 TE（示意）。尺子冻结。"); render();
       }
       if (act === "propose") {
-        if (!(ui.role === "rd" && t0 && t0.ownerRole === "rd" && t0.status === "active")) return;
+        if (!canFinish(t0)) return;
         const text = (document.getElementById("ask-txt") || {}).value?.trim();
         if (!text) return toast("请写明建议改哪项参数或验收条件。");
         t0.asks = t0.asks || [];
@@ -780,17 +1066,32 @@
         log(t0, "向组委会提改参：" + text, who());
         save(); toast("已提交组委会。尺子仍只读，对齐后由组委会改。"); render();
       }
+      if (act === "add-member") {
+        if (!canPullMembers(t0)) return;
+        const mid = (document.getElementById("mem-add") || {}).value;
+        if (!mid || mid === t0.ownerId) return toast("请选择要拉进设计的成员。");
+        t0.members = t0.members || [];
+        if (t0.members.includes(mid)) return toast("该成员已在设计里。");
+        t0.members.push(mid);
+        log(t0, "拉进设计成员 " + (person(mid) && person(mid).name), who());
+        save(); toast((person(mid) && person(mid).name) + " 已进入本任务设计。可在「我的任务」里改参。"); render(); return;
+      }
+      if (act === "rem-member") {
+        if (!canPullMembers(t0)) return;
+        t0.members = (t0.members || []).filter(x => x !== b.dataset.i);
+        save(); render(); return;
+      }
       if (act === "add-param") {
-        if (!rulerOk(t0)) return;
+        if (!canEditRuler(t0)) return;
         flushFields();
         t0.params.push(P("", ""));
         save(); render();
       }
       if (act === "add-crit") {
-        if (!rulerOk(t0)) return;
+        if (!canEditRuler(t0)) return;
         flushFields();
         t0.criteria.push(C("", ""));
-        if (openAsks(t0).length) { closeAsks(t0); log(t0, "组委会已改尺子，改参申请关闭", who()); }
+        if (ui.role === "committee" && openAsks(t0).length) { closeAsks(t0); log(t0, "组委会已改尺子，改参申请关闭", who()); }
         log(t0, "增加验收条件", who()); save(); render();
       }
       if (act === "rec-pass" || act === "rec-fail") {
@@ -802,10 +1103,13 @@
         t0.records.unshift({ time: now(), by: who(), pass, items, note: (document.getElementById("a-note") || {}).value || "" });
         if (pass) {
           t0.status = "done";
+          t0.phase = "test";
           toast("验收记录已保存，任务闭环。");
         } else {
           t0.status = "active";
-          toast("验收记录已保存。任务回到已开工。请与组委会对齐后改尺子，主责再确认完工。验收中途不改条件。");
+          t0.phase = "dev";
+          notice(t0, "提醒" + t0.owner + "：「" + t0.name + "」验收不通过，回到开发");
+          toast("验收记录已保存。任务回到开发节点。请按锁定尺子返工，或提改参后再确认完工。");
         }
         save(); render();
       }
@@ -827,17 +1131,19 @@
       const p = proj(pid);
       const t0 = id && task(id, pid);
       if (act === "proj-name") {
-        if (ui.role !== "committee" || !p || p.published) return;
+        if (ui.role !== "committee" || !p || p.type === "立项" || p.published) return;
         p.name = el.value; save(); return;
       }
-      if (["task-name", "task-content", "task-owner"].includes(act)) {
+      if (["task-name", "task-content", "task-owner", "task-node", "task-due"].includes(act)) {
         if (ui.role !== "committee" || !t0 || t0.status !== "draft") return;
         if (act === "task-name") t0.name = el.value;
         if (act === "task-content") t0.content = el.value;
         if (act === "task-owner") applyOwner(t0, el.value);
+        if (act === "task-node") t0.nodeId = el.value;
+        if (act === "task-due") t0.dueDate = el.value;
         save(); return;
       }
-      if (!t0 || !rulerOk(t0)) return;
+      if (!t0 || !canEditRuler(t0)) return;
       const i = +el.dataset.i;
       let changed = false;
       if (act === "param-label") {
@@ -856,7 +1162,7 @@
         if (t0.criteria[i].target === el.value) return;
         log(t0, "改验收目标「" + t0.criteria[i].name + "」→ " + el.value, who()); t0.criteria[i].target = el.value; changed = true;
       }
-      if (changed && openAsks(t0).length) { closeAsks(t0); log(t0, "组委会已改尺子，改参申请关闭", who()); }
+      if (changed && ui.role === "committee" && openAsks(t0).length) { closeAsks(t0); log(t0, "组委会已改尺子，改参申请关闭", who()); }
       if (changed) { save(); render(); }
     });
 
