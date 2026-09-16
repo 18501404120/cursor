@@ -1,7 +1,7 @@
 (function (global) {
   'use strict';
 
-  var KEY = 'gtm-eom-2.0-proto-v20';
+  var KEY = 'gtm-eom-2.0-proto-v21';
   var CURRENT_USER = { id: 'wang', name: '王天天', role: '产品GTM' };
   var PLAN_DEPT_LEADER = { id: 'bijie', name: '比杰' };
   var USERS = [
@@ -617,7 +617,7 @@
       reason: '同市场定位的替代新品已立项', exception: '数据异常',
       cc: '需求计划、生产计划、PMC、周雨（销售）',
       products: [{ scene: '智能照明', cat: '灯带', model: 'H8102', sku: 'H810201', msku: 'H810201-US-AMZ', status: '准备EOM', originStatus: '已上市', onMarketDate: '2024-11-02', country: 'US', name: 'H8102 US', selected: true }],
-      skus: [skuLedger({ model: 'H8102', sku: 'H810201', status: '准备EOM', originStatus: '已上市', startTime: '2026-08-28', eol: '2026-12-15', stock: 640, m3: 210, m2: 188, m1: 160, forecast: 0, eolForecast: 0, dos: 28, newFlag: '是', newSku: 'H910201' })],
+      skus: [skuLedger({ model: 'H8102', sku: 'H810201', status: '准备EOM', originStatus: '已上市', startTime: '2026-08-28', eol: '2026-12-15', stock: 640, m3: 210, m2: 188, m1: 160, forecast: 0, eolForecast: 0, dos: 28, lbQty: 200, newFlag: '是', newSku: 'H910201' })],
       forecast: { approved: false, missing: true, version: 0, current: 0, m3: 210, m2: 188, m1: 160, stock: 640, dos: 28, suggestLb: 0, submittedAt: '' },
       tasks: [
         task({ id: 't2m', node: '核料', name: '确认核料结论（本人 SKU）', role: '计划', owner: '比杰', due: '09-04 18:00', status: '待处理', kind: 'material', notice: '提交即进核料中；Forecast 并行不卡流程' }),
