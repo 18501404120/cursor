@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>研发知识解耦 · 项目知识库具体方案（试点 MVP）</title>
+  <style>
+    :root {
+      --bg: #f4f6fb; --card: #fff; --text: #1a2332; --muted: #5c6b7f;
+      --primary: #4f46e5; --primary-light: #eef2ff; --success: #059669; --success-light: #ecfdf5;
+      --warn: #d97706; --warn-light: #fffbeb; --danger: #dc2626; --danger-light: #fef2f2;
+      --border: #e2e8f0; --shadow: 0 4px 24px rgba(15, 23, 42, 0.06); --radius: 14px;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      background: var(--bg); color: var(--text); line-height: 1.55; font-size: 14px;
+    }
+    .page { max-width: 1180px; margin: 0 auto; padding: 32px 20px 64px; }
+    .hero {
+      background: linear-gradient(135deg, #312e81 0%, #4f46e5 55%, #6366f1 100%);
+      color: #fff; border-radius: 16px; padding: 28px 32px; margin-bottom: 28px; box-shadow: var(--shadow);
+    }
+    .hero h1 { font-size: 22px; font-weight: 600; margin-bottom: 8px; }
+    .hero-summary { font-size: 13px; opacity: 0.88; line-height: 1.7; max-width: 900px; }
+    .section { margin-bottom: 36px; }
+    .section-head { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
+    .section-num {
+      width: 32px; height: 32px; background: var(--primary); color: #fff;
+      border-radius: 8px; display: flex; align-items: center; justify-content: center;
+      font-weight: 700; font-size: 14px; flex-shrink: 0;
+    }
+    .section-head h2 { font-size: 20px; font-weight: 700; }
+    .card { background: var(--card); border-radius: var(--radius); padding: 20px 22px; box-shadow: var(--shadow); }
+    .muted { color: var(--muted); font-size: 13px; line-height: 1.7; }
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+    @media (max-width: 800px) { .grid-2, .grid-3 { grid-template-columns: 1fr; } }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th, td { text-align: left; padding: 9px 10px; border-bottom: 1px solid var(--border); vertical-align: top; }
+    th { font-size: 12px; color: var(--muted); font-weight: 600; background: #f8fafc; }
+    .tag {
+      display: inline-block; font-size: 11px; font-weight: 600; padding: 2px 8px;
+      border-radius: 999px; background: var(--primary-light); color: var(--primary);
+    }
+    .tag.warn { background: var(--warn-light); color: var(--warn); }
+    .tag.ok { background: var(--success-light); color: var(--success); }
+    .tag.danger { background: var(--danger-light); color: var(--danger); }
+    .obj-stack { display: flex; flex-direction: column; gap: 8px; }
+    .obj { border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; background: #fff; }
+    .obj h4 { font-size: 14px; margin-bottom: 4px; }
+    .obj p { font-size: 12px; color: var(--muted); }
+    .obj.atom { border-left: 4px solid var(--primary); background: var(--primary-light); }
+    .obj.file { border-left: 4px solid #0ea5e9; background: #f0f9ff; }
+    .obj.folder { border-left: 4px solid #64748b; background: #f8fafc; }
+    .obj.snap { border-left: 4px solid var(--warn); background: var(--warn-light); }
+    .arrow { text-align: center; color: #94a3b8; font-size: 12px; padding: 2px 0; }
+    .chain { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 12px; padding: 8px 0; }
+    .ver { background: #fff; border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; min-width: 110px; }
+    .ver strong { display: block; font-size: 13px; }
+    .ver.work { border-color: var(--warn); background: var(--warn-light); }
+    .ver.done { border-color: var(--success); background: var(--success-light); }
+    .chain-arrow { color: #94a3b8; }
+    .note {
+      font-size: 12px; background: #f8fafc; border-left: 3px solid var(--primary);
+      padding: 8px 12px; border-radius: 0 6px 6px 0; color: var(--muted); margin-top: 12px;
+    }
+    .later {
+      background: var(--warn-light); border: 1px solid #fde68a; border-radius: var(--radius);
+      padding: 14px 16px; font-size: 13px; color: #92400e;
+    }
+    .walk { display: flex; flex-direction: column; gap: 8px; }
+    .walk-step {
+      display: grid; grid-template-columns: 28px 1fr; gap: 10px;
+      background: var(--card); border-radius: 10px; padding: 12px 14px; box-shadow: var(--shadow);
+    }
+    .walk-n {
+      width: 24px; height: 24px; border-radius: 6px; background: var(--primary); color: #fff;
+      display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700;
+    }
+    .steps { display: flex; flex-direction: column; gap: 10px; }
+    .step {
+      background: var(--card); border-radius: 10px; padding: 12px 14px; box-shadow: var(--shadow);
+      font-size: 13px;
+    }
+    .step b { color: var(--primary); }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <header class="hero">
+      <h1>项目知识库具体方案 · 试点 MVP</h1>
+      <p class="hero-summary">
+        知识原子是源；组装页是视图（引用@钉扎 + 胶水）；文件夹仅标签导航（不钉版本）。
+        试点：原子版本链 + 组装页最新视图 + <strong>JP 汇入快照</strong>；源更新只提醒不灌入。
+        全链 KO→CR；A 档 ~35 + B 档 ~25 原子。派生、文件夹钉版本、组装页独立版本链 → 第二期。
+        工作网见 <a href="工作网.html" style="color:#c7d2fe;">工作网</a>；
+        试用 <a href="项目知识库-demo.html" style="color:#c7d2fe;">Demo</a>。
+      </p>
+    </header>
+
+    <section class="section">
+      <div class="section-head"><div class="section-num">0</div><h2>试点范围与三步节奏</h2></div>
+      <div class="grid-3">
+        <div class="card"><span class="tag">范围</span><p class="muted" style="margin-top:8px;">KO→CR 全链 JP 必看 + 工作模板；文件夹=标签；权限=成员可看/责任人可改</p></div>
+        <div class="card"><span class="tag warn">后置</span><p class="muted" style="margin-top:8px;">派生原子、文件夹钉文件@定版、组装页 v1/v2 版本链、细 ACL</p></div>
+        <div class="card"><span class="tag ok">原子</span><p class="muted" style="margin-top:8px;">A 档 ~35（JP 必看）+ B 档 ~25（组内）；平级原子，不嵌套复合块</p></div>
+      </div>
+      <div class="steps" style="margin-top:16px;">
+        <div class="step"><b>Step 1</b>（1～2 周）H8120 抽 A/B 档原子 + 全链 JP 表 + 工作模板表头</div>
+        <div class="step"><b>Step 2</b>（2～3 周）Excel / 扩 demo：定稿、冻结、钉扎、落后提醒、标签文件夹</div>
+        <div class="step"><b>Step 3</b>（2～3 周）一个在飞项目 KO→CR 真跑，每月复盘原子数与 JP 口径</div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="section-head"><div class="section-num">1</div><h2>对象模型（三层 + 标签）</h2></div>
+      <div class="card">
+        <div class="obj-stack">
+          <div class="obj folder">
+            <h4>文件夹 · 标签导航（试点不钉版本）</h4>
+            <p>阶段 / 解耦组 / 材料类型 → 筛组装页 + 汇总 A 档原子是否达 JP 冻结</p>
+          </div>
+          <div class="arrow">标签命中 ↓</div>
+          <div class="obj file">
+            <h4>组装页 · 最新视图（无独立版本链）</h4>
+            <p>分组引用原子@钉扎 + 胶水。JP 通过时导出快照，不维护文件 v1/v2</p>
+          </div>
+          <div class="arrow">引用@钉扎 ↓</div>
+          <div class="obj atom">
+            <h4>知识原子 · 一等公民（源）</h4>
+            <p>版本链 + ES/TL/DR 冻结点 + 附件；A/B 档</p>
+          </div>
+          <div class="arrow">JP 通过时固化 ↓</div>
+          <div class="obj snap">
+            <h4>JP 汇入快照 · 不可变</h4>
+            <p>该 JP 时刻各原子版本 + 钉扎 + 胶水；打开历史 JP 可复现</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="section-head"><div class="section-num">2</div><h2>原子版本链 + JP 快照</h2></div>
+      <div class="card">
+        <div class="chain">
+          <div class="ver done"><strong>v1 定稿</strong><span class="tag ok">ES 冻结</span></div>
+          <span class="chain-arrow">→</span>
+          <div class="ver done"><strong>v2 定稿</strong><span class="tag ok">TL 冻结</span></div>
+          <span class="chain-arrow">→</span>
+          <div class="ver work"><strong>v3 最新</strong><span class="tag warn">未定稿</span></div>
+        </div>
+        <p class="note">组装页不参与版本链。JP-TL 通过 → 导出 JP-TL 快照（当时钉扎包），三个月后打开仍是当时内容。</p>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="section-head"><div class="section-num">3</div><h2>钉扎与提醒</h2></div>
+      <div class="card" style="padding:0;overflow:hidden;">
+        <table>
+          <thead><tr><th>场景</th><th>规则</th></tr></thead>
+          <tbody>
+            <tr><td>新挂引用</td><td>钉当前场景定版（有 DR 冻结钉 DR，否则最近定稿）</td></tr>
+            <tr><td>源更新</td><td>组装页展示不变；消费提醒；仅组装页责任人可升级钉扎</td></tr>
+            <tr><td>JP 导出</td><td>所钉原子须均已定稿；导出快照后不可改</td></tr>
+            <tr><td>P0 变更</td><td>影响面 + 调整机制，不靠碰巧打开</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="section-head"><div class="section-num">4</div><h2>试点不做派生 · 走协同</h2></div>
+      <div class="card">
+        <p class="muted">非原子责任人不能改源 → <strong>协同单</strong>（P0/P1/P2）。结构需要局部不同外观：发起协同，不建派生原子。第二期再评估子原子或派生树。</p>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="section-head"><div class="section-num">5</div><h2>权限（两档）</h2></div>
+      <div class="card" style="padding:0;overflow:hidden;">
+        <table>
+          <thead><tr><th>动作</th><th>谁</th></tr></thead>
+          <tbody>
+            <tr><td>改原子、定稿、申请冻结</td><td>原子责任人</td></tr>
+            <tr><td>改组装页钉扎、布局、胶水</td><td>组装页责任人</td></tr>
+            <tr><td>导出 JP 快照</td><td>组装页责任人或 JP 组织人</td></tr>
+            <tr><td>查看</td><td>项目成员（默认）</td></tr>
+            <tr><td>敏感原子</td><td>可标「仅某组可见」（少数，不铺全量 ACL）</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="section-head"><div class="section-num">6</div><h2>第二期再启用</h2></div>
+      <div class="later">
+        文件夹钉文件@定版 · 组装页独立版本链 · 派生原子树 · 细粒度 ACL 分文件/分原子 · 搜索/汇入清单完整 UI
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="section-head"><div class="section-num">7</div><h2>H8120 走查（试点版）</h2></div>
+      <div class="walk">
+        <div class="walk-step"><div class="walk-n">1</div><div class="muted">A 档原子「外观主视觉」，ID 责任人。v1 定稿 + ES 冻结。三份组装页引用，钉 ES。</div></div>
+        <div class="walk-step"><div class="walk-n">2</div><div class="muted">ID 改 v2 未定稿：三页不变；ID 见未定稿提醒。</div></div>
+        <div class="walk-step"><div class="walk-n">3</div><div class="muted">v2 定稿 + TL 冻结：消费提醒；各组装页责任人决定升 TL 或保持 ES。</div></div>
+        <div class="walk-step"><div class="walk-n">4</div><div class="muted">结构要不同外观：<strong>协同单</strong>（不派生）。包材仍钉主原子。</div></div>
+        <div class="walk-step"><div class="walk-n">5</div><div class="muted">JP-TL 通过 → 导出 <strong>JP-TL 快照</strong>。P0 走调整 + 影响面。</div></div>
+      </div>
+    </section>
+  </div>
+</body>
+</html>

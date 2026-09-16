@@ -1,0 +1,1077 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>研发解耦综合方案 · DEMO</title>
+  <style>
+    :root {
+      --bg: #f3f5fa; --card: #fff; --text: #172033; --muted: #657187; --line: #e2e8f1;
+      --primary: #335cff; --primary-soft: #eef2ff; --green: #087c60; --green-soft: #eaf8f3;
+      --amber: #a96100; --amber-soft: #fff5df; --navy: #1d2a57; --draft: #94a3b8; --draft-soft: #f1f5f9;
+      --blue: #2563eb; --blue-soft: #eff6ff; --shadow: 0 8px 24px rgba(28, 39, 66, .07);
+      --radius: 12px; --sidebar: 214px;
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+      margin: 0; color: var(--text); background: var(--bg);
+      font: 13px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    }
+    button, input, select, textarea { font: inherit; }
+    button { cursor: pointer; }
+    .app { display: grid; grid-template-columns: var(--sidebar) minmax(0, 1fr); min-height: 100%; }
+    .side { color: #d7def0; background: var(--navy); padding: 18px 14px; }
+    .brand small { display: block; opacity: .55; letter-spacing: .08em; font-size: 10px; }
+    .brand b { display: block; margin-top: 4px; color: #fff; font-size: 16px; }
+    .nav-btn {
+      display: block; width: 100%; margin-bottom: 6px; padding: 9px 12px;
+      color: #c9d3ea; background: transparent; border: 0; border-radius: 8px; text-align: left;
+    }
+    .nav-btn:hover { background: rgba(255,255,255,.06); color: #fff; }
+    .nav-btn.active { color: #fff; background: #335cff; }
+    .nav-btn:disabled { opacity: .4; cursor: not-allowed; }
+    .side-group { margin: 14px 8px 6px; color: #8b97b5; font-size: 10px; letter-spacing: .08em; font-weight: 800; }
+    .side-foot { margin-top: 20px; padding: 10px 12px; color: #9aa6c4; background: rgba(255,255,255,.05); border-radius: 8px; font-size: 11px; }
+    .main { min-width: 0; display: flex; flex-direction: column; }
+    .top {
+      display: flex; align-items: center; justify-content: space-between; gap: 12px;
+      padding: 12px 22px; background: #fff; border-bottom: 1px solid var(--line);
+    }
+    .top h1 { margin: 0; font-size: 16px; }
+    .top p { margin: 2px 0 0; color: var(--muted); font-size: 12px; }
+    .rail { display: flex; gap: 6px; padding: 10px 22px 0; overflow-x: auto; }
+    .rail-step {
+      flex: 1; min-width: 92px; padding: 7px 8px; color: var(--muted); background: #fff;
+      border: 1px solid var(--line); border-radius: 8px; text-align: center; font-size: 11px; font-weight: 700;
+    }
+    .rail-step.on { color: #fff; background: var(--primary); border-color: var(--primary); }
+    .rail-step.done { color: #08674f; background: var(--green-soft); border-color: #b7e4d4; }
+    .workspace { padding: 16px 22px 40px; }
+    .view { display: none; }
+    .view.show { display: block; }
+    .stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+    .stat, .card {
+      padding: 16px 18px; background: var(--card); border: 1px solid var(--line);
+      border-radius: var(--radius); box-shadow: var(--shadow);
+    }
+    .stat b { display: block; margin-top: 4px; font-size: 22px; line-height: 1.2; }
+    .stat span, .muted { color: var(--muted); }
+    h2 { margin: 0 0 10px; font-size: 15px; }
+    h3 { margin: 0 0 8px; font-size: 14px; }
+    .grid-2 { display: grid; grid-template-columns: 1.1fr .9fr; gap: 12px; }
+    .grid-3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+    .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+    .btn { padding: 7px 12px; color: var(--text); background: #fff; border: 1px solid var(--line); border-radius: 8px; }
+    .btn:hover { border-color: #9bacef; }
+    .btn.primary { color: #fff; background: var(--primary); border-color: var(--primary); }
+    .btn.green { color: #fff; background: var(--green); border-color: var(--green); }
+    .btn.ghost { background: transparent; }
+    .btn:disabled { opacity: .45; cursor: not-allowed; }
+    .tag { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 700; }
+    .tag.reuse, .tag.released, .tag.done { color: #08674f; background: var(--green-soft); }
+    .tag.change, .tag.wait { color: #805000; background: var(--amber-soft); }
+    .tag.fresh, .tag.run { color: #1d4ed8; background: var(--blue-soft); }
+    .tag.draft, .tag.idle, .tag.drop { color: #64748b; background: var(--draft-soft); }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { padding: 8px; text-align: left; vertical-align: top; border-bottom: 1px solid var(--line); }
+    th { color: var(--muted); background: #f8fafc; font-size: 11px; }
+    .hint { padding: 10px 12px; color: #27469f; background: var(--primary-soft); border-radius: 8px; font-size: 12px; }
+    .okbox { padding: 10px 12px; color: #08674f; background: var(--green-soft); border-radius: 8px; font-size: 12px; }
+    .warnbox { padding: 10px 12px; color: #805000; background: var(--amber-soft); border-radius: 8px; font-size: 12px; }
+    .stack { display: grid; gap: 8px; padding: 14px; background: #f8fafc; border: 1px solid var(--line); border-radius: 12px; }
+    .stack-layer { padding: 12px; background: #fff; border: 1px solid var(--line); border-radius: 10px; text-align: center; }
+    .stack-layer.top { border-color: #c7d4ff; background: var(--primary-soft); }
+    .stack-layer.bot { border-color: #b7e4d4; }
+    .stack-layer strong { display: block; margin-bottom: 4px; }
+    .stack-layer span { color: var(--muted); font-size: 11px; }
+    .search {
+      width: 100%; padding: 8px 12px; border: 1px solid var(--line); border-radius: 8px; background: #fff;
+    }
+    .split { display: grid; grid-template-columns: 260px minmax(0, 1fr); gap: 12px; min-height: 560px; }
+    .tree {
+      padding: 10px; background: #fff; border: 1px solid var(--line); border-radius: 12px; overflow: auto;
+    }
+    .tree-node {
+      display: block; width: 100%; margin: 1px 0; padding: 6px 8px; color: var(--text);
+      background: transparent; border: 0; border-radius: 6px; text-align: left;
+    }
+    .tree-node:hover { background: #f4f7ff; }
+    .tree-node.on { color: var(--primary); background: var(--primary-soft); font-weight: 700; }
+    .tree-node .meta { color: var(--muted); font-weight: 500; font-size: 11px; }
+    .crumb { margin-bottom: 10px; color: var(--muted); font-size: 12px; }
+    .chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; }
+    .mini { padding: 3px 7px; background: #f8fafc; border: 1px solid var(--line); border-radius: 6px; font-size: 11px; }
+    .mod-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+    .mod-card {
+      padding: 14px; background: #fff; border: 1px solid var(--line); border-left: 4px solid var(--draft);
+      border-radius: 12px; cursor: pointer;
+    }
+    .mod-card.released { border-left-color: var(--green); }
+    .mod-card:hover { border-color: #9bacef; }
+    .prod-card { cursor: default; }
+    .work {
+      padding: 12px 14px; border: 1px solid var(--line); border-radius: 10px; background: #fff;
+    }
+    .work.gray { background: #f8fafc; }
+    .work.amber { background: var(--amber-soft); border-color: #f0d59a; }
+    .work.blue { background: var(--blue-soft); border-color: #bfdbfe; }
+    .work.green { background: var(--green-soft); border-color: #b7e4d4; }
+    .prd {
+      padding: 12px; background: #f8faff; border: 1px dashed #c7d4ff; border-radius: 10px; font-size: 12px;
+    }
+    .field { margin-bottom: 10px; }
+    .field label { display: block; margin-bottom: 4px; color: var(--muted); font-size: 11px; }
+    .field input, .field select, .field textarea {
+      width: 100%; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: #fff;
+    }
+    .spec-table { margin: 8px 0 12px; }
+    .spec-table th { width: 28%; color: var(--muted); font-weight: 600; background: #f8fafc; }
+    .mask {
+      position: fixed; inset: 0; display: none; align-items: center; justify-content: center;
+      padding: 20px; background: rgba(23, 32, 51, .4); z-index: 40;
+    }
+    .mask.show { display: flex; }
+    .dialog { width: 680px; max-width: 100%; max-height: 90vh; overflow: auto; background: #fff; border-radius: 14px; }
+    .dh, .df { display: flex; justify-content: space-between; align-items: center; padding: 14px 18px; }
+    .dh { border-bottom: 1px solid var(--line); font-weight: 700; }
+    .df { border-top: 1px solid var(--line); justify-content: flex-end; gap: 8px; }
+    .db { padding: 16px 18px; }
+    .toast {
+      position: fixed; right: 20px; bottom: 20px; display: none;
+      padding: 10px 14px; color: #fff; background: #1d2a57; border-radius: 8px; z-index: 50;
+    }
+    .toast.show { display: block; }
+    .focus-box { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-bottom: 12px; }
+    .focus-item { padding: 10px; background: #f8fafc; border-radius: 8px; text-align: center; }
+    .focus-item.hot { background: var(--amber-soft); }
+    .focus-item b { display: block; font-size: 20px; }
+    .opt { padding: 6px 10px; border: 1px solid var(--line); border-radius: 8px; background: #fff; }
+    .opt.on.reuse { color: #08674f; background: var(--green-soft); border-color: #b7e4d4; }
+    .opt.on.change { color: #805000; background: var(--amber-soft); border-color: #f0d59a; }
+    .opt.on.fresh { color: #1d4ed8; background: var(--blue-soft); border-color: #bfdbfe; }
+    select.role {
+      height: 32px; padding: 0 8px; color: #fff; background: #223868;
+      border: 1px solid rgba(255,255,255,.24); border-radius: 8px;
+    }
+    @media (max-width: 1100px) {
+      .app { grid-template-columns: 1fr; }
+      .stats, .grid-2, .grid-3, .mod-grid, .focus-box, .split { grid-template-columns: 1fr; }
+      .side { display: flex; flex-wrap: wrap; gap: 6px; }
+      .brand, .side-foot, .side-group { width: 100%; }
+      .nav-btn { width: auto; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <aside class="side">
+      <div class="brand">
+        <small>COMBINED PATH</small>
+        <b>研发解耦综合 DEMO</b>
+      </div>
+      <div class="side-group">一条路径</div>
+      <button class="nav-btn active" data-view="home" type="button">总览与分层</button>
+      <div class="side-group">中台 · 架构标准化</div>
+      <button class="nav-btn" data-view="shelf" type="button">模块货架</button>
+      <button class="nav-btn" data-view="products" type="button">产品方案库</button>
+      <button class="nav-btn" data-view="sku" type="button">新产品 SKU</button>
+      <div class="side-group">协作区 · 文档结构化</div>
+      <button class="nav-btn" data-view="collab" type="button" id="navCollab">项目协作</button>
+      <button class="nav-btn" data-view="jp" type="button" id="navJp">JP 汇入 / 回写</button>
+      <div class="side-foot" id="sideFoot">当前角色：解耦组负责人<br>中台选能力，协作区跑增量</div>
+    </aside>
+    <div class="main">
+      <header class="top">
+        <div>
+          <h1 id="pageTitle">总览与分层</h1>
+          <p id="pageDesc">家电 H8120 → H8121。先对照货架，再进协作区，最后把灰色变成绿色。</p>
+        </div>
+        <div class="row">
+          <select class="role" id="roleSel"></select>
+          <button class="btn ghost" id="resetBtn" type="button">重置演示</button>
+        </div>
+      </header>
+      <div class="rail" id="rail"></div>
+      <div class="workspace">
+        <section class="view show" id="view-home"></section>
+        <section class="view" id="view-shelf" hidden></section>
+        <section class="view" id="view-products" hidden></section>
+        <section class="view" id="view-sku" hidden></section>
+        <section class="view" id="view-collab" hidden></section>
+        <section class="view" id="view-jp" hidden></section>
+      </div>
+    </div>
+  </div>
+  <div class="mask" id="mask"><div class="dialog" id="dialog"></div></div>
+  <div class="toast" id="toast"></div>
+
+  <script>
+    const TITLES = {
+      home: ["总览与分层", "项目在上、模块方案在下。中台和协作区是一条路径，不是两套方案。"],
+      shelf: ["模块货架", "品类 → 专业域 → 方案族。左边绿条是定稿，灰条是未定稿。制冷在家电品类下。"],
+      products: ["产品方案库", "按品类 / 系列 / model 回看模块组合。照明三款已定稿；家电 H8120 是下一款起点。"],
+      sku: ["新产品 SKU", "从已定稿 H8120 载入模块组合，解耦组负责人拍板后，只有增量进项目。"],
+      collab: ["项目协作", "Skill 生成结构化文档。输入定稿后，对应角色的工作才可开始。"],
+      jp: ["JP 汇入 / 回写", "ES 齐套后回写货架。新模块先灰，解耦组负责人定稿后变绿。"]
+    };
+    const ROLES = [
+      { id: "lead", name: "解耦组负责人" },
+      { id: "pm", name: "硬件产品经理" },
+      { id: "struct", name: "结构主责人" },
+      { id: "rf", name: "制冷主责人" },
+      { id: "fw", name: "嵌入式主责人" }
+    ];
+    const DEC = { reuse: "复用", change: "二次开发", fresh: "新做" };
+    const PATH = ["货架", "SKU 对照", "拍板立项", "Skill 文档", "条件工作", "JP 回写"];
+    const FAMILIES = {
+      照明: { 光学: ["灯珠"], 电子: ["电源驱动"], 结构: ["灯体结构"], 嵌入式: ["控制固件", "传感"] },
+      家电: { 结构: ["箱体结构"], 电子: ["电控"], 制冷: ["压缩机制冷"], 光学: ["指示与显示"], 嵌入式: ["控制固件"] }
+    };
+
+    const SPEC_LABEL = {
+      watt: "功率", cct: "色温", cri: "CRI", lumen: "光通量", beam: "光束角", dimming: "调光深度", life: "寿命", scene: "适用场景",
+      vin: "输入电压", pout: "输出功率", dimMethod: "调光方式", dimRange: "调光范围", pf: "效率 / PF", certs: "认证", protect: "保护",
+      mount: "安装方式", size: "外形尺寸", material: "材质", load: "承重", ip: "防护等级", iface: "接口",
+      control: "控制方式", channels: "通道", protocol: "协议", ota: "OTA", standby: "待机功耗",
+      ice: "冰量", refrigerant: "制冷剂", coolPower: "制冷功率", pipe: "管路",
+      sense: "感应方式", range: "感应距离"
+    };
+
+    const seedModules = () => ([
+      {
+        id: "LED-01", category: "照明", domain: "光学", family: "灯珠", name: "灯珠方案一", status: "released",
+        products: ["H6091", "H6076"], capability: "可调色温主照明，适合落地灯和墙灯复用",
+        docs: ["灯珠规格书-01.pdf", "LM-80报告.pdf"],
+        specs: { watt: "8W", cct: "2700-6500K", cri: "90", lumen: "720 lm", beam: "120°", dimming: "10%-100%", life: "25000h / LM-80", scene: "客厅主照明" }
+      },
+      {
+        id: "LED-02", category: "照明", domain: "光学", family: "灯珠", name: "灯珠方案二", status: "released",
+        products: ["H6052"], capability: "高亮度单色温，适合台灯阅读",
+        docs: ["灯珠规格书-02.pdf"],
+        specs: { watt: "12W", cct: "4000K", cri: "80", lumen: "1100 lm", beam: "90°", dimming: "20%-100%", life: "20000h", scene: "桌面阅读" }
+      },
+      {
+        id: "LED-03", category: "照明", domain: "光学", family: "灯珠", name: "灯珠方案三", status: "released",
+        products: [], capability: "低功率暖光，氛围点缀",
+        docs: ["灯珠规格书-03.pdf"],
+        specs: { watt: "6W", cct: "3000K", cri: "80", lumen: "480 lm", beam: "140°", dimming: "不支持", life: "15000h", scene: "氛围点缀" }
+      },
+      {
+        id: "PSU-A", category: "照明", domain: "电子", family: "电源驱动", name: "电源方案A", status: "released",
+        products: ["H6091"], capability: "基础恒流，无调光",
+        docs: ["驱动规格-A.pdf"],
+        specs: { vin: "100-240V", pout: "8-10W", dimMethod: "无调光", dimRange: "100%", pf: "0.90 / 86%", certs: "CE / FCC", protect: "过压 / 短路" }
+      },
+      {
+        id: "PSU-B", category: "照明", domain: "电子", family: "电源驱动", name: "电源方案B", status: "released",
+        products: ["H6076"], capability: "分段调光，不支持 1% 深调",
+        docs: ["驱动规格-B.pdf", "调光曲线.xlsx"],
+        specs: { vin: "100-240V", pout: "8-12W", dimMethod: "分段 PWM", dimRange: "10%-100%", pf: "0.92 / 88%", certs: "CE / FCC / UL", protect: "过压 / 过温 / 短路" }
+      },
+      {
+        id: "PSU-C", category: "照明", domain: "电子", family: "电源驱动", name: "电源方案C", status: "released",
+        products: ["H6052"], capability: "较高功率无极调光",
+        docs: ["驱动规格-C.pdf"],
+        specs: { vin: "100-240V", pout: "12W", dimMethod: "无极 PWM", dimRange: "5%-100%", pf: "0.93 / 89%", certs: "CE / FCC", protect: "过压 / 短路" }
+      },
+      {
+        id: "STR-S1", category: "照明", domain: "结构", family: "灯体结构", name: "落地结构方案S1", status: "released",
+        products: ["H6076"], capability: "落地杆体与配重底座",
+        docs: ["结构3D-S1.step"],
+        specs: { mount: "落地", size: "φ250 × 1650mm", material: "铝合金 + ABS", load: "整机 3.8kg", ip: "IP20", iface: "M8 杆体接口" }
+      },
+      {
+        id: "STR-S2", category: "照明", domain: "结构", family: "灯体结构", name: "墙装结构方案S2", status: "released",
+        products: ["H6091"], capability: "墙面拼装与暗线走线",
+        docs: ["结构3D-S2.step"],
+        specs: { mount: "墙面拼装", size: "单片 180 × 180mm", material: "PC 扩散 + 铝合金背板", load: "单片 0.28kg", ip: "IP20", iface: "磁吸拼接 + 底盒" }
+      },
+      {
+        id: "STR-S4", category: "照明", domain: "结构", family: "灯体结构", name: "台灯结构方案S4", status: "released",
+        products: ["H6052"], capability: "桌面摇臂与配重底座",
+        docs: ["结构3D-S4.step"],
+        specs: { mount: "桌面", size: "底座 φ160 × 高度 420mm", material: "铝合金", load: "整机 1.1kg", ip: "IP20", iface: "摇臂阻尼铰链" }
+      },
+      {
+        id: "FW-F1", category: "照明", domain: "嵌入式", family: "控制固件", name: "固件方案F1", status: "released",
+        products: ["H6091", "H6076"], capability: "开关 + 色温两路，墙板控制",
+        docs: ["固件版本说明-F1.md"],
+        specs: { control: "墙板 / 机身按键", channels: "开关 + 色温", protocol: "无外部通讯", ota: "不支持", standby: "0.3W" }
+      },
+      {
+        id: "FW-F2", category: "照明", domain: "嵌入式", family: "控制固件", name: "固件方案F2", status: "released",
+        products: ["H6052"], capability: "台灯触摸调光",
+        docs: ["固件版本说明-F2.md"],
+        specs: { control: "触摸滑条", channels: "亮度", protocol: "无外部通讯", ota: "不支持", standby: "0.2W" }
+      },
+      {
+        id: "BOX-H1", category: "家电", domain: "结构", family: "箱体结构", name: "箱体方案H1", status: "released",
+        products: ["H8120"], capability: "台面制冰箱体与储冰仓",
+        docs: ["箱体2D-H1.pdf"],
+        specs: { mount: "台面", size: "340×440×500mm", material: "ABS + 不锈钢内胆", load: "整机 14kg", ip: "IPX4", iface: "门铰 + 水箱卡位" }
+      },
+      {
+        id: "RF-01", category: "家电", domain: "制冷", family: "压缩机制冷", name: "制冷方案R1", status: "released",
+        products: ["H8120"], capability: "额定产冰 11kg/天，ES 已验证",
+        docs: ["制冷调试-R1.xlsx", "ES冰量测试.pdf"],
+        specs: { ice: "11kg/天", refrigerant: "R600a", coolPower: "1/8 HP", pipe: "毛细管 + 干燥器", scene: "家用制冰" }
+      },
+      {
+        id: "EL-H1", category: "家电", domain: "电子", family: "电控", name: "电控方案H1", status: "released",
+        products: ["H8120"], capability: "制冰程序 + 缺水保护",
+        docs: ["电控原理图-H1.pdf"],
+        specs: { vin: "100-240V", pout: "90-120W", dimMethod: "无", dimRange: "—", pf: "0.88 / 85%", certs: "CE / UL", protect: "缺水 / 过温 / 过流" }
+      },
+      {
+        id: "DSP-01", category: "家电", domain: "光学", family: "指示与显示", name: "显示方案一", status: "released",
+        products: ["H8120"], capability: "状态灯与冰满提示",
+        docs: ["显示规格-01.pdf"],
+        specs: { watt: "0.8W", cct: "面板白", cri: "—", lumen: "指示灯", beam: "—", dimming: "开关", life: "30000h", scene: "运行 / 冰满 / 缺水" }
+      },
+      {
+        id: "FW-H1", category: "家电", domain: "嵌入式", family: "控制固件", name: "固件方案H1", status: "released",
+        products: ["H8120"], capability: "制冰 / 清洗 / 缺水",
+        docs: ["固件版本说明-H1.md"],
+        specs: { control: "面板按键", channels: "制冰 / 清洗", protocol: "无外部通讯", ota: "不支持", standby: "0.8W" }
+      },
+      {
+        id: "RF-02", category: "家电", domain: "制冷", family: "压缩机制冷", name: "制冷方案R2", status: "draft",
+        products: [], capability: "16kg 草稿，尚未定稿，不能当复用基线",
+        docs: ["制冷草稿-R2.md"],
+        specs: { ice: "16kg/天", refrigerant: "草稿", coolPower: "—", pipe: "未冻结", scene: "未定稿不可引用" }
+      }
+    ]);
+    const seedProducts = () => ([
+      {
+        model: "H6091", name: "幻彩墙灯", category: "照明", series: "墙灯", launched: "2024-08", status: "released",
+        modules: [
+          { domain: "光学", moduleId: "LED-01", decision: "reuse" },
+          { domain: "电子", moduleId: "PSU-A", decision: "reuse" },
+          { domain: "结构", moduleId: "STR-S2", decision: "fresh" },
+          { domain: "嵌入式", moduleId: "FW-F1", decision: "reuse" }
+        ]
+      },
+      {
+        model: "H6076", name: "落地灯 Pro", category: "照明", series: "落地灯", launched: "2025-03", status: "released",
+        modules: [
+          { domain: "光学", moduleId: "LED-01", decision: "reuse" },
+          { domain: "电子", moduleId: "PSU-B", decision: "change" },
+          { domain: "结构", moduleId: "STR-S1", decision: "fresh" },
+          { domain: "嵌入式", moduleId: "FW-F1", decision: "reuse" }
+        ]
+      },
+      {
+        model: "H6052", name: "台灯", category: "照明", series: "台灯", launched: "2025-09", status: "released",
+        modules: [
+          { domain: "光学", moduleId: "LED-02", decision: "reuse" },
+          { domain: "电子", moduleId: "PSU-C", decision: "reuse" },
+          { domain: "结构", moduleId: "STR-S4", decision: "fresh" },
+          { domain: "嵌入式", moduleId: "FW-F2", decision: "reuse" }
+        ]
+      },
+      {
+        model: "H8120", name: "制冰机", category: "家电", series: "制冰", launched: "2025-11", status: "released",
+        modules: [
+          { domain: "结构", moduleId: "BOX-H1", decision: "fresh" },
+          { domain: "制冷", moduleId: "RF-01", decision: "fresh" },
+          { domain: "电子", moduleId: "EL-H1", decision: "fresh" },
+          { domain: "光学", moduleId: "DSP-01", decision: "reuse" },
+          { domain: "嵌入式", moduleId: "FW-H1", decision: "fresh" }
+        ]
+      }
+    ]);
+    const seedProduct = () => seedProducts().find((p) => p.model === "H8120");
+    const seedRows = () => ([
+      { domain: "结构", moduleId: "BOX-H1", decision: "change", note: "外观和储冰仓要改，基于箱体方案H1 二次开发。" },
+      { domain: "制冷", moduleId: "RF-01", decision: "reuse", note: "11kg 满足 H8121，ES 已验证，直接引用。" },
+      { domain: "电子", moduleId: "EL-H1", decision: "reuse", note: "保护逻辑可复用。" },
+      { domain: "光学", moduleId: "DSP-01", decision: "reuse", note: "面板指示可直接用。" },
+      { domain: "嵌入式", moduleId: "FW-H1", decision: "fresh", note: "要手机互联，货架没有可引用固件。" }
+    ]);
+    const seedAtoms = () => ([
+      { id: "prd", name: "H8121 产品定义", owner: "硬件产品经理", status: "none", body: "" },
+      { id: "size", name: "外形与储冰仓", owner: "硬件产品经理", status: "none", body: "" },
+      { id: "ice", name: "冰量指标", owner: "硬件产品经理", status: "none", body: "" },
+      { id: "iot", name: "互联需求", owner: "硬件产品经理", status: "none", body: "" },
+      { id: "st-out", name: "结构 ES 手板结论", owner: "结构主责人", status: "none", body: "" },
+      { id: "rf-out", name: "制冷 ES 复用验证", owner: "制冷主责人", status: "none", body: "" },
+      { id: "fw-out", name: "固件点亮结论", owner: "嵌入式主责人", status: "none", body: "" }
+    ]);
+
+    const state = {
+      view: "home",
+      role: "lead",
+      modules: seedModules(),
+      products: seedProducts(),
+      shelfQuery: "",
+      shelfNode: "all",
+      prodQuery: "",
+      prodNode: "c:照明",
+      sku: { model: "H8121", name: "制冰机 Mini", step: 1, status: "待匹配", rows: seedRows() },
+      atoms: seedAtoms(),
+      works: {
+        prd: "idle",
+        st: "idle",
+        rf: "idle",
+        fw: "idle"
+      },
+      projectOpen: false,
+      jp: "idle",
+      wrote: false
+    };
+
+    const $ = (id) => document.getElementById(id);
+    const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+    const mod = (id) => state.modules.find((m) => m.id === id);
+    const atom = (id) => state.atoms.find((a) => a.id === id);
+    const stTag = (s) => `<span class="tag ${s === "released" ? "released" : "draft"}">${s === "released" ? "定稿" : "未定稿"}</span>`;
+    function specChips(m) {
+      const s = m.specs || {};
+      if (m.domain === "光学") return [s.watt, s.cct, s.cri && s.cri !== "—" ? "CRI" + s.cri : "", s.dimming].filter(Boolean);
+      if (m.domain === "电子") return [s.pout || s.vin, s.dimMethod, s.dimRange, s.protect].filter(Boolean);
+      if (m.domain === "结构") return [s.mount, s.size, s.ip].filter(Boolean);
+      if (m.domain === "制冷") return [s.ice, s.refrigerant, s.coolPower].filter(Boolean);
+      return [s.control, s.channels, s.protocol].filter(Boolean);
+    }
+    function specTable(specs) {
+      const rows = Object.entries(specs || {});
+      if (!rows.length) return `<p class="muted">尚未填写结构化指标。</p>`;
+      return `<table class="spec-table"><tbody>${rows.map(([k, v]) => `<tr><th>${SPEC_LABEL[k] || k}</th><td>${esc(v)}</td></tr>`).join("")}</tbody></table>`;
+    }
+    function moduleHaystack(m) {
+      const specText = typeof m.specs === "string" ? m.specs : Object.values(m.specs || {}).join(" ");
+      return [m.id, m.name, m.family, m.domain, m.category, m.capability, m.status, specText, ...(m.products || []), ...(m.docs || [])].join(" ").toLowerCase();
+    }
+    function productHaystack(p) {
+      const mods = p.modules.map((x) => mod(x.moduleId)?.name || "").join(" ");
+      return [p.model, p.name, p.series, p.category, p.launched, p.status, mods].join(" ").toLowerCase();
+    }
+    function closeDialog() { $("mask").classList.remove("show"); $("dialog").innerHTML = ""; }
+    function openDialog(html) { $("dialog").innerHTML = html; $("mask").classList.add("show"); }
+    function openModule(id) {
+      const m = mod(id);
+      if (!m) return;
+      const canPub = m.status !== "released" && state.role === "lead";
+      openDialog(`
+        <div class="dh"><span>${esc(m.name)}</span><button class="btn ghost" type="button" id="dlgClose">关闭</button></div>
+        <div class="db">
+          <p>${stTag(m.status)} <span class="tag idle">${esc(m.category || "")}</span> <span class="tag idle">${esc(m.domain)}</span> <span class="tag idle">${esc(m.family)}</span> <strong>${m.id}</strong></p>
+          <p class="muted">${esc(m.capability)}</p>
+          <h3>结构化指标</h3>
+          ${specTable(m.specs)}
+          <div class="field"><label>已挂 model</label><div>${m.products.join("、") || "尚未挂 model"}</div></div>
+          <div class="field"><label>关联文档</label><div>${(m.docs || []).join("、") || "—"}</div></div>
+        </div>
+        <div class="df">
+          ${canPub ? `<button class="btn green" type="button" id="dlgPub">定稿变绿</button>` : ""}
+          <button class="btn" type="button" id="dlgEdit">编辑名称与能力</button>
+        </div>
+      `);
+      $("dlgClose").onclick = closeDialog;
+      const pub = $("dlgPub");
+      if (pub) pub.onclick = () => {
+        m.status = "released";
+        closeDialog();
+        toast(m.name + " 已定稿");
+        render();
+      };
+      $("dlgEdit").onclick = () => openEditModule(id);
+    }
+    function openEditModule(id) {
+      const m = mod(id);
+      if (!m) return;
+      openDialog(`
+        <div class="dh"><span>编辑名称与能力</span><button class="btn ghost" type="button" id="dlgClose">关闭</button></div>
+        <div class="db">
+          <div class="field"><label>方案名称</label><input id="fName" value="${esc(m.name)}"></div>
+          <div class="field"><label>通用能力</label><textarea id="fCap" rows="3">${esc(m.capability)}</textarea></div>
+          <div class="field"><label>关联文档</label><input id="fDocs" value="${esc((m.docs || []).join("、"))}"></div>
+          <p class="muted">结构化指标本 DEMO 按方案族预置，后续再开参数字典。这里只改名称、能力和文档挂接。</p>
+        </div>
+        <div class="df">
+          <button class="btn ghost" type="button" id="dlgBack">返回方案</button>
+          <button class="btn primary" type="button" id="dlgSave">保存</button>
+        </div>
+      `);
+      $("dlgClose").onclick = closeDialog;
+      $("dlgBack").onclick = () => openModule(id);
+      $("dlgSave").onclick = () => {
+        const name = $("fName").value.trim();
+        if (!name) { toast("请填写方案名称"); return; }
+        m.name = name;
+        m.capability = $("fCap").value.trim();
+        m.docs = $("fDocs").value.split("、").map((s) => s.trim()).filter(Boolean);
+        toast("方案已保存");
+        openModule(id);
+        render();
+      };
+    }
+    function toast(t) {
+      const el = $("toast");
+      el.textContent = t;
+      el.classList.add("show");
+      setTimeout(() => el.classList.remove("show"), 1800);
+    }
+    function reuseN() { return state.sku.rows.filter((r) => r.decision === "reuse").length; }
+    function incN() { return state.sku.rows.filter((r) => r.decision !== "reuse").length; }
+    function atomReady(id) { return atom(id).status === "released"; }
+    function workStatus(key) {
+      const w = state.works[key];
+      if (w === "done") return "green";
+      if (w === "run") return "blue";
+      const need = { prd: [], st: ["size"], rf: ["ice"], fw: ["iot"] }[key];
+      if (need.some((id) => !atomReady(id))) return "gray";
+      return "amber";
+    }
+    function workLabel(key) {
+      const map = { gray: "未就绪", amber: "可开始", blue: "进行中", green: "已完成" };
+      return map[workStatus(key)];
+    }
+    function pathIndex() {
+      if (state.wrote && state.jp === "pass") return 6;
+      if (state.projectOpen && atomReady("prd")) {
+        const worksDone = ["st", "rf", "fw"].every((k) => state.works[k] === "done");
+        if (worksDone) return 5;
+        if (state.works.prd === "done") return 4;
+      }
+      if (state.projectOpen) return 3;
+      if (state.sku.step >= 3) return 2;
+      if (state.view === "shelf" || state.view === "products") return 1;
+      return 0;
+    }
+
+    function showView(name) {
+      if ((name === "collab" || name === "jp") && !state.projectOpen) {
+        toast("先在新产品 SKU 里确认增量立项");
+        return;
+      }
+      state.view = name;
+      document.querySelectorAll(".nav-btn").forEach((btn) => btn.classList.toggle("active", btn.dataset.view === name));
+      document.querySelectorAll(".view").forEach((el) => {
+        const on = el.id === "view-" + name;
+        el.classList.toggle("show", on);
+        el.toggleAttribute("hidden", !on);
+      });
+      $("pageTitle").textContent = TITLES[name][0];
+      $("pageDesc").textContent = TITLES[name][1];
+      render();
+    }
+
+    function render() {
+      $("navCollab").disabled = !state.projectOpen;
+      $("navJp").disabled = !state.projectOpen;
+      $("sideFoot").innerHTML = `当前角色：${ROLES.find((r) => r.id === state.role).name}<br>${state.projectOpen ? "项目 H8121 已立项，协作区已打开" : "中台选能力，协作区跑增量"}`;
+      const idx = pathIndex();
+      $("rail").innerHTML = PATH.map((t, i) => `<div class="rail-step ${i === idx ? "on" : (i < idx ? "done" : "")}">${i + 1} ${t}</div>`).join("");
+      renderHome();
+      renderShelf();
+      renderProducts();
+      renderSku();
+      renderCollab();
+      renderJp();
+    }
+
+    function renderHome() {
+      const pub = state.modules.filter((m) => m.status === "released").length;
+      const draft = state.modules.filter((m) => m.status !== "released").length;
+      $("view-home").innerHTML = `
+        <div class="stats">
+          <div class="stat"><span>定稿模块 · 绿</span><b>${pub}</b></div>
+          <div class="stat"><span>未定稿模块 · 灰</span><b>${draft}</b></div>
+          <div class="stat"><span>可复用 / 增量</span><b>${reuseN()} / ${incN()}</b></div>
+          <div class="stat"><span>项目</span><b>${state.projectOpen ? "H8121 已开" : "未立项"}</b></div>
+        </div>
+        <div class="grid-2" style="margin-top:14px">
+          <article class="card">
+            <h2>分层：从下往上看</h2>
+            <div class="stack">
+              <div class="stack-layer top"><strong>项目层</strong><span>模块组合 · 按节点协作 · 推动更新 · 沉淀回写</span></div>
+              <div class="stack-layer"><strong>决策层</strong><span>复用 / 二次开发 / 新做</span></div>
+              <div class="stack-layer"><strong>产品方案</strong><span>H8120 已定稿 · H8121 立项后先灰</span></div>
+              <div class="stack-layer bot"><strong>模块方案 · 底层能力</strong><span>结构 · 电子 · 光学 · 制冷 · 嵌入式</span></div>
+            </div>
+          </article>
+          <article class="card">
+            <h2>本页要走完的路径</h2>
+            <p class="muted">不是两套方案。中台决定用什么能力，协作区决定选定之后怎么跑。</p>
+            <ol>
+              <li>货架和产品方案库按品类树浏览。照明三款已定稿，演示主线仍是家电 H8120。</li>
+              <li>打开 H8120，看到 5 个已定稿模块（含制冷）。</li>
+              <li>H8121 删减不动，改箱体、新做互联固件。</li>
+              <li>3 个复用不出项目；人力放在 2 个增量。</li>
+              <li>协作区用 Skill 出结构化 PRD，条件工作推进到 ES。</li>
+              <li>回写后灰色变绿，货架变厚。</li>
+            </ol>
+            <div class="row" style="margin-top:10px">
+              <button class="btn primary" type="button" id="goPath">从货架开始</button>
+              <button class="btn" type="button" id="goSku">直接对照 SKU</button>
+            </div>
+          </article>
+        </div>
+      `;
+      $("goPath").onclick = () => showView("shelf");
+      $("goSku").onclick = () => showView("sku");
+    }
+
+    function shelfFilter() {
+      const q = state.shelfQuery.trim().toLowerCase();
+      const node = state.shelfNode;
+      return state.modules.filter((m) => {
+        if (q && !moduleHaystack(m).includes(q)) return false;
+        if (node === "all") return true;
+        if (node.startsWith("c:")) return m.category === node.slice(2);
+        if (node.startsWith("d:")) {
+          const [cat, domain] = node.slice(2).split("/");
+          return m.category === cat && m.domain === domain;
+        }
+        if (node.startsWith("f:")) {
+          const [cat, domain, family] = node.slice(2).split("/");
+          return m.category === cat && m.domain === domain && m.family === family;
+        }
+        return true;
+      });
+    }
+
+    function renderShelfTree() {
+      const counts = (pred) => state.modules.filter(pred).length;
+      let html = `<button class="tree-node ${state.shelfNode === "all" ? "on" : ""}" data-node="all" type="button">全部品类 <span class="meta">${state.modules.length}</span></button>`;
+      Object.keys(FAMILIES).forEach((cat) => {
+        html += `<button class="tree-node ${state.shelfNode === "c:" + cat ? "on" : ""}" data-node="c:${cat}" type="button" style="padding-left:12px">${cat} <span class="meta">${counts((m) => m.category === cat)}</span></button>`;
+        Object.keys(FAMILIES[cat]).forEach((domain) => {
+          html += `<button class="tree-node ${state.shelfNode === "d:" + cat + "/" + domain ? "on" : ""}" data-node="d:${cat}/${domain}" type="button" style="padding-left:24px">${domain} <span class="meta">${counts((m) => m.category === cat && m.domain === domain)}</span></button>`;
+          FAMILIES[cat][domain].forEach((family) => {
+            html += `<button class="tree-node ${state.shelfNode === "f:" + cat + "/" + domain + "/" + family ? "on" : ""}" data-node="f:${cat}/${domain}/${family}" type="button" style="padding-left:36px">${family} <span class="meta">${counts((m) => m.category === cat && m.domain === domain && m.family === family)}</span></button>`;
+          });
+        });
+      });
+      return html;
+    }
+
+    function renderShelf() {
+      const list = shelfFilter();
+      $("view-shelf").innerHTML = `
+        <div class="hint" style="margin-bottom:12px">照明方案已入库。家电里制冷方案R1 已定稿可引用；制冷方案R2 仍是灰色，不能当正式复用基线。</div>
+        <div class="split">
+          <aside class="tree" id="shelfTree">${renderShelfTree()}</aside>
+          <div>
+            <input class="search" id="shelfSearch" placeholder="搜索方案、制冷、H8120、H6091、未定稿">
+            <div class="crumb" style="margin-top:10px">${list.length} 条 · 左边绿条是定稿，灰条是未定稿</div>
+            <div class="mod-grid">
+              ${list.map((m) => `
+                <article class="mod-card ${m.status === "released" ? "released" : ""}" data-id="${m.id}">
+                  <div class="row">${stTag(m.status)}<span class="tag idle">${esc(m.category)}</span><span class="tag idle">${esc(m.domain)}</span></div>
+                  <h3 style="margin-top:8px">${esc(m.name)}</h3>
+                  <div class="chips">${specChips(m).map((x) => `<span class="mini">${esc(x)}</span>`).join("")}</div>
+                  <p class="muted">${esc(m.capability)}</p>
+                  <p class="muted">已挂 ${m.products.join("、") || "尚未挂 model"}</p>
+                  ${m.status !== "released" && state.role === "lead" ? `<button class="btn green" type="button" data-pub="${m.id}">定稿</button>` : ""}
+                </article>
+              `).join("") || `<div class="muted">没有匹配的方案。</div>`}
+            </div>
+          </div>
+        </div>
+      `;
+      $("shelfSearch").value = state.shelfQuery;
+      $("shelfSearch").oninput = (e) => { state.shelfQuery = e.target.value; renderShelf(); };
+      $("shelfTree").querySelectorAll("[data-node]").forEach((btn) => {
+        btn.onclick = () => { state.shelfNode = btn.dataset.node; renderShelf(); };
+      });
+      $("view-shelf").querySelectorAll(".mod-card").forEach((card) => {
+        card.onclick = () => openModule(card.dataset.id);
+      });
+      $("view-shelf").querySelectorAll("[data-pub]").forEach((btn) => {
+        btn.onclick = (e) => {
+          e.stopPropagation();
+          mod(btn.dataset.pub).status = "released";
+          toast(mod(btn.dataset.pub).name + " 已定稿");
+          render();
+        };
+      });
+    }
+
+    function productFilter() {
+      const q = state.prodQuery.trim().toLowerCase();
+      return state.products.filter((p) => {
+        if (q && !productHaystack(p).includes(q)) return false;
+        if (state.prodNode === "all") return true;
+        if (state.prodNode.startsWith("c:")) return p.category === state.prodNode.slice(2);
+        if (state.prodNode.startsWith("s:")) return p.series === state.prodNode.slice(2);
+        if (state.prodNode.startsWith("m:")) return p.model === state.prodNode.slice(2);
+        return true;
+      });
+    }
+
+    function renderProductTree() {
+      const cats = [...new Set(state.products.map((p) => p.category))];
+      let html = `<button class="tree-node ${state.prodNode === "all" ? "on" : ""}" data-node="all" type="button">全部 <span class="meta">${state.products.length}</span></button>`;
+      cats.forEach((c) => {
+        const inCat = state.products.filter((p) => p.category === c);
+        html += `<button class="tree-node ${state.prodNode === "c:" + c ? "on" : ""}" data-node="c:${c}" type="button" style="padding-left:12px">${c} <span class="meta">${inCat.length}</span></button>`;
+        [...new Set(inCat.map((p) => p.series))].forEach((s) => {
+          const items = inCat.filter((p) => p.series === s);
+          html += `<button class="tree-node ${state.prodNode === "s:" + s ? "on" : ""}" data-node="s:${s}" type="button" style="padding-left:24px">${s} <span class="meta">${items.length}</span></button>`;
+          items.forEach((p) => {
+            html += `<button class="tree-node ${state.prodNode === "m:" + p.model ? "on" : ""}" data-node="m:${p.model}" type="button" style="padding-left:36px">${p.model} <span class="meta">${esc(p.name)}</span></button>`;
+          });
+        });
+      });
+      return html;
+    }
+
+    function renderProducts() {
+      const list = productFilter();
+      $("view-products").innerHTML = `
+        <div class="split">
+          <aside class="tree" id="prodTree">${renderProductTree()}</aside>
+          <div>
+            <input class="search" id="prodSearch" placeholder="搜索 model / 系列 / 方案名，如 H6091、落地灯、制冷">
+            <div class="crumb" style="margin-top:10px">${list.length} 个产品方案</div>
+            <div class="mod-grid">
+              ${list.map((p) => `
+                <article class="card prod-card" style="border-left:4px solid ${p.status === "released" ? "var(--green)" : "var(--draft)"}">
+                  <div class="row">${stTag(p.status)}<strong>${p.model}</strong><span class="tag idle">${esc(p.category || "")}</span><span class="tag idle">${esc(p.series || "")}</span></div>
+                  <h3 style="margin-top:8px">${esc(p.name)}</h3>
+                  <p class="muted">上市 ${p.launched || "项目中"}</p>
+                  <table>
+                    <thead><tr><th>专业域</th><th>模块方案</th><th>决策</th></tr></thead>
+                    <tbody>
+                      ${p.modules.map((x) => {
+                        const m = mod(x.moduleId);
+                        return `<tr>
+                          <td>${x.domain}</td>
+                          <td><button class="btn ghost" type="button" data-open="${x.moduleId || ""}">${esc(m?.name || x.moduleId || "—")}</button></td>
+                          <td><span class="tag ${x.decision}">${DEC[x.decision]}</span></td>
+                        </tr>`;
+                      }).join("")}
+                    </tbody>
+                  </table>
+                </article>
+              `).join("") || `<div class="muted">没有匹配的产品方案。</div>`}
+            </div>
+          </div>
+        </div>
+      `;
+      $("prodSearch").value = state.prodQuery;
+      $("prodSearch").oninput = (e) => { state.prodQuery = e.target.value; renderProducts(); };
+      $("prodTree").querySelectorAll("[data-node]").forEach((btn) => {
+        btn.onclick = () => { state.prodNode = btn.dataset.node; renderProducts(); };
+      });
+      $("view-products").querySelectorAll("[data-open]").forEach((btn) => {
+        btn.onclick = () => { if (btn.dataset.open) openModule(btn.dataset.open); };
+      });
+    }
+
+    function renderSku() {
+      const m = state.sku;
+      let body = "";
+      if (m.step === 1) {
+        body = `
+          <div class="hint" style="margin-bottom:12px">不要从空白 PRD 开工。H8120 已定稿，先带出它的模块组合。</div>
+          <article class="card">
+            <div class="row">${stTag("released")}<strong>H8120</strong><span class="tag idle">家电</span><span class="tag idle">制冰</span></div>
+            <h3 style="margin-top:8px">制冰机 · 作为 H8121 的起点</h3>
+            <table style="margin-top:10px">
+              <thead><tr><th>专业域</th><th>模块</th><th>状态</th></tr></thead>
+              <tbody>
+                ${seedProduct().modules.map((x) => `<tr><td>${x.domain}</td><td>${esc(mod(x.moduleId).name)}</td><td>${stTag("released")}</td></tr>`).join("")}
+              </tbody>
+            </table>
+          </article>
+        `;
+      } else if (m.step === 2) {
+        body = `
+          <div class="focus-box">
+            <div class="focus-item"><span class="muted">模块</span><b>${m.rows.length}</b></div>
+            <div class="focus-item"><span class="muted">已验证可复用</span><b>${reuseN()}</b></div>
+            <div class="focus-item hot"><span class="muted">人力应放在</span><b>${incN()}</b><span class="muted">个增量</span></div>
+          </div>
+          ${m.rows.map((r, i) => `
+            <div class="work" style="margin-bottom:8px">
+              <div class="row"><strong>${r.domain}</strong><span class="tag ${r.decision}">${DEC[r.decision]}</span></div>
+              <p class="muted" style="margin:6px 0">${esc(r.note)}</p>
+              <div class="row">
+                ${["reuse", "change", "fresh"].map((d) => `<button class="opt ${d} ${r.decision === d ? "on" : ""}" type="button" data-dec="${d}" data-i="${i}">${DEC[d]}</button>`).join("")}
+              </div>
+            </div>
+          `).join("")}
+        `;
+      } else {
+        body = `
+          <div class="okbox">${state.projectOpen ? "H8121 已立项。" : "确认后项目只接增量。"} 复用 ${reuseN()} 项不进开发清单。</div>
+          <div class="grid-2" style="margin-top:12px">
+            <article class="card">
+              <h3>引用，不开发</h3>
+              <table><tbody>${m.rows.filter((r) => r.decision === "reuse").map((r) => `<tr><td>${r.domain}</td><td>${esc(mod(r.moduleId).name)}</td></tr>`).join("")}</tbody></table>
+            </article>
+            <article class="card">
+              <h3>进入协作区的增量</h3>
+              <table><tbody>${m.rows.filter((r) => r.decision !== "reuse").map((r) => `<tr><td>${r.domain}</td><td><span class="tag ${r.decision}">${DEC[r.decision]}</span></td></tr>`).join("")}</tbody></table>
+            </article>
+          </div>
+        `;
+      }
+      $("view-sku").innerHTML = `
+        <div class="row" style="margin-bottom:10px">
+          ${["1 载入 H8120", "2 拍板组合", "3 增量清单"].map((t, i) => `<div class="rail-step ${m.step === i + 1 ? "on" : (m.step > i + 1 ? "done" : "")}">${t}</div>`).join("")}
+        </div>
+        ${body}
+        <div class="row" style="margin-top:12px">
+          ${m.step > 1 && !state.projectOpen ? `<button class="btn" type="button" id="skuPrev">上一步</button>` : ""}
+          ${m.step < 3 ? `<button class="btn primary" type="button" id="skuNext">下一步</button>` : ""}
+          ${m.step === 3 && !state.projectOpen ? `<button class="btn green" type="button" id="skuLock">确认增量立项</button>` : ""}
+          ${state.projectOpen ? `<button class="btn primary" type="button" id="skuGoCollab">进入协作区</button>` : ""}
+        </div>
+      `;
+      $("view-sku").querySelectorAll("[data-dec]").forEach((btn) => {
+        btn.onclick = () => { m.rows[Number(btn.dataset.i)].decision = btn.dataset.dec; render(); };
+      });
+      const prev = $("skuPrev");
+      const next = $("skuNext");
+      const lock = $("skuLock");
+      const go = $("skuGoCollab");
+      if (prev) prev.onclick = () => { m.step -= 1; render(); };
+      if (next) next.onclick = () => { m.step += 1; render(); };
+      if (lock) lock.onclick = () => {
+        state.projectOpen = true;
+        m.status = "已立项增量";
+        toast("增量已进项目。复用项未进开发清单");
+        showView("collab");
+      };
+      if (go) go.onclick = () => showView("collab");
+    }
+
+    function renderCollab() {
+      const canSkill = state.role === "pm" || state.role === "lead";
+      const prdReady = atomReady("prd");
+      $("view-collab").innerHTML = `
+        <div class="grid-2">
+          <article class="card">
+            <h2>Skill · 结构化 PRD</h2>
+            <p class="muted">按已选模块和增量需求生成。文档结构化是产出，不是解耦目的。</p>
+            ${!prdReady && state.works.prd !== "done" ? `
+              <div class="prd" style="margin-top:10px">
+                <b>将生成 4 条知识原子</b>
+                产品定义 · 外形与储冰仓 · 冰量指标（钉扎制冷方案R1）· 互联需求（新做固件）
+              </div>
+              <button class="btn primary" type="button" id="runSkill" ${canSkill ? "" : "disabled"} style="margin-top:10px">${canSkill ? "用 Skill 生成结构化文档" : "请切换到硬件产品经理或解耦组负责人"}</button>
+            ` : `
+              <div class="okbox">结构化文档已生成。定稿后，下游工作才会从灰色变成可开始。</div>
+            `}
+            <h3 style="margin-top:14px">知识原子</h3>
+            <table>
+              <thead><tr><th>原子</th><th>责任人</th><th>状态</th><th></th></tr></thead>
+              <tbody>
+                ${state.atoms.filter((a) => ["prd", "size", "ice", "iot"].includes(a.id)).map((a) => `
+                  <tr>
+                    <td>${esc(a.name)}</td>
+                    <td>${esc(a.owner)}</td>
+                    <td>${a.status === "none" ? `<span class="tag idle">未生成</span>` : stTag(a.status)}</td>
+                    <td>${a.status === "draft" && (state.role === "pm" || state.role === "lead") ? `<button class="btn green" type="button" data-atom="${a.id}">定稿</button>` : ""}</td>
+                  </tr>`).join("")}
+              </tbody>
+            </table>
+            ${atom("prd").body ? `<div class="prd" style="margin-top:10px"><b>PRD 摘要</b>${esc(atom("prd").body)}</div>` : ""}
+          </article>
+          <article class="card">
+            <h2>条件工作</h2>
+            <p class="muted">灰 = 输入未定稿；琥珀 = 可开始；蓝 = 进行中；绿 = 输出已定稿。</p>
+            ${[
+              { key: "prd", role: "pm", title: "生成结构化 PRD", need: "无（立项后即可）", out: "产品定义等 4 条原子" },
+              { key: "st", role: "struct", title: "箱体二次开发", need: "外形与储冰仓已定稿", out: "结构 ES 手板结论" },
+              { key: "rf", role: "rf", title: "制冷复用验证", need: "冰量指标已定稿（钉扎 R1）", out: "制冷 ES 复用验证" },
+              { key: "fw", role: "fw", title: "互联固件新做", need: "互联需求已定稿", out: "固件点亮结论" }
+            ].map((w) => {
+              const cls = workStatus(w.key);
+              const mine = state.role === w.role || state.role === "lead";
+              const canStart = w.key !== "prd" && cls === "amber" && mine;
+              const canFinish = w.key !== "prd" && cls === "blue" && mine;
+              return `
+                <div class="work ${cls}" style="margin-top:8px">
+                  <div class="row"><strong>${w.title}</strong><span class="tag ${cls === "amber" ? "wait" : cls === "blue" ? "run" : cls === "green" ? "done" : "draft"}">${workLabel(w.key)}</span></div>
+                  <p class="muted" style="margin:4px 0 0">输入：${w.need}<br>输出：${w.out}</p>
+                  ${canStart ? `<button class="btn" type="button" data-start="${w.key}" style="margin-top:8px">开工</button>` : ""}
+                  ${canFinish ? `<button class="btn green" type="button" data-finish="${w.key}" style="margin-top:8px">产出并定稿</button>` : ""}
+                </div>`;
+            }).join("")}
+          </article>
+        </div>
+      `;
+      const skill = $("runSkill");
+      if (skill) skill.onclick = runSkill;
+      $("view-collab").querySelectorAll("[data-atom]").forEach((btn) => {
+        btn.onclick = () => {
+          atom(btn.dataset.atom).status = "released";
+          toast(atom(btn.dataset.atom).name + " 已定稿");
+          render();
+        };
+      });
+      $("view-collab").querySelectorAll("[data-start]").forEach((btn) => {
+        btn.onclick = () => { state.works[btn.dataset.start] = "run"; toast("已开工，输入版本已钉扎"); render(); };
+      });
+      $("view-collab").querySelectorAll("[data-finish]").forEach((btn) => {
+        btn.onclick = () => finishWork(btn.dataset.finish);
+      });
+    }
+
+    function runSkill() {
+      state.works.prd = "done";
+      Object.assign(atom("prd"), {
+        status: "draft",
+        body: "H8121 基于 H8120。制冷方案R1 复用；箱体二次开发；固件新做蓝牙互联。复用 3 / 增量 2。"
+      });
+      Object.assign(atom("size"), { status: "draft", body: "在 H1 箱体上缩短储冰仓，外观改圆角。" });
+      Object.assign(atom("ice"), { status: "draft", body: "钉扎制冷方案R1：11kg/天，ES 已验证。" });
+      Object.assign(atom("iot"), { status: "draft", body: "新增手机互联，货架无现成固件，立项新做。" });
+      toast("Skill 已生成 4 条未定稿原子");
+      render();
+    }
+
+    function finishWork(key) {
+      state.works[key] = "done";
+      if (key === "st") Object.assign(atom("st-out"), { status: "released", body: "手板通过，储冰仓改款可进 ES。" });
+      if (key === "rf") Object.assign(atom("rf-out"), { status: "released", body: "复用 R1，冰量达标，无需回退。" });
+      if (key === "fw") Object.assign(atom("fw-out"), { status: "released", body: "蓝牙固件点亮，可进 ES。" });
+      toast("输出已定稿，下游或 JP 可看见");
+      render();
+    }
+
+    function renderJp() {
+      const ready = ["st-out", "rf-out", "fw-out"].every(atomReady);
+      const canJp = state.role === "lead" && ready && state.jp !== "pass";
+      $("view-jp").innerHTML = `
+        <div class="grid-2">
+          <article class="card">
+            <h2>JP-ES 齐套</h2>
+            <p class="muted">汇入点对齐 ES。每块带结论，过不过看证据，不是催整包文档。</p>
+            <table>
+              <thead><tr><th>块</th><th>证据原子</th><th>状态</th></tr></thead>
+              <tbody>
+                <tr><td>结构</td><td>结构 ES 手板结论</td><td>${atomReady("st-out") ? stTag("released") : `<span class="tag draft">缺失</span>`}</td></tr>
+                <tr><td>制冷</td><td>制冷 ES 复用验证</td><td>${atomReady("rf-out") ? stTag("released") : `<span class="tag draft">缺失</span>`}</td></tr>
+                <tr><td>嵌入式</td><td>固件点亮结论</td><td>${atomReady("fw-out") ? stTag("released") : `<span class="tag draft">缺失</span>`}</td></tr>
+              </tbody>
+            </table>
+            ${state.jp === "pass" ? `<div class="okbox" style="margin-top:12px">ES 通过。箱体改款和互联固件已回写为未定稿，等解耦组负责人定稿。</div>` : ""}
+            ${!ready ? `<div class="warnbox" style="margin-top:12px">三块证据未齐，不能汇入。回协作区把增量做完。</div>` : ""}
+            ${canJp ? `<button class="btn primary" type="button" id="passJp" style="margin-top:12px">ES 通过并回写货架</button>` : ""}
+          </article>
+          <article class="card">
+            <h2>回写中台</h2>
+            <p class="muted">项目要做的事：组合模块、推动更新、再沉淀。新能力先灰后绿。</p>
+            ${state.wrote ? `
+              <table>
+                <thead><tr><th>回写对象</th><th>状态</th><th></th></tr></thead>
+                <tbody>
+                  ${["BOX-H2", "FW-IOT"].map((id) => {
+                    const m = mod(id);
+                    if (!m) return "";
+                    return `<tr>
+                      <td>${esc(m.name)}</td>
+                      <td>${stTag(m.status)}</td>
+                      <td>${m.status !== "released" && state.role === "lead" ? `<button class="btn green" type="button" data-pub="${id}">定稿变绿</button>` : ""}</td>
+                    </tr>`;
+                  }).join("")}
+                </tbody>
+              </table>
+              <p class="muted" style="margin-top:10px">H8121 产品方案已挂到产品方案库（家电 / 制冰）。下一款可以再从它起步。</p>
+              <div class="row">
+                <button class="btn" type="button" id="seeShelf">去货架看灰 / 绿</button>
+                <button class="btn" type="button" id="seeProd">去产品方案库看 H8121</button>
+              </div>
+            ` : `<p class="muted">ES 通过后，箱体二次开发会留下箱体方案H2，互联固件留下固件方案IOT，都先以未定稿入库。</p>`}
+          </article>
+        </div>
+      `;
+      const pass = $("passJp");
+      if (pass) pass.onclick = writeBack;
+      $("view-jp").querySelectorAll("[data-pub]").forEach((btn) => {
+        btn.onclick = () => {
+          mod(btn.dataset.pub).status = "released";
+          toast(mod(btn.dataset.pub).name + " 已定稿，货架变绿");
+          render();
+        };
+      });
+      const see = $("seeShelf");
+      if (see) see.onclick = () => {
+        state.shelfNode = "c:家电";
+        showView("shelf");
+      };
+      const seeProd = $("seeProd");
+      if (seeProd) seeProd.onclick = () => {
+        state.prodNode = "m:H8121";
+        showView("products");
+      };
+    }
+
+    function writeBack() {
+      if (!mod("BOX-H2")) {
+        state.modules.unshift({
+          id: "BOX-H2", category: "家电", domain: "结构", family: "箱体结构", name: "箱体方案H2", status: "draft",
+          products: ["H8121"], capability: "基于 H1 改储冰仓与圆角外观",
+          docs: ["箱体手板-H2.pdf"],
+          specs: { mount: "台面", size: "改款手板已验证", material: "ABS + 不锈钢内胆", load: "整机 13kg", ip: "IPX4", iface: "门铰 + 缩短储冰仓" }
+        });
+      }
+      if (!mod("FW-IOT")) {
+        state.modules.unshift({
+          id: "FW-IOT", category: "家电", domain: "嵌入式", family: "控制固件", name: "固件方案IOT", status: "draft",
+          products: ["H8121"], capability: "蓝牙互联新做",
+          docs: ["固件点亮-IOT.md"],
+          specs: { control: "手机 App", channels: "制冰 / 互联", protocol: "蓝牙", ota: "规划中", standby: "1.2W" }
+        });
+      }
+      const rf = mod("RF-01");
+      if (rf && !rf.products.includes("H8121")) rf.products.push("H8121");
+      ["EL-H1", "DSP-01"].forEach((id) => {
+        const m = mod(id);
+        if (m && !m.products.includes("H8121")) m.products.push("H8121");
+      });
+      if (!state.products.some((p) => p.model === "H8121")) {
+        state.products.unshift({
+          model: "H8121", name: "制冰机 Mini", category: "家电", series: "制冰", status: "draft", launched: "项目中",
+          modules: [
+            { domain: "结构", moduleId: "BOX-H2", decision: "change" },
+            { domain: "制冷", moduleId: "RF-01", decision: "reuse" },
+            { domain: "电子", moduleId: "EL-H1", decision: "reuse" },
+            { domain: "光学", moduleId: "DSP-01", decision: "reuse" },
+            { domain: "嵌入式", moduleId: "FW-IOT", decision: "fresh" }
+          ]
+        });
+      }
+      state.jp = "pass";
+      state.wrote = true;
+      toast("ES 已通过，增量模块以未定稿回写货架");
+      render();
+    }
+
+    function resetAll() {
+      state.role = "lead";
+      state.modules = seedModules();
+      state.products = seedProducts();
+      state.shelfQuery = "";
+      state.shelfNode = "all";
+      state.prodQuery = "";
+      state.prodNode = "c:照明";
+      state.sku = { model: "H8121", name: "制冰机 Mini", step: 1, status: "待匹配", rows: seedRows() };
+      state.atoms = seedAtoms();
+      state.works = { prd: "idle", st: "idle", rf: "idle", fw: "idle" };
+      state.projectOpen = false;
+      state.jp = "idle";
+      state.wrote = false;
+      $("roleSel").value = "lead";
+      toast("演示已重置");
+      showView("home");
+    }
+
+    $("roleSel").innerHTML = ROLES.map((r) => `<option value="${r.id}">${r.name}</option>`).join("");
+    $("roleSel").onchange = () => { state.role = $("roleSel").value; render(); };
+    $("resetBtn").onclick = resetAll;
+    $("mask").addEventListener("click", (e) => { if (e.target.id === "mask") closeDialog(); });
+    document.querySelectorAll(".nav-btn").forEach((btn) => {
+      btn.onclick = () => showView(btn.dataset.view);
+    });
+    render();
+  </script>
+</body>
+</html>

@@ -1,0 +1,4889 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>营销费用规划</title>
+  <style>
+    :root {
+      --page-bg: #f0f2f5;
+      --sider-bg: #001529;
+      --header-bg: #1677ff;
+      --card-bg: #fff;
+      --card-border: #e8e8e8;
+      --card-radius: 6px;
+      --text: rgba(0, 0, 0, 0.88);
+      --text-sec: rgba(0, 0, 0, 0.45);
+      --table-head: #fafafa;
+      --line: #f0f0f0;
+      --brand: #1677ff;
+      --brand-hover: #4096ff;
+      --danger: #ff4d4f;
+      --border: #d9d9d9;
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+      margin: 0;
+      font-family: "PingFang SC", "Microsoft YaHei", "Helvetica Neue", Arial, sans-serif;
+      font-size: 13px;
+      color: var(--text);
+      background: var(--page-bg);
+    }
+
+    .layout {
+      display: flex;
+      min-height: 100vh;
+    }
+
+    /* 左侧导航（与销量预测类系统一致） */
+    .sider {
+      width: 56px;
+      flex-shrink: 0;
+      background: var(--sider-bg);
+      border-right: 1px solid #002140;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 12px 0;
+      gap: 6px;
+    }
+    .sider-logo {
+      width: 36px;
+      height: 36px;
+      border-radius: 6px;
+      background: linear-gradient(135deg, #1677ff, #0958d9);
+      margin-bottom: 16px;
+      flex-shrink: 0;
+    }
+    .sider-item {
+      width: 40px;
+      height: 40px;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: rgba(255, 255, 255, 0.65);
+      font-size: 11px;
+      cursor: default;
+      line-height: 1.15;
+      text-align: center;
+      padding: 2px;
+    }
+    .sider-item.active {
+      background: rgba(255, 255, 255, 0.12);
+      color: #fff;
+    }
+
+    .main {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* 顶栏 */
+    .top-header {
+      height: 48px;
+      flex-shrink: 0;
+      background: var(--header-bg);
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 16px 0 20px;
+      box-shadow: 0 1px 4px rgba(0, 21, 41, 0.12);
+    }
+    .top-header .title {
+      font-size: 16px;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+    }
+    /* 内容区：浅灰底 + 白卡片外框 */
+    .content {
+      flex: 1;
+      padding: 16px;
+      overflow: auto;
+    }
+    .breadcrumb {
+      font-size: 12px;
+      color: var(--text-sec);
+      margin-bottom: 12px;
+    }
+    .breadcrumb span { color: var(--text); }
+
+    /* 白卡片（外框）；勿用 overflow:hidden，否则会裁切筛选区内绝对定位的下拉层 */
+    .panel {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: var(--card-radius);
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+      margin-bottom: 16px;
+      overflow: visible;
+    }
+    /* 筛选下拉超出本卡片时，需压在下方的「场景品类规划」等板块之上 */
+    .panel.panel--filter {
+      position: relative;
+      z-index: 20;
+    }
+    .panel-head {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--line);
+      font-weight: 600;
+      font-size: 14px;
+      color: var(--text);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 8px;
+      background: linear-gradient(180deg, #fafafa 0%, #fff 100%);
+    }
+    .panel-body { padding: 16px; }
+
+    /* 筛选条：与《产品信息筛选区-全局UI规范》及销量预测管理原型一致 */
+    .filter-panel {
+      padding: 12px 14px;
+      border-bottom: 1px solid #f0f0f0;
+    }
+    .filter-grid {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px 10px;
+    }
+    /* 与带红点/多行标签的筛选项同一行时，与输入框垂直居中对齐（勿用 align-self:flex-end） */
+    .filter-grid .f.f-filter-search {
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+    .f {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .f > label {
+      color: var(--text-sec);
+      white-space: nowrap;
+      font-size: 12px;
+    }
+    .f select,
+    .f input[type="text"] {
+      height: 28px;
+      padding: 2px 8px;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      font-size: 12px;
+      min-width: 88px;
+      max-width: 140px;
+      color: var(--text);
+      background: #fff;
+    }
+    .f select:focus,
+    .f input:focus {
+      outline: none;
+      border-color: var(--brand);
+      box-shadow: 0 0 0 2px rgba(22, 119, 255, 0.12);
+    }
+    .f-model select {
+      min-width: 120px;
+      max-width: 160px;
+    }
+    .flt-line select {
+      min-width: 72px;
+      max-width: 88px;
+      font-family: ui-monospace, monospace;
+      letter-spacing: 0.02em;
+    }
+    .sku-input-group {
+      display: inline-flex;
+      align-items: stretch;
+      height: 28px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      overflow: hidden;
+      background: #fff;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+    .sku-input-group:hover { border-color: #4096ff; }
+    .sku-input-group:focus-within {
+      border-color: #1677ff;
+      box-shadow: 0 0 0 2px rgba(22, 119, 255, 0.12);
+    }
+    .sku-mode-select {
+      border: none;
+      height: 100%;
+      margin: 0;
+      padding: 0 22px 0 8px;
+      min-width: 88px;
+      max-width: 100px;
+      font-size: 12px;
+      color: var(--text);
+      background-color: #fafafa;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 12 12'%3E%3Cpath fill='%238c8c8c' d='M2.5 4.5L6 8l3.5-3.5'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 6px center;
+      cursor: pointer;
+      appearance: none;
+      -webkit-appearance: none;
+      outline: none;
+    }
+    .sku-input-main {
+      border: none;
+      border-left: 1px solid var(--border);
+      height: 100%;
+      min-width: 140px;
+      max-width: 200px;
+      padding: 0 10px;
+      font-size: 12px;
+      color: var(--text);
+      outline: none;
+    }
+    .sku-input-main::placeholder { color: #bfbfbf; }
+    .filter-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 10px;
+      padding-top: 10px;
+    }
+
+    /* 场景品类级联筛选（参考：左场景、右品类；无全局规范时采用本页样式） */
+    .sc-cat-wrap {
+      position: relative;
+      min-width: 200px;
+      max-width: 260px;
+    }
+    .sc-cat-trigger {
+      width: 100%;
+      height: 28px;
+      padding: 0 26px 0 8px;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      background: #fff;
+      font-size: 12px;
+      color: var(--text);
+      text-align: left;
+      cursor: pointer;
+      position: relative;
+    }
+    .sc-cat-trigger::after {
+      content: "";
+      position: absolute;
+      right: 8px;
+      top: 50%;
+      margin-top: -3px;
+      border: 4px solid transparent;
+      border-top-color: #8c8c8c;
+    }
+    .sc-cat-wrap.open .sc-cat-trigger {
+      border-color: var(--brand);
+      box-shadow: 0 0 0 2px rgba(22, 119, 255, 0.12);
+    }
+    .sc-cat-wrap.open .sc-cat-trigger::after {
+      margin-top: -5px;
+      border-top-color: transparent;
+      border-bottom-color: #8c8c8c;
+    }
+    .sc-cat-pop {
+      position: absolute;
+      left: 0;
+      top: calc(100% + 4px);
+      z-index: 100;
+      display: flex;
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+      overflow: hidden;
+      min-width: 360px;
+    }
+    /* 作者样式里 display:flex 会盖掉 [hidden] 的默认 none，导致下拉无法真正收起 */
+    .sc-cat-pop[hidden] {
+      display: none !important;
+    }
+    .sc-cat-col {
+      width: 180px;
+      max-height: 280px;
+      overflow-y: auto;
+      border-right: 1px solid var(--line);
+    }
+    .sc-cat-col:last-child { border-right: none; width: 200px; }
+    .sc-cat-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 10px;
+      font-size: 12px;
+      cursor: pointer;
+      color: var(--text);
+    }
+    .sc-cat-item:hover { background: #f5f5f5; }
+    .sc-cat-item.active {
+      background: #e6f4ff;
+      color: var(--brand);
+      font-weight: 600;
+    }
+    .sc-cat-item.is-checked .lbl {
+      color: var(--brand);
+      font-weight: 600;
+    }
+    .sc-cat-item .arrow {
+      margin-left: auto;
+      color: var(--text-sec);
+      font-size: 10px;
+      flex-shrink: 0;
+    }
+    .sc-cat-item input[type="checkbox"] {
+      width: 14px;
+      height: 14px;
+      margin: 0;
+      flex-shrink: 0;
+      cursor: pointer;
+      accent-color: var(--brand);
+    }
+    .sc-cat-item .lbl {
+      flex: 1;
+      min-width: 0;
+      cursor: pointer;
+    }
+    /* 筛选区：触发器与右侧清空（×）同一行 */
+    .flt-filter-trigger-row {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      width: 100%;
+      max-width: 280px;
+    }
+    /* 筛选：标题在控件左侧（图一） */
+    .f.filter-field-inline {
+      flex-direction: row;
+      align-items: center;
+      flex-wrap: nowrap;
+      gap: 10px;
+    }
+    .filter-field-label-row,
+    .filter-field-inline > .filter-field-label-text {
+      flex-shrink: 0;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      color: var(--text-sec);
+      font-size: 12px;
+      white-space: nowrap;
+    }
+    .plan-row-mr-host {
+      min-width: 200px;
+      max-width: 240px;
+    }
+    .flt-filter-trigger-row .sc-cat-wrap {
+      flex: 1;
+      min-width: 0;
+      max-width: none;
+    }
+    .filter-inline-clear {
+      flex-shrink: 0;
+      width: 22px;
+      height: 22px;
+      padding: 0;
+      border: none;
+      border-radius: 4px;
+      background: transparent;
+      color: #00000073;
+      font-size: 15px;
+      line-height: 1;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .filter-inline-clear:hover {
+      color: var(--brand);
+      background: rgba(0, 0, 0, 0.04);
+    }
+    /* 表格内场景品类：与筛选区同结构的级联浮层（每行单选一条） */
+    .plan-sc-cat-wrap.sc-cat-wrap {
+      min-width: 200px;
+      max-width: 280px;
+    }
+    .plan-sc-cat-pop-host {
+      position: fixed;
+      z-index: 95;
+      margin: 0;
+    }
+    .plan-sc-cat-pop-host[hidden] {
+      display: none !important;
+    }
+    .plan-sc-cat-pop-host .sc-cat-pop {
+      min-width: 360px;
+    }
+    .sc-cat-meta-row .lbl {
+      color: var(--text-sec);
+      font-size: 11px;
+    }
+    /* 新品标签筛选：单列年份项，与场景品类分列 */
+    .np-tag-wrap {
+      min-width: 160px;
+      max-width: 180px;
+    }
+    .np-tag-wrap .np-tag-pop {
+      min-width: 160px;
+      flex-direction: column;
+    }
+    .np-tag-wrap .np-tag-col {
+      width: 100%;
+      max-height: 280px;
+      overflow-y: auto;
+      border-right: none;
+    }
+    .btn-search {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      height: 28px;
+      padding: 0 14px;
+      background: var(--header-bg);
+      color: #fff;
+      border: none;
+      border-radius: 4px;
+      font-size: 12px;
+      cursor: pointer;
+      margin-left: 4px;
+    }
+    .btn-search:hover { filter: brightness(1.05); }
+
+    .inp-inline,
+    select.inp-inline {
+      height: 28px;
+      padding: 2px 8px;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      font-size: 12px;
+      width: 100%;
+      max-width: 160px;
+    }
+    select.inp-inline.js-line {
+      max-width: 88px;
+      min-width: 72px;
+      font-family: ui-monospace, monospace;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      height: 32px;
+      padding: 0 15px;
+      font-size: 13px;
+      border-radius: 4px;
+      border: 1px solid #d9d9d9;
+      background: #fff;
+      color: var(--text);
+      cursor: pointer;
+      font-family: inherit;
+    }
+    .btn:hover { border-color: var(--brand); color: var(--brand); }
+    .btn-primary {
+      background: var(--brand);
+      border-color: var(--brand);
+      color: #fff;
+    }
+    .btn-primary:hover {
+      background: var(--brand-hover);
+      border-color: var(--brand-hover);
+      color: #fff;
+    }
+    .btn-default { background: #fff; }
+
+    input[type="file"] { display: none; }
+
+    /* 表格工具条 */
+    .table-toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+
+    .table-wrap {
+      overflow-x: auto;
+      overflow-y: hidden;
+      border: 1px solid var(--line);
+      border-radius: 4px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+    th, td {
+      border-bottom: 1px solid var(--line);
+      border-right: 1px solid var(--line);
+      padding: 8px 12px;
+      text-align: left;
+    }
+    th:last-child, td:last-child { border-right: none; }
+    th {
+      background: #f0f5fa;
+      font-weight: 600;
+      color: var(--text);
+      white-space: nowrap;
+    }
+    tbody tr:hover td { background: #fafafa; }
+    #tblPlan th:nth-child(3),
+    #tblPlan td:nth-child(3),
+    #tblPlan th:nth-child(4),
+    #tblPlan td:nth-child(4) {
+      text-align: center;
+    }
+    /* 规划表：固定大屏列宽，小屏横向滚动，不压缩 */
+    #tblPlan {
+      table-layout: fixed;
+      width: 2140px;
+      min-width: 2140px;
+    }
+    #tblPlan th:nth-child(1),
+    #tblPlan td:nth-child(1) { width: 220px; }
+    #tblPlan th:nth-child(2),
+    #tblPlan td:nth-child(2) { width: 220px; }
+    #tblPlan th:nth-child(3),
+    #tblPlan td:nth-child(3) { width: 280px; }
+    #tblPlan th:nth-child(4),
+    #tblPlan td:nth-child(4) { width: 190px; }
+    #tblPlan th:nth-child(5),
+    #tblPlan td:nth-child(5) { width: 140px; }
+    #tblPlan th:nth-child(6),
+    #tblPlan td:nth-child(6) { width: 150px; }
+    #tblPlan th:nth-child(7),
+    #tblPlan td:nth-child(7) { width: 150px; }
+    #tblPlan th:nth-child(8),
+    #tblPlan td:nth-child(8) { width: 150px; }
+    #tblPlan th:nth-child(9),
+    #tblPlan td:nth-child(9) { width: 150px; }
+    #tblPlan th:nth-child(10),
+    #tblPlan td:nth-child(10) { width: 180px; }
+    #tblPlan th:nth-child(11),
+    #tblPlan td:nth-child(11) { width: 130px; }
+
+    /* 右侧固定操作列 */
+    #tblPlan th.actions,
+    #tblPlan td.actions {
+      position: sticky;
+      right: 0;
+      z-index: 3;
+      background: #fff;
+      box-shadow: -8px 0 8px -8px rgba(0, 0, 0, 0.18);
+    }
+    #tblPlan thead th.actions {
+      z-index: 4;
+      background: #f0f5fa;
+    }
+    #tblPlan tbody tr:hover td.actions {
+      background: #fafafa;
+    }
+    #tblSplit tr.split-row-total td {
+      font-weight: 600;
+      background: #f7fafc;
+      vertical-align: top;
+    }
+    #tblSplit .split-cell-lines {
+      white-space: pre-line;
+      line-height: 1.45;
+      font-size: 12px;
+    }
+    #tblSplit td.split-path-cell {
+      vertical-align: top;
+    }
+    .plan-np-tag-cell .inp-inline.js-np-tag-row {
+      min-width: 120px;
+      max-width: 160px;
+    }
+    .num { text-align: right; font-variant-numeric: tabular-nums; }
+    .actions { white-space: nowrap; }
+    .actions .link {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      background: none;
+      border: none;
+      padding: 0 6px 0 0;
+      color: var(--brand);
+      cursor: pointer;
+      font-size: 13px;
+    }
+    .actions .link:hover { text-decoration: underline; }
+    .actions .link.danger { color: var(--danger); }
+    .actions .link.danger:hover { color: #ff7875; }
+
+    .hint {
+      font-size: 12px;
+      color: var(--text-sec);
+      margin-top: 10px;
+      line-height: 1.5;
+    }
+    .hint code { font-size: 12px; background: #f5f5f5; padding: 1px 6px; border-radius: 3px; }
+    .split-meta { font-size: 12px; color: var(--text-sec); margin-bottom: 10px; line-height: 1.55; }
+    .empty { text-align: center; color: var(--text-sec); padding: 32px; }
+
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      padding: 10px 16px;
+      background: rgba(0, 0, 0, 0.78);
+      color: #fff;
+      border-radius: 4px;
+      font-size: 13px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s;
+      z-index: 200;
+    }
+    .toast.show { opacity: 1; }
+
+  </style>
+</head>
+<body>
+  <div class="layout">
+    <aside class="sider" aria-label="侧栏导航示意">
+      <div class="sider-logo" title="系统"></div>
+      <div class="sider-item">管报</div>
+      <div class="sider-item active">营销</div>
+      <div class="sider-item">预测</div>
+      <div class="sider-item">设置</div>
+    </aside>
+    <div class="main">
+      <header class="top-header">
+        <span class="title">营销费用规划（USD）</span>
+      </header>
+      <div class="content">
+        <div class="breadcrumb">全渠道 / <span>营销费用规划</span></div>
+
+        <section class="panel panel--filter">
+          <div class="filter-panel">
+            <div class="filter-grid">
+              <div class="f f-with-pin filter-field-inline">
+                <div class="filter-field-label-row">
+                  <label for="fltScCatTrigger">场景品类</label>
+                </div>
+                <div class="flt-filter-trigger-row" id="fltScCatFilterRow">
+                  <div class="sc-cat-wrap" id="fltScCatWrap">
+                    <button type="button" class="sc-cat-trigger" id="fltScCatTrigger" aria-expanded="false" aria-haspopup="true">场景品类</button>
+                    <div class="sc-cat-pop" id="fltScCatPop" hidden role="dialog" aria-label="场景品类">
+                      <div class="sc-cat-col" id="fltScCatScenes"></div>
+                      <div class="sc-cat-col" id="fltScCatCats"></div>
+                    </div>
+                  </div>
+                  <button type="button" class="filter-inline-clear" id="fltScCatClear" title="清空" aria-label="清空场景品类筛选">×</button>
+                </div>
+              </div>
+              <div class="f f-with-pin filter-field-inline">
+                <div class="filter-field-label-row">
+                  <label for="fltNpTagTrigger">新品标签</label>
+                </div>
+                <div class="flt-filter-trigger-row" id="fltNpTagFilterRow">
+                  <div class="sc-cat-wrap np-tag-wrap" id="fltNpTagWrap">
+                    <button type="button" class="sc-cat-trigger" id="fltNpTagTrigger" aria-expanded="false" aria-haspopup="true">新品标签</button>
+                    <div class="sc-cat-pop np-tag-pop" id="fltNpTagPop" hidden role="dialog" aria-label="新品标签">
+                      <div class="sc-cat-col np-tag-col" id="fltNpTagList"></div>
+                    </div>
+                  </div>
+                  <button type="button" class="filter-inline-clear" id="fltNpTagClear" title="清空" aria-label="清空新品标签筛选">×</button>
+                </div>
+              </div>
+              <div class="f"><label for="fltRegionMsf">区域</label><div id="fltRegionMsf" style="min-width:180px;width:100%"></div></div>
+              <div class="f"><label for="fltCountryMsf">国家</label><div id="fltCountryMsf" style="min-width:180px;width:100%"></div></div>
+              <div class="f"><label for="fltChannelMsf">渠道</label><div id="fltChannelMsf" style="min-width:180px;width:100%"></div></div>
+              <div class="f"><label for="fltStoreMsf">店铺</label><div id="fltStoreMsf" style="min-width:180px;width:100%"></div></div>
+              <div class="f f-model"><label for="fltModel">model</label><select id="fltModel"><option value="">请选择</option></select></div>
+              <div class="f"><label>SKU</label>
+                <div class="sku-input-group" id="skuInputGroup">
+                  <select class="sku-mode-select" id="fltSkuMode" aria-label="SKU搜索方式">
+                    <option value="fuzzy" selected>模糊</option>
+                    <option value="exact">精确</option>
+                    <option value="8digit">8位搜索</option>
+                  </select>
+                  <input class="sku-input-main" type="text" id="fltSku" placeholder="请输入SKU" autocomplete="off" />
+                </div>
+              </div>
+              <div class="f"><label for="fltTl">TL</label><select id="fltTl"><option value="">全部</option></select></div>
+              <div class="f"><label for="fltSales">Sales</label><select id="fltSales"><option value="">全部</option></select></div>
+              <div class="f f-month-range filter-field-inline" style="min-width:260px">
+                <label class="filter-field-label-text" for="fltMonthRangeHost">月份范围</label>
+                <div id="fltMonthRangeHost" style="flex:1;min-width:200px"></div>
+              </div>
+              <div class="f f-filter-search">
+                <button type="button" class="btn-search" id="btnQuery">搜索</button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-head">场景品类规划</div>
+          <div class="panel-body">
+            <div class="table-toolbar">
+              <div class="toolbar-with-dev">
+                <button type="button" class="btn btn-default" id="btnAdd">新增一行</button>
+              </div>
+              <div class="toolbar-with-dev">
+                <button type="button" class="btn btn-primary" id="btnSaveAll">保存全部</button>
+              </div>
+            </div>
+            <div class="table-wrap">
+              <table id="tblPlan">
+                <thead>
+                  <tr>
+                    <th>
+                      <span class="th-inner">
+                        规划月份范围
+                      </span>
+                    </th>
+                    <th>
+                      <span class="th-inner">项目名称</span>
+                    </th>
+                    <th>
+                      <span class="th-inner">
+                        场景品类
+                        <span class="plan-cell-head-tools">
+                        </span>
+                      </span>
+                    </th>
+                    <th>
+                      <span class="th-inner">
+                        SKU
+                        <span class="plan-cell-head-tools">
+                        </span>
+                      </span>
+                    </th>
+                    <th>
+                      <span class="th-inner">
+                        新品标签
+                        <span class="plan-cell-head-tools">
+                        </span>
+                      </span>
+                    </th>
+                    <th>
+                      <span class="th-inner">
+                        区域
+                      </span>
+                    </th>
+                    <th>
+                      <span class="th-inner">
+                        国家
+                      </span>
+                    </th>
+                    <th>
+                      <span class="th-inner">
+                        渠道
+                      </span>
+                    </th>
+                    <th>
+                      <span class="th-inner">
+                        店铺
+                      </span>
+                    </th>
+                    <th>营销费用规划（USD）</th>
+                    <th class="actions">操作</th>
+                  </tr>
+                </thead>
+                <tbody id="tbodyPlan"></tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-head">
+            <span class="panel-head-tools">
+              <span>拆分结果（多维度）</span>
+            </span>
+          </div>
+          <div class="panel-body">
+            <div class="table-wrap">
+              <table id="tblSplit">
+                <thead>
+                  <tr>
+                    <th>区域 / 国家 / 店铺</th>
+                    <th>场景 / 品类 / 品线</th>
+                    <th>销售 / TL</th>
+                    <th>
+                      <span class="th-inner">
+                        SKU 信息
+                      </span>
+                    </th>
+                    <th>
+                      <span class="th-inner">
+                        新品标签
+                      </span>
+                    </th>
+                    <th>月份</th>
+                    <th class="num">
+                      <span class="th-inner">
+                        分摊金额占比
+                      </span>
+                    </th>
+                    <th class="num">拆分营销费用（USD）</th>
+                  </tr>
+                </thead>
+                <tbody id="tbodySplit"></tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+      </div>
+    </div>
+  </div>
+  <div class="toast" id="toast"></div>
+  <div id="planScCatPopHost" class="plan-sc-cat-pop-host" hidden>
+    <div class="sc-cat-pop" id="planScCatPopRow" role="dialog" aria-label="选择场景品类">
+      <div class="sc-cat-col" id="planScCatRowScenes"></div>
+      <div class="sc-cat-col" id="planScCatRowCats"></div>
+    </div>
+  </div>
+  <script src="../../../../规范/assets/month-range-picker.js"></script>
+  <script src="../../../../规范/assets/multi-select-filter.js"></script>
+  <script type="application/json" id="sceneCategorySchemaEmbed">{"version":"1.0","source":"用户提供系统截图","note":"后续场景/品类数据以本文件为准；仅包含截图中出现的编码与名称。","scenes":[{"scene_code":"0","scene_name":"未分类","categories":[{"category_code":"0001","category_name":"未分类"}]},{"scene_code":"1","scene_name":"居家","categories":[{"category_code":"1001","category_name":"吊灯"},{"category_code":"1002","category_name":"吸顶灯"},{"category_code":"1003","category_name":"风扇灯"},{"category_code":"1004","category_name":"球泡"},{"category_code":"1005","category_name":"筒灯"},{"category_code":"1006","category_name":"落地灯"},{"category_code":"1007","category_name":"床头灯"},{"category_code":"1008","category_name":"星空灯"},{"category_code":"1009","category_name":"其他"},{"category_code":"1010","category_name":"灯带"},{"category_code":"1011","category_name":"新形态灯带"},{"category_code":"1012","category_name":"传感器&盒子"},{"category_code":"1013","category_name":"室内壁灯"}]},{"scene_code":"2","scene_name":"观影","categories":[{"category_code":"2001","category_name":"灯柱"},{"category_code":"2002","category_name":"摄像头取色系列"},{"category_code":"2003","category_name":"TV灯带"},{"category_code":"2004","category_name":"HDMI盒子系列"}]},{"scene_code":"3","scene_name":"户外","categories":[{"category_code":"3001","category_name":"球泡灯串"},{"category_code":"3002","category_name":"户外灯带"},{"category_code":"3003","category_name":"射灯"},{"category_code":"3004","category_name":"泛光灯"},{"category_code":"3005","category_name":"庭院灯"},{"category_code":"3006","category_name":"路径灯"},{"category_code":"3007","category_name":"路灯"},{"category_code":"3008","category_name":"壁灯"},{"category_code":"3009","category_name":"户外投影灯"},{"category_code":"3010","category_name":"植物灯"},{"category_code":"3011","category_name":"屋檐灯"},{"category_code":"3012","category_name":"礼盒"},{"category_code":"3013","category_name":"车灯"},{"category_code":"3014","category_name":"传感器&盒子"}]},{"scene_code":"5","scene_name":"传感器及控制","categories":[{"category_code":"5001","category_name":"空气质量检测仪"},{"category_code":"5002","category_name":"智能按键"},{"category_code":"5003","category_name":"门窗传感器"},{"category_code":"5004","category_name":"红外人体传感器"},{"category_code":"5005","category_name":"人体存在传感器"},{"category_code":"5006","category_name":"压力传感器"},{"category_code":"5007","category_name":"温湿度计"},{"category_code":"5008","category_name":"漏水报警器"},{"category_code":"5009","category_name":"智能插座"},{"category_code":"5010","category_name":"烤肉温度计"},{"category_code":"5011","category_name":"网关"},{"category_code":"5012","category_name":"二氧化碳检测仪"},{"category_code":"5013","category_name":"浇水控制器"}]},{"scene_code":"6","scene_name":"季节","categories":[{"category_code":"6001","category_name":"窗帘灯"},{"category_code":"6002","category_name":"贴片灯串"},{"category_code":"6003","category_name":"插件灯串"},{"category_code":"6004","category_name":"树衣灯"},{"category_code":"6005","category_name":"瀑布灯"},{"category_code":"6006","category_name":"冰帘灯"},{"category_code":"6007","category_name":"圣诞树灯"},{"category_code":"6008","category_name":"草莓灯"},{"category_code":"6009","category_name":"造型灯"},{"category_code":"6010","category_name":"灌木丛灯"},{"category_code":"6011","category_name":"礼盒"},{"category_code":"6012","category_name":"流星雨灯"}]},{"scene_code":"7","scene_name":"环境电器","categories":[{"category_code":"7001","category_name":"塔扇"},{"category_code":"7002","category_name":"台扇"},{"category_code":"7003","category_name":"空净"},{"category_code":"7004","category_name":"暖风机"},{"category_code":"7005","category_name":"加湿器"},{"category_code":"7006","category_name":"除湿机"},{"category_code":"7007","category_name":"香薰机"},{"category_code":"7008","category_name":"环电配件"}]},{"scene_code":"8","scene_name":"厨房电器","categories":[{"category_code":"8001","category_name":"冰食料理机"},{"category_code":"8002","category_name":"制冰机"},{"category_code":"8003","category_name":"冰淇淋机"},{"category_code":"8004","category_name":"厨余垃圾处理机"},{"category_code":"8005","category_name":"电水壶"},{"category_code":"8006","category_name":"电饭煲"},{"category_code":"8007","category_name":"厨电配件"}]},{"scene_code":"9","scene_name":"游戏","categories":[{"category_code":"9001","category_name":"方块灯"},{"category_code":"9002","category_name":"条状灯"},{"category_code":"9003","category_name":"像素灯"},{"category_code":"9005","category_name":"室内激光灯"},{"category_code":"9006","category_name":"HDMI盒子系列"},{"category_code":"9007","category_name":"游戏灯带"},{"category_code":"9008","category_name":"灯柱"},{"category_code":"9009","category_name":"新潮灯具"}]}]}</script>
+  <script type="application/json" id="regionCountrySchemaEmbed">{"version":"1.0","source":"用户提供系统截图","note":"后续区域/国家筛选按本文件提供；国家下拉需与区域联动。","regions":[{"region_code":"NA","region_name":"北美区","countries":[{"country_code":"US","country_name":"美国"},{"country_code":"CA","country_name":"加拿大"},{"country_code":"MX","country_name":"墨西哥"}]},{"region_code":"EU","region_name":"欧洲区","subregions":[{"subregion_name":"西欧","countries":[{"country_code":"GB","country_name":"英国"},{"country_code":"DE","country_name":"德国"},{"country_code":"FR","country_name":"法国"},{"country_code":"IT","country_name":"意大利"},{"country_code":"ES","country_name":"西班牙"}]},{"subregion_name":"北欧","countries":[{"country_code":"SE","country_name":"瑞典"},{"country_code":"NO","country_name":"挪威"},{"country_code":"FI","country_name":"芬兰"},{"country_code":"DK","country_name":"丹麦"}]},{"subregion_name":"东欧","countries":[{"country_code":"PL","country_name":"波兰"},{"country_code":"CZ","country_name":"捷克"},{"country_code":"HU","country_name":"匈牙利"}]}],"countries":[{"country_code":"GB","country_name":"英国"},{"country_code":"DE","country_name":"德国"},{"country_code":"FR","country_name":"法国"},{"country_code":"IT","country_name":"意大利"},{"country_code":"ES","country_name":"西班牙"},{"country_code":"SE","country_name":"瑞典"},{"country_code":"NO","country_name":"挪威"},{"country_code":"FI","country_name":"芬兰"},{"country_code":"DK","country_name":"丹麦"},{"country_code":"PL","country_name":"波兰"},{"country_code":"CZ","country_name":"捷克"},{"country_code":"HU","country_name":"匈牙利"}]},{"region_code":"APAC","region_name":"亚太区","subregions":[{"subregion_name":"东亚","countries":[{"country_code":"CN","country_name":"中国"},{"country_code":"JP","country_name":"日本"},{"country_code":"KR","country_name":"韩国"}]},{"subregion_name":"东南亚","countries":[{"country_code":"SG","country_name":"新加坡"},{"country_code":"MY","country_name":"马来西亚"},{"country_code":"TH","country_name":"泰国"},{"country_code":"VN","country_name":"越南"},{"country_code":"PH","country_name":"菲律宾"},{"country_code":"ID","country_name":"印尼"}]},{"subregion_name":"大洋洲","countries":[{"country_code":"AU","country_name":"澳大利亚"},{"country_code":"NZ","country_name":"新西兰"}]}],"countries":[{"country_code":"CN","country_name":"中国"},{"country_code":"JP","country_name":"日本"},{"country_code":"KR","country_name":"韩国"},{"country_code":"SG","country_name":"新加坡"},{"country_code":"MY","country_name":"马来西亚"},{"country_code":"TH","country_name":"泰国"},{"country_code":"VN","country_name":"越南"},{"country_code":"PH","country_name":"菲律宾"},{"country_code":"ID","country_name":"印尼"},{"country_code":"AU","country_name":"澳大利亚"},{"country_code":"NZ","country_name":"新西兰"}]},{"region_code":"LATAM","region_name":"拉美区","countries":[{"country_code":"BR","country_name":"巴西"},{"country_code":"CL","country_name":"智利"},{"country_code":"CO","country_name":"哥伦比亚"}]},{"region_code":"MENA","region_name":"中东及非洲区","countries":[{"country_code":"AE","country_name":"阿联酋"},{"country_code":"SA","country_name":"沙特"},{"country_code":"ZA","country_name":"南非"},{"country_code":"NG","country_name":"尼日利亚"}]},{"region_code":"SA","region_name":"南亚区","countries":[{"country_code":"IN","country_name":"印度"},{"country_code":"PK","country_name":"巴基斯坦"},{"country_code":"BD","country_name":"孟加拉国"}]}]}</script>
+
+  <script>
+(function () {
+  /** v3：场景+品类 + 规划月份范围；v2：历史品线（首次打开时迁移入 v3） */
+  var STORAGE_KEY_V3 = "marketing_expense_plan_v3";
+  var STORAGE_KEY_V2 = "marketing_expense_plan_usd_v2";
+  /** 示例数据版本：变更后清空本地规划缓存，避免旧 AMZ-US-01 等演示数据残留 */
+  var SAMPLE_DATA_VERSION = "global-sales-base-v20260519";
+  var ASSET_BASE = "../../../../规范";
+  var DATA_JSON_PATHS = {
+    scene: [
+      ASSET_BASE + "/基础数据/场景品类基础数据_v1.json",
+      "../../规范/基础数据/场景品类基础数据_v1.json"
+    ],
+    region: [
+      ASSET_BASE + "/基础数据/区域国家基础数据_v1.json",
+      "../../规范/基础数据/区域国家基础数据_v1.json"
+    ],
+    channelStore: [
+      ASSET_BASE + "/基础数据/渠道店铺基础数据_v1.json",
+      "../../规范/基础数据/渠道店铺基础数据_v1.json"
+    ],
+    salesBase: [
+      ASSET_BASE + "/基础数据/销售基础信息_v1.json",
+      ASSET_BASE + "/基础数据/销售基础信息_原型子集_v1.json",
+      "../../规范/基础数据/销售基础信息_v1.json",
+      "../../规范/基础数据/销售基础信息_原型子集_v1.json"
+    ]
+  };
+
+  /** 场景品类树：来自《规范》基础数据 JSON（页面内嵌 + 可选 fetch 覆盖） */
+  var SCENARIO_CATEGORY_TREE = [];
+  /** 区域/国家：与《区域国家基础数据_v1》一致（内嵌 + 可选 fetch 覆盖） */
+  var REGION_COUNTRY_DATA = { regions: [] };
+  /** 渠道 / 店铺：与《渠道店铺基础数据_v1》《经营分析明细》等全局口径一致 */
+  var CHANNEL_STORE_DATA = [];
+  var CHANNEL_SELECT_OPTIONS = [{ value: "", label: "全渠道" }];
+  var FILTER_STORE_CODES = [];
+  /** 店铺 × 区域 × 国家 × 渠道（原型 MSKU 池轮转用） */
+  var SHOP_GEO_RING = [];
+  /** 8 位生产 SKU 示例（model = 左 5 位，见《销售主数据-全局业务规范》） */
+  /** 均来自《销售基础信息_v1》（Excel 导出）；model = SKU 左 5 位 */
+  var PROTOTYPE_SKUS = ["H6065301", "H6076113", "H617E3D1", "H6840312", "B5040101", "H1310111"];
+  var PROTOTYPE_MODELS = ["H6065", "H6076", "H617E", "H6840", "B5040", "H1310"];
+  /** 《销售基础信息》宽表（fetch 全量或子集） */
+  var SALES_BASE_RECORDS = [];
+  /** 筛选月份范围 YYYY-MM：仅用于列表查看范围（与行规划月份有重叠才显示）；拆分月份只看行内规划月份 */
+  var currentFilter = { monthStart: "", monthEnd: "" };
+  /** 筛选区：区域/国家/渠道/店铺 多选实例（《多选下拉筛选-全局UI规范》） */
+  var _fltGeoMsf = { region: null, country: null, channel: null, store: null };
+  /** 规划行：区域/国家/渠道/店铺 多选，按行 id 存 */
+  var _planRowGeoMsf = {};
+  /** 规划行：SKU 多选（行内挂载） */
+  var _planRowSkuMsf = {};
+  /** 每行规划「月份范围」控件实例（renderPlans 前统一 destroy） */
+  var _planRowMrPickers = {};
+  /** 筛选：场景×品类叶子多选，存「场景名\\t品类名」；空数组表示不过滤 */
+  var filterLeafKeys = [];
+  /** 筛选：新品标签多选，存「YYYY年新品」；与场景品类分列；空数组表示该维不过滤 */
+  var filterNpTagKeys = [];
+  var panelActiveScenario = "";
+  /** 表格行内场景品类浮层（每行单选一条） */
+  var planRowEditId = null;
+  var planRowPanelScenario = "";
+  var planRowOutsideCloseWired = false;
+
+  /** 新品标签可选年份（与筛选浮层一致，高→低） */
+  var NP_TAG_YEAR_OPTIONS = [2029, 2028, 2027, 2026, 2025, 2024, 2023];
+
+  function planNpTagLabelForYear(yr) {
+    var y = Number(yr);
+    if (!y || y !== y) y = new Date().getFullYear();
+    return y + "年新品";
+  }
+
+  /** 行级/筛选用新品标签：仅已保存值；未选为空（不默认当年） */
+  function planNpTagValue(p) {
+    if (!p) return "";
+    return String(p.newProductTag || "").trim();
+  }
+
+  /** 新品规划：场景列固定为「新品」，品类列为新品标识 */
+  var NEW_PRODUCT_SCENE = "新品";
+  var PLAN_G_SCENARIO = "scenario";
+  var PLAN_G_CATEGORY = "category";
+  var PLAN_G_NP_TAG_ONLY = "np_tag_only";
+  var PLAN_G_NEW = "new_product";
+  /** 行内多选：全市场场景品类（与筛选任意叶子匹配） */
+  var ACT_ALL_SCENES = "__ALL_SCENES__";
+
+  function leafKey(sceneName, catName) {
+    return String(sceneName || "") + "\t" + String(catName || "");
+  }
+
+  function normalizeLeavesArray(leaves) {
+    var seen = {};
+    var out = [];
+    (leaves || []).forEach(function (x) {
+      var k = String(x || "").trim();
+      if (!k || seen[k]) return;
+      seen[k] = 1;
+      out.push(k);
+    });
+    out.sort();
+    return out;
+  }
+
+  function normalizeSkuArray(arr) {
+    var seen = {};
+    var out = [];
+    (arr || []).forEach(function (x) {
+      var k = String(x || "").trim();
+      if (!k || seen[k]) return;
+      seen[k] = 1;
+      out.push(k);
+    });
+    out.sort();
+    return out;
+  }
+
+  function getPlanSkus(p) {
+    if (!p) return [];
+    if (Array.isArray(p.planSkus) && p.planSkus.length) {
+      return p.planSkus
+        .map(function (s) {
+          return String(s || "").trim();
+        })
+        .filter(Boolean);
+    }
+    return [];
+  }
+
+  function getPlanSceneCategoryLeaves(p) {
+    if (!p) return [];
+    if (String(p.scenario || "").trim() === NEW_PRODUCT_SCENE) return [];
+    if (Array.isArray(p.sceneCategoryLeaves) && p.sceneCategoryLeaves.length) {
+      return normalizeLeavesArray(p.sceneCategoryLeaves);
+    }
+    var sc = String(p.scenario || "").trim();
+    var cat = String(p.category != null ? p.category : "").trim();
+    if (!sc && !cat) return [];
+    return [leafKey(sc, cat)];
+  }
+
+  /** 示例主数据：MSKU × 场景 × 品类 × 新品标签 × BP 营收（原型用） */
+  var MOCK_MSKU_UNIVERSE = [];
+
+
+
+  function inferPlanGranularityFromRecord(p) {
+    if (!p) return PLAN_G_CATEGORY;
+    if (String(p.scenario || "").trim() === NEW_PRODUCT_SCENE) return PLAN_G_NEW;
+    var L = getPlanSceneCategoryLeaves(p);
+    var sk = getPlanSkus(p);
+    var tag = planNpTagValue(p);
+    var sc = String(p.scenario || "").trim();
+    var cat = String(p.category != null ? p.category : "").trim();
+    if (L.length) {
+      if (L.indexOf(ACT_ALL_SCENES) >= 0) return PLAN_G_SCENARIO;
+      if (L.length > 1) return PLAN_G_CATEGORY;
+      var parts = L[0].split("\t");
+      var sc0 = String(parts[0] || "").trim();
+      var cat0 = String(parts[1] != null ? parts[1] : "").trim();
+      if (sc0 === NEW_PRODUCT_SCENE) return PLAN_G_NEW;
+      if (!cat0) return PLAN_G_SCENARIO;
+      return PLAN_G_CATEGORY;
+    }
+    if (sk.length && !sc && !cat) {
+      if (tag) return PLAN_G_NP_TAG_ONLY;
+      return PLAN_G_CATEGORY;
+    }
+    if (!sc && !cat && tag) return PLAN_G_NP_TAG_ONLY;
+    if (!cat) return PLAN_G_SCENARIO;
+    return PLAN_G_CATEGORY;
+  }
+
+  function getPlanGranularity(p) {
+    return inferPlanGranularityFromRecord(p);
+  }
+
+  function assignStoredGranularity(p) {
+    p.planGranularity = inferPlanGranularityFromRecord(p);
+  }
+
+  function planIdentityKey(p) {
+    var pr = getPlanMonthRangePair(p);
+    var y = pr.start + "\t" + pr.end;
+    var tag = planNpTagValue(p);
+    var sk = getPlanSkus(p);
+    var skuPart = sk.length ? "\tSKLIST\t" + sk.slice().sort().join("|") : "";
+    var tail = planGeoIdentitySuffix(p);
+    if (String(p.scenario || "").trim() === NEW_PRODUCT_SCENE) {
+      var catN = String(p.category != null ? p.category : "").trim();
+      return y + "\tN\t" + catN + skuPart + tail;
+    }
+    var L = getPlanSceneCategoryLeaves(p);
+    if (L.length) {
+      if (L.indexOf(ACT_ALL_SCENES) >= 0) return y + "\tALLSC\t" + (tag || "") + skuPart + tail;
+      if (L.length > 1) return y + "\tMULSC\t" + L.slice().sort().join("|") + "\t" + (tag || "") + skuPart + tail;
+      var parts = L[0].split("\t");
+      var sc = String(parts[0] || "").trim();
+      var cat = String(parts[1] != null ? parts[1] : "").trim();
+      var faux = {
+        year: p.year,
+        planMonthStart: p.planMonthStart,
+        planMonthEnd: p.planMonthEnd,
+        scenario: sc,
+        category: cat,
+        newProductTag: p.newProductTag,
+        planSkus: p.planSkus,
+        sceneCategoryLeaves: [L[0]]
+      };
+      var g = inferPlanGranularityFromRecord(faux);
+      if (g === PLAN_G_SCENARIO) return y + "\tS\t" + sc + (tag ? "\t" + tag : "") + skuPart + tail;
+      return y + "\tC\t" + sc + "\t" + cat + (tag ? "\t" + tag : "") + skuPart + tail;
+    }
+    if (sk.length && !String(p.scenario || "").trim() && !String(p.category != null ? p.category : "").trim()) {
+      return y + "\tSKONLY\t" + sk.slice().sort().join("|") + (tag ? "\t" + tag : "") + tail;
+    }
+    var g = inferPlanGranularityFromRecord(p);
+    var sc2 = String(p.scenario || "").trim();
+    var cat2 = String(p.category != null ? p.category : "").trim();
+    if (g === PLAN_G_NEW) return y + "\tN\t" + cat2 + skuPart + tail;
+    if (g === PLAN_G_NP_TAG_ONLY) return y + "\tNP\t" + tag + skuPart + tail;
+    if (g === PLAN_G_SCENARIO) return y + "\tS\t" + sc2 + (tag ? "\t" + tag : "") + skuPart + tail;
+    if (g === PLAN_G_CATEGORY) return y + "\tC\t" + sc2 + "\t" + cat2 + (tag ? "\t" + tag : "") + skuPart + tail;
+    return y + "\tC\t" + sc2 + "\t" + cat2 + skuPart + tail;
+  }
+
+  function validatePlanUnique(list, draft, excludeId) {
+    var k = planIdentityKey(draft);
+    return !list.some(function (q) {
+      return q.id !== excludeId && planIdentityKey(q) === k;
+    });
+  }
+
+  function uid() {
+    return "p_" + Date.now() + "_" + Math.random().toString(36).slice(2, 8);
+  }
+
+  function migratePlanRecord(p) {
+    if (p && p.scenario != null) {
+      var cat = p.category != null ? String(p.category) : "";
+      var sc = String(p.scenario != null ? p.scenario : "");
+      var out = {
+        id: p.id,
+        year: p.year,
+        scenario: sc,
+        category: cat,
+        planAmount: Number(p.planAmount) || 0,
+        scene_code: p.scene_code,
+        category_code: p.category_code,
+        planGranularity: inferPlanGranularityFromRecord({ scenario: p.scenario, category: cat, newProductTag: p.newProductTag }),
+        newProductTag: p.newProductTag
+      };
+      if (Array.isArray(p.sceneCategoryLeaves) && p.sceneCategoryLeaves.length) {
+        out.sceneCategoryLeaves = normalizeLeavesArray(p.sceneCategoryLeaves);
+      } else if (sc === NEW_PRODUCT_SCENE) {
+        /* 新品行不用 leaves */
+      } else if (sc || cat) {
+        out.sceneCategoryLeaves = [leafKey(sc, cat)];
+      }
+      if (Array.isArray(p.planSkus) && p.planSkus.length) {
+        out.planSkus = p.planSkus.map(function (x) { return String(x || "").trim(); }).filter(Boolean);
+      }
+      if (Array.isArray(p.planRegionCodes) && p.planRegionCodes.length) {
+        out.planRegionCodes = p.planRegionCodes.map(function (x) { return String(x || "").trim(); }).filter(Boolean);
+      } else if (String(p.planRegionCode || "").trim()) {
+        out.planRegionCodes = [String(p.planRegionCode).trim()];
+      }
+      if (Array.isArray(p.planCountryCodes) && p.planCountryCodes.length) {
+        out.planCountryCodes = p.planCountryCodes.map(function (x) { return String(x || "").trim(); }).filter(Boolean);
+      } else if (String(p.planCountryCode || "").trim()) {
+        out.planCountryCodes = [String(p.planCountryCode).trim()];
+      }
+      if (Array.isArray(p.planChannelKeys) && p.planChannelKeys.length) {
+        out.planChannelKeys = p.planChannelKeys.map(function (x) { return String(x != null ? x : "").trim(); }).filter(Boolean);
+      } else if (String(p.planChannelKey != null ? p.planChannelKey : "").trim()) {
+        out.planChannelKeys = [String(p.planChannelKey).trim()];
+      }
+      if (Array.isArray(p.planStoreCodes) && p.planStoreCodes.length) {
+        out.planStoreCodes = p.planStoreCodes.map(function (x) { return String(x || "").trim(); }).filter(Boolean);
+      } else if (String(p.planStoreCode || "").trim()) {
+        out.planStoreCodes = [String(p.planStoreCode).trim()];
+      }
+      if (String(p.planMonthStart || "").trim() && String(p.planMonthEnd || "").trim()) {
+        out.planMonthStart = String(p.planMonthStart).trim();
+        out.planMonthEnd = String(p.planMonthEnd).trim();
+      } else if (p.year) {
+        var yy = Number(p.year) || new Date().getFullYear();
+        out.planMonthStart = yy + "-01";
+        out.planMonthEnd = yy + "-12";
+      }
+      return out;
+    }
+    var line = String((p && p.productLine) || "").trim();
+    var yy2 = Number(p.year) || new Date().getFullYear();
+    return {
+      id: p.id,
+      year: p.year,
+      planMonthStart: yy2 + "-01",
+      planMonthEnd: yy2 + "-12",
+      scenario: "未映射（历史品线）",
+      category: line || "—",
+      planAmount: Number(p.planAmount) || 0,
+      planGranularity: PLAN_G_CATEGORY
+    };
+  }
+
+  function loadAll() {
+    try {
+      var r3 = localStorage.getItem(STORAGE_KEY_V3);
+      if (r3) {
+        var arr3 = JSON.parse(r3);
+        if (Array.isArray(arr3)) {
+          arr3.forEach(function (row) {
+            normalizePlanRowAfterLoad(row);
+            assignStoredGranularity(row);
+            enrichPlanFromTree(row);
+          });
+          return arr3;
+        }
+      }
+      var r2 = localStorage.getItem(STORAGE_KEY_V2);
+      if (r2) {
+        var arr2 = JSON.parse(r2);
+        if (Array.isArray(arr2) && arr2.length) {
+          var mig = arr2.map(migratePlanRecord);
+          mig.forEach(function (row) {
+            normalizePlanRowAfterLoad(row);
+            assignStoredGranularity(row);
+            enrichPlanFromTree(row);
+          });
+          saveAll(mig);
+          return mig;
+        }
+      }
+      return [];
+    } catch (e) {
+      return [];
+    }
+  }
+
+  function saveAll(list) {
+    localStorage.setItem(STORAGE_KEY_V3, JSON.stringify(list));
+  }
+
+  function defaultPlans() {
+    var home = SCENARIO_CATEGORY_TREE.find(function (n) {
+      return n.scenario === "居家";
+    });
+    var sens = SCENARIO_CATEGORY_TREE.find(function (n) {
+      return n.scenario === "传感器及控制";
+    });
+    var watch = SCENARIO_CATEGORY_TREE.find(function (n) {
+      return n.scenario === "观影";
+    });
+    var season = SCENARIO_CATEGORY_TREE.find(function (n) {
+      return n.scenario === "季节";
+    });
+    if (!home || !home.categories || !home.categories.length) return [];
+    var rows = [];
+    if (sens && sens.scenario) {
+      rows.push({
+        id: uid(),
+        year: 2026,
+        projectName: "2026北美传感器品类品牌建设",
+        planMonthStart: "2026-01",
+        planMonthEnd: "2026-12",
+        scenario: sens.scenario,
+        category: "",
+        sceneCategoryLeaves: [leafKey(sens.scenario, "")],
+        planGranularity: PLAN_G_SCENARIO,
+        planAmount: 1200000,
+        planRegionCodes: ["NA"],
+        planCountryCodes: ["US", "CA"],
+        planChannelKeys: ["Govee"],
+        planStoreCodes: ["Govee_US", "Govee_CA"],
+        planSkus: [],
+        newProductTag: ""
+      });
+    }
+    var starCat = home.categories.indexOf("星空灯") >= 0 ? "星空灯" : home.categories[0];
+    rows.push({
+      id: uid(),
+      year: 2026,
+      projectName: "2026 Prime Day · 星空灯专项",
+      planMonthStart: "2026-06",
+      planMonthEnd: "2026-08",
+      scenario: home.scenario,
+      category: starCat,
+      sceneCategoryLeaves: [leafKey(home.scenario, starCat)],
+      planGranularity: PLAN_G_CATEGORY,
+      planAmount: 800000,
+      planRegionCodes: ["NA", "EU"],
+      planCountryCodes: ["US", "DE"],
+      planChannelKeys: ["Govee", "Govee EU"],
+      planStoreCodes: ["Govee_US", "Govee_DE_1"],
+      planSkus: ["H6065301", "H6076113"],
+      newProductTag: ""
+    });
+    if (watch && watch.categories && watch.categories.indexOf("TV灯带") >= 0) {
+      rows.push({
+        id: uid(),
+        year: 2026,
+        projectName: "2026欧区观影 TV 灯带投放",
+        planMonthStart: "2026-03",
+        planMonthEnd: "2026-09",
+        scenario: watch.scenario,
+        category: "TV灯带",
+        sceneCategoryLeaves: [leafKey(watch.scenario, "TV灯带")],
+        planGranularity: PLAN_G_CATEGORY,
+        planAmount: 350000,
+        planRegionCodes: ["EU"],
+        planCountryCodes: ["DE", "GB"],
+        planChannelKeys: ["Govee"],
+        planStoreCodes: ["Govee_DE", "Govee_UK"],
+        planSkus: ["H66723G1"],
+        newProductTag: planNpTagLabelForYear(2025)
+      });
+    }
+    if (season && season.categories && season.categories.indexOf("瀑布灯") >= 0) {
+      rows.push({
+        id: uid(),
+        year: 2026,
+        projectName: "2026节日季瀑布灯铺货",
+        planMonthStart: "2026-09",
+        planMonthEnd: "2026-12",
+        scenario: season.scenario,
+        category: "瀑布灯",
+        sceneCategoryLeaves: [leafKey(season.scenario, "瀑布灯")],
+        planGranularity: PLAN_G_CATEGORY,
+        planAmount: 180000,
+        planRegionCodes: ["NA"],
+        planCountryCodes: ["US"],
+        planChannelKeys: ["独立站"],
+        planStoreCodes: ["独立站-US"],
+        planSkus: [],
+        newProductTag: ""
+      });
+    }
+    rows.push({
+      id: uid(),
+      year: 2026,
+      projectName: "2026新品 H6159 上市推广",
+      planMonthStart: "2026-01",
+      planMonthEnd: "2026-06",
+      scenario: NEW_PRODUCT_SCENE,
+      category: "H6159 灯带新品",
+      planGranularity: PLAN_G_NEW,
+      planAmount: 50000,
+      planRegionCodes: ["NA"],
+      planCountryCodes: ["US"],
+      planChannelKeys: ["GoveeLife"],
+      planStoreCodes: ["Goveelife_US"],
+      planSkus: ["H1310111"],
+      newProductTag: planNpTagLabelForYear(2026)
+    });
+    rows.forEach(function (r) {
+      assignStoredGranularity(r);
+      enrichPlanFromTree(r);
+      ensurePlanGeoArrays(r);
+    });
+    return rows;
+  }
+
+  function initFilterOptions() {
+    function fill(id, items, firstOpt) {
+      var sel = document.getElementById(id);
+      if (!sel) return;
+      var h = firstOpt || '<option value="">全部</option>';
+      items.forEach(function (t) {
+        h += '<option value="' + t + '">' + t + "</option>";
+      });
+      sel.innerHTML = h;
+    }
+    rebuildChannelStoreGlobals();
+    mountFilterGeoMsfs();
+    fill("fltModel", PROTOTYPE_MODELS, '<option value="">请选择</option>');
+    fill("fltTl", ["王明", "李华", "赵敏"]);
+    fill("fltSales", ["张伟", "刘洋", "陈静"]);
+  }
+
+  function parseEmbeddedSceneJson() {
+    var el = document.getElementById("sceneCategorySchemaEmbed");
+    if (!el) return null;
+    var raw = String(el.textContent || "").trim();
+    if (!raw) return null;
+    try {
+      return JSON.parse(raw);
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function applyScenePayload(data) {
+    var scenes = data && data.scenes;
+    if (!Array.isArray(scenes)) return;
+    SCENARIO_CATEGORY_TREE = scenes.map(function (s) {
+      var codes = {};
+      var names = (s.categories || []).map(function (c) {
+        codes[c.category_name] = String(c.category_code);
+        return c.category_name;
+      });
+      return {
+        scene_code: String(s.scene_code),
+        scenario: s.scene_name,
+        categories: names,
+        categoryCodes: codes
+      };
+    });
+    if (!panelActiveScenario && SCENARIO_CATEGORY_TREE.length) {
+      var firstNon = SCENARIO_CATEGORY_TREE.find(function (n) {
+        return n.scenario !== "未分类";
+      });
+      panelActiveScenario = (firstNon || SCENARIO_CATEGORY_TREE[0]).scenario;
+    } else if (
+      panelActiveScenario &&
+      !SCENARIO_CATEGORY_TREE.some(function (n) {
+        return n.scenario === panelActiveScenario;
+      })
+    ) {
+      var fb = SCENARIO_CATEGORY_TREE[0];
+      panelActiveScenario = fb ? fb.scenario : "";
+    }
+    rebuildMockMskuUniverse();
+  }
+
+  function parseEmbeddedRegionJson() {
+    var el = document.getElementById("regionCountrySchemaEmbed");
+    if (!el) return null;
+    var raw = String(el.textContent || "").trim();
+    if (!raw) return null;
+    try {
+      return JSON.parse(raw);
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function applyRegionPayload(data) {
+    if (!data || !Array.isArray(data.regions)) return;
+    REGION_COUNTRY_DATA = { regions: data.regions };
+  }
+
+  /** 与经营分析明细、渠道店铺基础数据 JSON 对齐的默认渠道店铺表（fetch 失败时兜底） */
+  function defaultChannelStoreData() {
+    return [
+      {
+        channel: "Govee",
+        stores: [
+          "Govee_US", "Govee_CA", "Govee_MX", "Govee_UK", "Govee_DE", "Govee_FR", "Govee_IT", "Govee_ES",
+          "Govee_NL", "Govee_SE", "Govee_PL", "Govee_TR", "Govee_BE", "Govee_JP", "Govee_AU", "Govee_SG",
+          "Govee_AE", "Govee_SA", "Govee_IE"
+        ]
+      },
+      {
+        channel: "Govee EU",
+        stores: [
+          "Govee_DE_1", "Govee_UK_1", "Govee_FR_1", "Govee_IT_1", "Govee_ES_1", "Govee_NL_1", "Govee_SE_1",
+          "Govee_PL_1", "Govee_BE_1", "Govee_IE_1", "Govee_AU_1"
+        ]
+      },
+      {
+        channel: "GoveeLife",
+        stores: [
+          "Goveelife_US", "Goveelife_CA", "Goveelife_MX", "Goveelife_UK", "Goveelife_FR", "Goveelife_DE",
+          "Goveelife_IT", "Goveelife_ES", "Goveelife_NL", "Goveelife_SE", "Goveelife_PL", "Goveelife_BE",
+          "Goveelife_JP"
+        ]
+      },
+      { channel: "独立站", stores: ["独立站-US", "独立站-UK", "独立站-EU", "独立站-CA", "独立站-US-GL", "独立站-EU-GL", "独立站-UK-GL", "独立站-CA-GL"] },
+      { channel: "TTS", stores: ["TTS-US"] },
+      { channel: "Offline", stores: ["Offline-MX", "Offline-CA", "Offline-US", "Offline-Others"] }
+    ];
+  }
+
+  function inferGeoFromStoreName(store, channelName) {
+    var s = String(store || "").trim();
+    var ch = String(channelName || "").trim();
+    var country = "US";
+    var region = "NA";
+    if (/Govee_DE|_DE_1|_DE$/.test(s) || /-DE/.test(s)) {
+      country = "DE";
+      region = "EU";
+    } else if (/Govee_UK|_UK_1|_UK$|独立站-UK/.test(s)) {
+      country = "GB";
+      region = "EU";
+    } else if (/Govee_FR|_FR_1|_FR$/.test(s)) {
+      country = "FR";
+      region = "EU";
+    } else if (/Govee_IT|_IT_1|_IT$/.test(s)) {
+      country = "IT";
+      region = "EU";
+    } else if (/Govee_ES|_ES_1|_ES$/.test(s)) {
+      country = "ES";
+      region = "EU";
+    } else if (/Govee_CA|_CA$|独立站-CA/.test(s)) {
+      country = "CA";
+      region = "NA";
+    } else if (/Govee_MX|_MX$|Offline-MX/.test(s)) {
+      country = "MX";
+      region = "NA";
+    } else if (/Govee_JP|_JP$/.test(s)) {
+      country = "JP";
+      region = "APAC";
+    } else if (/独立站-EU/.test(s)) {
+      country = "DE";
+      region = "EU";
+    } else if (/Govee_AU|_AU_1|_AU$/.test(s)) {
+      country = "AU";
+      region = "APAC";
+    } else if (/Govee_SG|_SG$/.test(s)) {
+      country = "SG";
+      region = "APAC";
+    }
+    return { shop: s, region_code: region, country_code: country, channel: ch || "Govee" };
+  }
+
+  function applyChannelStorePayload(data) {
+    var list = data && data.channels;
+    if (!Array.isArray(list) || !list.length) return;
+    CHANNEL_STORE_DATA = list.map(function (c) {
+      return {
+        channel: String(c.channel_name || c.channel || "").trim(),
+        stores: (c.stores || []).map(function (s) {
+          return String(s || "").trim();
+        }).filter(Boolean)
+      };
+    }).filter(function (x) {
+      return x.channel && x.stores.length;
+    });
+    rebuildChannelStoreGlobals();
+  }
+
+  function rebuildChannelStoreGlobals() {
+    if (!CHANNEL_STORE_DATA.length) {
+      CHANNEL_STORE_DATA = defaultChannelStoreData();
+    }
+    var stores = [];
+    CHANNEL_STORE_DATA.forEach(function (c) {
+      (c.stores || []).forEach(function (s) {
+        if (stores.indexOf(s) < 0) stores.push(s);
+      });
+    });
+    FILTER_STORE_CODES = stores;
+    CHANNEL_SELECT_OPTIONS = [{ value: "", label: "全渠道" }].concat(
+      CHANNEL_STORE_DATA.map(function (c) {
+        return { value: c.channel, label: c.channel };
+      })
+    );
+    SHOP_GEO_RING = [
+      inferGeoFromStoreName("Govee_US", "Govee"),
+      inferGeoFromStoreName("Govee_CA", "Govee"),
+      inferGeoFromStoreName("Govee_DE", "Govee"),
+      inferGeoFromStoreName("Govee_UK", "Govee"),
+      inferGeoFromStoreName("Govee_FR", "Govee"),
+      inferGeoFromStoreName("Goveelife_US", "GoveeLife"),
+      inferGeoFromStoreName("Goveelife_DE", "GoveeLife"),
+      inferGeoFromStoreName("独立站-US", "独立站"),
+      inferGeoFromStoreName("独立站-UK", "独立站"),
+      inferGeoFromStoreName("TTS-US", "TTS"),
+      inferGeoFromStoreName("Offline-US", "Offline")
+    ];
+    if (MOCK_MSKU_UNIVERSE.length) rebuildMockMskuUniverse();
+  }
+
+  function applySalesBasePayload(data) {
+    if (!data || !Array.isArray(data.records)) return;
+    SALES_BASE_RECORDS = data.records;
+    rebuildMockMskuUniverse();
+  }
+
+  function channelNameForStore(shop) {
+    var s = String(shop || "").trim();
+    if (!s) return "";
+    for (var ci = 0; ci < CHANNEL_STORE_DATA.length; ci++) {
+      var c = CHANNEL_STORE_DATA[ci];
+      var stores = c.stores || [];
+      for (var si = 0; si < stores.length; si++) {
+        if (stores[si] === s) return c.channel;
+      }
+    }
+    if (/^APP商城/.test(s)) return "APP商城";
+    if (/^独立站/.test(s)) return "独立站";
+    if (/^TTS/.test(s)) return "TTS";
+    if (/^Offline/.test(s)) return "Offline";
+    return "Govee";
+  }
+
+  function salesRecToMockRow(rec, newProductTag) {
+    var shop = String(rec["店铺名称"] || "").trim();
+    var ch = channelNameForStore(shop);
+    var geo = inferGeoFromStoreName(shop, ch);
+    var sku = String(rec.sku || "").trim();
+    return {
+      scenario: String(rec["场景"] || "").trim(),
+      category: String(rec["品类"] || "").trim(),
+      shop: shop,
+      region_code: geo.region_code,
+      country_code: geo.country_code,
+      channel: geo.channel,
+      sku: sku,
+      msku: String(rec.msku || "").trim(),
+      model: String(rec.model || "").trim() || sku.slice(0, 5),
+      productLine: rec["品线"] != null ? String(rec["品线"]) : "",
+      newProductTag: newProductTag || "",
+      _bp: {}
+    };
+  }
+
+  function findSalesRecord(sku8, shop) {
+    var sku = String(sku8 || "").trim();
+    var sh = String(shop || "").trim();
+    if (!sku || !SALES_BASE_RECORDS.length) return null;
+    if (sh) {
+      for (var i = 0; i < SALES_BASE_RECORDS.length; i++) {
+        var r = SALES_BASE_RECORDS[i];
+        if (r.sku === sku && r["店铺名称"] === sh) return r;
+      }
+    }
+    for (var j = 0; j < SALES_BASE_RECORDS.length; j++) {
+      if (SALES_BASE_RECORDS[j].sku === sku) return SALES_BASE_RECORDS[j];
+    }
+    return null;
+  }
+
+  /** 按 SKU×店铺从销售宽表解析 MSKU 行（禁止 SKU+渠道+国家 拼接） */
+  function resolveListingRow(sku8, geo) {
+    var g = geo || inferGeoFromStoreName("Govee_US", "Govee");
+    var rec = findSalesRecord(sku8, g.shop);
+    if (rec) return salesRecToMockRow(rec);
+    return {
+      scenario: "",
+      category: "",
+      shop: g.shop,
+      region_code: g.region_code,
+      country_code: g.country_code,
+      channel: g.channel,
+      sku: String(sku8 || "").trim(),
+      msku: String(sku8 || "").trim(),
+      model: String(sku8 || "").slice(0, 5),
+      productLine: "",
+      newProductTag: "",
+      _bp: {}
+    };
+  }
+
+  function mskuListingId(sku8, geo) {
+    return resolveListingRow(sku8, geo).msku;
+  }
+
+  function getRegionByCode(code) {
+    var c = String(code || "").trim();
+    if (!c || !REGION_COUNTRY_DATA.regions) return null;
+    return REGION_COUNTRY_DATA.regions.find(function (r) {
+      return r.region_code === c;
+    });
+  }
+
+  function inferRegionCodeFromCountry(cc) {
+    var c = String(cc || "").trim();
+    if (!c || !REGION_COUNTRY_DATA.regions) return "";
+    for (var i = 0; i < REGION_COUNTRY_DATA.regions.length; i++) {
+      var r = REGION_COUNTRY_DATA.regions[i];
+      var arr = r.countries || [];
+      for (var j = 0; j < arr.length; j++) {
+        if (arr[j].country_code === c) return r.region_code;
+      }
+    }
+    return "";
+  }
+
+  function countriesForRegionCode(regionCode) {
+    var r = getRegionByCode(regionCode);
+    if (!r || !Array.isArray(r.countries)) return [];
+    return r.countries;
+  }
+
+  function allCountriesDistinct() {
+    var seen = {};
+    var out = [];
+    (REGION_COUNTRY_DATA.regions || []).forEach(function (r) {
+      (r.countries || []).forEach(function (c) {
+        if (!c.country_code || seen[c.country_code]) return;
+        seen[c.country_code] = true;
+        out.push(c);
+      });
+    });
+    return out;
+  }
+
+  function regionDisplayName(code) {
+    var r = getRegionByCode(code);
+    return r && r.region_name ? String(r.region_name) : (String(code || "").trim() || "—");
+  }
+
+  function getCountryByCode(code) {
+    var c = String(code || "").trim();
+    if (!c) return null;
+    var all = allCountriesDistinct();
+    for (var i = 0; i < all.length; i++) {
+      if (all[i].country_code === c) return all[i];
+    }
+    return null;
+  }
+
+  function countryDisplayName(code) {
+    var row = getCountryByCode(code);
+    return row && row.country_name ? String(row.country_name) : (String(code || "").trim() || "—");
+  }
+
+  function formatGeoCodesDisplay(codes, nameFn) {
+    return (codes || [])
+      .map(function (x) {
+        return nameFn(x);
+      })
+      .filter(function (x) {
+        return x && x !== "—";
+      })
+      .join("、");
+  }
+
+  function findMockMskuRow(msku) {
+    var k = String(msku || "").trim();
+    if (!k) return null;
+    for (var i = 0; i < MOCK_MSKU_UNIVERSE.length; i++) {
+      if (MOCK_MSKU_UNIVERSE[i].msku === k) return MOCK_MSKU_UNIVERSE[i];
+    }
+    return null;
+  }
+
+  /** 原型：销售 / TL（与顶部下拉选项一致，便于按 TL / Sales 筛选拆分行） */
+  function mockSalesTlForSeed(seed) {
+    var sales = ["张伟", "刘洋", "陈静"];
+    var tls = ["王明", "李华", "赵敏"];
+    var s = String(seed || "");
+    var h = 0;
+    for (var i = 0; i < s.length; i++) {
+      h = ((h << 5) - h + s.charCodeAt(i)) | 0;
+    }
+    return { sales: sales[Math.abs(h) % sales.length], tl: tls[Math.abs(h >> 4) % tls.length] };
+  }
+
+  function productLineCodeForScenarioCategory(scenario, category) {
+    var node = treeNodeByScenario(String(scenario || "").trim());
+    if (!node || !node.categoryCodes) return "—";
+    var cat = String(category != null ? category : "").trim();
+    var cc = node.categoryCodes[cat];
+    return cc != null && String(cc).trim() ? String(cc).trim() : "—";
+  }
+
+  function regionStorePathHtml(r) {
+    var mrow = findMockMskuRow(r.msku) || {};
+    var reg = regionDisplayName(r.region_code != null ? r.region_code : mrow.region_code);
+    var ccode = String(r.country_code != null ? r.country_code : mrow.country_code || "").trim();
+    var cseg = ccode ? ccode : "—";
+    var shop = String(r.shop || "").trim() || "—";
+    return escapeHtml(reg) + "/" + escapeHtml(cseg) + "/" + escapeHtml(shop);
+  }
+
+  function sceneCategoryLineHtml(r) {
+    var mrow = findMockMskuRow(r.msku) || {};
+    var sc = String(r.mScenario != null ? r.mScenario : mrow.scenario || "").trim() || "—";
+    var cat = String(r.mCategory != null ? r.mCategory : mrow.category || "").trim() || "—";
+    var line =
+      mrow.productLine != null && String(mrow.productLine).trim()
+        ? String(mrow.productLine).trim()
+        : productLineCodeForScenarioCategory(sc, cat);
+    return escapeHtml(sc) + "/" + escapeHtml(cat) + "/" + escapeHtml(line);
+  }
+
+  function salesTlCellHtml(r) {
+    var seed = String(r.msku || "") + "\t" + String(r.shop || "");
+    var o = mockSalesTlForSeed(seed);
+    return (
+      '<span class="split-cell-lines">sales: ' +
+      escapeHtml(o.sales) +
+      "\nTL: " +
+      escapeHtml(o.tl) +
+      "</span>"
+    );
+  }
+
+  /** 从拆分行或主数据解析 8 位生产 SKU */
+  function productionSkuFromRow(r) {
+    var mrow = findMockMskuRow(r && r.msku) || {};
+    if (r && r.sku) return String(r.sku).trim();
+    if (mrow.sku) return String(mrow.sku).trim();
+    var m = String((r && r.msku) || mrow.msku || "").trim();
+    if (/^[A-Za-z0-9]{8}(\+|\/|$)/.test(m)) return m.slice(0, 8).toUpperCase();
+    return "";
+  }
+
+  function skuInfoCellHtml(r) {
+    var mrow = findMockMskuRow(r.msku) || {};
+    var sku8 = productionSkuFromRow(r) || "—";
+    var msku = String(r.msku || mrow.msku || "").trim() || "—";
+    return (
+      '<span class="split-cell-lines">SKU: ' +
+      escapeHtml(sku8) +
+      "\nMSKU: " +
+      escapeHtml(msku) +
+      "</span>"
+    );
+  }
+
+  /** 拆分结果表：从示例主数据取该 MSKU 的新品标签 */
+  function splitRowNpTagCellHtml(r) {
+    var mrow = findMockMskuRow(r.msku);
+    var t = mrow && mrow.newProductTag != null ? String(mrow.newProductTag).trim() : "";
+    return t ? escapeHtml(t) : "";
+  }
+
+  function regionSelectHtml(selectedCode) {
+    var sel = String(selectedCode || "").trim();
+    var h = '<option value="">不限区域</option>';
+    (REGION_COUNTRY_DATA.regions || []).forEach(function (r) {
+      h +=
+        '<option value="' +
+        escapeHtml(r.region_code) +
+        '"' +
+        (r.region_code === sel ? " selected" : "") +
+        ">" +
+        escapeHtml(r.region_name) +
+        "</option>";
+    });
+    return h;
+  }
+
+  function countrySelectHtml(regionCode, selectedCountryCode) {
+    var sc = String(selectedCountryCode || "").trim();
+    var list = regionCode ? countriesForRegionCode(regionCode) : allCountriesDistinct();
+    var h = '<option value="">不限国家</option>';
+    list.forEach(function (c) {
+      h +=
+        '<option value="' +
+        escapeHtml(c.country_code) +
+        '"' +
+        (c.country_code === sc ? " selected" : "") +
+        ">" +
+        escapeHtml(c.country_name) +
+        "</option>";
+    });
+    return h;
+  }
+
+  function channelSelectHtml(selectedChannel) {
+    var sc = String(selectedChannel != null ? selectedChannel : "").trim();
+    var h = "";
+    CHANNEL_SELECT_OPTIONS.forEach(function (opt) {
+      var v = opt.value;
+      h +=
+        '<option value="' +
+        escapeHtml(v) +
+        '"' +
+        (v === sc ? " selected" : "") +
+        ">" +
+        escapeHtml(opt.label) +
+        "</option>";
+    });
+    return h;
+  }
+
+  function planStoreSelectHtml(selectedCode) {
+    var shops = FILTER_STORE_CODES.length ? FILTER_STORE_CODES : SHOP_GEO_RING.map(function (g) { return g.shop; });
+    var sel = String(selectedCode || "").trim();
+    var h = '<option value="">不限店铺</option>';
+    shops.forEach(function (s) {
+      h +=
+        '<option value="' +
+        escapeHtml(s) +
+        '"' +
+        (s === sel ? " selected" : "") +
+        ">" +
+        escapeHtml(s) +
+        "</option>";
+    });
+    return h;
+  }
+
+  function planRegionCodesResolved(p) {
+    if (!p) return [];
+    if (Array.isArray(p.planRegionCodes) && p.planRegionCodes.length) {
+      return p.planRegionCodes.map(function (x) { return String(x || "").trim(); }).filter(Boolean);
+    }
+    var s = String(p.planRegionCode || "").trim();
+    return s ? [s] : [];
+  }
+
+  function planCountryCodesResolved(p) {
+    if (!p) return [];
+    if (Array.isArray(p.planCountryCodes) && p.planCountryCodes.length) {
+      return p.planCountryCodes.map(function (x) { return String(x || "").trim(); }).filter(Boolean);
+    }
+    var s = String(p.planCountryCode || "").trim();
+    return s ? [s] : [];
+  }
+
+  function planChannelKeysResolved(p) {
+    if (!p) return [];
+    if (Array.isArray(p.planChannelKeys) && p.planChannelKeys.length) {
+      return p.planChannelKeys.map(function (x) { return String(x != null ? x : "").trim(); }).filter(Boolean);
+    }
+    var s = String(p.planChannelKey != null ? p.planChannelKey : "").trim();
+    return s ? [s] : [];
+  }
+
+  function planStoreCodesResolved(p) {
+    if (!p) return [];
+    if (Array.isArray(p.planStoreCodes) && p.planStoreCodes.length) {
+      return p.planStoreCodes.map(function (x) { return String(x || "").trim(); }).filter(Boolean);
+    }
+    var s = String(p.planStoreCode || "").trim();
+    return s ? [s] : [];
+  }
+
+  /** 将历史单值字段迁入多选数组，便于统一读写 */
+  function ensurePlanGeoArrays(p) {
+    if (!p || typeof p !== "object") return;
+    if (!Array.isArray(p.planRegionCodes) && String(p.planRegionCode || "").trim()) {
+      p.planRegionCodes = [String(p.planRegionCode).trim()];
+    }
+    if (!Array.isArray(p.planCountryCodes) && String(p.planCountryCode || "").trim()) {
+      p.planCountryCodes = [String(p.planCountryCode).trim()];
+    }
+    if (!Array.isArray(p.planChannelKeys) && String(p.planChannelKey != null ? p.planChannelKey : "").trim()) {
+      p.planChannelKeys = [String(p.planChannelKey).trim()];
+    }
+    if (!Array.isArray(p.planStoreCodes) && String(p.planStoreCode || "").trim()) {
+      p.planStoreCodes = [String(p.planStoreCode).trim()];
+    }
+    delete p.planRegionCode;
+    delete p.planCountryCode;
+    delete p.planChannelKey;
+    delete p.planStoreCode;
+  }
+
+  function planGeoIdentitySuffix(p) {
+    var rr = planRegionCodesResolved(p)
+      .slice()
+      .sort()
+      .join("|");
+    var cc = planCountryCodesResolved(p)
+      .slice()
+      .sort()
+      .join("|");
+    var ch = planChannelKeysResolved(p)
+      .slice()
+      .sort()
+      .join("|");
+    var st = planStoreCodesResolved(p)
+      .slice()
+      .sort()
+      .join("|");
+    return "\tG\t" + rr + "\t" + cc + "\t" + ch + "\t" + st;
+  }
+
+  function fillFilterRegionSelect() {
+    var sel = document.getElementById("fltRegion");
+    if (!sel) return;
+    var prev = sel.value;
+    sel.innerHTML = regionSelectHtml(prev);
+    if (prev && !getRegionByCode(prev)) sel.value = "";
+  }
+
+  function fillFilterCountrySelect() {
+    var regSel = document.getElementById("fltRegion");
+    var sel = document.getElementById("fltCountry");
+    if (!sel) return;
+    var prev = sel.value;
+    var rc = regSel ? String(regSel.value || "").trim() : "";
+    sel.innerHTML = countrySelectHtml(rc, prev);
+    if (prev) {
+      var ok = false;
+      for (var i = 0; i < sel.options.length; i++) {
+        if (sel.options[i].value === prev) {
+          ok = true;
+          break;
+        }
+      }
+      if (!ok) sel.value = "";
+    }
+  }
+
+  function fillFilterChannelSelect() {
+    var sel = document.getElementById("fltChannel");
+    if (!sel) return;
+    var prev = sel.value;
+    sel.innerHTML = channelSelectHtml(prev);
+    var ok = false;
+    for (var j = 0; j < sel.options.length; j++) {
+      if (sel.options[j].value === prev) {
+        ok = true;
+        break;
+      }
+    }
+    if (!ok) sel.value = "";
+  }
+
+  function countriesOptionsForFltRegions(regionCodes) {
+    var rc = (regionCodes || []).map(String).filter(Boolean);
+    if (!rc.length) {
+      return allCountriesDistinct().map(function (c) {
+        return { value: c.country_code, label: c.country_name };
+      });
+    }
+    var seen = {};
+    var out = [];
+    rc.forEach(function (code) {
+      (countriesForRegionCode(code) || []).forEach(function (c) {
+        if (!c.country_code || seen[c.country_code]) return;
+        seen[c.country_code] = true;
+        out.push({ value: c.country_code, label: c.country_name });
+      });
+    });
+    return out;
+  }
+
+  function destroyFilterGeoMsfInst() {
+    ["region", "country", "channel", "store"].forEach(function (k) {
+      if (_fltGeoMsf[k] && typeof _fltGeoMsf[k].destroy === "function") {
+        _fltGeoMsf[k].destroy();
+      }
+      _fltGeoMsf[k] = null;
+    });
+  }
+
+  function mountFilterGeoMsfs() {
+    if (typeof MultiSelectFilter === "undefined") return;
+    destroyFilterGeoMsfInst();
+    var hReg = document.getElementById("fltRegionMsf");
+    var hCty = document.getElementById("fltCountryMsf");
+    var hCh = document.getElementById("fltChannelMsf");
+    var hSt = document.getElementById("fltStoreMsf");
+    if (!hReg || !hCty || !hCh || !hSt) return;
+    function remountFltCountry(prevVals) {
+      if (_fltGeoMsf.country) {
+        _fltGeoMsf.country.destroy();
+        _fltGeoMsf.country = null;
+      }
+      var rc = fltRegionCodesSelected();
+      var opts = countriesOptionsForFltRegions(rc);
+      var keep = (prevVals || []).filter(function (pv) {
+        return opts.some(function (o) {
+          return o.value === pv;
+        });
+      });
+      _fltGeoMsf.country = MultiSelectFilter.mount(hCty, {
+        placeholder: "请选择国家",
+        showSelectAll: true,
+        zIndex: 425,
+        maxPanelHeight: 240,
+        getOptions: function () {
+          return opts;
+        },
+        initialValues: keep
+      });
+    }
+    _fltGeoMsf.region = MultiSelectFilter.mount(hReg, {
+      placeholder: "请选择区域",
+      showSelectAll: true,
+      zIndex: 420,
+      maxPanelHeight: 220,
+      getOptions: function () {
+        return (REGION_COUNTRY_DATA.regions || []).map(function (r) {
+          return { value: r.region_code, label: r.region_name };
+        });
+      },
+      onChange: function () {
+        var pv = _fltGeoMsf.country ? _fltGeoMsf.country.getValues().slice() : [];
+        remountFltCountry(pv);
+      }
+    });
+    remountFltCountry([]);
+    _fltGeoMsf.channel = MultiSelectFilter.mount(hCh, {
+      placeholder: "请选择渠道",
+      showSelectAll: true,
+      zIndex: 420,
+      maxPanelHeight: 220,
+      getOptions: function () {
+        return CHANNEL_SELECT_OPTIONS.filter(function (o) {
+          return String(o.value || "").trim();
+        }).map(function (o) {
+          return { value: o.value, label: o.label };
+        });
+      }
+    });
+    _fltGeoMsf.store = MultiSelectFilter.mount(hSt, {
+      placeholder: "请选择店铺",
+      showSelectAll: true,
+      zIndex: 420,
+      maxPanelHeight: 220,
+      getOptions: function () {
+        return FILTER_STORE_CODES.map(function (s) {
+          return { value: s, label: s };
+        });
+      }
+    });
+  }
+
+  /** 原型用：MSKU 主数据池（来自《销售基础信息》宽表 + BP 营收哈希） */
+  function rebuildMockMskuUniverse() {
+    MOCK_MSKU_UNIVERSE = [];
+    if (!SHOP_GEO_RING.length) rebuildChannelStoreGlobals();
+    var ring = SHOP_GEO_RING.length ? SHOP_GEO_RING : [inferGeoFromStoreName("Govee_US", "Govee")];
+    var shopSet = {};
+    ring.forEach(function (g) {
+      shopSet[g.shop] = 1;
+    });
+    (FILTER_STORE_CODES || []).forEach(function (s) {
+      shopSet[s] = 1;
+    });
+    var tags = [planNpTagLabelForYear(2026), planNpTagLabelForYear(2025), planNpTagLabelForYear(2024), ""];
+    if (SALES_BASE_RECORDS.length) {
+      var seen = {};
+      var ti = 0;
+      SALES_BASE_RECORDS.forEach(function (rec) {
+        var sku = String(rec.sku || "").trim();
+        if (PROTOTYPE_SKUS.indexOf(sku) < 0) return;
+        var shop = String(rec["店铺名称"] || "").trim();
+        if (!shopSet[shop]) return;
+        var key = String(rec.msku || "") + "\t" + shop;
+        if (seen[key]) return;
+        seen[key] = 1;
+        MOCK_MSKU_UNIVERSE.push(salesRecToMockRow(rec, tags[ti++ % tags.length]));
+      });
+      if (!MOCK_MSKU_UNIVERSE.length) {
+        SALES_BASE_RECORDS.forEach(function (rec2) {
+          var sku2 = String(rec2.sku || "").trim();
+          if (PROTOTYPE_SKUS.indexOf(sku2) < 0) return;
+          var key2 = String(rec2.msku || "") + "\t" + String(rec2["店铺名称"] || "");
+          if (seen[key2]) return;
+          seen[key2] = 1;
+          MOCK_MSKU_UNIVERSE.push(salesRecToMockRow(rec2, tags[ti++ % tags.length]));
+        });
+      }
+      return;
+    }
+    if (!SCENARIO_CATEGORY_TREE.length) return;
+    var idx = 0;
+    SCENARIO_CATEGORY_TREE.forEach(function (node) {
+      if (!node.categories || node.scenario === "未分类") return;
+      node.categories.forEach(function () {
+        for (var k = 0; k < 2; k++) {
+          var sku8 = PROTOTYPE_SKUS[(idx + k) % PROTOTYPE_SKUS.length];
+          var geo = ring[idx % ring.length];
+          idx++;
+          var row = resolveListingRow(sku8, geo);
+          row.newProductTag = tags[idx % tags.length];
+          if (!row.scenario) row.scenario = node.scenario;
+          MOCK_MSKU_UNIVERSE.push(row);
+        }
+      });
+    });
+  }
+
+  function bpRevenueForMockRow(m, year) {
+    var y = String(year || new Date().getFullYear());
+    if (!m._bp) m._bp = {};
+    if (m._bp[y] != null) return m._bp[y];
+    var seed = String(m.msku + y);
+    var h = 0;
+    for (var i = 0; i < seed.length; i++) {
+      h = ((h << 5) - h + seed.charCodeAt(i)) | 0;
+    }
+    var v = 800 + (Math.abs(h) % 48000);
+    m._bp[y] = v;
+    return v;
+  }
+
+  function pad2(n) {
+    return (n < 10 ? "0" : "") + n;
+  }
+
+  function ymOrd(ym) {
+    var m = String(ym || "").trim().match(/^(\d{4})-(\d{2})$/);
+    if (!m) return null;
+    var y = parseInt(m[1], 10);
+    var mo = parseInt(m[2], 10);
+    if (mo < 1 || mo > 12) return null;
+    return y * 12 + (mo - 1);
+  }
+
+  function ordToYm(ord) {
+    var mo = (ord % 12) + 1;
+    var y = Math.floor(ord / 12);
+    return y + "-" + pad2(mo);
+  }
+
+  /** 含端点；起止可乱序，自动纠正 */
+  function enumerateYmMonths(startYm, endYm) {
+    var a = ymOrd(startYm);
+    var b = ymOrd(endYm);
+    if (a == null || b == null) return [];
+    if (b < a) {
+      var t = a;
+      a = b;
+      b = t;
+    }
+    var out = [];
+    for (var o = a; o <= b; o++) {
+      out.push(ordToYm(o));
+    }
+    return out;
+  }
+
+  /** 原型：MSKU 在某一自然月的 BP 营收（稳定哈希，用于月度分摊） */
+  function bpMonthlyRevenueForMockRow(m, ym) {
+    if (!m._bpM) m._bpM = {};
+    if (m._bpM[ym] != null) return m._bpM[ym];
+    var seed = String(m.msku + "|" + ym);
+    var h = 0;
+    for (var i = 0; i < seed.length; i++) {
+      h = ((h << 5) - h + seed.charCodeAt(i)) | 0;
+    }
+    var v = 60 + (Math.abs(h) % 8000);
+    m._bpM[ym] = v;
+    return v;
+  }
+
+  /** 规划行月份范围（缺省按 year 全年）；起止纠正 */
+  function getPlanMonthRangePair(p) {
+    var y0 = new Date().getFullYear();
+    var yy = Number(p && p.year) || y0;
+    var ys = String((p && p.planMonthStart) || "").trim();
+    var ye = String((p && p.planMonthEnd) || "").trim();
+    if (!ys || !ye) {
+      ys = yy + "-01";
+      ye = yy + "-12";
+    }
+    var oa = ymOrd(ys);
+    var ob = ymOrd(ye);
+    if (oa != null && ob != null && ob < oa) {
+      var t = ys;
+      ys = ye;
+      ye = t;
+    }
+    return { start: ys, end: ye };
+  }
+
+  function normalizePlanRowAfterLoad(row) {
+    if (!row || typeof row !== "object") return;
+    delete row.planMonthAmounts;
+    var pr = getPlanMonthRangePair(row);
+    row.planMonthStart = pr.start;
+    row.planMonthEnd = pr.end;
+    row.year = parseInt(String(pr.start).slice(0, 4), 10) || row.year || new Date().getFullYear();
+    ensurePlanGeoArrays(row);
+  }
+
+  /** 拆分用月份：仅该行「规划月份范围」内的自然月（与顶部筛选月份无关） */
+  function monthsForPlanSplit(plan) {
+    var pr = getPlanMonthRangePair(plan);
+    return enumerateYmMonths(pr.start, pr.end);
+  }
+
+  function mockSkuRowsNewProduct(plan) {
+    var key = planIdentityKey(plan) + String(plan.planAmount || 0);
+    var base = key.replace(/\s/g, "").split("").reduce(function (s, c) {
+      return s + c.charCodeAt(0);
+    }, 0) % 5000;
+    var shops = planStoreCodesResolved(plan).length
+      ? planStoreCodesResolved(plan)
+      : SHOP_GEO_RING.map(function (g) { return g.shop; });
+    var out = [];
+    var prList = planRegionCodesResolved(plan);
+    var pcList = planCountryCodesResolved(plan);
+    var pchList = planChannelKeysResolved(plan);
+    var pr = prList[0] || "NA";
+    var pc = pcList[0] || "US";
+    var pch = pchList[0] || "Govee";
+    var skuSeed = getPlanSkus(plan).length ? getPlanSkus(plan)[0] : PROTOTYPE_SKUS[0];
+    for (var i = 0; i < 5; i++) {
+      var shop = shops[i % shops.length] || "Govee_US";
+      var geo = inferGeoFromStoreName(shop, pchList[i % Math.max(pchList.length, 1)] || pch);
+      var sku8 = getPlanSkus(plan)[i % Math.max(getPlanSkus(plan).length, 1)] || skuSeed;
+      var listing = resolveListingRow(sku8, geo);
+      out.push({
+        scenario: listing.scenario || plan.scenario,
+        category: listing.category || plan.category,
+        shop: listing.shop || shop,
+        sku: listing.sku || sku8,
+        msku: listing.msku,
+        model: listing.model || String(sku8).slice(0, 5),
+        newProductTag: planNpTagValue(plan),
+        region_code: prList[i % Math.max(prList.length, 1)] || listing.region_code || geo.region_code,
+        country_code: pcList[i % Math.max(pcList.length, 1)] || listing.country_code || geo.country_code,
+        channel: pchList[i % Math.max(pchList.length, 1)] || listing.channel || geo.channel,
+        _bp: {}
+      });
+    }
+    return out;
+  }
+
+  function mskuMatchesSceneCatLeaf(m, leaf) {
+    if (leaf === ACT_ALL_SCENES) return true;
+    var parts = String(leaf).split("\t");
+    var sn = String(parts[0] || "").trim();
+    var ct = String(parts[1] != null ? parts[1] : "").trim();
+    if (m.scenario !== sn) return false;
+    if (!ct) return true;
+    return m.category === ct;
+  }
+
+  /** 规划行叶子是否命中筛选区某一叶子（规划侧可为「场景\\t」全品类） */
+  function planLeafMatchesFilterLeaf(planLeaf, filterLeaf) {
+    if (planLeaf === ACT_ALL_SCENES) return true;
+    var ap = String(planLeaf).split("\t");
+    var fp = String(filterLeaf).split("\t");
+    var ps = String(ap[0] || "").trim();
+    var pc = String(ap[1] != null ? ap[1] : "").trim();
+    var fs = String(fp[0] || "").trim();
+    var fc = String(fp[1] != null ? fp[1] : "").trim();
+    if (ps !== fs) return false;
+    if (!pc) return true;
+    return pc === fc;
+  }
+
+  function mskuMatchesPlanGeo(plan, m) {
+    var regs = planRegionCodesResolved(plan);
+    if (regs.length && regs.indexOf(String(m.region_code || "")) < 0) return false;
+    var cts = planCountryCodesResolved(plan);
+    if (cts.length && cts.indexOf(String(m.country_code || "")) < 0) return false;
+    var chs = planChannelKeysResolved(plan);
+    if (chs.length && chs.indexOf(String(m.channel || "")) < 0) return false;
+    return true;
+  }
+
+  function mskuMatchesPlanStore(plan, m) {
+    var sts = planStoreCodesResolved(plan);
+    if (!sts.length) return true;
+    return sts.indexOf(String(m.shop || "")) >= 0;
+  }
+
+  function collectEligibleMskus(plan) {
+    var g = inferPlanGranularityFromRecord(plan);
+    var tag = planNpTagValue(plan);
+    var sc = String(plan.scenario || "").trim();
+    var cat = String(plan.category != null ? plan.category : "").trim();
+    var L = getPlanSceneCategoryLeaves(plan);
+    var skSel = getPlanSkus(plan);
+
+    function geoWrap(pool) {
+      return pool.filter(function (m) {
+        return mskuMatchesPlanGeo(plan, m) && mskuMatchesPlanStore(plan, m);
+      });
+    }
+
+    if (g === PLAN_G_NEW) {
+      return geoWrap(mockSkuRowsNewProduct(plan));
+    }
+    function tagOk(m) {
+      if (!tag) return true;
+      return String(m.newProductTag || "") === tag;
+    }
+    var pool = MOCK_MSKU_UNIVERSE.filter(tagOk);
+    if (skSel.length) {
+      var set = {};
+      skSel.forEach(function (s) {
+        set[String(s).trim()] = true;
+      });
+      pool = pool.filter(function (m) {
+        return set[m.msku];
+      });
+      if (L.length) {
+        pool = pool.filter(function (m) {
+          return L.some(function (leaf) {
+            return mskuMatchesSceneCatLeaf(m, leaf);
+          });
+        });
+      }
+      return geoWrap(pool);
+    }
+    if (L.indexOf(ACT_ALL_SCENES) >= 0) {
+      return geoWrap(pool);
+    }
+    if (L.length) {
+      return geoWrap(
+        pool.filter(function (m) {
+          return L.some(function (leaf) {
+            return mskuMatchesSceneCatLeaf(m, leaf);
+          });
+        })
+      );
+    }
+    if (g === PLAN_G_NP_TAG_ONLY) {
+      return geoWrap(pool);
+    }
+    if (g === PLAN_G_SCENARIO) {
+      return geoWrap(
+        pool.filter(function (m) {
+          return m.scenario === sc;
+        })
+      );
+    }
+    if (g === PLAN_G_CATEGORY) {
+      return geoWrap(
+        pool.filter(function (m) {
+          return m.scenario === sc && m.category === cat;
+        })
+      );
+    }
+    return [];
+  }
+
+  function hasLeaf(sceneName, catName) {
+    if (filterLeafKeys.indexOf(ACT_ALL_SCENES) >= 0) return true;
+    if (filterLeafKeys.indexOf(leafKey(sceneName, "")) >= 0) return true;
+    return filterLeafKeys.indexOf(leafKey(sceneName, catName)) >= 0;
+  }
+
+  function filterHasSceneAllCats(sceneName) {
+    return filterLeafKeys.indexOf(leafKey(sceneName, "")) >= 0;
+  }
+
+  function removeFilterLeavesForScene(sceneName) {
+    filterLeafKeys = filterLeafKeys.filter(function (L) {
+      if (L === ACT_ALL_SCENES) return false;
+      return String(L.split("\t")[0] || "").trim() !== sceneName;
+    });
+  }
+
+  function formatFilterScCatSummary() {
+    if (!filterLeafKeys.length) return "场景品类";
+    if (filterLeafKeys.indexOf(ACT_ALL_SCENES) >= 0) return "全场景 · 全品类";
+    return filterLeafKeys
+      .map(function (k) {
+        if (k === ACT_ALL_SCENES) return "全场景 · 全品类";
+        var p = k.split("\t");
+        var s = String(p[0] || "").trim();
+        var c = String(p[1] != null ? p[1] : "").trim();
+        if (!c) return s + " · 全品类";
+        return s + " / " + c;
+      })
+      .join("、");
+  }
+
+  function firstScenarioFromFilterLeaves() {
+    for (var i = 0; i < filterLeafKeys.length; i++) {
+      if (filterLeafKeys[i] === ACT_ALL_SCENES) continue;
+      var s = String(filterLeafKeys[i].split("\t")[0] || "").trim();
+      if (s) return s;
+    }
+    return "";
+  }
+
+  function countSelectedInScene(node) {
+    var n = 0;
+    var len = node.categories.length;
+    for (var i = 0; i < len; i++) {
+      if (hasLeaf(node.scenario, node.categories[i])) n++;
+    }
+    return n;
+  }
+
+  function sceneCheckboxState(node) {
+    if (filterLeafKeys.indexOf(ACT_ALL_SCENES) >= 0) return { checked: true, indeterminate: false };
+    if (filterHasSceneAllCats(node.scenario)) return { checked: true, indeterminate: false };
+    var n = countSelectedInScene(node);
+    var len = node.categories.length;
+    if (n === 0) return { checked: false, indeterminate: false };
+    if (len > 0 && n === len) return { checked: true, indeterminate: false };
+    return { checked: false, indeterminate: true };
+  }
+
+  function updateScCatTrigger() {
+    var trig = document.getElementById("fltScCatTrigger");
+    if (!trig) return;
+    trig.textContent = formatFilterScCatSummary();
+  }
+
+  function scCatPopIsOpen() {
+    var pop = document.getElementById("fltScCatPop");
+    return pop && !pop.hidden;
+  }
+
+  function refreshScCatColumnsIfOpen() {
+    if (scCatPopIsOpen()) {
+      renderScCatSceneColumn();
+      renderScCatCatColumn();
+    }
+  }
+
+  function setLeavesForScene(node, checked) {
+    removeFilterLeavesForScene(node.scenario);
+    if (checked) filterLeafKeys.push(leafKey(node.scenario, ""));
+    updateScCatTrigger();
+    renderPlans();
+    refreshScCatColumnsIfOpen();
+  }
+
+  function toggleLeaf(sceneName, catName, checked) {
+    filterLeafKeys = filterLeafKeys.filter(function (L) {
+      return L !== ACT_ALL_SCENES;
+    });
+    var ixAll = filterLeafKeys.indexOf(leafKey(sceneName, ""));
+    if (ixAll >= 0) filterLeafKeys.splice(ixAll, 1);
+    var k = leafKey(sceneName, catName);
+    var ix = filterLeafKeys.indexOf(k);
+    if (checked && ix < 0) filterLeafKeys.push(k);
+    if (!checked && ix >= 0) filterLeafKeys.splice(ix, 1);
+    updateScCatTrigger();
+    renderPlans();
+    refreshScCatColumnsIfOpen();
+  }
+
+  function toggleFilterSceneAllCats(node, checked) {
+    removeFilterLeavesForScene(node.scenario);
+    if (checked) filterLeafKeys.push(leafKey(node.scenario, ""));
+    filterLeafKeys = filterLeafKeys.filter(function (L) {
+      return L !== ACT_ALL_SCENES;
+    });
+    updateScCatTrigger();
+    renderPlans();
+    refreshScCatColumnsIfOpen();
+  }
+
+  function setFilterAllScenes() {
+    filterLeafKeys = [ACT_ALL_SCENES];
+    updateScCatTrigger();
+    renderPlans();
+    refreshScCatColumnsIfOpen();
+  }
+
+  function treeNodeByScenario(name) {
+    return SCENARIO_CATEGORY_TREE.find(function (n) {
+      return n.scenario === name;
+    });
+  }
+
+  /** 品类必须挂在场景下：历史「仅有品类」行尝试挂到主数据第一个含该品类的场景，否则清空品类 */
+  function normalizeCategoryUnderScene(p) {
+    if (!p) return;
+    if (String(p.scenario || "").trim() === NEW_PRODUCT_SCENE) return;
+    var sc = String(p.scenario || "").trim();
+    var cat = String(p.category != null ? p.category : "").trim();
+    if (!cat || sc) return;
+    var found = null;
+    for (var i = 0; i < SCENARIO_CATEGORY_TREE.length; i++) {
+      var n = SCENARIO_CATEGORY_TREE[i];
+      if (n.categories && n.categories.indexOf(cat) >= 0) {
+        found = n.scenario;
+        break;
+      }
+    }
+    if (found) p.scenario = found;
+    else p.category = "";
+  }
+
+  function enrichPlanFromTree(p) {
+    if (!p) return;
+    normalizeCategoryUnderScene(p);
+    assignStoredGranularity(p);
+    var g = inferPlanGranularityFromRecord(p);
+    if (g === PLAN_G_NEW) {
+      delete p.scene_code;
+      delete p.category_code;
+      return;
+    }
+    if (g === PLAN_G_NP_TAG_ONLY) {
+      delete p.scene_code;
+      delete p.category_code;
+      return;
+    }
+    if (g === PLAN_G_SCENARIO) {
+      delete p.category_code;
+      var nodeS = treeNodeByScenario(p.scenario);
+      if (nodeS) p.scene_code = nodeS.scene_code;
+      else delete p.scene_code;
+      return;
+    }
+    if (!p.scenario || !p.category) {
+      delete p.scene_code;
+      delete p.category_code;
+      return;
+    }
+    var node = treeNodeByScenario(p.scenario);
+    if (!node || !node.categoryCodes) return;
+    var code = node.categoryCodes[p.category];
+    if (code) {
+      p.scene_code = node.scene_code;
+      p.category_code = code;
+    }
+  }
+
+  function resolvedCategoryDisplay(like) {
+    var cat = String((like && like.category) || "").trim();
+    var sc = String((like && like.scenario) || "").trim();
+    var node = treeNodeByScenario(sc);
+    if (node && node.categories.indexOf(cat) >= 0) return cat;
+    if (node && like && like.category_code) {
+      for (var nm in node.categoryCodes) {
+        if (String(node.categoryCodes[nm]) === String(like.category_code)) return nm;
+      }
+    }
+    if (node && /^\d+$/.test(cat)) {
+      for (var nm2 in node.categoryCodes) {
+        if (String(node.categoryCodes[nm2]) === cat) return nm2;
+      }
+    }
+    for (var i = 0; i < SCENARIO_CATEGORY_TREE.length; i++) {
+      var n = SCENARIO_CATEGORY_TREE[i];
+      if (!n.categoryCodes) continue;
+      for (var k in n.categoryCodes) {
+        if (String(n.categoryCodes[k]) === cat) return k;
+      }
+    }
+    return cat;
+  }
+
+  /** 表格「场景品类」列：不含新品年份标签 */
+  function formatPlanScenarioCategoryOnly(like) {
+    if (!like) return "—";
+    var g = inferPlanGranularityFromRecord(like);
+    if (g === PLAN_G_NEW) {
+      var nc = String(like.category || "").trim();
+      return nc ? NEW_PRODUCT_SCENE + " / " + nc : NEW_PRODUCT_SCENE + " / （请填写标识）";
+    }
+    var Lf = getPlanSceneCategoryLeaves(like);
+    if (Lf.length) {
+      if (Lf.indexOf(ACT_ALL_SCENES) >= 0) return "全场景 · 全品类";
+      return Lf.map(function (k) {
+        var p = k.split("\t");
+        var s = String(p[0] || "").trim();
+        var c = String(p[1] != null ? p[1] : "").trim();
+        if (!c) return s + " · 全品类";
+        return s + " / " + c;
+      }).join("、");
+    }
+    if (g === PLAN_G_NP_TAG_ONLY) {
+      var tg0 = planNpTagValue(like);
+      return tg0 ? "（仅新品标签）·" + tg0 : "请选择场景品类或 SKU";
+    }
+    if (g === PLAN_G_SCENARIO) {
+      var ss = String(like.scenario || "").trim();
+      return ss ? ss + " · 全品类" : "请选择场景品类";
+    }
+    var sc = String(like.scenario || "").trim();
+    var cat = resolvedCategoryDisplay(like);
+    if (!sc && !String(cat || "").trim()) return "请选择场景品类";
+    return sc + " / " + cat;
+  }
+
+  /** 拆分区/上下文：场景品类 + 新品标签合一展示 */
+  function formatPlanLineLabel(like) {
+    if (!like) return "—";
+    var base = formatPlanScenarioCategoryOnly(like);
+    var tag = planNpTagValue(like);
+    var sk = getPlanSkus(like);
+    var skuTxt =
+      sk.length === 0 ? "" : sk.length <= 2 ? " · SKU " + sk.join("、") : " · SKU 已选 " + sk.length + " 项";
+    var g = inferPlanGranularityFromRecord(like);
+    if (g === PLAN_G_NEW) {
+      var nc = String(like.category || "").trim();
+      var t0 = nc && tag ? base + " · " + tag : base;
+      return t0 + skuTxt;
+    }
+    if (g === PLAN_G_NP_TAG_ONLY) return base + skuTxt;
+    if (tag && base !== "请选择场景品类" && base !== "—") return base + " · " + tag + skuTxt;
+    if (tag && (base === "请选择场景品类" || base === "—")) return tag + skuTxt;
+    return base + skuTxt;
+  }
+
+  function getPlanRowEditTr() {
+    if (!planRowEditId) return null;
+    return document.querySelector('#tbodyPlan tr[data-id="' + planRowEditId + '"]');
+  }
+
+  function closePlanRowScCatPop() {
+    var host = document.getElementById("planScCatPopHost");
+    if (host) host.hidden = true;
+    document.querySelectorAll(".plan-sc-cat-wrap.open").forEach(function (w) {
+      w.classList.remove("open");
+    });
+    document.querySelectorAll(".js-plan-sc-cat-trigger").forEach(function (b) {
+      b.setAttribute("aria-expanded", "false");
+    });
+    planRowEditId = null;
+  }
+
+  function positionPlanRowPop(anchor) {
+    var host = document.getElementById("planScCatPopHost");
+    if (!host || !anchor) return;
+    var r = anchor.getBoundingClientRect();
+    var gap = 4;
+    var popH = 288;
+    var top = r.bottom + gap;
+    if (top + popH > window.innerHeight - 8) top = Math.max(8, r.top - gap - popH);
+    var left = Math.max(8, Math.min(r.left, window.innerWidth - 380));
+    host.style.left = left + "px";
+    host.style.top = top + "px";
+  }
+
+  function readLeavesFromTr(tr) {
+    var inp = tr && tr.querySelector(".js-sc-leaves");
+    if (!inp || !inp.value) return [];
+    try {
+      var a = JSON.parse(inp.value);
+      return Array.isArray(a) ? normalizeLeavesArray(a) : [];
+    } catch (e) {
+      return [];
+    }
+  }
+
+  function writeLeavesToTr(tr, leaves) {
+    var inp = tr.querySelector(".js-sc-leaves");
+    if (!inp) return;
+    inp.value = JSON.stringify(normalizeLeavesArray(leaves));
+  }
+
+  function readSkusFromTrSafe(tr) {
+    var id = tr && tr.dataset && tr.dataset.id;
+    if (id && _planRowSkuMsf[id] && typeof _planRowSkuMsf[id].getValues === "function") {
+      return normalizeSkuArray(_planRowSkuMsf[id].getValues());
+    }
+    var inp = tr && tr.querySelector(".js-plan-skus-json");
+    if (!inp || !inp.value) return [];
+    try {
+      var a = JSON.parse(inp.value);
+      return Array.isArray(a) ? normalizeSkuArray(a) : [];
+    } catch (e) {
+      return [];
+    }
+  }
+
+  function writeSkusToTr(tr, skus) {
+    var inp = tr.querySelector(".js-plan-skus-json");
+    if (!inp) return;
+    inp.value = JSON.stringify(normalizeSkuArray(skus));
+  }
+
+  function readPlanRowEditsFromTr(tr) {
+    var scIn = tr.querySelector(".js-scenario");
+    var catIn = tr.querySelector(".js-category");
+    var leaves = readLeavesFromTr(tr);
+    var scenario = scIn ? String(scIn.value || "").trim() : "";
+    var category = catIn ? String(catIn.value != null ? catIn.value : "").trim() : "";
+    if (!leaves.length && (scenario || category)) {
+      if (scenario !== NEW_PRODUCT_SCENE) {
+        leaves = [leafKey(scenario, category)];
+      }
+    }
+    return { scenario: scenario, category: category, leaves: leaves };
+  }
+
+  function readNpTagFromPlanTr(tr) {
+    var npSel = tr && tr.querySelector(".js-np-tag-row");
+    return npSel && npSel.value != null ? String(npSel.value).trim() : "";
+  }
+
+  function inferGranularityFromTr(tr) {
+    var o = readPlanRowEditsFromTr(tr);
+    return inferPlanGranularityFromRecord({
+      scenario: o.scenario,
+      category: o.category,
+      sceneCategoryLeaves: o.leaves,
+      newProductTag: readNpTagFromPlanTr(tr),
+      planSkus: readSkusFromTrSafe(tr)
+    });
+  }
+
+  function syncPlanRowScCatDom(tr, p) {
+    if (!tr || !p) return;
+    var leaves = getPlanSceneCategoryLeaves(p);
+    writeLeavesToTr(tr, leaves);
+    var scIn = tr.querySelector(".js-scenario");
+    var catIn = tr.querySelector(".js-category");
+    var btn = tr.querySelector(".js-plan-sc-cat-trigger");
+    var sc = String(p.scenario || "").trim();
+    var cat = String(p.category != null ? p.category : "").trim();
+    if (scIn) scIn.value = sc;
+    if (catIn) catIn.value = cat != null ? cat : "";
+    if (btn) {
+      var lab = formatPlanScenarioCategoryOnly(p);
+      if (!leaves.length && !sc && !cat && String(p.scenario || "").trim() !== NEW_PRODUCT_SCENE) {
+        lab = "请选择场景品类";
+      }
+      btn.textContent = lab;
+    }
+  }
+
+  function syncPlanRowSkuDom(tr, p) {
+    if (!tr || !p) return;
+    var sk = getPlanSkus(p);
+    writeSkusToTr(tr, sk);
+    var id = p.id;
+    var inst = id ? _planRowSkuMsf[id] : null;
+    if (inst && typeof inst.setValues === "function") {
+      inst.setValues(sk);
+      if (typeof inst.refreshOptions === "function") inst.refreshOptions();
+    }
+  }
+
+  function syncPlanRowDomFromPlan(tr, p) {
+    syncPlanRowScCatDom(tr, p);
+    syncPlanRowSkuDom(tr, p);
+  }
+
+  function applyLeavesAndSkusToPlan(p, leaves, skuArr) {
+    var L = normalizeLeavesArray(leaves);
+    if (L.length) p.sceneCategoryLeaves = L.slice();
+    else delete p.sceneCategoryLeaves;
+    if (L.indexOf(ACT_ALL_SCENES) >= 0) {
+      p.scenario = "";
+      p.category = "";
+    } else if (L.length) {
+      var p0 = L[0].split("\t");
+      p.scenario = String(p0[0] || "").trim();
+      p.category = String(p0[1] != null ? p0[1] : "").trim();
+    } else {
+      p.scenario = "";
+      p.category = "";
+    }
+    var sk = normalizeSkuArray(skuArr);
+    if (sk.length) p.planSkus = sk.slice();
+    else delete p.planSkus;
+  }
+
+  function syncPlanRowLeavesToModel(tr, id, leaves, optNewProductTag) {
+    var list = loadAll();
+    var p = list.find(function (x) {
+      return x.id === id;
+    });
+    if (!p) return;
+    var mr = readPlanMonthRangeFromTr(tr);
+    var skus = readSkusFromTrSafe(tr);
+    var tagFromRow = readNpTagFromPlanTr(tr);
+    var resolvedTag =
+      arguments.length >= 4 && optNewProductTag !== undefined
+        ? String(optNewProductTag != null ? optNewProductTag : "").trim()
+        : tagFromRow;
+    var amt = parseFloat(tr.querySelector(".js-amt").value) || p.planAmount;
+    var Ln = normalizeLeavesArray(leaves);
+    var fake = JSON.parse(JSON.stringify(p));
+    fake.planAmount = amt;
+    if (mr.start && mr.end) applyPlanMonthsToRecord(fake, mr.start, mr.end);
+    applyLeavesAndSkusToPlan(fake, Ln, skus);
+    if (resolvedTag) fake.newProductTag = resolvedTag;
+    else delete fake.newProductTag;
+    fake.planGranularity = inferPlanGranularityFromRecord(fake);
+    if (!validatePlanUnique(list, fake, id)) {
+      toast("同一规划月份范围与对象组合已存在，与已有行重复");
+      renderPlans();
+      return;
+    }
+    if (mr.start && mr.end) applyPlanMonthsToRecord(p, mr.start, mr.end);
+    p.planAmount = amt;
+    applyLeavesAndSkusToPlan(p, Ln, skus);
+    if (resolvedTag) p.newProductTag = resolvedTag;
+    else delete p.newProductTag;
+    assignStoredGranularity(p);
+    enrichPlanFromTree(p);
+    syncPlanRowDomFromPlan(tr, p);
+    saveAll(list);
+    renderSplitAggregated();
+    renderPlanRowScCatSceneColumn();
+    renderPlanRowScCatCatColumn();
+  }
+
+  function syncPlanRowScCatToModel(tr, id, scenario, category, optNewProductTag) {
+    var sc = String(scenario != null ? scenario : "").trim();
+    var cat = String(category != null ? category : "").trim();
+    if (sc === NEW_PRODUCT_SCENE) {
+      var list = loadAll();
+      var p = list.find(function (x) {
+        return x.id === id;
+      });
+      if (!p) return;
+      var mr = readPlanMonthRangeFromTr(tr);
+      var npSel = tr.querySelector(".js-np-tag-row");
+      var tagFromRow = npSel && npSel.value != null ? String(npSel.value).trim() : "";
+      var resolvedTag =
+        arguments.length >= 5 ? String(optNewProductTag != null ? optNewProductTag : "").trim() : tagFromRow;
+      var draft = {
+        id: id,
+        year: p.year,
+        planMonthStart: p.planMonthStart,
+        planMonthEnd: p.planMonthEnd,
+        scenario: NEW_PRODUCT_SCENE,
+        category: cat,
+        planAmount: p.planAmount,
+        planGranularity: PLAN_G_NEW
+      };
+      if (mr.start && mr.end) applyPlanMonthsToRecord(draft, mr.start, mr.end);
+      if (resolvedTag) draft.newProductTag = resolvedTag;
+      var skTr = readSkusFromTrSafe(tr);
+      if (skTr.length) draft.planSkus = skTr.slice();
+      if (!validatePlanUnique(list, draft, id)) {
+        toast("同一规划月份范围与对象组合已存在，与已有行重复");
+        renderPlans();
+        return;
+      }
+      delete p.sceneCategoryLeaves;
+      if (skTr.length) p.planSkus = skTr.slice();
+      else delete p.planSkus;
+      if (mr.start && mr.end) applyPlanMonthsToRecord(p, mr.start, mr.end);
+      p.scenario = NEW_PRODUCT_SCENE;
+      p.category = cat;
+      assignStoredGranularity(p);
+      if (resolvedTag) p.newProductTag = resolvedTag;
+      else delete p.newProductTag;
+      enrichPlanFromTree(p);
+      syncPlanRowDomFromPlan(tr, p);
+      saveAll(list);
+      renderSplitAggregated();
+      renderPlanRowScCatSceneColumn();
+      renderPlanRowScCatCatColumn();
+      return;
+    }
+    var leaves = [];
+    if (!sc && !cat) leaves = [];
+    else if (!cat) leaves = [leafKey(sc, "")];
+    else leaves = [leafKey(sc, cat)];
+    syncPlanRowLeavesToModel(tr, id, leaves, optNewProductTag);
+  }
+
+  function planRowSceneCheckboxState(node, tr) {
+    var leaves = readPlanRowEditsFromTr(tr).leaves;
+    if (leaves.indexOf(ACT_ALL_SCENES) >= 0) return { checked: true, indeterminate: false };
+    var k = leafKey(node.scenario, "");
+    if (leaves.indexOf(k) >= 0) return { checked: true, indeterminate: false };
+    var n = 0;
+    var len = node.categories.length;
+    for (var i = 0; i < len; i++) {
+      if (leaves.indexOf(leafKey(node.scenario, node.categories[i])) >= 0) n++;
+    }
+    if (n === 0) return { checked: false, indeterminate: false };
+    if (len > 0 && n === len) return { checked: true, indeterminate: false };
+    return { checked: false, indeterminate: true };
+  }
+
+  function planRowLeafChecked(leaves, scenario, cat) {
+    if (leaves.indexOf(ACT_ALL_SCENES) >= 0) return true;
+    if (leaves.indexOf(leafKey(scenario, "")) >= 0) return true;
+    return leaves.indexOf(leafKey(scenario, cat)) >= 0;
+  }
+
+  function firstScenarioFromPlanLeaves(leaves) {
+    for (var i = 0; i < (leaves || []).length; i++) {
+      if (leaves[i] === ACT_ALL_SCENES) continue;
+      var s = String(leaves[i].split("\t")[0] || "").trim();
+      if (s) return s;
+    }
+    return "";
+  }
+
+  function applyPlanRowSceneCheckbox(node, tr, id, checked) {
+    var leaves = readPlanRowEditsFromTr(tr).leaves.slice();
+    var k = leafKey(node.scenario, "");
+    if (checked) {
+      leaves = leaves.filter(function (L) {
+        return L !== ACT_ALL_SCENES;
+      });
+      leaves = leaves.filter(function (L) {
+        var p = L.split("\t");
+        return String(p[0] || "").trim() !== node.scenario;
+      });
+      if (leaves.indexOf(k) < 0) leaves.push(k);
+    } else {
+      var ix = leaves.indexOf(k);
+      if (ix >= 0) leaves.splice(ix, 1);
+    }
+    syncPlanRowLeavesToModel(tr, id, leaves);
+  }
+
+  function togglePlanRowLeaf(tr, id, sceneName, catName, checked) {
+    var leaves = readPlanRowEditsFromTr(tr).leaves.slice();
+    var k = leafKey(sceneName, catName);
+    if (checked) {
+      leaves = leaves.filter(function (L) {
+        return L !== ACT_ALL_SCENES;
+      });
+      leaves = leaves.filter(function (L) {
+        return L !== leafKey(sceneName, "");
+      });
+      if (leaves.indexOf(k) < 0) leaves.push(k);
+    } else {
+      var ix = leaves.indexOf(k);
+      if (ix >= 0) leaves.splice(ix, 1);
+    }
+    syncPlanRowLeavesToModel(tr, id, leaves);
+  }
+
+  function renderPlanRowScCatSceneColumn() {
+    var el = document.getElementById("planScCatRowScenes");
+    if (!el) return;
+    var tr = getPlanRowEditTr();
+    if (!tr) return;
+    var id = planRowEditId;
+    el.innerHTML = "";
+    SCENARIO_CATEGORY_TREE.forEach(function (node) {
+      var div = document.createElement("div");
+      div.className = "sc-cat-item" + (node.scenario === planRowPanelScenario ? " active" : "");
+      var st = planRowSceneCheckboxState(node, tr);
+      var cb = document.createElement("input");
+      cb.type = "checkbox";
+      cb.checked = st.checked;
+      cb.indeterminate = st.indeterminate;
+      cb.addEventListener("click", function (e) {
+        e.stopPropagation();
+      });
+      cb.addEventListener("change", function () {
+        applyPlanRowSceneCheckbox(node, tr, id, cb.checked);
+      });
+      var lbl = document.createElement("span");
+      lbl.className = "lbl";
+      lbl.textContent = node.scenario;
+      var arr = document.createElement("span");
+      arr.className = "arrow";
+      arr.textContent = "›";
+      div.appendChild(cb);
+      div.appendChild(lbl);
+      div.appendChild(arr);
+      div.addEventListener("click", function (e) {
+        if (e.target && e.target.closest && e.target.closest('input[type="checkbox"]')) return;
+        planRowPanelScenario = node.scenario;
+        renderPlanRowScCatSceneColumn();
+        renderPlanRowScCatCatColumn();
+      });
+      el.appendChild(div);
+    });
+  }
+
+  function renderPlanRowScCatCatColumn() {
+    var el = document.getElementById("planScCatRowCats");
+    if (!el) return;
+    var tr = getPlanRowEditTr();
+    if (!tr) return;
+    var id = planRowEditId;
+    el.innerHTML = "";
+    var o = readPlanRowEditsFromTr(tr);
+    if (inferGranularityFromTr(tr) === PLAN_G_NEW) {
+      var hintNp = document.createElement("p");
+      hintNp.className = "hint";
+      hintNp.style.cssText = "margin:8px 10px 0;padding:0 10px;";
+      hintNp.textContent = "请输入新品标识并点「应用到本行」。";
+      el.appendChild(hintNp);
+      var wrap = document.createElement("div");
+      wrap.style.padding = "10px";
+      var inp = document.createElement("input");
+      inp.type = "text";
+      inp.className = "inp-inline";
+      inp.style.width = "100%";
+      inp.style.maxWidth = "none";
+      inp.placeholder = "请输入新品名称或编码";
+      inp.value = o.scenario === NEW_PRODUCT_SCENE ? o.category : "";
+      function applyNewRow() {
+        var v = inp.value.trim();
+        if (!v) {
+          toast("请填写新品标识");
+          return;
+        }
+        var tagSel = tr.querySelector(".js-np-tag-row");
+        var tag = tagSel && tagSel.value != null ? String(tagSel.value).trim() : "";
+        syncPlanRowScCatToModel(tr, id, NEW_PRODUCT_SCENE, v, tag);
+      }
+      inp.addEventListener("keydown", function (ev) {
+        if (ev.key === "Enter") {
+          ev.preventDefault();
+          applyNewRow();
+        }
+      });
+      var btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "btn btn-default";
+      btn.style.marginTop = "8px";
+      btn.textContent = "应用到本行";
+      btn.addEventListener("click", function () {
+        applyNewRow();
+      });
+      var btnClr = document.createElement("button");
+      btnClr.type = "button";
+      btnClr.className = "link";
+      btnClr.style.cssText = "font-size:12px;margin-top:6px;padding:0;display:block;";
+      btnClr.textContent = "清空场景品类";
+      btnClr.addEventListener("click", function (e) {
+        e.stopPropagation();
+        syncPlanRowScCatToModel(tr, id, "", "");
+      });
+      wrap.appendChild(inp);
+      wrap.appendChild(btn);
+      wrap.appendChild(btnClr);
+      el.appendChild(wrap);
+      return;
+    }
+    var clrTop = document.createElement("div");
+    clrTop.className = "sc-cat-item sc-cat-meta-row";
+    clrTop.style.display = "flex";
+    clrTop.style.alignItems = "center";
+    clrTop.style.flexWrap = "wrap";
+    clrTop.style.gap = "6px";
+    var btnClrTop = document.createElement("button");
+    btnClrTop.type = "button";
+    btnClrTop.className = "link";
+    btnClrTop.style.cssText = "font-size:12px;padding:0;";
+    btnClrTop.textContent = "清空场景品类";
+    btnClrTop.addEventListener("click", function (e) {
+      e.stopPropagation();
+      syncPlanRowLeavesToModel(tr, id, []);
+    });
+    clrTop.appendChild(btnClrTop);
+    var btnAllSc = document.createElement("button");
+    btnAllSc.type = "button";
+    btnAllSc.className = "link";
+    btnAllSc.style.cssText = "font-size:12px;padding:0;";
+    btnAllSc.textContent = "全场景（全市场）";
+    btnAllSc.addEventListener("click", function (e) {
+      e.stopPropagation();
+      syncPlanRowLeavesToModel(tr, id, [ACT_ALL_SCENES]);
+    });
+    clrTop.appendChild(btnAllSc);
+    el.appendChild(clrTop);
+    var node = treeNodeByScenario(planRowPanelScenario);
+    if (!node) return;
+    var rowScene = document.createElement("div");
+    rowScene.className = "sc-cat-item sc-cat-meta-row" + (o.leaves.indexOf(leafKey(node.scenario, "")) >= 0 ? " is-checked" : "");
+    var cbS = document.createElement("input");
+    cbS.type = "checkbox";
+    cbS.checked = o.leaves.indexOf(leafKey(node.scenario, "")) >= 0;
+    cbS.addEventListener("click", function (e) {
+      e.stopPropagation();
+    });
+    cbS.addEventListener("change", function () {
+      applyPlanRowSceneCheckbox(node, tr, id, cbS.checked);
+    });
+    var lblS = document.createElement("span");
+    lblS.className = "lbl";
+    lblS.textContent = "本场景维度（全场景）";
+    lblS.addEventListener("click", function (e) {
+      e.stopPropagation();
+      cbS.checked = !cbS.checked;
+      cbS.dispatchEvent(new Event("change"));
+    });
+    rowScene.appendChild(cbS);
+    rowScene.appendChild(lblS);
+    el.appendChild(rowScene);
+    node.categories.forEach(function (cat) {
+      var checked = planRowLeafChecked(o.leaves, node.scenario, cat);
+      var div = document.createElement("div");
+      div.className = "sc-cat-item" + (checked ? " is-checked" : "");
+      var cb = document.createElement("input");
+      cb.type = "checkbox";
+      cb.checked = checked;
+      cb.addEventListener("click", function (e) {
+        e.stopPropagation();
+      });
+      cb.addEventListener("change", function () {
+        togglePlanRowLeaf(tr, id, node.scenario, cat, cb.checked);
+      });
+      var lbl = document.createElement("span");
+      lbl.className = "lbl";
+      lbl.textContent = cat;
+      lbl.addEventListener("click", function (e) {
+        e.stopPropagation();
+        cb.checked = !cb.checked;
+        togglePlanRowLeaf(tr, id, node.scenario, cat, cb.checked);
+      });
+      div.appendChild(cb);
+      div.appendChild(lbl);
+      el.appendChild(div);
+    });
+  }
+
+  function openPlanRowScCat(tr, id) {
+    closeScCatPop();
+    closeNpTagPop();
+    planRowEditId = id;
+    var o = readPlanRowEditsFromTr(tr);
+    if (o.scenario === NEW_PRODUCT_SCENE || inferGranularityFromTr(tr) === PLAN_G_NEW) {
+      planRowPanelScenario = NEW_PRODUCT_SCENE;
+    } else {
+      var scenario = o.scenario;
+      var node0 = treeNodeByScenario(scenario);
+      if (node0 && node0.scenario) planRowPanelScenario = scenario;
+      else {
+        var fromLeaves = firstScenarioFromPlanLeaves(o.leaves);
+        if (fromLeaves) planRowPanelScenario = fromLeaves;
+        else {
+        var firstNon = SCENARIO_CATEGORY_TREE.find(function (n) {
+          return n.scenario !== "未分类";
+        });
+        planRowPanelScenario = firstNon
+          ? firstNon.scenario
+          : (SCENARIO_CATEGORY_TREE[0] && SCENARIO_CATEGORY_TREE[0].scenario) || "";
+        }
+      }
+    }
+    var host = document.getElementById("planScCatPopHost");
+    var btn = tr.querySelector(".js-plan-sc-cat-trigger");
+    var wrap = tr.querySelector(".plan-sc-cat-wrap");
+    if (host && btn && wrap) {
+      host.hidden = false;
+      wrap.classList.add("open");
+      btn.setAttribute("aria-expanded", "true");
+      positionPlanRowPop(btn);
+      renderPlanRowScCatSceneColumn();
+      renderPlanRowScCatCatColumn();
+    }
+  }
+
+  function buildPlanSkuOptionsForTr(tr) {
+    var o = readPlanRowEditsFromTr(tr);
+    var pool = MOCK_MSKU_UNIVERSE.slice();
+    var L = o.leaves;
+    if (L.length && L.indexOf(ACT_ALL_SCENES) < 0) {
+      pool = pool.filter(function (m) {
+        return L.some(function (leaf) {
+          return mskuMatchesSceneCatLeaf(m, leaf);
+        });
+      });
+    }
+    var uniq = {};
+    var opts = [];
+    pool.forEach(function (m) {
+      if (uniq[m.msku]) return;
+      uniq[m.msku] = 1;
+      opts.push({ value: m.msku, label: m.msku + " · " + m.scenario + " / " + m.category });
+    });
+    opts.sort(function (a, b) {
+      return String(a.value).localeCompare(String(b.value));
+    });
+    return opts.slice(0, 200);
+  }
+
+  function wirePlanRowScCatOutsideClose() {
+    if (planRowOutsideCloseWired) return;
+    planRowOutsideCloseWired = true;
+    document.addEventListener("mousedown", function (e) {
+      var host = document.getElementById("planScCatPopHost");
+      var t = e.target;
+      if (!planRowEditId || !host || host.hidden) return;
+      if (host.contains(t)) return;
+      if (t.closest && t.closest("#logicUnifiedModal")) return;
+      if (t.closest && t.closest(".plan-sc-cat-wrap")) return;
+      if (t.closest && t.closest(".plan-cell-with-pin")) return;
+      var npw = document.getElementById("fltNpTagWrap");
+      if (npw && npw.contains(t)) return;
+      closePlanRowScCatPop();
+    });
+    window.addEventListener("resize", function () {
+      if (!planRowEditId) return;
+      var tr = getPlanRowEditTr();
+      if (!tr) return;
+      var btn = tr.querySelector(".js-plan-sc-cat-trigger");
+      if (btn) positionPlanRowPop(btn);
+    });
+  }
+
+  function scenarioCategoryCellHtml(p) {
+    var sc = p && p.scenario != null ? String(p.scenario) : "";
+    var cat = p && p.category != null ? String(p.category) : "";
+    var leaves = getPlanSceneCategoryLeaves(p);
+    var leavesJson = escapeHtml(JSON.stringify(leaves));
+    var label = formatPlanScenarioCategoryOnly(p);
+    if (
+      !leaves.length &&
+      String(sc).trim() !== NEW_PRODUCT_SCENE &&
+      !String(sc).trim() &&
+      !String(cat).trim()
+    ) {
+      label = "请选择场景品类";
+    }
+    return (
+      '<div class="plan-sc-cat-wrap sc-cat-wrap" style="flex:1;min-width:0" data-plan-id="' +
+      escapeHtml(p.id) +
+      '">' +
+      '<input type="hidden" class="js-sc-leaves" value="' +
+      leavesJson +
+      '" />' +
+      '<input type="hidden" class="js-scenario" value="' +
+      escapeHtml(sc) +
+      '" />' +
+      '<input type="hidden" class="js-category" value="' +
+      escapeHtml(cat) +
+      '" />' +
+      '<button type="button" class="sc-cat-trigger plan-sc-cat-trigger js-plan-sc-cat-trigger" aria-expanded="false" aria-haspopup="dialog">' +
+      escapeHtml(label) +
+      "</button></div>"
+    );
+  }
+
+  function planSkuCellHtml(p) {
+    var sk = getPlanSkus(p);
+    var skJson = escapeHtml(JSON.stringify(sk));
+    return (
+      '<div class="plan-sku-cell-msf" style="flex:1;min-width:0;max-width:240px" data-plan-id="' +
+      escapeHtml(p.id) +
+      '">' +
+      '<input type="hidden" class="js-plan-skus-json" value="' +
+      skJson +
+      '" />' +
+      '<div class="js-plan-sku-msf msf-plan-row" style="width:100%;min-width:120px"></div></div>'
+    );
+  }
+
+  function planNpTagCellHtml(p) {
+    var cur = planNpTagValue(p);
+    var inList = NP_TAG_YEAR_OPTIONS.some(function (yy) {
+      return planNpTagLabelForYear(yy) === cur;
+    });
+    var extraOpt = "";
+    if (!inList && cur) {
+      extraOpt =
+        '<option value="' +
+        escapeHtml(cur) +
+        '" selected>' +
+        escapeHtml(cur) +
+        "</option>";
+    }
+    var opts = NP_TAG_YEAR_OPTIONS.map(function (yy) {
+      var lab = planNpTagLabelForYear(yy);
+      return (
+        '<option value="' +
+        escapeHtml(lab) +
+        '"' +
+        (cur && lab === cur ? " selected" : "") +
+        ">" +
+        escapeHtml(lab) +
+        "</option>"
+      );
+    }).join("");
+    var blankSel = !cur && !extraOpt ? " selected" : "";
+    return (
+      '<div class="plan-np-tag-cell" style="flex:1;min-width:0">' +
+      '<select class="inp-inline js-np-tag-row" aria-label="新品标签">' +
+      '<option value=""' +
+      blankSel +
+      ">请选择新品标签</option>" +
+      extraOpt +
+      opts +
+      "</select></div>"
+    );
+  }
+
+  function renderScCatSceneColumn() {
+    var el = document.getElementById("fltScCatScenes");
+    if (!el) return;
+    el.innerHTML = "";
+    SCENARIO_CATEGORY_TREE.forEach(function (node) {
+      var div = document.createElement("div");
+      div.className = "sc-cat-item" + (node.scenario === panelActiveScenario ? " active" : "");
+      var st = sceneCheckboxState(node);
+      var cb = document.createElement("input");
+      cb.type = "checkbox";
+      cb.checked = st.checked;
+      cb.indeterminate = st.indeterminate;
+      cb.addEventListener("click", function (e) {
+        e.stopPropagation();
+      });
+      cb.addEventListener("change", function () {
+        setLeavesForScene(node, cb.checked);
+      });
+      var lbl = document.createElement("span");
+      lbl.className = "lbl";
+      lbl.textContent = node.scenario;
+      var arr = document.createElement("span");
+      arr.className = "arrow";
+      arr.textContent = "›";
+      div.appendChild(cb);
+      div.appendChild(lbl);
+      div.appendChild(arr);
+      div.addEventListener("click", function (e) {
+        if (e.target && e.target.closest && e.target.closest('input[type="checkbox"]')) return;
+        panelActiveScenario = node.scenario;
+        renderScCatSceneColumn();
+        renderScCatCatColumn();
+      });
+      el.appendChild(div);
+    });
+  }
+
+  function renderScCatCatColumn() {
+    var el = document.getElementById("fltScCatCats");
+    if (!el) return;
+    el.innerHTML = "";
+    var node = treeNodeByScenario(panelActiveScenario);
+    if (!node) return;
+    var clrTop = document.createElement("div");
+    clrTop.className = "sc-cat-item sc-cat-meta-row";
+    clrTop.style.cssText = "display:flex;align-items:center;flex-wrap:wrap;gap:8px;padding:6px 10px;";
+    var btnClrTop = document.createElement("button");
+    btnClrTop.type = "button";
+    btnClrTop.className = "link";
+    btnClrTop.style.cssText = "font-size:12px;padding:0;";
+    btnClrTop.textContent = "清空场景品类";
+    btnClrTop.addEventListener("click", function (e) {
+      e.stopPropagation();
+      filterLeafKeys.length = 0;
+      updateScCatTrigger();
+      renderPlans();
+      refreshScCatColumnsIfOpen();
+    });
+    clrTop.appendChild(btnClrTop);
+    var btnAllSc = document.createElement("button");
+    btnAllSc.type = "button";
+    btnAllSc.className = "link";
+    btnAllSc.style.cssText = "font-size:12px;padding:0;";
+    btnAllSc.textContent = "全场景（全市场）";
+    btnAllSc.addEventListener("click", function (e) {
+      e.stopPropagation();
+      setFilterAllScenes();
+    });
+    clrTop.appendChild(btnAllSc);
+    el.appendChild(clrTop);
+    var rowScene = document.createElement("div");
+    rowScene.className = "sc-cat-item sc-cat-meta-row" + (filterHasSceneAllCats(node.scenario) ? " is-checked" : "");
+    var cbS = document.createElement("input");
+    cbS.type = "checkbox";
+    cbS.checked = filterHasSceneAllCats(node.scenario);
+    cbS.addEventListener("click", function (e) {
+      e.stopPropagation();
+    });
+    cbS.addEventListener("change", function () {
+      toggleFilterSceneAllCats(node, cbS.checked);
+    });
+    var lblS = document.createElement("span");
+    lblS.className = "lbl";
+    lblS.textContent = "本场景维度（全品类）";
+    lblS.addEventListener("click", function (e) {
+      e.stopPropagation();
+      cbS.checked = !cbS.checked;
+      cbS.dispatchEvent(new Event("change"));
+    });
+    rowScene.appendChild(cbS);
+    rowScene.appendChild(lblS);
+    el.appendChild(rowScene);
+    node.categories.forEach(function (cat) {
+      var checked = hasLeaf(node.scenario, cat);
+      var div = document.createElement("div");
+      div.className = "sc-cat-item" + (checked ? " is-checked" : "");
+      var cb = document.createElement("input");
+      cb.type = "checkbox";
+      cb.checked = checked;
+      cb.addEventListener("click", function (e) {
+        e.stopPropagation();
+      });
+      cb.addEventListener("change", function () {
+        toggleLeaf(node.scenario, cat, cb.checked);
+      });
+      var lbl = document.createElement("span");
+      lbl.className = "lbl";
+      lbl.textContent = cat;
+      lbl.addEventListener("click", function (e) {
+        e.stopPropagation();
+        cb.checked = !cb.checked;
+        toggleLeaf(node.scenario, cat, cb.checked);
+      });
+      div.appendChild(cb);
+      div.appendChild(lbl);
+      el.appendChild(div);
+    });
+  }
+
+  function openScCatPop() {
+    closePlanRowScCatPop();
+    closeNpTagPop();
+    var pop = document.getElementById("fltScCatPop");
+    var wrap = document.getElementById("fltScCatWrap");
+    if (!pop || !wrap) return;
+    pop.hidden = false;
+    wrap.classList.add("open");
+    document.getElementById("fltScCatTrigger").setAttribute("aria-expanded", "true");
+    var picked = firstScenarioFromFilterLeaves();
+    if (picked) panelActiveScenario = picked;
+    else if (!panelActiveScenario && SCENARIO_CATEGORY_TREE.length) {
+      var firstNon = SCENARIO_CATEGORY_TREE.find(function (n) {
+        return n.scenario !== "未分类";
+      });
+      panelActiveScenario = (firstNon || SCENARIO_CATEGORY_TREE[0]).scenario;
+    }
+    renderScCatSceneColumn();
+    renderScCatCatColumn();
+  }
+
+  function closeScCatPop() {
+    var pop = document.getElementById("fltScCatPop");
+    var wrap = document.getElementById("fltScCatWrap");
+    if (!pop || !wrap) return;
+    pop.hidden = true;
+    wrap.classList.remove("open");
+    document.getElementById("fltScCatTrigger").setAttribute("aria-expanded", "false");
+  }
+
+  function npTagPopIsOpen() {
+    var pop = document.getElementById("fltNpTagPop");
+    return pop && !pop.hidden;
+  }
+
+  function updateNpTagTrigger() {
+    var trig = document.getElementById("fltNpTagTrigger");
+    if (!trig) return;
+    if (!filterNpTagKeys.length) trig.textContent = "新品标签";
+    else trig.textContent = "已选 " + filterNpTagKeys.length + " 项";
+  }
+
+  function refreshNpTagListIfOpen() {
+    if (npTagPopIsOpen()) renderNpTagList();
+  }
+
+  function renderNpTagList() {
+    var el = document.getElementById("fltNpTagList");
+    if (!el) return;
+    el.innerHTML = "";
+    NP_TAG_YEAR_OPTIONS.forEach(function (yy) {
+      var lab = planNpTagLabelForYear(yy);
+      var div = document.createElement("div");
+      div.className = "sc-cat-item";
+      var cb = document.createElement("input");
+      cb.type = "checkbox";
+      cb.checked = filterNpTagKeys.indexOf(lab) >= 0;
+      cb.addEventListener("click", function (e) {
+        e.stopPropagation();
+      });
+      cb.addEventListener("change", function () {
+        toggleNpTagLeaf(lab, cb.checked);
+      });
+      var lbl = document.createElement("span");
+      lbl.className = "lbl";
+      lbl.textContent = lab;
+      lbl.addEventListener("click", function (e) {
+        e.stopPropagation();
+        cb.checked = !cb.checked;
+        cb.dispatchEvent(new Event("change"));
+      });
+      div.appendChild(cb);
+      div.appendChild(lbl);
+      el.appendChild(div);
+    });
+  }
+
+  function toggleNpTagLeaf(tagStr, checked) {
+    var ix = filterNpTagKeys.indexOf(tagStr);
+    if (checked && ix < 0) filterNpTagKeys.push(tagStr);
+    if (!checked && ix >= 0) filterNpTagKeys.splice(ix, 1);
+    updateNpTagTrigger();
+    renderPlans();
+    refreshNpTagListIfOpen();
+  }
+
+  function openNpTagPop() {
+    closePlanRowScCatPop();
+    closeScCatPop();
+    var pop = document.getElementById("fltNpTagPop");
+    var wrap = document.getElementById("fltNpTagWrap");
+    if (!pop || !wrap) return;
+    pop.hidden = false;
+    wrap.classList.add("open");
+    document.getElementById("fltNpTagTrigger").setAttribute("aria-expanded", "true");
+    renderNpTagList();
+  }
+
+  function closeNpTagPop() {
+    var pop = document.getElementById("fltNpTagPop");
+    var wrap = document.getElementById("fltNpTagWrap");
+    if (!pop || !wrap) return;
+    pop.hidden = true;
+    wrap.classList.remove("open");
+    var trig = document.getElementById("fltNpTagTrigger");
+    if (trig) trig.setAttribute("aria-expanded", "false");
+  }
+
+  function wireNpTagFilter() {
+    var row = document.getElementById("fltNpTagFilterRow");
+    var wrap = document.getElementById("fltNpTagWrap");
+    var trig = document.getElementById("fltNpTagTrigger");
+    var clear = document.getElementById("fltNpTagClear");
+    if (!wrap || !trig) return;
+    updateNpTagTrigger();
+    trig.addEventListener("click", function (e) {
+      e.stopPropagation();
+      var pop = document.getElementById("fltNpTagPop");
+      if (pop.hidden) openNpTagPop();
+      else closeNpTagPop();
+    });
+    if (clear) {
+      clear.addEventListener("click", function (e) {
+        e.stopPropagation();
+        filterNpTagKeys.length = 0;
+        updateNpTagTrigger();
+        closePlanRowScCatPop();
+        closeNpTagPop();
+        renderPlans();
+        toast("已清空新品标签筛选");
+      });
+    }
+    document.addEventListener("mousedown", function (e) {
+      if ((row && row.contains(e.target)) || (!row && wrap.contains(e.target))) return;
+      var ph = document.getElementById("planScCatPopHost");
+      if (ph && ph.contains(e.target)) return;
+      if (e.target.closest && e.target.closest("#logicUnifiedModal")) return;
+      if (e.target.closest && e.target.closest(".plan-cell-with-pin")) return;
+      closeNpTagPop();
+    });
+  }
+
+  function wireScCatFilter() {
+    var row = document.getElementById("fltScCatFilterRow");
+    var wrap = document.getElementById("fltScCatWrap");
+    var trig = document.getElementById("fltScCatTrigger");
+    var clear = document.getElementById("fltScCatClear");
+    if (!wrap || !trig) return;
+    updateScCatTrigger();
+    trig.addEventListener("click", function (e) {
+      e.stopPropagation();
+      var pop = document.getElementById("fltScCatPop");
+      if (pop.hidden) openScCatPop();
+      else closeScCatPop();
+    });
+    if (clear) {
+      clear.addEventListener("click", function (e) {
+        e.stopPropagation();
+        filterLeafKeys.length = 0;
+        updateScCatTrigger();
+        closePlanRowScCatPop();
+        closeScCatPop();
+        renderPlans();
+        toast("已清空场景品类筛选");
+      });
+    }
+    document.addEventListener("mousedown", function (e) {
+      if ((row && row.contains(e.target)) || (!row && wrap.contains(e.target))) return;
+      var ph = document.getElementById("planScCatPopHost");
+      if (ph && ph.contains(e.target)) return;
+      if (e.target.closest && e.target.closest("#logicUnifiedModal")) return;
+      if (e.target.closest && e.target.closest(".plan-cell-with-pin")) return;
+      closeScCatPop();
+    });
+  }
+
+  function ensureSeed() {
+    try {
+      if (localStorage.getItem("marketing_expense_plan_sample_ver") !== SAMPLE_DATA_VERSION) {
+        localStorage.removeItem(STORAGE_KEY_V3);
+        localStorage.setItem("marketing_expense_plan_sample_ver", SAMPLE_DATA_VERSION);
+      }
+    } catch (e) {}
+    var list = loadAll();
+    if (list.length === 0) {
+      list = defaultPlans();
+      saveAll(list);
+    }
+    return list;
+  }
+
+  function splitPlan(plan) {
+    var eligible = collectEligibleMskus(plan);
+    var total = Number(plan.planAmount) || 0;
+    if (!eligible.length) return [];
+    var months = monthsForPlanSplit(plan);
+    if (!months.length) return [];
+
+    var monthSumBp = months.map(function (ym) {
+      var s = 0;
+      for (var i = 0; i < eligible.length; i++) {
+        s += bpMonthlyRevenueForMockRow(eligible[i], ym);
+      }
+      return { ym: ym, sumBp: s };
+    });
+    var sumMonthW = monthSumBp.reduce(function (a, x) {
+      return a + x.sumBp;
+    }, 0);
+    var nM = months.length;
+    var monthBudget = {};
+    if (sumMonthW <= 0) {
+      var eq = Math.floor(total / nM);
+      for (var mi = 0; mi < months.length; mi++) {
+        monthBudget[months[mi]] = eq;
+      }
+      monthBudget[months[nM - 1]] += total - eq * nM;
+    } else {
+      var assignedM = 0;
+      for (var j = 0; j < monthSumBp.length; j++) {
+        var frac = total * (monthSumBp[j].sumBp / sumMonthW);
+        var fl = Math.floor(frac);
+        monthBudget[monthSumBp[j].ym] = fl;
+        assignedM += fl;
+      }
+      monthBudget[monthSumBp[monthSumBp.length - 1].ym] += total - assignedM;
+    }
+
+    var rows = [];
+    var yDisp = parseInt(String(months[0] || "").slice(0, 4), 10) || plan.year || new Date().getFullYear();
+    for (var k = 0; k < months.length; k++) {
+      var ym = months[k];
+      var budget = monthBudget[ym] || 0;
+      var revs = eligible.map(function (m) {
+        return { m: m, r: bpMonthlyRevenueForMockRow(m, ym) };
+      });
+      var sumR = revs.reduce(function (s, x) {
+        return s + x.r;
+      }, 0);
+      var n = revs.length;
+      var sub = revs.map(function (x) {
+        var w = sumR > 0 ? x.r / sumR : 1 / n;
+        return {
+          monthYm: ym,
+          year: yDisp,
+          scenario: plan.scenario,
+          category: plan.category != null ? plan.category : "",
+          planGranularity: inferPlanGranularityFromRecord(plan),
+          newProductTag: plan.newProductTag,
+          shop: x.m.shop,
+          msku: x.m.msku,
+          sku: x.m.sku,
+          region_code: x.m.region_code,
+          country_code: x.m.country_code,
+          channel: x.m.channel,
+          weight: w,
+          bpRev: x.r,
+          splitAmount: Math.floor(budget * w),
+          mScenario: x.m.scenario,
+          mCategory: x.m.category
+        };
+      });
+      fixRounding(sub, budget);
+      rows = rows.concat(sub);
+    }
+    var sumBpAll = rows.reduce(function (s, r) {
+      return s + r.bpRev;
+    }, 0);
+    rows.forEach(function (r) {
+      r.weight = sumBpAll > 0 ? r.bpRev / sumBpAll : rows.length ? 1 / rows.length : 0;
+    });
+    return rows;
+  }
+
+  /** 对多行规划分别 splitPlan 后按 月+店+MSKU 合并，并按合并后全表 BP 重算权重列 */
+  function aggregateSplitFromPlans(plans) {
+    var map = {};
+    for (var pi = 0; pi < plans.length; pi++) {
+      var sub = splitPlan(plans[pi]);
+      for (var si = 0; si < sub.length; si++) {
+        var r = sub[si];
+        var key =
+          String(r.monthYm || "") +
+          "\t" +
+          String(r.shop || "") +
+          "\t" +
+          String(r.msku || "");
+        if (!map[key]) {
+          map[key] = {
+            monthYm: r.monthYm,
+            shop: r.shop,
+            msku: r.msku,
+            sku: r.sku,
+            region_code: r.region_code,
+            country_code: r.country_code,
+            channel: r.channel,
+            mScenario: r.mScenario,
+            mCategory: r.mCategory,
+            splitAmount: 0,
+            bpRev: 0
+          };
+        }
+        map[key].splitAmount += Number(r.splitAmount) || 0;
+        map[key].bpRev += Number(r.bpRev) || 0;
+      }
+    }
+    var arr = Object.keys(map).map(function (k) {
+      return map[k];
+    });
+    arr.sort(function (a, b) {
+      var c = String(a.monthYm || "").localeCompare(String(b.monthYm || ""));
+      if (c !== 0) return c;
+      c = String(a.shop || "").localeCompare(String(b.shop || ""));
+      if (c !== 0) return c;
+      return String(a.msku || "").localeCompare(String(b.msku || ""));
+    });
+    /** 列表展示用占比：与「拆分金额」同一分母，避免与「全表 BP 合计」口径混用导致与 USD 列观感不一致 */
+    var sumAmt = arr.reduce(function (s, x) {
+      return s + (Number(x.splitAmount) || 0);
+    }, 0);
+    arr.forEach(function (x) {
+      x.weight = sumAmt > 0 ? (Number(x.splitAmount) || 0) / sumAmt : 0;
+    });
+    return arr;
+  }
+
+  function fixRounding(rows, targetTotal) {
+    var sum = rows.reduce(function (s, r) { return s + r.splitAmount; }, 0);
+    var diff = targetTotal - sum;
+    if (rows.length && diff !== 0) {
+      rows[rows.length - 1].splitAmount += diff;
+    }
+    return rows;
+  }
+
+  function initMonthRangeFilter() {
+    var host = document.getElementById("fltMonthRangeHost");
+    if (!host) return;
+    var y = new Date().getFullYear();
+    var start = y + "-01";
+    var end = y + "-12";
+    currentFilter.monthStart = start;
+    currentFilter.monthEnd = end;
+    if (typeof MonthRangePicker === "undefined") {
+      host.textContent = "未加载 month-range-picker.js，请从仓库根目录起静态服务后打开";
+      return;
+    }
+    if (window._fltMonthRangePicker && window._fltMonthRangePicker.destroy) {
+      window._fltMonthRangePicker.destroy();
+    }
+    window._fltMonthRangePicker = MonthRangePicker.mount(host, {
+      start: start,
+      end: end,
+      placeholder: "请选择月份范围",
+      zIndex: 400,
+      onChange: function (s, e) {
+        currentFilter.monthStart = s || "";
+        currentFilter.monthEnd = e || "";
+      }
+    });
+  }
+
+  function syncMonthRangeFilterFromPicker() {
+    if (window._fltMonthRangePicker && typeof window._fltMonthRangePicker.get === "function") {
+      var g = window._fltMonthRangePicker.get();
+      currentFilter.monthStart = g.start || "";
+      currentFilter.monthEnd = g.end || "";
+    }
+  }
+
+  function defaultYearFromMonthFilter() {
+    var s = currentFilter.monthStart;
+    if (s && /^\d{4}/.test(s)) return parseInt(s.slice(0, 4), 10);
+    return new Date().getFullYear();
+  }
+
+  function planMatchesMonthOverlapFilter(p) {
+    if (!currentFilter.monthStart || !currentFilter.monthEnd) return true;
+    var pr = getPlanMonthRangePair(p);
+    var R = enumerateYmMonths(pr.start, pr.end);
+    var F = enumerateYmMonths(currentFilter.monthStart, currentFilter.monthEnd);
+    if (!R.length || !F.length) return false;
+    var fset = {};
+    F.forEach(function (x) {
+      fset[x] = true;
+    });
+    for (var i = 0; i < R.length; i++) {
+      if (fset[R[i]]) return true;
+    }
+    return false;
+  }
+
+  function planMatchesScCatFilter(p) {
+    if (!filterLeafKeys.length) return true;
+    var g = inferPlanGranularityFromRecord(p);
+    if (g === PLAN_G_NEW) return true;
+    if (g === PLAN_G_NP_TAG_ONLY) return false;
+    var Lp = getPlanSceneCategoryLeaves(p);
+    if (Lp.length) {
+      if (Lp.indexOf(ACT_ALL_SCENES) >= 0) return true;
+      return Lp.some(function (pl) {
+        return filterLeafKeys.some(function (fk) {
+          return planLeafMatchesFilterLeaf(pl, fk);
+        });
+      });
+    }
+    if (g === PLAN_G_SCENARIO) {
+      var sn = String(p.scenario || "");
+      return filterLeafKeys.some(function (fk) {
+        var parts = fk.split("\t");
+        return parts[0] === sn;
+      });
+    }
+    var pk = String(p.scenario || "") + "\t" + String(p.category || "");
+    return filterLeafKeys.indexOf(pk) >= 0;
+  }
+
+  function npTagMatchesSelected(p) {
+    if (!filterNpTagKeys.length) return true;
+    var v = planNpTagValue(p);
+    if (!v) return false;
+    return filterNpTagKeys.indexOf(v) >= 0;
+  }
+
+  function fltRegionCodesSelected() {
+    return _fltGeoMsf.region && _fltGeoMsf.region.getValues
+      ? _fltGeoMsf.region.getValues().map(String).filter(Boolean)
+      : [];
+  }
+
+  function fltCountryCodesSelected() {
+    return _fltGeoMsf.country && _fltGeoMsf.country.getValues
+      ? _fltGeoMsf.country.getValues().map(String).filter(Boolean)
+      : [];
+  }
+
+  function fltChannelKeysSelected() {
+    return _fltGeoMsf.channel && _fltGeoMsf.channel.getValues
+      ? _fltGeoMsf.channel.getValues().map(String).filter(Boolean)
+      : [];
+  }
+
+  function fltStoreCodesSelected() {
+    return _fltGeoMsf.store && _fltGeoMsf.store.getValues
+      ? _fltGeoMsf.store.getValues().map(String).filter(Boolean)
+      : [];
+  }
+
+  function planMatchesGeoFilter(p) {
+    var fReg = fltRegionCodesSelected();
+    var fCty = fltCountryCodesSelected();
+    var fCh = fltChannelKeysSelected();
+    var pReg = planRegionCodesResolved(p);
+    var pCty = planCountryCodesResolved(p);
+    var pCh = planChannelKeysResolved(p);
+    if (fReg.length && !pReg.some(function (pr) { return fReg.indexOf(pr) >= 0; })) return false;
+    if (fCty.length && !pCty.some(function (pc) { return fCty.indexOf(pc) >= 0; })) return false;
+    if (fCh.length && !pCh.some(function (pch) { return fCh.indexOf(pch) >= 0; })) return false;
+    return true;
+  }
+
+  function planMatchesStoreFilter(p) {
+    var fs = fltStoreCodesSelected();
+    if (!fs.length) return true;
+    var ps = planStoreCodesResolved(p);
+    if (!ps.length) return true;
+    return ps.some(function (x) {
+      return fs.indexOf(x) >= 0;
+    });
+  }
+
+  function remountPlanRowCountryFor(tr, prevVals) {
+    if (typeof MultiSelectFilter === "undefined") return;
+    var id = tr && tr.dataset && tr.dataset.id;
+    var box = id ? _planRowGeoMsf[id] : null;
+    var hCty = tr && tr.querySelector(".js-plan-country-msf");
+    if (!box || !box.region || !hCty) return;
+    if (box.country) {
+      box.country.destroy();
+      box.country = null;
+    }
+    var rc = box.region.getValues();
+    var opts = countriesOptionsForFltRegions(rc);
+    var keep = (prevVals || []).filter(function (pv) {
+      return opts.some(function (o) {
+        return o.value === pv;
+      });
+    });
+    box.country = MultiSelectFilter.mount(hCty, {
+      placeholder: "请选择国家",
+      showSelectAll: true,
+      zIndex: 560,
+      maxPanelHeight: 200,
+      getOptions: function () {
+        return opts;
+      },
+      initialValues: keep,
+      onChange: function () {
+        rowPersistGeoAndSplit(tr, tr.dataset.id);
+      }
+    });
+  }
+
+  function applyPlanGeoFromTr(tr, p) {
+    var id = tr && tr.dataset && tr.dataset.id;
+    var box = id ? _planRowGeoMsf[id] : null;
+    if (!box || !box.region || !box.country || !box.channel || !box.store) {
+      delete p.planMonthAmounts;
+      return "skip";
+    }
+    var ra = (box.region.getValues() || []).map(String).filter(Boolean);
+    var ca = (box.country.getValues() || []).map(String).filter(Boolean);
+    var cha = (box.channel.getValues() || []).map(String).filter(Boolean);
+    var sta = (box.store.getValues() || []).map(String).filter(Boolean);
+    if (ca.length && !ra.length) {
+      var infer = inferRegionCodeFromCountry(ca[0]);
+      if (infer) {
+        if (box.region) box.region.setValues([infer]);
+        remountPlanRowCountryFor(tr, ca.slice());
+        ra = (box.region.getValues() || []).map(String).filter(Boolean);
+        ca = (box.country.getValues() || []).map(String).filter(Boolean);
+      }
+    }
+    if (ra.length) p.planRegionCodes = ra.slice();
+    else delete p.planRegionCodes;
+    if (ca.length) p.planCountryCodes = ca.slice();
+    else delete p.planCountryCodes;
+    if (cha.length) p.planChannelKeys = cha.slice();
+    else delete p.planChannelKeys;
+    if (sta.length) p.planStoreCodes = sta.slice();
+    else delete p.planStoreCodes;
+    delete p.planRegionCode;
+    delete p.planCountryCode;
+    delete p.planChannelKey;
+    delete p.planStoreCode;
+    delete p.planMonthAmounts;
+    return "ok";
+  }
+
+  function rowPersistGeoAndSplit(tr, id) {
+    id = id || (tr && tr.dataset && tr.dataset.id);
+    var list = loadAll();
+    var row = list.find(function (x) {
+      return x.id === id;
+    });
+    if (!row) return;
+    applyPlanGeoFromTr(tr, row);
+    saveAll(list);
+    renderSplitAggregated();
+  }
+
+  function mountPlanRowGeoMsfs(tr, p) {
+    if (typeof MultiSelectFilter === "undefined") {
+      tr.querySelectorAll(".msf-plan-row").forEach(function (el) {
+        el.textContent = "未加载 multi-select-filter.js";
+      });
+      return;
+    }
+    var id = p.id;
+    var hReg = tr.querySelector(".js-plan-region-msf");
+    var hCty = tr.querySelector(".js-plan-country-msf");
+    var hCh = tr.querySelector(".js-plan-channel-msf");
+    var hSt = tr.querySelector(".js-plan-store-msf");
+    if (!hReg || !hCty || !hCh || !hSt) return;
+    var box = { region: null, country: null, channel: null, store: null };
+    _planRowGeoMsf[id] = box;
+    box.region = MultiSelectFilter.mount(hReg, {
+      placeholder: "请选择区域",
+      showSelectAll: true,
+      zIndex: 558,
+      maxPanelHeight: 200,
+      getOptions: function () {
+        return (REGION_COUNTRY_DATA.regions || []).map(function (r) {
+          return { value: r.region_code, label: r.region_name };
+        });
+      },
+      initialValues: planRegionCodesResolved(p),
+      onChange: function () {
+        var pv = box.country ? box.country.getValues().slice() : [];
+        remountPlanRowCountryFor(tr, pv);
+        rowPersistGeoAndSplit(tr, id);
+      }
+    });
+    remountPlanRowCountryFor(tr, planCountryCodesResolved(p));
+    box.channel = MultiSelectFilter.mount(hCh, {
+      placeholder: "请选择渠道",
+      showSelectAll: true,
+      zIndex: 558,
+      maxPanelHeight: 200,
+      getOptions: function () {
+        return CHANNEL_SELECT_OPTIONS.filter(function (o) {
+          return String(o.value || "").trim();
+        }).map(function (o) {
+          return { value: o.value, label: o.label };
+        });
+      },
+      initialValues: planChannelKeysResolved(p),
+      onChange: function () {
+        rowPersistGeoAndSplit(tr, id);
+      }
+    });
+    box.store = MultiSelectFilter.mount(hSt, {
+      placeholder: "请选择店铺",
+      showSelectAll: true,
+      zIndex: 558,
+      maxPanelHeight: 200,
+      getOptions: function () {
+        return FILTER_STORE_CODES.map(function (s) {
+          return { value: s, label: s };
+        });
+      },
+      initialValues: planStoreCodesResolved(p),
+      onChange: function () {
+        rowPersistGeoAndSplit(tr, id);
+      }
+    });
+  }
+
+  function mountPlanRowSkuMsf(tr, p) {
+    if (typeof MultiSelectFilter === "undefined") {
+      var h = tr.querySelector(".js-plan-sku-msf");
+      if (h) h.textContent = "未加载 multi-select-filter.js";
+      return;
+    }
+    var id = p.id;
+    var host = tr.querySelector(".js-plan-sku-msf");
+    if (!host) return;
+    if (_planRowSkuMsf[id]) {
+      _planRowSkuMsf[id].destroy();
+      delete _planRowSkuMsf[id];
+    }
+    var cur = getPlanSkus(p);
+    _planRowSkuMsf[id] = MultiSelectFilter.mount(host, {
+      placeholder: "请选择 SKU（可多选）",
+      showSelectAll: false,
+      zIndex: 562,
+      maxPanelHeight: 220,
+      getOptions: function () {
+        return buildPlanSkuOptionsForTr(tr);
+      },
+      initialValues: cur,
+      onChange: function (vals) {
+        var picked = Array.isArray(vals) ? vals : (_planRowSkuMsf[id] ? _planRowSkuMsf[id].getValues() : []);
+        writeSkusToTr(tr, picked);
+        var list = loadAll();
+        var row = list.find(function (x) {
+          return x.id === id;
+        });
+        if (!row) return;
+        applyLeavesAndSkusToPlan(row, readLeavesFromTr(tr), picked);
+        saveAll(list);
+        renderSplitAggregated();
+      }
+    });
+  }
+
+  function filteredList() {
+    var list = loadAll();
+    var hasSc = filterLeafKeys.length > 0;
+    var hasNp = filterNpTagKeys.length > 0;
+    return list.filter(function (p) {
+      if (!planMatchesMonthOverlapFilter(p)) return false;
+      if (!planMatchesGeoFilter(p)) return false;
+      if (!planMatchesStoreFilter(p)) return false;
+      if (!hasSc && !hasNp) return true;
+      if (!hasSc && hasNp) {
+        return npTagMatchesSelected(p);
+      }
+      if (hasSc && !hasNp) {
+        return planMatchesScCatFilter(p);
+      }
+      return planMatchesScCatFilter(p) && npTagMatchesSelected(p);
+    });
+  }
+
+  function splitRowMskuMainRow(r) {
+    return findMockMskuRow(r && r.msku) || {};
+  }
+
+  function splitRowEffectiveGeo(r) {
+    var mrow = splitRowMskuMainRow(r);
+    return {
+      region_code: String(r.region_code != null ? r.region_code : mrow.region_code || "").trim(),
+      country_code: String(r.country_code != null ? r.country_code : mrow.country_code || "").trim(),
+      channel: String(r.channel != null ? r.channel : mrow.channel || "").trim(),
+      shop: String((r.shop != null ? r.shop : mrow.shop) || "").trim()
+    };
+  }
+
+  /** 拆分结果表：地理 + 店铺（与顶部多选一致；未选则不过滤该维） */
+  function splitRowMatchesGeoAndStoreDisplayFilters(r) {
+    var g = splitRowEffectiveGeo(r);
+    var fReg = fltRegionCodesSelected();
+    var fCty = fltCountryCodesSelected();
+    var fCh = fltChannelKeysSelected();
+    var fs = fltStoreCodesSelected();
+    if (fReg.length && fReg.indexOf(g.region_code) < 0) return false;
+    if (fCty.length && fCty.indexOf(g.country_code) < 0) return false;
+    if (fCh.length && fCh.indexOf(g.channel) < 0) return false;
+    if (fs.length && fs.indexOf(g.shop) < 0) return false;
+    return true;
+  }
+
+  /** 拆分结果表：场景品类（行上为主数据 scenario/category，与筛选叶子匹配） */
+  function splitRowMatchesScCatDisplayFilter(r) {
+    if (!filterLeafKeys.length) return true;
+    if (String(r.mScenario || "").trim() === NEW_PRODUCT_SCENE) return true;
+    var m = { scenario: r.mScenario, category: r.mCategory };
+    return filterLeafKeys.some(function (fk) {
+      return mskuMatchesSceneCatLeaf(m, fk);
+    });
+  }
+
+  function splitRowMatchesNpTagDisplayFilter(r) {
+    if (!filterNpTagKeys.length) return true;
+    var mrow = splitRowMskuMainRow(r);
+    var v = mrow && mrow.newProductTag != null ? String(mrow.newProductTag).trim() : "";
+    if (!v) return false;
+    return filterNpTagKeys.indexOf(v) >= 0;
+  }
+
+  function splitRowMatchesSkuDomFilter(r) {
+    var modeEl = document.getElementById("fltSkuMode");
+    var inpEl = document.getElementById("fltSku");
+    var mode = modeEl ? String(modeEl.value || "fuzzy") : "fuzzy";
+    var raw = inpEl ? String(inpEl.value || "").trim() : "";
+    if (!raw) return true;
+    var sku = String(r.msku || "").trim();
+    if (!sku) return false;
+    if (mode === "exact") return sku === raw;
+    if (mode === "8digit") {
+      var want = raw.replace(/\D/g, "");
+      if (!want) return true;
+      var got = sku.replace(/\D/g, "");
+      return sku.indexOf(want) >= 0 || (got.length >= 8 && got.indexOf(want) >= 0);
+    }
+    return sku.toLowerCase().indexOf(raw.toLowerCase()) >= 0;
+  }
+
+  function splitRowMatchesModelDomFilter(r) {
+    var sel = document.getElementById("fltModel");
+    var msel = sel && sel.value ? String(sel.value).trim() : "";
+    if (!msel) return true;
+    var mrow = splitRowMskuMainRow(r);
+    var md = mrow && mrow.model != null ? String(mrow.model).trim() : "";
+    return md === msel;
+  }
+
+  function splitRowMatchesTlSalesDomFilter(r) {
+    var tlEl = document.getElementById("fltTl");
+    var sEl = document.getElementById("fltSales");
+    var tlSel = tlEl && tlEl.value ? String(tlEl.value).trim() : "";
+    var sSel = sEl && sEl.value ? String(sEl.value).trim() : "";
+    if (!tlSel && !sSel) return true;
+    var o = mockSalesTlForSeed(String(r.msku || "") + "\t" + String(r.shop || ""));
+    if (tlSel && o.tl !== tlSel) return false;
+    if (sSel && o.sales !== sSel) return false;
+    return true;
+  }
+
+  /** 拆分结果表：是否落在顶部月份筛选内（未选月份则不过滤） */
+  function splitRowMatchesTopMonthFilter(r) {
+    if (!currentFilter.monthStart || !currentFilter.monthEnd) return true;
+    var ym = String(r && r.monthYm ? r.monthYm : "").trim();
+    if (!ym) return false;
+    var F = enumerateYmMonths(currentFilter.monthStart, currentFilter.monthEnd);
+    for (var i = 0; i < F.length; i++) {
+      if (F[i] === ym) return true;
+    }
+    return false;
+  }
+
+  /**
+   * 拆分结果表展示行：顶部所有筛选项仅裁切列表，不改变分摊输入。
+   * 分摊在 renderSplitAggregated 中对 loadAll() 全量规划行已完成。
+   */
+  function splitRowMatchesListDisplayFilters(r) {
+    if (!splitRowMatchesTopMonthFilter(r)) return false;
+    if (!splitRowMatchesGeoAndStoreDisplayFilters(r)) return false;
+    if (!splitRowMatchesScCatDisplayFilter(r)) return false;
+    if (!splitRowMatchesNpTagDisplayFilter(r)) return false;
+    if (!splitRowMatchesSkuDomFilter(r)) return false;
+    if (!splitRowMatchesModelDomFilter(r)) return false;
+    if (!splitRowMatchesTlSalesDomFilter(r)) return false;
+    return true;
+  }
+
+  function destroyPlanRowGeoMsfsAll() {
+    Object.keys(_planRowGeoMsf).forEach(function (id) {
+      var b = _planRowGeoMsf[id];
+      if (!b) {
+        delete _planRowGeoMsf[id];
+        return;
+      }
+      if (b.region && typeof b.region.destroy === "function") b.region.destroy();
+      if (b.country && typeof b.country.destroy === "function") b.country.destroy();
+      if (b.channel && typeof b.channel.destroy === "function") b.channel.destroy();
+      if (b.store && typeof b.store.destroy === "function") b.store.destroy();
+      delete _planRowGeoMsf[id];
+    });
+  }
+
+  function destroyPlanRowSkuMsfsAll() {
+    Object.keys(_planRowSkuMsf).forEach(function (id) {
+      var inst = _planRowSkuMsf[id];
+      if (inst && typeof inst.destroy === "function") inst.destroy();
+      delete _planRowSkuMsf[id];
+    });
+  }
+
+  function destroyPlanRowMonthPickers() {
+    Object.keys(_planRowMrPickers).forEach(function (id) {
+      var inst = _planRowMrPickers[id];
+      if (inst && typeof inst.destroy === "function") inst.destroy();
+      delete _planRowMrPickers[id];
+    });
+  }
+
+  function readPlanMonthRangeFromTr(tr) {
+    var id = tr && tr.dataset && tr.dataset.id;
+    if (!id) return { start: "", end: "" };
+    var inst = _planRowMrPickers[id];
+    if (inst && typeof inst.get === "function") {
+      var g = inst.get();
+      return { start: String(g.start || "").trim(), end: String(g.end || "").trim() };
+    }
+    var found = loadAll().find(function (x) {
+      return x.id === id;
+    });
+    return getPlanMonthRangePair(found || {});
+  }
+
+  function applyPlanMonthsToRecord(p, start, end) {
+    if (!start || !end) return false;
+    if (ymOrd(start) == null || ymOrd(end) == null) return false;
+    var a = ymOrd(start);
+    var b = ymOrd(end);
+    if (b < a) {
+      var t = start;
+      start = end;
+      end = t;
+    }
+    p.planMonthStart = start;
+    p.planMonthEnd = end;
+    p.year = parseInt(String(start).slice(0, 4), 10) || p.year || new Date().getFullYear();
+    return true;
+  }
+
+  function mountPlanRowMonthPicker(tr, p) {
+    var host = tr.querySelector(".js-plan-mr-host");
+    if (!host || typeof MonthRangePicker === "undefined") {
+      if (host) host.textContent = "未加载 month-range-picker.js";
+      return;
+    }
+    var pr = getPlanMonthRangePair(p);
+    _planRowMrPickers[p.id] = MonthRangePicker.mount(host, {
+      start: pr.start,
+      end: pr.end,
+      placeholder: "请选择月份范围",
+      zIndex: 600,
+      onChange: function (s, e) {
+        var list = loadAll();
+        var row = list.find(function (x) {
+          return x.id === p.id;
+        });
+        if (row && s && e) {
+          applyPlanMonthsToRecord(row, s, e);
+          saveAll(list);
+        }
+        renderSplitAggregated();
+      }
+    });
+  }
+
+  function renderPlans() {
+    var tbody = document.getElementById("tbodyPlan");
+    var list = filteredList();
+    if (planRowEditId && !list.some(function (p) { return p.id === planRowEditId; })) {
+      closePlanRowScCatPop();
+    }
+    destroyPlanRowGeoMsfsAll();
+    destroyPlanRowSkuMsfsAll();
+    destroyPlanRowMonthPickers();
+    tbody.innerHTML = "";
+    if (list.length === 0) {
+      var emptyPlanMsg =
+        loadAll().length === 0
+          ? "无数据，可点击「新增一行」开始维护"
+          : "当前筛选下无规划行（可点击「搜索」或调整筛选）；下方拆分结果仍按全部已保存规划行分摊后，再按顶部筛选裁切展示。";
+      tbody.innerHTML = '<tr><td colspan="11" class="empty">' + escapeHtml(emptyPlanMsg) + "</td></tr>";
+    } else {
+      list.forEach(function (p) {
+        var tr = document.createElement("tr");
+        tr.dataset.id = p.id;
+        tr.innerHTML =
+          '<td><div class="plan-row-mr-host js-plan-mr-host"></div></td>' +
+          '<td><input type="text" class="inp-inline js-project-name" maxlength="120" placeholder="请输入项目名称" value="' + escapeHtml(String(p.projectName || "")) + '" /></td>' +
+          "<td>" + scenarioCategoryCellHtml(p) + "</td>" +
+          "<td>" + planSkuCellHtml(p) + "</td>" +
+          "<td>" + planNpTagCellHtml(p) + "</td>" +
+          '<td><div class="js-plan-region-msf msf-plan-row" style="min-width:120px;width:100%"></div></td>' +
+          '<td><div class="js-plan-country-msf msf-plan-row" style="min-width:130px;width:100%"></div></td>' +
+          '<td><div class="js-plan-channel-msf msf-plan-row" style="min-width:120px;width:100%"></div></td>' +
+          '<td><div class="js-plan-store-msf msf-plan-row" style="min-width:120px;width:100%"></div></td>' +
+          '<td><input type="number" class="inp-inline js-amt num" min="0" step="1" value="' + escapeHtml(String(p.planAmount)) + '" /></td>' +
+          '<td class="actions">' +
+          '<button type="button" class="link js-save">保存</button>' +
+          '<button type="button" class="link danger js-del">删除</button>' +
+          "</td>";
+        tbody.appendChild(tr);
+        mountPlanRowMonthPicker(tr, p);
+        mountPlanRowGeoMsfs(tr, p);
+        mountPlanRowSkuMsf(tr, p);
+      });
+      bindPlanRowEvents();
+    }
+    renderSplitAggregated();
+  }
+
+  function escapeHtml(s) {
+    return String(s)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/"/g, "&quot;");
+  }
+
+
+  function formatNum(n) {
+    return Number(n).toLocaleString("zh-CN");
+  }
+
+  function formatUsd(n) {
+    return "$" + Number(n).toLocaleString("en-US", { maximumFractionDigits: 0 });
+  }
+
+  function formatPct01(ratio) {
+    if (!(ratio > 0) || ratio !== ratio) return "—";
+    return (ratio * 100).toFixed(2) + "%";
+  }
+
+  /** 场景品类、SKU、新品标签不可同时为空（新品规划行以标识为准） */
+  function validatePlanRowScope(p, silent) {
+    silent = !!silent;
+    var sc = String(p.scenario || "").trim();
+    var cat = String(p.category != null ? p.category : "").trim();
+    var tag = planNpTagValue(p);
+    var L = getPlanSceneCategoryLeaves(p);
+    var sk = getPlanSkus(p);
+    if (sc === NEW_PRODUCT_SCENE || inferPlanGranularityFromRecord(p) === PLAN_G_NEW) {
+      if (!String(p.category || "").trim()) {
+        if (!silent) toast("新品规划请填写新品标识");
+        return false;
+      }
+      return true;
+    }
+    if (!L.length && !sk.length && !tag) {
+      if (!silent) {
+        toast("场景品类、SKU、新品标签三者不可同时为空。");
+      }
+      return false;
+    }
+    if (!sc && cat && !L.length) {
+      if (!silent) toast("品类必须从属于场景：请先选择左侧场景再选具体品类");
+      return false;
+    }
+    return true;
+  }
+
+  function bindPlanRowEvents() {
+    document.querySelectorAll("#tbodyPlan tr").forEach(function (tr) {
+      var id = tr.dataset.id;
+      if (!id) return;
+      var planTrig = tr.querySelector(".js-plan-sc-cat-trigger");
+      if (planTrig) {
+        planTrig.addEventListener("click", function (e) {
+          e.stopPropagation();
+          var host = document.getElementById("planScCatPopHost");
+          if (planRowEditId === id && host && !host.hidden) {
+            closePlanRowScCatPop();
+            return;
+          }
+          openPlanRowScCat(tr, id);
+        });
+      }
+      var npRow = tr.querySelector(".js-np-tag-row");
+      if (npRow) {
+        npRow.addEventListener("change", function () {
+          var list2 = loadAll();
+          var pr = list2.find(function (x) {
+            return x.id === id;
+          });
+          if (!pr) return;
+          var tnp = String(npRow.value || "").trim();
+          if (tnp) pr.newProductTag = tnp;
+          else delete pr.newProductTag;
+          enrichPlanFromTree(pr);
+          saveAll(list2);
+          syncPlanRowDomFromPlan(tr, pr);
+          renderSplitAggregated();
+        });
+      }
+      tr.querySelector(".js-save").addEventListener("click", function () {
+        if (persistRow(tr, id)) {
+          toast("已保存该行");
+        }
+      });
+      tr.querySelector(".js-del").addEventListener("click", function () {
+        if (!confirm("确定删除该行？")) return;
+        var list = loadAll().filter(function (p) { return p.id !== id; });
+        saveAll(list);
+        toast("已删除");
+        renderPlans();
+      });
+    });
+  }
+
+  function persistRow(tr, id) {
+    var list = loadAll();
+    var p = list.find(function (x) { return x.id === id; });
+    if (!p) return false;
+    var mr = readPlanMonthRangeFromTr(tr);
+    if (!mr.start || !mr.end) {
+      toast("请完整选择规划月份范围");
+      return false;
+    }
+    var amt = parseFloat(tr.querySelector(".js-amt").value) || 0;
+    var projectName = String((tr.querySelector(".js-project-name") && tr.querySelector(".js-project-name").value) || "").trim();
+    var leaves = readLeavesFromTr(tr);
+    var skus = readSkusFromTrSafe(tr);
+    var npSel = tr.querySelector(".js-np-tag-row");
+    var tagFromDom = npSel && npSel.value != null ? String(npSel.value).trim() : "";
+    var fake = JSON.parse(JSON.stringify(p));
+    fake.planAmount = amt;
+    fake.projectName = projectName;
+    if (!applyPlanMonthsToRecord(fake, mr.start, mr.end)) {
+      toast("规划月份范围无效");
+      return false;
+    }
+    applyLeavesAndSkusToPlan(fake, leaves, skus);
+    if (tagFromDom) fake.newProductTag = tagFromDom;
+    else delete fake.newProductTag;
+    applyPlanGeoFromTr(tr, fake);
+    fake.planGranularity = inferPlanGranularityFromRecord(fake);
+    if (!validatePlanRowScope(fake)) {
+      renderPlans();
+      return false;
+    }
+    if (!validatePlanUnique(list, fake, id)) {
+      toast("与已有规划重复（同月份范围、同规划对象组合）");
+      renderPlans();
+      return false;
+    }
+    applyPlanMonthsToRecord(p, mr.start, mr.end);
+    p.planAmount = amt;
+    p.projectName = projectName;
+    applyLeavesAndSkusToPlan(p, leaves, skus);
+    if (tagFromDom) p.newProductTag = tagFromDom;
+    else delete p.newProductTag;
+    applyPlanGeoFromTr(tr, p);
+    assignStoredGranularity(p);
+    enrichPlanFromTree(p);
+    saveAll(list);
+    closePlanRowScCatPop();
+    renderPlans();
+    return true;
+  }
+
+  function clearSplitTable() {
+    var tb = document.getElementById("tbodySplit");
+    if (tb) tb.innerHTML = "";
+  }
+
+  function renderSplitAggregated() {
+    var tbody = document.getElementById("tbodySplit");
+    if (!tbody) return;
+    var plansForSplit = loadAll();
+    tbody.innerHTML = "";
+    if (!plansForSplit.length) {
+      clearSplitTable();
+      return;
+    }
+    var allRows = aggregateSplitFromPlans(plansForSplit);
+    var rows = allRows.filter(splitRowMatchesListDisplayFilters);
+    if (!rows.length) {
+      var emptyMsg =
+        allRows.length > 0
+          ? "当前顶部筛选条件下无拆分明细行（分摊已按全部规划行计算；可放宽渠道/店铺/场景品类/新品/月份/SKU 等筛选）。"
+          : "当前无拆分结果（请检查各行的场景品类、SKU、新品标签、规划月份及区域/国家/渠道/店铺是否与示例主数据一致）。";
+      tbody.innerHTML = '<tr><td colspan="8" class="empty">' + escapeHtml(emptyMsg) + "</td></tr>";
+      return;
+    }
+    var splitSum = rows.reduce(function (a, r) {
+      return a + r.splitAmount;
+    }, 0);
+    var sumVis = splitSum;
+    rows.forEach(function (x) {
+      x.weight = sumVis > 0 ? (Number(x.splitAmount) || 0) / sumVis : 0;
+    });
+    var tr0 = document.createElement("tr");
+    tr0.className = "split-row-total";
+    tr0.innerHTML =
+      '<td class="split-path-cell">总计</td>' +
+      '<td class="split-path-cell"><span class="split-cell-lines">' +
+      escapeHtml("全场景/全部品类/全部品线") +
+      "</span></td>" +
+      '<td><span class="split-cell-lines">sales: 全部\nTL: 全部</span></td>' +
+      '<td><span class="split-cell-lines">SKU: 全部\nMSKU: 全部</span></td>' +
+      "<td></td>" +
+      "<td>—</td>" +
+      '<td class="num">' +
+      formatPct01(splitSum > 0 ? 1 : 0) +
+      "</td>" +
+      '<td class="num">' +
+      formatUsd(splitSum) +
+      "</td>";
+    tbody.appendChild(tr0);
+    rows.forEach(function (r) {
+      var tr = document.createElement("tr");
+      tr.innerHTML =
+        '<td class="split-path-cell">' +
+        regionStorePathHtml(r) +
+        "</td>" +
+        '<td class="split-path-cell">' + sceneCategoryLineHtml(r) + "</td>" +
+        "<td>" + salesTlCellHtml(r) + "</td>" +
+        "<td>" + skuInfoCellHtml(r) + "</td>" +
+        "<td>" + splitRowNpTagCellHtml(r) + "</td>" +
+        "<td>" + escapeHtml(r.monthYm || "") + "</td>" +
+        '<td class="num">' + formatPct01(r.weight) + "</td>" +
+        '<td class="num">' + formatUsd(r.splitAmount) + "</td>";
+      tbody.appendChild(tr);
+    });
+  }
+
+  function toast(msg) {
+    var el = document.getElementById("toast");
+    el.textContent = msg;
+    el.classList.add("show");
+    clearTimeout(el._t);
+    el._t = setTimeout(function () { el.classList.remove("show"); }, 2200);
+  }
+
+  document.getElementById("btnQuery").addEventListener("click", function () {
+    closePlanRowScCatPop();
+    closeScCatPop();
+    closeNpTagPop();
+    syncMonthRangeFilterFromPicker();
+    renderPlans();
+    toast(
+      "已查询：规划表按筛选显示行；拆分表按全部规划行先分摊，再按顶部所有筛选项裁切展示；场景品类/新品未选则该维在拆分表不过滤。"
+    );
+  });
+
+  document.getElementById("btnAdd").addEventListener("click", function () {
+    var list = loadAll();
+    syncMonthRangeFilterFromPicker();
+    var y = defaultYearFromMonthFilter();
+    var base =
+      SCENARIO_CATEGORY_TREE.find(function (n) {
+        return n.scenario !== "未分类";
+      }) || SCENARIO_CATEGORY_TREE[0];
+    if (!base || !base.categories || !base.categories.length) {
+      toast("场景品类主数据未就绪，请稍后刷新页面");
+      return;
+    }
+    var row = {
+      id: uid(),
+      year: y,
+      planMonthStart: y + "-01",
+      planMonthEnd: y + "-12",
+      projectName: "",
+      scenario: base.scenario,
+      category: base.categories[0],
+      planAmount: 0,
+      sceneCategoryLeaves: [leafKey(base.scenario, base.categories[0])]
+    };
+    enrichPlanFromTree(row);
+    list.push(row);
+    saveAll(list);
+    renderPlans();
+    toast("已新增一行，请编辑后保存");
+  });
+
+  document.getElementById("btnSaveAll").addEventListener("click", function () {
+    closePlanRowScCatPop();
+    var list = loadAll();
+    var mrErr = false;
+    document.querySelectorAll("#tbodyPlan tr").forEach(function (tr) {
+      var id = tr.dataset.id;
+      if (!id) return;
+      var p = list.find(function (x) { return x.id === id; });
+      if (!p) return;
+      var mr = readPlanMonthRangeFromTr(tr);
+      if (!mr.start || !mr.end || !applyPlanMonthsToRecord(p, mr.start, mr.end)) mrErr = true;
+      p.planAmount = parseFloat(tr.querySelector(".js-amt").value) || 0;
+      p.projectName = String((tr.querySelector(".js-project-name") && tr.querySelector(".js-project-name").value) || "").trim();
+      var leaves = readLeavesFromTr(tr);
+      var skus = readSkusFromTrSafe(tr);
+      applyLeavesAndSkusToPlan(p, leaves, skus);
+      var npSel = tr.querySelector(".js-np-tag-row");
+      var tv = npSel && npSel.value != null ? String(npSel.value).trim() : "";
+      if (tv) p.newProductTag = tv;
+      else delete p.newProductTag;
+      applyPlanGeoFromTr(tr, p);
+      assignStoredGranularity(p);
+    });
+    if (mrErr) {
+      toast("存在未完成或无效的规划月份范围，请修正后再保存全部");
+      renderPlans();
+      return;
+    }
+    for (var vi = 0; vi < list.length; vi++) {
+      if (!validatePlanRowScope(list[vi], true)) {
+        toast(
+          "第 " +
+            (vi + 1) +
+            " 行未通过保存校验（场景品类、SKU、新品标签不可同时为空；新品规划缺少标识等）"
+        );
+        renderPlans();
+        return;
+      }
+    }
+    var seen = {};
+    for (var i = 0; i < list.length; i++) {
+      var k = planIdentityKey(list[i]);
+      if (seen[k]) {
+        toast("存在重复的规划月份范围+规划对象组合，请修正后再保存全部");
+        renderPlans();
+        return;
+      }
+      seen[k] = true;
+    }
+    list.forEach(function (p) {
+      enrichPlanFromTree(p);
+    });
+    saveAll(list);
+    renderPlans();
+    toast("已全部写入本地");
+  });
+
+  function startApp() {
+    rebuildChannelStoreGlobals();
+    var rEmb0 = parseEmbeddedRegionJson();
+    if (rEmb0 && (!REGION_COUNTRY_DATA.regions || !REGION_COUNTRY_DATA.regions.length)) {
+      applyRegionPayload(rEmb0);
+    }
+    initFilterOptions();
+    wireScCatFilter();
+    wireNpTagFilter();
+    wirePlanRowScCatOutsideClose();
+    ensureSeed();
+    initMonthRangeFilter();
+    renderPlans();
+    if (!SCENARIO_CATEGORY_TREE.length) {
+      toast("未加载到场景品类主数据，请检查网络或确认页面内嵌的场景品类数据仍在。");
+    }
+    if (!REGION_COUNTRY_DATA.regions || !REGION_COUNTRY_DATA.regions.length) {
+      toast("未加载到区域国家主数据，请检查网络或确认页面内嵌的区域国家数据仍在。");
+    }
+  }
+
+  function parseEmbedAndFetchThenStart() {
+    var embedded = parseEmbeddedSceneJson();
+    if (embedded) applyScenePayload(embedded);
+    var regEmb = parseEmbeddedRegionJson();
+    if (regEmb) applyRegionPayload(regEmb);
+    startApp();
+    function fetchFirst(paths, onOk) {
+      var pi = 0;
+      function next() {
+        if (pi >= paths.length) return;
+        var u = paths[pi++];
+        fetch(u)
+          .then(function (r) {
+            if (!r.ok) throw new Error("bad");
+            return r.json();
+          })
+          .then(onOk)
+          .catch(next);
+      }
+      next();
+    }
+    fetchFirst(DATA_JSON_PATHS.scene, function (d) {
+      applyScenePayload(d);
+      renderPlans();
+      updateScCatTrigger();
+      updateNpTagTrigger();
+      refreshScCatColumnsIfOpen();
+      refreshNpTagListIfOpen();
+    });
+    fetchFirst(DATA_JSON_PATHS.region, function (d) {
+      applyRegionPayload(d);
+      mountFilterGeoMsfs();
+      renderPlans();
+    });
+    fetchFirst(DATA_JSON_PATHS.channelStore, function (d) {
+      applyChannelStorePayload(d);
+      mountFilterGeoMsfs();
+      renderPlans();
+    });
+    fetchFirst(DATA_JSON_PATHS.salesBase, function (d) {
+      applySalesBasePayload(d);
+      renderPlans();
+    });
+  }
+
+  parseEmbedAndFetchThenStart();
+})();
+  </script>
+
+
+
+
+
+
+
+
+
+
+
+<!-- prototype-annotation:start -->
+<link rel="stylesheet" href="prototype-annotation/prototype-annotation.css">
+<script id="prototype-annotation-config" type="application/json">
+{
+  "pageId": "marketing-expense-planning",
+  "version": "2026-05-19T18:00:00+08:00",
+  "pageTitle": "营销费用规划",
+  "annotations": [
+    {
+      "id": "flt-sc-cat",
+      "selector": "#fltScCatTrigger",
+      "title": "场景品类筛选",
+      "body": "场景品类筛选逻辑：\n1. 左侧选场景、右侧勾选「本场景维度（全品类）」或具体品类；已选项在下拉内高亮，可逐项取消。\n2. 触发器展示摘要（如「居家 · 全品类、观影 / TV灯带」），不选表示不按场景品类过滤。\n3. 与新品标签、月份范围等为「且」关系；仅裁切规划表与拆分表展示，不改变已保存行的分摊总额。"
+    },
+    {
+      "id": "flt-np-tag",
+      "selector": "#fltNpTagTrigger",
+      "title": "新品标签筛选",
+      "body": "新品标签筛选逻辑：\n1. 可多选「某年新品」，命中任意一个即可（或关系）。\n2. 与场景品类同时勾选时，两行条件都要满足（且关系）。\n3. 只影响规划表与拆分表的列表展示，不改变已保存规划行的分摊总额。"
+    },
+    {
+      "id": "flt-region-country",
+      "selector": "#fltRegionMsf",
+      "title": "区域与国家",
+      "body": "区域国家筛选逻辑：\n1. 区域、国家为多选，列表与下拉均展示中文名称（如北美区、美国）。\n2. 选区域后国家选项联动收窄；主要作用于下方拆分结果表的展示裁切。\n3. 规划表行内区域/国家为空时表示该维度不限，拆分时不额外收窄商品范围。"
+    },
+    {
+      "id": "flt-month-range",
+      "selector": "#fltMonthRangeHost",
+      "title": "顶部月份范围",
+      "body": "月份范围筛选逻辑：\n1. 限定当前查看的月份区间，默认当年 1–12 月。\n2. 规划表：仅展示「规划月份范围」与所选区间有重叠的行。\n3. 拆分表：先按全部规划行完成分摊，再按本区间及渠道、店铺等条件裁切可见明细；不参与单行「规划月份范围」内的月份切分。"
+    },
+    {
+      "id": "flt-channel-store",
+      "selector": "#fltChannelMsf",
+      "title": "渠道与店铺",
+      "body": "渠道店铺筛选逻辑：\n1. 渠道、店铺为多选，数据口径与全局渠道店铺主数据一致。\n2. 主要作用于下方拆分结果表的展示裁切。\n3. 示例：只选「Govee」渠道时，拆分表仅显示该渠道下的店铺与商品明细，但各行拆分金额仍来自全量分摊后的切片。"
+    },
+    {
+      "id": "btn-query",
+      "selector": "#btnQuery",
+      "title": "搜索刷新",
+      "body": "搜索刷新逻辑：\n1. 按当前顶部全部筛选条件重新渲染规划表与拆分表。\n2. 修改规划行内容后若未自动刷新，需点击搜索或保存后查看最新拆分。\n3. 本页为原型，数据来自浏览器本地缓存与示例主数据。"
+    },
+    {
+      "id": "btn-add-row",
+      "selector": "#btnAdd",
+      "title": "新增规划行",
+      "body": "新增规划行逻辑：\n1. 在规划表末尾插入一行，需填写规划月份范围、场景品类或 SKU、地理与渠道店铺范围及规划金额。\n2. 场景品类、SKU、新品标签共同决定参与拆分的商品集合，须同时满足才纳入。\n3. 保存前拆分预览可能为空，保存并刷新后参与下方拆分计算。"
+    },
+    {
+      "id": "btn-save-all",
+      "selector": "#btnSaveAll",
+      "title": "保存全部",
+      "body": "保存全部逻辑：\n1. 校验规划月份范围、规划对象组合是否重复，重复则提示修正。\n2. 将全部规划行写入浏览器本地存储，便于刷新后保留（原型演示，不等同正式落库）。\n3. 保存成功后刷新规划表与拆分结果。"
+    },
+    {
+      "id": "tbl-plan",
+      "selector": "#tblPlan",
+      "title": "场景品类规划表",
+      "body": "规划表业务逻辑：\n1. 每行代表一条营销费用规划，金额为该行待分摊的美元总额。\n2. 「规划月份范围」决定拆分到哪些自然月；与顶部筛选月份范围无关。\n3. 行内区域、国家展示中文名称；与 SKU、渠道、店铺等共同收窄可参与拆分的 MSKU×店铺范围。"
+    },
+    {
+      "id": "col-plan-amount",
+      "selector": "#tblPlan thead th:nth-child(10)",
+      "title": "规划金额列",
+      "body": "规划金额列逻辑：\n1. 本列金额为该行营销费用规划总额（美元）。\n2. 拆分算法：先按各行规划月份内各月业务营收占比分到月，再按当月各商品营收占比分到 MSKU×店铺。\n3. 示例：规划 12 万、两月营收 4:6，则两月分别约 4.8 万与 7.2 万，再在月内按商品权重细分。"
+    },
+    {
+      "id": "tbl-split",
+      "selector": "#tblSplit",
+      "title": "拆分结果表",
+      "body": "拆分结果表逻辑：\n1. 展示按全部已保存规划行合并分摊后的明细，再受顶部筛选裁切。\n2. 首行「总计」为当前可见明细的金额合计，占比列在可见范围内合计 100%。\n3. 商品主数据与 MSKU、店铺来自销售基础信息示例宽表，MSKU 与店铺为业务唯一组合键。"
+    },
+    {
+      "id": "col-split-weight",
+      "selector": "#tblSplit thead th:nth-child(7)",
+      "title": "分摊金额占比",
+      "body": "分摊占比列逻辑：\n1. 表示该行拆分金额占当前可见明细总额的比例。\n2. 筛选缩小可见行后，占比在可见集合内重新归一，合计为 100%。\n3. 与「拆分营销费用」列配合核对分摊是否闭合。"
+    },
+    {
+      "id": "plan-sc-cat-pop",
+      "selector": "#planScCatPopRow",
+      "title": "行内场景品类",
+      "body": "行内场景品类浮层逻辑：\n1. 与顶部筛选相同交互：左侧场景、右侧勾选全品类或具体品类，已选项高亮可取消。\n2. 与行级 SKU、新品标签组合后，进一步收窄参与拆分的商品范围。\n3. 打开时自动定位到该行已选场景；浮层关闭不影响已选值。"
+    }
+  ],
+  "fieldTips": [
+    {
+      "id": "tip-month-range",
+      "selector": "label.filter-field-label-text[for=\"fltMonthRangeHost\"]",
+      "title": "月份范围",
+      "body": "用于限定本页查看的月份区间。规划表按行内「规划月份范围」是否与该区间重叠决定是否展示；拆分表在该区间及渠道等条件下裁切已算好的分摊明细。"
+    },
+    {
+      "id": "tip-sku-filter",
+      "selector": "#skuInputGroup",
+      "inlineAnchor": "filterLabel",
+      "title": "SKU 筛选",
+      "body": "支持模糊、精确与 8 位生产 SKU 检索。筛选后规划表与拆分表仅展示命中 SKU 相关的行；8 位指生产 SKU，不是 MSKU。"
+    },
+    {
+      "id": "tip-plan-month-col",
+      "selector": "#tblPlan thead th:nth-child(1) .th-inner",
+      "title": "规划月份范围",
+      "body": "定义本行费用要分摊到哪些自然月。拆分月份仅依据本列，不受顶部筛选月份范围影响。"
+    },
+    {
+      "id": "tip-plan-region-col",
+      "selector": "#tblPlan thead th:nth-child(6) .th-inner",
+      "title": "区域",
+      "body": "行内可多选区域，列表展示中文名称（如北美区、欧洲区）。不选表示该维度不限，拆分时不额外按区域收窄 MSKU 范围。"
+    },
+    {
+      "id": "tip-split-sku-col",
+      "selector": "#tblSplit thead th:nth-child(4) .th-inner",
+      "title": "SKU 信息",
+      "body": "第一行为 8 位生产 SKU；第二行为 MSKU（渠道 Listing 编码，来自销售基础信息，如 H6065301-DE）。明细唯一键为 MSKU×店铺名称。"
+    },
+    {
+      "id": "tip-split-amount",
+      "selector": "#tblSplit thead th:nth-child(8)",
+      "title": "拆分营销费用",
+      "body": "该行分摊到的规划金额（美元），为示例 BP 营收权重下的演示结果。正式系统应对齐同一套分摊规则与财务口径。"
+    }
+  ],
+  "pageGuide": {
+    "dev": {
+      "页面整体定位": "营销费用规划页用于在全渠道管报场景下，按场景品类、SKU、地理与渠道店铺等维度录入年度/区间营销费用规划，并预览按 BP 营收权重分摊到月、MSKU×店铺的结果。数据在原型中存于浏览器本地，并依赖场景品类、区域国家、渠道店铺与销售基础信息示例主数据。",
+      "页面核心业务逻辑": "规划表一行一条规划：规划月份范围决定拆到哪几个月；行内场景品类、SKU、新品标签、区域/国家/渠道/店铺共同收窄可参与拆分的 MSKU 集合。分摊两步：先把行规划总额按各月 BP 占比分到月，再把每月金额按当月各 MSKU BP 占比分到店铺。拆分表先合并全部已保存规划行的分摊结果，再用顶部筛选只裁切展示。区域/国家在列表与多选控件中统一展示中文名称。",
+      "关键规则说明": "顶部筛选与行内规划月份范围职责分离：前者管「看谁」，后者管「拆到哪几个月」。场景品类下拉支持全场景、本场景全品类与具体品类，勾选态可见可取消。场景品类+新品标签+SKU 为且关系收窄商品。保存全部时校验规划月份范围+规划对象唯一。",
+      "关联上下游": "上游：场景品类主数据、渠道店铺、区域国家、销售基础信息（SKU/MSKU×店铺）。下游：营销费用使用看板读取本页已保存规划，登记子项实际费用并对比规划与进度。"
+    },
+    "user": {
+      "标准操作流程": "第一步，在顶部选择场景品类、新品标签、月份范围、渠道店铺等后点击搜索。第二步，点击新增一行，填写规划月份范围、项目名称、场景品类或 SKU、新品标签、区域国家渠道店铺及营销费用规划金额。第三步，单行保存或保存全部。第四步，在下方拆分结果表核对各月、各店铺 MSKU 的分摊金额与占比。第五步，需要调整时修改规划行后再次保存并搜索刷新。",
+      "关键按钮与场景": "搜索用于按筛选刷新两张表。新增一行用于录入新规划。保存全部用于一次性写入本地。场景品类筛选与行内选择均可在下拉内看到已勾选项并取消。拆分表用于核对分摊是否合理。",
+      "使用注意事项": "顶部月份范围不决定单行拆到哪几个月，只看行内规划月份范围。不选场景品类或新品标签表示该项不参与过滤。本页保存仅在当前浏览器有效。页面说明支持自定义编辑，保存后保留换行与缩进格式。"
+    }
+  },
+  "statusFlow": {
+    "nodes": [],
+    "transitions": []
+  },
+  "editPolicy": {
+    "viewOnlyHostnames": [
+      "18501404120.github.io"
+    ],
+    "allowIps": [
+      "113.110.230.127",
+      "220.232.134.241",
+      "113.110.228.174",
+      "113.110.229.118",
+      "113.87.83.49",
+      "113.110.230.92"
+    ],
+    "allowIpPrefixes": ["113.110.230.", "113.110.228.", "113.110.229.", "113.87.83."],
+    "allowTrustedBrowser": true,
+    "editToken": "",
+    "allowLocalhost": true,
+    "allowOtherHosts": true
+  }
+}
+</script>
+<script src="prototype-annotation/prototype-annotation-runtime.js"></script>
+<!-- prototype-annotation:end -->
+</body>
+</html>

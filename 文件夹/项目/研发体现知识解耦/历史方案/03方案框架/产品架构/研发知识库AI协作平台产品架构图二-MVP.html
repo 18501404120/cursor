@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>研发知识库 AI 协作平台产品架构图二（MVP）</title>
+  <style>
+    :root {
+      --bg: #eef4fb;
+      --paper: #ffffff;
+      --ink: #17243a;
+      --muted: #63718a;
+      --line: #cfdcec;
+      --blue: #1769e0;
+      --blue-dark: #174a93;
+      --blue-soft: #eaf3ff;
+      --cyan-soft: #ebf8fb;
+      --violet-soft: #f1efff;
+      --green-soft: #eaf7f1;
+      --slate-soft: #f2f5f9;
+      --amber-soft: #fff7e8;
+      --amber: #9a6200;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      color: var(--ink);
+      background: var(--bg);
+      font: 14px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    }
+
+    .page {
+      width: min(1440px, calc(100vw - 40px));
+      margin: 20px auto;
+      padding: 26px 28px 24px;
+      background: var(--paper);
+      border: 1px solid #dbe5f1;
+      border-radius: 18px;
+    }
+
+    header {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 20px;
+      align-items: end;
+      padding-bottom: 18px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .eyebrow {
+      color: var(--blue);
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: .12em;
+    }
+
+    h1 {
+      margin: 6px 0 7px;
+      font-size: 29px;
+      line-height: 1.25;
+    }
+
+    .subtitle {
+      margin: 0;
+      color: var(--muted);
+      font-size: 15px;
+    }
+
+    .mvp-tag {
+      padding: 8px 14px;
+      color: #fff;
+      background: var(--blue-dark);
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+
+    .value {
+      display: grid;
+      grid-template-columns: 130px 1fr;
+      gap: 12px;
+      align-items: center;
+      margin: 18px 0 12px;
+      padding: 12px 15px;
+      background: #f7faff;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+    }
+
+    .value b {
+      color: var(--blue-dark);
+      font-size: 13px;
+    }
+
+    .value span {
+      font-size: 15px;
+      font-weight: 700;
+    }
+
+    .architecture {
+      padding: 12px;
+      background: #dfeeff;
+      border: 1px solid #bdd6f2;
+      border-radius: 14px;
+    }
+
+    .layer {
+      display: grid;
+      grid-template-columns: 132px minmax(0, 1fr);
+      gap: 10px;
+      margin-bottom: 9px;
+      padding: 9px;
+      background: rgba(255, 255, 255, .66);
+      border: 1px solid #c5d9ee;
+      border-radius: 9px;
+    }
+
+    .layer:last-child { margin-bottom: 0; }
+
+    .layer-label {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 82px;
+      padding: 8px;
+      color: var(--blue-dark);
+      background: #f8fbff;
+      border: 1px solid #c8dcef;
+      border-radius: 7px;
+      text-align: center;
+      font-size: 15px;
+      font-weight: 800;
+    }
+
+    .layer-label small {
+      margin-top: 4px;
+      color: #70809a;
+      font-size: 10px;
+      font-weight: 600;
+    }
+
+    .cards {
+      display: grid;
+      gap: 8px;
+      min-width: 0;
+    }
+
+    .cards.five { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+    .cards.six { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+
+    .card {
+      min-width: 0;
+      padding: 12px 10px 10px;
+      background: var(--paper);
+      border: 1px solid #cfdeee;
+      border-radius: 7px;
+      text-align: center;
+    }
+
+    .card strong {
+      display: block;
+      margin-bottom: 5px;
+      color: #21446f;
+      font-size: 13px;
+      line-height: 1.3;
+    }
+
+    .card span {
+      display: block;
+      color: var(--muted);
+      font-size: 10px;
+      line-height: 1.45;
+    }
+
+    .workbench .card { background: var(--blue-soft); }
+    .ai .card { background: var(--cyan-soft); }
+    .knowledge .card { background: var(--green-soft); }
+    .skill .card { background: var(--violet-soft); }
+    .support .card { background: var(--slate-soft); }
+
+    .core {
+      position: relative;
+      border-color: #6ba4ed;
+    }
+
+    .core::before {
+      content: "MVP 核心";
+      position: absolute;
+      top: 4px;
+      right: 5px;
+      padding: 1px 5px;
+      color: #fff;
+      background: var(--blue);
+      border-radius: 999px;
+      font-size: 8px;
+      font-weight: 800;
+    }
+
+    .bottom {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 300px;
+      gap: 14px;
+      margin-top: 14px;
+    }
+
+    .flow,
+    .boundary {
+      padding: 15px;
+      border: 1px solid var(--line);
+      border-radius: 11px;
+    }
+
+    .flow h2,
+    .boundary h2 {
+      margin: 0 0 11px;
+      font-size: 15px;
+    }
+
+    .steps {
+      display: grid;
+      grid-template-columns: repeat(8, minmax(0, 1fr));
+      gap: 15px;
+    }
+
+    .step {
+      position: relative;
+      display: grid;
+      min-height: 62px;
+      place-items: center;
+      padding: 8px 6px;
+      color: #284665;
+      background: #f7faff;
+      border: 1px solid #d4e0ee;
+      border-radius: 7px;
+      text-align: center;
+      font-size: 10px;
+      font-weight: 700;
+    }
+
+    .step:not(:last-child)::after {
+      content: "→";
+      position: absolute;
+      right: -14px;
+      color: var(--blue);
+      font-size: 16px;
+      font-weight: 800;
+    }
+
+    .boundary {
+      background: var(--amber-soft);
+      border-color: #ecd6aa;
+    }
+
+    .boundary h2 { color: var(--amber); }
+
+    .boundary p {
+      margin: 0;
+      color: #775a25;
+      font-size: 11px;
+      line-height: 1.65;
+    }
+
+    footer {
+      display: flex;
+      justify-content: space-between;
+      gap: 20px;
+      padding-top: 13px;
+      color: #78869b;
+      font-size: 10px;
+    }
+
+    @media (max-width: 1050px) {
+      .cards.five, .cards.six { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+      .steps { grid-template-columns: repeat(4, minmax(0, 1fr)); row-gap: 22px; }
+      .step:nth-child(4)::after { display: none; }
+      .bottom { grid-template-columns: 1fr; }
+    }
+
+    @media (max-width: 700px) {
+      .page { width: calc(100vw - 20px); margin: 10px auto; padding: 18px 14px; }
+      header { grid-template-columns: 1fr; align-items: start; }
+      .mvp-tag { width: fit-content; }
+      .value { grid-template-columns: 1fr; }
+      .layer { grid-template-columns: 1fr; }
+      .layer-label { min-height: auto; }
+      .cards.five, .cards.six { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .steps { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .step:nth-child(2n)::after { display: none; }
+    }
+
+    @media print {
+      @page { size: A3 landscape; margin: 8mm; }
+      body { background: #fff; }
+      .page { width: 100%; margin: 0; padding: 12px; border: 0; }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <header>
+      <div>
+        <div class="eyebrow">PRODUCT ARCHITECTURE · VERSION 2</div>
+        <h1>研发知识库 AI 协作平台产品架构图二</h1>
+        <p class="subtitle">以项目知识库为上下文，以 Skill 固化工作规范，用 AI 辅助不同角色完成资料归档、知识调度与标准化输出。</p>
+      </div>
+      <div class="mvp-tag">仅包含 MVP 范围</div>
+    </header>
+
+    <div class="value">
+      <b>MVP 验证目标</b>
+      <span>项目资料能被 AI 自动理解和归档，并能基于角色、环节与上下文辅助用户完成工作输出。</span>
+    </div>
+
+    <section class="architecture" aria-label="MVP 产品架构">
+      <div class="layer workbench">
+        <div class="layer-label">角色项目工作台<small>人从当前工作进入</small></div>
+        <div class="cards six">
+          <div class="card"><strong>当前项目</strong><span>项目类型<br>项目知识上下文</span></div>
+          <div class="card"><strong>当前角色</strong><span>岗位职责<br>角色工作范围</span></div>
+          <div class="card"><strong>当前环节</strong><span>项目节点<br>当前工作目标</span></div>
+          <div class="card"><strong>上游输入</strong><span>应有资料<br>已有与缺失项</span></div>
+          <div class="card"><strong>本角色输出</strong><span>应交付资料<br>完成状态</span></div>
+          <div class="card"><strong>用户协作图</strong><span>角色×环节全景<br>定位当前工作位置</span></div>
+        </div>
+      </div>
+
+      <div class="layer ai">
+        <div class="layer-label">AI 协作工作区<small>MVP 核心交互入口</small></div>
+        <div class="cards six">
+          <div class="card core"><strong>AI 对话问答</strong><span>按项目上下文<br>理解与回答</span></div>
+          <div class="card"><strong>资料引用</strong><span>检索项目资料<br>返回来源</span></div>
+          <div class="card"><strong>内容生成</strong><span>按角色与 Skill<br>生成工作初稿</span></div>
+          <div class="card"><strong>文件上传</strong><span>上传存量资料<br>补充工作上下文</span></div>
+          <div class="card"><strong>结果预览确认</strong><span>人工检查修改<br>确认正式输出</span></div>
+          <div class="card"><strong>归档与缺口提醒</strong><span>确认归档位置<br>提示资料缺失</span></div>
+        </div>
+      </div>
+
+      <div class="layer knowledge">
+        <div class="layer-label">项目知识库<small>AI 可调度的事实空间</small></div>
+        <div class="cards six">
+          <div class="card core"><strong>项目知识目录</strong><span>按项目类型<br>组织资料结构</span></div>
+          <div class="card"><strong>目录预生成</strong><span>新建项目时<br>自动创建框架</span></div>
+          <div class="card"><strong>文件解析</strong><span>读取文档内容<br>提取基础信息</span></div>
+          <div class="card"><strong>自动分类归档</strong><span>AI 建议目录<br>用户确认归档</span></div>
+          <div class="card"><strong>资料版本管理</strong><span>保留历史版本<br>标识当前版本</span></div>
+          <div class="card"><strong>更新与来源追溯</strong><span>资料变化提醒<br>查看生成依据</span></div>
+        </div>
+      </div>
+
+      <div class="layer skill">
+        <div class="layer-label">Skill 规范中心<small>把专家经验转成规则</small></div>
+        <div class="cards six">
+          <div class="card core"><strong>文件识别分类 Skill</strong><span>识别文件类型<br>建议归属目录</span></div>
+          <div class="card"><strong>知识目录 Skill</strong><span>定义项目类型<br>及标准资料结构</span></div>
+          <div class="card"><strong>角色输入输出 Skill</strong><span>定义角色应获取<br>及应交付资料</span></div>
+          <div class="card"><strong>文档生成 Skill</strong><span>定义内容框架<br>与生成步骤</span></div>
+          <div class="card"><strong>文档格式 Skill</strong><span>统一标题、版本<br>署名与格式</span></div>
+          <div class="card"><strong>完整性检查 Skill</strong><span>检查必需内容<br>提示缺口</span></div>
+        </div>
+      </div>
+
+      <div class="layer support">
+        <div class="layer-label">MVP 基础支撑<small>只建设最小必要能力</small></div>
+        <div class="cards six">
+          <div class="card"><strong>项目与成员</strong><span>项目创建<br>成员加入</span></div>
+          <div class="card"><strong>角色识别</strong><span>角色绑定<br>工作上下文切换</span></div>
+          <div class="card"><strong>大模型调度</strong><span>模型调用<br>上下文组织</span></div>
+          <div class="card"><strong>文档解析</strong><span>常用格式读取<br>文本内容提取</span></div>
+          <div class="card"><strong>基础检索</strong><span>项目内检索<br>来源定位</span></div>
+          <div class="card"><strong>简单权限</strong><span>项目成员可见<br>责任人可维护</span></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="bottom">
+      <div class="flow">
+        <h2>MVP 业务闭环</h2>
+        <div class="steps">
+          <div class="step">选择项目类型</div>
+          <div class="step">预生成知识目录</div>
+          <div class="step">上传项目资料</div>
+          <div class="step">AI 解析并建议归档</div>
+          <div class="step">识别角色输入与缺口</div>
+          <div class="step">AI 对话并生成输出</div>
+          <div class="step">用户确认归档新版本</div>
+          <div class="step">更新进度并提醒角色</div>
+        </div>
+      </div>
+
+      <aside class="boundary">
+        <h2>MVP 不纳入</h2>
+        <p>解耦单元、条件工作网、JP 汇入；复杂权限、审计与审批流；知识图谱；CAD 插件及 ERP、PLM 深度集成；工时与资源管理；Agent 自动决策和自动验收。</p>
+      </aside>
+    </section>
+
+    <footer>
+      <span>架构原则：AI 前置 · 角色驱动 · Skill 驱动 · 知识闭环</span>
+      <span>版本：V2.1 · MVP · 2026-08-20</span>
+    </footer>
+  </main>
+</body>
+</html>

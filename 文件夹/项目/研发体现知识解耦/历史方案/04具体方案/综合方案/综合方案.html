@@ -1,0 +1,943 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="研发知识解耦综合方案：中台架构标准化与文档结构标准化合成一条路径">
+  <title>研发知识解耦 · 综合方案</title>
+  <style>
+    :root {
+      --bg: #f5f7fb;
+      --card: #ffffff;
+      --text: #172033;
+      --muted: #657187;
+      --line: #e2e8f1;
+      --primary: #335cff;
+      --primary-soft: #eef2ff;
+      --green: #087c60;
+      --green-soft: #eaf8f3;
+      --amber: #a96100;
+      --amber-soft: #fff5df;
+      --red: #bd3948;
+      --red-soft: #fff0f2;
+      --navy: #1d2a57;
+      --shadow: 0 8px 28px rgba(28, 39, 66, .07);
+      --radius: 14px;
+      --draft: #94a3b8;
+      --draft-soft: #f1f5f9;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      color: var(--text);
+      background: var(--bg);
+      font: 14px/1.68 -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    }
+    button { font: inherit; }
+    a { color: inherit; }
+    strong { color: var(--text); }
+    .page { max-width: 1160px; margin: 0 auto; padding: 28px 22px 72px; }
+
+    .hero {
+      padding: 34px 38px;
+      color: #fff;
+      background: linear-gradient(135deg, #182348, #29428b);
+      border-radius: 18px;
+      box-shadow: var(--shadow);
+    }
+    .hero-kicker { font-size: 12px; letter-spacing: .1em; opacity: .7; }
+    .hero h1 { margin: 8px 0 10px; font-size: 30px; line-height: 1.25; }
+    .hero p { max-width: 880px; margin: 0; opacity: .88; font-size: 15px; }
+    .hero-meta { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; }
+    .hero-pill {
+      padding: 5px 10px;
+      border: 1px solid rgba(255,255,255,.24);
+      border-radius: 999px;
+      font-size: 12px;
+    }
+
+    .toc {
+      position: sticky;
+      top: 10px;
+      z-index: 20;
+      display: flex;
+      gap: 5px;
+      margin: 18px 0 34px;
+      padding: 8px;
+      overflow-x: auto;
+      background: rgba(255,255,255,.94);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(10px);
+    }
+    .toc a {
+      flex: 0 0 auto;
+      padding: 7px 10px;
+      color: var(--muted);
+      text-decoration: none;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 700;
+    }
+    .toc a:hover, .toc a:focus { color: var(--primary); background: var(--primary-soft); outline: none; }
+
+    section { margin-bottom: 48px; scroll-margin-top: 80px; }
+    .section-head { display: flex; align-items: center; gap: 12px; margin-bottom: 18px; }
+    .section-no {
+      display: grid;
+      flex: 0 0 auto;
+      width: 34px;
+      height: 34px;
+      place-items: center;
+      color: #fff;
+      background: var(--primary);
+      border-radius: 9px;
+      font-weight: 800;
+    }
+    h2 { margin: 0; font-size: 22px; }
+    h3 { margin: 0 0 8px; font-size: 17px; }
+    h4 { margin: 0 0 6px; font-size: 14px; }
+    p { margin: 0 0 10px; }
+    ul, ol { margin: 8px 0 0; padding-left: 20px; }
+    li { margin-bottom: 5px; }
+    .muted { color: var(--muted); }
+    .eyebrow { margin-bottom: 5px; color: var(--primary); font-size: 11px; font-weight: 800; letter-spacing: .08em; }
+    .caption { margin-top: 10px; color: var(--muted); font-size: 12px; text-align: center; }
+
+    .card {
+      padding: 20px 22px;
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+    }
+    .grid-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+    .grid-3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+    .grid-4 { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+    .grid-5 { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; }
+    .callout { padding: 14px 16px; border-radius: 10px; }
+    .callout.info { color: #27469f; background: var(--primary-soft); }
+    .callout.ok { color: #08674f; background: var(--green-soft); }
+    .callout.warn { color: #805000; background: var(--amber-soft); }
+    .callout.stop { color: #8d2835; background: var(--red-soft); }
+
+    .compare-shell {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 52px minmax(0, 1fr);
+      align-items: stretch;
+      gap: 16px;
+    }
+    .compare-panel {
+      display: grid;
+      grid-template-rows: auto auto 1fr auto;
+      min-height: 520px;
+      padding: 20px 22px 22px;
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+    }
+    .compare-panel::before {
+      content: "";
+      display: block;
+      height: 4px;
+      margin: -20px -22px 16px;
+      border-radius: var(--radius) var(--radius) 0 0;
+      background: #94a3b8;
+    }
+    .compare-panel.target::before { background: var(--primary); }
+    .compare-kicker {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      min-height: 22px;
+      margin-bottom: 6px;
+      color: var(--muted);
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: .08em;
+    }
+    .compare-status {
+      padding: 3px 9px;
+      color: #5c6b7f;
+      background: #f1f4f8;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0;
+    }
+    .compare-panel.target .compare-status {
+      color: var(--primary);
+      background: var(--primary-soft);
+      border-color: #c7d4ff;
+    }
+    .compare-panel h3 {
+      min-height: 52px;
+      margin: 0 0 14px;
+      font-size: 18px;
+      line-height: 1.35;
+    }
+    .compare-diagram {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 8px;
+      min-height: 268px;
+      padding: 14px;
+      background: #f8fafc;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+    }
+    .legacy-flow { display: grid; gap: 6px; width: 100%; }
+    .legacy-node {
+      width: 100%;
+      padding: 10px 12px;
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      text-align: center;
+      font-size: 12px;
+      font-weight: 600;
+      line-height: 1.4;
+    }
+    .legacy-arrow { color: #b8c2d0; font-size: 14px; line-height: 1; text-align: center; }
+    .target-map { display: grid; gap: 8px; width: 100%; }
+    .target-hub {
+      padding: 12px 14px;
+      background: #fff;
+      border: 1px solid #c7d4ff;
+      border-radius: 8px;
+      text-align: center;
+    }
+    .target-hub strong { display: block; margin-bottom: 4px; color: var(--primary); font-size: 13px; }
+    .target-hub span { color: var(--muted); font-size: 10px; line-height: 1.45; }
+    .target-sync { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; }
+    .target-lane {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 54px;
+      padding: 8px 4px;
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      text-align: center;
+      font-size: 11px;
+      font-weight: 700;
+      line-height: 1.35;
+    }
+    .target-lane small {
+      display: block;
+      margin-bottom: 3px;
+      color: var(--primary);
+      font-size: 9px;
+      font-weight: 700;
+    }
+    .compare-list {
+      display: grid;
+      gap: 8px;
+      margin: 16px 0 0;
+      padding: 14px 0 0;
+      border-top: 1px solid var(--line);
+      list-style: none;
+    }
+    .compare-list li {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      margin: 0;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.55;
+    }
+    .compare-list li::before {
+      flex: 0 0 auto;
+      width: 16px;
+      margin-top: 1px;
+      font-size: 12px;
+      font-weight: 800;
+      text-align: center;
+    }
+    .compare-panel:not(.target) .compare-list li::before { content: "×"; color: #94a3b8; }
+    .compare-panel.target .compare-list li::before { content: "✓"; color: var(--green); }
+    .compare-shift {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      align-self: center;
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 700;
+      line-height: 1.45;
+      text-align: center;
+    }
+    .compare-shift-icon {
+      display: grid;
+      width: 36px;
+      height: 36px;
+      place-items: center;
+      color: #fff;
+      background: var(--primary);
+      border-radius: 50%;
+      font-size: 18px;
+      line-height: 1;
+    }
+
+    .stack {
+      padding: 16px;
+      background: #dcecff;
+      border: 1px solid #c5dcf7;
+      border-radius: 14px;
+      box-shadow: var(--shadow);
+    }
+    .stack-title {
+      padding: 2px 0 12px;
+      color: #0878cf;
+      text-align: center;
+      font-size: 18px;
+      font-weight: 800;
+    }
+    .stack-layer {
+      display: grid;
+      grid-template-columns: 72px minmax(0, 1fr);
+      gap: 8px;
+      margin-bottom: 8px;
+      padding: 8px;
+      background: rgba(255,255,255,.55);
+      border: 1px solid #c7dcf2;
+      border-radius: 9px;
+    }
+    .stack-layer:last-of-type { margin-bottom: 0; }
+    .stack-layer.user { background: #eef2ff; border-color: #c7d4ff; }
+    .stack-layer.mid { background: rgba(255,255,255,.72); }
+    .stack-layer.base { background: #f5faff; }
+    .layer-name {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 86px;
+      padding: 8px 4px;
+      color: #1388d3;
+      background: #f5faff;
+      border: 1px solid #c8def3;
+      border-radius: 7px;
+      font-size: 13px;
+      font-weight: 800;
+      line-height: 1.25;
+      text-align: center;
+    }
+    .stack-layer.user .layer-name { color: #335cff; background: #fff; border-color: #c7d4ff; }
+    .layer-grid { display: grid; gap: 6px; }
+    .layer-grid.g5 { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+    .layer-grid.g4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    .layer-grid.g3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .mod {
+      min-height: 78px;
+      padding: 10px 8px;
+      background: #fff;
+      border: 1px solid #cddff0;
+      border-radius: 6px;
+      text-align: center;
+    }
+    .mod strong { display: block; margin-bottom: 4px; color: #0878c9; font-size: 12px; }
+    .mod span { display: block; color: #66778b; font-size: 10px; line-height: 1.4; }
+    .stack-note { margin-top: 10px; color: #4e6d8a; font-size: 11px; text-align: center; }
+    .look-up {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      margin: 10px 0 0;
+      color: #335cff;
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .cycle-wrap {
+      position: relative;
+      max-width: 880px;
+      margin: 0 auto 8px;
+      padding: 4px 8px 0;
+    }
+    .cycle {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 1.22 / 1;
+      max-height: 540px;
+    }
+    .cycle-svg {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 1;
+    }
+    .cycle-node {
+      position: absolute;
+      width: 186px;
+      padding: 10px 11px 10px;
+      color: inherit;
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      box-shadow: var(--shadow);
+      transform: translate(-50%, -50%);
+      text-align: left;
+      z-index: 2;
+    }
+    .cycle-node.write { border-color: #b7e4d4; background: var(--green-soft); }
+    .cycle-node.focus { border-color: #c7d4ff; background: var(--primary-soft); }
+    .cycle-node.collab { border-color: #f0d59a; background: var(--amber-soft); }
+    .n1 { left: 50%; top: 12%; }
+    .n2 { left: 90%; top: 40%; }
+    .n3 { left: 73%; top: 84%; }
+    .n4 { left: 27%; top: 84%; }
+    .n5 { left: 10%; top: 40%; }
+    .cycle-no { color: var(--primary); font-size: 11px; font-weight: 800; }
+    .cycle-node h4 { margin: 3px 0 5px; font-size: 14px; }
+    .cycle-node p { margin: 0; color: var(--muted); font-size: 11px; line-height: 1.45; }
+    .cycle-who { margin-top: 7px; color: var(--navy); font-size: 10px; font-weight: 700; }
+    .cycle-arrow-mobile { display: none; color: var(--primary); font-weight: 800; text-align: center; }
+    .how-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+    .rule-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .rule-table th, .rule-table td { padding: 9px 10px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+    .rule-table th { color: var(--muted); background: #f8fafc; font-size: 11px; }
+    .rule-table td:first-child { color: var(--navy); font-weight: 800; white-space: nowrap; }
+    .work-row { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+    .work-chip { padding: 12px; border-radius: 10px; }
+    .work-chip b { display: block; margin-bottom: 4px; font-size: 13px; }
+    .work-chip p { margin: 0; font-size: 12px; line-height: 1.5; }
+    .work-chip.idle { color: #475569; background: var(--draft-soft); }
+    .work-chip.wait { color: #805000; background: var(--amber-soft); }
+    .work-chip.run { color: #27469f; background: var(--primary-soft); }
+    .work-chip.done { color: #08674f; background: var(--green-soft); }
+    .collab-flow {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 6px;
+      margin-top: 12px;
+    }
+    .collab-flow span {
+      padding: 6px 10px;
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 700;
+    }
+    .collab-flow i { color: #9ba7b7; font-style: normal; font-weight: 800; }
+
+    .status-row { display: flex; gap: 10px; flex-wrap: wrap; }
+    .status-chip {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 700;
+    }
+    .dot { width: 10px; height: 10px; border-radius: 50%; }
+    .dot.draft { background: var(--draft); }
+    .dot.ok { background: var(--green); }
+
+    .sku {
+      display: grid;
+      grid-template-columns: 180px minmax(0, 1fr);
+      gap: 12px;
+    }
+    .sku-side {
+      padding: 16px 14px;
+      color: #fff;
+      background: var(--navy);
+      border-radius: 12px;
+    }
+    .sku-side .eyebrow { color: #9db4ff; }
+    .sku-side h3 { margin: 0 0 8px; color: #fff; font-size: 16px; }
+    .sku-side p { margin: 0; opacity: .82; font-size: 12px; }
+    .sku-path { display: grid; gap: 8px; }
+    .sku-row {
+      display: grid;
+      grid-template-columns: 72px minmax(0, 1fr) 92px;
+      gap: 10px;
+      align-items: center;
+      padding: 10px 12px;
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+    }
+    .sku-mod { color: var(--primary); font-size: 12px; font-weight: 800; }
+    .sku-pick { color: var(--muted); font-size: 12px; }
+    .sku-act {
+      padding: 3px 0;
+      border-radius: 6px;
+      text-align: center;
+      font-size: 11px;
+      font-weight: 800;
+    }
+    .act-reuse { color: #08674f; background: var(--green-soft); }
+    .act-change { color: #805000; background: var(--amber-soft); }
+    .act-fresh { color: #27469f; background: var(--primary-soft); }
+    .act-drop { color: #5c6b7f; background: #f1f4f8; }
+
+    .loop {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      margin-top: 14px;
+      padding: 18px;
+      background: #f8fafc;
+      border: 1px solid var(--line);
+      border-radius: 11px;
+    }
+    .loop-node { padding: 7px 11px; color: #27469f; background: var(--primary-soft); border-radius: 7px; font-size: 12px; font-weight: 700; }
+    .loop-arrow { color: #9ba7b7; }
+
+    .role-table, .criteria-table {
+      width: 100%;
+      border-collapse: collapse;
+      overflow: hidden;
+      background: #fff;
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      font-size: 12px;
+    }
+    .role-table th, .role-table td, .criteria-table th, .criteria-table td {
+      padding: 11px 13px;
+      text-align: left;
+      vertical-align: top;
+      border-bottom: 1px solid var(--line);
+    }
+    .role-table th, .criteria-table th { color: var(--muted); background: #f8fafc; font-weight: 800; }
+    .role-table tr:last-child td, .criteria-table tr:last-child td { border-bottom: 0; }
+    .role-name { color: var(--primary); font-weight: 800; white-space: nowrap; }
+    .not-role { color: var(--red); }
+
+    .footer { padding-top: 24px; color: var(--muted); border-top: 1px solid var(--line); font-size: 12px; }
+
+    @media (max-width: 960px) {
+      .grid-2, .grid-3, .grid-4, .grid-5, .compare-shell, .sku, .how-grid, .work-row { grid-template-columns: 1fr; }
+      .cycle { aspect-ratio: auto; height: auto; display: grid; gap: 6px; }
+      .cycle-svg { display: none; }
+      .cycle-arrow-mobile { display: block; }
+      .cycle-node {
+        position: static;
+        width: auto;
+        transform: none;
+      }
+      .layer-grid.g5, .layer-grid.g4, .layer-grid.g3, .target-sync { grid-template-columns: 1fr 1fr; }
+      .compare-panel { min-height: 0; }
+      .compare-shift { flex-direction: row; padding: 4px 0 8px; }
+      .compare-shift-icon { transform: rotate(90deg); }
+      .sku-row { grid-template-columns: 1fr; }
+      .stack-layer { grid-template-columns: 1fr; }
+      .layer-name { min-height: 0; writing-mode: horizontal-tb; }
+    }
+    @media (max-width: 680px) {
+      .page { padding: 14px 12px 48px; }
+      .hero { padding: 26px 22px; }
+      .hero h1 { font-size: 25px; }
+      .layer-grid.g5, .layer-grid.g4, .layer-grid.g3, .target-sync { grid-template-columns: 1fr; }
+      .role-table, .criteria-table { display: block; overflow-x: auto; }
+    }
+    @media print {
+      body { background: #fff; }
+      .page { max-width: none; padding: 0; }
+      .toc { display: none !important; }
+      .hero, .card, .role-table, .criteria-table { box-shadow: none; }
+      section, .card, table, .cycle-wrap { break-inside: avoid; }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <header class="hero">
+      <div class="hero-kicker">INTEGRATED FRAMEWORK · 2026-09-10 对齐</div>
+      <h1>研发知识解耦：先立货架，再跑项目，文档跟着生成</h1>
+      <p>解耦不是两套方案。中台把模块方案做成底层能力，项目按节点做模块组合与增量；协作区用 Skill 生成结构化文档，定稿后回写货架。灰色是未定稿，绿色是定稿。</p>
+      <div class="hero-meta">
+        <span class="hero-pill">中台架构标准化</span>
+        <span class="hero-pill">文档结构标准化</span>
+        <span class="hero-pill">解耦组负责人</span>
+      </div>
+    </header>
+
+    <nav class="toc" aria-label="页面目录">
+      <a href="#comparison">现状目标</a>
+      <a href="#stack">分层架构</a>
+      <a href="#path">工作闭环</a>
+      <a href="#collab">协作区</a>
+      <a href="#example">SKU 例子</a>
+      <a href="#requirements">要求</a>
+    </nav>
+
+    <section id="comparison">
+      <div class="section-head"><span class="section-no">1</span><h2>现状与目标终态</h2></div>
+      <div class="compare-shell">
+        <article class="compare-panel">
+          <div class="compare-kicker"><span>CURRENT</span><span class="compare-status">项目沉没 + 串行等待</span></div>
+          <h3>人跟着项目走，能力走不出项目</h3>
+          <div class="compare-diagram" aria-label="当前串行且能力沉没">
+            <div class="legacy-flow">
+              <div class="legacy-node">产品经理写出一版需求文档</div>
+              <span class="legacy-arrow">↓</span>
+              <div class="legacy-node">结构 / 电子 / 光学 / 制冷 / 嵌入式 进项目</div>
+              <span class="legacy-arrow">↓</span>
+              <div class="legacy-node">各专业从零设计，PJM 催整包材料</div>
+              <span class="legacy-arrow">↓</span>
+              <div class="legacy-node">结论留在文档、群聊和个人目录</div>
+              <span class="legacy-arrow">↓</span>
+              <div class="legacy-node">下一款 SKU 再从头想一遍</div>
+            </div>
+          </div>
+          <ul class="compare-list">
+            <li>没有跨产品模块货架，复用靠熟人记忆</li>
+            <li>缺解耦组负责人做组合决策，专业分头负责</li>
+            <li>角色绑在一条线上等上游整包文档</li>
+            <li>做完一款，能力没有回写成可引用对象</li>
+          </ul>
+        </article>
+        <div class="compare-shift" aria-hidden="true">
+          <span class="compare-shift-icon">→</span>
+          <span>货架 + 协作<br>一条路径</span>
+        </div>
+        <article class="compare-panel target">
+          <div class="compare-kicker"><span>TARGET</span><span class="compare-status">货架驱动 + 增量协作</span></div>
+          <h3>中台管复用，项目只做增量，文档跟着定稿</h3>
+          <div class="compare-diagram" aria-label="目标综合形态">
+            <div class="target-map">
+              <div class="legacy-node" style="font-size:11px">选历史 SKU → 看到模块组合 → 删减 / 新增</div>
+              <div class="target-sync">
+                <div class="target-lane"><small>结构</small>模块方案</div>
+                <div class="target-lane"><small>电子</small>模块方案</div>
+                <div class="target-lane"><small>光学</small>模块方案</div>
+                <div class="target-lane"><small>制冷</small>模块方案</div>
+                <div class="target-lane"><small>嵌入式</small>模块方案</div>
+              </div>
+              <div class="target-hub">
+                <strong>识别复用 / 二次开发 / 新做</strong>
+                <span>已验证模块不进开发清单 · 人力放在新增</span>
+              </div>
+              <div class="legacy-node" style="font-size:11px">增量进协作区 · Skill 出结构化文档 · 未定稿变定稿 · 回写货架</div>
+            </div>
+          </div>
+          <ul class="compare-list">
+            <li>各专业能力先抽象成模块方案，跨 SKU 可引用</li>
+            <li>解耦组负责人在组项目前完成匹配和拍板</li>
+            <li>项目按节点协作，只承接增量，到点汇入</li>
+            <li>货架越跑越厚：灰色未定稿变为绿色定稿</li>
+          </ul>
+        </article>
+      </div>
+    </section>
+
+    <section id="stack">
+      <div class="section-head"><span class="section-no">2</span><h2>分层架构：项目在上，模块方案在下</h2></div>
+      <p class="muted">按 ERP 能力建设的视角：从下往上看。底层是标准能力，中间是产品承接和决策，上面才是用户层的项目协作。</p>
+      <div class="stack" aria-label="从下往上的能力分层">
+        <div class="stack-title">研发知识解耦 · 能力栈</div>
+        <div class="stack-layer user">
+          <div class="layer-name">项目层<br>用户层</div>
+          <div class="layer-grid g4">
+            <div class="mod"><strong>模块组合</strong><span>这款 SKU 用哪些模块</span></div>
+            <div class="mod"><strong>按节点协作</strong><span>CD / KO / ES / TL / DR / BT / CR</span></div>
+            <div class="mod"><strong>推动更新</strong><span>增量开发、协同、回退</span></div>
+            <div class="mod"><strong>沉淀回写</strong><span>新能力沉回货架</span></div>
+          </div>
+        </div>
+        <div class="stack-layer mid">
+          <div class="layer-name">决策层</div>
+          <div class="layer-grid g3">
+            <div class="mod"><strong>复用</strong><span>直接引用，不进项目开发</span></div>
+            <div class="mod"><strong>二次开发</strong><span>在已有方案上改一版</span></div>
+            <div class="mod"><strong>新做</strong><span>货架不满足，立新方案</span></div>
+          </div>
+        </div>
+        <div class="stack-layer mid">
+          <div class="layer-name">产品方案</div>
+          <div class="layer-grid g4">
+            <div class="mod"><strong>SKU 绑定</strong><span>这款产品怎么做出来的</span></div>
+            <div class="mod"><strong>模块组合</strong><span>引用了哪些模块方案</span></div>
+            <div class="mod"><strong>决策记录</strong><span>复用 / 改 / 新做 谁拍的</span></div>
+            <div class="mod"><strong>未定稿 / 定稿</strong><span>灰 → 绿，货架变厚</span></div>
+          </div>
+        </div>
+        <div class="stack-layer base">
+          <div class="layer-name">模块方案<br>底层能力</div>
+          <div class="layer-grid g5">
+            <div class="mod"><strong>结构</strong><span>箱体 / 机构 / 灯体</span></div>
+            <div class="mod"><strong>电子</strong><span>电源 / 驱动 / 主控</span></div>
+            <div class="mod"><strong>光学</strong><span>灯珠 / 透镜 / 配光</span></div>
+            <div class="mod"><strong>制冷</strong><span>压缩机 / 管路 / 冰量</span></div>
+            <div class="mod"><strong>嵌入式</strong><span>固件 / 协议 / 控制</span></div>
+          </div>
+        </div>
+        <div class="look-up">↑ 从下往上看：底层能力 → 产品承接 → 决策 → 项目协作</div>
+        <p class="stack-note">模块方案是跨产品抽象，是解耦要抽出来的重点。项目要做的事收成三句：组合模块、推动更新、再沉淀。</p>
+      </div>
+    </section>
+
+    <section id="path">
+      <div class="section-head"><span class="section-no">3</span><h2>工作闭环：项目怎么跑，日常方案怎么厚</h2></div>
+      <p class="muted">增量协作做完必须回到项目沉淀：新方案先灰后绿，下一款才能接着用。</p>
+      <div class="cycle-wrap">
+        <div class="cycle" aria-label="工作闭环：五个步骤用箭头首尾相连">
+          <svg class="cycle-svg" viewBox="0 0 1000 820" preserveAspectRatio="none" aria-hidden="true">
+            <defs>
+              <marker id="cycle-arr" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto">
+                <path d="M0,0 L10,5 L0,10 z" fill="#335cff"></path>
+              </marker>
+            </defs>
+            <path d="M 588 149 L 788 264" fill="none" stroke="#335cff" stroke-width="2.4" marker-end="url(#cycle-arr)"></path>
+            <path d="M 863 407 L 778 588" fill="none" stroke="#335cff" stroke-width="2.4" marker-end="url(#cycle-arr)"></path>
+            <path d="M 629 689 L 399 689" fill="none" stroke="#335cff" stroke-width="2.4" marker-end="url(#cycle-arr)"></path>
+            <path d="M 233 610 L 148 429" fill="none" stroke="#335cff" stroke-width="2.4" marker-end="url(#cycle-arr)"></path>
+            <path d="M 188 277 L 388 162" fill="none" stroke="#335cff" stroke-width="2.4" marker-end="url(#cycle-arr)"></path>
+          </svg>
+          <article class="cycle-node n1">
+            <div class="cycle-no">1</div>
+            <h4>项目沉淀</h4>
+            <p>按 SKU 把模块方案沉下来，先是未定稿。</p>
+            <div class="cycle-who">专业主责人 · 解耦组负责人</div>
+          </article>
+          <div class="cycle-arrow-mobile" aria-hidden="true">↓</div>
+          <article class="cycle-node write n2">
+            <div class="cycle-no">2</div>
+            <h4>入库中台</h4>
+            <p>定稿后进货架和产品方案库，灰变绿。</p>
+            <div class="cycle-who">解耦组负责人维护货架</div>
+          </article>
+          <div class="cycle-arrow-mobile" aria-hidden="true">↓</div>
+          <article class="cycle-node n3">
+            <div class="cycle-no">3</div>
+            <h4>下一款选型</h4>
+            <p>打开历史 SKU，看见当时的模块组合再改。</p>
+            <div class="cycle-who">硬件产品经理先选</div>
+          </article>
+          <div class="cycle-arrow-mobile" aria-hidden="true">↓</div>
+          <article class="cycle-node focus n4">
+            <div class="cycle-no">4</div>
+            <h4>识别焦点</h4>
+            <p>15 个已验证复用，人力只压在 5 个增量。</p>
+            <div class="cycle-who">解耦组负责人拍板</div>
+          </article>
+          <div class="cycle-arrow-mobile" aria-hidden="true">↓</div>
+          <article class="cycle-node collab n5">
+            <div class="cycle-no">5</div>
+            <h4>增量协作</h4>
+            <p>只把增量带进协作区，做完必须回写第 1 步。</p>
+            <div class="cycle-who">主责人 · PJM · Skill</div>
+          </article>
+          <div class="cycle-arrow-mobile" aria-hidden="true">↓ 回到 1 项目沉淀</div>
+        </div>
+      </div>
+    </section>
+
+    <section id="collab">
+      <div class="section-head"><span class="section-no">4</span><h2>协作区：文档结构化接在货架后面</h2></div>
+      <p class="muted">中台决定用什么能力。选定之后，项目里和日常方案里怎么协作，用同一套方法：输入钉扎、Skill 出文档、条件工作、跨组协同、到点汇入、回写沉淀。这就是环上第 5 步，也是回到第 1 步的入口。</p>
+      <div class="grid-3">
+        <article class="card">
+          <h3>结构化文档</h3>
+          <p class="muted">PRD 和专业输出按模块 / 字段生成，而不是先交一整本再人工拆。Skill 根据已选模块和补充需求出文档，归档后回写产品方案。</p>
+        </article>
+        <article class="card">
+          <h3>条件工作</h3>
+          <p class="muted">每个解耦单元看必要输入是否就绪。输入是钉扎过的模块方案或知识版本，不是「等上游把包发我」。能单验的先单验。</p>
+        </article>
+        <article class="card">
+          <h3>到点汇入</h3>
+          <p class="muted">汇入点对齐 CD / KO / ES / TL / DR / BT / CR。带什么、过不过、谁回退写清。PJM 维护规则和风险，不细排每人每日任务。</p>
+        </article>
+      </div>
+
+      <div class="card" style="margin-top:14px">
+        <div class="eyebrow">如何协作 · 四条规则</div>
+        <h3>变了、要帮忙、碰头了，不靠项目经理临时拉群</h3>
+        <table class="rule-table" style="margin-top:10px">
+          <thead>
+            <tr><th>规则</th><th>项目里怎么做</th><th>日常方案怎么做</th><th>例子</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>启动</td>
+              <td>KO 后各增量块认领目标、接口、自己策划资源。输入未定稿，工作保持灰色，不能开工。</td>
+              <td>补方案或改接口时同样认领输入版本。不拉整机项目，也可以启动一块日常修订。</td>
+              <td>制冷不等 ES 整机，接口字段就绪就排手板。</td>
+            </tr>
+            <tr>
+              <td>调整</td>
+              <td>需求大变按 P0 / P1 / P2 分级：P0 全员知，P1 相关组联合定，P2 组内自决并留痕。</td>
+              <td>货架上方案改档、改适用产品，也要定级。影响已引用 SKU 的，至少按 P1 通知相关主责人。</td>
+              <td>PRD 改外观导致结构改模 → P0 或 P1，不能私聊改完。</td>
+            </tr>
+            <tr>
+              <td>协同</td>
+              <td>A 块向 B 块提接口诉求，走协同单：要什么、何时要、影响什么。达不成再升级。</td>
+              <td>日常改开孔、改板框版本、改制冷接口，同样发协同单。禁止「群里说一声就算定了」。</td>
+              <td>电子要结构改开孔 → 协同单，而不是等项目经理转述。</td>
+            </tr>
+            <tr>
+              <td>汇合</td>
+              <td>到 JP 带清单验收。不过时写清谁回退、别人能不能继续。复用项只核对引用版本。</td>
+              <td>日常方案定稿也是一次小汇合：主责人验收、解耦组负责人确认对象和状态，然后变绿。</td>
+              <td>DR 试产制冷不达标 → 制冷 + 结构回退，包材可先不动。</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="card" style="margin-top:14px">
+        <div class="eyebrow">条件工作网</div>
+        <h3>一块工作什么时候能开始，看输入，不看催办</h3>
+        <div class="work-row" style="margin-top:12px">
+          <div class="work-chip idle"><b>灰 · 未就绪</b><p>必要输入还是未定稿，或版本未钉扎。主责人能看见阻塞原因，但不能开工。</p></div>
+          <div class="work-chip wait"><b>琥珀 · 可开始</b><p>输入已定稿。对应角色才能点开工，并把输入版本钉扎，避免做到一半被偷偷换版。</p></div>
+          <div class="work-chip run"><b>蓝 · 进行中</b><p>在钉扎版本上产出。能单验的先单验，不必等整机包。跨组缺口发协同单。</p></div>
+          <div class="work-chip done"><b>绿 · 已完成</b><p>输出已定稿，下游或 JP 可引用。增量结果先灰回写货架，阶段冻结后再变绿。</p></div>
+        </div>
+        <p class="muted" style="margin-top:12px;margin-bottom:0">PJM 看的是哪条工作被输入卡住、哪个 JP 有风险，不是给每个人排每天干什么。</p>
+      </div>
+
+      <div class="grid-2" style="margin-top:14px">
+        <article class="card">
+          <div class="eyebrow">跨组协同单</div>
+          <h3>怎么向别的专业要东西</h3>
+          <p class="muted">组间不再传「等结构发我包」，而是传明确字段，例如板框版本 ≥ v2.1。字段未达标，协同单自动可见，而不是项目经理私下协调。</p>
+          <div class="collab-flow">
+            <span>需求方发起</span><i>→</i>
+            <span>写清字段 / 时点 / 影响</span><i>→</i>
+            <span>响应方确认或拒绝</span><i>→</i>
+            <span>达不成升级 P1 / P0</span><i>→</i>
+            <span>结果写入上下文</span>
+          </div>
+          <ul>
+            <li>P0：影响全项目目标或多个 JP，全员 + 业务侧知会</li>
+            <li>P1：影响 2 个以上解耦组接口，相关组联合决策</li>
+            <li>P2：组内微调，自决但字段留痕</li>
+            <li>判断无法按共识 JP 日汇合时，3 个工作日内发起调整或协同</li>
+          </ul>
+        </article>
+        <article class="card">
+          <div class="eyebrow">Skill 与知识原子</div>
+          <h3>文档跟着增量生成</h3>
+          <p class="muted">硬件产品经理或解耦组负责人用 Skill，按已选模块和增量需求生成结构化 PRD / 知识原子。文档结构化是产出，不是解耦目的。</p>
+          <ul>
+            <li>知识原子仍是最小可引用单元：责任人、适用范围、来源、正式版本</li>
+            <li>方案卡片先看归纳，质疑时下钻字段和原文</li>
+            <li>原子未定稿，下游条件工作保持灰色</li>
+            <li>归档后回写产品方案，环才能回到沉淀</li>
+          </ul>
+        </article>
+      </div>
+
+      <div class="card" style="margin-top:14px">
+        <div class="eyebrow">到点汇入</div>
+        <h3>碰头日看证据，不催整包材料</h3>
+        <p class="muted">汇入点时间是大家约好的碰头日，可以提醒，不是压缩内部排期的鞭子。每块只带本块结论：什么叫过、不过谁回退、别人能不能继续。</p>
+        <table class="rule-table" style="margin-top:8px">
+          <thead><tr><th>节点</th><th>项目里带什么</th><th>和货架的关系</th></tr></thead>
+          <tbody>
+            <tr><td>CD / KO</td><td>模块组合已拍板，增量清单、接口和汇入点确认，协作区打开。</td><td>复用项钉扎货架上的绿色方案版本。</td></tr>
+            <tr><td>ES</td><td>各专业单验结论先齐套，再汇合整机是否可行。</td><td>增量方案可以未定稿回写，先灰着进货架。</td></tr>
+            <tr><td>TL</td><td>开模前冻结 3D / 2D 和必须锁定的字段。</td><td>被钉扎的模块方案不能悄悄换版。</td></tr>
+            <tr><td>DR / BT / CR</td><td>试产轮次、用户测试结论、能否释放。每轮也是子汇合。</td><td>阶段冻结或上市后，灰变绿，产品方案成为下一款选型起点。</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="loop" aria-label="协作区如何接中台并回到沉淀" style="margin-top:14px">
+        <span class="loop-node">中台选出模块方案</span><span class="loop-arrow">→</span>
+        <span class="loop-node">增量进入解耦单元</span><span class="loop-arrow">→</span>
+        <span class="loop-node">Skill 生成结构化文档</span><span class="loop-arrow">→</span>
+        <span class="loop-node">条件工作网推进</span><span class="loop-arrow">→</span>
+        <span class="loop-node">协同单处理跨组</span><span class="loop-arrow">→</span>
+        <span class="loop-node">JP 汇入快照</span><span class="loop-arrow">→</span>
+        <span class="loop-node">回写沉淀 · 灰→绿</span>
+      </div>
+    </section>
+
+    <section id="example">
+      <div class="section-head"><span class="section-no">5</span><h2>用一款 SKU 看完整路径</h2></div>
+      <div class="sku">
+        <aside class="sku-side">
+          <div class="eyebrow">EXAMPLE</div>
+          <h3>H6199 落地灯 Max</h3>
+          <p>硬件产品经理不是从空白 PRD 开工，而是打开已定稿的 H6076，看到当时的模块组合后再改。</p>
+        </aside>
+        <div class="sku-path">
+          <div class="sku-row">
+            <div class="sku-mod">灯珠</div>
+            <div class="sku-pick">H6076 用灯珠方案一，指标仍满足，且已在 H6091 / H6076 验证。</div>
+            <div class="sku-act act-reuse">复用</div>
+          </div>
+          <div class="sku-row">
+            <div class="sku-mod">电源</div>
+            <div class="sku-pick">H6076 的电源方案 B 只到 10% 调光。H6199 要 1% 深调，基于 B 改一版。</div>
+            <div class="sku-act act-change">二次开发</div>
+          </div>
+          <div class="sku-row">
+            <div class="sku-mod">灯体</div>
+            <div class="sku-pick">仍是落地杆体，H6076 结构方案可继续用。</div>
+            <div class="sku-act act-reuse">复用</div>
+          </div>
+          <div class="sku-row">
+            <div class="sku-mod">固件</div>
+            <div class="sku-pick">墙板色温通道够用，不进开发清单。</div>
+            <div class="sku-act act-reuse">复用</div>
+          </div>
+          <div class="sku-row">
+            <div class="sku-mod">感应</div>
+            <div class="sku-pick">新品要人体感应，货架没有，先作为 PRD 模块概念立新方案。</div>
+            <div class="sku-act act-fresh">新做</div>
+          </div>
+          <div class="callout ok">
+            <strong>5 个模块里 3 个已验证复用。</strong>项目只接电源二次开发 + 感应新做。协作区用 Skill 生成这两项的结构化输入；电源方案深调版和感应方案先挂灰色未定稿，上市后变绿，H6199 写成产品方案。
+          </div>
+        </div>
+      </div>
+      <p class="caption">家电同样走这条路径。例如从 H8120 制冰机开下一款，制冷模块若已定稿且指标满足，就复用，不必整机重做。</p>
+    </section>
+
+    <section id="requirements">
+      <div class="section-head"><span class="section-no">6</span><h2>方案必须讲清的要求</h2></div>
+      <table class="criteria-table">
+        <thead>
+          <tr>
+            <th>编号</th>
+            <th>要求</th>
+            <th>验收口径</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td class="role-name">C1</td><td>对外只讲一条路径：中台货架 + 项目协作，不并列两套方案。</td><td>听完能回答：下一款 SKU 从哪开始、项目里做什么、做完沉到哪。</td></tr>
+          <tr><td class="role-name">C2</td><td>分层从下往上：模块方案 → 产品方案 → 决策 → 项目协作。</td><td>图上项目在上、模块方案在下，制冷与结构 / 电子 / 光学 / 嵌入式并列。</td></tr>
+          <tr><td class="role-name">C3</td><td>模块方案、产品方案都有未定稿 / 定稿，灰绿可辨。</td><td>能看出货架如何变厚，未定稿不能当正式复用基线。</td></tr>
+          <tr><td class="role-name">C4</td><td>新产品从历史 SKU 的模块组合起步，可删可增。</td><td>能自动标出复用、二次开发、新做，并给出人力焦点。</td></tr>
+          <tr><td class="role-name">C5</td><td>决策权在解耦组负责人，项目只接增量。</td><td>复用项不进开发清单；角色表写清谁匹配、谁拍板、谁执行。</td></tr>
+          <tr><td class="role-name">C6</td><td>协作区承接增量：Skill 出结构化文档，条件工作，JP 对齐阶段节点。</td><td>搭完中台后，仍能说明角色在项目里怎么干活。</td></tr>
+          <tr><td class="role-name">C7</td><td>上市或阶段冻结后必须回写。</td><td>下一款能引用上一款沉淀的模块 / 产品方案。</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <footer class="footer">
+      <p>研发知识解耦 · 综合方案 ｜ 依据 2026-09-10 解耦框架讨论 ｜ 中台架构标准化 + 文档结构标准化 ｜ 解耦组负责人</p>
+      <p>配套 DEMO：<a href="研发解耦综合方案-DEMO.html">研发解耦综合方案-DEMO.html</a>（中台 + 协作区）｜ <a href="../../03方案框架/中台化/产品研发中台-DEMO.html">产品研发中台-DEMO.html</a>（货架 / SKU）。</p>
+    </footer>
+  </main>
+</body>
+</html>

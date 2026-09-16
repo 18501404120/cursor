@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>商超 3P · 场景梳理</title>
+  <style>
+    :root {
+      --bg: #eef3fb; --surface: #fff; --text: #0f172a; --muted: #475569;
+      --line: #dbe4f0; --brand: #0b5ed7; --brand-soft: #e7f1ff;
+      --good: #0f766e; --warn: #b45309; --danger: #b91c1c;
+      --wfs: #7c3aed; --shadow: 0 8px 24px rgba(15,23,42,.07); --radius: 12px;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; font-family: "PingFang SC", "Microsoft YaHei", sans-serif;
+      background: linear-gradient(165deg, #eaf0fb, var(--bg) 60%, #f8fafc);
+      color: var(--text); line-height: 1.65;
+    }
+    .page { max-width: 1100px; margin: 0 auto; padding: 20px 16px 48px; }
+    h1 { margin: 0 0 6px; font-size: 22px; color: #0f2f63; }
+    .sub { margin: 0 0 14px; font-size: 13px; color: var(--muted); }
+    .sub a { color: var(--brand); font-weight: 600; }
+    .draft-banner {
+      padding: 10px 14px; margin-bottom: 12px; border-radius: 10px;
+      background: #fffbeb; border: 1px solid #fcd34d; font-size: 13px; color: #92400e;
+    }
+    .hero {
+      padding: 16px 18px; background: #fff; border: 1px solid var(--line);
+      border-radius: var(--radius); box-shadow: var(--shadow); margin-bottom: 14px;
+    }
+    .hero p { margin: 0; font-size: 14px; }
+    .nav {
+      position: sticky; top: 0; z-index: 30; display: flex; flex-wrap: wrap; gap: 6px;
+      padding: 8px 0 12px; background: linear-gradient(180deg, #eef3fb 80%, transparent);
+    }
+    .nav a {
+      font-size: 12px; text-decoration: none; color: var(--brand);
+      padding: 5px 10px; border-radius: 999px; border: 1px solid #bfdbfe; background: #fff;
+    }
+    section {
+      margin-top: 14px; background: var(--surface); border: 1px solid var(--line);
+      border-radius: var(--radius); box-shadow: var(--shadow); overflow: hidden;
+    }
+    section > header {
+      padding: 12px 16px; font-size: 14px; font-weight: 800; color: #0f2f63;
+      border-bottom: 1px solid var(--line); background: #f8fbff;
+    }
+    section > .bd { padding: 16px; }
+    .lead { font-size: 15px; font-weight: 600; color: #0f2f63; margin: 0 0 10px; }
+    .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; }
+    .card {
+      padding: 12px; border: 1px solid var(--line); border-radius: 10px; background: #fafbff;
+      font-size: 13px;
+    }
+    .card strong { display: block; margin-bottom: 4px; color: #0f2f63; }
+    .card.p0 { border-color: #fca5a5; background: #fff5f5; }
+    .pill-row { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0; }
+    .pill {
+      padding: 8px 12px; border-radius: 8px; font-size: 13px; font-weight: 600;
+      border: 1px solid var(--line); background: #fff;
+    }
+    .pill.b { border-color: #93c5fd; background: var(--brand-soft); }
+    .pill.g { border-color: #6ee7b7; background: #ecfdf5; }
+    .pipe {
+      display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 14px 0;
+      font-size: 12px;
+    }
+    .pipe .n {
+      padding: 10px 12px; border-radius: 10px; text-align: center; min-width: 88px;
+      border: 2px solid var(--line); background: #fff;
+    }
+    .pipe .n.purple { border-color: #c4b5fd; background: #f5f3ff; }
+    .pipe .n.warn { border-color: #fcd34d; background: #fffbeb; }
+    .pipe .n.brand { border-color: #93c5fd; background: var(--brand-soft); }
+    .pipe .arr { color: #94a3b8; font-weight: 800; font-size: 18px; }
+    .stores { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 12px; }
+    @media (max-width: 700px) { .stores { grid-template-columns: 1fr; } }
+    .store {
+      border: 2px solid var(--line); border-radius: 10px; padding: 10px; font-size: 12px;
+    }
+    .store h4 { margin: 0 0 6px; font-size: 13px; }
+    .store.wm { border-color: #c4b5fd; }
+    .store.risk { border-color: var(--danger); box-shadow: 0 0 0 3px rgba(185,28,28,.08); }
+    .win-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 12px 0; }
+    @media (max-width: 600px) { .win-grid { grid-template-columns: 1fr; } }
+    .win { padding: 12px; border-radius: 10px; font-size: 13px; }
+    .win.a { background: #fff7ed; border: 1px solid #fdba74; }
+    .win.b { background: #ecfdf5; border: 1px solid #6ee7b7; }
+    .win h5 { margin: 0 0 6px; font-size: 13px; }
+    .swimlane { display: grid; grid-template-columns: 100px 1fr; gap: 0; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; font-size: 12px; margin: 10px 0; }
+    .swimlane .lane { padding: 10px; background: #f8fbff; font-weight: 700; border-bottom: 1px solid var(--line); }
+    .swimlane .steps { padding: 10px 12px; border-bottom: 1px solid var(--line); display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+    .swimlane .steps span { padding: 4px 8px; background: #fff; border: 1px solid var(--line); border-radius: 6px; }
+    .swimlane .steps .arr { background: none; border: none; color: #94a3b8; padding: 0; }
+    .moment { border: 1px solid var(--line); border-radius: 10px; overflow: hidden; font-size: 12px; margin: 8px 0; }
+    .moment .mh { padding: 8px 12px; background: #f8fbff; border-bottom: 1px solid var(--line); font-weight: 700; color: #0f2f63; }
+    .moment .mb { padding: 10px 12px; }
+    table { width: 100%; border-collapse: collapse; font-size: 12px; margin: 10px 0; }
+    th, td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+    th { background: #f1f5f9; }
+    .tag { display: inline-block; font-size: 11px; font-weight: 700; padding: 2px 7px; border-radius: 5px; margin-right: 4px; }
+    .tag-p0 { background: #fef2f2; color: var(--danger); }
+    .tag-p1 { background: #fff7ed; color: var(--warn); }
+    .tag-p2 { background: #f1f5f9; color: var(--muted); }
+    .topic-map { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+    @media (max-width: 640px) { .topic-map { grid-template-columns: 1fr; } }
+    .topic {
+      padding: 14px; border-radius: 10px; border: 2px solid var(--line);
+      text-decoration: none; color: inherit; display: block; transition: border-color .15s;
+    }
+    .topic:hover { border-color: var(--brand); }
+    .topic h3 { margin: 0 0 6px; font-size: 14px; color: #0f2f63; }
+    .topic p { margin: 0; font-size: 12px; color: var(--muted); }
+    .roles { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; }
+    .role { padding: 12px; border: 1px solid var(--line); border-radius: 10px; font-size: 13px; }
+    .role h4 { margin: 0 0 8px; font-size: 13px; color: #0f2f63; }
+    .role ul { margin: 0; padding-left: 18px; }
+    #open ol { padding-left: 1.3em; font-size: 13px; }
+    #open li { margin: 10px 0; }
+    .hint { font-size: 12px; color: var(--muted); margin-top: 8px; }
+    .cal-mini label { font-size: 11px; color: var(--muted); display: block; }
+    .cal-mini input { width: 72px; padding: 4px 6px; border: 1px solid var(--line); border-radius: 6px; margin-right: 8px; }
+    .cal-out { font-size: 13px; margin-top: 8px; padding: 10px; background: #f8fafc; border-radius: 8px; }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <p class="sub"><a href="../原型/index.html">← 原型目录</a> · <a href="README.md">方案 MD 索引</a> · 来源：<code>原始需求/会议1</code></p>
+    <h1>商超 3P · 场景梳理</h1>
+    <p class="sub">WFS 库存 · 多平台上架 · 促销规划 · 全渠道管报 · 约 12 分钟阅读</p>
+
+    <div class="draft-banner" role="status">草案 · 含 <strong>8</strong> 条待确认（见文末）</div>
+
+    <div class="hero">
+      <p><strong>一句话：</strong>成本驱动下主货盘转向 <strong>WFS 一池多店</strong>，需在 ERP 侧解决 <strong>品牌/平台逻辑库存、借调台账与超卖防控</strong>；同时补齐 <strong>Listing 主数据与 Mirakl 对接</strong>、<strong>亚马逊→沃尔玛促销规划效率</strong>，销售成本并入 <strong>全渠道管报</strong>。</p>
+    </div>
+
+    <nav class="nav" aria-label="章节">
+      <a href="#guide">阅读指引</a>
+      <a href="#bg">背景</a>
+      <a href="#pain">痛点</a>
+      <a href="#asis">现状</a>
+      <a href="#value">价值</a>
+      <a href="#map">议题地图</a>
+      <a href="#wfs">WFS</a>
+      <a href="#listing">Listing</a>
+      <a href="#promo">促销</a>
+      <a href="#report">管报</a>
+      <a href="#roles">角色</a>
+      <a href="#open">待确认</a>
+    </nav>
+
+    <section id="guide">
+      <header>阅读指引</header>
+      <div class="bd">
+        <div class="cards">
+          <div class="card"><strong>本文定位</strong>PRD / 功能原型之前的对齐页：为什么做、现在怎么做、打算怎么做、谁负责什么。</div>
+          <div class="card"><strong>不展开</strong>会议流水账；细节方案见 <code>方案/01～08</code> 分篇 MD 与 WFS 原型说明 v2。</div>
+          <div class="card"><strong>示例 SKU</strong>演示用 <code>H6065301</code>（model <code>H6065</code>）；店铺示例含沃尔玛主店、Best Buy、Lowes 等商超 3P 渠道。</div>
+        </div>
+      </div>
+    </section>
+
+    <section id="bg">
+      <header>1 · 背景</header>
+      <div class="bd">
+        <div class="cards">
+          <div class="card"><strong>备货策略转向</strong>测算后 WFS 头尾成本最低，主货盘（含后续更多商超 3P 平台）倾向集中备入 WFS。</div>
+          <div class="card"><strong>平台约束</strong>WFS 不能像 FBA 按店铺分仓；实物与账面多集中在<strong>沃尔玛侧 WFS</strong>，多品牌、多平台共卖同一池。</div>
+          <div class="card"><strong>渠道扩张</strong>BBY 由 Reason 迁回 Mirakl/MySQL；Lowes 等新店洽谈中，Listing 需重复维护。</div>
+          <div class="card"><strong>促销节奏</strong>沃尔玛促销规则相对固定（如 Best Deal 窗口），但规划仍依赖亚马逊促销日历手工对照。</div>
+        </div>
+      </div>
+    </section>
+
+    <section id="pain">
+      <header>2 · 痛点</header>
+      <div class="bd">
+        <div class="cards">
+          <div class="card p0"><strong>超卖风险</strong>WM 占满 WFS 可售；BBY/Lowes 可售需手工配且<strong>扣减非实时</strong>，10 分钟拉单窗口内可能卖穿。</div>
+          <div class="card p0"><strong>品牌难区分</strong>三品牌共 WFS，无法像 FBA 按店隔离，缺逻辑库存与借调消耗追溯。</div>
+          <div class="card"><strong>借调低效</strong>日常小批量借调依赖人工找仓储同事，缺自助与额度校验。</div>
+          <div class="card"><strong>上架重复</strong>百款级 SKU 在 Mirakl 后台逐条建品；跨平台字段名不一致，无法「拷店」。</div>
+          <div class="card"><strong>促销费时</strong>每月从亚马逊营销日历扒价再排沃尔玛表，划线价 / Coupon / Promotion 难区分，Lowes 等平台还不能分段预排。</div>
+        </div>
+      </div>
+    </section>
+
+    <section id="asis">
+      <header>3 · 现状流程（摘要）</header>
+      <div class="bd">
+        <p class="lead">库存与订单</p>
+        <div class="swimlane">
+          <div class="lane">业务</div>
+          <div class="steps"><span>测算 → 备货进 WFS</span><span class="arr">→</span><span>各平台配可售</span><span class="arr">→</span><span>缺货时人工借调</span></div>
+          <div class="lane">ERP</div>
+          <div class="steps"><span>约 10 分钟拉订单</span><span class="arr">→</span><span>共享库存（在研）</span><span class="arr">→</span><span>无 WFS 借调自助</span></div>
+          <div class="lane">平台</div>
+          <div class="steps"><span>WM 占满 WFS 可售</span><span class="arr">→</span><span>BBY/Lowes 推单后才扣</span><span class="arr">→</span><span>WFS 仓不可改分配</span></div>
+        </div>
+        <p class="lead">Listing</p>
+        <div class="swimlane">
+          <div class="lane">业务</div>
+          <div class="steps"><span>Mirakl 后台逐条 Add offer</span><span class="arr">→</span><span>类目必填项各异</span><span class="arr">→</span><span>新店再传一遍</span></div>
+          <div class="lane">ERP</div>
+          <div class="steps"><span>无商超 Listing 主数据</span><span class="arr">→</span><span>尺寸等散落亚马逊侧</span></div>
+        </div>
+        <p class="lead">促销</p>
+        <div class="swimlane">
+          <div class="lane">业务</div>
+          <div class="steps"><span>亚马逊日历排期</span><span class="arr">→</span><span>手工映射沃尔玛</span><span class="arr">→</span><span>后台逐 SKU 设价</span></div>
+          <div class="lane">系统</div>
+          <div class="steps"><span>营销日历在研（约 6 月）</span><span class="arr">→</span><span>缺 Coupon/划线区分</span><span class="arr">→</span><span>Mirakl 改价 API 未验</span></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="value">
+      <header>4 · 业务价值</header>
+      <div class="bd">
+        <div class="cards">
+          <div class="card"><strong>控超卖</strong>共享池 + 预测砍量 / 切补仓，降低多平台共卖 WFS 的断货与赔付风险。</div>
+          <div class="card"><strong>算清账</strong>借调台账 + 订单履约标识，支撑多品牌 WFS 消耗与头尾成本归因。</div>
+          <div class="card"><strong>提人效</strong>借调自助、Listing 主数据一次维护多平台上架、促销试算省约 1～2 天/月。</div>
+          <div class="card"><strong>统一看数</strong>商超 3P 销售成本纳入全渠道管报，与亚马逊等同一套营收规则。</div>
+        </div>
+      </div>
+    </section>
+
+    <section id="map">
+      <header>5 · 议题地图（与方案分篇对应）</header>
+      <div class="bd">
+        <div class="topic-map">
+          <a class="topic" href="#wfs">
+            <h3>① WFS 库存 <span class="tag tag-p0">P0</span></h3>
+            <p>品牌逻辑库存 · 共享池超卖防控 · 借调自助 → 方案 01～03</p>
+          </a>
+          <a class="topic" href="#listing">
+            <h3>② Listing 主数据 <span class="tag tag-p0">P0</span></h3>
+            <p>ERP 集中维护 · 类目模板 · Mirakl 导入/API → 方案 04</p>
+          </a>
+          <a class="topic" href="#promo">
+            <h3>③ 促销规划 <span class="tag tag-p1">P1</span></h3>
+            <p>日历导出 · 沃尔玛试算 · 分段提醒 · API 调研 → 方案 06～08</p>
+          </a>
+          <a class="topic" href="#report">
+            <h3>④ 全渠道管报 <span class="tag tag-p2">跟随</span></h3>
+            <p>不单独立项销售成本面板 → 方案 05</p>
+          </a>
+        </div>
+        <table>
+          <thead><tr><th>会议明确不做 / 暂缓</th><th>说明</th></tr></thead>
+          <tbody>
+            <tr><td>Mirakl 付费拷店</td><td>由品牌方采购，商超团队默认不依赖</td></tr>
+            <tr><td>沃尔玛自动跟亚马逊价</td><td>曾丢购物车，业务坚持自维护</td></tr>
+            <tr><td>Seller Fulfilled 替代 WFS</td><td>损害 listing 权重，否决</td></tr>
+            <tr><td>改沃尔玛 WFS 可售分配</td><td>平台侧动不了，只能动其他店可售或切供货模式</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="wfs">
+      <header>6 · WFS：一池多店 · 方案轮廓</header>
+      <div class="bd">
+        <p class="lead">实物一份，逻辑三份</p>
+        <div class="pipe">
+          <div class="n purple"><span>WFS 实查</span><br>例 1000 台</div>
+          <span class="arr">→</span>
+          <div class="n warn"><span>WM 占满可售</span><br>平台不可改</div>
+          <span class="arr">→</span>
+          <div class="n brand"><span>BBY / Lowes</span><br>手工配可售</div>
+        </div>
+        <div class="stores">
+          <div class="store wm">
+            <h4>沃尔玛（WFS 主）</h4>
+            <p>WFS 库存对沃尔玛<strong>全部可售</strong>；扣减相对及时。</p>
+          </div>
+          <div class="store">
+            <h4>Best Buy（Mirakl）</h4>
+            <p>共卖 WFS；订单约 <strong>10 分钟</strong> 进 ERP；推单后扣减。</p>
+          </div>
+          <div class="store risk">
+            <h4>Lowes 等（扩店）</h4>
+            <p>同上；拉单盲区内 WM 可能卖穿 → <strong>超卖风险点</strong>。</p>
+          </div>
+        </div>
+
+        <p class="lead" style="margin-top:16px">目标能力（三块）</p>
+        <div class="cards">
+          <div class="card"><strong>区分与台账</strong>多品牌逻辑库存；借调面板展示借调量与消耗；订单可识别 WFS 履约消耗（含借调货）。</div>
+          <div class="card"><strong>共享与防控</strong>沿用共享库存主库存=沃尔玛；加<strong>消耗预测</strong>：连续多个 10 分钟窗口评估 WM 增速，风险时砍 BBY/Lowes 可售或切 FBM/谷仓补仓。</div>
+          <div class="card"><strong>借调自助</strong>实时查 WFS 仓库存；扣减已借未还；可选比例上限（如 &lt; 实查 30%）；无法 100% 防超卖但减人工。</div>
+        </div>
+
+        <div class="moment">
+          <div class="mh">10 分钟拉单 · 风险示意</div>
+          <div class="mb">
+            <p style="margin:0 0 8px">T0：WFS 实查 200，BBY 配可售 100。T0～T10：沃尔玛热卖 200 台，ERP 尚未感知 → BBY 仍可能再卖 → <strong>逻辑超卖</strong>。</p>
+            <p class="hint">短期订单量不大可人工兜底；旺季前需预测砍量或切自发货（自发货库存数据在己方）。</p>
+          </div>
+        </div>
+
+        <p class="lead">轻量演算：借调额度（草案规则）</p>
+        <div class="cal-mini">
+          <label>WFS 实查 <input type="number" id="qWfs" value="300" min="0"></label>
+          <label>已借未还 <input type="number" id="qBorrowed" value="20" min="0"></label>
+          <label>比例上限 % <input type="number" id="qPct" value="30" min="0" max="100"></label>
+          <button type="button" id="btnCalc" style="padding:4px 10px;border-radius:6px;border:1px solid var(--line);background:#fff;cursor:pointer">计算</button>
+        </div>
+        <div class="cal-out" id="calOut">可借上限 ≈ min(实查×30%, 实查−已借) → 示例 70 台</div>
+      </div>
+    </section>
+
+    <section id="listing">
+      <header>7 · Listing：ERP 主数据 · 多平台上架</header>
+      <div class="bd">
+        <div class="win-grid">
+          <div class="win a">
+            <h5>现状</h5>
+            <ul>
+              <li>Mirakl 后台逐条建品；CSV 导入仅文字，图片 URL 易失败</li>
+              <li>BBY 无法导出再导入 Lowes；字段名按平台各异（item / name…）</li>
+              <li>ERP 无长宽高等 Listing 主数据历史</li>
+            </ul>
+          </div>
+          <div class="win b">
+            <h5>目标</h5>
+            <ul>
+              <li>ERP 维护<strong>商超 Listing 主数据</strong>（尺寸、描述、认证、图链等）</li>
+              <li>按<strong>类目模板</strong>映射 Mirakl 必填项；新店走导入或 API 创建</li>
+              <li>源数据变更可同步多平台，避免逐店手工刷</li>
+            </ul>
+          </div>
+        </div>
+        <div class="pill-row">
+          <span class="pill b">先调研 Mirakl API</span>
+          <span class="pill b">试单类目 CSV 导入</span>
+          <span class="pill g">图片：公网 URL 或平台托管</span>
+        </div>
+        <p class="hint">Lowes 开店紧迫：可先 Excel/模板导入跑通，再迭代 API；亚马逊资料可作补充来源但 ERP 需沉淀副本。</p>
+      </div>
+    </section>
+
+    <section id="promo">
+      <header>8 · 促销：亚马逊日历 → 沃尔玛规划</header>
+      <div class="bd">
+        <div class="cards">
+          <div class="card"><strong>三类促销</strong>Coupon（复控）、划线价、Promotion（灵活时段）；Flash Deal 固定月内窗口。</div>
+          <div class="card"><strong>近期交付</strong>营销日历增强：导出区分 Coupon 与划线价（或同色标单元格）；约 6 月。</div>
+          <div class="card"><strong>中期目标</strong>全渠道资源计划加「沃尔玛试算」：读亚马逊分段价 + 业务成文规则 → 高亮可报 Flash / Promotion / Coupon。</div>
+          <div class="card"><strong>体验补强</strong>Lowes 等：同价不能两段预排 → 促销<strong>结束次日</strong>提醒设下一段；调研 Mirakl 是否支持创建 Promotion。</div>
+        </div>
+        <table>
+          <thead><tr><th>色块含义（业务表习惯）</th><th>沃尔玛侧动作</th></tr></thead>
+          <tbody>
+            <tr><td>标 Coupon → 复控价</td><td>报 Coupon</td></tr>
+            <tr><td>仅标价、无 Coupon → 划线</td><td>划线价 / Best Deal 窗口</td></tr>
+            <tr><td>与 Flash 窗口重叠的低价段</td><td>试算高亮「可报 Flash」</td></tr>
+          </tbody>
+        </table>
+        <p class="hint">沃尔玛可整月多段预排；仍须人工到 Mirakl 后台报名，系统先解决「看清该报什么」再考虑 API 自动写价。</p>
+      </div>
+    </section>
+
+    <section id="report">
+      <header>9 · 全渠道管报（不单独立项）</header>
+      <div class="bd">
+        <p style="margin:0;font-size:14px">商超 3P <strong>销售成本 / 营收</strong>不单独做「销售成本面板」，纳入在研<strong>全渠道管报</strong>，与各渠道同一套呈现规则；出货授权成本等由管报项目一并交付。</p>
+      </div>
+    </section>
+
+    <section id="roles">
+      <header>10 · 角色与职责</header>
+      <div class="bd">
+        <div class="roles">
+          <div class="role">
+            <h4>商超运营（3P）</h4>
+            <ul>
+              <li>备货策略、各平台可售配置、促销排期</li>
+              <li>提供沃尔玛促销成文规则与 Excel 模板样例</li>
+              <li>复核 WFS 扣减时点；对接沃尔玛平台方</li>
+            </ul>
+          </div>
+          <div class="role">
+            <h4>ERP / 产品 · 研发</h4>
+            <ul>
+              <li>共享库存、借调自助、Listing 主数据、营销日历与试算</li>
+              <li>Mirakl API / 导入能力矩阵调研</li>
+            </ul>
+          </div>
+          <div class="role">
+            <h4>仓储 / 库存协作</h4>
+            <ul>
+              <li>过渡期 WFS 手工借调；配合实查口径</li>
+              <li>借调自助上线后转为规则内自助</li>
+            </ul>
+          </div>
+          <div class="role">
+            <h4>全渠道管报项目</h4>
+            <ul>
+              <li>商超 3P 渠道指标与销售成本口径验收</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="open">
+      <header>11 · 待确认 / 开放问题</header>
+      <div class="bd">
+        <ol>
+          <li><strong>待您确认：</strong>WFS 对 Best Buy / Lowes 的库存扣减发生在<strong>推单时还是出库后</strong>？需书面复核结论（影响 10 分钟窗口风险模型）。</li>
+          <li><strong>待您确认：</strong>借调自助「可借上限」是否采用<strong>实查库存 × 比例（如 30%）− 已借未还</strong>，还是另有业务红线？</li>
+          <li><strong>待您确认：</strong>Mirakl 产品创建 API 对<strong>图片</strong>是接受公网 URL 还是必须文件流上传？（决定 ERP 图床方案）</li>
+          <li><strong>待您确认：</strong>Mirakl「更新促销价」接口是<strong>仅改价</strong>还是支持<strong>新建 Promotion</strong>？是否覆盖沃尔玛自动设促场景？</li>
+          <li><strong>待您确认：</strong>沃尔玛促销规则文档与排期<strong>模板样例</strong>何时提供？（阻塞试算面板规则配置）</li>
+          <li><strong>待您确认：</strong>Lowes 开店后类目与 BBY 字段差异表是否由业务整理，还是研发从 Mirakl 模板反推？</li>
+          <li><strong>待您确认：</strong>共享库存「预测砍量」触发后，优先<strong>砍可售</strong>还是<strong>切 FBM/谷仓补仓</strong>的默认策略？</li>
+          <li><strong>待您确认：</strong>促销分段提醒：以<strong>结束次日</strong>提醒为准（平台当日不可预排下一段），是否还需<strong>开始前一日</strong>提醒？</li>
+        </ol>
+        <p class="hint">定稿方式：回复上述编号后，说「按回复更新场景梳理」即可覆盖本页并收敛待确认。</p>
+      </div>
+    </section>
+  </div>
+  <script>
+    (function () {
+      var btn = document.getElementById('btnCalc');
+      var out = document.getElementById('calOut');
+      if (!btn || !out) return;
+      function run() {
+        var wfs = Number(document.getElementById('qWfs').value) || 0;
+        var borrowed = Number(document.getElementById('qBorrowed').value) || 0;
+        var pct = Number(document.getElementById('qPct').value) || 0;
+        var capPct = Math.floor(wfs * pct / 100);
+        var capRem = Math.max(0, wfs - borrowed);
+        var can = Math.min(capPct, capRem);
+        out.textContent = '可借上限 ≈ min(实查×' + pct + '%, 实查−已借) = min(' + capPct + ', ' + capRem + ') → ' + can + ' 台（系统仅校验额度，不消除拉单盲区超卖）';
+      }
+      btn.addEventListener('click', run);
+      run();
+    })();
+  </script>
+</body>
+</html>

@@ -1,0 +1,1358 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>一期受控研发知识库 Demo</title>
+  <style>
+    :root {
+      --bg: #f3f5f9;
+      --surface: #ffffff;
+      --surface-2: #f8fafc;
+      --text: #172033;
+      --muted: #667085;
+      --line: #e4e7ec;
+      --primary: #2754c5;
+      --primary-2: #1e3fa0;
+      --primary-soft: #eef3ff;
+      --green: #16825d;
+      --green-soft: #eaf8f2;
+      --amber: #b46505;
+      --amber-soft: #fff6e8;
+      --red: #c43c3c;
+      --red-soft: #fff0f0;
+      --purple: #6941c6;
+      --purple-soft: #f3efff;
+      --nav: 226px;
+      --shadow: 0 8px 30px rgba(22, 34, 57, 0.08);
+    }
+
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+      margin: 0;
+      color: var(--text);
+      background: var(--bg);
+      font: 13px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    }
+    button, input, select, textarea { font: inherit; }
+    button { cursor: pointer; }
+    a { color: inherit; }
+    #app { min-height: 100%; }
+
+    .topbar {
+      height: 58px;
+      display: flex;
+      align-items: center;
+      gap: 18px;
+      padding: 0 20px;
+      color: #fff;
+      background: #17264a;
+      position: sticky;
+      top: 0;
+      z-index: 30;
+    }
+    .brand {
+      min-width: 235px;
+      font-size: 15px;
+      font-weight: 760;
+      letter-spacing: 0.01em;
+    }
+    .brand small {
+      display: block;
+      margin-top: -2px;
+      color: rgba(255,255,255,.62);
+      font-size: 10px;
+      font-weight: 500;
+    }
+    .phase-chip {
+      border: 1px solid rgba(255,255,255,.24);
+      border-radius: 999px;
+      padding: 3px 9px;
+      color: #dbe6ff;
+      background: rgba(255,255,255,.07);
+      white-space: nowrap;
+    }
+    .top-spacer { flex: 1; }
+    .role-select {
+      height: 34px;
+      min-width: 210px;
+      border: 1px solid rgba(255,255,255,.25);
+      border-radius: 8px;
+      padding: 0 10px;
+      color: #fff;
+      background: #223868;
+      outline: none;
+    }
+    .top-button {
+      height: 34px;
+      border: 1px solid rgba(255,255,255,.22);
+      border-radius: 8px;
+      padding: 0 11px;
+      color: #fff;
+      background: transparent;
+    }
+    .top-button:hover { background: rgba(255,255,255,.08); }
+
+    .layout {
+      display: grid;
+      grid-template-columns: var(--nav) minmax(0, 1fr);
+      min-height: calc(100vh - 58px);
+    }
+    .nav {
+      padding: 16px 12px;
+      background: var(--surface);
+      border-right: 1px solid var(--line);
+      position: sticky;
+      top: 58px;
+      height: calc(100vh - 58px);
+      overflow: auto;
+    }
+    .nav-title {
+      padding: 0 10px 7px;
+      color: #98a2b3;
+      font-size: 10px;
+      font-weight: 750;
+      letter-spacing: .08em;
+    }
+    .nav-button {
+      width: 100%;
+      min-height: 40px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin: 2px 0;
+      border: 0;
+      border-radius: 9px;
+      padding: 8px 10px;
+      color: #475467;
+      background: transparent;
+      text-align: left;
+      font-weight: 650;
+    }
+    .nav-button:hover { background: #f5f7fa; }
+    .nav-button.on { color: var(--primary); background: var(--primary-soft); }
+    .nav-icon {
+      width: 24px;
+      height: 24px;
+      display: grid;
+      place-items: center;
+      border-radius: 7px;
+      color: #667085;
+      background: #f2f4f7;
+      font-size: 11px;
+      font-weight: 800;
+    }
+    .nav-button.on .nav-icon { color: #fff; background: var(--primary); }
+    .nav-count {
+      margin-left: auto;
+      min-width: 20px;
+      border-radius: 999px;
+      padding: 1px 6px;
+      color: #667085;
+      background: #f2f4f7;
+      text-align: center;
+      font-size: 10px;
+    }
+    .nav-note {
+      margin: 18px 5px 0;
+      border: 1px solid #dce5fa;
+      border-radius: 10px;
+      padding: 10px;
+      color: #395078;
+      background: #f6f9ff;
+      font-size: 11px;
+    }
+    .main {
+      min-width: 0;
+      padding: 22px 26px 50px;
+    }
+    .page-head {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+    .page-head h1 {
+      margin: 0;
+      font-size: 22px;
+      line-height: 1.3;
+      letter-spacing: -.01em;
+    }
+    .page-head p { margin: 5px 0 0; color: var(--muted); }
+    .crumb { margin-bottom: 8px; color: var(--muted); font-size: 12px; }
+    .crumb button {
+      border: 0;
+      padding: 0;
+      color: var(--primary);
+      background: transparent;
+    }
+
+    .btns { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .btn {
+      min-height: 34px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 6px 12px;
+      color: #344054;
+      background: #fff;
+      font-weight: 650;
+    }
+    .btn:hover { background: #f8fafc; }
+    .btn.primary { border-color: var(--primary); color: #fff; background: var(--primary); }
+    .btn.primary:hover { background: var(--primary-2); }
+    .btn.green { border-color: var(--green); color: #fff; background: var(--green); }
+    .btn.red { border-color: #f2b8b8; color: var(--red); background: var(--red-soft); }
+    .btn.small { min-height: 28px; padding: 4px 9px; font-size: 12px; }
+    .btn:disabled { opacity: .45; cursor: not-allowed; }
+
+    .card {
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: var(--surface);
+      box-shadow: 0 1px 2px rgba(16,24,40,.02);
+    }
+    .card-pad { padding: 16px; }
+    .card-title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+    .card-title h2, .card-title h3 { margin: 0; font-size: 15px; }
+    .section-title {
+      margin: 20px 0 10px;
+      color: #475467;
+      font-size: 12px;
+      font-weight: 750;
+    }
+    .muted { color: var(--muted); }
+    .small { font-size: 12px; }
+    .mono { font-variant-numeric: tabular-nums; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+
+    .status {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      border-radius: 999px;
+      padding: 2px 8px;
+      font-size: 11px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+    .status.green { color: var(--green); background: var(--green-soft); }
+    .status.amber { color: var(--amber); background: var(--amber-soft); }
+    .status.red { color: var(--red); background: var(--red-soft); }
+    .status.blue { color: var(--primary); background: var(--primary-soft); }
+    .status.purple { color: var(--purple); background: var(--purple-soft); }
+    .status.gray { color: #667085; background: #f2f4f7; }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+    .stat { padding: 15px 16px; }
+    .stat .label { color: var(--muted); font-size: 12px; }
+    .stat strong { display: block; margin: 5px 0 1px; font-size: 25px; line-height: 1.1; }
+    .stat .trend { color: var(--green); font-size: 11px; }
+    .dashboard-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1.55fr) minmax(280px, .8fr);
+      gap: 14px;
+    }
+    .space-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+    .space-card {
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 13px;
+      background: #fff;
+    }
+    .space-card:hover { border-color: #b9c9ef; }
+    .space-head { display: flex; justify-content: space-between; gap: 10px; }
+    .space-head strong { font-size: 14px; }
+    .space-meta { margin-top: 4px; color: var(--muted); font-size: 11px; }
+    .space-progress { height: 5px; margin-top: 10px; overflow: hidden; border-radius: 999px; background: #edf0f5; }
+    .space-progress i { display: block; height: 100%; border-radius: inherit; background: var(--primary); }
+
+    .list { display: flex; flex-direction: column; }
+    .list-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 12px;
+      min-height: 58px;
+      border-top: 1px solid #f0f2f5;
+      padding: 10px 0;
+    }
+    .list-row:first-child { border-top: 0; }
+    .link-button {
+      border: 0;
+      padding: 0;
+      color: var(--primary);
+      background: transparent;
+      text-align: left;
+      font-weight: 720;
+    }
+    .row-meta { margin-top: 2px; color: var(--muted); font-size: 11px; }
+    .notice {
+      border: 1px solid #f3d7a7;
+      border-radius: 10px;
+      padding: 10px 12px;
+      color: #7a4707;
+      background: var(--amber-soft);
+    }
+    .notice.info { border-color: #ccdaf8; color: #314b85; background: #f2f6ff; }
+    .notice.red { border-color: #f1c2c2; color: #8f2f2f; background: var(--red-soft); }
+
+    .atom-layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 290px;
+      gap: 14px;
+      align-items: start;
+    }
+    .atom-hero { padding: 18px; margin-bottom: 12px; }
+    .atom-title-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+    .atom-title-row h1 { margin: 2px 0 0; font-size: 21px; }
+    .atom-code { color: var(--muted); font-size: 11px; }
+    .meta-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 8px;
+      margin-top: 15px;
+    }
+    .meta-item { border-radius: 8px; padding: 9px 10px; background: var(--surface-2); }
+    .meta-item span { display: block; color: var(--muted); font-size: 10px; }
+    .meta-item b { display: block; margin-top: 2px; font-size: 12px; }
+    .content-block { padding: 16px; margin-bottom: 12px; }
+    .content-block h3 { margin: 0 0 10px; font-size: 14px; }
+    .value-grid { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 8px; }
+    .value-box { border: 1px solid var(--line); border-radius: 9px; padding: 10px; }
+    .value-box span { color: var(--muted); font-size: 11px; }
+    .value-box b { display: block; margin-top: 3px; font-size: 15px; }
+    .attachment {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      border-top: 1px solid #f0f2f5;
+      padding: 8px 0;
+    }
+    .attachment:first-of-type { border-top: 0; }
+    .file-icon {
+      width: 30px;
+      height: 30px;
+      display: inline-grid;
+      place-items: center;
+      margin-right: 8px;
+      border-radius: 7px;
+      color: var(--primary);
+      background: var(--primary-soft);
+      font-size: 10px;
+      font-weight: 800;
+    }
+    .relation-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+    .relation { border: 1px solid var(--line); border-radius: 9px; padding: 10px; }
+    .relation em { color: var(--purple); font-size: 10px; font-style: normal; font-weight: 750; }
+    .timeline { padding: 14px; }
+    .timeline-item {
+      position: relative;
+      padding: 0 0 17px 19px;
+      border-left: 1px solid #d9deea;
+    }
+    .timeline-item:last-child { padding-bottom: 0; border-left-color: transparent; }
+    .timeline-item::before {
+      content: "";
+      position: absolute;
+      left: -5px;
+      top: 4px;
+      width: 9px;
+      height: 9px;
+      border: 2px solid #fff;
+      border-radius: 50%;
+      background: #98a2b3;
+      box-shadow: 0 0 0 1px #cfd5df;
+    }
+    .timeline-item.current::before { background: var(--primary); }
+    .timeline-item b { font-size: 12px; }
+    .timeline-item p { margin: 3px 0 0; color: var(--muted); font-size: 11px; }
+
+    .field-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+    .field-wrap.full { grid-column: 1 / -1; }
+    .field-wrap label { display: block; margin-bottom: 4px; color: #475467; font-size: 11px; font-weight: 700; }
+    .field {
+      width: 100%;
+      min-height: 36px;
+      border: 1px solid #d6dae3;
+      border-radius: 8px;
+      padding: 7px 9px;
+      color: var(--text);
+      background: #fff;
+      outline: none;
+    }
+    .field:focus { border-color: #8ea8e6; box-shadow: 0 0 0 3px #edf2ff; }
+    textarea.field { min-height: 92px; resize: vertical; }
+
+    .review-layout {
+      display: grid;
+      grid-template-columns: 300px minmax(0,1fr);
+      gap: 14px;
+      align-items: start;
+    }
+    .queue { padding: 8px; }
+    .queue-item {
+      width: 100%;
+      border: 0;
+      border-radius: 9px;
+      padding: 11px;
+      color: var(--text);
+      background: transparent;
+      text-align: left;
+    }
+    .queue-item:hover { background: #f7f8fa; }
+    .queue-item.on { background: var(--primary-soft); }
+    .queue-item + .queue-item { margin-top: 3px; }
+    .queue-item b { display: block; }
+    .queue-item span { color: var(--muted); font-size: 11px; }
+    .review-main { padding: 17px; }
+    .check-grid { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 9px; margin: 12px 0; }
+    .check-card { border: 1px solid var(--line); border-radius: 9px; padding: 11px; }
+    .check-row { display: flex; justify-content: space-between; gap: 10px; padding: 6px 0; border-top: 1px solid #f1f2f4; }
+    .check-row:first-of-type { border-top: 0; }
+    .diff-table, .permission-table, .data-table {
+      width: 100%;
+      border-collapse: collapse;
+      background: #fff;
+    }
+    .diff-table th, .diff-table td,
+    .permission-table th, .permission-table td,
+    .data-table th, .data-table td {
+      border-bottom: 1px solid var(--line);
+      padding: 10px;
+      text-align: left;
+      vertical-align: middle;
+      font-size: 12px;
+    }
+    .diff-table th, .permission-table th, .data-table th { color: #475467; background: #f8fafc; font-size: 11px; }
+    .diff-new { color: var(--red); font-weight: 700; }
+    .empty { padding: 50px 20px; color: var(--muted); text-align: center; }
+
+    .permission-layout { display: grid; grid-template-columns: minmax(0,1fr) 320px; gap: 14px; align-items: start; }
+    .permission-card { padding: 16px; overflow: auto; }
+    .yes { color: var(--green); font-weight: 800; }
+    .no { color: #c7ccd4; }
+    .audit-list { padding: 0 14px 12px; }
+    .audit-row { border-top: 1px solid #f0f2f5; padding: 10px 0; }
+    .audit-row:first-child { border-top: 0; }
+    .audit-row p { margin: 2px 0 0; color: var(--muted); font-size: 11px; }
+
+    .toolbar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      border: 1px solid var(--line);
+      border-radius: 11px;
+      padding: 10px;
+      background: #fff;
+    }
+    .toolbar .field { width: auto; min-width: 132px; }
+    .toolbar .search-field { flex: 1; min-width: 220px; }
+    .search-layout { display: grid; grid-template-columns: minmax(0,1fr) 340px; gap: 14px; margin-top: 12px; align-items: start; }
+    .result-list { padding: 4px 14px; }
+    .result-row {
+      display: grid;
+      grid-template-columns: minmax(0,1fr) auto;
+      gap: 12px;
+      align-items: center;
+      border-top: 1px solid var(--line);
+      padding: 13px 0;
+    }
+    .result-row:first-child { border-top: 0; }
+    .result-title { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .result-title b { font-size: 14px; }
+    .topic-panel { position: sticky; top: 80px; padding: 15px; }
+    .topic-ref { border: 1px solid var(--line); border-radius: 9px; padding: 10px; margin-top: 8px; }
+    .topic-ref.stale { border-color: #efc477; background: var(--amber-soft); }
+    .topic-ref-head { display: flex; justify-content: space-between; gap: 8px; }
+    .topic-ref p { margin: 3px 0 0; color: var(--muted); font-size: 11px; }
+
+    .modal-bg {
+      position: fixed;
+      inset: 0;
+      z-index: 50;
+      display: grid;
+      place-items: center;
+      padding: 20px;
+      background: rgba(15, 23, 42, .48);
+    }
+    .modal {
+      width: min(680px, 100%);
+      max-height: 88vh;
+      overflow: auto;
+      border-radius: 14px;
+      padding: 18px;
+      background: #fff;
+      box-shadow: var(--shadow);
+    }
+    .modal h2 { margin: 0; font-size: 18px; }
+    .toast {
+      position: fixed;
+      left: 50%;
+      bottom: 24px;
+      z-index: 80;
+      transform: translateX(-50%);
+      border-radius: 999px;
+      padding: 9px 16px;
+      color: #fff;
+      background: #17264a;
+      box-shadow: var(--shadow);
+      font-size: 12px;
+    }
+
+    @media (max-width: 1100px) {
+      .stats { grid-template-columns: repeat(2, 1fr); }
+      .dashboard-grid, .atom-layout, .permission-layout, .search-layout { grid-template-columns: 1fr; }
+      .topic-panel { position: static; }
+      .meta-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+    @media (max-width: 820px) {
+      :root { --nav: 72px; }
+      .brand { min-width: auto; }
+      .brand small, .phase-chip { display: none; }
+      .nav-button { justify-content: center; }
+      .nav-button > span:not(.nav-icon):not(.nav-count), .nav-title, .nav-note { display: none; }
+      .nav-count { display: none; }
+      .main { padding: 18px 14px 38px; }
+      .review-layout { grid-template-columns: 1fr; }
+      .space-list, .check-grid { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 620px) {
+      .role-select { min-width: 132px; max-width: 150px; }
+      .top-button { display: none; }
+      .stats, .value-grid, .field-grid, .relation-grid { grid-template-columns: 1fr; }
+      .meta-grid { grid-template-columns: repeat(2, 1fr); }
+      .page-head, .atom-title-row { flex-direction: column; }
+    }
+  </style>
+</head>
+<body>
+  <div id="app"></div>
+  <script>
+  (() => {
+    "use strict";
+
+    const STORE_KEY = "rd-controlled-kb-phase1-demo-v1";
+    const TODAY = "2026-08-19";
+    const ROLES = {
+      admin: { name: "空间管理员", person: "赵敏", desc: "可管理空间、成员、权限与全部知识" },
+      owner: { name: "知识负责人", person: "王工", desc: "可维护负责的知识并提交审核" },
+      editor: { name: "知识编辑人", person: "周工", desc: "可编辑被授权的知识，但不能审核发布" },
+      reviewer: { name: "审核发布人", person: "李工", desc: "可审核、发布、退回和废止正式知识" },
+      reader: { name: "研发只读成员", person: "陈工", desc: "仅查看权限内已发布知识" }
+    };
+    const STATUS_LABEL = {
+      draft: "草稿",
+      pending: "待审核",
+      published: "已发布",
+      obsolete: "已废止"
+    };
+    const STATUS_CLASS = {
+      draft: "gray",
+      pending: "amber",
+      published: "green",
+      obsolete: "red"
+    };
+
+    const seed = () => ({
+      role: "owner",
+      spaces: [
+        { id: "cool", name: "制冷技术", owner: "王工", desc: "性能目标、制冷方案、器件选型、测试方法与历史案例", memberCount: 38, targetCount: 14 },
+        { id: "structure", name: "结构设计", owner: "刘工", desc: "整机结构、板框、接口、材料与可靠性设计知识", memberCount: 31, targetCount: 10 },
+        { id: "electric", name: "电控软件", owner: "吴工", desc: "电控硬件、嵌入式固件、接口协议与调试方法", memberCount: 27, targetCount: 8 },
+        { id: "quality", name: "质量与认证", owner: "孙工", desc: "测试规范、认证要求、判定准则与问题案例", memberCount: 29, targetCount: 10 }
+      ],
+      atoms: [
+        {
+          id: "perf", code: "KA-PERF-023", name: "制冷性能目标", spaceId: "cool", product: "H8120 制冰机",
+          type: "性能目标", owner: "王工", editors: ["周工"], sensitivity: "内部受限",
+          scope: "北美高温机型；环境温度 32—38℃", source: "产品定义书 v2.0、JP-KO 评审纪要",
+          relations: [
+            { type: "来源", name: "H8120 产品定义书", detail: "v2.0" },
+            { type: "引用", name: "38℃ 工况测试方法", detail: "正式引用" },
+            { type: "组成", name: "高温制冷设计包", detail: "专题组成" },
+            { type: "相关", name: "压缩机选型准则", detail: "选型依据" }
+          ],
+          versions: [
+            {
+              id: "v1.2", status: "published", createdAt: "2026-08-06", publishedAt: "2026-08-10",
+              author: "王工", reviewer: "李工", summary: "补充高温工况目标及允许偏差",
+              fields: { "制冰量": "12 kg/24h", "环境温度": "35℃", "允许偏差": "±8%" },
+              body: "在额定电压与标准进水温度下，北美高温机型应满足目标制冰量。测试结果按连续 24 小时有效产冰量统计。",
+              attachments: [
+                { name: "H8120-性能目标参数表.xlsx", type: "XLSX", size: "126 KB" },
+                { name: "JP-KO评审纪要.pdf", type: "PDF", size: "1.8 MB" }
+              ]
+            }
+          ]
+        },
+        {
+          id: "test38", code: "KA-TEST-041", name: "38℃ 工况测试方法", spaceId: "quality", product: "制冰机平台",
+          type: "测试方法", owner: "孙工", editors: [], sensitivity: "普通",
+          scope: "制冰机高温性能验证；实验室环境 38±1℃", source: "企业测试规范 Q/HZ 118",
+          relations: [{ type: "来源", name: "企业测试规范 Q/HZ 118", detail: "2026版" }, { type: "引用", name: "制冷性能目标", detail: "输入目标" }],
+          versions: [{
+            id: "v2.0", status: "published", createdAt: "2026-07-21", publishedAt: "2026-07-25",
+            author: "孙工", reviewer: "李工", summary: "统一 38℃ 工况稳定时间和数据采样频率",
+            fields: { "稳定时间": "4 h", "采样频率": "每 10 min", "测试时长": "24 h" },
+            body: "样机在目标环境中稳定 4 小时后开始统计，每 10 分钟记录功率、环境温度、出冰状态与异常。",
+            attachments: [{ name: "38℃工况测试模板.xlsx", type: "XLSX", size: "84 KB" }]
+          }]
+        },
+        {
+          id: "compressor", code: "KA-COOL-017", name: "压缩机选型准则", spaceId: "cool", product: "制冰机平台",
+          type: "选型准则", owner: "王工", editors: ["周工"], sensitivity: "内部受限",
+          scope: "R290 制冷剂制冰机；日产冰量 8—15 kg", source: "历史项目复盘与供应商参数",
+          relations: [{ type: "相关", name: "制冷性能目标", detail: "性能输入" }],
+          versions: [{
+            id: "v1.4", status: "draft", createdAt: "2026-08-17", publishedAt: "",
+            author: "王工", reviewer: "", summary: "补充高温降额选型系数",
+            fields: { "制冷剂": "R290", "设计余量": "≥15%", "高温降额": "待确认" },
+            body: "选型需覆盖目标蒸发温度、冷凝温度和高温降额，关键供应商参数必须附来源文件。",
+            attachments: []
+          }, {
+            id: "v1.3", status: "published", createdAt: "2026-06-10", publishedAt: "2026-06-16",
+            author: "王工", reviewer: "李工", summary: "明确 R290 机型选型边界",
+            fields: { "制冷剂": "R290", "设计余量": "≥15%", "高温降额": "按供应商曲线" },
+            body: "按目标工况选择压缩机，额定能力应保留不少于 15% 的设计余量。",
+            attachments: [{ name: "压缩机参数曲线.pdf", type: "PDF", size: "2.2 MB" }]
+          }]
+        },
+        {
+          id: "frame", code: "KA-STR-012", name: "箱体板框设计准则", spaceId: "structure", product: "台式制冰机",
+          type: "设计准则", owner: "刘工", editors: [], sensitivity: "普通",
+          scope: "台式制冰机箱体与压缩机仓结构", source: "H8120 ES/TL 设计复盘",
+          relations: [{ type: "相关", name: "整机外形包络定义", detail: "结构接口" }],
+          versions: [{
+            id: "v1.1", status: "pending", createdAt: "2026-08-18", publishedAt: "",
+            author: "刘工", reviewer: "", summary: "增加把手避让与压缩机仓检修空间",
+            fields: { "板厚": "0.8 mm", "检修空间": "≥45 mm", "把手避让": "8 mm" },
+            body: "板框设计需同时校核装配、运输和售后检修空间。门体把手区域不得侵入制冰口运动包络。",
+            attachments: [{ name: "板框接口校核清单.pdf", type: "PDF", size: "650 KB" }]
+          }, {
+            id: "v1.0", status: "published", createdAt: "2026-06-21", publishedAt: "2026-06-28",
+            author: "刘工", reviewer: "李工", summary: "首次形成板框设计准则",
+            fields: { "板厚": "0.8 mm", "检修空间": "≥35 mm", "把手避让": "未定义" },
+            body: "板框设计需校核装配与运输要求，并保留压缩机仓基础检修空间。",
+            attachments: [{ name: "板框接口校核清单-v1.pdf", type: "PDF", size: "530 KB" }]
+          }]
+        },
+        {
+          id: "appearance", code: "KA-ID-008", name: "整机外形包络定义", spaceId: "structure", product: "H8120 制冰机",
+          type: "接口定义", owner: "刘工", editors: [], sensitivity: "普通",
+          scope: "H8120 整机外形与安装接口", source: "ID 外观冻结稿",
+          relations: [{ type: "引用", name: "箱体板框设计准则", detail: "结构输入" }],
+          versions: [{
+            id: "v1.0", status: "published", createdAt: "2026-06-18", publishedAt: "2026-06-20",
+            author: "刘工", reviewer: "李工", summary: "冻结 TL 外形包络",
+            fields: { "宽": "280 mm", "深": "420 mm", "高": "860 mm" },
+            body: "外形尺寸含脚垫，不含包装；把手外移不改变运输包络。",
+            attachments: [{ name: "H8120外形包络图.pdf", type: "PDF", size: "3.1 MB" }]
+          }]
+        },
+        {
+          id: "protocol", code: "KA-ELC-031", name: "主控与显示板通信协议", spaceId: "electric", product: "H8120 制冰机",
+          type: "接口协议", owner: "吴工", editors: [], sensitivity: "内部受限",
+          scope: "H8120 主控板与显示板 UART 通信", source: "电控联调确认单",
+          relations: [{ type: "相关", name: "ES 电控联调方法", detail: "验证方法" }],
+          versions: [{
+            id: "v2.1", status: "published", createdAt: "2026-07-11", publishedAt: "2026-07-14",
+            author: "吴工", reviewer: "李工", summary: "增加故障码同步与超时重发",
+            fields: { "波特率": "115200", "校验": "CRC16", "超时": "300 ms" },
+            body: "主控与显示板采用 UART 通信，关键控制指令必须包含序号、校验与超时重发机制。",
+            attachments: [{ name: "通信协议-v2.1.pdf", type: "PDF", size: "920 KB" }]
+          }]
+        },
+        {
+          id: "supplier", code: "KA-COST-006", name: "核心供应商成本参数", spaceId: "cool", product: "制冰机平台",
+          type: "成本参数", owner: "赵敏", editors: [], sensitivity: "严格受限",
+          scope: "制冷系统核心器件采购决策", source: "供应商年度报价",
+          restrictedTo: ["admin", "owner", "reviewer"],
+          relations: [{ type: "相关", name: "压缩机选型准则", detail: "成本参考" }],
+          versions: [{
+            id: "v1.0", status: "published", createdAt: "2026-08-01", publishedAt: "2026-08-03",
+            author: "赵敏", reviewer: "李工", summary: "形成 2026 年受控成本参数",
+            fields: { "供应商": "A/B 双供", "币种": "USD", "有效期": "2026 年度" },
+            body: "本知识仅用于授权范围内的选型与成本评审，不得外发。",
+            attachments: [{ name: "供应商成本参数-受控.xlsx", type: "XLSX", size: "210 KB" }]
+          }]
+        },
+        {
+          id: "noise", code: "KA-TEST-052", name: "整机噪声测试规范", spaceId: "quality", product: "制冰机平台",
+          type: "测试规范", owner: "孙工", editors: [], sensitivity: "普通",
+          scope: "台式及立式制冰机噪声评价", source: "企业标准 Q/HZ 126",
+          relations: [],
+          versions: [{
+            id: "v1.0", status: "obsolete", createdAt: "2025-09-10", publishedAt: "2025-09-20",
+            author: "孙工", reviewer: "李工", summary: "旧版噪声测试规范",
+            obsoleteReason: "已由企业标准 Q/HZ 126-2026 替代",
+            fields: { "背景噪声": "≤28 dB(A)", "测点距离": "1 m", "工况": "标准制冰" },
+            body: "旧版测试规范，仅供历史项目追溯。",
+            attachments: [{ name: "噪声测试规范-旧版.pdf", type: "PDF", size: "480 KB" }]
+          }]
+        }
+      ],
+      topics: [{
+        id: "topic-hot", name: "高温制冷设计包", owner: "王工", spaceId: "cool",
+        desc: "汇集北美高温机型的目标、选型与验证知识，供产品定义和方案评审复用。",
+        refs: [
+          { atomId: "perf", versionId: "v1.2" },
+          { atomId: "test38", versionId: "v2.0" },
+          { atomId: "compressor", versionId: "v1.3" }
+        ]
+      }],
+      permissionException: true,
+      permissionAudit: [
+        { at: "2026-08-18 16:20", by: "赵敏", action: "将“核心供应商成本参数”设为严格受限，仅指定角色可查看" },
+        { at: "2026-08-12 10:05", by: "赵敏", action: "为周工增加制冷技术知识编辑权限" },
+        { at: "2026-08-01 09:30", by: "系统", action: "应用制冷技术空间默认角色权限" }
+      ]
+    });
+
+    let state = loadState();
+    const ui = {
+      view: "home",
+      spaceId: "cool",
+      atomId: "perf",
+      reviewAtomId: "frame",
+      search: "",
+      searchSpace: "all",
+      searchType: "all",
+      searchStatus: "published",
+      modal: null,
+      toast: ""
+    };
+
+    function loadState() {
+      try {
+        const raw = localStorage.getItem(STORE_KEY);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (parsed && Array.isArray(parsed.atoms) && Array.isArray(parsed.spaces)) return parsed;
+        }
+      } catch (error) {}
+      return seed();
+    }
+    function persist() { localStorage.setItem(STORE_KEY, JSON.stringify(state)); }
+    function esc(value) {
+      return String(value == null ? "" : value)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+    }
+    function clone(value) { return JSON.parse(JSON.stringify(value)); }
+    function atom(id) { return state.atoms.find(item => item.id === id); }
+    function space(id) { return state.spaces.find(item => item.id === id); }
+    function topic() { return state.topics[0]; }
+    function versionsByDate(item) { return [...item.versions]; }
+    function latestVersion(item) { return versionsByDate(item)[0]; }
+    function latestPublished(item) {
+      const latestFormalState = versionsByDate(item).find(v => ["published", "obsolete"].includes(v.status));
+      return latestFormalState?.status === "published" ? latestFormalState : null;
+    }
+    function version(item, id) { return item.versions.find(v => v.id === id); }
+    function pendingAtoms() { return state.atoms.filter(item => latestVersion(item).status === "pending"); }
+    function draftAtoms() { return state.atoms.filter(item => latestVersion(item).status === "draft"); }
+    function currentRole() { return ROLES[state.role]; }
+    function isAccessible(item) {
+      if (!item.restrictedTo) return true;
+      return item.restrictedTo.includes(state.role);
+    }
+    function canMaintain(item) {
+      return state.role === "admin"
+        || (state.role === "owner" && item.owner === ROLES.owner.person)
+        || (state.role === "editor" && (item.editors || []).includes(ROLES.editor.person));
+    }
+    function canReview() { return state.role === "reviewer" || state.role === "admin"; }
+    function canMaintainTopic() { return ["admin", "owner", "editor"].includes(state.role); }
+    function statusBadge(status, extra = "") {
+      return `<span class="status ${STATUS_CLASS[status] || "gray"}">${esc(extra || STATUS_LABEL[status] || status)}</span>`;
+    }
+    function nextVersionId(item) {
+      const base = latestVersion(item).id.replace(/^v/, "").split(".");
+      const major = Number(base[0]) || 1;
+      const minor = (Number(base[1]) || 0) + 1;
+      return `v${major}.${minor}`;
+    }
+    function topicRefState(ref) {
+      const item = atom(ref.atomId);
+      const latest = latestPublished(item);
+      return { item, pinned: version(item, ref.versionId), latest, stale: !latest || latest.id !== ref.versionId };
+    }
+    function latestFormalCount(spaceId) {
+      return state.atoms.filter(item => item.spaceId === spaceId && latestPublished(item)).length;
+    }
+    function toast(message) {
+      ui.toast = message;
+      render();
+      window.setTimeout(() => {
+        if (ui.toast === message) {
+          ui.toast = "";
+          render();
+        }
+      }, 2200);
+    }
+
+    function render() {
+      persist();
+      document.getElementById("app").innerHTML = shell();
+    }
+
+    function shell() {
+      const reviewCount = pendingAtoms().length;
+      return `
+        <header class="topbar">
+          <div class="brand">研发知识库<small>一期 · 受控知识底座</small></div>
+          <span class="phase-chip">V0.3 规划范围</span>
+          <div class="top-spacer"></div>
+          <select id="roleSelect" class="role-select" aria-label="切换演示角色">
+            ${Object.entries(ROLES).map(([key, role]) => `<option value="${key}" ${state.role === key ? "selected" : ""}>${esc(role.name)} · ${esc(role.person)}</option>`).join("")}
+          </select>
+          <button class="top-button" data-act="reset">恢复预置数据</button>
+        </header>
+        <div class="layout">
+          <aside class="nav">
+            <div class="nav-title">一期关键页面</div>
+            ${navButton("home", "01", "知识库首页", "")}
+            ${navButton("atom", "02", "知识原子详情", "")}
+            ${navButton("review", "03", "审核发布中心", reviewCount || "")}
+            ${navButton("permission", "04", "权限管理", "")}
+            ${navButton("search", "05", "搜索与专题组装", topic().refs.length)}
+            <div class="nav-note"><b>${esc(currentRole().name)}</b><br>${esc(currentRole().desc)}</div>
+          </aside>
+          <main class="main">${mainView()}</main>
+        </div>
+        ${ui.modal ? modalHtml() : ""}
+        ${ui.toast ? `<div class="toast">${esc(ui.toast)}</div>` : ""}
+      `;
+    }
+    function navButton(view, icon, label, count) {
+      return `<button class="nav-button ${ui.view === view ? "on" : ""}" data-act="view" data-view="${view}">
+        <span class="nav-icon">${icon}</span><span>${label}</span>${count !== "" ? `<span class="nav-count">${count}</span>` : ""}
+      </button>`;
+    }
+    function mainView() {
+      if (ui.view === "home") return homeView();
+      if (ui.view === "atom") return atomView();
+      if (ui.view === "review") return reviewView();
+      if (ui.view === "permission") return permissionView();
+      return searchView();
+    }
+
+    function homeView() {
+      const published = state.atoms.filter(item => latestPublished(item)).length;
+      const changes = state.atoms.filter(item => ["draft", "pending"].includes(latestVersion(item).status)).length;
+      const recent = state.atoms.slice(0, 5);
+      return `
+        <div class="page-head">
+          <div><h1>知识库首页</h1><p>按产品和专业域管理知识范围、责任边界、发布状态与近期变化。</p></div>
+          <div class="btns"><button class="btn primary" data-act="open-atom" data-id="perf">维护我负责的知识</button></div>
+        </div>
+        <div class="notice info" style="margin-bottom:14px"><b>一期目标：</b>知识可负责、可审核、可授权、可检索、可引用、可追溯。项目工作网、JP 汇入和 AI 不在本期范围。</div>
+        <div class="stats">
+          <div class="card stat"><span class="label">首批高价值知识</span><strong>36</strong><span class="trend">目标 30—50 个</span></div>
+          <div class="card stat"><span class="label">当前正式知识</span><strong>${published}</strong><span class="trend">Demo 展示代表性对象</span></div>
+          <div class="card stat"><span class="label">待更新 / 待审核</span><strong>${changes}</strong><span class="muted small">责任人持续维护</span></div>
+          <div class="card stat"><span class="label">专题引用</span><strong>${topic().refs.length}</strong><span class="muted small">仅引用正式版本</span></div>
+        </div>
+        <div class="dashboard-grid">
+          <section class="card card-pad">
+            <div class="card-title"><h2>知识库空间</h2><span class="muted small">按产品或专业域建立稳定责任边界</span></div>
+            <div class="space-list">
+              ${state.spaces.map(item => {
+                const count = latestFormalCount(item.id);
+                const percent = Math.min(100, Math.round(count / item.targetCount * 100));
+                return `<div class="space-card">
+                  <div class="space-head"><strong>${esc(item.name)}</strong><span class="status blue">${count}/${item.targetCount}</span></div>
+                  <div class="space-meta">管理员 ${esc(item.owner)} · ${item.memberCount} 名成员</div>
+                  <p class="muted small">${esc(item.desc)}</p>
+                  <div class="space-progress"><i style="width:${percent}%"></i></div>
+                  <button class="link-button small" style="margin-top:9px" data-act="browse-space" data-id="${item.id}">查看空间知识 →</button>
+                </div>`;
+              }).join("")}
+            </div>
+          </section>
+          <section class="card card-pad">
+            <div class="card-title"><h2>我的知识工作台</h2><span class="status purple">${esc(currentRole().name)}</span></div>
+            <div class="list">
+              ${recent.map(item => {
+                const current = latestVersion(item);
+                const accessible = isAccessible(item);
+                return `<div class="list-row">
+                  <div>
+                    ${accessible ? `<button class="link-button" data-act="open-atom" data-id="${item.id}">${esc(item.name)}</button>` : `<b>${esc(item.name)}</b>`}
+                    <div class="row-meta">${esc(space(item.spaceId).name)} · ${esc(item.owner)} · ${esc(current.id)}</div>
+                  </div>
+                  ${accessible ? statusBadge(current.status) : `<span class="status red">无查看权限</span>`}
+                </div>`;
+              }).join("")}
+            </div>
+          </section>
+        </div>
+        <div class="section-title">近期变化</div>
+        <section class="card card-pad">
+          <div class="list">
+            <div class="list-row"><div><b>箱体板框设计准则 v1.1 已提交审核</b><div class="row-meta">刘工提交 · 增加把手避让与检修空间 · 2026-08-18</div></div><button class="btn small" data-act="goto-review" data-id="frame">进入审核</button></div>
+            <div class="list-row"><div><b>压缩机选型准则正在维护 v1.4</b><div class="row-meta">草稿不作为正式业务依据，当前正式版本仍为 v1.3</div></div><button class="btn small" data-act="open-atom" data-id="compressor">查看详情</button></div>
+            <div class="list-row"><div><b>供应商成本知识权限已收紧</b><div class="row-meta">严格受限对象不再继承普通研发成员查看权限，变更已进入审计</div></div><button class="btn small" data-act="view" data-view="permission">查看权限</button></div>
+          </div>
+        </section>
+      `;
+    }
+
+    function atomView() {
+      const item = atom(ui.atomId) || state.atoms[0];
+      if (!isAccessible(item)) {
+        return `<div class="page-head"><div><h1>知识原子详情</h1><p>当前角色无权查看此受限知识。</p></div></div>
+          <div class="card empty"><span class="status red">访问被拒绝</span><p>对象级权限例外优先于空间默认查看权限。</p><button class="btn" data-act="view" data-view="home">返回知识库首页</button></div>`;
+      }
+      const current = latestVersion(item);
+      const formal = latestPublished(item);
+      const editing = current.status === "draft" && canMaintain(item);
+      return `
+        <div class="crumb"><button data-act="view" data-view="home">知识库首页</button> / ${esc(space(item.spaceId).name)} / ${esc(item.name)}</div>
+        <div class="atom-layout">
+          <div>
+            <section class="card atom-hero">
+              <div class="atom-title-row">
+                <div><div class="atom-code mono">${esc(item.code)} · ${esc(current.id)}</div><h1>${esc(item.name)}</h1></div>
+                <div class="btns">
+                  ${statusBadge(current.status)}
+                  ${current.status === "published" && canMaintain(item) ? `<button class="btn primary" data-act="new-version" data-id="${item.id}">新建版本</button>` : ""}
+                  ${current.status === "pending" && canReview() ? `<button class="btn primary" data-act="goto-review" data-id="${item.id}">进入审核</button>` : ""}
+                </div>
+              </div>
+              <div class="meta-grid">
+                <div class="meta-item"><span>知识类型</span><b>${esc(item.type)}</b></div>
+                <div class="meta-item"><span>责任人</span><b>${esc(item.owner)}</b></div>
+                <div class="meta-item"><span>适用范围</span><b>${esc(item.scope)}</b></div>
+                <div class="meta-item"><span>敏感级别</span><b>${esc(item.sensitivity)}</b></div>
+              </div>
+            </section>
+            ${current.status === "draft" ? draftEditor(item, current, editing) : versionContent(item, current)}
+            <section class="card content-block">
+              <h3>知识关系</h3>
+              <div class="relation-grid">
+                ${(item.relations || []).map(rel => `<div class="relation"><em>${esc(rel.type)}</em><br><b>${esc(rel.name)}</b><div class="row-meta">${esc(rel.detail)}</div></div>`).join("") || `<p class="muted">暂无显式关系。</p>`}
+              </div>
+            </section>
+          </div>
+          <aside class="card timeline">
+            <div class="card-title"><h3>版本与审计</h3><span class="muted small">不可覆盖</span></div>
+            ${item.versions.map((verItem, index) => `<div class="timeline-item ${index === 0 ? "current" : ""}">
+              <b>${esc(verItem.id)} · ${esc(STATUS_LABEL[verItem.status])}</b>
+              <p>${esc(verItem.summary || "无变更摘要")}</p>
+              <p>创建 ${esc(verItem.author)} · ${esc(verItem.createdAt)}</p>
+              ${verItem.reviewer ? `<p>审核 ${esc(verItem.reviewer)} · ${esc(verItem.publishedAt)}</p>` : ""}
+              ${verItem.obsoleteReason ? `<p style="color:var(--red)">废止原因：${esc(verItem.obsoleteReason)}</p>` : ""}
+            </div>`).join("")}
+            <div class="notice info small" style="margin-top:14px">当前正式依据：${formal ? `${esc(formal.id)}，发布于 ${esc(formal.publishedAt)}` : "暂无已发布版本"}。草稿与待审核版本不可被专题正式引用。</div>
+          </aside>
+        </div>
+      `;
+    }
+    function versionContent(item, verItem) {
+      return `
+        <section class="card content-block">
+          <div class="card-title"><h3>结构化内容</h3><span class="muted small">${esc(verItem.id)} · ${esc(verItem.summary)}</span></div>
+          <div class="value-grid">${Object.entries(verItem.fields || {}).map(([key, value]) => `<div class="value-box"><span>${esc(key)}</span><b>${esc(value)}</b></div>`).join("")}</div>
+          <div class="section-title">业务说明</div>
+          <p>${esc(verItem.body)}</p>
+          <div class="section-title">来源依据</div>
+          <p>${esc(item.source)}</p>
+        </section>
+        <section class="card content-block">
+          <div class="card-title"><h3>附件证据</h3><span class="status blue">${(verItem.attachments || []).length} 个</span></div>
+          ${(verItem.attachments || []).map(file => `<div class="attachment"><div><span class="file-icon">${esc(file.type)}</span><b>${esc(file.name)}</b></div><span class="muted small">${esc(file.size)}</span></div>`).join("") || `<p class="muted">当前版本没有附件。</p>`}
+        </section>
+      `;
+    }
+    function draftEditor(item, verItem, editing) {
+      if (!editing) {
+        return `<div class="notice" style="margin-bottom:12px"><b>${esc(verItem.id)} 是未发布草稿。</b> 当前角色不能编辑；团队正式使用仍以 ${esc(latestPublished(item)?.id || "无")} 为准。</div>${versionContent(item, verItem)}`;
+      }
+      const entries = Object.entries(verItem.fields || {});
+      return `
+        <section class="card content-block">
+          <div class="card-title"><h3>编辑草稿 ${esc(verItem.id)}</h3><span class="status gray">仅责任人/授权编辑人可维护</span></div>
+          ${verItem.returnNote ? `<div class="notice red" style="margin-bottom:10px"><b>审核退回：</b>${esc(verItem.returnNote)}</div>` : ""}
+          <div class="field-grid">
+            ${entries.map(([key, value], index) => `<div class="field-wrap"><label>${esc(key)}</label><input class="field draft-field" data-key="${esc(key)}" value="${esc(value)}" /></div>`).join("")}
+            <div class="field-wrap full"><label>适用范围</label><input id="draftScope" class="field" value="${esc(item.scope)}" /></div>
+            <div class="field-wrap full"><label>变更摘要</label><input id="draftSummary" class="field" value="${esc(verItem.summary)}" /></div>
+            <div class="field-wrap full"><label>业务说明</label><textarea id="draftBody" class="field">${esc(verItem.body)}</textarea></div>
+          </div>
+          <div class="section-title">附件随本版本冻结</div>
+          ${(verItem.attachments || []).map(file => `<div class="attachment"><div><span class="file-icon">${esc(file.type)}</span><b>${esc(file.name)}</b></div><span class="muted small">${esc(file.size)}</span></div>`).join("") || `<div class="notice">正式提交前至少保留 1 个关键附件。Demo 新版本已复制上一正式版本附件。</div>`}
+          <div class="btns" style="margin-top:14px"><button class="btn" data-act="save-draft" data-id="${item.id}">保存草稿</button><button class="btn primary" data-act="submit-review" data-id="${item.id}">提交审核</button></div>
+        </section>
+      `;
+    }
+
+    function reviewView() {
+      const queue = pendingAtoms();
+      if (queue.length && !queue.some(item => item.id === ui.reviewAtomId)) ui.reviewAtomId = queue[0].id;
+      const selected = atom(ui.reviewAtomId);
+      const selectedVersion = selected ? latestVersion(selected) : null;
+      const base = selected ? latestPublished(selected) : null;
+      return `
+        <div class="page-head">
+          <div><h1>审核发布中心</h1><p>审核内容、来源、适用范围、附件和权限，形成不可覆盖的正式版本。</p></div>
+          <span class="status ${canReview() ? "green" : "gray"}">${canReview() ? "当前可审核发布" : "当前仅可查看"}</span>
+        </div>
+        <div class="stats">
+          <div class="card stat"><span class="label">待我审核</span><strong>${queue.length}</strong><span class="muted small">按专业域聚合</span></div>
+          <div class="card stat"><span class="label">待补充</span><strong>${draftAtoms().filter(item => latestVersion(item).returnNote).length}</strong><span class="muted small">已退回责任人</span></div>
+          <div class="card stat"><span class="label">权限异常</span><strong>1</strong><span class="muted small">发布前必须检查</span></div>
+          <div class="card stat"><span class="label">本月发布</span><strong>26</strong><span class="trend">正式版本均可追溯</span></div>
+        </div>
+        <div class="review-layout">
+          <section class="card queue">
+            <div class="card-title" style="padding:7px 7px 2px"><h3>审核队列</h3><span class="status amber">${queue.length}</span></div>
+            ${queue.map(item => {
+              const verItem = latestVersion(item);
+              return `<button class="queue-item ${ui.reviewAtomId === item.id ? "on" : ""}" data-act="select-review" data-id="${item.id}">
+                <b>${esc(item.name)} · ${esc(verItem.id)}</b><span>${esc(space(item.spaceId).name)} · ${esc(item.owner)} · ${esc(verItem.createdAt)}</span>
+              </button>`;
+            }).join("") || `<div class="empty">暂无待审核知识。<br>可切换“知识负责人”，在知识原子详情新建版本并提交。</div>`}
+          </section>
+          ${selected && selectedVersion && selectedVersion.status === "pending" ? reviewDetail(selected, selectedVersion, base) : `<section class="card empty">请选择一条待审核知识。</section>`}
+        </div>
+        <div class="section-title">已发布知识管理</div>
+        <section class="card card-pad">
+          <div class="list">
+            ${state.atoms.filter(item => latestPublished(item)).slice(0, 4).map(item => {
+              const formal = latestPublished(item);
+              return `<div class="list-row"><div><button class="link-button" data-act="open-atom" data-id="${item.id}">${esc(item.name)} · ${esc(formal.id)}</button><div class="row-meta">发布人 ${esc(formal.reviewer || "—")} · ${esc(formal.publishedAt || "—")}</div></div>${canReview() && formal.status === "published" ? `<button class="btn red small" data-act="obsolete" data-id="${item.id}">废止当前正式版</button>` : statusBadge(formal.status)}</div>`;
+            }).join("")}
+          </div>
+        </section>
+      `;
+    }
+    function reviewDetail(item, candidate, base) {
+      const checks = [
+        ["责任人", item.owner ? "完整" : "缺失", !!item.owner],
+        ["适用范围", item.scope ? "完整" : "缺失", !!item.scope],
+        ["关键附件", candidate.attachments && candidate.attachments.length ? `${candidate.attachments.length} 个` : "缺失", !!(candidate.attachments && candidate.attachments.length)],
+        ["变更摘要", candidate.summary ? "完整" : "缺失", !!candidate.summary]
+      ];
+      const keys = Array.from(new Set([...Object.keys(base?.fields || {}), ...Object.keys(candidate.fields || {})]));
+      return `<section class="card review-main">
+        <div class="card-title"><div><h2 style="margin:0;font-size:17px">${esc(item.name)} · ${esc(candidate.id)}</h2><span class="muted small">${esc(item.code)} · 提交人 ${esc(candidate.author)}</span></div>${statusBadge("pending")}</div>
+        <div class="check-grid">
+          <div class="check-card"><b>发布检查</b>${checks.map(row => `<div class="check-row"><span>${esc(row[0])}</span><span class="status ${row[2] ? "green" : "red"}">${esc(row[1])}</span></div>`).join("")}</div>
+          <div class="check-card"><b>权限检查</b><div class="check-row"><span>继承专业域权限</span><span class="status green">正常</span></div><div class="check-row"><span>敏感级别</span><span class="status ${item.sensitivity === "普通" ? "green" : "amber"}">${esc(item.sensitivity)}</span></div><div class="check-row"><span>审核发布角色</span><span class="status ${canReview() ? "green" : "red"}">${canReview() ? "有效" : "无权限"}</span></div></div>
+        </div>
+        <div class="section-title">版本差异</div>
+        <div style="overflow:auto"><table class="diff-table"><thead><tr><th>字段</th><th>${esc(base?.id || "无正式版")} 正式值</th><th>${esc(candidate.id)} 待审值</th><th>判断</th></tr></thead><tbody>
+          ${keys.map(key => {
+            const oldValue = base?.fields?.[key] || "—";
+            const newValue = candidate.fields?.[key] || "—";
+            const changed = oldValue !== newValue;
+            return `<tr><td>${esc(key)}</td><td>${esc(oldValue)}</td><td class="${changed ? "diff-new" : ""}">${esc(newValue)}</td><td>${changed ? `<span class="status amber">有变化</span>` : `<span class="status gray">无变化</span>`}</td></tr>`;
+          }).join("")}
+        </tbody></table></div>
+        <div class="notice info" style="margin-top:12px"><b>变更摘要：</b>${esc(candidate.summary)}<br><b>来源与范围：</b>${esc(item.source)}；${esc(item.scope)}</div>
+        <div class="btns" style="margin-top:14px"><button class="btn" data-act="open-atom" data-id="${item.id}">查看完整知识</button><button class="btn red" data-act="return-review" data-id="${item.id}" ${canReview() ? "" : "disabled"}>退回补充</button><button class="btn green" data-act="approve" data-id="${item.id}" ${canReview() ? "" : "disabled"}>审核通过并发布</button></div>
+      </section>`;
+    }
+
+    function permissionView() {
+      const rows = [
+        ["空间管理员 · 赵敏", true, true, true, true, true],
+        ["知识负责人 · 王工", true, true, true, false, false],
+        ["知识编辑人 · 周工", true, "被授权对象", false, false, false],
+        ["审核发布人 · 李工", true, false, false, true, false],
+        ["研发只读成员 · 陈工", true, false, false, false, false]
+      ];
+      return `
+        <div class="page-head">
+          <div><h1>权限管理</h1><p>以空间角色继承为主，敏感和跨域知识设置受控对象例外。</p></div>
+          <div class="btns"><button class="btn primary" data-act="toggle-exception">${state.permissionException ? "取消受限例外" : "新增受限例外"}</button></div>
+        </div>
+        <div class="notice info" style="margin-bottom:14px"><b>继承链：</b>公司研发域 → 制冷技术知识库 → 知识原子。对象例外只能收紧权限，不能扩大上级禁止权限。</div>
+        <div class="permission-layout">
+          <section class="card permission-card">
+            <div class="card-title"><h2>制冷技术知识库 · 空间角色矩阵</h2><span class="status green">运行中</span></div>
+            <table class="permission-table"><thead><tr><th>角色 / 人员</th><th>查看</th><th>编辑</th><th>提交审核</th><th>审核发布</th><th>管理权限</th></tr></thead><tbody>
+              ${rows.map(row => `<tr><td><b>${esc(row[0])}</b></td>${row.slice(1).map(value => `<td>${value === true ? `<span class="yes">✓</span>` : value === false ? `<span class="no">—</span>` : `<span class="status blue">${esc(value)}</span>`}</td>`).join("")}</tr>`).join("")}
+            </tbody></table>
+          </section>
+          <aside>
+            <section class="card card-pad">
+              <div class="card-title"><h3>对象权限例外</h3><span class="status ${state.permissionException ? "amber" : "gray"}">${state.permissionException ? "已生效" : "未设置"}</span></div>
+              ${state.permissionException ? `<b>核心供应商成本参数</b><p class="muted small">严格受限 · 仅空间管理员、知识负责人和审核发布人可查看。</p><div class="notice small">普通研发成员的空间查看权限在此对象上被收紧。</div>` : `<p class="muted">当前所有知识均继承空间默认权限。</p>`}
+            </section>
+            <section class="card" style="margin-top:12px">
+              <div class="card-title" style="padding:14px 14px 0"><h3>权限变更审计</h3><span class="muted small">全程留痕</span></div>
+              <div class="audit-list">${state.permissionAudit.map(log => `<div class="audit-row"><b>${esc(log.action)}</b><p>${esc(log.by)} · ${esc(log.at)}</p></div>`).join("")}</div>
+            </section>
+          </aside>
+        </div>
+      `;
+    }
+
+    function searchView() {
+      const results = searchResults();
+      const currentTopic = topic();
+      const staleCount = currentTopic.refs.filter(ref => topicRefState(ref).stale).length;
+      return `
+        <div class="page-head">
+          <div><h1>搜索与专题组装</h1><p>在权限范围内检索正式知识，并通过引用组装为业务专题。</p></div>
+          <span class="status ${staleCount ? "amber" : "green"}">${staleCount ? `${staleCount} 个引用待评估` : "专题引用均为最新"}</span>
+        </div>
+        <div class="toolbar">
+          <input id="searchInput" class="field search-field" placeholder="搜索知识名称、编码、正文或适用范围" value="${esc(ui.search)}" />
+          <select id="searchSpace" class="field"><option value="all">全部专业域</option>${state.spaces.map(item => `<option value="${item.id}" ${ui.searchSpace === item.id ? "selected" : ""}>${esc(item.name)}</option>`).join("")}</select>
+          <select id="searchType" class="field"><option value="all">全部类型</option>${Array.from(new Set(state.atoms.map(item => item.type))).map(type => `<option value="${esc(type)}" ${ui.searchType === type ? "selected" : ""}>${esc(type)}</option>`).join("")}</select>
+          <select id="searchStatus" class="field"><option value="published" ${ui.searchStatus === "published" ? "selected" : ""}>仅已发布</option><option value="all" ${ui.searchStatus === "all" ? "selected" : ""}>全部状态</option></select>
+          <button class="btn primary" data-act="do-search">搜索</button>
+        </div>
+        <div class="search-layout">
+          <section class="card result-list">
+            <div class="card-title" style="padding-top:11px"><h2>检索结果</h2><span class="muted small">${results.length} 条 · 已应用当前角色权限</span></div>
+            ${results.map(item => {
+              const formal = latestPublished(item);
+              const current = latestVersion(item);
+              const accessible = isAccessible(item);
+              const ref = currentTopic.refs.find(entry => entry.atomId === item.id);
+              const referable = accessible && !!formal;
+              return `<div class="result-row">
+                <div>
+                  <div class="result-title"><button class="link-button" data-act="open-atom" data-id="${item.id}">${esc(item.name)}</button>${accessible ? statusBadge(current.status) : `<span class="status red">无查看权限</span>`}</div>
+                  <div class="row-meta">${esc(item.code)} · ${esc(space(item.spaceId).name)} · ${esc(item.type)} · 责任人 ${esc(item.owner)}</div>
+                  <p class="small muted" style="margin:5px 0 0">适用范围：${esc(item.scope)}</p>
+                </div>
+                ${ref ? `<span class="status purple">已在专题 · ${esc(ref.versionId)}</span>` : referable ? `<button class="btn small" data-act="add-topic" data-id="${item.id}" ${canMaintainTopic() ? "" : "disabled"}>引用到专题</button>` : `<span class="status gray">不可引用</span>`}
+              </div>`;
+            }).join("") || `<div class="empty">没有匹配的权限内知识。</div>`}
+          </section>
+          <aside class="card topic-panel">
+            <div class="card-title"><div><h2>${esc(currentTopic.name)}</h2><span class="muted small">专题组装页 · 维护人 ${esc(currentTopic.owner)}</span></div><span class="status purple">${currentTopic.refs.length}</span></div>
+            <p class="muted small">${esc(currentTopic.desc)}</p>
+            <div class="notice info small"><b>引用规则：</b>专题只记录知识原子及其正式版本，不复制源内容；源发布新版本后由专题维护人评估升级。</div>
+            ${currentTopic.refs.map(ref => {
+              const info = topicRefState(ref);
+              return `<div class="topic-ref ${info.stale ? "stale" : ""}">
+                <div class="topic-ref-head"><button class="link-button" data-act="open-atom" data-id="${info.item.id}">${esc(info.item.name)}</button>${info.stale ? `<span class="status amber">源已更新</span>` : `<span class="status green">当前</span>`}</div>
+                <p>本专题引用 ${esc(ref.versionId)}${info.latest ? ` · 最新正式 ${esc(info.latest.id)}` : ""}</p>
+                ${info.stale && canMaintainTopic() ? `<div class="btns" style="margin-top:7px"><button class="btn primary small" data-act="upgrade-topic" data-id="${info.item.id}">升级引用</button><button class="btn small" data-act="keep-topic" data-id="${info.item.id}">保持当前版</button></div>` : ""}
+              </div>`;
+            }).join("")}
+          </aside>
+        </div>
+      `;
+    }
+    function searchResults() {
+      const q = ui.search.trim().toLowerCase();
+      return state.atoms.filter(item => {
+        const current = latestVersion(item);
+        const formal = latestPublished(item);
+        if (!isAccessible(item)) return false;
+        if (ui.searchSpace !== "all" && item.spaceId !== ui.searchSpace) return false;
+        if (ui.searchType !== "all" && item.type !== ui.searchType) return false;
+        if (ui.searchStatus === "published" && !formal) return false;
+        if (!q) return true;
+        const text = [item.name, item.code, item.scope, item.source, current.body, item.type, item.owner].join(" ").toLowerCase();
+        return text.includes(q);
+      });
+    }
+
+    function modalHtml() {
+      if (ui.modal.type === "permission") {
+        return `<div class="modal-bg" data-act="close-modal"><div class="modal" onclick="event.stopPropagation()">
+          <div class="card-title"><h2>${state.permissionException ? "取消对象权限例外" : "新增对象权限例外"}</h2><button class="btn small" data-act="close-modal">关闭</button></div>
+          <p>对象：<b>核心供应商成本参数</b></p>
+          <div class="notice">${state.permissionException ? "取消后，该对象将重新继承制冷技术空间的普通查看权限。" : "设置后，研发只读成员与知识编辑人将不能查看该对象；操作会进入权限审计。"}</div>
+          <div class="btns" style="margin-top:14px"><button class="btn" data-act="close-modal">取消</button><button class="btn primary" data-act="confirm-exception">确认变更</button></div>
+        </div></div>`;
+      }
+      return "";
+    }
+
+    function readDraft(item) {
+      const verItem = latestVersion(item);
+      document.querySelectorAll(".draft-field").forEach(input => { verItem.fields[input.dataset.key] = input.value.trim(); });
+      const scopeInput = document.getElementById("draftScope");
+      const summaryInput = document.getElementById("draftSummary");
+      const bodyInput = document.getElementById("draftBody");
+      if (scopeInput) item.scope = scopeInput.value.trim();
+      if (summaryInput) verItem.summary = summaryInput.value.trim();
+      if (bodyInput) verItem.body = bodyInput.value.trim();
+      verItem.createdAt = TODAY;
+    }
+    function validateDraft(item) {
+      const verItem = latestVersion(item);
+      if (!item.owner) return "缺少责任人";
+      if (!item.scope) return "缺少适用范围";
+      if (!verItem.summary) return "缺少变更摘要";
+      if (!verItem.attachments || !verItem.attachments.length) return "缺少关键附件";
+      return "";
+    }
+
+    function onClick(event) {
+      const el = event.target.closest("[data-act]");
+      if (!el) return;
+      const act = el.dataset.act;
+      const id = el.dataset.id;
+      if (act === "view") { ui.view = el.dataset.view; render(); return; }
+      if (act === "browse-space") { ui.searchSpace = id; ui.searchStatus = "published"; ui.view = "search"; render(); return; }
+      if (act === "open-atom") { ui.atomId = id; ui.view = "atom"; render(); return; }
+      if (act === "goto-review") { ui.reviewAtomId = id; ui.view = "review"; render(); return; }
+      if (act === "select-review") { ui.reviewAtomId = id; render(); return; }
+      if (act === "reset") {
+        if (window.confirm("恢复一期 Demo 预置数据？当前演示操作将被清除。")) {
+          state = seed();
+          ui.view = "home";
+          ui.atomId = "perf";
+          ui.reviewAtomId = "frame";
+          toast("已恢复预置数据");
+        }
+        return;
+      }
+      if (act === "new-version") {
+        const item = atom(id);
+        if (!canMaintain(item)) { toast("当前角色没有维护该知识的权限"); return; }
+        const base = latestPublished(item);
+        if (!base) { toast("当前没有可继承的正式版本"); return; }
+        const next = clone(base);
+        next.id = nextVersionId(item);
+        next.status = "draft";
+        next.createdAt = TODAY;
+        next.publishedAt = "";
+        next.author = currentRole().person;
+        next.reviewer = "";
+        next.summary = `基于 ${base.id} 创建新版本`;
+        delete next.obsoleteReason;
+        item.versions.unshift(next);
+        toast(`已创建草稿 ${next.id}，正式依据仍为 ${base.id}`);
+        return;
+      }
+      if (act === "save-draft") {
+        const item = atom(id);
+        readDraft(item);
+        toast(`草稿 ${latestVersion(item).id} 已保存`);
+        return;
+      }
+      if (act === "submit-review") {
+        const item = atom(id);
+        readDraft(item);
+        const error = validateDraft(item);
+        if (error) { toast(`不能提交：${error}`); return; }
+        latestVersion(item).status = "pending";
+        ui.reviewAtomId = item.id;
+        toast(`已提交 ${latestVersion(item).id} 审核`);
+        return;
+      }
+      if (act === "approve") {
+        if (!canReview()) { toast("当前角色不是审核发布人"); return; }
+        const item = atom(id);
+        const candidate = latestVersion(item);
+        if (candidate.status !== "pending") return;
+        candidate.status = "published";
+        candidate.reviewer = currentRole().person;
+        candidate.publishedAt = TODAY;
+        ui.atomId = item.id;
+        toast(`${candidate.id} 已审核发布，旧正式版本仍保留`);
+        return;
+      }
+      if (act === "return-review") {
+        if (!canReview()) { toast("当前角色不是审核发布人"); return; }
+        const item = atom(id);
+        const candidate = latestVersion(item);
+        const reason = window.prompt("请输入退回原因：", "请补充适用范围依据并确认关键附件版本。");
+        if (!reason) return;
+        candidate.status = "draft";
+        candidate.returnNote = reason;
+        toast(`${candidate.id} 已退回责任人补充`);
+        return;
+      }
+      if (act === "obsolete") {
+        if (!canReview()) { toast("当前角色不是审核发布人"); return; }
+        const item = atom(id);
+        const formal = latestPublished(item);
+        if (!formal) return;
+        const reason = window.prompt(`请输入废止 ${formal.id} 的原因：`, "已有新版规范替代，历史版本仅保留追溯。");
+        if (!reason) return;
+        formal.status = "obsolete";
+        formal.obsoleteReason = reason;
+        toast(`${item.name} ${formal.id} 已废止并保留历史`);
+        return;
+      }
+      if (act === "toggle-exception") { ui.modal = { type: "permission" }; render(); return; }
+      if (act === "close-modal") { ui.modal = null; render(); return; }
+      if (act === "confirm-exception") {
+        state.permissionException = !state.permissionException;
+        const restricted = atom("supplier");
+        restricted.restrictedTo = state.permissionException ? ["admin", "owner", "reviewer"] : null;
+        state.permissionAudit.unshift({
+          at: `${TODAY} 10:52`,
+          by: currentRole().person,
+          action: state.permissionException ? "设置“核心供应商成本参数”为严格受限" : "取消“核心供应商成本参数”对象权限例外"
+        });
+        ui.modal = null;
+        toast("权限例外已更新并记录审计");
+        return;
+      }
+      if (act === "do-search") {
+        ui.search = document.getElementById("searchInput").value;
+        ui.searchSpace = document.getElementById("searchSpace").value;
+        ui.searchType = document.getElementById("searchType").value;
+        ui.searchStatus = document.getElementById("searchStatus").value;
+        render();
+        return;
+      }
+      if (act === "add-topic") {
+        if (!canMaintainTopic()) { toast("当前角色不能维护专题"); return; }
+        const item = atom(id);
+        const formal = latestPublished(item);
+        if (!formal || !isAccessible(item)) { toast("只有权限内已发布知识可以正式引用"); return; }
+        if (!topic().refs.some(ref => ref.atomId === id)) topic().refs.push({ atomId: id, versionId: formal.id });
+        toast(`已引用 ${item.name} ${formal.id}`);
+        return;
+      }
+      if (act === "upgrade-topic") {
+        if (!canMaintainTopic()) return;
+        const ref = topic().refs.find(entry => entry.atomId === id);
+        const formal = latestPublished(atom(id));
+        if (ref && formal) ref.versionId = formal.id;
+        toast(`专题引用已升级到 ${formal.id}`);
+        return;
+      }
+      if (act === "keep-topic") {
+        toast("已保持当前正式版本；下次源更新前不改变专题内容");
+      }
+    }
+
+    document.getElementById("app").addEventListener("click", onClick);
+    document.getElementById("app").addEventListener("change", event => {
+      if (event.target.id === "roleSelect") {
+        state.role = event.target.value;
+        toast(`已切换为 ${currentRole().name} · ${currentRole().person}`);
+      }
+    });
+    document.addEventListener("keydown", event => {
+      if (event.key === "Escape" && ui.modal) {
+        ui.modal = null;
+        render();
+      }
+    });
+    render();
+  })();
+  </script>
+</body>
+</html>

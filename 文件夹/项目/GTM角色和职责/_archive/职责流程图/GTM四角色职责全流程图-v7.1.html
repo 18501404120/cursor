@@ -1,0 +1,1199 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>GTM四角色职责全流程图 · v7.1</title>
+  <style>
+    :root {
+      --bg: #f3f1eb;
+      --panel: rgba(255, 255, 255, 0.92);
+      --panel-strong: #ffffff;
+      --text: #1e2430;
+      --muted: #667085;
+      --line: #d9dfeb;
+      --phase: #ece6db;
+      --shadow: 0 18px 40px rgba(30, 36, 48, 0.08);
+      --bi: #0f766e;
+      --pg: #c2410c;
+      --rg: #1d4ed8;
+      --sp: #7c3aed;
+      --bi-soft: rgba(15, 118, 110, 0.1);
+      --pg-soft: rgba(194, 65, 12, 0.1);
+      --rg-soft: rgba(29, 78, 216, 0.1);
+      --sp-soft: rgba(124, 58, 237, 0.1);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: "PingFang SC", "Microsoft YaHei", "Helvetica Neue", Arial, sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at top left, rgba(194, 65, 12, 0.08), transparent 28%),
+        radial-gradient(circle at top right, rgba(29, 78, 216, 0.08), transparent 26%),
+        linear-gradient(180deg, #f7f4ee 0%, #eef2f7 100%);
+      line-height: 1.55;
+    }
+
+    .page {
+      max-width: 1600px;
+      margin: 0 auto;
+      padding: 28px 18px 56px;
+    }
+
+    .hero {
+      position: relative;
+      overflow: hidden;
+      background: linear-gradient(135deg, rgba(255,255,255,0.96), rgba(248,250,252,0.92));
+      border: 1px solid rgba(217, 223, 235, 0.9);
+      border-radius: 24px;
+      box-shadow: var(--shadow);
+      padding: 28px 28px 24px;
+      margin-bottom: 22px;
+    }
+
+    .hero::after {
+      content: "";
+      position: absolute;
+      right: -60px;
+      top: -60px;
+      width: 240px;
+      height: 240px;
+      background: radial-gradient(circle, rgba(29, 78, 216, 0.12), transparent 68%);
+      pointer-events: none;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 12px;
+      border-radius: 999px;
+      background: rgba(30, 36, 48, 0.06);
+      color: #344054;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      margin: 16px 0 10px;
+      font-size: 34px;
+      line-height: 1.18;
+      letter-spacing: -0.04em;
+    }
+
+    .hero p {
+      margin: 0;
+      max-width: 1040px;
+      font-size: 14px;
+      color: #475467;
+    }
+
+    .hero-grid {
+      display: grid;
+      grid-template-columns: 2.2fr 1fr;
+      gap: 18px;
+      margin-top: 22px;
+    }
+
+    .summary-card,
+    .metric-card,
+    .section-card {
+      background: var(--panel);
+      border: 1px solid rgba(217, 223, 235, 0.9);
+      border-radius: 18px;
+      box-shadow: 0 10px 24px rgba(30, 36, 48, 0.05);
+    }
+
+    .summary-card {
+      padding: 18px 18px 16px;
+    }
+
+    .summary-card h2,
+    .section-title,
+    .metric-card h3 {
+      margin: 0 0 10px;
+      font-size: 15px;
+      font-weight: 700;
+    }
+
+    .summary-list {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+      margin-top: 12px;
+    }
+
+    .summary-item {
+      padding: 12px;
+      border-radius: 14px;
+      background: #fbfcfe;
+      border: 1px solid #e8edf5;
+    }
+
+    .summary-item strong {
+      display: block;
+      margin-bottom: 6px;
+      font-size: 13px;
+    }
+
+    .summary-item span {
+      display: block;
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .metric-column {
+      display: grid;
+      gap: 12px;
+    }
+
+    .metric-card {
+      padding: 16px;
+    }
+
+    .metric-card p {
+      margin: 0;
+      font-size: 12.5px;
+      color: var(--muted);
+    }
+
+    .metric-value {
+      display: block;
+      margin-bottom: 6px;
+      font-size: 24px;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+    }
+
+    .toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 10px;
+      margin: 0 0 16px;
+    }
+
+    .toolbar .hint {
+      font-size: 12px;
+      color: var(--muted);
+      margin-right: 6px;
+    }
+
+    .filter-btn {
+      border: 1px solid #d4dce8;
+      background: rgba(255,255,255,0.78);
+      color: #344054;
+      border-radius: 999px;
+      padding: 8px 12px;
+      font-size: 12.5px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.18s ease;
+    }
+
+    .filter-btn:hover,
+    .filter-btn.active {
+      transform: translateY(-1px);
+      box-shadow: 0 8px 20px rgba(30, 36, 48, 0.08);
+      border-color: transparent;
+      color: #fff;
+    }
+
+    .filter-btn[data-role="all"].active { background: #344054; }
+    .filter-btn[data-role="bi"].active { background: var(--bi); }
+    .filter-btn[data-role="pg"].active { background: var(--pg); }
+    .filter-btn[data-role="rg"].active { background: var(--rg); }
+    .filter-btn[data-role="sp"].active { background: var(--sp); }
+
+    .swim-wrap {
+      overflow: auto;
+      border-radius: 24px;
+      background: rgba(255, 255, 255, 0.6);
+      border: 1px solid rgba(217, 223, 235, 0.9);
+      box-shadow: var(--shadow);
+      margin-bottom: 22px;
+    }
+
+    .swim {
+      min-width: 1680px;
+      display: grid;
+      grid-template-columns: 200px repeat(6, minmax(240px, 1fr));
+    }
+
+    .corner {
+      position: sticky;
+      top: 0;
+      left: 0;
+      z-index: 5;
+      background: linear-gradient(180deg, #f9fafb, #f2f4f7);
+      border-right: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+      padding: 18px 16px;
+      font-weight: 700;
+      font-size: 13px;
+      color: #475467;
+    }
+
+    .phase {
+      position: sticky;
+      top: 0;
+      z-index: 4;
+      background: linear-gradient(180deg, #f8f5ef, #efe8db);
+      border-right: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+      padding: 16px 14px;
+      min-height: 118px;
+    }
+
+    .phase:last-child {
+      border-right: none;
+    }
+
+    .phase .step {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 26px;
+      height: 26px;
+      border-radius: 999px;
+      background: rgba(30, 36, 48, 0.08);
+      font-size: 12px;
+      font-weight: 800;
+      margin-bottom: 10px;
+    }
+
+    .phase h3 {
+      margin: 0 0 6px;
+      font-size: 14px;
+      line-height: 1.35;
+    }
+
+    .phase p {
+      margin: 0;
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .role-label {
+      position: sticky;
+      left: 0;
+      z-index: 3;
+      padding: 18px 14px;
+      border-right: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+      background: #fcfcfd;
+    }
+
+    .role-label .role-name {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 8px;
+      font-size: 15px;
+      font-weight: 800;
+    }
+
+    .role-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      flex: 0 0 auto;
+    }
+
+    .role-label p {
+      margin: 0;
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .role-label.bi .role-dot { background: var(--bi); }
+    .role-label.pg .role-dot { background: var(--pg); }
+    .role-label.rg .role-dot { background: var(--rg); }
+    .role-label.sp .role-dot { background: var(--sp); }
+
+    .cell {
+      padding: 14px;
+      border-right: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+      background: rgba(255, 255, 255, 0.94);
+      transition: opacity 0.18s ease, transform 0.18s ease, background 0.18s ease;
+    }
+
+    .cell:last-child {
+      border-right: none;
+    }
+
+    .lane-card {
+      border-radius: 16px;
+      padding: 12px 12px 10px;
+      height: 100%;
+      border: 1px solid #e6ebf3;
+      background: #fff;
+    }
+
+    .lane-card.bi { background: linear-gradient(180deg, #ffffff, var(--bi-soft)); }
+    .lane-card.pg { background: linear-gradient(180deg, #ffffff, var(--pg-soft)); }
+    .lane-card.rg { background: linear-gradient(180deg, #ffffff, var(--rg-soft)); }
+    .lane-card.sp { background: linear-gradient(180deg, #ffffff, var(--sp-soft)); }
+
+    .lane-card h4 {
+      margin: 0 0 8px;
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 0.02em;
+      text-transform: uppercase;
+      color: #344054;
+    }
+
+    .lane-card ul {
+      margin: 0;
+      padding-left: 17px;
+    }
+
+    .lane-card li {
+      margin-bottom: 6px;
+      font-size: 12.5px;
+      color: #344054;
+    }
+
+    .lane-card li:last-child {
+      margin-bottom: 0;
+    }
+
+    body.filtered .cell,
+    body.filtered .role-label {
+      opacity: 0.28;
+    }
+
+    body.filtered[data-focus="bi"] .cell[data-role="bi"],
+    body.filtered[data-focus="bi"] .role-label.bi,
+    body.filtered[data-focus="pg"] .cell[data-role="pg"],
+    body.filtered[data-focus="pg"] .role-label.pg,
+    body.filtered[data-focus="rg"] .cell[data-role="rg"],
+    body.filtered[data-focus="rg"] .role-label.rg,
+    body.filtered[data-focus="sp"] .cell[data-role="sp"],
+    body.filtered[data-focus="sp"] .role-label.sp {
+      opacity: 1;
+    }
+
+    body.filtered .cell[data-role],
+    body.filtered .role-label {
+      transform: scale(0.995);
+    }
+
+    body.filtered[data-focus="bi"] .cell[data-role="bi"],
+    body.filtered[data-focus="pg"] .cell[data-role="pg"],
+    body.filtered[data-focus="rg"] .cell[data-role="rg"],
+    body.filtered[data-focus="sp"] .cell[data-role="sp"] {
+      transform: scale(1);
+    }
+
+    .section-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 18px;
+      margin-bottom: 18px;
+    }
+
+    .section-card.full-span {
+      grid-column: 1 / -1;
+    }
+
+    .ref-source {
+      margin-top: 14px;
+      padding-top: 12px;
+      border-top: 1px solid #e6ebf3;
+      font-size: 11.5px;
+      color: var(--muted);
+      line-height: 1.6;
+    }
+
+    .section-card {
+      padding: 18px;
+    }
+
+    .section-card p {
+      margin: 0 0 12px;
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    .handoff-list,
+    .system-list,
+    .deliverable-list {
+      display: grid;
+      gap: 10px;
+    }
+
+    .handoff-item,
+    .system-item,
+    .deliverable-item {
+      border-radius: 14px;
+      border: 1px solid #e6ebf3;
+      background: #fcfdff;
+      padding: 12px;
+    }
+
+    .handoff-item strong,
+    .system-item strong,
+    .deliverable-item strong {
+      display: block;
+      margin-bottom: 6px;
+      font-size: 13px;
+    }
+
+    .handoff-item span,
+    .system-item span,
+    .deliverable-item span {
+      display: block;
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .role-map {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .role-panel {
+      border-radius: 16px;
+      padding: 14px;
+      border: 1px solid #e6ebf3;
+      background: #fff;
+    }
+
+    .role-panel.bi { box-shadow: inset 0 0 0 1px var(--bi-soft); }
+    .role-panel.pg { box-shadow: inset 0 0 0 1px var(--pg-soft); }
+    .role-panel.rg { box-shadow: inset 0 0 0 1px var(--rg-soft); }
+    .role-panel.sp { box-shadow: inset 0 0 0 1px var(--sp-soft); }
+
+    .role-panel h3 {
+      margin: 0 0 8px;
+      font-size: 14px;
+    }
+
+    .role-panel ul {
+      margin: 0;
+      padding-left: 18px;
+    }
+
+    .role-panel li {
+      margin-bottom: 6px;
+      font-size: 12.5px;
+      color: #344054;
+    }
+
+    .footnote {
+      margin-top: 16px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    @media (max-width: 1200px) {
+      .hero-grid,
+      .section-grid,
+      .role-map,
+      .summary-list {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body data-focus="all">
+  <div class="page">
+    <section class="hero">
+      <div class="eyebrow">GTM · 全渠道流出 · 角色职责流程图 · v7.1</div>
+      <h1>区域 GTM、产品 GTM、商业洞察、需求计划<br />在年度 GTM 各阶段中的职责分工</h1>
+      <p>
+        本页在《会议-GTM全流程》骨架上，已对照仓库内 <strong>《GTM资料》</strong>（路径：<code>文件夹/项目/GTM角色和职责/GTM资料/</code>）中的材料做要点内化，主要包括：《GTM与GTM流程》、IPMS 流程初认知、DSTE 战略开发到执行、GM 流程（材料中表述为在 BM 上升级、市场与研发互锁；2025 年起内部将新品上市流程称为 GTM）及 GTM 课程讲义等。
+        仍将公司以<strong>年度 BP</strong>为起点的全渠道经营拆为六个阶段与四条角色泳道，突出「谁在何时输出什么、与谁互锁」，而非单岗位罗列。
+      </p>
+
+      <div class="hero-grid">
+        <div class="summary-card">
+          <h2>会议定义的 GTM 主线</h2>
+          <p>
+            GTM 不是单点项目，而是一套跨年度滚动的经营流程。业务从年度 BP 启动，经由市场洞察、产品规划、渠道价格策略、销售预测与供应协同，最后回到经营复盘与下一轮规划，形成持续循环。
+          </p>
+          <div class="summary-list">
+            <div class="summary-item">
+              <strong>起点</strong>
+              <span>以年度 BP 为管理起点，通常从每年 6 月前后启动下一年度规划。</span>
+            </div>
+            <div class="summary-item">
+              <strong>框架</strong>
+              <span>围绕 Product、Price、Place、Marketing 的 4P 经营逻辑进行协同。</span>
+            </div>
+          <div class="summary-item">
+            <strong>结果</strong>
+            <span>最终同时对销售指标、营销指标、经营指标负责，而不仅仅是销量。</span>
+          </div>
+          <div class="summary-item">
+            <strong>机制</strong>
+            <span>GTM 是集成产品、营销、销售和服务的业务流程，目标是实现单品与组合的商业成功。</span>
+          </div>
+          <div class="summary-item">
+            <strong>PCT</strong>
+            <span>围绕产品商业成功建立 PCT 作战单元，通过例会和交付件拉通决策与动作。</span>
+          </div>
+          <div class="summary-item">
+            <strong>双向协同</strong>
+            <span>PD 向 GTM 输出产品信息，GTM 反向向 PD 输出市场目标、需求和供应规划要求。</span>
+          </div>
+          <div class="summary-item">
+            <strong>资料内化</strong>
+            <span>对齐资料中的表述：GTM 输出「完整上市方案」、IPMS/GR 与 IPD 互锁、DSTE 中 SP/BP 与年度经营衔接，以及「产品 GTM / 区域 GTM」分层操盘，与下图四角色分工一致。</span>
+          </div>
+          <div class="summary-item">
+            <strong>OC 组织口径</strong>
+            <span>按《OC工作内容》当前主流程覆盖商业洞察、产品 GTM、区域 GTM、需求计划四组；FP&amp;A 经营分析能力作为待建立模块并入后续体系。</span>
+          </div>
+        </div>
+        </div>
+
+        <div class="metric-column">
+          <div class="metric-card">
+            <h3><span class="metric-value">6 个阶段</span>流程分层</h3>
+            <p>从市场扫描到经营复盘，覆盖从“看机会”到“看结果”的完整链路。</p>
+          </div>
+          <div class="metric-card">
+            <h3><span class="metric-value">4 个角色</span>职责分工</h3>
+            <p>商业洞察前置、产品 GTM 承接、区域 GTM 落地、需求计划闭环。</p>
+          </div>
+          <div class="metric-card">
+            <h3><span class="metric-value">1 条闭环</span>滚动经营</h3>
+            <p>规划、跟踪、达成并行推进，上一年度执行和下一年度规划长期重叠。</p>
+          </div>
+          <div class="metric-card">
+            <h3><span class="metric-value">4 快 1 慢</span>PCT 节奏</h3>
+            <p>上市热度、销量、策略调整、产品收尾都要快，但上市准备必须慢且扎实。</p>
+          </div>
+          <div class="metric-card">
+            <h3><span class="metric-value">GR</span>与 PD 互锁</h3>
+            <p>参照 IPMS/GM 材料：以关键评审（GR1～GR5）串联目标锁定、策略、执行方案、上市准备度与首销复盘，并与产品开发里程碑对齐。</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <div class="toolbar">
+      <span class="hint">点击角色可高亮对应职责泳道：</span>
+      <button class="filter-btn active" data-role="all">全部角色</button>
+      <button class="filter-btn" data-role="bi">商业洞察</button>
+      <button class="filter-btn" data-role="pg">产品 GTM</button>
+      <button class="filter-btn" data-role="rg">区域 GTM</button>
+      <button class="filter-btn" data-role="sp">需求计划</button>
+    </div>
+
+    <section class="swim-wrap">
+      <div class="swim">
+        <div class="corner">角色 / 阶段</div>
+
+        <div class="phase">
+          <div class="step">01</div>
+          <h3>年度 BP 启动与规划准备</h3>
+          <p>以 3 月/7 月次年新品规划释放为锚点，衔接春季务虚会、秋季复盘会与 12 月年终复盘、1 月次年 BP 释放。</p>
+        </div>
+        <div class="phase">
+          <div class="step">02</div>
+          <h3>市场扫描、预测与机会挖掘</h3>
+          <p>形成外部与内部输入，判断市场、用户、竞争与机会窗口。</p>
+        </div>
+        <div class="phase">
+          <div class="step">03</div>
+          <h3>产品规划与上市项目立项</h3>
+          <p>把机会转成产品 Roadmap、项目节点、GR 评审动作、状态流转和上市准备。</p>
+        </div>
+        <div class="phase">
+          <div class="step">04</div>
+          <h3>渠道、价格与区域策略展开</h3>
+          <p>确定区域打法、渠道结构、客户策略、价格带与调价规则。</p>
+        </div>
+        <div class="phase">
+          <div class="step">05</div>
+          <h3>预测、要货、供应与执行落地</h3>
+          <p>通过月度计划委会与 PSI 会议，让预测、要货、库存、发运和生产形成共识计划。</p>
+        </div>
+        <div class="phase">
+          <div class="step">06</div>
+          <h3>经营跟踪、复盘与滚动迭代</h3>
+          <p>围绕销售、营销、经营结果复盘，形成调价、调货、调策略和下一轮输入。</p>
+        </div>
+
+        <div class="role-label bi">
+          <div class="role-name"><span class="role-dot"></span>商业洞察</div>
+          <p>最早启动，负责把市场、竞争与区域经营信息转化为经营判断和机会输入。</p>
+        </div>
+        <div class="cell" data-role="bi">
+          <div class="lane-card bi">
+            <h4>规划前置输入</h4>
+            <ul>
+              <li>参与年度 BP 准备，明确规划所需的市场信息维度和分析框架。</li>
+              <li>承接 3 月、7 月次年新品规划释放节奏，组织半年度/年度产品规划市场输入。</li>
+              <li>围绕“五看四定”梳理行业、PEST、用户、竞争和自身的观察口径。</li>
+              <li>定义后续预测和机会判断所需的数据源、时间跨度和市场颗粒度。</li>
+            </ul>
+          </div>
+        </div>
+        <div class="cell" data-role="bi">
+          <div class="lane-card bi">
+            <h4>扫描 / 预测 / 挖掘</h4>
+            <ul>
+              <li>扫描市场份额、竞争格局、渠道变化、平台规则和用户偏好。</li>
+              <li>基于连续两到三年的数据，预测下一年度市场体量和结构变化。</li>
+              <li>输出 SWOT、机会清单、风险清单和优先级建议。</li>
+              <li>围绕新品上市窗口输出市场容量、竞品动态、用户需求洞察（含次春新品、次年 Q2 新品）。</li>
+              <li>沉淀 VOC、评论、listing、外部情报，形成长期可复用资产。</li>
+            </ul>
+          </div>
+        </div>
+        <div class="cell" data-role="bi">
+          <div class="lane-card bi">
+            <h4>为产品规划供输入</h4>
+            <ul>
+              <li>把洞察结果转化为“明年上什么、为什么上、优先做什么”的输入。</li>
+              <li>识别产品机会区、价格带空档和竞争压力最大的品类。</li>
+              <li>为产品 GTM 提供用户痛点、竞争差异和卖点方向。</li>
+              <li>对照《GTM与GTM流程》：将宏观档位、竞争大盘与微观用户偏好结构化输出，支撑产品线在卖点、配置与档位布局上立项。</li>
+            </ul>
+          </div>
+        </div>
+        <div class="cell" data-role="bi">
+          <div class="lane-card bi">
+            <h4>为区域策略供判断</h4>
+            <ul>
+              <li>输出区域市场差异、渠道机会和竞争态势，支撑区域 GTM 定策略。</li>
+              <li>提供价格带判断、渠道趋势和重点客户环境变化。</li>
+              <li>为营销预算投向和重点战役选择提供市场依据。</li>
+            </ul>
+          </div>
+        </div>
+        <div class="cell" data-role="bi">
+          <div class="lane-card bi">
+            <h4>为预测模型供系数</h4>
+            <ul>
+              <li>把市场判断转成销售预测的前置参数，而不是只给结论。</li>
+              <li>参与解释销量假设变化背后的市场原因和结构变化。</li>
+              <li>协助识别新品导入、旺季、促销期和竞争变化带来的波动风险。</li>
+            </ul>
+          </div>
+        </div>
+        <div class="cell" data-role="bi">
+          <div class="lane-card bi">
+            <h4>复盘与滚动更新</h4>
+            <ul>
+              <li>沉淀区域月度经营数据与月度复盘结论，输出经营分析简报。</li>
+              <li>复盘市场判断与实际结果的偏差，修正下一轮洞察模型。</li>
+              <li>跟踪竞争对手调价、上新、渠道动作，及时反馈给业务侧。</li>
+              <li>在年中/年度 BP 制定中输出区域市场趋势输入，并形成半年度、年度经营结果复盘。</li>
+              <li>为下一轮 BP 提前准备持续更新的市场情报库。</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="role-label pg">
+          <div class="role-name"><span class="role-dot"></span>产品 GTM</div>
+          <p>把市场机会转成产品路线、项目动作、上市节奏和生命周期管理。</p>
+        </div>
+        <div class="cell" data-role="pg">
+          <div class="lane-card pg">
+            <h4>承接规划框架</h4>
+            <ul>
+              <li>基于年度 BP 和经营目标，提前准备产品线维度的规划议题。</li>
+              <li>梳理现有产品组合、生命周期状态和下一年度需要承接的关键品类。</li>
+              <li>识别哪些产品继续推进、哪些需要升级、哪些要准备退市。</li>
+            </ul>
+          </div>
+        </div>
+        <div class="cell" data-role="pg">
+          <div class="lane-card pg">
+            <h4>消化洞察形成规划</h4>
+            <ul>
+              <li>承接商业洞察输出，把市场机会转成产品规划建议和节奏判断。</li>
+              <li>组织次年新品需求评估与排序，识别增长机会点并制定新老品迭代规划。</li>
+              <li>结合用户痛点、竞争差异和产品空白，明确产品定义方向。</li>
+              <li>验证产品机会是否具备价格、渠道和经营上的可落地性。</li>
+            </ul>
+          </div>
+        </div>
+        <div class="cell" data-role="pg">
+          <div class="lane-card pg">
+            <h4>项目立项与上市准备</h4>
+            <ul>
+              <li>建立 GTM 项目计划，明确里程碑、评审点、状态流转和责任人。</li>
+              <li>组织 H2 新品、次春新品、次年 Q2 新品等关键 GR1/GR2 节点评审并推进结论闭环。</li>
+              <li>以新品上市项目经理视角推动全链路信息打通，与 PD 关键节点互锁，将研发/制造/品牌等资源聚焦到核心项目。</li>
+              <li>组织新品首单需求收集：面向各渠道/区域汇总首单规格、数量意向、到货窗口与约束条件，形成可进入预测与要货评审的结构化输入，并与需求计划对齐口径。</li>
+              <li>制定上市节奏与组织判定，持续更新 Roadmap 与 One Page。</li>
+              <li>推动样机、产品图、KV、营销物料、POS 打样等三级流程按时交付。</li>
+              <li>协调研发变更、版本调整和上市节点，避免前后端节奏脱节。</li>
+              <li>维护产品信息库（关联 SKU 技术信息库），包含 GTM 负责人、上市时间、新品标签、状态等。</li>
+            </ul>
+          </div>
+        </div>
+        <div class="cell" data-role="pg">
+          <div class="lane-card pg">
+            <h4>为区域和价格准备条件</h4>
+            <ul>
+              <li>输出产品 Roadmap、上市节奏、SKU 结构和生命周期状态。</li>
+              <li>提供新品卖点、规格变化、主推 SKU 建议和退市节奏。</li>
+              <li>为区域 GTM 的价格策略、渠道导入和资源倾斜提供产品依据。</li>
+            </ul>
+          </div>
+        </div>
+        <div class="cell" data-role="pg">
+          <div class="lane-card pg">
+            <h4>支持导入与执行</h4>
+            <ul>
+              <li>与各渠道沟通，收集并锁定与年度 BP 对齐的分渠道目标（销量、结构、节奏与资源假设），作为导入期滚动预测、分货与营销资源的共同约束。</li>
+              <li>同步新品上市节点，让需求计划可据此安排导入预测和补货节奏。</li>
+              <li>跟踪上市前三个月重点问题，确保市场、渠道和物料真实到位。</li>
+              <li>在执行中处理产品状态、版本、参数和资料的变更影响。</li>
+            </ul>
+          </div>
+        </div>
+        <div class="cell" data-role="pg">
+          <div class="lane-card pg">
+            <h4>生命周期收口</h4>
+            <ul>
+              <li>复盘新品导入效果、上市节奏和产品资料准备质量。</li>
+              <li>在退市阶段与区域 GTM、需求计划配合完成清货和状态收口。</li>
+              <li>把执行流程中暴露的问题与经验沉淀到流程优化机制中。</li>
+              <li>建立新品切换信息月度刷新机制，跟进老品 EOM、清库方案落地和退市窗口下单节奏。</li>
+              <li>联合区域 GTM，基于全渠道经营分析看板跟踪 BP 目标达成与结构偏差，将结论回灌为产品组合、主推与节奏调整输入。</li>
+              <li>将全渠道 baseline 要求纳入生命周期策略（配置、套装、退市节奏），为区域价格与促销策略提供产品侧边界与变更依据。</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="role-label rg">
+          <div class="role-name"><span class="role-dot"></span>区域 GTM</div>
+          <p>把总部规划转成区域打法，主责渠道、价格、销售目标拆解与经营调整。</p>
+        </div>
+        <div class="cell" data-role="rg">
+          <div class="lane-card rg">
+            <h4>区域经营准备</h4>
+            <ul>
+              <li>从年度 BP 中承接区域经营目标，拆分重点区域、重点国家和重点客户。</li>
+              <li>明确区域维度需要重点观察的渠道结构、客户结构和价格带差异。</li>
+              <li>建立区域月度/季度例会机制，拉通市场前端与产研资源，对季度达成和开支节奏做滚动评估。</li>
+              <li>准备下一年度区域打法的核心假设和需要验证的问题。</li>
+            </ul>
+          </div>
+        </div>
+        <div class="cell" data-role="rg">
+          <div class="lane-card rg">
+            <h4>吸收市场判断</h4>
+            <ul>
+              <li>承接商业洞察对区域市场、价格带、竞争格局和渠道机会的分析。</li>
+              <li>判断哪些市场适合扩渠道、哪些市场更适合做价格策略或结构优化。</li>
+              <li>识别高风险区域和重点争夺的渠道场景。</li>
+            </ul>
+          </div>
+        </div>
+        <div class="cell" data-role="rg">
+          <div class="lane-card rg">
+            <h4>准备区域导入方案</h4>
+            <ul>
+              <li>与各渠道充分沟通，收集并锁定对年度 BP 有约束力的分渠道目标（销量、结构与资源），与总部 BP、产品节奏对齐后写入区域导入计划与跟踪基线。</li>
+              <li>根据产品 GTM 输出的 Roadmap 和上市节奏，形成区域导入计划。</li>
+              <li>输出区域维度的市场深挖、线下核心 SKU 列表、品类 Campaign 规划、新客拓展规划、价格促销规划与区域增长策略。</li>
+              <li>识别不同区域适配的 SKU 结构、上市顺序和资源重点。</li>
+              <li>准备区域客户沟通、铺货、促销和主推策略。</li>
+            </ul>
+          </div>
+        </div>
+        <div class="cell" data-role="rg">
+          <div class="lane-card rg">
+            <h4>渠道与价格主责</h4>
+            <ul>
+              <li>制定全渠道策略，覆盖线上、线下、运营商、分销商和重点客户路径。</li>
+              <li>主导价格平台业务规则，管理 RRP、FOB、授权价、渠道点位和调价。</li>
+              <li>承接总部/产品侧制定的新品首销期定价与促销策略，落地区域执行；首销复盘后形成后续区域策略建议。</li>
+              <li>制定区域销售目标拆解、渠道政策、特商申请和特殊促销管理规则。</li>
+              <li>围绕 PD/PFD/BFCM 等大促节点制定区域大促规划，并在 baseline 约束下做资源与玩法编排。</li>
+              <li>围绕主推 SKU、价差结构和渠道利润空间做区域落地判断。</li>
+              <li>依托全渠道经营分析看板跟踪 BP 目标达成进度与结构偏差，据结果迭代渠道组合、资源投放与价格策略。</li>
+              <li>建立全渠道 baseline 管理口径（含例外审批），用于指导价格策略、促销力度与调价边界。</li>
+              <li>跟踪全渠道促销与活动信息，确保重点产品各渠道划线价（MSRP 展示口径）一致，价格执行不击穿 baseline 要求。</li>
+            </ul>
+          </div>
+        </div>
+        <div class="cell" data-role="rg">
+          <div class="lane-card rg">
+            <h4>执行跟踪与策略调整</h4>
+            <ul>
+              <li>通过 PSI、SO 和全渠道看板跟踪 Sell Out、库存、动销和价格执行。</li>
+              <li>根据销售达成偏差发起调价、调资源、调节奏和调客户动作。</li>
+              <li>按月刷新 Roadmap 与老品 EOM 管理状态，跟进 H1/H2 清库方案制定与执行闭环。</li>
+              <li>与需求计划协同，判断哪些缺口来自需求、哪些来自供给。</li>
+              <li><strong>退市管理</strong>：分两类推进——新老品迭代型退市由产品/PCT 主导规划并协同供应链核料执行；无新品替代的区域/渠道退市由区域 GTM 主导推进。</li>
+            </ul>
+          </div>
+        </div>
+        <div class="cell" data-role="rg">
+          <div class="lane-card rg">
+            <h4>区域经营复盘</h4>
+            <ul>
+              <li>复盘区域达成、渠道健康度、价格纪律和重点客户经营结果。</li>
+              <li>结合经营平台数据判断利润、费用和周转，不只看销量。</li>
+              <li>把市场反馈、客户反馈和价格表现回灌到下一轮区域策略。</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="role-label sp">
+          <div class="role-name"><span class="role-dot"></span>需求计划</div>
+          <p>通过 PSI 把预测、要货、库存、发运、生产和供应变成共识计划。</p>
+        </div>
+        <div class="cell" data-role="sp">
+          <div class="lane-card sp">
+            <h4>计划体系准备</h4>
+            <ul>
+              <li>围绕年度 BP 确定预测口径、时间维度和计划颗粒度。</li>
+              <li>以月度计划委会与 PSI 会议为主机制：一级计划定供需平衡，二级计划做需求评审与准确率复盘。</li>
+              <li>梳理销售预测、要货、库存、供应和发运所需的数据接口。</li>
+              <li>明确 PSI 在下一年度应承担的核心业务边界。</li>
+            </ul>
+          </div>
+        </div>
+        <div class="cell" data-role="sp">
+          <div class="lane-card sp">
+            <h4>建立预测前提</h4>
+            <ul>
+              <li>吸收商业洞察关于市场趋势、旺季变化和增长假设的输入。</li>
+              <li>纳入公司资源投入（如营销费用、价格策略等）作为预测前提。</li>
+              <li>预测对齐 BP 目标，结合 BP 目标 gap 拆解并给出预测值。</li>
+            </ul>
+          </div>
+        </div>
+        <div class="cell" data-role="sp">
+          <div class="lane-card sp">
+            <h4>承接产品节奏</h4>
+            <ul>
+              <li>接收产品 GTM 的上市节奏、SKU 结构和生命周期状态。</li>
+              <li>据此安排新品导入预测、首批备货、后续补货和退市降速计划。</li>
+              <li>确保产品计划不是停留在规划层，而能进入可执行计划层。</li>
+            </ul>
+          </div>
+        </div>
+        <div class="cell" data-role="sp">
+          <div class="lane-card sp">
+            <h4>形成需求计划</h4>
+            <ul>
+              <li>把区域 GTM 的目标拆解、渠道打法和价格策略转成预测和要货计划。</li>
+              <li>围绕渠道提报预测开展需求评审，确保预测与要货合理；基于共识计划实施全渠道分货。</li>
+              <li>结合库存、在途、供应能力和发运能力形成计划版本。</li>
+              <li>接入客户 SO 和渠道 Sell Out，提升需求计划真实性。</li>
+            </ul>
+          </div>
+        </div>
+        <div class="cell" data-role="sp">
+          <div class="lane-card sp">
+            <h4>PSI 闭环执行</h4>
+            <ul>
+              <li>通过 PSI 管理销售预测和要货计划两大核心动作。</li>
+              <li>协调需求计划与工艺计划、生产计划、发运计划和库存约束。</li>
+              <li>根据年度 BP 变化及时调计划；并向供应链释放年度产能规划。</li>
+              <li>输出共识计划、供需缺口、异常预警和必要的情景测算。</li>
+              <li>持续监控产销协同、应急与预警、库存与物料风险。</li>
+              <li>持续监控渠道、SKU、时间维度上的实际消耗与预测偏差。</li>
+              <li>建立经营看板，持续跟踪渠道健康度、库存周转、呆滞、预测准确率与要货准确率。</li>
+            </ul>
+          </div>
+        </div>
+        <div class="cell" data-role="sp">
+          <div class="lane-card sp">
+            <h4>偏差复盘与再计划</h4>
+            <ul>
+              <li>复盘预测准确率、供需偏差、库存结构和发运执行表现。</li>
+              <li>将偏差原因拆解为市场问题、产品问题、区域问题或供应问题。</li>
+              <li>补充 H1 与全年交付达成及库存健康度复盘，沉淀新老品差异化供需管理策略。</li>
+              <li>把复盘结果带回下一轮滚动预测和计划优化中。</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <div class="section-grid">
+      <section class="section-card">
+        <div class="section-title">角色交接关系</div>
+        <p>这四个角色在会议里不是并列孤岛，而是一条前后承接的职责链。每个角色都要把自己的输出转成下一个角色可用的输入。</p>
+        <div class="handoff-list">
+          <div class="handoff-item">
+            <strong>商业洞察 → 产品 GTM</strong>
+            <span>输出市场机会、用户痛点、竞争变化和价格带判断，帮助产品 GTM 决定做什么、为什么做、优先做什么。</span>
+          </div>
+          <div class="handoff-item">
+            <strong>产品 GTM → 区域 GTM</strong>
+            <span>输出产品 Roadmap、上市节奏、SKU 结构、生命周期状态和卖点资料，让区域 GTM 可以准备导入策略与渠道动作。</span>
+          </div>
+          <div class="handoff-item">
+            <strong>区域 GTM → 需求计划</strong>
+            <span>把区域目标、渠道打法、客户节奏、价格政策和主推 SKU 策略转成可量化的预测和要货需求。</span>
+          </div>
+          <div class="handoff-item">
+            <strong>需求计划 → 区域 GTM / 产品 GTM</strong>
+            <span>把供需差异、库存压力、发运约束和预测偏差反馈给业务侧，用于调价、调节奏、调导入和调资源。</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="section-card">
+        <div class="section-title">系统与数据支撑</div>
+        <p>会议中反复提到，当前痛点并不只是职责不清，更是系统和数据没有打通。下列能力是四个角色高效协同的基础。</p>
+        <div class="system-list">
+          <div class="system-item">
+            <strong>PSI / 月度计划委会</strong>
+            <span>作为公司级核心中转，承载销售预测、要货、库存、发运、渠道 Sell Out 和客户 SO，是需求计划与区域 GTM 的共同数据底座。</span>
+          </div>
+          <div class="system-item">
+            <strong>价格管理平台</strong>
+            <span>支持 RRP、FOB、授权价、渠道点位、特商申请和调价管理，是区域 GTM 的关键经营工具。</span>
+          </div>
+          <div class="system-item">
+            <strong>产品信息库与项目管理系统</strong>
+            <span>支撑产品 GTM 管理产品状态、上市节点、里程碑、物料交付和生命周期流转，避免信息散落在 Excel 和聊天记录中。</span>
+          </div>
+          <div class="system-item">
+            <strong>经营平台 / 管报</strong>
+            <span>把财务视角转成业务可理解的经营视角，用于复盘营收质量、费用结构、利润和周转，而不是只看销量。</span>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <div class="section-grid">
+      <section class="section-card">
+        <div class="section-title">GTM 机制补充</div>
+        <p>《GTM资料》与会议材料一致强调：GTM 不是单一岗位名称，而是<strong>集成产品、营销、销售与服务</strong>的一体化流程，目标是把声量与资源转化为可衡量的经营结果（销量、利润与成本）。</p>
+        <div class="handoff-list">
+          <div class="handoff-item">
+            <strong>GTM 的定义</strong>
+            <span>以产品全生命周期为主线，覆盖策划、计划、开发、验证、上市、稳定售卖到退市；GTM 要输出的是可落地的「产品市场领域上市方案」，含渠道、零售、MKT、计划、交付、服务等子模块，而不止于定价与档位描述。</span>
+          </div>
+          <div class="handoff-item">
+            <strong>PCT 机制</strong>
+            <span>PCT（Product Commercial Team）是围绕产品商业成功形成的统一作战单元，例会机制用于做信息同步和共同决策。</span>
+          </div>
+          <div class="handoff-item">
+            <strong>四快一慢</strong>
+            <span>上市热度快、销量起量快、策略调整快、产品收尾快，但上市准备必须慢，强调前置准备质量。</span>
+          </div>
+          <div class="handoff-item">
+            <strong>为什么四角色重要</strong>
+            <span>商业洞察、产品 GTM、区域 GTM、需求计划，正好构成从市场判断到商业落地的最小闭环。</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="section-card">
+        <div class="section-title">PD 与 GTM 接口</div>
+        <p>IPMS/GM 材料用「一套目标、一个流程、一个团队、一套决策」描述市场侧集成；与 IPD 通过<strong>关键评审 GR</strong>及开发里程碑互锁。下列为《GTM与GTM流程》3.3 节摘要（内部 PD 命名可能为 CD/ES/BT/CR/MP 等，与贵司阶段名对齐即可）。</p>
+        <div class="system-list">
+          <div class="system-item">
+            <strong>PD → GTM</strong>
+            <span>产品开发流程输出产品信息、样机、规格、BOM、状态节点和上市条件，供 GTM 做市场准备、定价、渠道策略和上市推进。</span>
+          </div>
+          <div class="system-item">
+            <strong>GTM → PD</strong>
+            <span>GTM 输出市场目标、销量预期、价格带、渠道需求和供应规划要求，反向影响产品规划和供应准备。</span>
+          </div>
+          <div class="system-item">
+            <strong>CD ↔ GR1</strong>
+            <span>产品向市场输入概念与功能点；市场从商业投资决策角度锁定总体目标（含产品开发目标、营销目标及是否联名等）。</span>
+          </div>
+          <div class="system-item">
+            <strong>ES ↔ GR2</strong>
+            <span>明确核心卖点与技术（软硬件）冻结点，作为卖点验证与渠道拓展依据；GR2 后营销协同研发、产品做深度卖点挖掘（技术语言→消费者语言）。</span>
+          </div>
+          <div class="system-item">
+            <strong>BT/CR ↔ GR3</strong>
+            <span>验收核心卖点实现情况，作为营销与销售方案输入，并针对性制定风险措施。</span>
+          </div>
+          <div class="system-item">
+            <strong>MP ↔ GR4</strong>
+            <span>从商业角度审视产品成熟度对供应、上市与营销的整体影响并形成结论；若发布前仍存在风险，由产销协同等机制纠偏后再上市。</span>
+          </div>
+          <div class="system-item">
+            <strong>产品 GTM 的桥梁作用</strong>
+            <span>四角色里，产品 GTM 最直接承接 PD 与 GR 体系；需求计划把市场目标继续转成滚动要货、S&amp;OP/PSI 可执行计划（材料中常见「8+4」「13+3」等滚动节奏，以公司口径为准）。</span>
+          </div>
+          <div class="system-item">
+            <strong>区域 GTM 的落地点</strong>
+            <span>区域 GTM 基于 PD 输出的产品条件和 GTM 输出的商业判断，完成本地化 4P 策略与区域经营目标拆解。</span>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <div class="section-grid">
+      <section class="section-card full-span">
+        <div class="section-title">与《GTM资料》对齐的要点（结构化摘录）</div>
+        <p>下表便于将培训材料中的「流程语言」映射到本页四角色与六阶段；细节定义、评审要素与交付件模板仍以原始 PDF/PPT 为准。</p>
+        <div class="handoff-list">
+          <div class="handoff-item">
+            <strong>IPMS 一体化原则</strong>
+            <span>经营导向、责任共担；集中策划、分散执行；与 IPD 在决策点（DCP/TR）与 GR 点对齐；矩阵式项目组织支撑跨部门交付（《IPMS流程初认知》）。</span>
+          </div>
+          <div class="handoff-item">
+            <strong>GM 相对 BM 的两点升级</strong>
+            <span>（1）覆盖从策划到首销后约三个月的全链路，市场与研发互锁耦合；（2）市场端集成 GTM、营销、产品与渠道，形成可复盘的增长管理流程（《GM流程》）。</span>
+          </div>
+          <div class="handoff-item">
+            <strong>产品 GTM 与市场（区域）GTM 分层</strong>
+            <span>产品 GTM：站在单品/产品线侧，面向多市场争取销售与营销资源，推动商业成功。市场（区域）GTM：在限定市场内，通过产品组合与本地化策略达成销售任务——与本页「产品 GTM / 区域 GTM」泳道对应（《GM流程》）。</span>
+          </div>
+          <div class="handoff-item">
+            <strong>DSTE 与年度 BP</strong>
+            <span>SP 管 3～5 年中长期方向与资源配置，BP 承接次年目标、策略、预算、KPI/PBC；本页「年度 BP 启动」可与 BP 制定与解码节奏对照理解（《DSTE战略管理》）。</span>
+          </div>
+          <div class="handoff-item">
+            <strong>经营思维补充</strong>
+            <span>资料提醒：若只看销量不算总账、上市准备不足、下市无人管，易导致调价清库存、样机积压与产品互相踩踏；四角色协同的目标是把「经营指标 + 品牌指标」与销量一并纳入闭环（《GM流程》行业操盘问题归纳）。</span>
+          </div>
+        </div>
+        <div class="ref-source">
+          资料目录：<code>文件夹/项目/GTM角色和职责/GTM资料/</code> — 含《GTM与GTM流程.pdf》《IPMS流程初认知.pdf》《DSTE战略管理-Ivience.pdf》《GM流程- V1.2.pdf》《GTM课程-陈智渊-Final.pptx》。PPTX 未做全文抽取，若需与讲义逐页对齐可自行打开对照。
+        </div>
+      </section>
+    </div>
+
+    <section class="section-card" style="margin-bottom: 18px;">
+      <div class="section-title">各角色重点交付物</div>
+      <p>为了让流程图更适用于职责说明和方案设计，下方补充列出每个角色在 GTM 体系中最典型的输出物。</p>
+      <div class="role-map">
+        <div class="role-panel bi">
+          <h3>商业洞察</h3>
+          <ul>
+            <li>年度市场扫描报告</li>
+            <li>趋势预测说明与假设</li>
+            <li>竞争地图、价格带地图</li>
+            <li>SWOT 与机会清单</li>
+            <li>用户洞察专题输入</li>
+          </ul>
+        </div>
+        <div class="role-panel pg">
+          <h3>产品 GTM</h3>
+          <ul>
+            <li>产品 Roadmap 承接清单</li>
+            <li>上市项目计划与里程碑表</li>
+            <li>与 GR/IPD 对齐的评审材料包（按公司模板）</li>
+            <li>产品信息库字段与状态规则</li>
+            <li>上市前物料齐套清单</li>
+            <li>生命周期收口方案</li>
+          </ul>
+        </div>
+        <div class="role-panel rg">
+          <h3>区域 GTM</h3>
+          <ul>
+            <li>区域渠道策略方案</li>
+            <li>价格体系与调价规则</li>
+            <li>区域目标拆解与跟踪表</li>
+            <li>客户与渠道经营分析</li>
+            <li>区域复盘与策略调整建议</li>
+          </ul>
+        </div>
+        <div class="role-panel sp">
+          <h3>需求计划</h3>
+          <ul>
+            <li>滚动销售预测</li>
+            <li>要货计划与补货节奏</li>
+            <li>PSI 周报 / 月报</li>
+            <li>供需差异与风险预警</li>
+            <li>库存与执行偏差复盘</li>
+          </ul>
+        </div>
+      </div>
+      <div class="footnote" style="margin-top: 14px;">
+        《GTM资料》中还涉及年度新品商业判定、Baseline、泳道图、PCT 例会、GR 交付件清单等，更适合制度版或项目模板页展开；本页仅保留与四角色分工直接相关的摘录。
+      </div>
+    </section>
+
+    <section class="section-card" style="margin-bottom: 18px;">
+      <div class="section-title">生命周期视角</div>
+      <p>新增资料把 GTM 的生命周期边界说得更清楚了。四角色并不是只在“上市”阶段出现，而是沿着以下主线持续参与。</p>
+      <div class="role-map">
+        <div class="role-panel bi">
+          <h3>商业洞察</h3>
+          <ul>
+            <li>产品规划前识别机会</li>
+            <li>上市前给出竞争与用户输入</li>
+            <li>稳定售卖期跟踪市场变化</li>
+            <li>退市期识别替代机会</li>
+          </ul>
+        </div>
+        <div class="role-panel pg">
+          <h3>产品 GTM</h3>
+          <ul>
+            <li>产品规划承接与项目立项</li>
+            <li>产品研发阶段跟项目节奏</li>
+            <li>新品上市开售前三个月重点操盘</li>
+            <li>稳定售卖与退市收口</li>
+          </ul>
+        </div>
+        <div class="role-panel rg">
+          <h3>区域 GTM</h3>
+          <ul>
+            <li>上市前完成区域 4P 策略</li>
+            <li>稳定售卖期做价格体系维稳</li>
+            <li>持续做要货和分货管理</li>
+            <li>退市阶段处理区域切换和清货</li>
+          </ul>
+        </div>
+        <div class="role-panel sp">
+          <h3>需求计划</h3>
+          <ul>
+            <li>承接上市节奏形成预测</li>
+            <li>首批备货和补货闭环</li>
+            <li>稳定售卖期做 PSI 跟踪</li>
+            <li>退市期控制库存与供需收尾</li>
+          </ul>
+        </div>
+      </div>
+      <div class="footnote">
+        说明：本图按会议纪要进行结构化整理，重点突出“谁在什么阶段承担什么职责、向谁输出什么内容、依赖哪些系统和数据”。
+        如需进一步用于汇报，可在此基础上继续压缩成 PPT 版；如需用于制度文档，可进一步补充 RACI、考核指标和组织边界。
+        <br /><br />
+        <strong>v2.0（相对 v0.1）</strong>：在「区域 GTM × 阶段 05」中增补<strong>退市管理</strong>——按区域半年度进行 SKU 维度的退市。<br />
+        <strong>v2.1（相对 v2.0）</strong>：阅读 <code>GTM资料/</code> 下 PDF/PPT 后，在页首、主线摘要、泳道要点与「PD 与 GTM 接口」中内化 GTM 定义、四块核心职能、IPMS/GR 互锁、GM 相对 BM 的升级点及 DSTE 中 SP/BP 与年度 BP 的衔接说明，并新增整段「与《GTM资料》对齐的要点」。<br />
+        <strong>v3.0（相对 v2.1）</strong>：产品 GTM 在「项目立项与上市准备」增补<strong>新品首单需求收集</strong>；在「支持导入与执行」增补与各渠道<strong>沟通并锁定 BP 目标</strong>；在「生命周期收口」增补与<strong>全渠道经营看板 / baseline / 促销与划线价</strong>的协同闭环表述。区域 GTM 在「准备区域导入方案」同步 BP 锁定表述；「吸收市场判断」中<strong>价格穿透</strong>改为<strong>价格策略</strong>；「渠道与价格主责」增补<strong>全渠道经营看板跟踪 BP</strong>、<strong>全渠道 baseline 管理</strong>及<strong>促销与划线价一致性、不击穿 baseline</strong>等执行要求。<br />
+        <strong>v5.0（相对 v3.0）</strong>：销售计划在「建立预测前提」中增加公司资源投入（营销费用、价格策略等）并要求预测对齐 BP 目标、结合 gap 给出预测值；区域 GTM 将「退市管理」调整为发起区域半年度产品退市规划，由 PCT 团队达成一致并由供应链核料执行；产品 GTM 在「项目立项与上市准备」中将产品信息库字段明确为 GTM 负责人、上市时间、新品标签、状态等；删除「生命周期收口」中重点 SKU 促销与 MSRP 一致性的相关描述。<br />
+        <strong>v6.2（相对 v5.0）</strong>：根据调研沟通，明确新品首销期定价与促销由总部/产品侧制定、区域承接执行并在首销复盘后输出后续策略；退市管理拆分为「新老品迭代型」与「无新品替代型」两条路径并区分主责；产品 GTM 将「产品信息库」明确为与 SKU 技术信息库关联；生命周期收口从“回灌信息库”调整为“问题与经验沉淀到流程优化机制”；销售计划补充经营看板指标（渠道健康度、库存周转、呆滞、预测准确率、要货准确率）；同时对过细表述做适度收敛。<br />
+        <strong>v7.1（相对 v6.2）</strong>：重点对齐《OC工作内容.docx》并完成纠偏补齐：将角色主称统一为<strong>需求计划</strong>；在阶段描述中补充 3 月/7 月新品规划释放、12 月年终复盘、1 月次年 BP 释放等年度时间锚点；商业洞察补齐半年度/年度规划输入、新品上市洞察、经营分析与区域 BP 输入；产品 GTM 补齐需求评估排序、GR1/GR2 评审、Roadmap/One Page 滚动更新与新品切换月度刷新；区域 GTM 补齐月度/季度例会、区域 BP 锁定、市场深挖/SKU list/Campaign/新客拓展/价格促销规划、PD/PFD/BFCM 大促规划、Roadmap 与 EOM 月度刷新；需求计划补齐月度计划委会与 PSI 的一级/二级计划机制、需求评审与全渠道分货、年度产能释放、产销协同与物料风险监控、H1/全年交付与库存复盘。
+      </div>
+    </section>
+  </div>
+
+  <script>
+    const buttons = document.querySelectorAll(".filter-btn");
+    const body = document.body;
+
+    buttons.forEach((button) => {
+      button.addEventListener("click", () => {
+        buttons.forEach((item) => item.classList.remove("active"));
+        button.classList.add("active");
+        const role = button.dataset.role;
+
+        if (role === "all") {
+          body.classList.remove("filtered");
+          body.dataset.focus = "all";
+          return;
+        }
+
+        body.classList.add("filtered");
+        body.dataset.focus = role;
+      });
+    });
+  </script>
+</body>
+</html>
