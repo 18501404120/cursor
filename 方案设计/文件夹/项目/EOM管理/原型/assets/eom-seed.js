@@ -1,7 +1,7 @@
 (function (global) {
   'use strict';
 
-  var KEY = 'gtm-eom-2.0-proto-v14';
+  var KEY = 'gtm-eom-2.0-proto-v20';
   var CURRENT_USER = { id: 'wang', name: '王天天', role: '产品GTM' };
   var PLAN_DEPT_LEADER = { id: 'bijie', name: '比杰' };
   var USERS = [
@@ -55,6 +55,8 @@
       deliveryTime: p.deliveryTime == null ? '-' : p.deliveryTime,
       finalOrderNum: Object.prototype.hasOwnProperty.call(p, 'finalOrderNum') ? p.finalOrderNum : (p.suggestOrderNum || 0),
       finalScrapAmount: Object.prototype.hasOwnProperty.call(p, 'finalScrapAmount') ? p.finalScrapAmount : 0,
+      kingdeeMapped: p.kingdeeMapped !== false,
+      kingdeeStock: p.kingdeeStock != null ? p.kingdeeStock : (p.totalStock != null ? p.totalStock : 0),
       finalScrapAmountReason: p.finalScrapAmountReason || '-',
       planUser: p.planUser || '刘洋',
       planUserSource: p.planUserSource || 'master',
@@ -77,13 +79,27 @@
     }, p);
   }
 
+  function channelLb(msku, shop, qty, extra) {
+    var meta = shopMeta(shop);
+    return assign({
+      msku: msku,
+      channel: meta.channel,
+      shop: shop || meta.shop,
+      online: meta.online,
+      lbQty: qty != null ? qty : 0,
+      scrapFg: 0,
+      scrapMat: 0
+    }, extra || {});
+  }
+
   function planLine(p) {
     return assign({
       clearWays: p.clearWays || ['正常销售'],
       lbQty: p.lbQty != null ? p.lbQty : 0,
       scrapFg: p.scrapFg != null ? p.scrapFg : 0,
       scrapMat: p.scrapMat != null ? p.scrapMat : 0,
-      conclusion: p.conclusion || ''
+      conclusion: p.conclusion || '',
+      channels: p.channels || []
     }, p);
   }
 
@@ -193,7 +209,9 @@
       forecast: p.forecast || 0,
       eolForecast: p.eolForecast || 0,
       dos: p.dos != null ? p.dos : 30,
-      clearPct: p.clearPct != null ? p.clearPct : 0
+      clearPct: p.clearPct != null ? p.clearPct : 0,
+      lbQty: p.lbQty != null ? p.lbQty : 0,
+      buyingOnWay: p.buyingOnWay != null ? p.buyingOnWay : 0
     };
   }
 
@@ -202,6 +220,10 @@
       {
         serialNo: 'HL20260825012', eomNo: 'EOM20260825001', initiator: 'wang', initiatorName: '王天天',
         status: 4, clcStatus: '计算成功', latestReviewTime: '2026-08-31 14:20', finalizeTime: '2026-08-31 14:20',
+        logs: [
+          { time: '2026-08-26 16:20', user: '刘洋', action: '核料最终下单（初盘）', content: 'H619901-US-AMZ 600；H619901-US-SF 400；H619901-US-BBY 200。页面不展示初盘。' },
+          { time: '2026-08-31 14:20', user: '系统', action: '核料定版', content: '已按 MSKU 最终下单带入清库方案 Last Buy，此后只在方案页改。' }
+        ],
         details: [
           matLine({
             id: 'd601', model: 'H6199', sku: 'H619901', skuStatus: 'EOM', msku: 'H619901-US-AMZ', mskuShop: 'Amazon US', mskuStatus: 'EOM',
@@ -210,7 +232,7 @@
             initMaterialRemainAmount: 512000, totalMaterialMoney: 386200,
             materialConsume: [{ material: '灯珠基板', materialCode: 'M-8801', qty: 2400 }, { material: '驱动电源', materialCode: 'M-8802', qty: 1200 }, { material: '铝槽', materialCode: 'M-8803', qty: 960 }, { material: '硅胶套管', materialCode: 'M-8804', qty: 800 }],
             materialInfos: [{ material: '灯珠基板', materialCode: 'M-8801', qty: 860 }, { material: '驱动电源', materialCode: 'M-8802', qty: 410 }, { material: '铝槽', materialCode: 'M-8803', qty: 220 }],
-            deliveryTime: 25, finalOrderNum: 1200, finalScrapAmount: 0, conclusion: 'lastbuy 后报废', skuLocked: true,
+            deliveryTime: 25, finalOrderNum: 600, finalScrapAmount: 0, conclusion: 'lastbuy 后报废', skuLocked: true,
             totalStock: 2480, innerStock: 420, overseasStock: 1980, buyingOnWay: 80, surplus: 320, money: '12800 CNY',
             overseasSalesDate: '2026-11-02', finishProductSalesDate: '2026-11-18', prepareMaterialsSalesDate: '2026-12-05'
           }),
@@ -219,8 +241,16 @@
             avgDailySales: 28.6, lastMonthSales: 804, suggestOrderNum: 1200, lockFlag: true, consumeDay: 46,
             eomFittings: ['H6199-AD01', 'H6199-AD02'], clcEomFittings: ['H6199-AD01'],
             initMaterialRemainAmount: 512000, totalMaterialMoney: 386200,
-            deliveryTime: 25, finalOrderNum: 1200, skuLocked: true, mskuAvgDailySales: 9.4,
+            deliveryTime: 25, finalOrderNum: 400, skuLocked: true, mskuAvgDailySales: 9.4,
             totalStock: 720, innerStock: 0, overseasStock: 720, buyingOnWay: 0, surplus: 80, money: '3200 CNY'
+          }),
+          matLine({
+            id: 'd602b', model: 'H6199', sku: 'H619901', skuStatus: 'EOM', msku: 'H619901-US-BBY', mskuShop: 'BBY', mskuStatus: 'EOM',
+            avgDailySales: 28.6, lastMonthSales: 804, suggestOrderNum: 1200, lockFlag: true, consumeDay: 46,
+            eomFittings: ['H6199-AD01', 'H6199-AD02'], clcEomFittings: ['H6199-AD01'],
+            initMaterialRemainAmount: 512000, totalMaterialMoney: 386200,
+            deliveryTime: 25, finalOrderNum: 200, skuLocked: true, mskuAvgDailySales: 7.2,
+            totalStock: 500, innerStock: 0, overseasStock: 500, buyingOnWay: 0, surplus: 40, money: '1600 CNY'
           }),
           matLine({
             id: 'd603', model: 'H6199', sku: 'H619902', skuStatus: 'EOM', msku: 'H619902-EU-AMZ', mskuShop: 'Amazon DE', mskuStatus: 'EOM',
@@ -242,6 +272,11 @@
         serialNo: 'HL20260818021', eomNo: 'EOM20260818003', initiator: 'wang', initiatorName: '比杰',
         status: 1, clcStatus: '计算成功', latestReviewTime: '2026-08-30 11:06', finalizeTime: '',
         confirmFlags: { '刘洋': false, '陈琳': false, '比杰': false },
+        logs: [
+          { time: '2026-08-20 17:10', user: '陈琳', action: '核料最终下单（初盘）', content: 'H705002-EU-AMZ 最终下单 420。页面不展示初盘，改数只追加本日志。' },
+          { time: '2026-08-20 17:10', user: '陈琳', action: '核料填写（初盘）', content: 'H705002 交付天数 21；建议报废金额 0；原因 销售需求变化。页面不展示初盘。' },
+          { time: '2026-08-20 17:10', user: '陈琳', action: '核料结论（初盘）', content: 'H705002-EU-AMZ lastbuy 后报废。页面不展示初盘。' }
+        ],
         details: [
           matLine({
             id: 'd301', model: 'H7050', sku: 'H705001', skuStatus: '准备EOM', msku: 'H705001-US-AMZ', mskuShop: 'Amazon US',
@@ -281,6 +316,7 @@
             id: 'd401', model: 'H7301', sku: 'H730101', skuStatus: '准备EOM', msku: 'H730101-US-AMZ',
             suggestOrderNum: 0, consumeDay: 0, eomFittings: ['H7301-AD01'], clcEomFittings: [],
             initMaterialRemainAmount: null, totalMaterialMoney: null, materialConsume: [], materialInfos: [],
+            kingdeeMapped: false, kingdeeStock: 0,
             conclusion: '-', totalStock: 0, innerStock: 0, overseasStock: 0, buyingOnWay: 0,
             overseasSalesDate: '-', finishProductSalesDate: '-', prepareMaterialsSalesDate: '-'
           })
@@ -289,17 +325,21 @@
       {
         serialNo: 'HL20260822040', eomNo: 'EOM20260822005', initiator: 'bijie', initiatorName: '比杰',
         status: 4, clcStatus: '计算成功', latestReviewTime: '2026-08-28 16:40', finalizeTime: '2026-08-28 16:40',
+        logs: [
+          { time: '2026-08-26 11:00', user: '刘洋', action: '核料最终下单（初盘）', content: 'H620801-US-AMZ 400；H620801-US-SF 200。页面不展示初盘。' },
+          { time: '2026-08-28 16:40', user: '系统', action: '核料定版', content: '已按 MSKU 最终下单带入清库方案 Last Buy，此后只在方案页改。' }
+        ],
         details: [
           matLine({
             id: 'd501', model: 'H6208', sku: 'H620801', skuStatus: '准备EOM', msku: 'H620801-US-AMZ',
             suggestOrderNum: 600, lockFlag: true, consumeDay: 40, eomFittings: ['H6208-AD01'], clcEomFittings: ['H6208-AD01'],
-            totalMaterialMoney: 168000, finalOrderNum: 600, conclusion: 'lastbuy 后报废',
+            totalMaterialMoney: 168000, finalOrderNum: 400, conclusion: 'lastbuy 后报废',
             finalScrapAmountReason: 'MOQ 物料结余', totalStock: 1120, planUser: '刘洋', skuLocked: true
           }),
           matLine({
             id: 'd502', model: 'H6208', sku: 'H620801', skuStatus: '准备EOM', msku: 'H620801-US-SF', mskuShop: 'Shopify US',
             suggestOrderNum: 600, lockFlag: true, consumeDay: 40, eomFittings: ['H6208-AD01'], clcEomFittings: ['H6208-AD01'],
-            totalMaterialMoney: 168000, finalOrderNum: 600, conclusion: 'lastbuy 后报废',
+            totalMaterialMoney: 168000, finalOrderNum: 200, conclusion: 'lastbuy 后报废',
             finalScrapAmountReason: 'MOQ 物料结余', totalStock: 1120, planUser: '刘洋', skuLocked: true,
             mskuAvgDailySales: 5.1
           })
@@ -482,14 +522,22 @@
 
     return {
       version: 2,
-      generatedAt: '2026-09-02 09:00',
+      generatedAt: '2026-09-15 12:30',
       currentUser: CURRENT_USER,
       materials: materials,
       orders: orders,
       catalog: catalog,
       skuPlanOwners: { H705001: '刘洋', H705002: '陈琳' },
       planDeptLeader: PLAN_DEPT_LEADER,
-      seq: { eom: 20260902020, hl: 20260902020 }
+      seq: { eom: 20260902020, hl: 20260902020, po: 26091501 },
+      purchasePlans: [
+        { no: 'PP20260908031', type: '量产采购计划', orderType: '量产', shop: 'Amazon US', sku: 'H619901', msku: 'H619901-US-AMZ', qty: 600, status: '待TL审核', productStatus: 'EOM', tag: 'Last Buy', remark: '计划自行下 Last Buy · EOM20260825001', source: 'plan', eomNo: 'EOM20260825001', regularClosed: true },
+        { no: 'PP20260908032', type: '量产采购计划', orderType: '量产', shop: 'Shopify US', sku: 'H619901', msku: 'H619901-US-SF', qty: 400, status: '待TL审核', productStatus: 'EOM', tag: 'Last Buy', remark: '计划自行下 Last Buy · EOM20260825001', source: 'plan', eomNo: 'EOM20260825001', regularClosed: true },
+        { no: 'PP20260908033', type: '量产采购计划', orderType: '量产', shop: 'BBY', sku: 'H619901', msku: 'H619901-US-BBY', qty: 200, status: '待TL审核', productStatus: 'EOM', tag: 'Last Buy', remark: '计划自行下 Last Buy · EOM20260825001', source: 'plan', eomNo: 'EOM20260825001', regularClosed: true },
+        { no: 'PP20260908041', type: '量产采购计划', orderType: '量产', shop: 'Amazon DE', sku: 'H619902', msku: 'H619902-EU-AMZ', qty: 500, status: '待Sales确认', productStatus: 'EOM', tag: 'Last Buy', remark: '计划自行下 Last Buy · EOM20260825001', source: 'plan', eomNo: 'EOM20260825001', regularClosed: true },
+        { no: 'PP20260812011', type: '量产采购计划', orderType: '量产', shop: 'Amazon US', sku: 'H617A01', msku: 'H617A01-US-AMZ', qty: 900, status: '生产中', productStatus: 'EOM', tag: 'Last Buy', remark: '计划自行下 Last Buy · EOM20260812002', source: 'plan', eomNo: 'EOM20260812002', regularClosed: true },
+        { no: 'PP20260801001', type: '量产采购计划', orderType: '量产', shop: 'Amazon US', sku: 'H510801', msku: 'H510801-US-AMZ', qty: 800, status: '已完成', productStatus: 'EOL', tag: '', remark: '常规量产', source: 'manual', eomNo: '', regularClosed: false }
+      ]
     };
   }
 
@@ -655,10 +703,10 @@
       skus: [skuLedger({
         model: 'H6208', sku: 'H620801', status: '准备EOM', originStatus: '已上市', startTime: '2026-08-22', eol: '2026-11-20',
         stock: 1120, lbQty: 600, lbStatus: '未发起', specialAmt: 168000, clearPct: 0, plan: 'V1',
-        mskus: [
-          mskuLine({ msku: 'H620801-US-AMZ', shop: 'Amazon US', stock: 680, m1: 90, dos: 38, clearPct: 0 }),
-          mskuLine({ msku: 'H620801-US-SF', shop: 'Shopify US', stock: 440, m1: 62, dos: 34, clearPct: 0 })
-        ]
+          mskus: [
+            mskuLine({ msku: 'H620801-US-AMZ', shop: 'Amazon US', stock: 680, m1: 90, dos: 38, clearPct: 0, lbQty: 400 }),
+            mskuLine({ msku: 'H620801-US-SF', shop: 'Shopify US', stock: 440, m1: 62, dos: 34, clearPct: 0, lbQty: 200 })
+          ]
       })],
       tasks: [
         task({ id: 't5m', node: '核料', name: '确认核料结论（本人 SKU）', role: '计划', owner: '比杰', due: '08-29 18:00', doneAt: '08-28 16:40', status: '已完成', result: '建议LB 600', kind: 'material' }),
@@ -672,7 +720,10 @@
           { type: 'eom', name: 'H6208-EOM方案.xlsx' },
           { type: 'clear', name: 'H6208清库方案V1.xlsx' }
         ],
-        lines: { 'H620801': planLine({ clearWays: ['正常销售'], lbQty: 600, conclusion: '跟销售节奏消耗，Last Buy 600 台。' }) }
+        lines: { 'H620801': planLine({ clearWays: ['正常销售'], lbQty: 600, conclusion: '跟销售节奏消耗，Last Buy 按渠道拆。', channels: [
+          channelLb('H620801-US-AMZ', 'Amazon US', 400),
+          channelLb('H620801-US-SF', 'Shopify US', 200)
+        ] }) }
       })],
       timeline: [
         { title: '发起主动EOM', meta: '王天天　2026-08-22 09:18', content: '提交成功。', done: true },
@@ -687,6 +738,7 @@
     return baseOrder({
       sceneKey: 'S6', sceneLabel: '主动 · EOM执行（三路并行）',
       no: 'EOM20260825001', stage: 'EOM执行', legacyStatus: 5, owner: '销售/采购/PMC',
+      regularOrderClosed: true, lbPushed: true,
       time: '2026-08-25 10:12', confirmTime: '2026-09-01 09:30', eol: '2026-11-30',
       materialNo: 'HL20260825012', planVersion: 'V2', stock: 35.8, materialClose: 42.6,
       fileName: 'H6199清库及LastBuy-V2.xlsx', model: 'H6199', skuCount: 3, scope: 'H6199 / 3',
@@ -703,9 +755,9 @@
           lbQty: 1200, lbStatus: '生产中', lbBaseStock: 3860, stock: 2480, stale: 620, staleRate: '25.0%', specialAmt: 386200, commonAmt: 128600, specialQty: 16,
           m3: 1128, m2: 986, m1: 804, forecast: 3242, eolForecast: 2560, dos: 46, clearPct: 35.8, plan: 'V2',
           mskus: [
-            mskuLine({ msku: 'H619901-US-AMZ', shop: 'Amazon US', stock: 1260, stale: 320, staleRate: '25.4%', m3: 560, m2: 490, m1: 380, forecast: 1600, eolForecast: 1280, dos: 42, clearPct: 32 }),
-            mskuLine({ msku: 'H619901-US-SF', shop: 'Shopify US', stock: 720, stale: 180, staleRate: '25.0%', m3: 348, m2: 296, m1: 244, forecast: 980, eolForecast: 760, dos: 48, clearPct: 38 }),
-            mskuLine({ msku: 'H619901-US-BBY', shop: 'BBY', stock: 500, stale: 120, staleRate: '24.0%', m3: 220, m2: 200, m1: 180, forecast: 662, eolForecast: 520, dos: 50, clearPct: 41 })
+            mskuLine({ msku: 'H619901-US-AMZ', shop: 'Amazon US', stock: 1260, stale: 320, staleRate: '25.4%', m3: 560, m2: 490, m1: 380, forecast: 1600, eolForecast: 1280, dos: 42, clearPct: 32, lbQty: 600 }),
+            mskuLine({ msku: 'H619901-US-SF', shop: 'Shopify US', stock: 720, stale: 180, staleRate: '25.0%', m3: 348, m2: 296, m1: 244, forecast: 980, eolForecast: 760, dos: 48, clearPct: 38, lbQty: 400 }),
+            mskuLine({ msku: 'H619901-US-BBY', shop: 'BBY', stock: 500, stale: 120, staleRate: '24.0%', m3: 220, m2: 200, m1: 180, forecast: 662, eolForecast: 520, dos: 50, clearPct: 41, lbQty: 200 })
           ],
           channels: ['Amazon US / 线上　库存 1,260', 'Shopify US / 线上　库存 720', 'BBY / 线下　库存 500'],
           lbDetail: '订单 PO20260908031　计划 1,200；已生产 760　已入库 0　预计完成 09-25',
@@ -716,7 +768,7 @@
           model: 'H6199', sku: 'H619902', country: 'EU', status: 'EOM', newSku: 'H719902', startTime: '2026-08-25',
           eol: '2026-11-30', lbQty: 500, lbStatus: '待下单', stock: 940, stale: 108, specialAmt: 92800, specialQty: 5,
           m3: 560, m2: 492, m1: 418, eolForecast: 820, dos: 33, clearPct: 51.2, plan: 'V2',
-          mskus: [mskuLine({ msku: 'H619902-EU-AMZ', shop: 'Amazon DE', stock: 940, stale: 108, staleRate: '11.5%', m3: 560, m2: 492, m1: 418, eolForecast: 820, dos: 33, clearPct: 51.2 })]
+          mskus: [mskuLine({ msku: 'H619902-EU-AMZ', shop: 'Amazon DE', stock: 940, stale: 108, staleRate: '11.5%', m3: 560, m2: 492, m1: 418, eolForecast: 820, dos: 33, clearPct: 51.2, lbQty: 500 })]
         }),
         skuLedger({
           model: 'H6199', sku: 'H619903', country: 'JP', status: 'EOM', originStatus: '未上市', startTime: '2026-08-25',
@@ -748,9 +800,17 @@
             { type: 'clear', name: 'H6199清库及LastBuy-V2.xlsx' }
           ],
           lines: {
-            'H619901': planLine({ clearWays: ['正常销售', '渠道调拨', '降价'], lbQty: 1200, conclusion: '海外优先销售，Last Buy 1200' }),
-            'H619902': planLine({ clearWays: ['正常销售', '渠道调拨'], lbQty: 500, conclusion: 'EU 调拨，Last Buy 500' }),
-            'H619903': planLine({ clearWays: ['正常销售'], lbQty: 0, conclusion: '未上市，不补单' })
+            'H619901': planLine({ clearWays: ['正常销售', '渠道调拨', '降价'], lbQty: 1200, conclusion: '海外优先销售，Last Buy 按渠道拆，确认后不再改。', channels: [
+              channelLb('H619901-US-AMZ', 'Amazon US', 600),
+              channelLb('H619901-US-SF', 'Shopify US', 400),
+              channelLb('H619901-US-BBY', 'BBY', 200)
+            ] }),
+            'H619902': planLine({ clearWays: ['正常销售', '渠道调拨'], lbQty: 500, conclusion: 'EU 调拨，Last Buy 500', channels: [
+              channelLb('H619902-EU-AMZ', 'Amazon DE', 500)
+            ] }),
+            'H619903': planLine({ clearWays: ['正常销售'], lbQty: 0, conclusion: '未上市，不补单', channels: [
+              channelLb('H619903-JP-SF', 'Shopify JP', 0)
+            ] })
           }
         }),
         planVer({

@@ -19,7 +19,12 @@
     noticeOvFilter: 'all',
     skuPlan: {},
     skuCart: [],
-    ownerPick: null
+    ownerPick: null,
+    psiTab: 'live',
+    psiFilter: 'all',
+    psiAuditTab: 'todo',
+    fcTab: 'todo',
+    poFilter: 'all'
   };
   var OWNER_FIELDS = ['gtmExtra', 'demand', 'pmc', 'buy', 'cc'];
   var AVATAR_COLORS = ['#409eff', '#67c23a', '#e6a23c', '#f56c6c', '#9b59b6', '#00bcd4', '#3498db', '#1abc9c'];
@@ -58,8 +63,8 @@
   ];
   var LEDGER_ID_KEYS = ['no', 'time', 'model', 'sku', 'scene', 'cat', 'country', 'status', 'onMarketDate', 'daysOn', 'type', 'newFlag', 'newSku', 'newCr', 'newList', 'startTime'];
   var LEDGER_INHERIT_KEYS = { eol: 1, eomDays: 1 };
-  var LEDGER_DASH_KEYS = { lbPlan: 1, lbOrder: 1, lbDone: 1, lbQty: 1, lbStatus: 1, lbBaseStock: 1, specialAmt: 1, commonAmt: 1 };
-  var LEDGER_MSKU_METRIC_KEYS = { stock: 1, stale: 1, staleRate: 1, m3: 1, m2: 1, m1: 1, forecast: 1, eolForecast: 1, dos: 1, clearPct: 1 };
+  var LEDGER_DASH_KEYS = { lbPlan: 1, lbOrder: 1, lbDone: 1, lbStatus: 1, lbBaseStock: 1, specialAmt: 1, commonAmt: 1 };
+  var LEDGER_MSKU_METRIC_KEYS = { stock: 1, stale: 1, staleRate: 1, m3: 1, m2: 1, m1: 1, forecast: 1, eolForecast: 1, dos: 1, clearPct: 1, lbQty: 1 };
   var LEDGER_MSKU_FRONT = [
     { k: 'msku', l: 'MSKU' }, { k: 'channel', l: '渠道' }, { k: 'shop', l: '店铺' }, { k: 'online', l: '线上/线下' }
   ];
@@ -72,16 +77,16 @@
     { k: 'time', l: '发起时间' }, { k: 'confirmTime', l: '确认时间' }
   ];
   var NOTICE_ROLES = [
-    { id: 'sales', name: '销售', sample: '周雨 / STL / TL', hint: '有销售专员的 MSKU 在发起后收预测刷新提醒（钉钉消息，跳转 Forecast），并抄送该专员的 STL、TL。不卡核料，GTM 不生成销售待办。方案确认只收消息、不会签。正式 EOM 后只收钉钉消息看台账，不在 GTM 点完成、不留痕。凡发给销售专员的钉钉消息均抄送 STL、TL。' },
-    { id: 'gtm', name: 'GTM', sample: '王天天 / 其他GTM', hint: '仅发起人收方案提交、改版、关闭相关待办。本期不做撤回。名单中其他 GTM 全程只收消息，可查看、不能点确认。报废超金额不发 OA 通知。反 EOM 不限发起人，但仅正式 EOM 后可发。核料计算失败不通知发起人。Forecast 审核入库不通知。' },
+    { id: 'sales', name: '销售', sample: '周雨 / STL / TL', hint: '有销售专员的 MSKU 在发起后收预测刷新提醒（钉钉消息，跳转 PSI），并抄送该专员的 STL、TL。不卡核料，GTM 不生成销售待办。方案确认只收消息、不会签。正式 EOM 后只收钉钉消息看台账，不在 GTM 点完成、不留痕。凡发给销售专员的钉钉消息均抄送 STL、TL。' },
+    { id: 'gtm', name: 'GTM', sample: '王天天 / 其他GTM', hint: '仅发起人收方案提交、改版、关闭相关待办。本期不做撤回。名单中其他 GTM 全程只收消息，可查看、不能点确认。报废超金额不发 OA 通知。反 EOM 仅本单发起人可发，仅正式 EOM 后可发。核料计算失败不通知发起人。Forecast 审核入库不通知。' },
     { id: 'demand', name: '需求计划', sample: '比杰', hint: '发起时为必选通知对象，无必办待办。提交后工单已在核料中，可查看。Forecast 入库只刷新台账，不发通知。正式 EOM、正式 EOM 后改版、反 EOL OA（发起与回写）及 EOL 闭环均会通知需求计划。清尾进度更新不通知；核料失败不通知（仅通知计划/PMC）。' },
     { id: 'plan', name: '计划', sample: '刘洋 / 陈琳 / 比杰', hint: '核料页按自己负责的 SKU 确认，计划部门负责人可确认全部。待方案决策收确认待办。改数后原确认作废，重新收待办。核料计算失败时收钉钉消息。' },
     { id: 'pmc', name: 'PMC', sample: 'PMC组长', hint: '工单进入核料中即发待办，请到核料页核对专用料和物料测算。定版仍以计划确认全部 SKU 为准，PMC 核料不卡定版。核料计算失败、核料定版、正式 EOM 后收消息。' },
-    { id: 'buy', name: '采购', sample: '张敏', hint: '发起与核料定版只收消息。正式 EOM 后通知查看 Last Buy 拉数，不强制在 GTM 点完成。' }
+    { id: 'buy', name: '采购', sample: '张敏', hint: '发起与核料定版只收消息。计划在采购计划自行下 Last Buy；方案确认后产品状态变为 EOM，不可以再下采购单。采购在采购计划跟踪，不强制在 GTM 点完成。' }
   ];
   var NOTICES = {
     sales: [
-      { unread: true, kind: 'msg', channel: '钉钉消息', ch: 'gray', time: '2026-08-28 10:06', title: '请刷新销售预测（不卡流程）', body: '王天天已发起主动退市 EOM20260828002（H8102 / H810201），工单已进入核料中。你是该 MSKU 销售专员，请在 Forecast 审核并刷新预测、填写可接受 Last Buy。已同时抄送你的 STL、TL。空预测不硬拦方案提交，页面会强提示。', no: 'EOM20260828002', sku: 'H810201', stage: '核料中', action: 'forecast', actLabel: '打开 Forecast' },
+      { unread: true, kind: 'msg', channel: '钉钉消息', ch: 'gray', time: '2026-08-28 10:06', title: '请刷新销售预测（不卡流程）', body: '王天天已发起主动退市 EOM20260828002（H8102 / H810201），SKU 已进入准备 EOM。你是该 MSKU 销售专员，请到 PSI 按退市节奏填写 Sell out。已同时抄送你的 STL、TL。Sell out 不能超过全链路库存。', no: 'EOM20260828002', sku: 'H810201', stage: '核料中', action: 'psi', actLabel: '打开 PSI' },
       { unread: true, kind: 'msg', channel: '钉钉消息', ch: 'gray', time: '2026-08-28 10:06', title: '请刷新销售预测（抄送 STL）', body: '周雨负责的 MSKU H810201 已进入核料中。你是其 STL，请知悉并跟进预测刷新。不在 GTM 点完成。', no: 'EOM20260828002', sku: 'H810201', stage: '核料中' },
       { unread: true, kind: 'msg', channel: '钉钉消息', ch: 'gray', time: '2026-08-28 10:06', title: '请刷新销售预测（抄送 TL）', body: '周雨负责的 MSKU H810201 已进入核料中。你是其 TL，请知悉。不在 GTM 点完成。', no: 'EOM20260828002', sku: 'H810201', stage: '核料中' },
       { unread: false, kind: 'msg', channel: '钉钉消息', ch: 'gray', time: '2026-08-28 10:05', title: 'EOM 已发起（抄送）', body: '工单 EOM20260828002 已提交，SKU 进入准备 EOM，工单进入核料中。销售本节点仅提醒刷新预测，不在 GTM 点确认。未带出销售专员的 MSKU 不发本类提醒。', no: 'EOM20260828002', sku: 'H810201', stage: '核料中' },
@@ -111,7 +116,7 @@
     plan: [
       { unread: true, kind: 'msg', channel: '钉钉消息', ch: 'gray', time: '2026-08-21 09:12', title: '核料计算失败', body: 'EOM20260820004 / HL20260820033 核料计算失败，工单标记数据异常。主阶段仍为核料中。请跟进核料重算。', no: 'EOM20260820004', sku: 'H730101', stage: '核料中' },
       { unread: true, kind: 'todo', channel: 'ERP待办 / 钉钉待办', ch: 'blue', time: '2026-08-19 17:11', title: '请确认核料结论（本人 SKU）', body: 'EOM20260818003 已进入核料中。请在核料信息详情勾选并确认自己负责的 SKU。刘洋：H705001；陈琳：H705002；无主 SKU 由计划部门负责人比杰确认。确认部分 SKU ≠ 整单完结。', no: 'EOM20260818003', sku: 'H7050 / 3', stage: '核料中' },
-      { unread: true, kind: 'todo', channel: 'ERP待办 / 钉钉待办', ch: 'blue', time: '2026-08-28 16:41', title: '请确认清库及 Last Buy 方案（本人 SKU）', body: 'EOM20260822005 核料已定版。请确认自己负责的 SKU；部门负责人可确认全部。发起人须点「GTM确认整单」并过二次校验。两边都确认后进入正式 EOM。', no: 'EOM20260822005', sku: 'H620801', stage: '待方案决策' },
+      { unread: true, kind: 'todo', channel: 'ERP待办 / 钉钉待办', ch: 'blue', time: '2026-08-28 16:41', title: '请确认清库及 Last Buy 方案（本人 SKU）', body: 'EOM20260822005 核料已定版。请确认自己负责的 SKU；部门负责人可确认全部。确认前请确认 Last Buy 采购单是否已经下达；方案确认后产品状态变为 EOM，将不可以再下采购单。', no: 'EOM20260822005', sku: 'H620801', stage: '待方案决策' },
       { unread: true, kind: 'msg', channel: '钉钉消息', ch: 'gray', time: '2026-08-28 17:05', title: '发起人已 GTM确认整单，请确认本人 SKU', body: 'EOM20260822005 二次校验已通过。请按当前版本确认自己负责的 SKU。', no: 'EOM20260822005', sku: 'H620801', stage: '待方案决策' },
       { unread: true, kind: 'todo', channel: 'ERP待办', ch: 'orange', time: '2026-08-26 11:20', title: '方案已改数，原确认已清空，请重新确认', body: 'EOM20260810010 发起人改了 Last Buy / 报废金额。你此前的计划确认已作废，须按当前版本再确认。', no: 'EOM20260810010', sku: 'H6208', stage: '待方案决策' },
       { unread: false, kind: 'msg', channel: '钉钉消息', ch: 'gray', time: '2026-09-01 09:30', title: '方案已生效，进入正式 EOM', body: 'EOM20260825001 计划确认已齐。后续清尾由销售/采购/PMC 处理，计划本节点无待办。', no: 'EOM20260825001', sku: 'H6199', stage: 'EOM执行' },
@@ -127,7 +132,7 @@
     buy: [
       { unread: false, kind: 'msg', channel: '钉钉消息', ch: 'gray', time: '2026-08-28 10:05', title: 'EOM 已发起（仅通知）', body: '你是发起时必选通知对象。EOM20260828002 已进入核料中，可进工单查看 Last Buy 相关信息，无必办待办。', no: 'EOM20260828002', sku: 'H810201', stage: '核料中' },
       { unread: true, kind: 'msg', channel: '钉钉消息', ch: 'gray', time: '2026-08-28 16:42', title: '核料已定版，可查看建议 Last Buy', body: 'EOM20260822005 建议 Last Buy 600 台。采购不会签，可查看核料结论与方案。', no: 'EOM20260822005', sku: 'H620801', stage: '待方案决策' },
-      { unread: true, kind: 'msg', channel: '钉钉消息', ch: 'gray', time: '2026-09-01 09:32', title: '已正式 EOM，请查看 Last Buy 拉数', body: 'EOM20260825001 方案 V2：H619901 Last Buy 1,200，已生产 760。请跟踪下单/生产/入库；不强制在 GTM 点完成。已确认 Last Buy 不被普通下单拦截。', no: 'EOM20260825001', sku: 'H6199', stage: 'EOM执行' },
+      { unread: true, kind: 'msg', channel: '钉钉消息', ch: 'gray', time: '2026-09-01 09:32', title: '已正式 EOM，请查看 Last Buy 拉数', body: 'EOM20260825001 方案 V2：H619901 Last Buy 1,200。产品状态已是 EOM，不可以再下采购单。请确认采购单是否已下达，并跟踪生产/入库；不强制在 GTM 点完成。', no: 'EOM20260825001', sku: 'H6199', stage: 'EOM执行' },
       { unread: false, kind: 'msg', channel: '钉钉消息', ch: 'gray', time: '2026-08-30 09:10', title: 'SKU 已完成 EOL 闭环', body: 'EOM20260622006 已闭环。', no: 'EOM20260622006', sku: 'H5108', stage: 'EOL已闭环' }
     ]
   };
@@ -167,7 +172,7 @@
       note: 'Forecast 与核料并行。未带出销售专员的 MSKU 不发预测刷新提醒。发给专员的钉钉消息同时抄送其 STL、TL。',
       cells: {
         sales: { items: [
-          { kind: 'msg', channel: '钉钉消息', title: '请刷新销售预测（不卡流程）', body: '工单已进入核料中。你是该 MSKU 销售专员，请在 Forecast 审核并刷新预测、填写可接受 Last Buy。已同时抄送你的 STL、TL。空预测不硬拦方案提交。未带出专员的 MSKU 不发本条。', jump: 'forecast' },
+          { kind: 'msg', channel: '钉钉消息', title: '请刷新销售预测（不卡流程）', body: '工单已进入核料中，SKU 进入准备 EOM。你是该 MSKU 销售专员，请到 PSI 按退市节奏填写 Sell out。已同时抄送你的 STL、TL。Sell out 不能超过全链路库存。未带出专员的 MSKU 不发本条。', jump: 'psi' },
           { kind: 'msg', channel: '钉钉消息', title: 'EOM 已发起（抄送）', body: '工单已提交，SKU 进入准备 EOM。销售本节点不在 GTM 点确认，也不生成销售待办。' }
         ] },
         gtm: { kind: 'none', why: '本人提交，不给自己发。' },
@@ -277,7 +282,7 @@
         demand: { kind: 'msg', channel: '钉钉消息', title: '已正式 EOM，进度请看台账', body: '方案已生效。成品清库、Last Buy、专用料以产品台账 / 工单 SKU 台账为准，后续不再通知。' },
         plan: { kind: 'msg', channel: '钉钉消息', title: '方案已生效，进入正式 EOM', body: '计划确认已齐。后续清尾由销售 / 采购 / PMC 处理，计划本节点无待办。' },
         pmc: { kind: 'msg', channel: '钉钉消息', title: '已正式 EOM，请查看专用料拉数', body: '请按方案处理专用料；不强制在 GTM 点完成。数量为 0 后系统可继续 EOL 判定。' },
-        buy: { kind: 'msg', channel: '钉钉消息', title: '已正式 EOM，请查看 Last Buy 拉数', body: '请跟踪下单 / 生产 / 入库；不强制在 GTM 点完成。已确认 Last Buy 不被普通下单拦截。' }
+        buy: { kind: 'msg', channel: '钉钉消息', title: '已正式 EOM，请查看 Last Buy 拉数', body: '产品状态已变为 EOM，不可以再下采购单。请确认 Last Buy 采购单是否已经下达，并跟踪生产 / 入库；不强制在 GTM 点完成。' }
       }
     },
     {
@@ -337,11 +342,11 @@
       name: '反 EOL OA 已发起',
       when: '正式 EOM 后（EOM执行 / EOL已闭环）提交反 EOM，自动创建 OA「反EOL流程审批」',
       stage: '阶段不变',
-      note: '草稿、核料中、待方案决策尚未 EOM，不出现反 EOM，取消走关闭。审批中不打「已反 EOM」标签，不可再发。不限发起人。通过后关单、SKU 回提交前、禁止重开。通知相关人员（含需求计划）。',
+      note: '草稿、核料中、待方案决策尚未 EOM，不出现反 EOM，取消走关闭。审批中不打「已反 EOM」标签，不可再发。仅本单发起人可发，其他角色不能反别人的单。通过后关单、SKU 回提交前、禁止重开。通知相关人员（含需求计划）。',
       cells: {
         sales: { kind: 'msg', channel: '钉钉消息', title: '反 EOL OA 已发起', body: '已创建反EOL流程审批，当前审批中。通过后关单、SKU 回提交前、禁止重开。已同时抄送销售专员的 STL、TL。' },
         gtm: { kind: 'msg', channel: '钉钉消息', title: '反 EOL OA 审批中', body: '已创建 OA。通过后关单并禁止重开；驳回/撤销可再发。' },
-        gtmExtra: { kind: 'msg', channel: '钉钉消息', title: '反 EOL OA 已发起', body: '不限发起人。审批中不可再发；通过后关单、禁止重开。' },
+        gtmExtra: { kind: 'msg', channel: '钉钉消息', title: '反 EOL OA 已发起', body: '仅本单发起人可发反 EOM。审批中不可再发；通过后关单、禁止重开。' },
         demand: { kind: 'msg', channel: '钉钉消息', title: '反 EOL OA 已发起', body: '工单相关人员知情。反EOL流程审批中，阶段与 SKU 状态暂保持不变。' },
         plan: { kind: 'msg', channel: '钉钉消息', title: '反 EOL OA 已发起', body: '工单相关人员知情。审批中阶段与 SKU 状态不变。' },
         pmc: { kind: 'msg', channel: '钉钉消息', title: '反 EOL OA 已发起', body: '工单相关人员知情。审批中阶段不变。' },
@@ -686,19 +691,75 @@
     return (o.plans || []).find(function (p) { return p.status === '待确认' || p.status === '待OA' || p.status === '草稿' || p.status === '生效中' || p.status === '待会签'; }) || (o.plans || [])[0];
   }
   function defaultPlanLine(d) {
-    var qty = 0;
-    if (d && d.finalOrderNum !== '' && d.finalOrderNum != null && !isNaN(Number(d.finalOrderNum))) qty = Number(d.finalOrderNum);
-    else if (d && d.suggestOrderNum != null && !isNaN(Number(d.suggestOrderNum))) qty = Number(d.suggestOrderNum);
-    return { clearWays: ['正常销售'], lbQty: qty, scrapFg: 0, scrapMat: 0, conclusion: '' };
+    return { clearWays: ['正常销售'], lbQty: 0, scrapFg: 0, scrapMat: 0, conclusion: '', channels: [] };
+  }
+  function channelMetaOfDetail(d) {
+    var meta = shopMeta(d.mskuShop || d.shop);
+    return {
+      msku: d.msku || d.sku || '-',
+      channel: d.channel || meta.channel,
+      shop: d.mskuShop || d.shop || meta.shop,
+      online: d.online || meta.online
+    };
+  }
+  function detailsOfSku(o, sku) {
+    var m = materialOfOrder(o);
+    var rows = (m && m.details || []).filter(function (d) { return d.sku === sku; }).slice();
+    var s = (o.skus || []).find(function (x) { return x.sku === sku; });
+    var extras = skuMskus(o, s || { sku: sku }).map(function (x) {
+      return { sku: sku, msku: x.msku, mskuShop: x.shop, channel: x.channel, shop: x.shop, online: x.online };
+    });
+    if (!rows.length) return extras;
+    var seen = {};
+    rows.forEach(function (d) { seen[d.msku || d.mskuShop] = true; });
+    extras.forEach(function (x) {
+      if (!seen[x.msku] && !seen[x.mskuShop]) rows.push(x);
+    });
+    return rows;
+  }
+  function ensureLineChannels(o, sku, line) {
+    line = line || defaultPlanLine(firstDetailOfSku(materialOfOrder(o), sku));
+    var rows = detailsOfSku(o, sku);
+    var prev = {};
+    (line.channels || []).forEach(function (c) {
+      prev[c.msku || c.shop] = c;
+    });
+    var next = rows.map(function (d) {
+      var meta = channelMetaOfDetail(d);
+      var old = prev[meta.msku] || prev[d.msku] || prev[meta.shop];
+      return {
+        msku: meta.msku,
+        channel: meta.channel,
+        shop: meta.shop,
+        online: meta.online,
+        lbQty: old && old.lbQty != null ? Number(old.lbQty) : 0,
+        scrapFg: old && old.scrapFg != null ? Number(old.scrapFg) : 0,
+        scrapMat: old && old.scrapMat != null ? Number(old.scrapMat) : 0
+      };
+    });
+    if (!next.length) {
+      next = [{ msku: sku, channel: '未拆渠道', shop: '-', online: '-', lbQty: Number(line.lbQty || 0), scrapFg: 0, scrapMat: 0 }];
+    }
+    var used = {};
+    next.forEach(function (c) { used[c.msku] = true; });
+    (line.channels || []).forEach(function (c) {
+      if (c.msku && !used[c.msku]) next.push(c);
+    });
+    line.channels = next;
+    line.lbQty = next.reduce(function (a, c) { return a + Number(c.lbQty || 0); }, 0);
+    return line;
+  }
+  function lineChannelQty(line, msku) {
+    var hit = ((line && line.channels) || []).find(function (c) { return c.msku === msku; });
+    return hit ? Number(hit.lbQty || 0) : '';
   }
   function schemeLineOf(o, sku) {
-    var lbEl = document.querySelector('.plan-lb[data-sku="' + sku + '"]');
-    if (lbEl) {
+    var conc = document.querySelector('.plan-conc[data-sku="' + sku + '"]');
+    if (conc || document.querySelector('.plan-way[data-sku="' + sku + '"]')) {
       var ways = [];
       document.querySelectorAll('.plan-way[data-sku="' + sku + '"]:checked').forEach(function (c) {
         ways.push(c.getAttribute('data-way'));
       });
-      var conc = document.querySelector('.plan-conc[data-sku="' + sku + '"]');
       return { clearWays: ways, conclusion: conc ? conc.value : '' };
     }
     var plan = currentPlan(o);
@@ -726,6 +787,7 @@
       if (line.scrapFg == null) line.scrapFg = 0;
       if (line.scrapMat == null) line.scrapMat = 0;
       if (line.conclusion == null) line.conclusion = '';
+      ensureLineChannels(o, sku, line);
     });
     syncPlanSums(plan);
     return plan;
@@ -773,34 +835,49 @@
     var lines = {};
     var m = materialOfOrder(o);
     orderSkuList(o).forEach(function (sku) {
-      var lbEl = document.querySelector('.plan-lb[data-sku="' + sku + '"]');
-      if (!lbEl) {
-        var cur = currentPlan(o);
-        lines[sku] = (cur && cur.lines && cur.lines[sku]) ? cur.lines[sku] : defaultPlanLine(firstDetailOfSku(m, sku));
+      var fgEl = document.querySelector('.plan-fg[data-sku="' + sku + '"]');
+      var concEl = document.querySelector('.plan-conc[data-sku="' + sku + '"]');
+      var cur = currentPlan(o);
+      var base = (cur && cur.lines && cur.lines[sku]) ? cur.lines[sku] : defaultPlanLine(firstDetailOfSku(m, sku));
+      if (!fgEl && !document.querySelector('.plan-lb-ch[data-sku="' + sku + '"]')) {
+        lines[sku] = ensureLineChannels(o, sku, base);
         return;
       }
       var ways = [];
       document.querySelectorAll('.plan-way[data-sku="' + sku + '"]:checked').forEach(function (c) {
         ways.push(c.getAttribute('data-way'));
       });
-      var fgEl = document.querySelector('.plan-fg[data-sku="' + sku + '"]');
       var matEl = document.querySelector('.plan-mat[data-sku="' + sku + '"]');
-      var concEl = document.querySelector('.plan-conc[data-sku="' + sku + '"]');
-      lines[sku] = {
-        clearWays: ways,
-        lbQty: Number(lbEl.value || 0),
-        scrapFg: Number((fgEl && fgEl.value) || 0),
-        scrapMat: Number((matEl && matEl.value) || 0),
-        conclusion: concEl ? concEl.value : ''
+      var line = {
+        clearWays: ways.length ? ways : (base.clearWays || ['正常销售']),
+        scrapFg: Number((fgEl && fgEl.value) || base.scrapFg || 0),
+        scrapMat: Number((matEl && matEl.value) || base.scrapMat || 0),
+        conclusion: concEl ? concEl.value : (base.conclusion || ''),
+        channels: (base.channels || []).map(function (c) {
+          var el = document.querySelector('.plan-lb-ch[data-sku="' + sku + '"][data-msku="' + c.msku + '"]');
+          return {
+            msku: c.msku, channel: c.channel, shop: c.shop, online: c.online,
+            lbQty: el ? Number(el.value || 0) : Number(c.lbQty || 0),
+            scrapFg: Number(c.scrapFg || 0),
+            scrapMat: Number(c.scrapMat || 0)
+          };
+        })
       };
+      lines[sku] = ensureLineChannels(o, sku, line);
     });
     return lines;
   }
   function applyLinesToSkus(o, lines) {
     (o.skus || []).forEach(function (s) {
       if (!lines[s.sku]) return;
-      s.lbQty = Number(lines[s.sku].lbQty || 0);
+      var line = ensureLineChannels(o, s.sku, lines[s.sku]);
+      s.lbQty = Number(line.lbQty || 0);
       if (!s.lbQty) s.lbStatus = s.lbStatus === '已下单' ? s.lbStatus : '无需LB';
+      var mskus = skuMskus(o, s);
+      mskus.forEach(function (m) {
+        var hit = (line.channels || []).find(function (c) { return c.msku === m.msku; });
+        m.lbQty = hit ? Number(hit.lbQty || 0) : 0;
+      });
     });
   }
   function syncOrderPlanUsers(m) {
@@ -842,11 +919,61 @@
   function skuHasMine(m, sku) {
     return (m.details || []).some(function (d) { return d.sku === sku && isMineSku(d); });
   }
+  function skuFinalOrderSum(m, sku) {
+    var rows = (m.details || []).filter(function (d) { return d.sku === sku; });
+    var filled = rows.filter(function (d) { return d.finalOrderNum !== '' && d.finalOrderNum != null; });
+    if (!filled.length) return '';
+    return filled.reduce(function (a, d) { return a + Number(d.finalOrderNum || 0); }, 0);
+  }
+  function applyMaterialQtyToScheme(o, m) {
+    if (!o || !m) return;
+    var plan = ensureOrderPlan(o);
+    orderSkuList(o).forEach(function (sku) {
+      var line = ensureLineChannels(o, sku, plan.lines[sku] || defaultPlanLine(firstDetailOfSku(m, sku)));
+      (line.channels || []).forEach(function (c) {
+        var d = (m.details || []).filter(function (x) { return x.sku === sku && x.msku === c.msku; })[0];
+        if (d && d.finalOrderNum !== '' && d.finalOrderNum != null && !isNaN(Number(d.finalOrderNum))) {
+          c.lbQty = Number(d.finalOrderNum);
+        }
+      });
+      plan.lines[sku] = line;
+    });
+    syncPlanSums(plan);
+  }
+  function addMatLog(m, action, content) {
+    if (!m.logs) m.logs = [];
+    m.logs.unshift({ time: nowStr(), user: STATE.currentUser.name, action: action, content: content });
+  }
+  function dispMatVal(v) {
+    if (v === '' || v == null || v === '-') return '空';
+    return String(v);
+  }
+  function isMatBlank(v) {
+    return v === '' || v == null || v === '-';
+  }
+  function logMatQty(m, d, oldVal, newVal) {
+    var first = isMatBlank(oldVal);
+    addMatLog(m, first ? '核料最终下单（初盘）' : '核料最终下单（改数）',
+      (d.msku || d.sku) + (first
+        ? (' 最终下单 ' + num(newVal))
+        : (' 最终下单 ' + num(oldVal) + ' → ' + num(newVal)))
+      + '。页面不展示初盘，以核料日志为准。');
+  }
+  function logMatSkuField(m, sku, field, oldVal, newVal) {
+    var names = { deliveryTime: '交付天数', finalScrapAmount: '建议报废金额', finalScrapAmountReason: '原因' };
+    var first = isMatBlank(oldVal);
+    addMatLog(m, first ? '核料填写（初盘）' : '核料改数',
+      sku + ' ' + (names[field] || field) + (first ? ' ' + dispMatVal(newVal) : ' ' + dispMatVal(oldVal) + ' → ' + dispMatVal(newVal)) + '。页面不展示初盘。');
+  }
+  function logMatConc(m, d, oldVal, newVal) {
+    var first = isMatBlank(oldVal);
+    addMatLog(m, first ? '核料结论（初盘）' : '核料结论（改数）',
+      (d.msku || d.sku) + (first ? ' ' + dispMatVal(newVal) : ' ' + dispMatVal(oldVal) + ' → ' + dispMatVal(newVal)) + '。页面不展示初盘。');
+  }
   function emptySkuLevelFields(d) {
-    if (!d) return ['建议下单数量'];
+    if (!d) return ['核料明细'];
     var miss = [];
     if (d.deliveryTime === '' || d.deliveryTime == null || d.deliveryTime === '-' || isNaN(Number(d.deliveryTime))) miss.push('下单后最快交付时间');
-    if (d.finalOrderNum === '' || d.finalOrderNum == null) miss.push('建议下单数量');
     if (d.finalScrapAmount === '' || d.finalScrapAmount == null) miss.push('建议报废金额');
     if (!d.finalScrapAmountReason || d.finalScrapAmountReason === '-') miss.push('原因');
     return miss;
@@ -860,6 +987,8 @@
     var parts = [];
     var skuMiss = emptySkuLevelFields(rows[0]);
     if (skuMiss.length) parts.push(sku + ' 的' + skuMiss.join('、') + '为空');
+    var emptyQty = rows.filter(function (d) { return d.finalOrderNum === '' || d.finalOrderNum == null; }).map(function (d) { return d.msku || sku; });
+    if (emptyQty.length) parts.push(sku + ' 下 ' + emptyQty.join('、') + ' 的最终下单为空');
     var emptyMskus = rows.filter(conclusionEmpty).map(function (d) { return d.msku || sku; });
     if (emptyMskus.length) parts.push(sku + ' 下 ' + emptyMskus.join('、') + ' 的结论为空');
     if (!parts.length) return '';
@@ -883,6 +1012,7 @@
     return canEditMaterial(m, d) && (isPlanLeader() || isMineSku(d));
   }
   function canConfirmSku(m, d) {
+    if (d && d.kingdeeMapped === false) return false;
     if (!canEditSkuLevel(m, d)) return false;
     var o = m.eomNo ? findOrder(m.eomNo) : null;
     return !!(o && o.stage === '核料中');
@@ -950,6 +1080,7 @@
   }
 
   function go(page, extra) {
+    if (page === 'forecast') page = 'psi';
     UI.page = page;
     if (page === 'order') UI.orderNo = extra || UI.orderNo;
     if (page === 'material') UI.materialNo = extra || UI.materialNo || defaultMaterialNo();
@@ -975,12 +1106,15 @@
     if (page === 'order') { UI.page = 'orders'; UI.orderNo = parts[1] || ''; }
     else if (page === 'material') { UI.page = 'material'; UI.materialNo = parts[1] || defaultMaterialNo(); }
     else if (page === 'notice') { UI.page = 'notice'; UI.noticeRole = parts[1] || 'sales'; }
-    else UI.page = page;
+    else {
+      if (page === 'forecast') page = 'psi';
+      UI.page = page;
+    }
     renderAll();
   }
 
   function setActivePage(id) {
-    document.querySelectorAll('.page').forEach(function (p) { p.classList.toggle('active', p.id === 'page-' + id); });
+    document.querySelectorAll('.page').forEach(function (p) { p.classList.toggle('active', p.id === 'page-' + (id === 'forecast' ? 'psi' : id)); });
     document.querySelectorAll('.menu-item').forEach(function (m) {
       var page = m.getAttribute('data-page');
       var role = m.getAttribute('data-role') || '';
@@ -991,14 +1125,16 @@
     var names = {
       workbench: 'EOM工作台', orders: 'EOM工单', ledger: 'EOM产品台账',
       materials: '核料信息管理', material: '核料信息详情', statusFlow: '规则 / 状态流转',
-      noticeOverview: '通知 / 总揽'
+      noticeOverview: '通知 / 总揽',
+      forecast: 'PSI 管理', psi: 'PSI 管理', psiAudit: 'PSI 审核', purchase: '采购计划管理'
     };
     var crumb = names[id] || 'EOM管理';
     if (id === 'notice') {
       var role = NOTICE_ROLES.filter(function (r) { return r.id === (UI.noticeRole || 'sales'); })[0];
       crumb = '通知 / ' + ((role && role.name) || '销售');
     }
-    document.getElementById('breadcrumb').textContent = 'GTM系统 / 管理 / ' + crumb;
+    var sys = (id === 'forecast' || id === 'psi' || id === 'psiAudit' || id === 'purchase') ? '销售系统 / ' : 'GTM系统 / 管理 / ';
+    document.getElementById('breadcrumb').textContent = sys + crumb;
   }
 
   function renderAll() {
@@ -1021,6 +1157,9 @@
       if (UI.page === 'notice') renderNotice();
       if (UI.page === 'noticeOverview') renderNoticeOverview();
       if (UI.page === 'statusFlow') renderStatusFlow();
+      if (UI.page === 'forecast' || UI.page === 'psi') renderPsi();
+      if (UI.page === 'psiAudit') renderPsiAudit();
+      if (UI.page === 'purchase') renderPurchase();
     }
   }
 
@@ -1063,7 +1202,14 @@
     }).join('');
     document.getElementById('page-workbench').innerHTML =
       '<div class="page-title"><span>EOM工作台<span class="page-sub">数据更新于 ' + esc(STATE.generatedAt) + '　操作会保存到本机</span></span><div><button class="btn" data-act="reset-seed">恢复示例数据</button></div></div>' +
-      '<div class="alert">点场景进入对应工单。S2/S15 演示提交即核料中、Forecast 并行提醒；S3 核料按人确认；S5/S10 方案双确认（改数清空确认）；S12 报废超金额仅提示、不挡正式 EOM；S13 反 EOM OA 审批中（通过后才打标签）。右上角可切换身份。</div>' +
+      '<div class="alert">点场景进入对应工单。S2/S15 演示提交即核料中、销售到 PSI 填 Sell out；S3 核料按 MSKU 填最终下单、改数进日志；S5/S10 方案双确认（Last Buy 按渠道拆，支持导入）；S12 报废超金额仅提示、不挡正式 EOM；S13 反 EOM 仅发起人。左侧「上下游对齐」看 PSI / 采购计划。右上角可切换身份。</div>' +
+      '<div class="review-grid">' +
+        '<div class="review-card" data-act="go" data-page="psi"><b>1 PSI</b><p>工单提交后产品状态为准备 EOM。Sell out 超过全链路库存硬拦保存。Last Buy 下完后 Sell through 失效。预计 EOL 只预警。</p></div>' +
+        '<div class="review-card" data-act="go" data-page="material" data-no="HL20260818021"><b>2 核料按 MSKU 下单</b><p>最终下单按 MSKU 填，SKU 只看合计。改数进核料日志，页面不展示初盘。定版后带入方案 Last Buy。点此看 S3。</p></div>' +
+        '<div class="review-card" data-act="open-order" data-no="EOM20260822005" data-tab="plans"><b>3 Last Buy 拆渠道</b><p>清库方案按 MSKU/渠道填或导入 Last Buy，SKU 只汇总。计划确认前弹窗确认采购单是否已下。</p></div>' +
+        '<div class="review-card" data-act="go" data-page="purchase"><b>4 采购计划</b><p>准备 EOM 可下 Last Buy，提示 MSKU 状态和预计 EOL，不校验方案数量。变为 EOM 后不可以再下采购单。</p></div>' +
+        '<div class="review-card" data-act="open-order" data-no="EOM20260812002"><b>5 反 EOM</b><p>仅本单发起人可发，打通 OA「反EOL流程审批」。其他角色不能反别人的单。点此看 S13。</p></div>' +
+      '</div>' +
       '<div class="chips" style="margin-bottom:14px">' + chips + '</div>' +
       '<div class="cards">' +
         card('工', 'blue', s.running, '进行中工单', 'orders') +
@@ -1112,12 +1258,12 @@
         '<div class="sf-branches">' +
           '<div class="sf-card"><b>核料确认</b>工单「确认」只跳转核料页。计划各确认自己的 SKU；计划部门负责人可确认全部。部分确认阶段仍为核料中。</div>' +
           '<div class="sf-card warn"><b>方案决策</b>仅发起人点「GTM确认整单」；确认前二次校验 GTM确认方案+EOM方案。其他 GTM 只通知。计划按 SKU 确认，leader 可确认全部。改数清空确认。无方案驳回。报废超金额仅提示，不挡正式 EOM。</div>' +
-          '<div class="sf-card danger"><b>反 EOM</b>仅正式 EOM 后可发（EOM执行 / EOL已闭环）。草稿、核料中、待方案决策尚未 EOM，取消走关闭。填单后自动生成 OA；审批中不打标签、不可再发；通过后关单、SKU 回提交前、禁止重开。</div>' +
+          '<div class="sf-card danger"><b>反 EOM</b>仅正式 EOM 后可发（EOM执行 / EOL已闭环），且仅本单发起人。其他角色不能反别人的单。草稿、核料中、待方案决策尚未 EOM，取消走关闭。填单后自动生成 OA；审批中不打标签、不可再发；通过后关单、SKU 回提交前、禁止重开。</div>' +
         '</div></div>' +
       '<div class="sf-wrap">' +
         sfTable(['操作', '谁', '当前阶段', '下一阶段', '连带'], [
           ['保存草稿', '发起人', '—', '草稿', '产品状态不变；可选通知抄送人只读'],
-          ['提交', '发起人', '草稿', '核料中', 'SKU→准备 EOM；自动建核料单并开算；钉钉提醒销售 Forecast，不卡流程'],
+          ['提交', '发起人', '草稿', '核料中', 'SKU→准备 EOM（同步 PSI 产品状态）；自动建核料单并开算；钉钉提醒销售 Forecast，不卡流程'],
           ['Forecast 审核入库', '系统', '核料中 / 待方案决策', '阶段不变', '只刷新台账；未锁定未确认行可刷建议下单；已确认/已定版不解锁；不发通知'],
           ['关闭', '发起人', '草稿 / 核料中 / 待方案决策', '已关闭', '须填原因；释放准备 EOM；正式 EOM 后不可关。本期无撤回'],
           ['重新发起', '发起人', '已关闭且非已反 EOM', '草稿', '原流水号；已反 EOM 禁止重开'],
@@ -1127,8 +1273,8 @@
           ['发起人保存方案', '仅发起人', '待方案决策', '仍待方案决策', '须有 EOM 方案；保存不视为 GTM 已确认；改数清空确认'],
           ['GTM确认整单', '仅发起人', '待方案决策', '仍待方案决策', '二次校验：GTM确认方案+EOM方案必传；通过后记 GTM 已确认'],
           ['计划确认所选 SKU', '各计划；部门负责人可确认全部', '待方案决策', '仍待方案决策', '按 SKU 确认；超金额仅提示，不挡确认'],
-          ['方案双确认齐', '系统', '待方案决策', 'EOM 执行', 'SKU→EOM；三路并行跟踪（只发消息）；不得显示完结；不等报废 OA'],
-          ['反 EOM', '可查看工单的人', 'EOM执行 / EOL已闭环', '阶段不变', '尚未正式 EOM 不出现按钮，取消走关闭；填单后自动起 OA；审批中不打标签、不可再发'],
+          ['方案双确认齐', '系统', '待方案决策', 'EOM 执行', 'SKU→EOM，此后不可以再下采购单；计划自行在采购计划下 Last Buy，本工单不下推'],
+          ['反 EOM', '仅本单发起人', 'EOM执行 / EOL已闭环', '阶段不变', '尚未正式 EOM 不出现按钮，取消走关闭；其他角色不能反别人的单；填单后自动起 OA；审批中不打标签、不可再发'],
           ['EOL', '系统', 'EOM 执行', 'EOL 已闭环', '成品全链路库存 = 0；专用料 / Last Buy 不挡；已反 EOM 关单后不再走本单 EOL']
         ]) +
       '</div>' +
@@ -1139,7 +1285,8 @@
           ['成品>50万或物料>20万', '待方案决策', '不挡流转', '准备 EOM', '非阻断提示线下走计委会 OA；系统不创建 OA，双确认齐即可正式 EOM'],
           ['线下 OA 不同意报废', '待方案决策 / EOM执行', '不关单', '不变', '发起人改当前版本或改版，系统不自动退回'],
           ['正式 EOM 后改版', 'EOM 执行', '不退回', '仍 EOM', '会签 + 新版本'],
-          ['反 EOM 提交', 'EOM执行 / EOL已闭环', '不变', '不变', '自动创建反 EOL OA，状态审批中；此前阶段走关闭'],
+          ['Last Buy 下单', '准备 EOM / EOM 执行', '不变', '准备 EOM→EOM 后禁下单', '计划在采购计划自行下 Last Buy；创建时提示 MSKU 状态和预计 EOL，不校验方案数量；变为 EOM 后不可以再下任何采购单'],
+          ['反 EOM 提交', 'EOM执行 / EOL已闭环', '不变', '不变', '仅发起人；自动创建反 EOL OA，状态审批中；此前阶段走关闭'],
           ['反 EOL OA 通过', 'EOM执行 / EOL已闭环', '已关闭', '提交前', '打上已反 EOM，SKU 回已上市/未上市，禁止重开，本单只读'],
           ['反 EOL OA 驳回/撤销', 'EOM执行 / EOL已闭环', '不变', '不变', '不打标签，允许再发']
         ]) +
@@ -1186,6 +1333,172 @@
           ['已反 EOM', '反 EOL OA 审批通过', '变为已关闭，禁止重开', '本期不摘标签']
         ]) +
       '</div></div>';
+  }
+
+  function eomStatusTag(st) {
+    if (st === '准备EOM') return '<span class="eom-tag">准备EOM</span>';
+    if (st === 'EOM') return '<span class="eom-tag done">EOM</span>';
+    return esc(st || '-');
+  }
+  function collectAlignSkus() {
+    var rows = [];
+    (STATE.orders || []).forEach(function (o) {
+      (o.skus || []).forEach(function (s) {
+        if (s.status !== '准备EOM' && s.status !== 'EOM' && s.status !== 'EOL') return;
+        var mskus = skuMskus(o, s);
+        (mskus.length ? mskus : [{ msku: s.sku, shop: '-', channel: '-', stock: s.stock, forecast: s.forecast, dos: s.dos, lbQty: s.lbQty }]).forEach(function (m) {
+          rows.push({ o: o, s: s, m: m });
+        });
+      });
+    });
+    return rows;
+  }
+  function purchaseLbQty(msku) {
+    var n = 0;
+    (ensurePurchasePlans() || []).forEach(function (p) {
+      if (p.msku === msku && p.tag === 'Last Buy') n += Number(p.qty || 0);
+    });
+    return n;
+  }
+  function mskuChainStock(x) {
+    var stock = Number(x.m.stock || 0);
+    var onway = Number(x.m.buyingOnWay || 0);
+    if (!onway) onway = purchaseLbQty(x.m.msku);
+    return stock + onway;
+  }
+  function psiSoVal(x) {
+    return Number(x.m.forecast != null ? x.m.forecast : (x.s.forecast || 0));
+  }
+  function eolWarnHtml(eol) {
+    if (!eol) return '';
+    if (String(eol).slice(0, 10) < today()) return '<span class="lb-tag">预计EOL已过（仅预警）</span>';
+    return '<span class="muted">预计EOL ' + esc(eol) + '</span>';
+  }
+  function persistPsiSo(msku, val) {
+    (STATE.orders || []).forEach(function (o) {
+      (o.skus || []).forEach(function (s) {
+        skuMskus(o, s).forEach(function (m) {
+          if (m.msku === msku) m.forecast = val;
+        });
+      });
+    });
+  }
+  function savePsiSoFromRow(tr) {
+    if (!tr) return;
+    var inp = tr.querySelector('.psi-so');
+    if (!inp) return;
+    var msku = inp.getAttribute('data-msku');
+    var val = Number(inp.value || 0);
+    var chain = Number(inp.getAttribute('data-chain') || 0);
+    if (val > chain) {
+      toast('Sell out 不能超过全链路库存 ' + num(chain) + '（成品+采购在途）。本次未保存。', 'warning');
+      return false;
+    }
+    persistPsiSo(msku, val);
+    persist();
+    toast('已保存 Sell out', 'success');
+    return true;
+  }
+  function renderPsi() {
+    var tab = UI.psiTab || 'live';
+    var filter = UI.psiFilter || 'all';
+    var rows = collectAlignSkus();
+    if (filter === 'eom') rows = rows.filter(function (x) { return x.s.status === '准备EOM' || x.s.status === 'EOM'; });
+    var body = rows.map(function (x) {
+      var closed = x.o.regularOrderClosed || x.s.status === 'EOM';
+      var chain = mskuChainStock(x);
+      var so = psiSoVal(x);
+      var lb = purchaseLbQty(x.m.msku);
+      var stCell = closed
+        ? '<span class="muted">Sell through 已失效<br>不再要货</span>'
+        : '<span class="muted">Sell through 仍可要货</span>';
+      return '<tr class="' + (x.s.status === '准备EOM' || x.s.status === 'EOM' ? 'row-eom' : '') + '">' +
+        '<td class="left"><div class="psi-sku"><span class="code">' + esc(x.m.msku) + '</span>' +
+          '<div class="psi-tags">' + eomStatusTag(x.s.status) + (x.m.channel && x.m.channel !== '-' ? '<span class="lb-tag">' + esc(x.m.channel) + '</span>' : '') +
+          (closed ? '<span class="lb-tag">常规要货已关闭</span>' : '') +
+          eolWarnHtml(x.s.eol || x.o.eol) + '</div>' +
+          '<span class="muted">' + esc(x.m.shop) + ' · ' + esc(x.s.sku) + '</span></div></td>' +
+        '<td>' + stCell + '</td>' +
+        '<td>' + num(x.m.stock) + '<div class="sub">全链路 ' + num(chain) + '</div></td>' +
+        '<td>' + (x.m.dos != null ? x.m.dos : x.s.dos) + ' 天</td>' +
+        '<td><input class="input psi-so" type="number" data-msku="' + esc(x.m.msku) + '" data-chain="' + chain + '" value="' + so + '" /></td>' +
+        '<td>' + (lb ? num(lb) : '-') + '<div class="sub">只读，不校验方案数</div></td>' +
+        '<td><button class="btn" data-act="psi-save-so">保存</button></td></tr>';
+    }).join('') || '<tr><td colspan="7" class="empty">无数据</td></tr>';
+    document.getElementById('page-psi').innerHTML =
+      '<div class="page-title"><span>PSI 管理<span class="page-sub">对齐现网：实时版本 / 评审版本</span></span></div>' +
+      '<div class="fc-warn">Sell out 由销售填写；超过全链路库存（成品+采购在途，含已下达的 Last Buy）硬拦保存。没有差异百分比异常。Last Buy 只读来自采购计划，不等于 Sell out。Last Buy 下完 / 正式 EOM 后 Sell through 失效。预计 EOL 只预警。</div>' +
+      '<div class="notice-tabs"><button class="notice-tab' + (tab === 'live' ? ' active' : '') + '" data-act="psi-tab" data-tab="live">实时版本</button>' +
+        '<button class="notice-tab' + (tab === 'review' ? ' active' : '') + '" data-act="psi-tab" data-tab="review">评审版本</button></div>' +
+      '<div class="psi-chips">' +
+        '<button class="psi-chip' + (filter === 'all' ? ' active' : '') + '" data-act="psi-filter" data-filter="all">全部</button>' +
+        '<button class="psi-chip' + (filter === 'eom' ? ' active' : '') + '" data-act="psi-filter" data-filter="eom">准备EOM / 已EOM 单独复核</button>' +
+        '<button class="psi-chip">Sell in</button><button class="psi-chip">Inventory</button><button class="psi-chip">DOS</button>' +
+      '</div>' +
+      '<div class="filter-bar"><select class="select"><option>区域</option></select><select class="select"><option>渠道</option></select>' +
+        '<select class="select"><option>产品定位</option></select><select class="select"><option>在售状态</option></select>' +
+        '<select class="select"><option>产品状态（新增）</option><option>准备EOM</option><option>EOM</option></select>' +
+        '<button class="btn btn-primary">搜索</button></div>' +
+      '<div class="table-wrap"><table><thead><tr><th class="left">SKU 信息</th><th>Sell through</th><th>库存 / 全链路</th><th>DOS</th><th>Sell out</th><th>Last Buy（采购计划）</th><th>操作</th></tr></thead><tbody>' + body + '</tbody></table></div>' +
+      '<p class="align-note">现网 PSI 审核仍是组长→主管两级。准备 EOM / 已 EOM 单独复核，不按天数分流，也不做「超过百分之八异常」。</p>';
+  }
+  function renderPsiAudit() {
+    var tab = UI.psiAuditTab || 'todo';
+    var rows = collectAlignSkus().filter(function (x) { return x.s.status === '准备EOM' || x.s.status === 'EOM'; });
+    var body = rows.map(function (x) {
+      var chain = mskuChainStock(x);
+      var so = psiSoVal(x);
+      var over = so > chain;
+      return '<tr class="row-eom" data-over="' + (over ? '1' : '0') + '" data-chain="' + chain + '" data-so="' + so + '"><td><input type="checkbox" class="psi-audit-ck" /></td>' +
+        '<td class="left"><div class="psi-sku"><span class="code">' + esc(x.m.msku) + '</span><span class="muted">' + esc(x.m.shop) + '</span>' +
+          '<div class="psi-tags">' + eolWarnHtml(x.s.eol || x.o.eol) + '</div></div></td>' +
+        '<td>' + eomStatusTag(x.s.status) + '</td>' +
+        '<td>' + tag('准备EOM/已EOM待复核', 'orange') + '</td>' +
+        '<td>' + num(so) + (over ? '<div class="sub">超过全链路 ' + num(chain) + '</div>' : '') + '</td>' +
+        '<td>' + num(chain) + '</td>' +
+        '<td>' + (purchaseLbQty(x.m.msku) ? num(purchaseLbQty(x.m.msku)) : '-') + '</td>' +
+        '<td><button class="btn btn-primary" data-act="psi-review-one">复核通过</button></td></tr>';
+    }).join('') || '<tr><td colspan="8" class="empty">没有待复核的准备 EOM / EOM 行</td></tr>';
+    document.getElementById('page-psiAudit').innerHTML =
+      '<div class="page-title"><span>PSI 审核<span class="page-sub">对齐现网：待审核 / 审核记录</span></span></div>' +
+      '<div class="fc-warn">在现网「待组长审核 / 待主管审核」之外，增加「准备 EOM / 已 EOM 待复核」。Sell out 超过全链路库存硬拦通过。不替代组长/主管两级。</div>' +
+      '<div class="notice-tabs"><button class="notice-tab' + (tab === 'todo' ? ' active' : '') + '" data-act="psi-audit-tab" data-tab="todo">待审核</button>' +
+        '<button class="notice-tab' + (tab === 'done' ? ' active' : '') + '" data-act="psi-audit-tab" data-tab="done">审核记录</button></div>' +
+      '<div class="psi-chips">' +
+        '<button class="psi-chip">全部</button><button class="psi-chip">待组长审核</button><button class="psi-chip">待主管审核</button>' +
+        '<button class="psi-chip active">准备EOM / 已EOM待复核</button>' +
+      '</div>' +
+      '<div class="toolbar"><button class="btn btn-primary" data-act="psi-review-batch">批量复核</button><span class="muted">只复核准备 EOM / 已 EOM 队列。</span></div>' +
+      '<div class="table-wrap"><table><thead><tr><th></th><th class="left">SKU</th><th>产品状态</th><th>复核队列</th><th>Sell out</th><th>全链路库存</th><th>Last Buy</th><th>操作</th></tr></thead><tbody>' + body + '</tbody></table></div>';
+  }
+  function renderPurchase() {
+    var filter = UI.poFilter || 'all';
+    var list = ensurePurchasePlans();
+    var rows = list.filter(function (p) {
+      if (filter === 'lb') return p.tag === 'Last Buy';
+      return true;
+    });
+    var body = rows.map(function (p) {
+      return '<tr class="' + (p.tag === 'Last Buy' ? 'row-eom' : '') + '">' +
+        '<td>' + esc(p.no) + '</td><td>' + esc(p.type) + '</td><td>' + esc(p.orderType) + '</td>' +
+        '<td>' + esc(p.shop) + '</td><td>' + esc(p.sku) + '<div class="sub">' + esc(p.msku) + '</div></td>' +
+        '<td>' + num(p.qty) + '</td><td>' + tag(p.status, p.status === '已下单' || p.status === '已完成' ? 'green' : 'orange') + '</td>' +
+        '<td>' + eomStatusTag(p.productStatus) + '</td>' +
+        '<td>' + (p.tag === 'Last Buy' ? '<span class="lb-tag">Last Buy</span>' : '-') + '</td>' +
+        '<td class="left">' + esc(p.remark) + (p.eomNo ? ' <a data-act="open-order" data-no="' + p.eomNo + '">工单</a>' : '') + '</td></tr>';
+    }).join('') || '<tr><td colspan="10" class="empty">暂无采购计划</td></tr>';
+    document.getElementById('page-purchase').innerHTML =
+      '<div class="page-title"><span>采购计划管理<span class="page-sub">对齐现网：创建量产/首单/额外 · 产品状态拦截</span></span></div>' +
+      '<div class="fc-warn">准备 EOM 可以下 Last Buy：创建时提示该 MSKU 的产品状态和预计 EOL，不校验是否等于方案数量。产品状态变为 EOM 后，与现网一样不可以再下任何采购单。</div>' +
+      '<div class="toolbar">' +
+        '<button class="btn btn-primary" data-act="po-try-create" data-kind="lb">创建 Last Buy（准备EOM · H810201）</button>' +
+        '<button class="btn" data-act="po-try-create" data-kind="normal">创建常规量产（准备EOM · H810201）</button>' +
+        '<button class="btn" data-act="po-try-create" data-kind="eom">创建采购单（已EOM · H619901）</button>' +
+        '<button class="btn" data-act="po-filter" data-filter="lb">只看 Last Buy</button>' +
+        '<button class="btn" data-act="po-filter" data-filter="all">全部</button>' +
+      '</div>' +
+      '<div class="table-wrap"><table><thead><tr><th>计划单号</th><th>计划类型</th><th>订单类型</th><th>店铺</th><th>SKU / MSKU</th><th>数量</th><th>状态</th><th>产品状态</th><th>标签</th><th class="left">备注</th></tr></thead><tbody>' + body + '</tbody></table></div>' +
+      '<p class="align-note">Last Buy 由计划自行创建，工单方案确认后不下推。PSI 只读抓本页已备注 Last Buy 的单据。</p>';
   }
 
   function noticeTabsHtml(active) {
@@ -1258,7 +1571,7 @@
         } else {
           body = items.map(function (it) {
             var k = it.kind || kind;
-            var jump = it.jump === 'forecast' ? '<div class="notice-meta">打开 Forecast</div>'
+            var jump = it.jump === 'psi' || it.jump === 'forecast' ? '<div class="notice-meta">打开 PSI</div>'
               : it.jump === 'material' ? '<div class="notice-meta">打开核料页</div>' : '';
             return '<div class="notice-ov-copy">' +
               tag(it.channel || '', k === 'todo' ? 'blue' : (k === 'cond' ? 'orange' : 'gray')) +
@@ -1323,8 +1636,8 @@
         lastGroup = n.group;
         html += '<div class="notice-group">' + esc(n.group) + '</div>';
       }
-      var act = n.action === 'forecast'
-        ? '<button class="btn" type="button" data-act="toast" data-msg="已跳转销售 Forecast（原型占位）">' + esc(n.actLabel || '打开 Forecast') + '</button>'
+      var act = n.action === 'psi' || n.action === 'forecast'
+        ? '<button class="btn" type="button" data-act="go" data-page="psi">' + esc(n.actLabel || '打开 PSI') + '</button>'
         : n.action === 'material'
           ? '<button class="btn btn-primary" type="button" data-act="open-material" data-no="' + esc(n.materialNo || '') + '">' + esc(n.actLabel || '打开核料页') + '</button>'
           : '<button class="btn btn-primary" type="button" data-act="open-order" data-no="' + esc(n.no) + '">进入工单</button>';
@@ -1580,7 +1893,9 @@
       forecast: p.forecast || 0,
       eolForecast: p.eolForecast || 0,
       dos: p.dos != null ? p.dos : 30,
-      clearPct: p.clearPct != null ? p.clearPct : 0
+      clearPct: p.clearPct != null ? p.clearPct : 0,
+      lbQty: p.lbQty != null ? p.lbQty : 0,
+      buyingOnWay: p.buyingOnWay != null ? p.buyingOnWay : 0
     };
   }
   function buildSkuMskus(o, s) {
@@ -1662,7 +1977,7 @@
     if (k === 'lbPlan') return esc(s.lbPlan);
     if (k === 'lbOrder') return esc(s.lbOrder);
     if (k === 'lbDone') return esc(s.lbDone);
-    if (k === 'lbQty') return num(s.lbQty);
+    if (k === 'lbQty') return num(s.lbQty) + (s.lbQty ? '<div class="sub">渠道合计</div>' : '');
     if (k === 'lbStatus') return tag(s.lbStatus, 'orange');
     if (k === 'lbBaseStock') return num(s.lbBaseStock);
     if (k === 'stock') return num(s.stock);
@@ -1689,7 +2004,7 @@
     if (LEDGER_INHERIT_KEYS[k]) return ledgerCell(k, o, s);
     if (LEDGER_DASH_KEYS[k]) return '-';
     if (k === 'plan') return '';
-    if (k === 'stock') return num(m.stock);
+    if (k === 'lbQty') return num(m.lbQty != null ? m.lbQty : 0);
     if (k === 'stale') return num(m.stale);
     if (k === 'staleRate') return esc(m.staleRate || '0%');
     if (k === 'm3') return num(m.m3);
@@ -1920,10 +2235,14 @@
         return canPlan ? ' <span class="icon-btn" data-act="edit-field" data-mid="' + m.serialNo + '" data-id="' + r.id + '" data-field="' + field + '" data-label="' + label + '">✎</span>' : '';
       };
       var editConc = canEditConclusion(m, r) ? ' <span class="icon-btn" data-act="edit-field" data-mid="' + m.serialNo + '" data-id="' + r.id + '" data-field="conclusion" data-label="结论">✎</span>' : '';
+      var editQty = canEditConclusion(m, r) ? ' <span class="icon-btn" data-act="edit-field" data-mid="' + m.serialNo + '" data-id="' + r.id + '" data-field="finalOrderNum" data-label="最终下单数量">✎</span>' : '';
+      var kdTip = r.kingdeeMapped === false
+        ? '<div class="sub">金蝶无库存/无映射，不可选入范围</div>'
+        : '';
       var ownerTip = r.planUserSource === 'leader' ? '<div class="sub">计划部门负责人兜底</div>' : '<div class="sub">主数据</div>';
       var ownerAct = (!locked && r.planUserSource === 'leader')
         ? '<div><a data-act="assign-plan-user" data-mid="' + m.serialNo + '" data-msku="' + esc(r.msku) + '">模拟主数据维护负责人</a></div>' : '';
-      var canPick = first && canConfirmSku(m, r);
+      var canPick = first && canConfirmSku(m, r) && r.kingdeeMapped !== false;
       var checkCell = first ? (
         '<td class="sku-check-cell"' + rs + '>' +
           (canPick ? '<input type="checkbox" class="sku-pick" data-sku="' + esc(r.sku) + '" data-mid="' + m.serialNo + '" />'
@@ -1931,6 +2250,7 @@
         '</td>'
       ) : '';
       var lockTip = r.skuLocked ? '<div class="sub">已确认锁定</div>' : '';
+      var skuSum = first ? skuFinalOrderSum(m, r.sku) : '';
       var skuCells = first ? (
         checkCell +
         '<td class="cell-stack"' + rs + '><a>' + esc(r.model) + '</a><div class="sub">状态：' + esc(r.modelStatus) + '</div></td>' +
@@ -1938,7 +2258,7 @@
           '<div class="sub">平均总日销：' + (r.avgDailySales == null ? '-' : r.avgDailySales) + '</div>' +
           '<div class="sub">近一个月销量：' + num(r.lastMonthSales) + '</div>' +
           '<div>建议下单：' + num(r.suggestOrderNum) + ' ' + lockIcon + '</div>' +
-          '<div class="sub">预计消耗天数：' + num(r.consumeDay) + '</div>' +
+          '<div class="sub">预计消耗天数：' + num(r.consumeDay) + '</div>' + kdTip +
           (mine ? '<div class="sub">我负责</div>' : (isPlanLeader() && !r.skuLocked ? '<div class="sub">可代确认</div>' : '')) + lockTip + '</td>' +
         '<td class="cell-stack"' + rs + '>' + fittings + '</td>' +
         '<td class="cell-stack"' + rs + '>' + (clc || '-') + '</td>' +
@@ -1948,19 +2268,20 @@
         '<td' + rs + '>' + (r.totalMaterialMoney == null ? '-' : (r.totalMaterialMoney + ' ' + (r.currency || ''))) + '</td>' +
         '<td' + rs + '><a data-act="open-chart" data-mid="' + m.serialNo + '" data-id="' + r.id + '">📈</a></td>' +
         '<td' + rs + '>' + displayDays(r.deliveryTime) + edit('deliveryTime', '下单后最快交付时间') + '</td>' +
-        '<td' + rs + '>' + num(r.finalOrderNum) + edit('finalOrderNum', '建议下单数量') + '</td>' +
+        '<td' + rs + '>' + (skuSum === '' ? '-' : num(skuSum)) + '<div class="sub">合计，不可改</div></td>' +
         '<td' + rs + '>' + num(r.finalScrapAmount) + edit('finalScrapAmount', '建议报废金额') + '</td>' +
         '<td' + rs + '>' + esc(r.finalScrapAmountReason || '-') + edit('finalScrapAmountReason', '原因') + '</td>'
       ) : '';
-      return '<tr>' + skuCells +
+      return '<tr' + (r.kingdeeMapped === false ? ' class="kingdee-miss"' : '') + '>' + skuCells +
         '<td class="cell-stack">' + esc(r.planUser) + ownerTip + ownerAct + '</td>' +
         '<td>' + esc(r.conclusion || '-') + editConc + '</td>' +
         '<td class="cell-stack">' + esc(r.msku) + '<div class="sub">店铺：' + esc(r.mskuShop) + '</div><div class="sub">状态：' + esc(r.mskuStatus) + '</div></td>' +
+        '<td>' + (r.finalOrderNum === '' || r.finalOrderNum == null ? '-' : num(r.finalOrderNum)) + editQty + '</td>' +
         '<td class="cell-stack"><div>' + num(r.totalStock) + ' / ' + num(r.innerStock) + '</div><div>' + num(r.overseasStock) + ' / ' + num(r.buyingOnWay) + '</div></td>' +
         '<td>' + (r.mskuAvgDailySales == null ? '-' : r.mskuAvgDailySales) + '</td>' +
         '<td class="cell-stack"><div>' + num(r.surplus) + '</div><div>' + esc(r.money) + '</div></td>' +
         '<td class="cell-stack"><div>' + esc(r.overseasSalesDate) + '</div><div>' + esc(r.finishProductSalesDate) + '</div><div>' + esc(r.prepareMaterialsSalesDate) + '</div></td>' +
-        '<td class="left"><a data-act="toast" data-msg="已跳转销售 Forecast（原型占位）">查看forecast</a><br><a data-act="open-mat-log" data-no="' + m.serialNo + '">日志</a></td></tr>';
+        '<td class="left"><a data-act="go" data-page="psi">查看PSI</a><br><a data-act="open-mat-log" data-no="' + m.serialNo + '">日志</a></td></tr>';
     }).join('');
     var oRel = m.eomNo ? findOrder(m.eomNo) : null;
     var canPageConfirm = oRel && canShowMaterialConfirm(oRel);
@@ -1968,14 +2289,15 @@
     var footer = '<div class="footer-bar">' +
       (pageMode ? '<button class="btn" data-act="go" data-page="materials">关闭</button>' : '') +
       (m.status !== 4 ? '<button class="btn" data-act="reclc" data-no="' + m.serialNo + '">重新核料</button>' : '') +
+      (m.eomNo ? '<button class="btn" data-act="open-mat-log" data-no="' + m.serialNo + '">核料日志</button>' : '') +
       (m.eomNo ? '<button class="btn" data-act="export-mat" data-no="' + m.serialNo + '">导出核料结论</button>' : '') +
       (importBlock ? '<button class="btn" data-act="import-mat" data-no="' + m.serialNo + '">导入核料结论</button>' : '') +
       (canPageConfirm ? '<button class="btn btn-primary" data-act="sku-confirm" data-no="' + m.serialNo + '">确认所选 SKU</button>' : '') +
       '</div>';
     var banner = '';
     if (m.status === 2) banner = '<div class="alert danger" style="margin-top:12px">计算失败不得显示为成功，不可进入方案决策。可点「重新核料」。</div>';
-    else if (m.status === 4) banner = '<div class="alert success" style="margin-top:12px">已定版：建议下单、EOM 配件、计划字段只读。全部 SKU 已确认。</div>';
-    else if (prog) banner = '<div class="alert" style="margin-top:12px">数量/金额/原因按 8 位 SKU 一份；计划负责人、结论按 MSKU 各填。普通计划只确认自己的 SKU；计划部门负责人可确认全部。勾选后确认，该 SKU 下任一 MSKU 结论为空会提醒。导入只用于快录。当前 ' + esc(prog.text) + '。</div>';
+    else if (m.status === 4) banner = '<div class="alert success" style="margin-top:12px">已定版：建议下单、EOM 配件、计划字段只读。全部 SKU 已确认。最终下单已按 MSKU 带入方案 Last Buy，此后只在方案页改。初盘与改数见核料日志。</div>';
+    else if (prog) banner = '<div class="alert" style="margin-top:12px">最终下单按 MSKU 填写，SKU 行只显示合计、不可改。报废金额、原因、交付天数仍按 SKU。改数写入核料日志，页面不展示初盘。定版后带入方案 Last Buy。金蝶无库存/无映射的 SKU 标红、不可确认。当前 ' + esc(prog.text) + '。</div>';
     return '<div class="page-title"><span>核料信息<span class="page-sub">' + (pageMode ? '' : '来自工单 ' + esc(m.eomNo || '')) + (prog ? '　' + esc(prog.text) : '') + '</span></span>' +
       '<div><span class="icon-btn" data-act="share-mat" data-no="' + m.serialNo + '">分享</span></div></div>' +
       '<div class="detail-head">' +
@@ -1993,8 +2315,8 @@
       '<div class="table-wrap"><table style="min-width:3280px"><thead><tr>' +
         '<th class="sku-check-cell">' + (canPageConfirm ? '<input type="checkbox" data-act="sku-pick-all" title="全选可确认的 SKU" />' : '') + '</th>' +
         '<th>model</th><th>sku</th><th>同步EOM配件</th><th>同步EOM配件（参与计算）</th><th>初始物料结余金额</th><th>物料消耗</th><th>实际总物料结余</th><th>实际总物料金额</th>' +
-        '<th>余料消耗图</th><th>下单后最快交付时间</th><th>建议下单数量</th><th>建议报废金额</th><th>原因</th><th>计划负责人</th><th>结论</th>' +
-        '<th>msku</th><th>总库存/国内在库/<br>海外库存/采购在途</th><th>平均日销</th><th>EOM发起时DM结余数量<br>EOM发起时DM结余金额</th>' +
+        '<th>余料消耗图</th><th>下单后最快交付时间</th><th>最终下单合计</th><th>建议报废金额</th><th>原因</th><th>计划负责人</th><th>结论</th>' +
+        '<th>msku</th><th>最终下单</th><th>总库存/国内在库/<br>海外库存/采购在途</th><th>平均日销</th><th>EOM发起时DM结余数量<br>EOM发起时DM结余金额</th>' +
         '<th>理论海外库存售完日期<br>理论全流程成品库存售完日期<br>理论全流程库存备料售完日期</th><th>按钮</th>' +
       '</tr></thead><tbody>' + rows + '</tbody></table></div>' + footer;
   }
@@ -2040,11 +2362,11 @@
   }
   function overviewHint(o) {
     if (o.stage === '待方案决策') return '待方案决策：仅发起人点「GTM确认整单」，确认前二次校验 GTM确认方案+EOM方案；其他 GTM 只通知。计划确认自己的 SKU，计划部门负责人可确认全部。有问题由发起人改当前方案，不设驳回。关闭仅发起人。本期不做撤回。空预测强提示、不硬拦。此阶段尚未正式 EOM，不出现反 EOM；要取消请关闭。';
-    if (isAfterFormalEom(o)) return '已正式 EOM。成品清库、Last Buy、专用料看台账，不在 GTM 点完成。不可手工关闭；需要取消请发起反 EOM（填单走 OA）。已反 EOM 关单后仅可查看与日志。';
+    if (isAfterFormalEom(o)) return '已正式 EOM。成品清库、Last Buy、专用料看台账，不在 GTM 点完成。产品状态已是 EOM，不可以再下采购单。Last Buy 由计划在采购计划自行下达。不可手工关闭；需要取消请由发起人发起反 EOM（填单走 OA）。已反 EOM 关单后仅可查看与日志。';
     if (o.stage === '核料中') return '核料中：计划按 SKU 确认，全部确认后进待方案决策。Forecast 并行不卡流程。此阶段尚未正式 EOM，不出现反 EOM；要取消请关闭。';
     if (o.stage === '草稿') return '草稿：仅发起人可编辑后提交。提交后进核料中。此阶段尚未正式 EOM，不出现反 EOM；要取消请关闭。';
     if (o.stage === '已关闭') return isReverseLocked(o) ? '已反 EOM 关单：本单只读，禁止重开，再退市请新开工单。' : '已关闭：发起人可重新发起（原流水号）。正式 EOM 前关闭走本入口，不走反 EOM。';
-    return '工单详情按当前阶段与身份展示操作。草稿、核料中、待方案决策尚未正式 EOM，取消走关闭；EOM执行 / EOL已闭环才可反 EOM。';
+    return '工单详情按当前阶段与身份展示操作。草稿、核料中、待方案决策尚未正式 EOM，取消走关闭；EOM执行 / EOL已闭环仅发起人可反 EOM。';
   }
   function renderDetailPanel(o, m) {
     var t = UI.detailTab;
@@ -2067,8 +2389,8 @@
     }
     if (t === 'sku') {
       var rows = (o.skus || []).map(function (s, idx) { return { o: o, s: s, idx: idx }; });
-      return '<div class="alert">与 EOM 产品台账同一套展开：MSKU 行左侧为编码、渠道、店铺、线上/线下；预计EOL / EOM时长带出 SKU 值；Last Buy 与专用料/通用料为「-」。主行库存为全链路，MSKU 为店铺库存。正式 EOM 后三路进度以本表为准，不另做执行跟踪。EOL 只卡成品全链路库存 = 0。</div>' +
-        (isFormalEom(o) ? '<div class="toolbar"><button class="btn" data-act="simulate-lb-order" data-no="' + o.no + '">模拟 Last Buy 已下单</button></div>' : '') +
+      return '<div class="alert">与 EOM 产品台账同一套展开：MSKU 行左侧为编码、渠道、店铺、线上/线下；Last Buy 数量按渠道展示，计划/下单/完成时间仍在 SKU。正式 EOM 后三路进度以本表为准。EOL 只卡成品全链路库存 = 0。</div>' +
+        (isFormalEom(o) ? '<div class="toolbar"><button class="btn" data-act="simulate-lb-order" data-no="' + o.no + '">模拟 Last Buy 已下单</button><button class="btn" data-act="go" data-page="purchase">查看采购计划</button></div>' : '') +
         renderLedgerTableHtml(rows, { scope: 'detail', showOps: false });
     }
     if (t === 'material') {
@@ -2139,7 +2461,7 @@
     if (inDecision) {
       var pills = '<span class="sign-pill' + (pgs.gtm ? ' ok' : '') + '">GTM ' + (pgs.gtm ? '已确认' : '未确认') + '</span>' +
         '<span class="sign-pill' + (pgs.planDone === pgs.planTotal && pgs.planTotal ? ' ok' : '') + '">计划 ' + pgs.planDone + '/' + pgs.planTotal + ' SKU</span>';
-      signHtml = '<div class="alert">表体与核料同一套 Model / SKU / MSKU。核料列只读。发起人填清库方式、Last Buy 数量、报废和方案结论；Last Buy 计划时间等写在附件里。不维护 Last Buy 金额。保存须有 EOM 方案。顶部「GTM确认整单」须再传 GTM确认方案并二次校验。有问题由发起人改当前方案，不设驳回；改数清空确认。报废超金额仅提示，不挡确认。</div>' +
+      signHtml = '<div class="alert">Last Buy 必须按渠道/MSKU 拆开填写或导入，SKU 行只显示合计，不手填总数。成品报废、物料报废仍按 SKU。计划确认前会提示：确认后产品状态变为 EOM，将不可以再下采购单，请确认采购单是否已经下达。方案确认后不下推采购计划，由计划自行下 Last Buy。</div>' +
         '<div class="sign-row">' + pills + '</div>';
     }
     var scrapHint = scrapHintHtml(plan);
@@ -2152,8 +2474,10 @@
         '<p class="muted">原因：' + esc(p.reason) + '　附件：' + esc(names) + '　决策人：' + esc(p.decisionBy) + '　' + esc(p.at) + '</p></div>';
     }).join('') || '<div class="empty">暂无历史版本</div>';
     var footer = '<div class="footer-bar">';
+    footer += '<button class="btn" data-act="export-scheme" data-no="' + o.no + '">导出方案</button>';
     if (canEdit) {
       footer += '<button class="btn" data-act="save-plan" data-mode="draft" data-no="' + o.no + '">保存草稿</button>';
+      footer += '<button class="btn" data-act="import-lb" data-no="' + o.no + '">导入方案</button>';
       footer += '<button class="btn btn-primary" data-act="save-plan" data-mode="submit" data-no="' + o.no + '">保存</button>';
     }
     if (inDecision && canPlanSign(o) && pendingPlanSkus(o).length) {
@@ -2162,7 +2486,7 @@
     footer += '</div>';
     var fc = o.forecast || {};
     var fcWarn = (!fc.approved || fc.missing)
-      ? '<div class="alert warning">当前预测未刷新或为空。保存方案时会强提示，不硬拦。Last Buy 默认仍带核料最终下单数量。</div>'
+      ? '<div class="alert warning">当前预测未刷新或为空。保存方案时会强提示，不硬拦。Last Buy 已在核料定版时按 MSKU 最终下单带入，此后只在本页改。</div>'
       : '';
     return fcWarn + signHtml + scrapHint + head + reasonRow +
       '<div class="section-title">方案附件<span class="muted">　每份选择类型；Last Buy 计划时间、处理说明、费用归属、预计 EOL 写在文件里</span></div>' +
@@ -2198,7 +2522,7 @@
       var skuSpan = spanAt[idx];
       var first = skuSpan > 0;
       var rs = skuSpan > 1 ? ' rowspan="' + skuSpan + '"' : '';
-      var line = (plan.lines || {})[r.sku] || defaultPlanLine(r);
+      var line = ensureLineChannels(o, r.sku, (plan.lines || {})[r.sku] || defaultPlanLine(r));
       var mine = skuHasMine(m, r.sku);
       var signed = !!(s.skus && s.skus[r.sku]);
       var canPick = first && canPageConfirm && !signed && (mine || isPlanLeader());
@@ -2218,7 +2542,7 @@
       }
       var schemeCells = first ? (
         '<td class="cell-stack"' + rs + '>' + waysHtml + '</td>' +
-        '<td' + rs + '>' + (canEdit ? '<input class="input plan-num plan-lb" type="number" data-sku="' + esc(r.sku) + '" value="' + (line.lbQty || 0) + '" />' : num(line.lbQty)) + '</td>' +
+        '<td' + rs + '>' + num(line.lbQty) + '<div class="sub">渠道合计</div></td>' +
         '<td' + rs + '>' + (canEdit ? '<input class="input plan-num plan-fg" type="number" data-sku="' + esc(r.sku) + '" value="' + (line.scrapFg || 0) + '" />' : money(line.scrapFg)) + '</td>' +
         '<td' + rs + '>' + (canEdit ? '<input class="input plan-num plan-mat" type="number" data-sku="' + esc(r.sku) + '" value="' + (line.scrapMat || 0) + '" />' : money(line.scrapMat)) + '</td>' +
         '<td' + rs + '>' + (canEdit ? '<textarea class="textarea plan-conc" data-sku="' + esc(r.sku) + '">' + esc(line.conclusion || '') + '</textarea>' : esc(line.conclusion || '-')) + '</td>'
@@ -2241,28 +2565,33 @@
         '<td' + rs + '>' + (r.totalMaterialMoney == null ? '-' : (r.totalMaterialMoney + ' ' + (r.currency || ''))) + '</td>' +
         '<td' + rs + '><a data-act="open-chart" data-mid="' + m.serialNo + '" data-id="' + r.id + '">📈</a></td>' +
         '<td' + rs + '>' + displayDays(r.deliveryTime) + '</td>' +
-        '<td' + rs + '>' + num(r.finalOrderNum) + '</td>' +
+        '<td' + rs + '>' + (function () { var sm = skuFinalOrderSum(m, r.sku); return sm === '' ? '-' : num(sm); })() + '<div class="sub">核料合计</div></td>' +
         '<td' + rs + '>' + num(r.finalScrapAmount) + '</td>' +
         '<td' + rs + '>' + esc(r.finalScrapAmountReason || '-') + '</td>' +
         schemeCells
       ) : '';
+      var chQty = lineChannelQty(line, r.msku);
+      var chCell = '<td>' + (canEdit
+        ? '<input class="input plan-num plan-lb-ch" type="number" data-sku="' + esc(r.sku) + '" data-msku="' + esc(r.msku) + '" value="' + (chQty === '' ? 0 : chQty) + '" />'
+        : num(chQty === '' ? 0 : chQty)) + '<div class="sub">' + esc(shopMeta(r.mskuShop).channel) + '</div></td>';
       return '<tr>' + skuCells +
         '<td class="cell-stack">' + esc(r.planUser) + '<div class="sub">' + (r.planUserSource === 'leader' ? '计划部门负责人兜底' : '主数据') + '</div></td>' +
         '<td>' + esc(r.conclusion || '-') + '</td>' +
         '<td class="cell-stack">' + esc(r.msku) + '<div class="sub">店铺：' + esc(r.mskuShop) + '</div><div class="sub">状态：' + esc(r.mskuStatus) + '</div></td>' +
+        chCell +
         '<td class="cell-stack"><div>' + num(r.totalStock) + ' / ' + num(r.innerStock) + '</div><div>' + num(r.overseasStock) + ' / ' + num(r.buyingOnWay) + '</div></td>' +
         '<td>' + (r.mskuAvgDailySales == null ? '-' : r.mskuAvgDailySales) + '</td>' +
         '<td class="cell-stack"><div>' + num(r.surplus) + '</div><div>' + esc(r.money) + '</div></td>' +
         '<td class="cell-stack"><div>' + esc(r.overseasSalesDate) + '</div><div>' + esc(r.finishProductSalesDate) + '</div><div>' + esc(r.prepareMaterialsSalesDate) + '</div></td>' +
-        '<td class="left"><a data-act="toast" data-msg="已跳转销售 Forecast（原型占位）">查看forecast</a></td></tr>';
+        '<td class="left"><a data-act="go" data-page="psi">查看PSI</a></td></tr>';
     }).join('');
-    return '<div class="table-wrap"><table style="min-width:3900px"><thead><tr>' +
+    return '<div class="table-wrap"><table style="min-width:4100px"><thead><tr>' +
       '<th class="sku-check-cell">' + (canPageConfirm ? '<input type="checkbox" data-act="sku-pick-all" title="全选可确认的 SKU" />' : '') + '</th>' +
       '<th>model</th><th>sku</th><th>同步EOM配件</th><th>同步EOM配件（参与计算）</th><th>初始物料结余金额</th><th>物料消耗</th><th>实际总物料结余</th><th>实际总物料金额</th>' +
-      '<th>余料消耗图</th><th>下单后最快交付时间</th><th>建议下单数量</th><th>建议报废金额</th><th>原因</th>' +
-      '<th>清库方式</th><th>Last Buy数量</th><th>成品报废金额</th><th>物料报废金额</th><th>方案结论</th>' +
+      '<th>余料消耗图</th><th>下单后最快交付时间</th><th>核料最终下单合计</th><th>建议报废金额</th><th>原因</th>' +
+      '<th>清库方式</th><th>Last Buy汇总</th><th>成品报废金额</th><th>物料报废金额</th><th>方案结论</th>' +
       '<th>计划负责人</th><th>核料结论</th>' +
-      '<th>msku</th><th>总库存/国内在库/<br>海外库存/采购在途</th><th>平均日销</th><th>EOM发起时DM结余数量<br>EOM发起时DM结余金额</th>' +
+      '<th>msku</th><th>渠道 Last Buy</th><th>总库存/国内在库/<br>海外库存/采购在途</th><th>平均日销</th><th>EOM发起时DM结余数量<br>EOM发起时DM结余金额</th>' +
       '<th>理论海外库存售完日期<br>理论全流程成品库存售完日期<br>理论全流程库存备料售完日期</th><th>按钮</th>' +
       '</tr></thead><tbody>' + rows + '</tbody></table></div>';
   }
@@ -2319,45 +2648,6 @@
       '<button class="btn" data-act="close-mask" data-mask="formMask">关闭</button>'
     );
   }
-  function openForecast(o, tk) {
-    var f = o.forecast || { current: 0, m3: 0, m2: 0, m1: 0, stock: 0, dos: 0, acceptLb: '', missing: false };
-    UI.form = { type: 'forecast', no: o.no, tid: tk.id };
-    openForm('刷新销售预测',
-      (f.missing ? '<div class="alert warning">当前有效预测缺失。提交空值将保持数据异常标识；方案页会强提示，不硬拦提交、不挡核料。</div>' : '<div class="alert">提交后保存预测版本和提交时间，刷新台账。不改变工单阶段，已确认/已定版核料不解锁。</div>') +
-      '<div class="detail-head" style="grid-template-columns:repeat(3,1fr);margin-bottom:12px">' +
-        '<div><label>当前有效预测</label><b>' + num(f.current) + '</b></div><div><label>近三月销量</label><b>' + [f.m3, f.m2, f.m1].map(num).join(' / ') + '</b></div>' +
-        '<div><label>当前库存 / PSI DOS</label><b>' + num(f.stock) + ' / ' + f.dos + '天</b></div></div>' +
-      '<div class="form-item"><label class="form-label">可接受Last Buy数量</label><div class="form-control"><input class="input" id="acceptLb" value="' + esc(f.acceptLb) + '" placeholder="如 1100-1300" /></div></div>' +
-      '<div class="form-item" style="margin-top:12px"><label class="form-label">预测数量</label><div class="form-control"><input class="input" id="fcVal" type="number" value="' + (f.current || '') + '" /></div></div>',
-      '<button class="btn" data-act="close-mask" data-mask="formMask">取消</button><button class="btn btn-primary" data-act="save-forecast">提交预测</button>'
-    );
-  }
-  function saveForecast() {
-    var o = findOrder(UI.form.no);
-    var val = Number(document.getElementById('fcVal').value || 0);
-    var lb = document.getElementById('acceptLb').value.trim();
-    o.forecast = o.forecast || {};
-    o.forecast.current = val;
-    o.forecast.acceptLb = lb;
-    o.forecast.submittedAt = nowStr();
-    o.forecast.version = (o.forecast.version || 0) + 1;
-    o.forecast.missing = !val;
-    var tk = (o.tasks || []).find(function (t) { return t.id === UI.form.tid; });
-    if (val) {
-      o.exception = o.exception === '数据异常' ? '' : o.exception;
-      if (tk) { tk.status = '已完成'; tk.doneAt = nowStr().slice(5, 16); tk.result = '可接受LB ' + lb; }
-      addLog(o, '完成预测刷新', '已刷新预测，版本 V' + o.forecast.version + '。工单阶段仍为「' + o.stage + '」，不解锁已确认核料。');
-      toast('预测已提交，已刷新台账，不改变工单阶段', 'success');
-    } else {
-      o.exception = '数据异常';
-      if (tk) { tk.status = '处理中'; tk.result = '预测仍缺失'; }
-      addLog(o, '数据异常', '预测提交为空，方案页将强提示，不硬拦');
-      toast('预测仍缺失，工单保持数据异常标识，不挡核料与方案提交', 'warning');
-    }
-    persist();
-    closeMask('formMask');
-    go('order', o.no);
-  }
 
   function findDetail(mid, id) {
     var m = findMaterial(mid);
@@ -2398,7 +2688,10 @@
     if (!o) return;
     (m.details || []).forEach(function (d) {
       var sku = (o.skus || []).find(function (s) { return s.sku === d.sku; });
-      if (sku) sku.lbQty = d.finalOrderNum || d.suggestOrderNum;
+      if (sku) {
+        var sum = skuFinalOrderSum(m, d.sku);
+        sku.lbQty = sum === '' ? (d.suggestOrderNum || 0) : sum;
+      }
     });
   }
   function openFitting(mid, id) {
@@ -2424,8 +2717,8 @@
   function openField(mid, id, field, label) {
     var m = findMaterial(mid);
     var d = findDetail(mid, id);
-    var ok = field === 'conclusion' ? canEditConclusion(m, d) : canEditSkuLevel(m, d);
-    if (!ok) { toast(m.status === 4 ? '定版后不可编辑' : (field === '结论' || field === 'conclusion' ? '只能编辑我负责的 MSKU 结论（计划部门负责人可代编）' : '只能编辑我负责且尚未确认的 SKU（计划部门负责人可代编）'), 'warning'); return; }
+    var ok = (field === 'conclusion' || field === 'finalOrderNum') ? canEditConclusion(m, d) : canEditSkuLevel(m, d);
+    if (!ok) { toast(m.status === 4 ? '定版后不可编辑' : (field === '结论' || field === 'conclusion' || field === 'finalOrderNum' ? '只能编辑我负责的 MSKU（计划部门负责人可代编）' : '只能编辑我负责且尚未确认的 SKU（计划部门负责人可代编）'), 'warning'); return; }
     UI.form = { type: 'field', mid: mid, id: id, field: field, sku: d.sku, msku: d.msku };
     var ctrl;
     if (field === 'conclusion') ctrl = '<select class="select" id="fVal">' + CONCLUSIONS.map(function (x) { return '<option' + (d[field] === x ? ' selected' : '') + '>' + x + '</option>'; }).join('') + '</select>';
@@ -2434,8 +2727,10 @@
     else ctrl = '<input class="input" id="fVal" type="number" value="' + (d[field] === '' || d[field] == null ? '' : d[field]) + '" />';
     var tip = field === 'conclusion'
       ? '结论按 MSKU 一份，只改当前 ' + esc(d.msku || d.sku) + '。'
-      : '同一 SKU 多店铺共用这一份数量/金额/原因/交付天数。';
-    openForm('编辑' + label + (field === 'conclusion' ? '（MSKU ' + d.msku + '）' : '（SKU ' + d.sku + '）'), '<div class="alert">' + tip + '</div><div class="form-item"><label class="form-label">' + esc(label) + '</label><div class="form-control">' + ctrl + '</div></div>',
+      : (field === 'finalOrderNum'
+        ? '最终下单按 MSKU 填写，只改当前 ' + esc(d.msku || d.sku) + '。SKU 行显示合计、不可改。改数写入核料日志，页面不展示初盘。定版后带入方案，之后只在方案页改。'
+        : '同一 SKU 多店铺共用这一份报废金额/原因/交付天数。');
+    openForm('编辑' + label + (field === 'conclusion' || field === 'finalOrderNum' ? '（MSKU ' + d.msku + '）' : '（SKU ' + d.sku + '）'), '<div class="alert">' + tip + '</div><div class="form-item"><label class="form-label">' + esc(label) + '</label><div class="form-control">' + ctrl + '</div></div>',
       '<button class="btn" data-act="close-mask" data-mask="formMask">取消</button><button class="btn btn-primary" data-act="save-field">确定</button>', false);
   }
   function saveField() {
@@ -2447,13 +2742,22 @@
       if (v === '') { toast('请填写数值', 'warning'); return; }
       patch[UI.form.field] = Number(v);
     } else patch[UI.form.field] = v;
+    var cur = findDetail(UI.form.mid, UI.form.id);
     if (UI.form.field === 'conclusion') {
+      logMatConc(m, cur, cur.conclusion, patch.conclusion);
       applyRowPatch(m, UI.form.id, patch);
       persist(); closeMask('formMask'); toast('已按 MSKU ' + (UI.form.msku || '') + ' 保存结论', 'success'); renderAll();
       return;
     }
+    if (UI.form.field === 'finalOrderNum') {
+      logMatQty(m, cur, cur.finalOrderNum, patch.finalOrderNum);
+      applyRowPatch(m, UI.form.id, patch);
+      syncSuggestToOrder(UI.form.mid);
+      persist(); closeMask('formMask'); toast('已按 MSKU ' + (UI.form.msku || '') + ' 保存最终下单', 'success'); renderAll();
+      return;
+    }
+    logMatSkuField(m, sku, UI.form.field, cur[UI.form.field], patch[UI.form.field]);
     applySkuPatch(m, sku, patch);
-    syncSuggestToOrder(UI.form.mid);
     persist(); closeMask('formMask'); toast('已按 SKU ' + sku + ' 保存', 'success'); renderAll();
   }
   function reclc(no) {
@@ -2490,7 +2794,9 @@
       if (!(o.tasks || []).some(function (t) { return t.kind === 'plan'; })) {
         o.tasks.push({ id: 'tp' + Date.now(), node: '方案确认', name: '确认清库及Last Buy方案', role: 'GTM/计划', owner: '王天天 / 计划负责人', due: today(), status: '待处理', kind: 'plan', notice: 'GTM确认整单，计划各自确认自己的SKU。两边都齐后进入EOM执行', result: '', doneAt: '' });
       }
-      addLog(o, '核料定版', '本单全部 SKU 已确认，关联核料单 ' + m.serialNo);
+      addLog(o, '核料定版', '本单全部 SKU 已确认，关联核料单 ' + m.serialNo + '。已按 MSKU 最终下单带入清库方案 Last Buy，此后只在方案页改。');
+      applyMaterialQtyToScheme(o, m);
+      addMatLog(m, '核料定版', '已按 MSKU 最终下单带入清库方案 Last Buy，此后核料锁定，只在方案页改。');
     }
     persist(); toast('全部 SKU 已确认，核料已定版，工单进入待方案决策', 'success'); renderAll();
   }
@@ -2545,7 +2851,13 @@
   }
 
   function matCsvHeader() {
-    return ['EOM流水号', '核料流水号', '8位SKU', 'MSKU', '计划负责人', '下单后最快交付时间(天)', '建议下单数量', '建议报废金额', '原因', '结论'];
+    return ['EOM流水号', '核料流水号', '8位SKU', 'MSKU', '计划负责人', '下单后最快交付时间(天)（SKU维度）', '最终下单数量', '建议报废金额（SKU维度）', '原因（SKU维度）', '结论'];
+  }
+  function schemeCsvHeader() {
+    return ['8位SKU', 'MSKU', '渠道Last Buy', '清库方式（SKU维度）', '成品报废金额（SKU维度）', '物料报废金额（SKU维度）', '方案结论（SKU维度）'];
+  }
+  function schemeCsvRow(sku, c, line) {
+    return [sku, c.msku, c.lbQty || 0, (line.clearWays || []).join('、'), line.scrapFg || 0, line.scrapMat || 0, line.conclusion || ''];
   }
   function skuCsvRow(m, d) {
     return [m.eomNo || '', m.serialNo, d.sku, d.msku || '', d.planUser || '', d.deliveryTime === '-' || d.deliveryTime == null ? '' : d.deliveryTime, d.finalOrderNum === '-' || d.finalOrderNum == null ? '' : d.finalOrderNum, d.finalScrapAmount === '-' || d.finalScrapAmount == null ? '' : d.finalScrapAmount, !d.finalScrapAmountReason || d.finalScrapAmountReason === '-' ? '' : d.finalScrapAmountReason, !d.conclusion || d.conclusion === '-' ? '' : d.conclusion];
@@ -2555,7 +2867,7 @@
     if (!m || !m.eomNo) { toast('仅支持按当前工单导出', 'warning'); return; }
     UI.form = { type: 'export-mat', no: no };
     openForm('导出核料结论',
-      '<div class="alert">一次只导出当前工单 ' + esc(m.eomNo) + '。默认只出我负责的 MSKU（含部门负责人兜底）。勾选后可导出本单全部，他人行导入时会被跳过。结论按 MSKU；数量/金额/原因按 SKU。</div>' +
+      '<div class="alert">一次只导出当前工单 ' + esc(m.eomNo) + '。默认只出我负责的 MSKU（含部门负责人兜底）。勾选后可导出本单全部，他人行导入时会被跳过。最终下单、结论按 MSKU；报废金额/原因/交付天数按 SKU，列名带（SKU维度）。</div>' +
       '<label class="radio"><input type="checkbox" id="expAll" /> 导出本单全部明细（他人行只读对照）</label>',
       '<button class="btn" data-act="close-mask" data-mask="formMask">取消</button><button class="btn btn-primary" data-act="do-export-mat">导出 CSV</button>');
   }
@@ -2600,10 +2912,15 @@
       return out;
     }
     var header = split(lines[0]).map(function (h) { return h.trim(); });
+    var stripDim = function (h) {
+      return String(h || '').replace(/[（(]SKU维度[）)]/g, '').replace(/\s+/g, '').trim();
+    };
     var idx = function (names) {
+      var stripped = names.map(stripDim);
       for (var i = 0; i < names.length; i++) {
-        var n = names[i];
-        for (var j = 0; j < header.length; j++) if (header[j] === n) return j;
+        for (var j = 0; j < header.length; j++) {
+          if (header[j] === names[i] || stripDim(header[j]) === stripped[i]) return j;
+        }
       }
       return -1;
     };
@@ -2612,11 +2929,16 @@
       hl: idx(['核料流水号', '核料单号']),
       sku: idx(['8位SKU', 'SKU', 'sku']),
       msku: idx(['MSKU', 'msku']),
-      days: idx(['下单后最快交付时间(天)', '下单后最快交付时间', '交付时间']),
-      qty: idx(['建议下单数量', '最终下单数量']),
-      amt: idx(['建议报废金额', '最终报废金额']),
-      reason: idx(['原因']),
-      conc: idx(['结论'])
+      days: idx(['下单后最快交付时间(天)（SKU维度）', '下单后最快交付时间(天)', '下单后最快交付时间', '交付时间']),
+      qty: idx(['最终下单数量', '建议下单数量']),
+      amt: idx(['建议报废金额（SKU维度）', '建议报废金额', '最终报废金额（SKU维度）', '最终报废金额']),
+      reason: idx(['原因（SKU维度）', '原因']),
+      conc: idx(['结论']),
+      lb: idx(['渠道Last Buy', 'Last Buy', 'lastBuy', 'lbQty']),
+      ways: idx(['清库方式（SKU维度）', '清库方式']),
+      scrapFg: idx(['成品报废金额（SKU维度）', '成品报废金额']),
+      scrapMat: idx(['物料报废金额（SKU维度）', '物料报废金额']),
+      schemeConc: idx(['方案结论（SKU维度）', '方案结论'])
     };
     return lines.slice(1).map(function (line, i) {
       var c = split(line).map(function (x) { return String(x == null ? '' : x).trim(); });
@@ -2630,7 +2952,12 @@
         qty: col.qty >= 0 ? c[col.qty] : '',
         amt: col.amt >= 0 ? c[col.amt] : '',
         reason: col.reason >= 0 ? c[col.reason] : '',
-        conc: col.conc >= 0 ? c[col.conc] : ''
+        conc: col.conc >= 0 ? c[col.conc] : '',
+        lb: col.lb >= 0 ? c[col.lb] : '',
+        ways: col.ways >= 0 ? c[col.ways] : '',
+        scrapFg: col.scrapFg >= 0 ? c[col.scrapFg] : '',
+        scrapMat: col.scrapMat >= 0 ? c[col.scrapMat] : '',
+        schemeConc: col.schemeConc >= 0 ? c[col.schemeConc] : ''
       };
     });
   }
@@ -2641,8 +2968,8 @@
     UI.form = { type: 'import-mat', no: no };
     var sample = [matCsvHeader().join(',')].concat(myDetailRows(m).map(function (d) { return skuCsvRow(m, d).join(','); })).join('\n');
     openForm('导入核料结论（仅当前工单）',
-      '<div class="alert">一次只能导入 ' + esc(m.eomNo) + '。一行一个 MSKU。结论只写该 MSKU；数量/金额/原因按 SKU 覆盖。普通计划只覆盖自己未确认的行；计划部门负责人可覆盖本单全部未确认行。</div>' +
-      '<p class="muted">模板列：EOM流水号,核料流水号,8位SKU,MSKU,计划负责人,下单后最快交付时间(天),建议下单数量,建议报废金额,原因,结论（兼容旧列名「最终*」）</p>' +
+      '<div class="alert">一次只能导入 ' + esc(m.eomNo) + '。一行一个 MSKU。最终下单、结论只写该 MSKU；标了（SKU维度）的交付时间、报废金额、原因按 SKU 覆盖。普通计划只覆盖自己未确认的行；计划部门负责人可覆盖本单全部未确认行。导入写入核料日志，不自动确认。</div>' +
+      '<p class="muted">模板列：EOM流水号,核料流水号,8位SKU,MSKU,计划负责人,下单后最快交付时间(天)（SKU维度）,最终下单数量,建议报废金额（SKU维度）,原因（SKU维度）,结论</p>' +
       '<textarea class="textarea" id="impCsv" style="min-height:160px">' + esc(sample) + '</textarea>' +
       '<div style="margin-top:8px"><input type="file" id="impFile" accept=".csv,.txt" /></div>',
       '<button class="btn" data-act="close-mask" data-mask="formMask">取消</button><button class="btn btn-primary" data-act="do-import-mat">导入</button>', 'xl');
@@ -2666,6 +2993,7 @@
     var rows = parseCsvText(document.getElementById('impCsv').value);
     if (!rows.length) { toast('没有可导入的数据行', 'warning'); return; }
     var seen = {};
+    var skuFieldLogged = {};
     var ok = 0; var skip = []; var fail = [];
     rows.forEach(function (r) {
       if (!r.sku) { fail.push('第' + r.row + '行：缺少 SKU'); return; }
@@ -2688,18 +3016,33 @@
       if (r.conc && !conc) { fail.push('第' + r.row + '行：结论枚举无效'); return; }
       if (r.reason && !reason) { fail.push('第' + r.row + '行：原因枚举无效'); return; }
       if (r.days !== '' && isNaN(Number(r.days))) { fail.push('第' + r.row + '行：交付时间须为天数'); return; }
+      if (r.qty !== '' && isNaN(Number(r.qty))) { fail.push('第' + r.row + '行：最终下单须为数字'); return; }
       var skuPatch = {};
       if (r.days !== '') skuPatch.deliveryTime = Number(r.days);
-      if (r.qty !== '') skuPatch.finalOrderNum = Number(r.qty);
       if (r.amt !== '') skuPatch.finalScrapAmount = Number(r.amt);
       if (reason) skuPatch.finalScrapAmountReason = reason;
-      if (Object.keys(skuPatch).length) applySkuPatch(m, r.sku, skuPatch);
-      if (conc) applyRowPatch(m, hit.id, { conclusion: conc });
+      if (Object.keys(skuPatch).length) {
+        if (!skuFieldLogged[r.sku]) {
+          Object.keys(skuPatch).forEach(function (k) { logMatSkuField(m, r.sku, k, hit[k], skuPatch[k]); });
+          skuFieldLogged[r.sku] = 1;
+        }
+        applySkuPatch(m, r.sku, skuPatch);
+      }
+      if (r.qty !== '') {
+        var nextQty = Number(r.qty);
+        logMatQty(m, hit, hit.finalOrderNum, nextQty);
+        applyRowPatch(m, hit.id, { finalOrderNum: nextQty });
+      }
+      if (conc) {
+        logMatConc(m, hit, hit.conclusion, conc);
+        applyRowPatch(m, hit.id, { conclusion: conc });
+      }
       ok += 1;
     });
     syncSuggestToOrder(m.serialNo);
     var o = findOrder(m.eomNo);
     if (o) addLog(o, '导入核料结论', STATE.currentUser.name + ' 成功 ' + ok + ' 行，跳过 ' + skip.length + '，失败 ' + fail.length);
+    addMatLog(m, '导入核料结论', STATE.currentUser.name + ' 成功 ' + ok + ' 行，跳过 ' + skip.length + '，失败 ' + fail.length);
     persist();
     closeMask('formMask');
     var msg = '导入完成：成功 ' + ok + ' 行（未自动确认）';
@@ -2707,6 +3050,131 @@
     if (fail.length) msg += '；失败 ' + fail.slice(0, 4).join('；') + (fail.length > 4 ? '…' : '');
     toast(msg, fail.length ? 'warning' : 'success');
     renderAll();
+  }
+  function openImportLb(no) {
+    var o = findOrder(no);
+    if (!o || !canEditPlanFields(o)) { toast('当前不可改清库方案', 'warning'); return; }
+    var plan = ensureOrderPlan(o);
+    if (document.querySelector('.plan-lb-ch')) plan.lines = collectPlanLinesFromDom(o);
+    var sampleRows = [schemeCsvHeader().join(',')];
+    Object.keys(plan.lines || {}).forEach(function (sku) {
+      var line = ensureLineChannels(o, sku, plan.lines[sku]);
+      (line.channels || []).forEach(function (c) {
+        sampleRows.push(schemeCsvRow(sku, c, line).join(','));
+      });
+    });
+    UI.form = { type: 'import-lb', no: no };
+    openForm('导入清库方案',
+      '<div class="alert">一行一个 MSKU。渠道 Last Buy 只写该 MSKU；标了（SKU维度）的清库方式、成品报废、物料报废、方案结论按 SKU 覆盖。SKU 行 Last Buy 合计自动重算。</div>' +
+      '<p class="muted">模板列：' + schemeCsvHeader().join(',') + '</p>' +
+      '<textarea class="textarea" id="impLbCsv" style="min-height:160px">' + esc(sampleRows.join('\n')) + '</textarea>' +
+      '<div style="margin-top:8px"><input type="file" id="impLbFile" accept=".csv,.txt" /></div>',
+      '<button class="btn" data-act="close-mask" data-mask="formMask">取消</button><button class="btn btn-primary" data-act="do-import-lb">导入</button>', 'xl');
+    setTimeout(function () {
+      var f = document.getElementById('impLbFile');
+      if (!f) return;
+      f.addEventListener('change', function () {
+        var file = this.files && this.files[0];
+        if (!file) return;
+        if (/\.xlsx?$/i.test(file.name)) { toast('原型请用 CSV。正式环境再接 Excel。', 'warning'); return; }
+        var reader = new FileReader();
+        reader.onload = function () { document.getElementById('impLbCsv').value = reader.result; };
+        reader.readAsText(file, 'utf-8');
+      });
+    }, 0);
+  }
+  function doImportLb() {
+    var o = findOrder(UI.form && UI.form.no);
+    if (!o || !canEditPlanFields(o)) { toast('当前不可改清库方案', 'warning'); return; }
+    var plan = ensureOrderPlan(o);
+    var rows = parseCsvText(document.getElementById('impLbCsv').value);
+    if (!rows.length) { toast('没有可导入的数据行', 'warning'); return; }
+    var ok = 0; var fail = [];
+    rows.forEach(function (r) {
+      if (!r.sku) { fail.push('第' + r.row + '行：缺少 SKU'); return; }
+      if (!plan.lines[r.sku]) { fail.push('第' + r.row + '行：SKU ' + r.sku + ' 不在本方案'); return; }
+      var line = ensureLineChannels(o, r.sku, plan.lines[r.sku]);
+      var hit;
+      if (r.msku) hit = (line.channels || []).filter(function (c) { return c.msku === r.msku; })[0];
+      else if ((line.channels || []).length === 1) hit = line.channels[0];
+      else { fail.push('第' + r.row + '行：SKU ' + r.sku + ' 有多个 MSKU，请填写 MSKU'); return; }
+      if (!hit) { fail.push('第' + r.row + '行：MSKU ' + r.msku + ' 不在本方案'); return; }
+      var qty = r.lb !== '' ? r.lb : r.qty;
+      if (qty === '' || isNaN(Number(qty))) { fail.push('第' + r.row + '行：Last Buy 须为数字'); return; }
+      hit.lbQty = Number(qty);
+      if (r.ways) {
+        var parsed = r.ways.split(/[、,;\/]/).map(function (w) { return String(w || '').replace(/\s/g, ''); }).filter(Boolean);
+        var okWays = parsed.filter(function (w) { return CLEAR_WAYS.indexOf(w) >= 0; });
+        if (!okWays.length) { fail.push('第' + r.row + '行：清库方式无效'); return; }
+        line.clearWays = okWays;
+      }
+      if (r.scrapFg !== '') {
+        if (isNaN(Number(r.scrapFg))) { fail.push('第' + r.row + '行：成品报废须为数字'); return; }
+        line.scrapFg = Number(r.scrapFg);
+      }
+      if (r.scrapMat !== '') {
+        if (isNaN(Number(r.scrapMat))) { fail.push('第' + r.row + '行：物料报废须为数字'); return; }
+        line.scrapMat = Number(r.scrapMat);
+      }
+      if (r.schemeConc) line.conclusion = r.schemeConc;
+      plan.lines[r.sku] = line;
+      ok += 1;
+    });
+    syncPlanSums(plan);
+    addLog(o, '导入方案', STATE.currentUser.name + ' 成功 ' + ok + ' 行，失败 ' + fail.length);
+    persist();
+    closeMask('formMask');
+    var msg = '导入完成：成功 ' + ok + ' 行';
+    if (fail.length) msg += '；失败 ' + fail.slice(0, 4).join('；') + (fail.length > 4 ? '…' : '');
+    toast(msg, fail.length ? 'warning' : 'success');
+    UI.detailTab = 'plans';
+    go('order', o.no);
+  }
+  function openExportScheme(no) {
+    var o = findOrder(no);
+    if (!o) { toast('未找到工单', 'warning'); return; }
+    var plan = ensureOrderPlan(o);
+    if (document.querySelector('.plan-lb-ch')) plan.lines = collectPlanLinesFromDom(o);
+    var rows = [];
+    Object.keys(plan.lines || {}).forEach(function (sku) {
+      var line = ensureLineChannels(o, sku, plan.lines[sku]);
+      (line.channels || []).forEach(function (c) {
+        rows.push(schemeCsvRow(sku, c, line));
+      });
+    });
+    if (!rows.length) { toast('没有可导出的方案明细', 'warning'); return; }
+    exportCsv('清库方案-' + o.no + '.csv', schemeCsvHeader(), rows);
+  }
+  function tryCreatePurchase(kind) {
+    var list = ensurePurchasePlans();
+    if (!STATE.seq) STATE.seq = {};
+    if (!STATE.seq.po) STATE.seq.po = 26091590;
+    if (kind === 'eom') {
+      toast('H619901-US-AMZ 产品状态已是 EOM，预计 EOL 2026-11-30。状态变为 EOM 后不可以再下采购单。', 'warning');
+      return;
+    }
+    var isLb = kind !== 'normal';
+    var msg = '即将创建' + (isLb ? ' Last Buy ' : '常规量产') + '采购计划。\nMSKU：H810201-US-AMZ\n产品状态：准备 EOM\n预计 EOL：2026-12-15\n\n不校验与清库方案 Last Buy 数量是否一致。是否继续？';
+    if (!confirm(msg)) return;
+    list.push({
+      no: 'PP' + (++STATE.seq.po),
+      type: '量产采购计划',
+      orderType: '量产',
+      shop: 'Amazon US',
+      sku: 'H810201',
+      msku: 'H810201-US-AMZ',
+      qty: isLb ? 200 : 100,
+      status: '待TL审核',
+      productStatus: '准备EOM',
+      tag: isLb ? 'Last Buy' : '',
+      remark: isLb ? '计划自行下 Last Buy · EOM20260828002' : '准备EOM期间常规量产 · EOM20260828002',
+      source: 'plan',
+      eomNo: 'EOM20260828002',
+      regularClosed: false
+    });
+    persist();
+    toast('已创建。数量未与方案 Last Buy 校验。', 'success');
+    renderPurchase();
   }
   function assignPlanUser(mid, msku) {
     var name = prompt('将 ' + msku + ' 的计划负责人从部门负责人改为（模拟主数据维护）', '刘洋');
@@ -2728,7 +3196,7 @@
     UI.highlightConfirm = true;
     UI.detailTab = 'material';
     go('order', o.no);
-    toast('请在核料页勾选 8 位 SKU 后点「确认所选 SKU」。页面可直接改数，导入只用于快录。', 'success');
+    toast('请在核料页勾选 8 位 SKU 后点「确认所选 SKU」。最终下单按 MSKU 填，导入只用于快录。', 'success');
   }
   function skuConfirm(mid) {
     var m = findMaterial(mid);
@@ -2808,6 +3276,44 @@
     toast('已刷新 Forecast 台账；已确认/已定版不解锁，阶段不变，不发通知', 'success');
     go('order', o.no);
   }
+  function ensurePurchasePlans() {
+    if (!STATE.purchasePlans) STATE.purchasePlans = [];
+    if (!STATE.seq) STATE.seq = {};
+    if (!STATE.seq.po) STATE.seq.po = 26091501;
+    return STATE.purchasePlans;
+  }
+  function pushLastBuyToPurchase(o) {
+    var list = ensurePurchasePlans();
+    list = list.filter(function (p) { return !(p.eomNo === o.no && p.tag === 'Last Buy'); });
+    var plan = currentPlan(o);
+    orderSkuList(o).forEach(function (sku) {
+      var line = plan && plan.lines && plan.lines[sku];
+      line = ensureLineChannels(o, sku, line || defaultPlanLine(firstDetailOfSku(materialOfOrder(o), sku)));
+      (line.channels || []).forEach(function (c) {
+        var qty = Number(c.lbQty || 0);
+        if (!qty) return;
+        list.push({
+          no: 'PP' + Date.now().toString().slice(-8) + Math.floor(Math.random() * 90),
+          type: '量产采购计划',
+          orderType: '量产',
+          shop: c.shop,
+          sku: sku,
+          msku: c.msku,
+          qty: qty,
+          status: '待TL审核',
+          productStatus: 'EOM',
+          tag: 'Last Buy',
+          remark: 'EOM Last Buy 下推 · ' + o.no,
+          source: 'eom',
+          eomNo: o.no,
+          regularClosed: true
+        });
+      });
+    });
+    STATE.purchasePlans = list;
+    o.regularOrderClosed = true;
+    o.lbPushed = true;
+  }
   function lockBaseStock(o) {
     var plan = currentPlan(o);
     (o.skus || []).forEach(function (s) {
@@ -2834,7 +3340,10 @@
       s.lbStatus = actual ? '已下单' : (s.lbStatus || '无需LB');
       s.lbOrder = nowStr().slice(0, 10);
     });
-    addLog(o, 'Last Buy实际下单', '已用实际数量替换预计；基准库存不改');
+    (STATE.purchasePlans || []).forEach(function (p) {
+      if (p.eomNo === o.no && p.tag === 'Last Buy') p.status = '已下单';
+    });
+    addLog(o, 'Last Buy实际下单', '已用实际数量替换预计；采购计划已标 Last Buy 已下单；基准库存不改');
     persist(); toast('已用实际下单替换预计，基准库存锁定不变', 'success');
     UI.detailTab = 'sku';
     go('order', o.no);
@@ -2866,10 +3375,11 @@
       }
     });
     lockBaseStock(o);
-    addLog(o, '方案生效', 'GTM 与计划均已确认，进入EOM执行。基准库存=当时库存+预计Last Buy');
+    o.regularOrderClosed = true;
+    addLog(o, '方案生效', 'GTM 与计划均已确认，进入EOM执行。产品状态变为 EOM，不可以再下采购单。Last Buy 由计划在采购计划自行下达，本工单不下推。基准库存=当时库存+方案 Last Buy');
     pushNotice('gtm', { group: '发起人', kind: 'msg', title: '方案已生效，进入正式 EOM', body: '计划确认已齐。工单进入 EOM 执行，三路清尾看台账。' }, o);
     pushNotice('sales', { kind: 'msg', title: '已正式 EOM，请按方案清库', body: '方案已生效。请按清库方式处理成品库存，进度看台账。不在 GTM 点完成。' }, o);
-    persist(); toast('已确认，进入 EOM 执行', 'success'); go('order', o.no);
+    persist(); toast('已确认，进入 EOM 执行。产品状态已是 EOM，不可以再下采购单', 'success'); go('order', o.no);
   }
   function checkRow(ok, hard, name, pass, fail) {
     return '<tr><td>' + (ok ? tag('通过', 'green') : (hard ? tag('拦截', 'red') : tag('提示', 'orange'))) + '</td><td>' + name + '</td><td class="left">' + esc(ok ? pass : fail) + '</td></tr>';
@@ -2936,6 +3446,7 @@
       if (!pending.length) { toast('没有待确认的计划 SKU', 'warning'); return; }
       var blocked = pending.map(function (sku) { return schemeSkuBlockReason(o, sku); }).filter(Boolean);
       if (blocked.length) { toast(blocked.join('；'), 'warning'); return; }
+      if (!planConfirmPoWarn(o, pending)) return;
       pending.forEach(function (sku) { s.skus[sku] = true; });
       addLog(o, '计划确认方案', isPlanLeader()
         ? (STATE.currentUser.name + '（计划部门负责人）代确认全部未确认 SKU：' + pending.join('、'))
@@ -3058,6 +3569,24 @@
     persist();
     renderOrderDetail();
   }
+  function skuStatusOf(o, sku) {
+    var s = (o.skus || []).filter(function (x) { return x.sku === sku; })[0] || {};
+    return s.status || '准备EOM';
+  }
+  function skuEolOf(o, sku) {
+    var s = (o.skus || []).filter(function (x) { return x.sku === sku; })[0] || {};
+    return s.eol || o.eol || '-';
+  }
+  function planConfirmPoWarn(o, skuList) {
+    var lines = (skuList || []).map(function (sku) {
+      return sku + '　状态：' + skuStatusOf(o, sku) + '　预计EOL：' + skuEolOf(o, sku);
+    }).join('\n');
+    var s = ensureSchemeSign(o);
+    var pending = pendingPlanSkus(o);
+    var left = pending.filter(function (sku) { return skuList.indexOf(sku) < 0; });
+    var extra = (s.gtm && !left.length) ? '\n\n本次确认后将进入正式 EOM，产品状态变为 EOM。' : '\n\n确认后，这些 SKU 在方案齐套进入正式 EOM 时将变为 EOM。';
+    return confirm('方案确认后产品状态将变为 EOM，将不可以再下采购单（与现在一致）。\n请确认 Last Buy 采购单是否已经下达。\n\n' + lines + extra);
+  }
   function schemeSkuConfirm(no) {
     var o = findOrder(no);
     if (!o || o.stage !== '待方案决策') { toast('仅待方案决策可确认方案', 'warning'); return; }
@@ -3075,10 +3604,11 @@
       if (!isPlanLeader() && !skuHasMine(m, sku)) { skip.push(sku + ' 不是我负责'); return; }
       var block = schemeSkuBlockReason(o, sku);
       if (block) { skip.push(block); return; }
-      s.skus[sku] = true;
       ok.push(sku);
     });
     if (!ok.length) { toast(skip.join('；') || '没有可确认的 SKU', 'warning'); return; }
+    if (!planConfirmPoWarn(o, ok)) return;
+    ok.forEach(function (sku) { s.skus[sku] = true; });
     addLog(o, '计划确认方案', STATE.currentUser.name + ' 确认 ' + ok.join('、'));
     persist();
     if (!tryEnterEom(o)) {
@@ -3177,11 +3707,12 @@
     return !!(o && o.reverse && o.reverse.oaStatus === '审批中');
   }
   function canStartReverse(o) {
-    return !!(isAfterFormalEom(o) && !reversePending(o) && !isReverseLocked(o));
+    return !!(isAfterFormalEom(o) && !reversePending(o) && !isReverseLocked(o) && isGtmOf(o));
   }
   function reverseStartBlock(o) {
     if (isReverseLocked(o)) { reverseLockedToast(); return true; }
     if (!isAfterFormalEom(o)) { toast('尚未正式 EOM，不能反 EOM；此阶段请关闭工单', 'warning'); return true; }
+    if (!isGtmOf(o)) { toast('仅本单发起人可发起反 EOM，其他角色不能反别人的单', 'warning'); return true; }
     if (reversePending(o)) { toast('已有审批中的反 EOL OA，不可再发', 'warning'); return true; }
     return false;
   }
@@ -3190,7 +3721,7 @@
     if (!r || !r.oaNo) return '';
     var cls = r.oaStatus === '已通过' ? 'success' : (r.oaStatus === '审批中' ? 'warning' : 'danger');
     var btns = '';
-    if (r.oaStatus === '审批中') {
+    if (r.oaStatus === '审批中' && isGtmOf(o)) {
       btns = ' <button class="btn" data-act="reverse-oa" data-no="' + o.no + '" data-result="已通过">模拟OA通过</button>' +
         ' <button class="btn" data-act="reverse-oa" data-no="' + o.no + '" data-result="已驳回">模拟OA驳回</button>' +
         ' <button class="btn" data-act="reverse-oa" data-no="' + o.no + '" data-result="已撤销">模拟OA撤销</button>';
@@ -3244,7 +3775,7 @@
     }).join('');
     openForm('发起反EOM',
       '<div class="oa-form">' +
-        '<div class="alert">对齐现网 OA「反EOL流程审批」：无项目助理；PSKU 非必填；Sourcing、审批人由 OA 带出。仅正式 EOM 后可发。审批通过后关单、打「已反 EOM」、SKU 回提交前，禁止重开。</div>' +
+        '<div class="alert">对齐现网 OA「反EOL流程审批」：无项目助理；PSKU 非必填；Sourcing、审批人由 OA 带出。仅正式 EOM 后、且仅本单发起人可发。其他角色不能反别人的单。审批通过后关单、打「已反 EOM」、SKU 回提交前，禁止重开。</div>' +
         '<div class="form-grid">' +
           '<div class="form-item full"><label class="form-label required">SKU</label><div class="form-control"><textarea class="textarea" id="rvSku" rows="2" placeholder="手填，多个用逗号或换行">' + esc(f.skuText || '') + '</textarea></div></div>' +
           '<div class="form-item full"><label class="form-label">PSKU</label><div class="form-control"><textarea class="textarea" id="rvPsku" rows="2" placeholder="非必填，多个用逗号或换行">' + esc(f.pskuText || '') + '</textarea></div></div>' +
@@ -4033,6 +4564,19 @@
     toast('导出文件已生成', 'success');
   }
 
+  function openMatLog(no) {
+    var m = findMaterial(no);
+    if (!m) { toast('未找到核料单', 'warning'); return; }
+    var logs = m.logs || [];
+    var body = logs.length
+      ? '<div class="table-wrap"><table><thead><tr><th>时间</th><th>操作人</th><th>动作</th><th class="left">内容</th></tr></thead><tbody>' +
+        logs.map(function (l) {
+          return '<tr><td>' + esc(l.time) + '</td><td>' + esc(l.user) + '</td><td>' + esc(l.action) + '</td><td class="left">' + esc(l.content) + '</td></tr>';
+        }).join('') + '</tbody></table></div>'
+      : '<div class="empty">暂无核料日志。页面填写或导入后会记在这里，核料表不展示初盘。</div>';
+    openForm('核料日志 · ' + m.serialNo, '<div class="alert">与工单操作日志分开。最终下单、报废金额、原因、交付天数、结论的初盘和改数只记本日志，核料页不展示初盘。</div>' + body,
+      '<button class="btn btn-primary" data-act="close-mask" data-mask="formMask">关闭</button>', 'xl');
+  }
   function openLogs(no) {
     var o = findOrder(no);
     UI.detailTab = 'logs';
@@ -4048,7 +4592,7 @@
     if (act === 'go') {
       var page = t.getAttribute('data-page');
       if (page === 'notice') go('notice', t.getAttribute('data-role') || 'sales');
-      else go(page);
+      else go(page, t.getAttribute('data-no'));
     }
     else if (act === 'notice-role') { e.stopPropagation(); go('notice', t.getAttribute('data-role') || 'sales'); }
     else if (act === 'notice-ov-filter') {
@@ -4095,7 +4639,6 @@
     else if (act === 'filter-mat') renderMaterials();
     else if (act === 'detail-tab') { UI.detailTab = t.getAttribute('data-tab'); renderOrderDetail(); }
     else if (act === 'handle-task') handleTask(no, t.getAttribute('data-tid'));
-    else if (act === 'save-forecast') saveForecast();
     else if (act === 'toggle-lock') toggleLock(t.getAttribute('data-mid'), t.getAttribute('data-id'));
     else if (act === 'open-chart') openChart(t.getAttribute('data-mid'), t.getAttribute('data-id'));
     else if (act === 'save-chart') saveChart(t.getAttribute('data-lock'));
@@ -4136,6 +4679,26 @@
     else if (act === 'open-reverse') openReverse(no);
     else if (act === 'save-reverse') saveReverse();
     else if (act === 'reverse-oa') reverseOaWriteback(no, t.getAttribute('data-result'));
+    else if (act === 'psi-tab') { UI.psiTab = t.getAttribute('data-tab'); renderPsi(); }
+    else if (act === 'psi-filter') { UI.psiFilter = t.getAttribute('data-filter'); renderPsi(); }
+    else if (act === 'psi-save-so') savePsiSoFromRow(t.closest('tr'));
+    else if (act === 'psi-audit-tab') { UI.psiAuditTab = t.getAttribute('data-tab'); renderPsiAudit(); }
+    else if (act === 'psi-review-one' || act === 'psi-review-batch') {
+      var over = false;
+      if (act === 'psi-review-one') {
+        var row = t.closest('tr');
+        over = row && row.getAttribute('data-over') === '1';
+      } else {
+        document.querySelectorAll('#page-psiAudit .psi-audit-ck:checked').forEach(function (ck) {
+          var r = ck.closest('tr');
+          if (r && r.getAttribute('data-over') === '1') over = true;
+        });
+      }
+      if (over) { toast('Sell out 超过全链路库存，不允许通过。本次未复核。', 'warning'); return; }
+      toast('已复核准备 EOM / 已 EOM 队列。不替代组长/主管两级审核', 'success');
+    }
+    else if (act === 'po-filter') { UI.poFilter = t.getAttribute('data-filter'); renderPurchase(); }
+    else if (act === 'po-try-create') tryCreatePurchase(t.getAttribute('data-kind'));
     else if (act === 'owner-pick') ownerPick(t.getAttribute('data-field'));
     else if (act === 'owner-toggle') ownerToggle(t.getAttribute('data-field'), t.getAttribute('data-name'));
     else if (act === 'owner-remove') ownerRemove(t.getAttribute('data-field'), t.getAttribute('data-name'));
@@ -4172,13 +4735,16 @@
     else if (act === 'wizard-draft') wizardSave(false);
     else if (act === 'wizard-submit') wizardSave(true);
     else if (act === 'open-logs') openLogs(no);
-    else if (act === 'open-mat-log') toast('核料日志：' + no + '（与工单日志分 businessType）', 'success');
+    else if (act === 'open-mat-log') openMatLog(no);
     else if (act === 'export-orders') exportCsv('EOM工单.csv', ['流水号', '类型', '工单阶段', '核料单', '发起人'], STATE.orders.map(function (o) { return [o.no, o.type, o.stage, o.materialNo, o.user]; }));
     else if (act === 'export-ledger') exportLedgerCsv();
     else if (act === 'export-mat') openExportMat(no);
     else if (act === 'do-export-mat') doExportMat();
     else if (act === 'import-mat') openImportMat(no);
     else if (act === 'do-import-mat') doImportMat();
+    else if (act === 'import-lb') openImportLb(no);
+    else if (act === 'do-import-lb') doImportLb();
+    else if (act === 'export-scheme') openExportScheme(no);
     else if (act === 'assign-plan-user') assignPlanUser(t.getAttribute('data-mid'), t.getAttribute('data-msku'));
     else if (act === 'toggle-ledger') {
       var scope = t.getAttribute('data-scope') || 'page';
