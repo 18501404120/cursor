@@ -1,0 +1,1111 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>对外披露分类管理 — 招股书分类</title>
+  <link rel="stylesheet" href="../../../规范/assets/import-modal-kit.css">
+  <style>
+    :root {
+      --brand: #1677ff;
+      --brand-soft: #e6f4ff;
+      --border: #d9d9d9;
+      --line: #f0f0f0;
+      --grid: #e2e8f0;
+      --text: #1e293b;
+      --muted: #64748b;
+      --label: #595959;
+      --good: #52c41a;
+      --good-soft: #f6ffed;
+      --danger: #ff4d4f;
+      --danger-soft: #fff1f0;
+      --head-bg: #fafafa;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+      font-size: 13px;
+      color: var(--text);
+      background: #f5f7fa;
+      line-height: 1.5;
+    }
+    .erp-layout { min-height: 100vh; display: flex; flex-direction: column; }
+    .topbar {
+      background: #001529; color: #fff; padding: 0 20px; height: 48px;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .topbar .logo { font-weight: 700; font-size: 14px; }
+    .topbar a { color: #91caff; font-size: 12px; text-decoration: none; margin-left: 12px; }
+    .topbar a:hover { text-decoration: underline; }
+    .page-hd {
+      background: #fff; border-bottom: 1px solid var(--line);
+      padding: 14px 20px;
+    }
+    .page-hd h1 { margin: 0 0 4px; font-size: 18px; color: #0f2f63; }
+    .page-hd p { margin: 0; color: var(--muted); font-size: 12px; }
+    .filter-panel {
+      background: #fff; padding: 14px 20px 16px; border-bottom: 1px solid var(--line);
+    }
+    .filter-grid {
+      display: flex; flex-wrap: wrap; gap: 12px 16px; align-items: center;
+    }
+    .f-item { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+    .f-item > label { color: var(--label); font-size: 13px; white-space: nowrap; }
+    .ctl-wrap { position: relative; display: inline-flex; align-items: center; }
+    select.ctl, input.ctl-text {
+      height: 32px; padding: 0 10px; border: 1px solid var(--border);
+      border-radius: 6px; font-size: 13px; background: #fff; font-family: inherit;
+    }
+    select.ctl { min-width: 100px; max-width: 120px; padding-right: 28px; }
+    input.ctl-text { width: 180px; }
+    select.ctl:focus, input.ctl-text:focus {
+      border-color: var(--brand); outline: none;
+      box-shadow: 0 0 0 2px rgba(22,119,255,.12);
+    }
+    .ctl-clear {
+      position: absolute; right: 22px; top: 50%; transform: translateY(-50%);
+      border: none; background: transparent; color: rgba(0,0,0,.25);
+      cursor: pointer; font-size: 12px; padding: 2px 4px; z-index: 1;
+    }
+    .ctl-clear:hover { color: rgba(0,0,0,.45); }
+    .ctl-clear[hidden] { display: none; }
+    .btn {
+      height: 32px; padding: 0 14px; border-radius: 6px; font-size: 13px;
+      cursor: pointer; border: 1px solid var(--border); background: #fff;
+      font-family: inherit;
+    }
+    .btn-primary { background: var(--brand); color: #fff; border-color: var(--brand); }
+    .btn-primary:hover { background: #4096ff; }
+    .btn-ghost:hover { color: var(--brand); border-color: var(--brand); }
+    .btn-danger { color: var(--danger); border-color: #ffa39e; }
+    .btn-danger:hover { background: var(--danger-soft); }
+    .toolbar {
+      display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
+      padding: 12px 20px; background: #fff; border-bottom: 1px solid var(--line);
+    }
+    .toolbar .hint { margin-left: auto; font-size: 12px; color: var(--muted); }
+    .main { flex: 1; padding: 0 20px 24px; }
+    .table-wrap {
+      background: #fff; border: 1px solid var(--line); border-radius: 8px;
+      margin-top: 12px; overflow: hidden;
+    }
+    .table-scroll {
+      overflow: auto;
+      max-height: calc(100vh - 300px);
+    }
+    table.data {
+      width: 100%; border-collapse: collapse; font-size: 13px;
+    }
+    table.data th, table.data td {
+      border: 1px solid var(--grid); padding: 10px 12px;
+      text-align: left; vertical-align: middle;
+    }
+    table.data thead th {
+      position: sticky; top: 0; z-index: 2;
+      background: var(--head-bg); font-weight: 600; color: var(--label);
+      box-shadow: 0 1px 0 var(--grid);
+    }
+    table.data tbody tr:hover { background: #fafbff; }
+    table.data tbody tr.row-off td { color: rgba(0,0,0,.45); }
+    .tree-cell { display: flex; align-items: center; gap: 6px; min-width: 0; }
+    .tree-toggle {
+      width: 22px; height: 22px; border: 1px solid var(--border);
+      border-radius: 4px; background: #fff; cursor: pointer;
+      font-size: 11px; line-height: 1; padding: 0; flex-shrink: 0; color: #595959;
+    }
+    .tree-toggle:hover { border-color: var(--brand); color: var(--brand); }
+    .tree-toggle:disabled { visibility: hidden; pointer-events: none; }
+    .tree-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .tree-label strong { font-weight: 600; }
+    .mono { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 12px; color: #475569; }
+    .tag {
+      display: inline-block; padding: 2px 8px; border-radius: 4px;
+      font-size: 11px; font-weight: 600;
+    }
+    .tag-on { background: var(--good-soft); color: #389e0d; }
+    .tag-off { background: #f5f5f5; color: #8c8c8c; }
+    .tag-lv { background: var(--brand-soft); color: #0958d9; }
+    .op-link {
+      border: none; background: none; padding: 0; margin-right: 10px;
+      color: var(--brand); cursor: pointer; font-size: 13px; font-family: inherit;
+    }
+    .op-link:hover { text-decoration: underline; }
+    .op-link.danger { color: var(--danger); }
+    .op-link:last-child { margin-right: 0; }
+    .empty-row td { text-align: center; color: var(--muted); padding: 32px; }
+    .toast {
+      position: fixed; top: 64px; left: 50%; transform: translateX(-50%);
+      padding: 10px 18px; border-radius: 8px; font-size: 13px; z-index: 2000;
+      box-shadow: 0 4px 12px rgba(0,0,0,.12); pointer-events: none;
+      opacity: 0; transition: opacity .2s;
+    }
+    .toast.show { opacity: 1; }
+    .toast.ok { background: #f6ffed; border: 1px solid #b7eb8f; color: #389e0d; }
+    .toast.err { background: #fff1f0; border: 1px solid #ffa39e; color: #cf1322; }
+    .modal-mask {
+      position: fixed; inset: 0; background: rgba(0,0,0,.45);
+      display: flex; align-items: center; justify-content: center;
+      z-index: 1000; padding: 24px;
+    }
+    .modal-mask[hidden] { display: none; }
+    .modal-box {
+      background: #fff; border-radius: 8px; width: 520px; max-width: 100%;
+      box-shadow: 0 6px 16px rgba(0,0,0,.12);
+    }
+    .modal-hd {
+      display: flex; align-items: center; padding: 14px 16px;
+      border-bottom: 1px solid var(--line);
+    }
+    .modal-hd h3 { margin: 0; flex: 1; font-size: 16px; font-weight: 600; }
+    .modal-hd-actions { display: flex; align-items: center; margin-left: auto; }
+    .modal-close {
+      width: 32px; height: 32px; border: none; background: transparent;
+      font-size: 18px; line-height: 1; cursor: pointer; color: rgba(0,0,0,.45);
+      border-radius: 4px;
+    }
+    .modal-close:hover { color: rgba(0,0,0,.88); background: rgba(0,0,0,.04); }
+    .modal-bd { padding: 16px 16px 8px; }
+    .form-row { margin-bottom: 14px; }
+    .form-row label {
+      display: block; margin-bottom: 6px; font-size: 13px; color: var(--label);
+    }
+    .form-row label .req { color: var(--danger); margin-right: 2px; }
+    .form-row input, .form-row select, .form-row textarea {
+      width: 100%; padding: 8px 10px; border: 1px solid var(--border);
+      border-radius: 6px; font-size: 13px; font-family: inherit;
+    }
+    .form-row textarea { min-height: 72px; resize: vertical; }
+    .form-row input:focus, .form-row select:focus, .form-row textarea:focus {
+      border-color: var(--brand); outline: none;
+      box-shadow: 0 0 0 2px rgba(22,119,255,.12);
+    }
+    .form-row .readonly {
+      background: #fafafa; color: var(--muted); cursor: not-allowed;
+    }
+    .form-hint { font-size: 12px; color: var(--muted); margin-top: 4px; }
+    .modal-ft {
+      display: flex; justify-content: flex-end; gap: 8px;
+      padding: 12px 16px 16px; border-top: 1px solid var(--line);
+    }
+    .confirm-text { margin: 0 0 8px; font-size: 14px; line-height: 1.6; }
+    .confirm-sub { margin: 0; font-size: 12px; color: var(--muted); }
+    /* 页面弹窗：用 hidden 控制，避免与 ImportModalKit 的 .open 冲突 */
+    #editModal[hidden], #confirmModal[hidden] { display: none !important; }
+    #editModal:not([hidden]), #confirmModal:not([hidden]) {
+      display: flex !important; pointer-events: auto !important; z-index: 1000;
+    }
+    /* ImportModalKit 弹窗结构 */
+    .modal {
+      background: #fff; border-radius: 8px; width: min(520px, 96vw);
+      max-height: 90vh; display: flex; flex-direction: column;
+      box-shadow: 0 6px 16px rgba(0,0,0,.12);
+    }
+    .modal.modal-lg { width: min(560px, 96vw); }
+    .modal .modal-hd h2 { margin: 0; flex: 1; font-size: 16px; font-weight: 600; }
+    .modal .modal-ft .btn { height: 32px; padding: 0 14px; border-radius: 6px; font-size: 13px; cursor: pointer; border: 1px solid var(--border); background: #fff; font-family: inherit; }
+    .modal .modal-ft .btn-primary { background: var(--brand); color: #fff; border-color: var(--brand); }
+    .btn-link { border: none; background: none; color: var(--brand); cursor: pointer; font-size: 13px; padding: 0; font-family: inherit; }
+    .btn-link:hover { text-decoration: underline; }
+    .hint-bar { padding: 10px 12px; background: #fafafa; border: 1px solid #f0f0f0; border-radius: 6px; font-size: 12px; color: #475569; }
+  </style>
+</head>
+<body>
+  <div class="erp-layout">
+    <header class="topbar">
+      <div class="logo">对外披露分类管理</div>
+      <div>
+        <a href="../../index.html">← 需求目录</a>
+      </div>
+    </header>
+
+    <div class="page-hd">
+      <h1>对外披露分类管理</h1>
+    </div>
+
+    <div class="filter-panel">
+      <div class="filter-grid">
+        <div class="f-item">
+          <label for="fKeyword">对外披露分类</label>
+          <input type="text" id="fKeyword" class="ctl-text" placeholder="请输入分类名称" />
+        </div>
+        <div class="f-item">
+          <label for="fStatus">状态</label>
+          <div class="ctl-wrap">
+            <select id="fStatus" class="ctl">
+              <option value="">全部</option>
+              <option value="on">启用</option>
+              <option value="off">停用</option>
+            </select>
+            <button type="button" class="ctl-clear" id="fStatusClear" hidden aria-label="清除状态">×</button>
+          </div>
+        </div>
+        <div class="f-item">
+          <button type="button" class="btn btn-primary" id="btnSearch">查询</button>
+          <button type="button" class="btn btn-ghost" id="btnReset" style="margin-left:8px">重置</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="toolbar">
+      <button type="button" class="btn btn-primary" id="btnAddRoot">新增零级分类</button>
+      <button type="button" class="btn btn-ghost" id="btnExpandAll">全部展开</button>
+      <button type="button" class="btn btn-ghost" id="btnCollapseAll">全部折叠</button>
+      <button type="button" class="btn btn-ghost" id="btnImport">导入</button>
+      <button type="button" class="btn btn-ghost" id="btnExport">导出</button>
+      <span class="hint" id="statHint">共 0 个分类</span>
+    </div>
+
+    <main class="main">
+      <div class="table-wrap">
+        <div class="table-scroll">
+          <table class="data">
+            <thead>
+              <tr>
+                <th style="min-width:280px" data-pa-key="colDisclosureName">对外披露分类</th>
+                <th style="width:72px" data-pa-key="colLevel">层级</th>
+                <th style="width:72px">排序</th>
+                <th style="width:80px" data-pa-key="colStatus">状态</th>
+                <th data-pa-key="colRemark">备注</th>
+                <th style="width:220px">操作</th>
+              </tr>
+            </thead>
+            <tbody id="catBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <div class="toast ok" id="toast" role="status" aria-live="polite"></div>
+
+  <div class="modal-mask" id="editModal" role="dialog" aria-modal="true" aria-labelledby="editModalTitle" hidden>
+    <div class="modal-box">
+      <div class="modal-hd">
+        <h3 id="editModalTitle">新增分类</h3>
+        <div class="modal-hd-actions">
+          <button type="button" class="modal-close" id="editModalClose" aria-label="关闭">×</button>
+        </div>
+      </div>
+      <div class="modal-bd">
+        <div class="form-row">
+          <label for="fParent"><span class="req">*</span>上级分类</label>
+          <select id="fParent"></select>
+          <div class="form-hint" id="parentHint">零级分类的上级为空。</div>
+        </div>
+        <div class="form-row">
+          <label for="fName"><span class="req">*</span>对外披露分类</label>
+          <input type="text" id="fName" maxlength="64" placeholder="请输入对外披露分类名称" />
+        </div>
+        <div class="form-row">
+          <label for="fSort">排序</label>
+          <input type="number" id="fSort" min="0" max="9999" value="0" />
+          <div class="form-hint">同级分类按排序值升序展示，数值越小越靠前。</div>
+        </div>
+        <div class="form-row">
+          <label for="fFormStatus">状态</label>
+          <select id="fFormStatus">
+            <option value="on">启用</option>
+            <option value="off">停用</option>
+          </select>
+        </div>
+        <div class="form-row">
+          <label for="fRemark">备注</label>
+          <textarea id="fRemark" maxlength="200" placeholder="选填，如招股书披露口径说明"></textarea>
+        </div>
+      </div>
+      <div class="modal-ft">
+        <button type="button" class="btn btn-ghost" id="editCancel">取消</button>
+        <button type="button" class="btn btn-primary" id="editSave">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-mask" id="confirmModal" role="dialog" aria-modal="true" aria-labelledby="confirmTitle" hidden>
+    <div class="modal-box" style="width:420px">
+      <div class="modal-hd">
+        <h3 id="confirmTitle">确认删除</h3>
+        <div class="modal-hd-actions">
+          <button type="button" class="modal-close" id="confirmClose" aria-label="关闭">×</button>
+        </div>
+      </div>
+      <div class="modal-bd">
+        <p class="confirm-text" id="confirmText"></p>
+        <p class="confirm-sub" id="confirmSub"></p>
+      </div>
+      <div class="modal-ft">
+        <button type="button" class="btn btn-ghost" id="confirmCancel">取消</button>
+        <button type="button" class="btn btn-danger" id="confirmOk">删除</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="../../../规范/assets/import-modal-kit.js"></script>
+  <script>
+  (function () {
+    var STORAGE_KEY = 'prospectus_product_category_v2';
+    var MAX_LEVEL = 3;
+
+    var DEFAULT_DATA = [
+      { id: 'c1', name: '智能照明', parentId: null, sort: 1, status: 'on', remark: '' },
+      { id: 'c2', name: '灯带', parentId: 'c1', sort: 1, status: 'on', remark: '' },
+      { id: 'c3', name: '灯泡/灯珠', parentId: 'c1', sort: 2, status: 'on', remark: '' },
+      { id: 'c4', name: '智能家居', parentId: null, sort: 2, status: 'on', remark: '' },
+      { id: 'c5', name: '空气环境', parentId: 'c4', sort: 1, status: 'on', remark: '' },
+      { id: 'c6', name: '空气净化器', parentId: 'c5', sort: 1, status: 'on', remark: '' },
+      { id: 'c7', name: '加湿器', parentId: 'c5', sort: 2, status: 'on', remark: '' },
+      { id: 'c8', name: '户外照明', parentId: null, sort: 3, status: 'on', remark: '' },
+      { id: 'c9', name: '投光灯', parentId: 'c8', sort: 1, status: 'on', remark: '' },
+      { id: 'c10', name: '户外灯串', parentId: 'c8', sort: 2, status: 'off', remark: '试点品类，暂未披露' }
+    ];
+
+    var categories = loadData();
+    var expanded = {};
+    var filters = { keyword: '', status: '' };
+    var editingId = null;
+    var pendingDeleteId = null;
+    var toastTimer = null;
+
+    function loadData() {
+      try {
+        var raw = localStorage.getItem(STORAGE_KEY);
+        if (raw) {
+          var parsed = JSON.parse(raw);
+          if (Array.isArray(parsed) && parsed.length) return parsed;
+        }
+      } catch (e) { /* ignore */ }
+      return DEFAULT_DATA.slice();
+    }
+
+    function saveData() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(categories));
+    }
+
+    function uid() {
+      return 'c' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+    }
+
+    function escapeHtml(s) {
+      return String(s == null ? '' : s)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    function getById(id) {
+      return categories.find(function (c) { return c.id === id; });
+    }
+
+    function getChildren(parentId) {
+      return categories
+        .filter(function (c) {
+          if (parentId == null) return c.parentId == null;
+          return c.parentId === parentId;
+        })
+        .sort(function (a, b) {
+          if (a.sort !== b.sort) return a.sort - b.sort;
+          return a.name.localeCompare(b.name, 'zh-CN');
+        });
+    }
+
+    function hasChildren(id) {
+      return categories.some(function (c) { return c.parentId === id; });
+    }
+
+    function getLevel(id) {
+      var lv = 0;
+      var cur = getById(id);
+      while (cur && cur.parentId) {
+        lv += 1;
+        cur = getById(cur.parentId);
+      }
+      return lv;
+    }
+
+    function getPathName(id) {
+      var parts = [];
+      var cur = getById(id);
+      while (cur) {
+        parts.unshift(cur.name);
+        cur = cur.parentId ? getById(cur.parentId) : null;
+      }
+      return parts.join(' / ');
+    }
+
+    function isDescendant(ancestorId, nodeId) {
+      var cur = getById(nodeId);
+      while (cur && cur.parentId) {
+        if (cur.parentId === ancestorId) return true;
+        cur = getById(cur.parentId);
+      }
+      return false;
+    }
+
+    function initExpanded() {
+      categories.forEach(function (c) {
+        if (hasChildren(c.id) && expanded[c.id] === undefined) expanded[c.id] = true;
+      });
+    }
+
+    function matchFilter(item) {
+      if (filters.status && item.status !== filters.status) return false;
+      if (!filters.keyword) return true;
+      var kw = filters.keyword.toLowerCase();
+      return item.name.toLowerCase().indexOf(kw) >= 0;
+    }
+
+    function nodeVisible(id) {
+      var item = getById(id);
+      if (!item) return false;
+      if (matchFilter(item)) return true;
+      return getChildren(id).some(function (c) { return nodeVisible(c.id); });
+    }
+
+    function collectVisibleRows() {
+      var rows = [];
+      function walk(parentId, depth) {
+        getChildren(parentId).forEach(function (item) {
+          if (!nodeVisible(item.id)) return;
+          rows.push({ item: item, depth: depth, hasChild: hasChildren(item.id) });
+          if (hasChildren(item.id) && expanded[item.id] !== false) {
+            walk(item.id, depth + 1);
+          }
+        });
+      }
+      walk(null, 0);
+      return rows;
+    }
+
+    function showToast(msg, type) {
+      var el = document.getElementById('toast');
+      el.textContent = msg;
+      el.className = 'toast show ' + (type === 'err' ? 'err' : 'ok');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(function () { el.classList.remove('show'); }, 2400);
+    }
+
+    function renderTable() {
+      initExpanded();
+      var body = document.getElementById('catBody');
+      var rows = collectVisibleRows();
+      document.getElementById('statHint').textContent =
+        '共 ' + categories.length + ' 个分类' + (filters.keyword || filters.status ? ' · 当前展示 ' + rows.length + ' 行' : '');
+
+      if (!rows.length) {
+        body.innerHTML = '<tr class="empty-row"><td colspan="6">暂无符合条件的分类，可调整筛选或点击「新增零级分类」</td></tr>';
+        return;
+      }
+
+      body.innerHTML = rows.map(function (row) {
+        var item = row.item;
+        var pad = row.depth * 22;
+        var isOpen = expanded[item.id] !== false;
+        var toggle = row.hasChild
+          ? '<button type="button" class="tree-toggle" data-act="toggle" data-id="' + item.id + '" aria-label="' + (isOpen ? '折叠' : '展开') + '">' + (isOpen ? '−' : '+') + '</button>'
+          : '<button type="button" class="tree-toggle" disabled aria-hidden="true"> </button>';
+        var statusTag = item.status === 'on'
+          ? '<span class="tag tag-on">启用</span>'
+          : '<span class="tag tag-off">停用</span>';
+        var lv = getLevel(item.id);
+        var canAddChild = lv < MAX_LEVEL;
+        var addChildBtn = canAddChild
+          ? '<button type="button" class="op-link" data-act="add-child" data-id="' + item.id + '">新增子类</button>'
+          : '';
+        return '<tr class="' + (item.status === 'off' ? 'row-off' : '') + '">' +
+          '<td><div class="tree-cell" style="padding-left:' + pad + 'px">' + toggle +
+          '<span class="tree-label"><strong>' + escapeHtml(item.name) + '</strong></span></div></td>' +
+          '<td><span class="tag tag-lv">' + lv + ' 级</span></td>' +
+          '<td>' + item.sort + '</td>' +
+          '<td>' + statusTag + '</td>' +
+          '<td>' + (item.remark ? escapeHtml(item.remark) : '<span style="color:#94a3b8">—</span>') + '</td>' +
+          '<td>' +
+          addChildBtn +
+          '<button type="button" class="op-link" data-act="edit" data-id="' + item.id + '">编辑</button>' +
+          '<button type="button" class="op-link danger" data-act="delete" data-id="' + item.id + '">删除</button>' +
+          '</td></tr>';
+      }).join('');
+    }
+
+    function buildParentOptions(excludeId, selectedParentId) {
+      var rootSel = selectedParentId == null ? ' selected' : '';
+      var opts = ['<option value=""' + rootSel + '>（无，作为零级分类）</option>'];
+      categories.forEach(function (c) {
+        if (excludeId && (c.id === excludeId || isDescendant(excludeId, c.id))) return;
+        if (getLevel(c.id) >= MAX_LEVEL) return;
+        var label = getPathName(c.id);
+        var sel = selectedParentId === c.id ? ' selected' : '';
+        opts.push('<option value="' + c.id + '"' + sel + '>' + escapeHtml(label) + '</option>');
+      });
+      return opts.join('');
+    }
+
+    function openEditModal(mode, id, parentId) {
+      editingId = mode === 'edit' ? id : null;
+      var title = mode === 'edit' ? '编辑分类' : (parentId ? '新增子分类' : '新增零级分类');
+      document.getElementById('editModalTitle').textContent = title;
+
+      var parentSelect = document.getElementById('fParent');
+      var isEdit = mode === 'edit';
+
+      if (isEdit) {
+        var item = getById(id);
+        if (!item) return;
+        parentSelect.innerHTML = buildParentOptions(id, item.parentId);
+        parentSelect.disabled = false;
+        document.getElementById('fName').value = item.name;
+        document.getElementById('fSort').value = item.sort;
+        document.getElementById('fFormStatus').value = item.status;
+        document.getElementById('fRemark').value = item.remark || '';
+        document.getElementById('parentHint').textContent = '调整上级分类时，不可选自身或其下级。';
+      } else {
+        parentSelect.innerHTML = buildParentOptions(null, parentId || null);
+        parentSelect.disabled = !!parentId;
+        document.getElementById('fName').value = '';
+        document.getElementById('fSort').value = '0';
+        document.getElementById('fFormStatus').value = 'on';
+        document.getElementById('fRemark').value = '';
+        document.getElementById('parentHint').textContent = parentId
+          ? '上级：' + getPathName(parentId)
+          : '零级分类的上级为空。';
+      }
+
+      document.getElementById('editModal').hidden = false;
+      document.getElementById('fName').focus();
+    }
+
+    function closeEditModal() {
+      document.getElementById('editModal').hidden = true;
+      editingId = null;
+    }
+
+    function saveCategory() {
+      var parentId = document.getElementById('fParent').value || null;
+      var name = document.getElementById('fName').value.trim();
+      var sort = parseInt(document.getElementById('fSort').value, 10);
+      var status = document.getElementById('fFormStatus').value;
+      var remark = document.getElementById('fRemark').value.trim();
+
+      if (!name) { showToast('请填写对外披露分类', 'err'); return; }
+      if (isNaN(sort) || sort < 0) sort = 0;
+
+      if (parentId) {
+        var parent = getById(parentId);
+        if (!parent) { showToast('上级分类不存在', 'err'); return; }
+        if (editingId) {
+          if (parentId === editingId || isDescendant(editingId, parentId)) {
+            showToast('上级分类不能为自身或其下级', 'err'); return;
+          }
+          if (getLevel(parentId) + 1 > MAX_LEVEL) {
+            showToast('最多支持至 ' + MAX_LEVEL + ' 级（零级起算）', 'err'); return;
+          }
+        } else if (getLevel(parentId) >= MAX_LEVEL) {
+          showToast('最多支持至 ' + MAX_LEVEL + ' 级（零级起算）', 'err'); return;
+        }
+      }
+
+      if (editingId) {
+        var item = getById(editingId);
+        if (!item) return;
+        item.parentId = parentId;
+        item.name = name;
+        item.sort = sort;
+        item.status = status;
+        item.remark = remark;
+        showToast('分类已更新');
+      } else {
+        categories.push({
+          id: uid(), name: name, parentId: parentId,
+          sort: sort, status: status, remark: remark
+        });
+        if (parentId) expanded[parentId] = true;
+        showToast('分类已新增');
+      }
+
+      saveData();
+      closeEditModal();
+      renderTable();
+    }
+
+    function openDeleteConfirm(id) {
+      var item = getById(id);
+      if (!item) return;
+      if (hasChildren(id)) {
+        showToast('请先删除或移走其下级分类', 'err');
+        return;
+      }
+      pendingDeleteId = id;
+      document.getElementById('confirmText').textContent =
+        '确定删除对外披露分类「' + item.name + '」？';
+      document.getElementById('confirmSub').textContent = '删除后不可恢复；若分类已被商品引用，正式环境应禁止删除。';
+      document.getElementById('confirmModal').hidden = false;
+    }
+
+    function closeDeleteConfirm() {
+      pendingDeleteId = null;
+      document.getElementById('confirmModal').hidden = true;
+    }
+
+    function confirmDelete() {
+      if (!pendingDeleteId) return;
+      categories = categories.filter(function (c) { return c.id !== pendingDeleteId; });
+      delete expanded[pendingDeleteId];
+      saveData();
+      closeDeleteConfirm();
+      showToast('分类已删除');
+      renderTable();
+    }
+
+    var EXPORT_HEADER = ['上级分类路径', '对外披露分类', '排序', '状态', '备注'];
+
+    function getParentPath(id) {
+      var item = getById(id);
+      if (!item || !item.parentId) return '';
+      return getPathName(item.parentId);
+    }
+
+    function buildExportRows() {
+      var rows = [EXPORT_HEADER.slice()];
+      function walk(parentId) {
+        getChildren(parentId).forEach(function (item) {
+          rows.push([
+            getParentPath(item.id),
+            item.name,
+            item.sort,
+            item.status === 'on' ? '启用' : '停用',
+            item.remark || ''
+          ]);
+          walk(item.id);
+        });
+      }
+      walk(null);
+      return rows;
+    }
+
+    function buildTemplateRows() {
+      return [
+        EXPORT_HEADER.slice(),
+        ['', '智能照明', '1', '启用', ''],
+        ['智能照明', '灯带', '1', '启用', ''],
+        ['智能照明', '灯泡/灯珠', '2', '启用', ''],
+        ['', '智能家居', '2', '启用', ''],
+        ['智能家居 / 空气环境', '空气净化器', '1', '启用', '']
+      ];
+    }
+
+    function parseCsvLine(line) {
+      var out = [];
+      var cur = '';
+      var inQ = false;
+      for (var i = 0; i < line.length; i++) {
+        var ch = line[i];
+        if (inQ) {
+          if (ch === '"' && line[i + 1] === '"') { cur += '"'; i++; }
+          else if (ch === '"') inQ = false;
+          else cur += ch;
+        } else if (ch === '"') inQ = true;
+        else if (ch === ',') { out.push(cur); cur = ''; }
+        else cur += ch;
+      }
+      out.push(cur);
+      return out;
+    }
+
+    function parseCsvText(text) {
+      return String(text || '').replace(/^\uFEFF/, '').split(/\r?\n/)
+        .filter(function (line) { return line.trim(); })
+        .map(parseCsvLine);
+    }
+
+    function normalizeImportStatus(raw) {
+      var s = String(raw == null ? '' : raw).trim();
+      if (s === '启用' || s === 'on' || s === '1') return 'on';
+      if (s === '停用' || s === 'off' || s === '0') return 'off';
+      return null;
+    }
+
+    function pathDepth(path) {
+      if (!path) return 0;
+      return path.split(' / ').filter(Boolean).length;
+    }
+
+    function importFromCsvText(text) {
+      var rows = parseCsvText(text);
+      if (rows.length < 2) {
+        return { errors: ['文件为空或仅有表头，请使用标准导入模版。'], categories: [], successCount: 0 };
+      }
+      var header = rows[0].map(function (h) { return String(h || '').trim(); });
+      var col = {
+        parent: header.indexOf('上级分类路径'),
+        name: header.indexOf('对外披露分类'),
+        sort: header.indexOf('排序'),
+        status: header.indexOf('状态'),
+        remark: header.indexOf('备注')
+      };
+      if (col.name < 0) {
+        return { errors: ['模版缺少「对外披露分类」列，请下载标准导入模版。'], categories: [], successCount: 0 };
+      }
+
+      var errors = [];
+      var pathToId = {};
+      var newCats = [];
+      var dataRows = rows.slice(1).map(function (r, i) {
+        return {
+          line: i + 2,
+          cells: r,
+          parentPath: col.parent >= 0 ? String(r[col.parent] || '').trim() : '',
+          name: String(r[col.name] || '').trim()
+        };
+      }).filter(function (d) { return d.name; });
+
+      dataRows.sort(function (a, b) {
+        var depthDiff = pathDepth(a.parentPath) - pathDepth(b.parentPath);
+        if (depthDiff) return depthDiff;
+        return a.name.localeCompare(b.name, 'zh-CN');
+      });
+
+      dataRows.forEach(function (d) {
+        var parentPath = d.parentPath;
+        var name = d.name;
+        var sortRaw = col.sort >= 0 ? d.cells[col.sort] : '0';
+        var sort = parseInt(sortRaw, 10);
+        if (isNaN(sort) || sort < 0) sort = 0;
+        var status = normalizeImportStatus(col.status >= 0 ? d.cells[col.status] : '启用');
+        if (!status) {
+          errors.push('第 ' + d.line + ' 行：状态须填写「启用」或「停用」');
+          return;
+        }
+        var remark = col.remark >= 0 ? String(d.cells[col.remark] || '').trim() : '';
+        var parentId = null;
+        if (parentPath) {
+          if (!pathToId[parentPath]) {
+            errors.push('第 ' + d.line + ' 行：上级分类路径「' + parentPath + '」不存在，请先维护上级或调整顺序');
+            return;
+          }
+          parentId = pathToId[parentPath];
+          if (parentPath && pathDepth(parentPath) > MAX_LEVEL) {
+            errors.push('第 ' + d.line + ' 行：超过最大层级（零级至 ' + MAX_LEVEL + ' 级）');
+            return;
+          }
+        }
+        var fullPath = parentPath ? parentPath + ' / ' + name : name;
+        if (pathToId[fullPath]) {
+          errors.push('第 ' + d.line + ' 行：分类路径「' + fullPath + '」重复');
+          return;
+        }
+        var id = uid();
+        pathToId[fullPath] = id;
+        newCats.push({ id: id, name: name, parentId: parentId, sort: sort, status: status, remark: remark });
+      });
+
+      if (errors.length) return { errors: errors, categories: [], successCount: 0 };
+      return { errors: [], categories: newCats, successCount: newCats.length };
+    }
+
+    function exportCategories() {
+      var d = new Date();
+      var fn = '对外披露分类导出_' +
+        d.getFullYear() +
+        String(d.getMonth() + 1).padStart(2, '0') +
+        String(d.getDate()).padStart(2, '0') + '.csv';
+      ImportModalKit.downloadCsv(fn, buildExportRows());
+      showToast('已开始下载导出文件');
+    }
+
+    var importModal = ImportModalKit.mount({
+      trigger: '#btnImport',
+      title: '导入对外披露分类',
+      templateFileName: '对外披露分类导入模版.csv',
+      introHtml:
+        '<p>请下载<strong>对外披露分类导入模版</strong>，按列填写后上传。导入校验通过后<strong>全量替换</strong>当前分类树；正式环境可按业务规则改为增量更新。</p>' +
+        '<p>零级分类的上级分类路径留空；下级填写完整上级路径，多级用「 / 」连接，如「智能家居 / 空气环境」。</p>',
+      columns: [
+        { group: '层级', name: '上级分类路径', required: false, desc: '零级留空；下级填完整上级路径，如「智能照明」或「智能家居 / 空气环境」' },
+        { group: '主信息', name: '对外披露分类', required: true, desc: '本行分类名称，同级不可重复' },
+        { group: '展示', name: '排序', required: false, desc: '同级升序，默认 0，数值越小越靠前' },
+        { group: '状态', name: '状态', required: true, desc: '启用 或 停用' },
+        { group: '说明', name: '备注', required: false, desc: '披露口径或边界说明，选填' }
+      ],
+      requirements: [
+        '须先维护上级分类再填写下级；同一文件中按层级从上到下或任意顺序均可，系统按上级路径自动建树。',
+        '对外披露分类、状态为必填；状态仅允许「启用」「停用」。',
+        '分类树层级从零级起算，最多至 ' + MAX_LEVEL + ' 级（共 ' + (MAX_LEVEL + 1) + ' 层）；同一上级下分类名称不可重复。',
+        '导入失败时请按提示修正后重新上传；成功后将覆盖当前列表中的全部分类。'
+      ],
+      downloadCsvRows: buildTemplateRows(),
+      onConfirm: function (file, resultEl) {
+        resultEl.hidden = false;
+        resultEl.style.color = '#475569';
+        if (!file) {
+          resultEl.textContent = '请先选择已填写的模版文件。';
+          return;
+        }
+        var reader = new FileReader();
+        reader.onload = function () {
+          var result = importFromCsvText(reader.result);
+          if (result.errors.length) {
+            resultEl.style.color = '#cf1322';
+            var preview = result.errors.slice(0, 5).join('；');
+            resultEl.textContent = '导入失败 ' + result.errors.length + ' 处：' + preview + (result.errors.length > 5 ? '…' : '');
+            return;
+          }
+          categories = result.categories;
+          expanded = {};
+          saveData();
+          renderTable();
+          resultEl.style.color = '#389e0d';
+          resultEl.textContent = '导入完成：成功 ' + result.successCount + ' 行，失败 0 行。';
+          showToast('已导入 ' + result.successCount + ' 条分类');
+          setTimeout(function () { importModal.close(); }, 1200);
+        };
+        reader.onerror = function () {
+          resultEl.style.color = '#cf1322';
+          resultEl.textContent = '文件读取失败，请重试。';
+        };
+        reader.readAsText(file, 'UTF-8');
+      }
+    });
+
+    document.getElementById('btnExport').addEventListener('click', exportCategories);
+
+    function wireClearableSelect(selectId, clearId) {
+      var sel = document.getElementById(selectId);
+      var clr = document.getElementById(clearId);
+      function sync() { clr.hidden = !sel.value; }
+      sel.addEventListener('change', sync);
+      clr.addEventListener('click', function () {
+        sel.value = '';
+        sel.dispatchEvent(new Event('change'));
+        sync();
+      });
+      sync();
+    }
+
+    document.getElementById('btnSearch').addEventListener('click', function () {
+      filters.keyword = document.getElementById('fKeyword').value.trim();
+      filters.status = document.getElementById('fStatus').value;
+      if (filters.keyword || filters.status) {
+        categories.forEach(function (c) {
+          if (hasChildren(c.id)) expanded[c.id] = true;
+        });
+      }
+      renderTable();
+    });
+
+    document.getElementById('btnReset').addEventListener('click', function () {
+      document.getElementById('fKeyword').value = '';
+      document.getElementById('fStatus').value = '';
+      document.getElementById('fStatus').dispatchEvent(new Event('change'));
+      filters = { keyword: '', status: '' };
+      renderTable();
+    });
+
+    document.getElementById('fKeyword').addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') document.getElementById('btnSearch').click();
+    });
+
+    document.getElementById('btnAddRoot').addEventListener('click', function () {
+      openEditModal('add', null, null);
+    });
+
+    document.getElementById('btnExpandAll').addEventListener('click', function () {
+      categories.forEach(function (c) {
+        if (hasChildren(c.id)) expanded[c.id] = true;
+      });
+      renderTable();
+    });
+
+    document.getElementById('btnCollapseAll').addEventListener('click', function () {
+      categories.forEach(function (c) {
+        if (hasChildren(c.id)) expanded[c.id] = false;
+      });
+      renderTable();
+    });
+
+    document.getElementById('catBody').addEventListener('click', function (e) {
+      var btn = e.target.closest('[data-act]');
+      if (!btn) return;
+      var act = btn.dataset.act;
+      var id = btn.dataset.id;
+      if (act === 'toggle') {
+        expanded[id] = expanded[id] === false;
+        renderTable();
+      } else if (act === 'add-child') {
+        openEditModal('add', null, id);
+      } else if (act === 'edit') {
+        openEditModal('edit', id);
+      } else if (act === 'delete') {
+        openDeleteConfirm(id);
+      }
+    });
+
+    document.getElementById('editSave').addEventListener('click', saveCategory);
+    document.getElementById('editCancel').addEventListener('click', closeEditModal);
+    document.getElementById('editModalClose').addEventListener('click', closeEditModal);
+    document.getElementById('confirmOk').addEventListener('click', confirmDelete);
+    document.getElementById('confirmCancel').addEventListener('click', closeDeleteConfirm);
+    document.getElementById('confirmClose').addEventListener('click', closeDeleteConfirm);
+
+    wireClearableSelect('fStatus', 'fStatusClear');
+    renderTable();
+  })();
+  </script>
+
+
+
+<!-- prototype-annotation:start -->
+<link rel="stylesheet" href="prototype-annotation/prototype-annotation.css">
+<script id="prototype-annotation-config" type="application/json">
+{
+  "pageId": "prospectus-product-category-mgmt",
+  "version": "2026-06-26T15:00:00+08:00",
+  "pageTitle": "对外披露分类管理",
+  "annotations": [
+    {
+      "id": "a1",
+      "selector": "#fKeyword",
+      "title": "关键词筛选",
+      "body": "对外披露分类筛选逻辑：\n1. 支持按对外披露分类名称模糊匹配。\n2. 可与状态下拉组合使用；两者同时填写时取交集。\n3. 有筛选条件时，列表会自动展开包含匹配结果的分支。"
+    },
+    {
+      "id": "a2",
+      "selector": "#btnSearch",
+      "title": "查询",
+      "body": "点击后按当前筛选条件刷新分类树。未填写任何条件时展示全部分类。"
+    },
+    {
+      "id": "a3",
+      "selector": "#btnAddRoot",
+      "title": "新增零级",
+      "body": "新增零级对外披露分类逻辑：\n1. 打开录入弹窗，上级分类默认为空。\n2. 仅需填写对外披露分类名称；排序、状态、备注选填。\n3. 保存后立即出现在列表顶层，默认启用。"
+    },
+    {
+      "id": "a4",
+      "selector": "#editSave",
+      "title": "保存校验",
+      "body": "保存分类校验逻辑：\n1. 对外披露分类名称为必填。\n2. 上级分类不可选自身或其下级；层级从零级起算，最多至 3 级。\n3. 同级分类按排序值升序展示，数值越小越靠前。"
+    },
+    {
+      "id": "a5",
+      "selector": "#confirmOk",
+      "title": "删除规则",
+      "body": "删除分类规则：\n1. 存在下级分类时不允许删除，需先处理下级。\n2. 删除前二次确认；正式环境中若分类已被商品引用应禁止删除。\n3. 删除后不可恢复，请谨慎操作。"
+    },
+    {
+      "id": "a6",
+      "selector": "#btnImport",
+      "title": "批量导入",
+      "body": "导入对外披露分类逻辑：\n1. 须先下载模版，按「上级分类路径 + 对外披露分类」填写。\n2. 校验通过后全量替换当前分类树；失败时提示行号与原因。\n3. 零级分类的上级路径留空，下级用「 / 」连接完整上级路径。"
+    },
+    {
+      "id": "a7",
+      "selector": "#btnExport",
+      "title": "导出",
+      "body": "导出当前全部分类为 CSV，列与导入模版一致，便于批量维护后再次导入或留档。"
+    }
+  ],
+  "fieldTips": [
+    {
+      "id": "f1",
+      "selector": "[data-pa-key=\"colDisclosureName\"]",
+      "title": "对外披露分类",
+      "body": "招股书及对外报告中使用的商品分类名称，可与内部品线、场景品类不同。按树形结构展示，支持多级嵌套。"
+    },
+    {
+      "id": "f2",
+      "selector": "[data-pa-key=\"colLevel\"]",
+      "title": "层级",
+      "body": "该分类在披露分类树中的深度。零级为顶层披露大类，下级逐级递增；本页最多支持至 3 级（共 4 层）。"
+    },
+    {
+      "id": "f3",
+      "selector": "[data-pa-key=\"colStatus\"]",
+      "title": "状态",
+      "body": "启用：可用于对外披露口径映射与报表汇总。停用：保留历史数据但不参与新的披露映射，列表中以灰色展示。"
+    },
+    {
+      "id": "f4",
+      "selector": "[data-pa-key=\"colRemark\"]",
+      "title": "备注",
+      "body": "补充说明该分类的披露口径、适用边界或暂未披露原因，便于财务与产品对齐。"
+    }
+  ],
+  "pageGuide": {
+    "dev": {
+      "页面定位": "维护招股书及对外报告使用的商品分类树（对外披露分类），支撑收入分部、产品结构等披露口径与内部 SKU 映射。",
+      "核心逻辑": [
+        "分类以树形结构存储，通过上级分类字段关联；层级从零级起算，最多至 3 级。",
+        "列表按同级排序值升序展示，支持展开/折叠与全部展开/折叠。",
+        "新增与编辑仅需维护对外披露分类名称及上级、排序、状态、备注，无需手工填写编码。",
+        "删除前校验是否存在下级。",
+        "支持 CSV 导入导出：导出列与导入模版一致；导入校验通过后全量替换分类树。"
+      ],
+      "联动关系": "下游为招股书披露报表、收入分部汇总及 SKU 与披露分类的映射配置（未在本页展示）。"
+    },
+    "user": {
+      "操作步骤": [
+        "1. 在筛选区输入对外披露分类关键词或选择状态，点击「查询」。",
+        "2. 点击「新增零级分类」或在某行点击「新增子类」维护分类树。",
+        "3. 在弹窗中填写对外披露分类名称，按需调整上级、排序、状态与备注，点击「保存」。",
+        "4. 需要调整时点击「编辑」；无下级时可「删除」。",
+        "5. 使用「全部展开/折叠」浏览整棵分类树。",
+        "6. 批量维护时可「导出」当前分类，编辑后通过「导入」全量更新。"
+      ],
+      "使用说明": "对外披露分类名称应与招股书披露口径一致，建议与财务、法务确认后再启用。",
+      "注意事项": "停用分类不会自动解除已有商品映射；删除前请确认无下级且无商品引用。"
+    }
+  },
+  "statusFlow": {
+    "nodes": [
+      {
+        "id": "启用",
+        "label": "启用",
+        "description": "参与对外披露口径与新的映射配置。"
+      },
+      {
+        "id": "停用",
+        "label": "停用",
+        "description": "保留记录但不用于新的披露映射，列表灰色展示。"
+      }
+    ],
+    "transitions": [
+      {
+        "from": "启用",
+        "to": "停用",
+        "trigger": "编辑分类并将状态改为停用后保存",
+        "allowed": "可再次编辑改回启用",
+        "forbidden": "停用本身不自动删除下级分类"
+      },
+      {
+        "from": "停用",
+        "to": "启用",
+        "trigger": "编辑分类并将状态改为启用后保存",
+        "allowed": "恢复参与披露映射",
+        "forbidden": "无"
+      }
+    ]
+  },
+  "editPolicy": {
+    "viewOnlyHostnames": [
+      "18501404120.github.io"
+    ],
+    "allowIps": [
+      "113.110.230.127",
+      "220.232.134.241",
+      "113.110.228.174",
+      "113.110.229.118",
+      "113.87.83.49",
+      "113.110.230.92"
+    ],
+    "allowIpPrefixes": ["113.110.230.", "113.110.228.", "113.110.229.", "113.87.83."],
+    "allowTrustedBrowser": true,
+    "editToken": "",
+    "allowLocalhost": true,
+    "allowOtherHosts": true
+  }
+}
+</script>
+<script src="prototype-annotation/prototype-annotation-runtime.js"></script>
+<!-- prototype-annotation:end -->
+</body>
+</html>

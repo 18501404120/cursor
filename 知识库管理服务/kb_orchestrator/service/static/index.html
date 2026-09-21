@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ERP 知识库管理</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Sora:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/static/styles.css?v=5" />
+  </head>
+  <body>
+    <div class="bg"></div>
+    <header class="top">
+      <div class="brand">
+        <span class="brand-mark">KB</span>
+        <div>
+          <h1>知识库管理服务</h1>
+          <p>配置参数 · 启动任务 · 实时进程</p>
+        </div>
+      </div>
+      <div class="top-meta">
+        <span id="continueHint" class="badge hint">熔断/轮次上限后：选 resume 再点启动即可续跑</span>
+        <span id="healthBadge" class="badge">检测中…</span>
+      </div>
+    </header>
+
+    <nav class="tabs" role="tablist" aria-label="主功能">
+      <button id="tabBtnKb" class="tab active" type="button" role="tab" aria-selected="true" data-tab="kb">
+        知识库构建
+      </button>
+      <button id="tabBtnGit" class="tab" type="button" role="tab" aria-selected="false" data-tab="git">
+        Git 同步
+      </button>
+    </nav>
+
+    <main id="tabKb" class="layout tab-panel active">
+      <!-- 左：系统 + 文件树 -->
+      <section class="col-left">
+        <div class="panel systems">
+          <div class="panel-head">
+            <h2>系统</h2>
+            <button id="btnRefreshSystems" class="btn ghost" type="button">刷新</button>
+          </div>
+          <div class="new-system">
+            <input id="newSystemName" type="text" placeholder="新系统名，如：财务系统" />
+            <div class="new-system-actions">
+              <button id="btnCreateSystem" class="btn ghost" type="button">新建</button>
+              <button id="btnCreateAndInit" class="btn primary" type="button">新建并初始化</button>
+            </div>
+          </div>
+          <div id="systemList" class="system-list"></div>
+        </div>
+
+        <div class="panel files">
+          <div class="panel-head">
+            <h2>文件</h2>
+            <button id="btnRefreshTree" class="btn ghost" type="button">刷新</button>
+          </div>
+          <div id="fileTree" class="file-tree">选择系统后显示目录</div>
+        </div>
+      </section>
+
+      <!-- 中：控制 + 实时日志 -->
+      <section class="col-mid">
+        <div class="panel control">
+          <div class="panel-head">
+            <h2>任务控制</h2>
+            <span id="jobStatus" class="status-pill">idle</span>
+          </div>
+
+          <form id="jobForm" class="form">
+            <label class="system-picker">
+              <span>目标系统</span>
+              <div class="system-picker-row">
+                <select id="systemName" name="system_name" required></select>
+                <button id="btnToggleAllSystems" class="btn ghost" type="button" title="展开显示 ERP_product 下全部系统">
+                  展开
+                </button>
+              </div>
+              <span id="systemPickerHint" class="field-hint">默认显示负责系统，点「展开」可看全部</span>
+            </label>
+            <label>
+              <span>模式</span>
+              <select id="mode" name="mode">
+                <option value="init">init · 初始化构建（新系统）</option>
+                <option value="resume">resume · 断点续跑（熔断后继续用这个）</option>
+                <option value="sync">sync · 增量同步</option>
+              </select>
+            </label>
+
+            <details class="params">
+              <summary>运行参数</summary>
+              <div class="grid">
+                <label>
+                  <span>模型</span>
+                  <input id="model" name="model" type="text" />
+                </label>
+                <label>
+                  <span>会话轮次上限</span>
+                  <input id="maxTurnsPerSession" type="number" min="1" max="100" />
+                </label>
+                <label>
+                  <span>本次总轮次</span>
+                  <input id="maxTotalTurns" type="number" min="1" max="500" />
+                </label>
+                <label>
+                  <span>停滞熔断轮次</span>
+                  <input id="maxStagnantTurns" type="number" min="1" max="50" />
+                </label>
+                <label>
+                  <span>Token 上限（0=不限）</span>
+                  <input id="maxTotalTokens" type="number" min="0" />
+                </label>
+                <label class="check">
+                  <input id="dryRun" type="checkbox" />
+                  <span>dry-run（只打印首包，不调 Agent）</span>
+                </label>
+              </div>
+            </details>
+
+            <div class="actions">
+              <button id="btnStart" class="btn primary" type="submit">启动任务</button>
+              <button id="btnStop" class="btn danger" type="button" disabled>停止</button>
+              <button id="btnSaveSettings" class="btn ghost" type="button">保存为默认</button>
+            </div>
+          </form>
+
+          <div class="job-card" id="jobCard">
+            <div class="job-row"><span>任务</span><strong id="jobId">—</strong></div>
+            <div class="job-row"><span>轮次</span><strong id="jobTurns">0</strong></div>
+            <div class="job-row"><span>Tokens</span><strong id="jobTokens">0</strong></div>
+            <div class="job-row"><span>结果</span><strong id="jobResult">—</strong></div>
+          </div>
+        </div>
+
+        <div class="panel live">
+          <div class="panel-head">
+            <h2>实时进程</h2>
+            <div class="live-actions">
+              <button id="btnClearLog" class="btn ghost" type="button">清空视图</button>
+              <label class="check tiny">
+                <input id="autoScroll" type="checkbox" checked />
+                <span>自动滚动</span>
+              </label>
+            </div>
+          </div>
+          <pre id="logView" class="log-view" aria-live="polite"></pre>
+        </div>
+      </section>
+
+      <!-- 右：进度 / 文件内容 -->
+      <section class="panel progress">
+        <div class="panel-head">
+          <h2 id="previewTitle">进度 / 结果</h2>
+          <div class="live-actions">
+            <button id="btnShowProgress" class="btn ghost" type="button">进度文件</button>
+            <button id="btnRefreshProgress" class="btn ghost" type="button">刷新</button>
+          </div>
+        </div>
+        <div id="progressSummary" class="progress-summary">选择系统后查看进度</div>
+        <pre id="progressText" class="progress-text"></pre>
+      </section>
+    </main>
+
+    <main id="tabGit" class="tab-panel git-panel" hidden>
+      <section class="panel git-sync">
+        <div class="panel-head">
+          <h2>Git 同步</h2>
+          <div class="live-actions">
+            <span id="gitBusyBadge" class="badge">空闲</span>
+            <button id="btnRefreshGit" class="btn ghost" type="button">刷新状态</button>
+          </div>
+        </div>
+        <p class="git-hint">
+          顶部 <code>ERP_backend</code> / <code>ERP_frontend</code> 仅支持「拉取最新」：同步当前分支的 origin（前端会拉取全部子仓库）。
+          ERP 系统共用 <code>ERP_product</code> 仓库；「拉取最新」合并 <code>origin/main</code>。
+          「推送 Git」将白名单系统知识库推送到 <code>feature-chengkaiwu-xiaoshou</code>。
+          「合并main分支」用 SSH 将该功能分支合入 <code>main</code> 并推送；有冲突则停止，不自动覆盖。
+          「本地」直接推送个人预览仓库 <code>main</code>，推送后自动检测 Pages；失败时显示「解决预览」。
+          「相对 main」比较功能分支与 <code>origin/main</code>：落后请先拉取，超前可合并，分叉须先拉取再合并。ERP 各系统共用同一仓库，该列数字相同。
+        </p>
+        <div class="git-table-wrap">
+          <table class="git-table" aria-label="系统 Git 状态">
+            <thead>
+              <tr>
+                <th>系统</th>
+                <th>仓库</th>
+                <th>分支</th>
+                <th>状态</th>
+                <th>相对 main</th>
+                <th>操作</th>
+                <th>结果</th>
+              </tr>
+            </thead>
+            <tbody id="gitTableBody">
+              <tr>
+                <td colspan="7" class="git-empty">加载中…</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <pre id="gitLogView" class="git-log-view" aria-live="polite"></pre>
+      </section>
+    </main>
+
+    <script src="/static/app.js?v=5"></script>
+  </body>
+</html>

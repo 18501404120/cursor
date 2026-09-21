@@ -1,0 +1,737 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>清库存需求预警 · 原型</title>
+  <style>
+    :root {
+      --brand: #1677ff;
+      --text: #1e293b;
+      --muted: #64748b;
+      --line: #f0f0f0;
+      --border: #d9d9d9;
+      --bg: #f5f7fa;
+      --high: #cf1322;
+      --mid: #d48806;
+      --low: #389e0d;
+      --info: #1677ff;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      font-size: 13px;
+      color: var(--text);
+      background: var(--bg);
+    }
+    .top {
+      background: #fff;
+      border-bottom: 1px solid var(--line);
+      padding: 12px 20px 0;
+    }
+    .top-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+    h1 { margin: 0 0 4px; font-size: 18px; }
+    .sub { margin: 0 0 12px; color: var(--muted); font-size: 12px; line-height: 1.5; }
+    .tabs { display: flex; gap: 4px; }
+    .tab {
+      border: none; background: none; padding: 8px 14px; cursor: pointer;
+      color: var(--muted); border-bottom: 2px solid transparent; font-size: 13px;
+    }
+    .tab.on { color: var(--brand); border-bottom-color: var(--brand); font-weight: 600; }
+    .meta { font-size: 12px; color: var(--muted); white-space: nowrap; }
+    .page { padding: 16px 20px 40px; }
+    .view { display: none; }
+    .view.on { display: block; }
+    .stats { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; margin-bottom: 12px; }
+    .stat {
+      background: #fff; border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px;
+    }
+    .stat b { display: block; font-size: 22px; line-height: 1.2; }
+    .stat span { color: var(--muted); font-size: 12px; }
+    .filters, .card {
+      background: #fff; border: 1px solid var(--line); border-radius: 8px; margin-bottom: 12px;
+    }
+    .filters { padding: 12px 16px; display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: center; }
+    .f { display: flex; align-items: center; gap: 6px; }
+    .f label { color: #595959; white-space: nowrap; }
+    select, input, button {
+      font: inherit; border: 1px solid var(--border); border-radius: 4px; padding: 5px 8px; background: #fff;
+    }
+    button.primary { background: var(--brand); color: #fff; border-color: var(--brand); cursor: pointer; }
+    button.ghost { background: #fff; cursor: pointer; }
+    button.link { border: none; background: none; color: var(--brand); cursor: pointer; padding: 0 4px; }
+    button:disabled { opacity: .45; cursor: not-allowed; }
+    .card-hd {
+      padding: 10px 16px; border-bottom: 1px solid var(--line);
+      display: flex; justify-content: space-between; align-items: center; font-weight: 600;
+    }
+    .card-hd .muted { font-weight: 400; color: var(--muted); font-size: 12px; }
+    .table-wrap { overflow: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    th, td { padding: 8px 10px; border-bottom: 1px solid var(--line); text-align: left; white-space: nowrap; }
+    th { background: #fafafa; color: #595959; font-weight: 600; position: sticky; top: 0; }
+    tr.clickable { cursor: pointer; }
+    tr.clickable:hover { background: #f5f9ff; }
+    tr.sel { background: #e6f4ff; }
+    .tag {
+      display: inline-block; padding: 1px 7px; border-radius: 4px; font-size: 12px; line-height: 18px;
+      border: 1px solid transparent;
+    }
+    .tag.high { color: #a8071a; background: #fff1f0; border-color: #ffa39e; }
+    .tag.mid { color: #ad6800; background: #fff7e6; border-color: #ffd591; }
+    .tag.low { color: #237804; background: #f6ffed; border-color: #b7eb8f; }
+    .tag.none { color: #8c8c8c; background: #fafafa; border-color: #f0f0f0; }
+    .tag.info { color: #0958d9; background: #e6f4ff; border-color: #91caff; }
+    .tag.ok { color: #237804; background: #f6ffed; border-color: #b7eb8f; }
+    .drawer-mask {
+      position: fixed; inset: 0; background: rgba(0,0,0,.35); display: none; z-index: 20;
+    }
+    .drawer-mask.on { display: block; }
+    .drawer {
+      position: fixed; top: 0; right: 0; width: min(920px, 100%); height: 100%;
+      background: #fff; box-shadow: -8px 0 24px rgba(0,0,0,.08); overflow: auto; z-index: 21;
+      display: none;
+    }
+    .drawer.on { display: block; }
+    .drawer-hd {
+      position: sticky; top: 0; background: #fff; border-bottom: 1px solid var(--line);
+      padding: 14px 20px; display: flex; justify-content: space-between; align-items: flex-start; z-index: 2;
+    }
+    .drawer-bd { padding: 16px 20px 32px; }
+    .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 14px; }
+    .kpi { border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; background: #fafafa; }
+    .kpi b { display: block; font-size: 16px; }
+    .kpi span { color: var(--muted); font-size: 12px; }
+    .h3 { margin: 16px 0 8px; font-size: 13px; }
+    .steps { margin: 0; padding-left: 18px; }
+    .steps li { margin: 4px 0; }
+    .hit { color: #237804; }
+    .skip { color: var(--muted); }
+    .chart { height: 180px; border: 1px solid var(--line); border-radius: 8px; background: #fff; }
+    .toast {
+      position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+      background: #1f2937; color: #fff; padding: 8px 14px; border-radius: 6px; display: none; z-index: 40;
+    }
+    .cfg-tabs { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
+    .cfg-tabs button { cursor: pointer; }
+    .cfg-tabs button.on { background: var(--brand); color: #fff; border-color: var(--brand); }
+    .note { font-size: 12px; color: var(--muted); margin: 0 0 10px; }
+    .diff { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .modal {
+      position: fixed; inset: 0; background: rgba(0,0,0,.35); display: none; z-index: 30;
+      align-items: center; justify-content: center;
+    }
+    .modal.on { display: flex; }
+    .modal-box { background: #fff; width: 420px; border-radius: 8px; padding: 16px 18px; }
+    .modal-box h3 { margin: 0 0 12px; font-size: 15px; }
+    .modal-box .row { margin-bottom: 10px; }
+    .modal-acts { display: flex; justify-content: flex-end; gap: 8px; margin-top: 12px; }
+    .sim-pick { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 12px; }
+  </style>
+</head>
+<body>
+  <div class="top">
+    <div class="top-row">
+      <div>
+        <h1>清库存需求预警</h1>
+        <p class="sub">示例数据 · 欧洲规则包 eu-default v1.0.0（已发布）· 跑数 2026-08-27 07:00 · 灯与手段分离，阈值全部可配</p>
+      </div>
+      <div class="meta">销售系统 / Forecast / 库存计划</div>
+    </div>
+    <div class="tabs">
+      <button class="tab on" data-view="workbench">预警工作台</button>
+      <button class="tab" data-view="config">规则配置</button>
+      <button class="tab" data-view="sim">规则试算</button>
+    </div>
+  </div>
+
+  <div class="page">
+    <section id="workbench" class="view on">
+      <div class="stats" id="stats"></div>
+      <div class="filters">
+        <div class="f"><label>站点</label>
+          <select id="f-region"><option value="">全部</option><option>EU</option></select></div>
+        <div class="f"><label>店铺</label>
+          <select id="f-shop"><option value="">全部</option></select></div>
+        <div class="f"><label>档级</label>
+          <select id="f-tier"><option value="">全部</option><option>P0</option><option>P1</option><option>P2</option></select></div>
+        <div class="f"><label>信号</label>
+          <select id="f-signal">
+            <option value="">全部</option>
+            <option value="stockout">断货</option>
+            <option value="stagnation">积压</option>
+            <option value="po">采购</option>
+            <option value="seasonal">季节</option>
+          </select></div>
+        <div class="f"><label>最高等级</label>
+          <select id="f-level"><option value="">全部</option><option>high</option><option>mid</option><option>low</option></select></div>
+        <div class="f"><label>SKU</label><input id="f-sku" placeholder="编码 / 名称" /></div>
+        <button class="primary" id="btn-query">查询</button>
+        <button class="ghost" id="btn-reset">重置</button>
+        <button class="ghost" id="btn-export">导出</button>
+      </div>
+      <div class="card">
+        <div class="card-hd">预警列表 <span class="muted" id="list-count"></span></div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>SKU</th><th>店铺</th><th>档级</th>
+                <th>断货</th><th>积压</th><th>采购</th><th>季节</th>
+                <th>危急周</th><th>DOS</th><th>下周DOS</th>
+                <th>APP</th><th>国内</th><th>在途</th>
+                <th>推荐动作</th><th>SLA</th><th>状态</th><th>操作</th>
+              </tr>
+            </thead>
+            <tbody id="tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section id="config" class="view">
+      <div class="card">
+        <div class="card-hd">
+          规则包 eu-default
+          <span class="muted">草稿可改 · 试算通过后才能发布为 v1.1.0</span>
+        </div>
+        <div style="padding:14px 16px;">
+          <div class="cfg-tabs" id="cfg-tabs"></div>
+          <div id="cfg-body"></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="sim" class="view">
+      <div class="card">
+        <div class="card-hd">规则试算 <span class="muted">对比「已发布 v1.0.0」与「草稿：P0 高断货上限 7→5 天」</span></div>
+        <div style="padding:14px 16px;">
+          <p class="note">选一条示例 SKU，看改阈值后灯和动作会不会变。没有试算差异也可以发布，但高风险阈值收紧通常会多出空运建议。</p>
+          <div class="sim-pick">
+            <label>SKU</label>
+            <select id="sim-sku"></select>
+            <button class="primary" id="btn-sim">跑一遍</button>
+          </div>
+          <div class="diff" id="sim-result"></div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <div class="drawer-mask" id="mask"></div>
+  <aside class="drawer" id="drawer"></aside>
+  <div class="toast" id="toast"></div>
+  <div class="modal" id="modal">
+    <div class="modal-box">
+      <h3>处理反馈</h3>
+      <div class="row"><label>动作类型</label>
+        <select id="fb-type" style="width:100%;margin-top:6px;">
+          <option>已提拉</option><option>已调拨</option><option>已控价</option>
+          <option>已空运</option><option>忽略（填写原因）</option>
+        </select>
+      </div>
+      <div class="row"><label>备注</label>
+        <input id="fb-note" placeholder="例如：PC2408 已提拉 3 天" style="width:100%;margin-top:6px;" />
+      </div>
+      <div class="modal-acts">
+        <button class="ghost" id="fb-cancel">取消</button>
+        <button class="primary" id="fb-ok">提交</button>
+      </div>
+    </div>
+  </div>
+
+<script>
+const TIERS = {
+  P0: { A: 22, B: 35, bands: [[0,7,'high'],[8,14,'mid'],[15,21,'low']] },
+  P1: { A: 15, B: 28, bands: [[0,7,'high'],[8,14,'mid']] },
+  P2: { A: 8, B: 21, bands: [[0,7,'high']] }
+};
+
+const ALERTS = [
+  {
+    id: 'A001', sku: 'H6076', name: 'RGBIC 灯带', shop: 'Amazon.de', region: 'EU', tier: 'P0',
+    stockout: 'high', stagnation: '', po: '', seasonal: '',
+    week: 1, dos: 5, nextDos: 4, app: 320, domestic: 800, inbound: 600,
+    action: '立刻调拨 APP 180 pcs', actionCode: 'TRANSFER_APP', sla: '今天 24h', status: '待处理', owner: 'Anna',
+    inboundPc: 'PC2408', gap: 180, ageDays: 42, agedQty: 0,
+    weeks: [5,4,9,18,26,31,33,34,32,30,28,27,26,25,24,24],
+    methods: ['NONE','NONE','NONE','NONE','AIR','AIR','AIR','AIR','RAIL','RAIL','SEA','SEA','SEA','SEA','SEA','SEA'],
+    derive: [
+      { t: 'skip', s: 'PULL_INBOUND 可并行：在途 PC2408 预计 WK3 到，建议提拉 3 天，但不能单独关掉本周缺口' },
+      { t: 'hit', s: 'TRANSFER_APP 命中：下周未恢复 + APP 海外 320>0 + 危急周 WK1 空运不可达 → 主建议当天调拨 180，调后覆盖约 12 天' },
+      { t: 'skip', s: 'PRICE_CONTROL 跳过：APP 有货，不先控价' },
+      { t: 'skip', s: 'AIR_SHIP 跳过：WK1 距今 7 天，空运窗口 28–56 天不可达' }
+    ]
+  },
+  {
+    id: 'A002', sku: 'H610A', name: '桌面氛围灯', shop: 'Amazon.de', region: 'EU', tier: 'P0',
+    stockout: 'low', stagnation: '', po: '', seasonal: '',
+    week: 2, dos: 10, nextDos: 26, app: 0, domestic: 400, inbound: 900,
+    action: '提拉 PC2410 400 pcs', actionCode: 'PULL_INBOUND', sla: '建议', status: '处理中', owner: 'Anna',
+    inboundPc: 'PC2410', gap: 0, ageDays: 28, agedQty: 0,
+    weeks: [16,10,26,28,30,32,33,34,34,33,32,31,30,29,28,28],
+    methods: ['NONE','NONE','NONE','NONE','AIR','AIR','AIR','AIR','RAIL','RAIL','SEA','SEA','SEA','SEA','SEA','SEA'],
+    note: '本周 DOS=10 本应中断货；下周 26≥22，按配置降一档 → 低断货。降级不能撤灯。',
+    derive: [
+      { t: 'hit', s: 'PULL_INBOUND 命中：有在途且下周可恢复，主建议催上架时间并提拉' },
+      { t: 'skip', s: 'TRANSFER_APP 跳过：下周已恢复，不升级到调拨' },
+      { t: 'skip', s: 'AIR_SHIP 跳过：非高断货' }
+    ]
+  },
+  {
+    id: 'A003', sku: 'H619A', name: '窗帘灯', shop: 'Amazon.de', region: 'EU', tier: 'P0',
+    stockout: 'high', stagnation: '', po: '', seasonal: '',
+    week: 5, dos: 4, nextDos: 3, app: 0, domestic: 1200, inbound: 200,
+    action: '空运 280 pcs · €1,860 · 利润 €2.1/件', actionCode: 'AIR_SHIP', sla: '待审批 24h', status: '待处理', owner: 'Ben',
+    inboundPc: 'PC2412', gap: 280, ageDays: 19, agedQty: 0, airCost: 1860, airMargin: 2.1,
+    weeks: [22,18,12,8,5,4,3,15,28,30,32,33,34,34,33,32],
+    methods: ['NONE','NONE','NONE','NONE','AIR','AIR','AIR','AIR','RAIL','RAIL','SEA','SEA','SEA','SEA','SEA','SEA'],
+    derive: [
+      { t: 'skip', s: 'PULL_INBOUND 不够：在途仅 200，缺口 280' },
+      { t: 'skip', s: 'TRANSFER_APP 跳过：APP=0' },
+      { t: 'skip', s: 'PRICE_CONTROL 可并行：立刻调回原价压卖速，不能替代空运补量' },
+      { t: 'hit', s: 'AIR_SHIP 命中：高断货 + 下周未恢复 + WK5 空运可达 + 利润>0 → 过空运闸，抄送运营负责人' }
+    ]
+  },
+  {
+    id: 'A004', sku: 'H5056', name: '户外灯串', shop: 'Amazon.de', region: 'EU', tier: 'P0',
+    stockout: 'high', stagnation: '', po: 'high', seasonal: '',
+    week: 5, dos: 3, nextDos: 2, app: 0, domestic: 0, inbound: 0,
+    action: '跨渠道借货 400 + 空运发出', actionCode: 'TRANSFER_DOMESTIC', sla: '今天 24h', status: '待处理', owner: 'Ben',
+    inboundPc: '', gap: 400, ageDays: 11, agedQty: 0, otherCh: 520,
+    poText: 'PO-8831 承诺交期 08-20，已逾期 7 天',
+    weeks: [20,14,9,6,4,3,2,2,10,18,24,28,30,31,32,32],
+    methods: ['NONE','NONE','NONE','NONE','AIR','AIR','AIR','AIR','RAIL','RAIL','SEA','SEA','SEA','SEA','SEA','SEA'],
+    derive: [
+      { t: 'skip', s: 'APP / 国内本店均 ≤0' },
+      { t: 'hit', s: 'TRANSFER_DOMESTIC 命中：其他渠道可借 520，建议借 400 后空运' },
+      { t: 'hit', s: '采购灯并行：PO 逾期，且危急周已是高断货 → 采购灯升为高' }
+    ]
+  },
+  {
+    id: 'A005', sku: 'H6008', name: '落地灯', shop: 'Amazon.de', region: 'EU', tier: 'P1',
+    stockout: 'mid', stagnation: '', po: '', seasonal: '',
+    week: 12, dos: 11, nextDos: 10, app: 40, domestic: 2000, inbound: 0,
+    action: '普船按缺口加发 420 pcs', actionCode: 'SEA_REPLENISH', sla: '7 天', status: '待处理', owner: 'Cara',
+    inboundPc: '', gap: 420, ageDays: 55, agedQty: 0,
+    weeks: [30,28,26,24,22,20,18,16,14,13,12,11,11,10,18,26],
+    methods: ['NONE','NONE','NONE','NONE','AIR','AIR','AIR','AIR','RAIL','RAIL','SEA','SEA','SEA','SEA','SEA','SEA'],
+    note: '国内有货不等于无预警。P1 健康带 15–28，WK12 DOS=11 仍要按缺口加发。',
+    derive: [
+      { t: 'skip', s: '空运/卡航对 WK12 不是最便宜手段' },
+      { t: 'hit', s: 'SEA_REPLENISH 命中：普船可达 + 国内 2000>0 + 缺口=(15-11)×日均预测 ≈ 420' }
+    ]
+  },
+  {
+    id: 'A006', sku: 'H7060', name: '老品壁灯', shop: 'Amazon.de', region: 'EU', tier: 'P2',
+    stockout: '', stagnation: 'high', po: '', seasonal: '',
+    week: '', dos: 48, nextDos: 46, app: 0, domestic: 300, inbound: 0,
+    action: '参与月度清库（高呆滞）', actionCode: 'CLEARANCE', sla: '7 天', status: '待处理', owner: 'Dana',
+    inboundPc: '', gap: 0, ageDays: 162, agedQty: 410, scope: 'overseas',
+    weeks: [52,50,49,48,47,46,45,44,43,42,40,38,36,34,32,30],
+    methods: ['NONE','NONE','NONE','NONE','AIR','AIR','AIR','AIR','RAIL','RAIL','SEA','SEA','SEA','SEA','SEA','SEA'],
+    note: 'P2 宁愿断货不可呆滞：DOS 48>21 且库龄 162 天。不断货灯，只亮积压。',
+    derive: [
+      { t: 'hit', s: '积压灯高：150≤库龄<180，建议清库' },
+      { t: 'skip', s: '超龄 410 < 海外在库 520 → scope=仅海外，不调国内' }
+    ]
+  },
+  {
+    id: 'A007', sku: 'H6104', name: '镜前灯', shop: 'Amazon.de', region: 'EU', tier: 'P0',
+    stockout: 'low', stagnation: 'mid', po: '', seasonal: '',
+    week: 2, dos: 18, nextDos: 16, app: 90, domestic: 100, inbound: 80,
+    action: '调拨 APP 60 + 高利润动销老货', actionCode: 'TRANSFER_APP', sla: '建议', status: '待处理', owner: 'Anna',
+    inboundPc: 'PC2399', gap: 60, ageDays: 128, agedQty: 220, scope: 'overseas',
+    weeks: [20,18,16,19,21,24,26,28,30,31,32,32,31,30,29,28],
+    methods: ['NONE','NONE','NONE','NONE','AIR','AIR','AIR','AIR','RAIL','RAIL','SEA','SEA','SEA','SEA','SEA','SEA'],
+    note: '双灯并行：预测上修后 DOS 偏低，但批次里仍有 128 天老货。先消耗老货再调新货。',
+    derive: [
+      { t: 'hit', s: '断货低：DOS 18 落在 15–21' },
+      { t: 'hit', s: '积压中：库龄 120–149，申请 Bundle / 多件多折' }
+    ]
+  },
+  {
+    id: 'A008', sku: 'H70B1', name: '万圣节投影灯', shop: 'Amazon.de', region: 'EU', tier: 'P0',
+    stockout: '', stagnation: 'mid', po: '', seasonal: 'mid',
+    week: '', dos: 40, nextDos: 38, app: 0, domestic: 80, inbound: 120,
+    action: '向 GTM 申请黑五降价资源', actionCode: 'APPLY_BFCM_RESOURCE', sla: '日历点 10-12', status: '待处理', owner: 'Eva',
+    inboundPc: '', gap: 0, ageDays: 70, agedQty: 0,
+    weeks: [44,42,41,40,39,38,36,34,30,24,18,10,6,4,3,2],
+    methods: ['NONE','NONE','NONE','NONE','AIR','AIR','AIR','AIR','RAIL','RAIL','SEA','SEA','SEA','SEA','SEA','SEA'],
+    note: '季节品 10-12 检查点：总计库存 860 > 季末剩余 FCS 620 → 中呆滞。旺季仍跑周 DOS。',
+    seasonInv: 860, seasonFcs: 620,
+    derive: [
+      { t: 'hit', s: '季节日历 10-12：库存>剩余 FCS → 中呆滞，申请黑五资源' },
+      { t: 'hit', s: '旺季配置 in_season_run_weekly_dos=true，WK11 以后 DOS 会掉到断货带，需持续看' }
+    ]
+  },
+  {
+    id: 'A009', sku: 'H6199', name: '灯带配件', shop: 'Amazon.fr', region: 'EU', tier: 'P0',
+    stockout: 'high', stagnation: '', po: 'mid', seasonal: '',
+    week: 6, dos: 6, nextDos: 5, app: 40, domestic: 0, inbound: 0,
+    action: '调拨 APP 40 并评估空运补 160', actionCode: 'TRANSFER_APP', sla: '今天 24h', status: '待处理', owner: 'Fran',
+    inboundPc: '', gap: 200, ageDays: 8, agedQty: 0,
+    poText: 'PO-9012 交期 09-18，未逾期，但晚于 DOS 落到 22 天前必须到货日 09-05',
+    weeks: [21,16,12,9,7,6,5,18,27,30,32,33,34,34,33,32],
+    methods: ['NONE','NONE','NONE','NONE','AIR','AIR','AIR','AIR','RAIL','RAIL','SEA','SEA','SEA','SEA','SEA','SEA'],
+    derive: [
+      { t: 'hit', s: 'TRANSFER_APP：APP 40 先调，覆盖不够' },
+      { t: 'hit', s: 'AIR_SHIP 需评估补 160（利润待算 → 转审批）' },
+      { t: 'hit', s: '采购灯：未逾期但交期过晚，中风险' }
+    ]
+  },
+  {
+    id: 'A010', sku: 'H8010', name: '感应夜灯', shop: 'Amazon.de', region: 'EU', tier: 'P1',
+    stockout: 'mid', stagnation: '', po: '', seasonal: '',
+    week: 0, dos: 9, nextDos: 8, app: 50, domestic: 0, inbound: 120,
+    action: '一周内调拨 APP 50 pcs', actionCode: 'TRANSFER_APP', sla: '7 天', status: '待处理', owner: 'Cara',
+    inboundPc: 'PC2415', gap: 80, ageDays: 15, agedQty: 0,
+    weeks: [9,8,7,14,22,26,28,29,30,30,29,28,27,26,25,25],
+    methods: ['NONE','NONE','NONE','NONE','AIR','AIR','AIR','AIR','RAIL','RAIL','SEA','SEA','SEA','SEA','SEA','SEA'],
+    note: 'P1 无低断货档。DOS 9 落在 8–14 → 中。近周空运不可达。',
+    derive: [
+      { t: 'hit', s: 'TRANSFER_APP 一周内完成；并行提拉 PC2415' },
+      { t: 'skip', s: 'AIR_SHIP 跳过：WK0 空运不可达' }
+    ]
+  }
+];
+
+let filtered = ALERTS.slice();
+let current = null;
+let feedbackTarget = null;
+
+function tag(level, label) {
+  if (!level) return '<span class="tag none">—</span>';
+  const map = { high: '高', mid: '中', low: '低', overdue: '超期' };
+  return `<span class="tag ${level}">${label || map[level] || level}</span>`;
+}
+
+function worst(a) {
+  const order = { high: 3, mid: 2, low: 1 };
+  return Math.max(order[a.stockout] || 0, order[a.stagnation] || 0, order[a.po] || 0, order[a.seasonal] || 0);
+}
+
+function renderStats() {
+  const open = ALERTS.filter(x => x.status !== '已关闭');
+  const n = (k, lv) => open.filter(x => x[k] === lv).length;
+  document.getElementById('stats').innerHTML = [
+    ['待处理', open.filter(x => x.status === '待处理').length, ''],
+    ['高断货', n('stockout','high'), 'color:var(--high)'],
+    ['积压（中/高）', n('stagnation','mid') + n('stagnation','high'), 'color:var(--mid)'],
+    ['采购异常', open.filter(x => x.po).length, 'color:var(--high)'],
+    ['空运待审', open.filter(x => x.actionCode === 'AIR_SHIP').length, 'color:var(--info)']
+  ].map(([l,v,s]) => `<div class="stat"><b style="${s}">${v}</b><span>${l}</span></div>`).join('');
+}
+
+function applyFilter() {
+  const shop = document.getElementById('f-shop').value;
+  const tier = document.getElementById('f-tier').value;
+  const signal = document.getElementById('f-signal').value;
+  const level = document.getElementById('f-level').value;
+  const sku = document.getElementById('f-sku').value.trim().toLowerCase();
+  filtered = ALERTS.filter(a => {
+    if (shop && a.shop !== shop) return false;
+    if (tier && a.tier !== tier) return false;
+    if (signal === 'stockout' && !a.stockout) return false;
+    if (signal === 'stagnation' && !a.stagnation) return false;
+    if (signal === 'po' && !a.po) return false;
+    if (signal === 'seasonal' && !a.seasonal) return false;
+    if (level && ![a.stockout, a.stagnation, a.po, a.seasonal].includes(level)) return false;
+    if (sku && !(`${a.sku} ${a.name}`.toLowerCase().includes(sku))) return false;
+    return true;
+  });
+  renderTable();
+}
+
+function renderTable() {
+  document.getElementById('list-count').textContent = `共 ${filtered.length} 条 · 点击行看详情`;
+  document.getElementById('tbody').innerHTML = filtered.map(a => `
+    <tr class="clickable ${current && current.id === a.id ? 'sel' : ''}" data-id="${a.id}">
+      <td><b>${a.sku}</b> ${a.name}</td>
+      <td>${a.shop}</td>
+      <td>${a.tier}</td>
+      <td>${tag(a.stockout)}</td>
+      <td>${tag(a.stagnation)}</td>
+      <td>${tag(a.po)}</td>
+      <td>${tag(a.seasonal)}</td>
+      <td>${a.week === '' ? '—' : 'WK' + a.week}</td>
+      <td>${a.dos}</td>
+      <td>${a.nextDos}</td>
+      <td>${a.app}</td>
+      <td>${a.domestic}</td>
+      <td>${a.inbound}</td>
+      <td>${a.action}</td>
+      <td>${a.sla}</td>
+      <td>${a.status}</td>
+      <td>
+        <button class="link" data-act="claim" data-id="${a.id}">认领</button>
+        <button class="link" data-act="fb" data-id="${a.id}">反馈</button>
+      </td>
+    </tr>`).join('');
+}
+
+function spark(weeks, A, B) {
+  const w = 860, h = 168, p = 28;
+  const max = Math.max(B + 8, ...weeks, 40);
+  const x = i => p + i * ((w - p * 2) / (weeks.length - 1));
+  const y = v => h - p - (v / max) * (h - p * 2);
+  const line = weeks.map((v,i) => `${x(i)},${y(v)}`).join(' ');
+  const yA = y(A), yB = y(B);
+  const dots = weeks.map((v,i) => `<circle cx="${x(i)}" cy="${y(v)}" r="3" fill="${v <= 7 ? '#cf1322' : v < A ? '#d48806' : v > B ? '#1677ff' : '#389e0d'}" />`).join('');
+  const labels = weeks.map((v,i) => `<text x="${x(i)}" y="${h - 8}" text-anchor="middle" font-size="10" fill="#94a3b8">W${i}</text>`).join('');
+  return `<svg class="chart" viewBox="0 0 ${w} ${h}" width="100%" height="180">
+    <line x1="${p}" x2="${w-p}" y1="${yA}" y2="${yA}" stroke="#b7eb8f" stroke-dasharray="4 3" />
+    <line x1="${p}" x2="${w-p}" y1="${yB}" y2="${yB}" stroke="#91caff" stroke-dasharray="4 3" />
+    <text x="${w-p}" y="${yA-4}" text-anchor="end" font-size="10" fill="#389e0d">A=${A}</text>
+    <text x="${w-p}" y="${yB-4}" text-anchor="end" font-size="10" fill="#1677ff">B=${B}</text>
+    <polyline fill="none" stroke="#1677ff" stroke-width="2" points="${line}" />
+    ${dots}${labels}
+  </svg>`;
+}
+
+function openDetail(a) {
+  current = a;
+  renderTable();
+  const t = TIERS[a.tier];
+  const methodName = { NONE: '仅现货', AIR: '空运', RAIL: '卡航', SEA: '普船' };
+  document.getElementById('drawer').innerHTML = `
+    <div class="drawer-hd">
+      <div>
+        <h2 style="margin:0 0 4px;font-size:16px;">${a.sku} · ${a.name} · ${a.shop}</h2>
+        <div class="muted">${a.tier} · 负责人 ${a.owner} · 规则 eu-default v1.0.0 · ${a.note || '多灯可并行，推荐动作来自动作阶梯'}</div>
+      </div>
+      <button class="ghost" id="close-drawer">关闭</button>
+    </div>
+    <div class="drawer-bd">
+      <div class="grid-3">
+        <div class="kpi"><span>断货 / 积压 / 采购 / 季节</span><b>${tag(a.stockout)} ${tag(a.stagnation)} ${tag(a.po)} ${tag(a.seasonal)}</b></div>
+        <div class="kpi"><span>危急周 DOS / 下周</span><b>${a.week === '' ? '—' : 'WK'+a.week} · ${a.dos} 天 / ${a.nextDos} 天</b></div>
+        <div class="kpi"><span>推荐动作 · SLA</span><b>${a.action}<br><span style="font-weight:400;font-size:12px;color:#64748b">${a.sla}</span></b></div>
+      </div>
+      <div class="h3">库存桶</div>
+      <table>
+        <tr><th>海外在库(DOS用)</th><th>APP 可调</th><th>国内可发</th><th>在途</th><th>库龄(天)</th><th>超龄件数</th><th>缺口</th></tr>
+        <tr><td>${Math.round(a.dos * 12)}</td><td>${a.app}</td><td>${a.domestic}</td><td>${a.inbound}${a.inboundPc ? ' · '+a.inboundPc : ''}</td><td>${a.ageDays}</td><td>${a.agedQty}</td><td>${a.gap}</td></tr>
+      </table>
+      ${a.poText ? `<p class="note" style="margin-top:8px;">采购：${a.poText}</p>` : ''}
+      ${a.seasonInv ? `<p class="note">季节：总计库存 ${a.seasonInv} vs 季末剩余 FCS ${a.seasonFcs}</p>` : ''}
+      <div class="h3">未来 16 周 DOS（绿虚线 A 健康下限，蓝虚线 B 上限）</div>
+      ${spark(a.weeks, t.A, t.B)}
+      <div class="h3">各周可达物流</div>
+      <div class="table-wrap">
+        <table>
+          <tr>${a.weeks.map((_,i)=>`<th>WK${i}</th>`).join('')}</tr>
+          <tr>${a.methods.map(m=>`<td>${methodName[m]}</td>`).join('')}</tr>
+          <tr>${a.weeks.map(v=>`<td>${v}</td>`).join('')}</tr>
+        </table>
+      </div>
+      <div class="h3">推荐动作推导</div>
+      <ol class="steps">${a.derive.map(d => `<li class="${d.t}">${d.s}</li>`).join('')}</ol>
+      <div class="h3">处理记录（示例）</div>
+      <table>
+        <tr><th>时间</th><th>人</th><th>动作</th></tr>
+        <tr><td>08-27 07:00</td><td>系统</td><td>按 v1.0.0 生成预警</td></tr>
+        ${a.status === '处理中' ? '<tr><td>08-27 09:12</td><td>Anna</td><td>认领，正在对接物流提拉 PC2410</td></tr>' : ''}
+      </table>
+    </div>`;
+  document.getElementById('drawer').classList.add('on');
+  document.getElementById('mask').classList.add('on');
+  document.getElementById('close-drawer').onclick = closeDetail;
+}
+
+function closeDetail() {
+  current = null;
+  document.getElementById('drawer').classList.remove('on');
+  document.getElementById('drawer').innerHTML = '';
+  document.getElementById('mask').classList.remove('on');
+  renderTable();
+}
+
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.style.display = 'block';
+  setTimeout(() => { el.style.display = 'none'; }, 1800);
+}
+
+const CFG_PANELS = {
+  档级: `
+    <p class="note">闭区间，无空洞。P1 无低断货；P2 只保留高断货（宁愿断货不可呆滞）。</p>
+    <table>
+      <tr><th>档级</th><th>健康带 A–B</th><th>高</th><th>中</th><th>低</th><th>命中</th></tr>
+      <tr><td>P0 头部品</td><td>22–35</td><td>0–7</td><td>8–14</td><td>15–21</td><td>产品定位=头部品</td></tr>
+      <tr><td>P1 腰部品</td><td>15–28</td><td>0–7</td><td>8–14</td><td>—</td><td>产品定位=腰部品</td></tr>
+      <tr><td>P2 尾部品</td><td>8–21</td><td>0–7</td><td>—</td><td>—</td><td>腰尾部；积压更紧</td></tr>
+    </table>
+    <p class="note" style="margin-top:8px;">下周 DOS ≥ A 时断货灯降 1 档，不能撤灯。未命中档级走默认 P1。</p>`,
+  积压: `
+    <table>
+      <tr><th>库龄（天）</th><th>灯</th><th>动作</th></tr>
+      <tr><td>0–119 且 DOS 过高</td><td>销速异常</td><td>REVIEW_REPLENISH</td></tr>
+      <tr><td>120–149</td><td>中</td><td>高利润动销</td></tr>
+      <tr><td>150–179</td><td>高</td><td>清库</td></tr>
+      <tr><td>≥180</td><td>已超期</td><td>强制清库</td></tr>
+    </table>
+    <p class="note" style="margin-top:8px;">require_dos_over_healthy=false：老货即使 DOS 低也亮积压灯（见 H6104 双灯）。</p>`,
+  物流: `
+    <table>
+      <tr><th>手段</th><th>距今天（fallback）</th><th>来源</th></tr>
+      <tr><td>仅现货/调拨/控价</td><td>0–27 天</td><td>计算器优先</td></tr>
+      <tr><td>空运</td><td>28–56</td><td>计算器优先</td></tr>
+      <tr><td>卡航</td><td>57–70</td><td>计算器优先</td></tr>
+      <tr><td>普船</td><td>≥71</td><td>计算器优先</td></tr>
+    </table>
+    <p class="note" style="margin-top:8px;">提拉上限 pull_max_days=7。欧洲数字只是默认包，北美复制后改时效。</p>`,
+  动作阶梯: `
+    <table>
+      <tr><th>rank</th><th>代码</th><th>条件（谓词）</th></tr>
+      <tr><td>10</td><td>PULL_INBOUND</td><td>任意断货 + 有在途</td></tr>
+      <tr><td>20</td><td>TRANSFER_APP</td><td>下周未恢复 + APP&gt;0</td></tr>
+      <tr><td>30</td><td>PRICE_CONTROL</td><td>下周未恢复 + APP≤0 + 非活动期</td></tr>
+      <tr><td>40</td><td>AIR_SHIP</td><td>高断货 + 空运可达 + 空运闸</td></tr>
+      <tr><td>50</td><td>RAIL_SHIP</td><td>高断货 + 卡航可达</td></tr>
+      <tr><td>60</td><td>TRANSFER_DOMESTIC</td><td>国内≤0 + 其他渠道&gt;0</td></tr>
+      <tr><td>65</td><td>SEA_REPLENISH</td><td>普船可达 + 国内&gt;0，按缺口加发</td></tr>
+      <tr><td>70</td><td>NEW_PO</td><td>国内与在途都不够</td></tr>
+    </table>`,
+  空运闸: `
+    <table>
+      <tr><th>条件</th><th>默认</th></tr>
+      <tr><td>断货灯</td><td>仅 high</td></tr>
+      <tr><td>下周未恢复</td><td>是</td></tr>
+      <tr><td>空运可达危急周</td><td>是</td></tr>
+      <tr><td>空运后边际利润&gt;0</td><td>是；算不出则转审批</td></tr>
+      <tr><td>海运比</td><td>事后监控，不是绝对禁止</td></tr>
+    </table>`,
+  季节: `
+    <table>
+      <tr><th>日期</th><th>库存 &gt; 剩余 FCS</th><th>库存 &lt; 剩余 FCS</th></tr>
+      <tr><td>09-01</td><td>销速异常</td><td>无</td></tr>
+      <tr><td>10-01</td><td>低呆滞</td><td>黑五低断货</td></tr>
+      <tr><td>10-12</td><td>中呆滞（申请黑五）</td><td>黑五中断货</td></tr>
+      <tr><td>11-01</td><td>中呆滞</td><td>黑五中断货</td></tr>
+      <tr><td>11-30</td><td>高呆滞圣诞清库</td><td>无</td></tr>
+      <tr><td>12-15</td><td>明年再卖</td><td>无</td></tr>
+    </table>
+    <p class="note" style="margin-top:8px;">已修正原文 11 月 31 日。旺季 10–12 月仍跑周 DOS。</p>`,
+  发布: `
+    <p class="note">草稿校验：断货带无重叠无空洞；动作 rank 唯一；试算至少 1 条 SKU。</p>
+    <p>当前已发布：<b>v1.0.0</b> · 2026-08-20<br>草稿：v1.1.0（P0 高断货上限 7→5，未发布）</p>
+    <p style="margin-top:12px;">
+      <button class="ghost">保存草稿</button>
+      <button class="ghost" id="goto-sim">去试算</button>
+      <button class="primary" id="btn-pub">发布 v1.1.0</button>
+    </p>`
+};
+
+function renderCfg(name) {
+  document.querySelectorAll('#cfg-tabs button').forEach(b => b.classList.toggle('on', b.textContent === name));
+  document.getElementById('cfg-body').innerHTML = CFG_PANELS[name];
+  const gs = document.getElementById('goto-sim');
+  if (gs) gs.onclick = () => switchView('sim');
+  const pub = document.getElementById('btn-pub');
+  if (pub) pub.onclick = () => toast('原型：发布前需先在「规则试算」跑通。当前未拦死，仅演示校验文案。');
+}
+
+function draftOf(a) {
+  const changed = a.tier === 'P0' && a.stockout === 'high' && a.dos > 5 && a.dos <= 7;
+  if (!changed) return { stockout: a.stockout, action: a.action, changed: false };
+  return {
+    stockout: 'mid',
+    action: a.app > 0 ? '一周内调拨 APP（高→中，SLA 24h→7天；空运闸不再满足）' : '一周内控价（不再走空运闸）',
+    changed: true
+  };
+}
+
+function simCard(title, stockout, action, a) {
+  const wk = a.week === '' ? 0 : a.week;
+  return `
+    <div class="card" style="margin:0;">
+      <div class="card-hd">${title}</div>
+      <div style="padding:12px;">
+        <p>断货灯：${tag(stockout)}</p>
+        <p>推荐：${action}</p>
+        <p class="note">DOS=${a.dos} · 危急周 ${a.week === '' ? '—' : 'WK' + a.week} · 空运可达=${a.methods[wk] === 'AIR' ? '是' : '否'}</p>
+      </div>
+    </div>`;
+}
+
+function runSim() {
+  const id = document.getElementById('sim-sku').value;
+  const a = ALERTS.find(x => x.id === id);
+  const d = draftOf(a);
+  let explain;
+  if (d.changed) {
+    explain = `草稿把 P0 高断货从 0–7 改成 0–5。本 SKU DOS=${a.dos} 从高断货降为中断货，空运闸要求 high，不再建议空运。`;
+  } else if (a.tier === 'P0' && a.dos <= 5 && a.stockout === 'high') {
+    explain = `DOS=${a.dos} 仍 ≤5，灯与动作不变，只是高档区间变窄。`;
+  } else {
+    explain = '本 SKU 不落在 6–7 天，改高档上限对它无影响。试算仍算已跑通。建议再选 H6199（DOS=6）看差异。';
+  }
+  document.getElementById('sim-result').innerHTML =
+    simCard('已发布 v1.0.0', a.stockout, a.action, a) +
+    simCard('草稿 v1.1.0（高档 0–5 天）', d.stockout, d.action, a) +
+    `<div style="grid-column:1/-1"><p class="note">${explain}</p></div>`;
+}
+
+function switchView(name) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('on', t.dataset.view === name));
+  document.querySelectorAll('.view').forEach(v => v.classList.toggle('on', v.id === name));
+}
+
+function init() {
+  const shops = [...new Set(ALERTS.map(a => a.shop))];
+  document.getElementById('f-shop').innerHTML += shops.map(s => `<option>${s}</option>`).join('');
+  document.getElementById('sim-sku').innerHTML = ALERTS.map(a => `<option value="${a.id}">${a.sku} ${a.shop} · ${a.actionCode}</option>`).join('');
+  document.getElementById('sim-sku').value = 'A009';
+  document.getElementById('cfg-tabs').innerHTML = Object.keys(CFG_PANELS).map((n,i) => `<button class="${i===0?'on':''}">${n}</button>`).join('');
+  document.getElementById('cfg-tabs').onclick = e => { if (e.target.tagName === 'BUTTON') renderCfg(e.target.textContent); };
+  renderCfg('档级');
+  renderStats();
+  renderTable();
+
+  document.querySelectorAll('.tab').forEach(t => t.onclick = () => switchView(t.dataset.view));
+  document.getElementById('btn-query').onclick = applyFilter;
+  document.getElementById('btn-reset').onclick = () => {
+    ['f-region','f-shop','f-tier','f-signal','f-level'].forEach(id => document.getElementById(id).value = '');
+    document.getElementById('f-sku').value = '';
+    applyFilter();
+  };
+  document.getElementById('btn-export').onclick = () => toast('原型：导出当前 ' + filtered.length + ' 条（示例）');
+  document.getElementById('btn-sim').onclick = runSim;
+  document.getElementById('tbody').addEventListener('click', e => {
+    const btn = e.target.closest('button');
+    if (btn && btn.dataset.act === 'claim') {
+      e.stopPropagation();
+      const a = ALERTS.find(x => x.id === btn.dataset.id);
+      a.status = '处理中';
+      renderStats(); applyFilter();
+      toast(a.sku + ' 已认领');
+      return;
+    }
+    if (btn && btn.dataset.act === 'fb') {
+      e.stopPropagation();
+      feedbackTarget = ALERTS.find(x => x.id === btn.dataset.id);
+      document.getElementById('modal').classList.add('on');
+      return;
+    }
+    const tr = e.target.closest('tr[data-id]');
+    if (tr) openDetail(ALERTS.find(x => x.id === tr.dataset.id));
+  });
+  document.getElementById('mask').onclick = closeDetail;
+  document.getElementById('fb-cancel').onclick = () => document.getElementById('modal').classList.remove('on');
+  document.getElementById('fb-ok').onclick = () => {
+    if (feedbackTarget) {
+      feedbackTarget.status = '已关闭';
+      toast(feedbackTarget.sku + ' 已记录：' + document.getElementById('fb-type').value);
+    }
+    document.getElementById('modal').classList.remove('on');
+    renderStats(); applyFilter();
+  };
+  runSim();
+}
+init();
+</script>
+</body>
+</html>

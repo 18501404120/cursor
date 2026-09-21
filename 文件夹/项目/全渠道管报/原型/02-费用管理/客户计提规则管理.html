@@ -1,0 +1,574 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>客户计提规则管理</title>
+  <link rel="stylesheet" href="fee-mgmt-common.css">
+  <style>
+    body { background: #f5f7fb; }
+    .header { background: #1f3a8a; }
+    .stat-row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; padding: 0 16px 16px; }
+    .stat-card { border: 1px solid #e5e7eb; border-radius: 8px; background: #fff; padding: 12px 14px; }
+    .stat-card .k { font-size: 12px; color: #6b7280; }
+    .stat-card .v { margin-top: 4px; font-size: 22px; font-weight: 700; color: #1f2937; }
+    .ops { display: flex; gap: 8px; flex-wrap: wrap; }
+    .op-link { border: none; background: transparent; color: #1677ff; cursor: pointer; font-size: 12px; padding: 0 4px; }
+    .op-link.danger { color: #dc2626; }
+    .tag-origin { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 999px; font-size: 12px; }
+    .tag-origin.excel { color: #1d4ed8; background: #eff6ff; border: 1px solid #bfdbfe; }
+    .tag-origin.override { color: #a16207; background: #fffbeb; border: 1px solid #fde68a; }
+    .hint { margin: 0 16px 12px; border: 1px solid #bfdbfe; background: #eff6ff; padding: 9px 12px; border-radius: 6px; font-size: 12px; color: #1e3a8a; }
+    .sub-hint { margin: -4px 16px 12px; font-size: 12px; color: #6b7280; }
+    .form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 16px; }
+    .form-field { display: flex; flex-direction: column; gap: 6px; }
+    .form-field.full { grid-column: 1 / -1; }
+    .form-field label { color: #6b7280; font-size: 12px; }
+    .form-field input, .form-field select, .form-field textarea {
+      height: 32px; border: 1px solid #d9d9d9; border-radius: 6px; padding: 0 10px; font-size: 13px;
+    }
+    .form-field input[readonly] { background: #f8fafc; color: #475569; }
+    .form-field textarea { height: 70px; padding: 8px 10px; resize: vertical; }
+    .form-field.hidden { display: none; }
+    #ratioModal .modal { width: min(760px, 96vw); }
+    .dept-ratio-wrap {
+      max-height: 280px;
+      overflow: auto;
+      border: 1px solid #e5e7eb;
+      border-radius: 6px;
+      background: #fff;
+    }
+    .dept-ratio-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .dept-ratio-table th,
+    .dept-ratio-table td { border: 1px solid #e5e7eb; padding: 6px 10px; }
+    .dept-ratio-table thead th {
+      position: sticky;
+      top: 0;
+      z-index: 2;
+      background: #f8fafc;
+      font-weight: 600;
+      color: #475569;
+      box-shadow: 0 1px 0 #e5e7eb;
+    }
+    .dept-ratio-table td.num { text-align: right; }
+    .dept-ratio-table input {
+      width: 100%;
+      height: 30px;
+      border: 1px solid #d9d9d9;
+      border-radius: 4px;
+      padding: 0 8px;
+      font-size: 13px;
+      text-align: right;
+    }
+    .dept-ratio-table input[type="text"] { text-align: left; }
+    .dept-ratio-toolbar { margin-top: 8px; display: flex; justify-content: flex-end; }
+    .dept-ratio-hint { margin-top: 6px; font-size: 12px; color: #6b7280; }
+    .dept-master-wrap {
+      max-height: 360px;
+      overflow: auto;
+      border: 1px solid #e5e7eb;
+      border-radius: 6px;
+      background: #fff;
+    }
+    .dept-master-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .dept-master-table th,
+    .dept-master-table td { border: 1px solid #e5e7eb; padding: 6px 10px; }
+    .dept-master-table thead th {
+      position: sticky;
+      top: 0;
+      z-index: 2;
+      background: #f8fafc;
+      font-weight: 600;
+      color: #475569;
+      box-shadow: 0 1px 0 #e5e7eb;
+    }
+    .dept-master-table select {
+      width: 100%;
+      height: 30px;
+      border: 1px solid #d9d9d9;
+      border-radius: 4px;
+      padding: 0 8px;
+      font-size: 13px;
+      background: #fff;
+    }
+    .dept-master-table input {
+      width: 100%;
+      height: 30px;
+      border: 1px solid #d9d9d9;
+      border-radius: 4px;
+      padding: 0 8px;
+      font-size: 13px;
+    }
+    .dept-master-toolbar {
+      margin-top: 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .dept-filter-field .msf-root {
+      min-width: 220px;
+      max-width: 100%;
+    }
+    .panel-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+    .panel-actions .btn { text-decoration: none; display: inline-flex; align-items: center; }
+    .clickable-cell { cursor: pointer; }
+    .clickable-cell:hover { background: #f8fafc; }
+    .ratio-mini-bar {
+      display: inline-block;
+      max-width: 220px;
+      padding: 2px 8px;
+      border-radius: 4px;
+      background: #f1f5f9;
+      border: 1px solid #e2e8f0;
+      color: #334155;
+      font-size: 12px;
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    @media (max-width: 980px) {
+      .stat-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .form-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+<div class="layout">
+  <aside class="sider" aria-label="主导航">
+    <div class="sider-logo" aria-hidden="true"></div>
+    <a class="sider-item active" href="index.html">费用</a>
+    <a class="sider-item" href="../经营分析明细.html">管报</a>
+  </aside>
+  <main class="main">
+    <header class="header">
+      <div class="title">客户计提规则管理</div>
+      <nav class="nav-links">
+        <a href="index.html">目录</a>
+        <a class="active" href="客户计提规则管理.html">客户计提规则</a>
+        <a href="退款管理.html">退款管理</a>
+        <a href="扣款管理.html">扣款管理</a>
+      </nav>
+    </header>
+
+    <div class="page">
+      <div class="breadcrumb"><a href="index.html">费用管理</a> / 客户计提规则管理</div>
+
+      <section class="panel panel--filter">
+        <div class="filter-panel">
+          <div class="filter-grid">
+            <div class="f-item">
+              <label for="qCustomer">客户</label>
+              <span class="ctl-wrap">
+                <select id="qCustomer" class="ctl"><option value="">全部</option></select>
+                <button type="button" class="ctl-clear" aria-label="清除客户">×</button>
+              </span>
+            </div>
+            <div class="f-item">
+              <button type="button" class="btn" id="btnReset">重置筛选</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <div class="hint" data-pa-key="page-rule-hint">三类冲收入费用支持<strong>固定比例</strong>（计提用收入 × 比例）与<strong>部门固定比例</strong>（各部门销售订单金额不含税并减去退款金额 × 部门固定比例后汇总）。部门清单在本页通过<strong>部门管理</strong>按客户维护（部门编码、部门名称）；未维护时回退 ERP 订单部门。销售费用支持月固定金额、年总金额月均分摊、固定比例三种方式。加拿大客户（Costco CA、D&H CA、Synnex-CA、HOME DEPOT CANADA）按人民币口径维护，保存后联动扣款管理重算（已关账月不变）。</div>
+      <div class="sub-hint">计提用收入 = 销售收入 − 退货退款的收入（金蝶-销售退货单，type=退货退款）；用于比例计提，与实际扣款/退款入账分离。</div>
+
+      <section class="panel panel--table">
+        <div class="panel-head">
+          <div>
+            <div class="panel-title">零售商计提规则</div>
+            <div class="panel-sub" id="matrixTip" data-pa-key="matrix-anchor-period">共 0 条</div>
+          </div>
+          <div class="panel-actions">
+            <button type="button" class="btn" id="btnExport">导出</button>
+            <button type="button" class="btn" id="btnDeptManage" data-pa-key="btn-dept-manage">部门管理</button>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th data-pa-key="col-customer">客户</th>
+                <th class="num" data-pa-key="col-promo-ratio">促销扣款比例</th>
+                <th class="num" data-pa-key="col-sales-discount-ratio">销售折扣比例</th>
+                <th class="num" data-pa-key="col-cash-discount-ratio">现金折扣比例</th>
+                <th data-pa-key="col-expense-method">销售费用计提方式</th>
+                <th data-pa-key="col-expense-rule">销售费用规则</th>
+                <th data-pa-key="col-ops">操作</th>
+              </tr>
+            </thead>
+            <tbody id="matrixBody"></tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+  </main>
+</div>
+
+<div class="modal-mask" id="ratioModal" aria-hidden="true">
+  <div class="modal">
+    <div class="modal-hd">
+      <h2 id="ratioModalTitle">调整计提比例</h2>
+      <button type="button" class="modal-close" id="btnRatioClose">×</button>
+    </div>
+    <div class="modal-bd">
+      <div class="form-grid">
+        <div class="form-field">
+          <label for="fRatioCustomer">客户</label>
+          <input id="fRatioCustomer" type="text" readonly>
+        </div>
+        <div class="form-field">
+          <label for="fRatioFeeType">费用项</label>
+          <input id="fRatioFeeType" type="text" readonly>
+        </div>
+        <div class="form-field">
+          <label for="fRatioMethod">计提方式</label>
+          <select id="fRatioMethod">
+            <option value="fixed_ratio">固定比例</option>
+            <option value="dept_fixed_ratio">部门固定比例</option>
+          </select>
+        </div>
+        <div class="form-field" id="fieldRatioValue">
+          <label for="fRatioValue" id="fRatioValueLabel">计提比例（0~1）</label>
+          <input id="fRatioValue" type="number" min="0" max="1" step="0.00000001">
+        </div>
+        <div class="form-field full hidden" id="fieldDeptRatioGrid">
+          <label>部门固定比例清单</label>
+          <div class="dept-ratio-wrap">
+            <table class="dept-ratio-table">
+              <thead>
+                <tr>
+                  <th style="width:24%;">部门编号</th>
+                  <th style="width:46%;">部门名称</th>
+                  <th class="num" style="width:30%;">固定比例（0~1）</th>
+                </tr>
+              </thead>
+              <tbody id="fDeptRatioBody"></tbody>
+            </table>
+          </div>
+          <div class="dept-ratio-hint" id="fDeptRatioHint">部门清单来自本页「部门管理」为该客户维护的部门；未维护时回退 ERP 订单部门。此处仅维护各部门固定比例（0～1），计提 = Σ（部门订单金额不含税并减去退款金额 × 部门固定比例）。</div>
+        </div>
+        <div class="form-field full">
+          <label for="fRatioNote">备注</label>
+          <textarea id="fRatioNote" placeholder="例如：按年框合同 VPA 点位"></textarea>
+        </div>
+      </div>
+    </div>
+    <div class="modal-ft">
+      <button type="button" class="btn" id="btnRatioCancel">取消</button>
+      <button type="button" class="btn btn-primary" id="btnRatioSave">保存</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-mask" id="deptModal" aria-hidden="true">
+  <div class="modal" style="width:min(880px, 96vw);">
+    <div class="modal-hd">
+      <h2>部门管理</h2>
+      <button type="button" class="modal-close" id="btnDeptClose">×</button>
+    </div>
+    <div class="modal-bd" data-pa-key="dept-modal-body">
+      <div class="form-grid">
+        <div class="form-field dept-filter-field">
+          <label for="deptCustomerMsfMount">筛选客户</label>
+          <div id="deptCustomerMsfMount" data-pa-key="dept-customer-filter"></div>
+        </div>
+      </div>
+      <p class="dept-ratio-hint" style="margin:0 0 10px;">维护各客户用于「部门固定比例」计提的部门主数据。筛选客户默认展示全部，可多选、可搜索、可清空；列表须填写客户、部门编码与部门名称。</p>
+      <div class="dept-master-wrap">
+        <table class="dept-master-table">
+          <thead>
+            <tr>
+              <th data-pa-key="col-dept-customer" style="width:22%;">客户</th>
+              <th style="width:22%;">部门编码</th>
+              <th style="width:36%;">部门名称</th>
+              <th style="width:20%;">操作</th>
+            </tr>
+          </thead>
+          <tbody id="deptMasterBody"></tbody>
+        </table>
+      </div>
+      <div class="dept-master-toolbar">
+        <button type="button" class="btn" id="btnDeptAddRow">新增部门</button>
+        <span class="dept-ratio-hint" id="deptMasterTip">共 0 条</span>
+      </div>
+    </div>
+    <div class="modal-ft">
+      <button type="button" class="btn" id="btnDeptCancel">取消</button>
+      <button type="button" class="btn btn-primary" id="btnDeptSave">保存</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-mask" id="expenseModal" aria-hidden="true">
+  <div class="modal">
+    <div class="modal-hd">
+      <h2>调整销售费用计提规则</h2>
+      <button type="button" class="modal-close" id="btnExpenseClose">×</button>
+    </div>
+    <div class="modal-bd">
+      <div class="form-grid">
+        <div class="form-field">
+          <label for="fExpenseCustomer">客户</label>
+          <input id="fExpenseCustomer" type="text" readonly>
+        </div>
+        <div class="form-field">
+          <label for="fExpenseMethod">计提方式</label>
+          <select id="fExpenseMethod">
+            <option value="monthly_fixed">月固定金额</option>
+            <option value="annual_avg">年总金额月均分摊</option>
+            <option value="fixed_ratio">固定比例</option>
+          </select>
+        </div>
+        <div class="form-field" id="fieldMonthlyFixed">
+          <label for="fExpenseMonthlyFixed">月固定金额</label>
+          <input id="fExpenseMonthlyFixed" type="number" step="0.01">
+        </div>
+        <div class="form-field" id="fieldAnnualTotal">
+          <label for="fExpenseAnnualTotal">年总金额</label>
+          <input id="fExpenseAnnualTotal" type="number" step="0.01">
+        </div>
+        <div class="form-field" id="fieldExpenseRatio">
+          <label for="fExpenseRatio">固定比例（0~1）</label>
+          <input id="fExpenseRatio" type="number" min="0" max="1" step="0.00000001">
+        </div>
+        <div class="form-field full">
+          <label for="fExpenseNote">备注</label>
+          <textarea id="fExpenseNote" placeholder="例如：年框 VPA 广告预算、货架租赁费等"></textarea>
+        </div>
+      </div>
+    </div>
+    <div class="modal-ft">
+      <button type="button" class="btn" id="btnExpenseCancel">取消</button>
+      <button type="button" class="btn btn-primary" id="btnExpenseSave">保存</button>
+    </div>
+  </div>
+</div>
+
+<script src="../../../../规范/assets/multi-select-filter.js"></script>
+<script src="fee-mgmt-common.js?v=202608101800"></script>
+<script src="fee-mgmt-op-log.js"></script>
+<script src="supermarket-accrual-base.js?v=202608101800"></script>
+<script src="supermarket-accrual-store.js?v=202608101800"></script>
+<script src="客户计提规则管理.js?v=202608101800"></script>
+
+
+
+
+
+
+
+<!-- prototype-annotation:start -->
+<link rel="stylesheet" href="../prototype-annotation/prototype-annotation.css">
+<script id="prototype-annotation-config" type="application/json">
+{
+  "pageId": "fee-customer-accrual-rules",
+  "version": "2026-07-13T18:15:00+08:00",
+  "pageTitle": "客户计提规则管理",
+  "annotations": [
+    {
+      "id": "page-rule-hint",
+      "selector": "[data-pa-key=\"page-rule-hint\"]",
+      "title": "计提口径与重算范围",
+      "body": "本页说明的业务口径：\n1. 「计提用收入」= 销售收入 − 退货退款对应的收入；用于算比例，与实际扣款、退款入账分开处理。\n2. 部门固定比例所用部门，须在本页「部门管理」按客户维护；未维护时回退 ERP 订单部门，计提基数为各部门订单金额不含税并减去退款金额。\n3. 金额统一为美元（USD）。保存规则后会联动重算扣款管理；已关账月（演示为 2026-01、02）文案写明不变。"
+    },
+    {
+      "id": "flt-customer",
+      "selector": "#qCustomer",
+      "title": "客户筛选",
+      "body": "筛选说明：\n1. 选「全部」时，每个零售商各占一行；选定某个客户时，只显示该客户。\n2. 从扣款管理点「调整规则」跳过来时，会自动选中对应客户。\n3. 筛选只改变列表显示，不会修改已保存的规则内容。\n4. 点「部门管理」时，若此处已选客户，会自动带入部门维护弹窗。"
+    },
+    {
+      "id": "btn-dept-manage",
+      "selector": "[data-pa-key=\"btn-dept-manage\"]",
+      "title": "部门管理",
+      "body": "按客户维护部门主数据，供「部门固定比例」计提使用：\n1. 点击打开部门维护弹窗；打开时筛选默认「全部客户」，展示所有已保存部门。\n2. 列表每行须填写客户、部门编码、部门名称。\n3. 顶部筛选支持搜索、多选、全选与清空，用于缩小列表范围。"
+    },
+    {
+      "id": "matrix-anchor-period",
+      "selector": "[data-pa-key=\"matrix-anchor-period\"]",
+      "title": "列表展示月份",
+      "body": "列表取数说明：\n1. 各列比例、销售费用摘要，按系统最新演示月份（2026-04）计算展示。\n2. 若某费用采用「部门固定比例」，列表以迷你条展示「部门简称 + 比例」（如「电商 20% | 商超 80%」），最多 5 个部门；明细在调整弹窗中维护。\n3. 验收时：切换客户后，条数与比例应与系统初始值加上本页已保存的修改一致。"
+    },
+    {
+      "id": "rule-matrix",
+      "selector": "#matrixBody",
+      "title": "零售商计提规则表",
+      "body": "主表说明：\n1. 一行代表一个零售商，汇总促销扣款、销售折扣、现金折扣、销售费用四类计提规则。\n2. 前三列比例及销售费用两列可直接点击，效果与右侧操作按钮相同。\n3. 部门固定比例：迷你条展示「部门简称 比例 | …」（如电商 20% | 商超 80%），最多 5 个；固定比例仍只显示单一百分比。\n4. 展示结果 = 系统初始规则 + 本页曾保存过的调整。"
+    },
+    {
+      "id": "matrix-ops",
+      "selector": "th[data-pa-key=\"col-ops\"]",
+      "title": "操作列",
+      "body": "每行可操作：\n1. 「促销 / 销折 / 现折 / 销费」分别打开对应调整弹窗。\n2. 「日志」查看该客户历次规则变更与部门维护记录。\n3. 每次成功保存后，日志条数应增加一条。"
+    },
+    {
+      "id": "dept-customer-filter",
+      "selector": "[data-pa-key=\"dept-customer-filter\"]",
+      "title": "筛选客户（多选）",
+      "body": "部门列表筛选控件：\n1. 默认不选任何客户，即展示全部已维护部门；若无已保存数据，则带出各客户 ERP 订单部门作为编辑起点。\n2. 支持面板内搜索客户名称、多选勾选、首行「全部」全选/全不选。\n3. 点击右侧 × 可一键清空筛选，恢复展示全部。\n4. 选中一个或多个客户后，列表只展示这些客户的部门（优先已保存，否则 ERP）。"
+    },
+    {
+      "id": "dept-modal",
+      "selector": "[data-pa-key=\"dept-modal-body\"]",
+      "title": "部门维护弹窗",
+      "body": "维护部门主数据列表：\n1. 顶部「筛选客户」可选全部或某一客户，用于缩小列表范围。\n2. 表格列：客户、部门编码、部门名称、操作；每行客户为下拉选择。\n3. 保存时按客户分组写入；同一客户下部门编码不可重复。\n4. 筛选某一客户时，仅更新该客户的部门清单；选「全部」时更新列表中出现的各客户。\n5. 保存成功记入对应客户操作日志。"
+    },
+    {
+      "id": "btn-dept-save",
+      "selector": "#btnDeptSave",
+      "title": "保存部门清单",
+      "body": "保存部门主数据后：\n1. 该客户后续「部门固定比例」弹窗按新清单展示部门行。\n2. 若此时正打开同一客户的计提比例弹窗，部门表会即时刷新。\n3. 不会自动修改已保存的各部门比例数值，仅更新部门行集合。\n4. 请到调整计提比例弹窗核对部门是否齐全。"
+    },
+    {
+      "id": "ratio-modal",
+      "selector": "#ratioModal",
+      "title": "调整计提比例",
+      "body": "三类冲收入费用（促销扣款、销售折扣、现金折扣）的调整说明：\n1. 固定比例：填写 0～1 小数，计提 = 当月计提用收入 × 比例。\n2. 部门固定比例：部门编码、名称来自「部门管理」；本弹窗只维护各部门比例。\n3. 无部门时不能保存，须先去「部门管理」维护。\n4. 全部部门比例为 0 时会再次确认。"
+    },
+    {
+      "id": "ratio-save",
+      "selector": "#btnRatioSave",
+      "title": "保存计提比例",
+      "body": "点击保存后：\n1. 先弹出确认框，说明将从哪个未关账月份起重算扣款管理（已关账月不动）。\n2. 校验通过后保存到本页，并记入该客户的操作日志。\n3. 关闭弹窗，主表刷新。\n4. 请到扣款管理核对：对应费用项后续月份的「计提扣款」应随之变化。"
+    },
+    {
+      "id": "ratio-method",
+      "selector": "#fRatioMethod",
+      "title": "计提方式切换",
+      "body": "切换「固定比例」与「部门固定比例」时：\n1. 固定比例：只显示一个总比例输入框。\n2. 部门固定比例：显示部门清单表（来自部门管理），仅比例可编辑。\n3. 切换后不会自动保存，须点「保存」才生效。"
+    },
+    {
+      "id": "dept-ratio-grid",
+      "selector": "#fieldDeptRatioGrid",
+      "title": "部门固定比例清单",
+      "body": "部门比例维护说明：\n1. 行数据来自该客户在「部门管理」中保存的部门；未维护时回退 ERP 订单部门。\n2. 此处不能改部门编码、名称，只能填各部门固定比例（0～1）。\n3. 示例：Target 可按「北美商超 5%、电商 3.49%」等拆分。\n4. 扣款管理算计提时：各部门「订单金额不含税并减去退款金额 × 部门比例」再相加。"
+    },
+    {
+      "id": "expense-modal",
+      "selector": "#expenseModal",
+      "title": "调整销售费用",
+      "body": "销售费用三种计提方式：\n1. 月固定金额：每月计提相同美元金额。\n2. 年总金额月均分摊：年总额 ÷ 12，每月相同。\n3. 固定比例：当月计提用收入 × 比例。\n4. 保存后只影响扣款管理里「销售费用」这一行的计提，不影响前三类冲收入费用。"
+    },
+    {
+      "id": "expense-save",
+      "selector": "#btnExpenseSave",
+      "title": "保存销售费用规则",
+      "body": "点击保存后：\n1. 同样先确认是否联动重算扣款管理。\n2. 按所选方式校验金额或比例（比例须在 0～1 之间）。\n3. 保存并写入操作日志，主表刷新。\n4. 若参数改回与系统初始一致，取消手工覆盖，扣款管理恢复默认计提数。"
+    },
+    {
+      "id": "expense-method",
+      "selector": "#fExpenseMethod",
+      "title": "销售费用方式切换",
+      "body": "切换计提方式时，弹窗只显示对应输入项：\n1. 月固定金额 → 填每月金额。\n2. 年总金额月均分摊 → 填年总额。\n3. 固定比例 → 填比例。\n未点保存前，仅界面预览，不会写入系统。"
+    }
+  ],
+  "fieldTips": [
+    {
+      "id": "tip-promo",
+      "selector": "th[data-pa-key=\"col-promo-ratio\"]",
+      "title": "促销扣款比例",
+      "body": "该客户促销扣款的计提比例。固定比例显示单一百分比；部门固定比例以迷你条展示「部门简称 + 比例」（如电商 20% | 商超 80%），最多 5 个。点击可调整。"
+    },
+    {
+      "id": "tip-sales-discount",
+      "selector": "th[data-pa-key=\"col-sales-discount-ratio\"]",
+      "title": "销售折扣比例",
+      "body": "销售折扣的计提比例，维护方式与促销扣款相同，但数值独立配置。部门固定比例时以迷你条展示各部门比例。"
+    },
+    {
+      "id": "tip-cash-discount",
+      "selector": "th[data-pa-key=\"col-cash-discount-ratio\"]",
+      "title": "现金折扣比例",
+      "body": "现金折扣的计提比例，支持固定比例或按部门固定比例两种方式；后者在列表以迷你条展示部门比例（最多 5 个）。"
+    },
+    {
+      "id": "tip-expense-method",
+      "selector": "th[data-pa-key=\"col-expense-method\"]",
+      "title": "销售费用计提方式",
+      "body": "销售费用采用哪种计提：月固定金额、年总额按月分摊，或按收入固定比例。"
+    },
+    {
+      "id": "tip-expense-rule",
+      "selector": "th[data-pa-key=\"col-expense-rule\"]",
+      "title": "销售费用规则",
+      "body": "当前方式下的参数摘要，例如每月多少美元、年总额除以 12、或固定比例。点击可进入调整弹窗。"
+    }
+  ],
+  "pageGuide": {
+    "dev": {
+      "页面整体定位": "维护各商超零售商的计提规则（比例与销售费用），是扣款管理算「计提扣款」的依据；退款滚动规则在「退款管理」页单独维护。",
+      "页面核心业务逻辑": "系统有一套初始规则；本页保存的修改会覆盖初始值。部门固定比例时，部门主数据在「部门管理」按客户维护（本地存储），比例在调整弹窗维护。未维护部门时回退 ERP 订单部门。",
+      "关键规则说明": "计提用收入与实际扣款、退款分开。部门编码不可重复。保存规则前确认重算范围。比例须在 0～1。",
+      "测试验收要点": "1. AAFES 等无 ERP 部门客户：先部门管理新增部门，再配部门固定比例。2. 部门管理保存后，计提弹窗部门表即时更新。3. 筛选客户后点部门管理，客户自动带入。4. 编码重复、空编码拦截。5. 日志记录部门维护。",
+      "关联上下游": "上游：部门管理主数据、ERP 订单部门与收入；下游：扣款管理按本页规则与部门清单计算计提扣款。"
+    },
+    "user": {
+      "标准操作流程": "1. 可选客户筛选。2. 若用部门固定比例，先点「部门管理」维护部门。3. 点击表中比例或销售费用调整。4. 确认重算后保存。5. 到扣款管理核对结果。",
+      "关键按钮与场景": "「部门管理」维护部门编码与名称；部门固定比例适合按部门拆分的商超合同。",
+      "使用注意事项": "本页不录入实际扣款与退款。部门名称与编码在部门管理维护，比例在调整弹窗维护。"
+    }
+  },
+  "statusFlow": {
+    "nodes": [
+      {
+        "id": "default",
+        "label": "默认规则",
+        "description": "使用系统初始化的客户计提规则。"
+      },
+      {
+        "id": "saved",
+        "label": "已保存变更",
+        "description": "本页弹窗保存过覆盖参数，扣款管理按保存值重算。"
+      }
+    ],
+    "transitions": [
+      {
+        "from": "默认规则",
+        "to": "已保存变更",
+        "trigger": "在比例或销售费用弹窗保存变更",
+        "allowed": "可再次编辑或恢复",
+        "forbidden": "不会自动改回系统初始规则"
+      },
+      {
+        "from": "已保存变更",
+        "to": "默认规则",
+        "trigger": "将参数改回与初始规则一致并保存",
+        "allowed": "扣款管理恢复默认计提",
+        "forbidden": "无"
+      }
+    ]
+  },
+  "persistedState": {
+    "edits": {},
+    "hidden": {},
+    "guides": {},
+    "assets": {},
+    "userAdded": {
+      "annotations": [],
+      "fieldTips": []
+    },
+    "persistedAt": ""
+  },
+  "editPolicy": {
+    "viewOnlyHostnames": [
+      "18501404120.github.io"
+    ],
+    "allowIps": [],
+    "allowIpPrefixes": [],
+    "allowTrustedBrowser": false,
+    "editToken": "",
+    "allowLocalhost": true,
+    "allowOtherHosts": true,
+    "pagesForceReadonly": true,
+    "autoPublishOnSave": false
+  }
+}
+</script>
+<script src="../prototype-annotation/prototype-annotation-runtime.js"></script>
+<!-- prototype-annotation:end -->
+</body>
+</html>

@@ -1,0 +1,1451 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>全局筛选与列表示范 · 销售主数据规范</title>
+  <style>
+    :root {
+      --brand: #1677ff;
+      --border: #d9d9d9;
+      --line: #f0f0f0;
+      --text: #1e293b;
+      --muted: #64748b;
+      --label: #595959;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      font-size: 13px;
+      color: var(--text);
+      background: #f5f7fa;
+    }
+    .page-hd {
+      background: #fff;
+      border-bottom: 1px solid var(--line);
+      padding: 14px 20px;
+    }
+    .page-hd h1 { margin: 0 0 6px; font-size: 18px; }
+    .page-hd p { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.55; }
+    .page-hd a { color: var(--brand); }
+    .filter-panel {
+      background: #fff;
+      padding: 14px 20px 16px;
+      border-bottom: 1px solid var(--line);
+    }
+    .filter-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px 16px;
+      align-items: center;
+    }
+    .f-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+    .f-item > label {
+      color: var(--label);
+      font-size: 13px;
+      white-space: nowrap;
+    }
+    .f-item select,
+    .f-item .ctl-host {
+      min-width: 88px;
+      max-width: 120px;
+    }
+    .ctl-wrap {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+    }
+    .ctl-wrap select.ctl {
+      width: 100%;
+      min-width: 88px;
+      max-width: 120px;
+      padding-right: 36px;
+    }
+    .ctl-clear {
+      position: absolute;
+      right: 22px;
+      top: 50%;
+      transform: translateY(-50%);
+      border: none;
+      background: transparent;
+      color: rgba(0, 0, 0, 0.25);
+      cursor: pointer;
+      font-size: 12px;
+      line-height: 1;
+      padding: 2px 4px;
+      z-index: 1;
+    }
+    .ctl-clear:hover { color: rgba(0, 0, 0, 0.45); }
+    .ctl-clear[hidden] { display: none; }
+    select.ctl {
+      height: 32px;
+      padding: 0 28px 0 10px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-size: 13px;
+      background: #fff;
+    }
+    select.ctl:focus { border-color: var(--brand); outline: none; box-shadow: 0 0 0 2px rgba(22,119,255,.12); }
+    .sku-group {
+      display: inline-flex;
+      align-items: stretch;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      overflow: hidden;
+      background: #fff;
+    }
+    .sku-group:focus-within {
+      border-color: var(--brand);
+      box-shadow: 0 0 0 2px rgba(22,119,255,.12);
+    }
+    .sku-group select {
+      border: none;
+      border-right: 1px solid var(--line);
+      border-radius: 0;
+      height: 30px;
+      width: 68px;
+      min-width: 68px;
+      max-width: 68px;
+      flex: 0 0 68px;
+      padding: 0 18px 0 6px;
+      font-size: 12px;
+      background: #fafafa;
+    }
+    .sku-group input {
+      border: none;
+      height: 30px;
+      width: 112px;
+      min-width: 112px;
+      padding: 0 10px;
+      font-size: 13px;
+    }
+    .sku-group input:focus { outline: none; }
+    .sc-cat-wrap { position: relative; min-width: 140px; }
+    .sc-cat-trigger-row { position: relative; display: inline-flex; align-items: center; }
+    .sc-cat-trigger {
+      height: 32px; min-width: 140px; max-width: 168px; padding: 0 36px 0 10px;
+      border: 1px solid var(--border); border-radius: 6px; background: #fff;
+      text-align: left; cursor: pointer; position: relative; font-size: 13px;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    .sc-cat-trigger::after {
+      content: ""; position: absolute; right: 10px; top: 50%; margin-top: -3px;
+      border: 5px solid transparent; border-top-color: #8c8c8c;
+      pointer-events: none;
+    }
+    .sc-cat-clear {
+      position: absolute; right: 22px; top: 50%; transform: translateY(-50%);
+      border: none; background: transparent; color: rgba(0, 0, 0, 0.25);
+      cursor: pointer; font-size: 12px; line-height: 1; padding: 2px 4px; z-index: 1;
+    }
+    .sc-cat-clear:hover { color: rgba(0, 0, 0, 0.45); }
+    .sc-cat-clear[hidden] { display: none; }
+    .sc-cat-item.sc-cat-all {
+      font-weight: 600; border-bottom: 1px solid var(--line);
+      background: #fafafa;
+    }
+    .sc-cat-wrap.open .sc-cat-trigger { border-color: var(--brand); box-shadow: 0 0 0 2px rgba(22,119,255,.12); }
+    .sc-cat-pop {
+      position: absolute; left: 0; top: calc(100% + 4px); z-index: 500;
+      display: flex; background: #fff; border: 1px solid var(--border);
+      border-radius: 8px; box-shadow: 0 8px 24px rgba(15,23,42,.12);
+    }
+    .sc-cat-pop[hidden] { display: none !important; }
+    .sc-cat-col { width: 132px; max-height: 280px; overflow-y: auto; border-right: 1px solid var(--line); }
+    .sc-cat-col:last-child { border-right: none; width: 168px; }
+    .sc-cat-item {
+      display: flex; align-items: center; gap: 6px; padding: 7px 10px;
+      cursor: pointer; font-size: 12px;
+    }
+    .sc-cat-item:hover { background: #f5f5f5; }
+    .sc-cat-item.active { background: #e6f4ff; color: var(--brand); font-weight: 600; }
+    .pl-wrap { position: relative; }
+    .pl-tags {
+      display: inline-flex; flex-wrap: wrap; align-items: center; gap: 4px;
+      min-height: 32px; padding: 2px 6px; border: 1px solid var(--border);
+      border-radius: 6px; background: #fff; min-width: 120px; max-width: 200px;
+      cursor: pointer;
+    }
+    #fltMonthHost .mrp-trigger,
+    #fltCompareHost .mrp-trigger {
+      min-width: 168px;
+      max-width: 180px;
+    }
+    .pl-tags.open { border-color: var(--brand); box-shadow: 0 0 0 2px rgba(22,119,255,.12); }
+    .pl-tag {
+      display: inline-flex; align-items: center; gap: 4px;
+      padding: 0 6px; height: 22px; background: #f5f5f5; border: 1px solid #e8e8e8;
+      border-radius: 4px; font-size: 12px; font-family: ui-monospace, monospace;
+    }
+    .pl-tag button { border: none; background: none; cursor: pointer; color: #999; padding: 0 2px; }
+    .pl-drop {
+      position: fixed; z-index: 1200; background: #fff; border: 1px solid var(--border);
+      border-radius: 8px; box-shadow: 0 8px 20px rgba(0,0,0,.12);
+      max-height: 260px; overflow-y: auto; min-width: 200px; display: none;
+    }
+    .pl-drop.show { display: block; }
+    .pl-opt { padding: 6px 12px; cursor: pointer; display: flex; align-items: center; gap: 8px; }
+    .pl-opt:hover { background: #f1f5f9; }
+    .pl-opt.on { color: var(--brand); font-weight: 600; }
+    .f-item.f-search { margin-left: 4px; }
+    .btn {
+      height: 32px; padding: 0 16px; border-radius: 6px; font-size: 13px; cursor: pointer; border: 1px solid var(--border);
+      background: #fff;
+    }
+    .btn-primary { background: var(--brand); color: #fff; border-color: var(--brand); }
+    .btn-primary:hover { background: #4096ff; }
+    .toolbar {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 10px 20px; background: #fff; border-bottom: 1px solid var(--line);
+    }
+    .toolbar-left { display: flex; gap: 10px; }
+    .cell-stack { line-height: 1.45; white-space: normal; max-width: 220px; }
+    .cell-stack .sub { color: var(--muted); font-size: 11px; }
+    .link-btn {
+      border: none; background: none; color: var(--brand); cursor: pointer;
+      padding: 0; font-size: 12px;
+    }
+    .link-btn:hover { text-decoration: underline; }
+    table.data-tbl th.col-actions,
+    table.data-tbl td.col-actions {
+      position: sticky; right: 0; z-index: 3;
+      background: #fff; box-shadow: -2px 0 4px rgba(15,23,42,.06);
+    }
+    table.data-tbl thead th.col-actions { background: #eef5ff; z-index: 4; }
+    table.data-tbl tbody tr:nth-child(even) td.col-actions { background: #fafbfc; }
+    .modal-mask {
+      position: fixed; inset: 0; background: rgba(15,23,42,.45); z-index: 2000;
+      display: none; align-items: center; justify-content: center; padding: 24px;
+    }
+    .modal-mask.show { display: flex; }
+    .modal-box {
+      background: #fff; border-radius: 8px; width: min(640px, 96vw);
+      max-height: 80vh; display: flex; flex-direction: column;
+      box-shadow: 0 12px 40px rgba(0,0,0,.15);
+    }
+    .modal-hd {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 14px 16px; border-bottom: 1px solid var(--line);
+    }
+    .modal-hd h3 { margin: 0; font-size: 15px; }
+    .modal-close {
+      border: none; background: transparent; font-size: 20px; line-height: 1;
+      cursor: pointer; color: #8c8c8c; padding: 0 4px;
+    }
+    .modal-bd { padding: 12px 16px 16px; overflow: auto; }
+    .log-tbl { width: 100%; border-collapse: collapse; font-size: 12px; }
+    .log-tbl th, .log-tbl td { border: 1px solid #e2e8f0; padding: 8px 10px; text-align: left; vertical-align: top; }
+    .log-tbl thead th { background: #f8fafc; }
+    .modal-box.modal-wide { width: min(720px, 96vw); }
+    .modal-ft {
+      padding: 10px 16px 14px; border-top: 1px solid var(--line);
+      display: flex; justify-content: flex-end; gap: 10px;
+    }
+    .cell-one { white-space: normal; max-width: 280px; }
+    .cell-labeled .cell-k { color: var(--muted); }
+    .cell-labeled > div + div { margin-top: 4px; }
+    .log-diff { font-size: 11px; line-height: 1.45; }
+    .log-diff .k { color: var(--muted); }
+    .log-note { font-size: 11px; color: var(--muted); margin: 10px 0 0; }
+    .form-grid {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 12px 16px;
+    }
+    .form-grid label { display: block; font-size: 12px; color: var(--label); margin-bottom: 4px; }
+    .form-grid input, .form-grid select {
+      width: 100%; height: 32px; padding: 0 10px;
+      border: 1px solid var(--border); border-radius: 6px; font-size: 13px; box-sizing: border-box;
+    }
+    .import-tip { font-size: 12px; color: var(--muted); line-height: 1.55; margin: 0 0 12px; }
+    .import-actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 12px; }
+    .upload-zone {
+      border: 1px dashed var(--border); border-radius: 8px; padding: 20px;
+      text-align: center; color: var(--muted); font-size: 12px; background: #fafbfc;
+    }
+    .upload-zone.has-file { border-color: var(--brand); color: var(--text); background: #f0f7ff; }
+    .result-bar {
+      padding: 10px 20px; font-size: 12px; color: var(--muted);
+      background: #fff; border-bottom: 1px solid var(--line);
+    }
+    .table-wrap {
+      margin: 16px 20px 24px;
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      overflow: auto;
+      max-height: calc(100vh - 320px);
+    }
+    table.data-tbl {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+    table.data-tbl th,
+    table.data-tbl td {
+      border: 1px solid #e2e8f0;
+      padding: 8px 10px;
+      white-space: nowrap;
+    }
+    table.data-tbl thead th {
+      position: sticky;
+      top: 0;
+      z-index: 2;
+      background: #eef5ff;
+      font-weight: 600;
+      color: #0f2f63;
+    }
+    table.data-tbl tbody tr:nth-child(even) { background: #fafbfc; }
+    table.data-tbl td.num { text-align: right; font-variant-numeric: tabular-nums; }
+    .mono { font-family: ui-monospace, monospace; font-size: 11px; }
+    .load-err { color: #b91c1c; padding: 20px; }
+  </style>
+</head>
+<body>
+  <header class="page-hd">
+    <h1>全局筛选与列表示范页</h1>
+    <p>
+      演示《<a href="销售主数据-全局业务规范.md">销售主数据-全局业务规范</a>》§12 筛选联动；UI 以《<a href="列表页顶部筛选区-全局UI规范.md">列表页顶部筛选区-全局UI规范</a>》为准（默认原型须遵循，特殊场景另行说明）。
+      区域↔国家、渠道↔店铺；场景品类组合 + 每场景「全部」；可清除下拉；SKU 模式 68px、「精确」= MSKU。
+      列表 100 条来自 <code>基础数据/全局筛选示范数据_v1.json</code>（源于销售基础信息宽表）。
+      数据已内嵌，可直接打开；若需拉取全量销售主数据更新 MSKU 候选，请在仓库根目录 <kbd>python3 -m http.server 8765</kbd> 后访问。
+    </p>
+  </header>
+
+  <section class="filter-panel" id="filterPanel">
+    <div class="filter-grid" style="display:flex;flex-wrap:wrap;gap:12px 16px;align-items:center;">
+      <div class="f-item"><label for="fltRegion">区域</label><span class="ctl-wrap"><select id="fltRegion" class="ctl"><option value="">全部</option></select><button type="button" class="ctl-clear" hidden aria-label="清除区域">×</button></span></div>
+      <div class="f-item"><label for="fltCountry">国家</label><span class="ctl-wrap"><select id="fltCountry" class="ctl"><option value="">全部</option></select><button type="button" class="ctl-clear" hidden aria-label="清除国家">×</button></span></div>
+      <div class="f-item"><label for="fltChannel">渠道</label><span class="ctl-wrap"><select id="fltChannel" class="ctl"><option value="">全部</option></select><button type="button" class="ctl-clear" hidden aria-label="清除渠道">×</button></span></div>
+      <div class="f-item"><label for="fltStore">店铺</label><span class="ctl-wrap"><select id="fltStore" class="ctl"><option value="">全部</option></select><button type="button" class="ctl-clear" hidden aria-label="清除店铺">×</button></span></div>
+      <div class="f-item">
+        <label>场景品类</label>
+        <div class="sc-cat-wrap" id="scCatWrap">
+          <div class="sc-cat-trigger-row">
+            <button type="button" class="sc-cat-trigger" id="scCatTrigger" aria-expanded="false">请选择</button>
+            <button type="button" class="sc-cat-clear" id="scCatClear" hidden aria-label="清除场景品类">×</button>
+          </div>
+          <div id="scCatPop" class="sc-cat-pop" hidden>
+            <div class="sc-cat-col" id="scCatSceneCol"></div>
+            <div class="sc-cat-col" id="scCatCatCol"></div>
+          </div>
+        </div>
+      </div>
+      <div class="f-item pl-wrap">
+        <label>品线</label>
+        <div id="plHost" class="pl-tags" tabindex="0"><span style="color:#bfbfbf;font-size:12px;">请选择</span></div>
+      </div>
+      <div class="f-item">
+        <label>SKU</label>
+        <div class="sku-group">
+          <select id="fltSkuMode" aria-label="SKU检索模式">
+            <option value="fuzzy">模糊</option>
+            <option value="exact">精确</option>
+            <option value="eight">8位搜索</option>
+          </select>
+          <input type="text" id="fltSkuInput" placeholder="请输入SKU" autocomplete="off" title="精确模式按 MSKU 精确匹配" />
+        </div>
+      </div>
+      <div class="f-item"><label for="fltTl">TL</label><span class="ctl-wrap"><select id="fltTl" class="ctl"><option value="">全部</option></select><button type="button" class="ctl-clear" hidden aria-label="清除TL">×</button></span></div>
+      <div class="f-item"><label for="fltSales">Sales</label><span class="ctl-wrap"><select id="fltSales" class="ctl"><option value="">全部</option></select><button type="button" class="ctl-clear" hidden aria-label="清除Sales">×</button></span></div>
+      <div class="f-item"><label>日期范围</label><div id="fltMonthHost"></div></div>
+      <div class="f-item"><label>对比范围</label><div id="fltCompareHost"></div></div>
+      <div class="f-item f-search">
+        <button type="button" class="btn btn-primary" id="btnSearch">查询</button>
+      </div>
+    </div>
+  </section>
+
+  <div class="toolbar">
+    <div class="toolbar-left">
+      <button type="button" class="btn btn-primary" id="btnAdd">新增</button>
+      <button type="button" class="btn" id="btnImport">导入</button>
+    </div>
+    <div id="resultBar" class="result-bar" style="padding:0;border:0;background:transparent;">加载中…</div>
+  </div>
+
+  <div class="table-wrap">
+    <table class="data-tbl">
+      <thead>
+        <tr>
+          <th>区域/国家/店铺</th>
+          <th>场景/品类/品线</th>
+          <th>产品信息</th>
+          <th>销售信息</th>
+          <th>销售额</th>
+          <th>销量</th>
+          <th class="col-actions">操作</th>
+        </tr>
+      </thead>
+      <tbody id="tblBody"></tbody>
+    </table>
+  </div>
+
+  <div id="plDrop" class="pl-drop"></div>
+
+  <div class="modal-mask" id="addModal" role="dialog" aria-modal="true" aria-labelledby="addModalTitle" hidden>
+    <div class="modal-box modal-wide">
+      <div class="modal-hd">
+        <h3 id="addModalTitle">新增销售主数据</h3>
+        <button type="button" class="modal-close" data-close="addModal" aria-label="关闭">×</button>
+      </div>
+      <div class="modal-bd">
+        <form id="addForm" class="form-grid" autocomplete="off">
+          <div><label for="formRegion">区域</label><select id="formRegion" class="ctl"></select></div>
+          <div><label for="formCountry">国家</label><select id="formCountry" class="ctl"></select></div>
+          <div><label for="formChannel">渠道</label><select id="formChannel" class="ctl"></select></div>
+          <div><label for="formStore">店铺</label><select id="formStore" class="ctl"></select></div>
+          <div><label for="formScene">场景</label><select id="formScene" class="ctl"></select></div>
+          <div><label for="formCategory">品类</label><select id="formCategory" class="ctl"></select></div>
+          <div><label for="formProductLine">品线</label><select id="formProductLine" class="ctl"></select></div>
+          <div><label for="formSku">SKU（8位）</label><input id="formSku" type="text" placeholder="请输入SKU" /></div>
+          <div><label for="formMsku">MSKU</label><input id="formMsku" type="text" placeholder="请输入MSKU" /></div>
+          <div><label for="formTl">TL</label><input id="formTl" type="text" placeholder="请输入TL" /></div>
+          <div><label for="formSales">Sales</label><input id="formSales" type="text" placeholder="请输入Sales" /></div>
+          <div><label for="formSalesAmount">销售额</label><input id="formSalesAmount" type="number" step="0.01" min="0" placeholder="0.00" /></div>
+          <div><label for="formSalesQty">销量</label><input id="formSalesQty" type="number" step="1" min="0" placeholder="0" /></div>
+        </form>
+      </div>
+      <div class="modal-ft">
+        <button type="button" class="btn" data-close="addModal">取消</button>
+        <button type="button" class="btn btn-primary" id="addFormSubmit">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-mask" id="importModal" role="dialog" aria-modal="true" aria-labelledby="importModalTitle" hidden>
+    <div class="modal-box modal-wide">
+      <div class="modal-hd">
+        <h3 id="importModalTitle">导入</h3>
+        <button type="button" class="modal-close" data-close="importModal" aria-label="关闭">×</button>
+      </div>
+      <div class="modal-bd">
+        <p class="import-tip">请下载模板填写后上传。导入将校验区域/国家、渠道/店铺等联动字段；示范页解析 CSV 首行数据并追加一条记录。</p>
+        <div class="import-actions">
+          <button type="button" class="btn" id="btnDownloadTemplate">下载模板</button>
+          <label class="btn btn-primary" style="cursor:pointer;margin:0;">
+            选择文件
+            <input type="file" id="importFile" accept=".csv,.xlsx,.xls" style="display:none;" />
+          </label>
+        </div>
+        <div class="upload-zone" id="importDropZone">点击「选择文件」或拖拽 CSV 到此处</div>
+        <p id="importFileName" style="font-size:12px;color:var(--muted);margin:8px 0 0;"></p>
+      </div>
+      <div class="modal-ft">
+        <button type="button" class="btn" data-close="importModal">取消</button>
+        <button type="button" class="btn btn-primary" id="importSubmit">开始导入</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-mask" id="logModal" role="dialog" aria-modal="true" aria-labelledby="logModalTitle" hidden>
+    <div class="modal-box modal-wide">
+      <div class="modal-hd">
+        <h3 id="logModalTitle">日志</h3>
+        <button type="button" class="modal-close" data-close="logModal" aria-label="关闭">×</button>
+      </div>
+      <div class="modal-bd" id="logModalBody"></div>
+      <div class="modal-ft">
+        <button type="button" class="btn btn-primary" data-close="logModal">关闭</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="./assets/month-range-picker.js"></script>
+  <script src="./assets/multi-select-filter.js"></script>
+<script type="application/json" id="embedDemo">{"version": "1.0", "note": "全局筛选与列表示范页用 100 条；主数据来自销售基础信息_v1，指标为演示哈希 mock", "row_count": 100, "records": [{"id": 1, "region_code": "EU", "region_name": "欧洲区", "country_code": "NL", "country_name": "NL", "channel_name": "Govee", "store_name": "Govee_NL", "scene": "游戏", "category": "方块灯", "product_line": "6014", "model": "H6065", "sku": "H6065301", "msku": "H6065301-DE", "tl": "钱七", "sales": "Eva Liu", "sales_amount": 34762.16, "sales_qty": 524}, {"id": 2, "region_code": "EU", "region_name": "欧洲区", "country_code": "GB", "country_name": "英国", "channel_name": "独立站", "store_name": "独立站-UK", "scene": "观影", "category": "摄像头取色系列", "product_line": "6015", "model": "H2A41", "sku": "H2A41211", "msku": "H2A41211-ZY-UK-T", "tl": "张三", "sales": "Eva Liu", "sales_amount": 4262.88, "sales_qty": 166}, {"id": 3, "region_code": "NA", "region_name": "北美区", "country_code": "US", "country_name": "美国", "channel_name": "独立站", "store_name": "独立站-US", "scene": "户外", "category": "植物灯", "product_line": "7013", "model": "H7086", "sku": "H7086141", "msku": "H7086141-ZY-US", "tl": "张三", "sales": "Carol Li", "sales_amount": 4194.4, "sales_qty": 140}, {"id": 4, "region_code": "NA", "region_name": "北美区", "country_code": "US", "country_name": "美国", "channel_name": "APP商城", "store_name": "APP商城-US", "scene": "传感器及控制", "category": "温湿度计", "product_line": "5111", "model": "H5075", "sku": "H5075001", "msku": "H5075001-APP-US", "tl": "钱七", "sales": "Bob Wang", "sales_amount": 36117.85, "sales_qty": 785}, {"id": 5, "region_code": "EU", "region_name": "欧洲区", "country_code": "DE", "country_name": "德国", "channel_name": "独立站", "store_name": "独立站-EU", "scene": "户外", "category": "球泡灯串", "product_line": "7012", "model": "H7039", "sku": "H70393B1", "msku": "H70393B1-ZY-EU", "tl": "张三", "sales": "Eva Liu", "sales_amount": 15796.41, "sales_qty": 259}, {"id": 6, "region_code": "NA", "region_name": "北美区", "country_code": "US", "country_name": "美国", "channel_name": "APP商城", "store_name": "APP商城-US", "scene": "居家", "category": "床头灯", "product_line": "6012", "model": "H1741", "sku": "H1741011", "msku": "H1741011-APP-US-T", "tl": "赵六", "sales": "Alice Chen", "sales_amount": 27220.8, "sales_qty": 530}, {"id": 7, "region_code": "NA", "region_name": "北美区", "country_code": "US", "country_name": "美国", "channel_name": "APP商城", "store_name": "APP商城-CA", "scene": "户外", "category": "屋檐灯", "product_line": "7011", "model": "H1075", "sku": "H107500A", "msku": "H107500A-APP-CA", "tl": "李四", "sales": "Bob Wang", "sales_amount": 59668.55, "sales_qty": 587}, {"id": 8, "region_code": "NA", "region_name": "北美区", "country_code": "US", "country_name": "美国", "channel_name": "APP商城", "store_name": "APP商城-US", "scene": "户外", "category": "屋檐灯", "product_line": "7011", "model": "H707C", "sku": "H707C101", "msku": "H707C101-APP-US-1", "tl": "孙八", "sales": "Bob Wang", "sales_amount": 25444.6, "sales_qty": 410}, {"id": 9, "region_code": "NA", "region_name": "北美区", "country_code": "US", "country_name": "美国", "channel_name": "APP商城", "store_name": "APP商城-EU", "scene": "居家", "category": "落地灯", "product_line": "6012", "model": "H6076", "sku": "H6076312", "msku": "H6076312-APP-EU-T", "tl": "钱七", "sales": "David Zhang", "sales_amount": 41788.85, "sales_qty": 535}, {"id": 10, "region_code": "NA", "region_name": "北美区", "country_code": "US", "country_name": "美国", "channel_name": "独立站", "store_name": "独立站-US", "scene": "季节", "category": "贴片灯串", "product_line": "6812", "model": "H70C5", "sku": "H70C5141", "msku": "H70C5141-ZY-US", "tl": "李四", "sales": "Eva Liu", "sales_amount": 27630.61, "sales_qty": 833}, {"id": 11, "region_code": "NA", "region_name": "北美区", "country_code": "US", "country_name": "美国", "channel_name": "APP商城", "store_name": "APP商城-EU", "scene": "观影", "category": "摄像头取色系列", "product_line": "6015", "model": "H6099", "sku": "H60993D2", "msku": "H60993D2-APP-EU", "tl": "李四", "sales": "Alice Chen", "sales_amount": 55006.56, "sales_qty": 714}, {"id": 12, "region_code": "NA", "region_name": "北美区", "country_code": "CA", "country_name": "加拿大", "channel_name": "独立站", "store_name": "独立站-CA", "scene": "居家", "category": "新形态灯带", "product_line": "6121", "model": "H61C3", "sku": "H61C31D1", "msku": "H61C31D1-ZY-CA", "tl": "王五", "sales": "David Zhang", "sales_amount": 74780.16, "sales_qty": 728}, {"id": 13, "region_code": "NA", "region_name": "北美区", "country_code": "US", "country_name": "美国", "channel_name": "独立站", "store_name": "独立站-US", "scene": "传感器及控制", "category": "智能插座", "product_line": "5113", "model": "B5085", "sku": "B5085103", "msku": "B5085103-ZY-US", "tl": "李四", "sales": "Eva Liu", "sales_amount": 3492.48, "sales_qty": 96}, {"id": 14, "region_code": "EU", "region_name": "欧洲区", "country_code": "GB", "country_name": "英国", "channel_name": "独立站", "store_name": "独立站-UK", "scene": "户外", "category": "屋檐灯", "product_line": "7011", "model": "H705E", "sku": "H705E201", "msku": "H705E201-ZY-UK", "tl": "孙八", "sales": "David Zhang", "sales_amount": 7677.25, "sales_qty": 287}, {"id": 15, "region_code": "NA", "region_name": "北美区", "country_code": "US", "country_name": "美国", "channel_name": "APP商城", "store_name": "APP商城-EU", "scene": "季节", "category": "瀑布灯", "product_line": "6812", "model": "H6840", "sku": "H6840302", "msku": "H6840302-APP-EU-T", "tl": "孙八", "sales": "Carol Li", "sales_amount": 13353.6, "sales_qty": 160}, {"id": 16, "region_code": "NA", "region_name": "北美区", "country_code": "US", "country_name": "美国", "channel_name": "独立站", "store_name": "独立站-US", "scene": "户外", "category": "屋檐灯", "product_line": "7011", "model": "H705F", "sku": "H705F101", "msku": "H705F101-ZY-US", "tl": "王五", "sales": "Eva Liu", "sales_amount": 28861.11, "sales_qty": 999}, {"id": 17, "region_code": "NA", "region_name": "北美区", "country_code": "US", "country_name": "美国", "channel_name": "独立站", "store_name": "独立站-US", "scene": "传感器及控制", "category": "智能插座", "product_line": "5113", "model": "H5089", "sku": "H5089101", "msku": "H5089101-ZY-US-T", "tl": "王五", "sales": "David Zhang", "sales_amount": 35335.68, "sales_qty": 516}, {"id": 18, "region_code": "NA", "region_name": "北美区", "country_code": "US", "country_name": "美国", "channel_name": "APP商城", "store_name": "APP商城-US", "scene": "传感器及控制", "category": "智能按键", "product_line": "5111", "model": "H5126", "sku": "H5126101", "msku": "H5126101-APP-US", "tl": "钱七", "sales": "Alice Chen", "sales_amount": 20252.96, "sales_qty": 338}, {"id": 19, "region_code": "EU", "region_name": "欧洲区", "country_code": "DE", "country_name": "德国", "channel_name": "独立站", "store_name": "独立站-EU", "scene": "户外", "category": "庭院灯", "product_line": "7013", "model": "H7067", "sku": "H7067311", "msku": "H7067311-ZY-EU", "tl": "王五", "sales": "Carol Li", "sales_amount": 33794.88, "sales_qty": 376}, {"id": 20, "region_code": "NA", "region_name": "北美区", "country_code": "US", "country_name": "美国", "channel_name": "BBY 3P", "store_name": "BBY 3P-US", "scene": "户外", "category": "路径灯", "product_line": "7013", "model": "H3510", "sku": "H3510111", "msku": "H3510111-MPBBY-US", "tl": "孙八", "sales": "Alice Chen", "sales_amount": 11272.45, "sales_qty": 245}, {"id": 21, "region_code": "NA", "region_name": "北美区", "country_code": "US", "country_name": "美国", "channel_name": "APP商城", "store_name": "APP商城-US", "scene": "户外", "category": "射灯", "product_line": "7013", "model": "H3200", "sku": "H3200111", "msku": "H3200111-APP-US-T", "tl": "钱七", "sales": "Alice Chen", "sales_amount": 54586.05, "sales_qty": 537}, {"id": 22, "region_code": "EU", "region_name": "欧洲区", "country_code": "GB", "country_name": "英国", "channel_name": "独立站", "store_name": "独立站-UK", "scene": "居家", "category": "落地灯", "product_line": "6012", "model": "H60B0", "sku": "H60B0211", "msku": "H60B0211-ZY-UK", "tl": "张三", "sales": "Bob Wang", "sales_amount": 84030.31, "sales_qty": 863}, {"id": 23, "region_code": "NA", "region_name": "北美区", "country_code": "US", "country_name": "美国", "channel_name": "APP商城", "store_name": "APP商城-EU", "scene": "游戏", "category": "方块灯", "product_line": "6014", "model": "H6065", "sku": "H6065301", "msku": "H6065301-APP-EU-T", "tl": "钱七", "sales": "Carol Li", "sales_amount": 36979.2, "sales_qty": 432}, {"id": 24, "region_code": "EU", "region_name": "欧洲区", "country_code": "DE", "country_name": "德国", "channel_name": "独立站", "store_name": "独立站-EU", "scene": "户外", "category": "壁灯", "product_line": "7013", "model": "H7075", "sku": "H70753D1", "msku": "H70753D1-ZY-EU", "tl": "赵六", "sales": "Bob Wang", "sales_amount": 36088.96, "sales_qty": 544}, {"id": 25, "region_code": "NA", "region_name": "北美区", "country_code": "US", "country_name": "美国", "channel_name": "APP商城", "store_name": "APP商城-US", "scene": "户外", "category": "庭院灯", "product_line": "7013", "model": "H703A", "sku": "H703A101", "msku": "H703A101-APP-US", "tl": "钱七", "sales": "Bob Wang", "sales_amount": 53505.35, "sales_qty": 685}, {"id": 26, "region_code": "NA", "region_name": "北美区", "country_code": "CA", "country_name": "加拿大", "channel_name": "独立站", "store_name": "独立站-CA", "scene": "户外", "category": "射灯", "product_line": "7013", "model": "H7093", "sku": "H7093111", "msku": "H7093111-ZY-CA-T", "tl": "赵六", "sales": "David Zhang", "sales_amount": 19714.75, "sales_qty": 737}, {"id": 27, "region_code": "NA", "region_name": "北美区", "country_code": "US", "country_name": "美国", "channel_name": "独立站", "store_name": "独立站-US", "scene": "居家", "category": "球泡", "product_line": "6011", "model": "H6009", "sku": "H60091C1", "msku": "H60091C1-ZY-US-T", "tl": "赵六", "sales": "Carol Li", "sales_amount": 19114.48, "sales_qty": 406}, {"id": 28, "region_code": "NA", "region_name": "北美区", "country_code": "US", "country_name": "美国", "channel_name": "独立站", "store_name": "独立站-US", "scene": "传感器及控制", "category": "漏水报警器", "product_line": "5112", "model": "H5830", "sku": "H5830101", "msku": "H5830101-ZY-US-T", "tl": "李四", "sales": "Alice Chen", "sales_amount": 46111.65, "sales_qty": 507}, {"id": 29, "region_code": "NA", "region_name": "北美区", "country_code": "US", "country_name": "美国", "channel_name": "APP商城", "store_name": "APP商城-CA", "scene": "居家", "category": "传感器&盒子", "product_line": "6121", "model": "H1162", "sku": "H1162011", "msku": "H1162011-APP-CA", "tl": "钱七", "sales": "Alice Chen", "sales_amount": 13684.23, "sales_qty": 261}, {"id": 30, "region_code": "NA", "region_name": "北美区", "country_code": "US", "country_name": "美国", "channel_name": "WM 3P", "store_name": "WM 3P-US", "scene": "季节", "category": "窗帘灯", "product_line": "6811", "model": "H70B6", "sku": "H70B61A2", "msku": "H70B61A2-MPWM-US", "tl": "赵六", "sales": "Carol Li", "sales_amount": 9552.96, "sales_qty": 248}, {"id": 31, "region_code": "NA", "region_name": "北美区", "country_code": "US", "country_name": "美国", "channel_name": "独立站", "store_name": "独立站-US", "scene": "观影", "category": "摄像头取色系列", "product_line": "6015", "model": "H605C", "sku": "H605C111", "msku": "H605C111-ZY-US-T", "tl": "孙八", "sales": "David Zhang", "sales_amount": 16692.0, "sales_qty": 312}, {"id": 32, "region_code": "EU", "region_name": "欧洲区", "country_code": "GB", "country_name": "英国", "channel_name": "独立站", "store_name": "独立站-UK", "scene": "居家", "category": "吊灯", "product_line": "6013", "model": "H60C1", "sku": "H60C12F1", "msku": "H60C12F1-ZY-UK", "tl": "李四", "sales": "Bob Wang", "sales_amount": 17307.25, "sales_qty": 647}, {"id": 33, "region_code": "NA", "region_name": "北美区", "country_code": "CA", "country_name": "加拿大", "channel_name": "独立站", "store_name": "独立站-CA", "scene": "户外", "category": "球泡灯串", "product_line": "7012", "model": "H702C", "sku": "H702C111", "msku": "H702C111-ZY-CA", "tl": "孙八", "sales": "Bob Wang", "sales_amount": 3226.05, "sales_qty": 67}, {"id": 34, "region_code": "EU", "region_name": "欧洲区", "country_code": "GB", "country_name": "英国", "channel_name": "独立站", "store_name": "独立站-UK", "scene": "季节", "category": "窗帘灯", "product_line": "6811", "model": "H70B4", "sku": "H70B42A1", "msku": "H70B42A1-ZY-UK-T", "tl": "李四", "sales": "Bob Wang", "sales_amount": 32041.15, "sales_qty": 565}, {"id": 35, "region_code": "NA", "region_name": "北美区", "country_code": "US", "country_name": "美国", "channel_name": "APP商城", "store_name": "APP商城-US", "scene": "环境电器", "category": "加湿器", "product_line": "7114", "model": "H7145", "sku": "H7145111", "msku": "H7145111-APP-US", "tl": "张三", "sales": "Alice Chen", "sales_amount": 11157.96, "sales_qty": 474}, {"id": 36, "region_code": "EU", "region_name": "欧洲区", "country_code": "DE", "country_name": "德国", "channel_name": "独立站", "store_name": "独立站-EU", "scene": "户外", "category": "户外灯带", "product_line": "7014", "model": "H70A1", "sku": "H70A13D1", "msku": "H70A13D1-ZY-EU-T", "tl": "钱七", "sales": "David Zhang", "sales_amount": 39855.36, "sales_qty": 388}, {"id": 37, "region_code": "NA", "region_name": "北美区", "country_code": "US", "country_name": "美国", "channel_name": "APP商城", "store_name": "APP商城-CA", "scene": "户外", "category": "户外灯带", "product_line": "7014", "model": "H61A8", "sku": "H61A81D1", "msku": "H61A81D1-APP-CA", "tl": "赵六", "sales": "Alice Chen", "sales_amount": 18216.75, "sales_qty": 227}, {"id": 38, "region_code": "NA", "region_name": "北美区", "country_code": "CA", "country_name": "加拿大", "channel_name": "独立站", "store_name": "独立站-CA", "scene": "季节", "category": "冰帘灯", "product_line": "6813", "model": "H70D1", "sku": "H70D11D2", "msku": "H70D11D2-ZY-CA", "tl": "王五", "sales": "Bob Wang", "sales_amount": 13421.01, "sales_qty": 339}, {"id": 39, "region_code": "NA", "region_name": "北美区", "country_code": "CA", "country_name": "加拿大", "channel_name": "独立站", "store_name": "独立站-CA", "scene": "居家", "category": "落地灯", "product_line": "6012", "model": "H6072", "sku": "H6072181", "msku": "H6072181-ZY-CA-T", "tl": "李四", "sales": "Alice Chen", "sales_amount": 16301.45, "sales_qty": 277}, {"id": 40, "region_code": "EU", "region_name": "欧洲区", "country_code": "GB", "country_name": "英国", "channel_name": "独立站", "store_name": "独立站-UK", "scene": "居家", "category": "灯带", "product_line": "6112", "model": "H619A", "sku": "H619A2D1", "msku": "H619A2D1-ZY", "tl": "张三", "sales": "Eva Liu", "sales_amount": 19773.6, "sales_qty": 660}, {"id": 41, "region_code": "NA", "region_name": "北美区", "country_code": "US", "country_name": "美国", "channel_name": "APP商城", "store_name": "APP商城-US", "scene": "游戏", "category": "方块灯", "product_line": "6014", "model": "H1061", "sku": "H1061002", "msku": "H1061002-APP-US-T", "tl": "李四", "sales": "Carol Li", "sales_amount": 21870.8, "sales_qty": 730}, {"id": 42, "region_code": "NA", "region_name": "北美区", "country_code": "US", "country_name": "美国", "channel_name": "APP商城", "store_name": "APP商城-EU", "scene": "居家", "category": "吸顶灯", "product_line": "6013", "model": "H1250", "sku": "H1250301", "msku": "H1250301-APP-EU", "tl": "钱七", "sales": "Alice Chen", "sales_amount": 85220.15, "sales_qty": 937}, {"id": 43, "region_code": "EU", "region_name": "欧洲区", "country_code": "GB", "country_name": "英国", "channel_name": "独立站", "store_name": "独立站-UK", "scene": "户外", "category": "传感器&盒子", "product_line": "7013", "model": "H5129", "sku": "H5129011", "msku": "H5129011-ZY-UK", "tl": "张三", "sales": "Carol Li", "sales_amount": 59136.76, "sales_qty": 674}, {"id": 44, "region_code": "EU", "region_name": "欧洲区", "country_code": "DE", "country_name": "德国", "channel_name": "独立站", "store_name": "独立站-EU", "scene": "居家", "category": "新形态灯带", "product_line": "6121", "model": "H61C3", "sku": "H61C33D1", "msku": "H61C33D1-ZY-EU-T", "tl": "张三", "sales": "Alice Chen", "sales_amount": 50999.41, "sales_qty": 619}, {"id": 45, "region_code": "NA", "region_name": "北美区", "country_code": "US", "country_name": "美国", "channel_name": "APP商城", "store_name": "APP商城-US", "scene": "户外", "category": "户外灯带", "product_line": "7014", "model": "H70A3", "sku": "H70A31D1", "msku": "H70A31D1-APP-US-T", "tl": "赵六", "sales": "Bob Wang", "sales_amount": 11941.2, "sales_qty": 620}, {"id": 46, "region_code": "EU", "region_name": "欧洲区", "country_code": "GB", "country_name": "英国", "channel_name": "独立站", "store_name": "独立站-UK", "scene": "居家", "category": "灯带", "product_line": "6112", "model": "H619E", "sku": "H619E2D1", "msku": "H619E2D1-ZY-T", "tl": "孙八", "sales": "David Zhang", "sales_amount": 37544.16, "sales_qty": 408}, {"id": 47, "region_code": "EU", "region_name": "欧洲区", "country_code": "GB", "country_name": "英国", "channel_name": "独立站", "store_name": "独立站-UK", "scene": "观影", "category": "摄像头取色系列", "product_line": "6015", "model": "H605C", "sku": "H605C211", "msku": "H605C211-ZY-UK-T", "tl": "王五", "sales": "Eva Liu", "sales_amount": 7456.83, "sales_qty": 101}, {"id": 48, "region_code": "NA", "region_name": "北美区", "country_code": "US", "country_name": "美国", "channel_name": "独立站", "store_name": "独立站-US", "scene": "传感器及控制", "category": "温湿度计", "product_line": "5111", "model": "H5110", "sku": "H5110001", "msku": "H5110001-ZY-US-T", "tl": "李四", "sales": "David Zhang", "sales_amount": 75948.6, "sales_qty": 910}, {"id": 49, "region_code": "NA", "region_name": "北美区", "country_code": "US", "country_name": "美国", "channel_name": "APP商城", "store_name": "APP商城-US", "scene": "户外", "category": "屋檐灯", "product_line": "7011", "model": "H705C", "sku": "H705C1D1", "msku": "H705C1D1-APP-US-T", "tl": "孙八", "sales": "Carol Li", "sales_amount": 27277.51, "sales_qty": 689}, {"id": 50, "region_code": "EU", "region_name": "欧洲区", "country_code": "DE", "country_name": "德国", "channel_name": "独立站", "store_name": "独立站-EU", "scene": "户外", "category": "球泡灯串", "product_line": "7012", "model": "H7025", "sku": "H7025CB1", "msku": "H7025CB1-ZY-EU", "tl": "赵六", "sales": "Bob Wang", "sales_amount": 2335.81, "sales_qty": 59}, {"id": 51, "region_code": "NA", "region_name": "北美区", "country_code": "US", "country_name": "美国", "channel_name": "APP商城", "store_name": "APP商城-US", "scene": "季节", "category": "灌木丛灯", "product_line": "6813", "model": "H6810", "sku": "H6810142", "msku": "H6810142-APP-US-T", "tl": "赵六", "sales": "Eva Liu", "sales_amount": 11877.0, "sales_qty": 222}, {"id": 52, "region_code": "EU", "region_name": "欧洲区", "country_code": "DE", "country_name": "德国", "channel_name": "独立站", "store_name": "独立站-EU", "scene": "户外", "category": "传感器&盒子", "product_line": "7013", "model": "H1167", "sku": "H1167011", "msku": "H1167011-ZY-EU", "tl": "王五", "sales": "Bob Wang", "sales_amount": 19333.83, "sales_qty": 951}, {"id": 53, "region_code": "NA", "region_name": "北美区", "country_code": "US", "country_name": "美国", "channel_name": "APP商城", "store_name": "APP商城-UK", "scene": "居家", "category": "落地灯", "product_line": "6012", "model": "H60B2", "sku": "H60B2211", "msku": "H60B2211-APP-UK-T", "tl": "张三", "sales": "Bob Wang", "sales_amount": 18987.15, "sales_qty": 507}, {"id": 54, "region_code": "EU", "region_name": "欧洲区", "country_code": "DE", "country_name": "德国", "channel_name": "独立站", "store_name": "独立站-EU", "scene": "户外", "category": "屋檐灯", "product_line": "7011", "model": "H705E", "sku": "H705E301", "msku": "H705E301-ZY-EU", "tl": "钱七", "sales": "Eva Liu", "sales_amount": 45110.13, "sales_qty": 611}, {"id": 55, "region_code": "NA", "region_name": "北美区", "country_code": "US", "country_name": "美国", "channel_name": "独立站", "store_name": "独立站-US", "scene": "游戏", "category": "像素灯", "product_line": "6014", "model": "H6630", "sku": "H6630181", "msku": "H6630181-ZY-US-T", "tl": "钱七", "sales": "David Zhang", "sales_amount": 49459.68, "sales_qty": 856}, {"id": 56, "region_code": "NA", "region_name": "北美区", "country_code": "US", "country_name": "美国", "channel_name": "独立站", "store_name": "独立站-US", "scene": "环境电器", "category": "空净", "product_line": "7112", "model": "H712C", "sku": "H712C101", "msku": "H712C101-ZY-US", "tl": "李四", "sales": "Eva Liu", "sales_amount": 11497.15, "sales_qty": 307}, {"id": 57, "region_code": "NA", "region_name": "北美区", "country_code": "US", "country_name": "美国", "channel_name": "APP商城", "store_name": "APP商城-UK", "scene": "居家", "category": "球泡", "product_line": "6011", "model": "B600D", "sku": "B600D2C3", "msku": "B600D2C3-APP-UK-T", "tl": "赵六", "sales": "Bob Wang", "sales_amount": 22769.6, "sales_qty": 532}, {"id": 58, "region_code": "EU", "region_name": "欧洲区", "country_code": "DE", "country_name": "德国", "channel_name": "独立站", "store_name": "独立站-EU", "scene": "居家", "category": "灯带", "product_line": "6112", "model": "H619E", "sku": "H619E3D1", "msku": "H619E3D1-ZY", "tl": "王五", "sales": "David Zhang", "sales_amount": 70379.25, "sales_qty": 877}, {"id": 59, "region_code": "NA", "region_name": "北美区", "country_code": "US", "country_name": "美国", "channel_name": "APP商城", "store_name": "APP商城-EU", "scene": "观影", "category": "摄像头取色系列", "product_line": "6015", "model": "H66A0", "sku": "H66A0311", "msku": "H66A0311-APP-EU", "tl": "孙八", "sales": "Alice Chen", "sales_amount": 22341.6, "sales_qty": 232}, {"id": 60, "region_code": "NA", "region_name": "北美区", "country_code": "US", "country_name": "美国", "channel_name": "独立站", "store_name": "独立站-US", "scene": "季节", "category": "窗帘灯", "product_line": "6811", "model": "H70B4", "sku": "H70B41A1", "msku": "H70B41A1-ZY-US-T", "tl": "李四", "sales": "Eva Liu", "sales_amount": 36786.6, "sales_qty": 382}, {"id": 61, "region_code": "NA", "region_name": "北美区", "country_code": "US", "country_name": "美国", "channel_name": "APP商城", "store_name": "APP商城-EU", "scene": "季节", "category": "窗帘灯", "product_line": "6811", "model": "H70B6", "sku": "H70B63A1", "msku": "H70B63A1-APP-EU-T", "tl": "赵六", "sales": "Alice Chen", "sales_amount": 17369.31, "sales_qty": 773}, {"id": 62, "region_code": "EU", "region_name": "欧洲区", "country_code": "NL", "country_name": "NL", "channel_name": "Govee", "store_name": "Govee_NL", "scene": "居家", "category": "灯带", "product_line": "6112", "model": "H6125", "sku": "H61253D2", "msku": "H61253D2-DE", "tl": "孙八", "sales": "Bob Wang", "sales_amount": 2731.71, "sales_qty": 69}, {"id": 63, "region_code": "EU", "region_name": "欧洲区", "country_code": "PL", "country_name": "波兰", "channel_name": "Govee", "store_name": "Govee_PL", "scene": "居家", "category": "新形态灯带", "product_line": "6121", "model": "H61D5", "sku": "H61D5301", "msku": "H61D5301-DE", "tl": "张三", "sales": "Bob Wang", "sales_amount": 51536.55, "sales_qty": 507}, {"id": 64, "region_code": "EU", "region_name": "欧洲区", "country_code": "SE", "country_name": "瑞典", "channel_name": "Govee", "store_name": "Govee_SE", "scene": "户外", "category": "庭院灯", "product_line": "7013", "model": "H7067", "sku": "H7067311", "msku": "H7067311-DE-1", "tl": "孙八", "sales": "Alice Chen", "sales_amount": 36993.11, "sales_qty": 449}, {"id": 65, "region_code": "EU", "region_name": "欧洲区", "country_code": "NL", "country_name": "NL", "channel_name": "Govee", "store_name": "Govee_NL", "scene": "居家", "category": "球泡", "product_line": "6011", "model": "B600D", "sku": "B600D3C1", "msku": "B600D3C1-DE-1", "tl": "王五", "sales": "Alice Chen", "sales_amount": 16349.6, "sales_qty": 382}, {"id": 66, "region_code": "EU", "region_name": "欧洲区", "country_code": "SE", "country_name": "瑞典", "channel_name": "Govee", "store_name": "Govee_SE", "scene": "季节", "category": "贴片灯串", "product_line": "6812", "model": "H70C5", "sku": "H70C5342", "msku": "H70C5342-DE", "tl": "张三", "sales": "David Zhang", "sales_amount": 11093.76, "sales_qty": 144}, {"id": 67, "region_code": "EU", "region_name": "欧洲区", "country_code": "SE", "country_name": "瑞典", "channel_name": "Govee", "store_name": "Govee_SE", "scene": "居家", "category": "吸顶灯", "product_line": "6013", "model": "H60A1", "sku": "H60A1311", "msku": "H60A1311-DE", "tl": "孙八", "sales": "Bob Wang", "sales_amount": 62561.83, "sales_qty": 991}, {"id": 68, "region_code": "EU", "region_name": "欧洲区", "country_code": "PL", "country_name": "波兰", "channel_name": "Govee EU", "store_name": "Govee_PL_1", "scene": "居家", "category": "球泡", "product_line": "6011", "model": "B14C0", "sku": "B14C03C2", "msku": "B14C03C2-DE-N", "tl": "王五", "sales": "Alice Chen", "sales_amount": 7327.36, "sales_qty": 214}, {"id": 69, "region_code": "NA", "region_name": "北美区", "country_code": "US", "country_name": "美国", "channel_name": "Govee", "store_name": "Govee_US", "scene": "传感器及控制", "category": "烤肉温度计", "product_line": "5114", "model": "B5180", "sku": "B5180001", "msku": "B5180001", "tl": "王五", "sales": "David Zhang", "sales_amount": 42183.68, "sales_qty": 616}, {"id": 70, "region_code": "NA", "region_name": "北美区", "country_code": "US", "country_name": "美国", "channel_name": "Govee", "store_name": "Govee_US", "scene": "居家", "category": "筒灯", "product_line": "6013", "model": "B601C", "sku": "B601C1C4", "msku": "B601C1C4", "tl": "王五", "sales": "Eva Liu", "sales_amount": 30840.61, "sales_qty": 779}, {"id": 71, "region_code": "NA", "region_name": "北美区", "country_code": "US", "country_name": "美国", "channel_name": "Govee", "store_name": "Govee_US", "scene": "季节", "category": "窗帘灯", "product_line": "6811", "model": "H70B3", "sku": "H70B31A1", "msku": "H70B31A1-US", "tl": "张三", "sales": "Bob Wang", "sales_amount": 12415.21, "sales_qty": 283}, {"id": 72, "region_code": "NA", "region_name": "北美区", "country_code": "US", "country_name": "美国", "channel_name": "GoveeLife", "store_name": "Goveelife_US", "scene": "传感器及控制", "category": "烤肉温度计", "product_line": "5114", "model": "H1192", "sku": "H1192011", "msku": "H1192011-GL-US", "tl": "王五", "sales": "Bob Wang", "sales_amount": 24805.81, "sales_qty": 239}, {"id": 73, "region_code": "NA", "region_name": "北美区", "country_code": "US", "country_name": "美国", "channel_name": "Govee", "store_name": "Govee_US", "scene": "户外", "category": "壁灯", "product_line": "7013", "model": "B7076", "sku": "B70761D1", "msku": "B70761D1-US", "tl": "张三", "sales": "Bob Wang", "sales_amount": 7130.48, "sales_qty": 196}, {"id": 74, "region_code": "NA", "region_name": "北美区", "country_code": "US", "country_name": "美国", "channel_name": "Govee", "store_name": "Govee_US", "scene": "居家", "category": "星空灯", "product_line": "6012", "model": "H609D", "sku": "H609D111", "msku": "H609D111-US", "tl": "孙八", "sales": "Eva Liu", "sales_amount": 85081.05, "sales_qty": 837}, {"id": 75, "region_code": "EU", "region_name": "欧洲区", "country_code": "BE", "country_name": "BE", "channel_name": "Govee EU", "store_name": "Govee_BE_1", "scene": "居家", "category": "吸顶灯", "product_line": "6013", "model": "H1270", "sku": "H1270301", "msku": "H1270301-DE-N", "tl": "钱七", "sales": "Bob Wang", "sales_amount": 24460.2, "sales_qty": 762}, {"id": 76, "region_code": "NA", "region_name": "北美区", "country_code": "US", "country_name": "美国", "channel_name": "Govee", "store_name": "Govee_US", "scene": "户外", "category": "户外灯带", "product_line": "7014", "model": "H61A8", "sku": "H61A81D1", "msku": "H61A81D1", "tl": "孙八", "sales": "Eva Liu", "sales_amount": 75464.96, "sales_qty": 928}, {"id": 77, "region_code": "NA", "region_name": "北美区", "country_code": "US", "country_name": "美国", "channel_name": "Govee", "store_name": "Govee_US", "scene": "居家", "category": "灯带", "product_line": "6112", "model": "H61B9", "sku": "H61B91H1", "msku": "H61B91H1-US", "tl": "赵六", "sales": "Carol Li", "sales_amount": 6206.0, "sales_qty": 100}, {"id": 78, "region_code": "EU", "region_name": "欧洲区", "country_code": "DE", "country_name": "德国", "channel_name": "Govee", "store_name": "Govee_DE", "scene": "户外", "category": "屋檐灯", "product_line": "7011", "model": "H1075", "sku": "H1075007", "msku": "H1075007-DE", "tl": "李四", "sales": "Carol Li", "sales_amount": 65021.76, "sales_qty": 844}, {"id": 79, "region_code": "EU", "region_name": "欧洲区", "country_code": "IT", "country_name": "意大利", "channel_name": "Govee", "store_name": "Govee_IT", "scene": "季节", "category": "贴片灯串", "product_line": "6812", "model": "H70C5", "sku": "H70C5342", "msku": "H70C5342-IT", "tl": "王五", "sales": "David Zhang", "sales_amount": 91231.41, "sales_qty": 879}, {"id": 80, "region_code": "EU", "region_name": "欧洲区", "country_code": "FR", "country_name": "法国", "channel_name": "Govee", "store_name": "Govee_FR", "scene": "季节", "category": "贴片灯串", "product_line": "6812", "model": "H70C4", "sku": "H70C4342", "msku": "H70C4342-ES", "tl": "赵六", "sales": "Carol Li", "sales_amount": 83010.6, "sales_qty": 862}, {"id": 81, "region_code": "EU", "region_name": "欧洲区", "country_code": "ES", "country_name": "西班牙", "channel_name": "Govee", "store_name": "Govee_ES", "scene": "户外", "category": "户外投影灯", "product_line": "7013", "model": "H7071", "sku": "H7071311", "msku": "H7071311-DE", "tl": "孙八", "sales": "Carol Li", "sales_amount": 20997.68, "sales_qty": 446}, {"id": 82, "region_code": "EU", "region_name": "欧洲区", "country_code": "ES", "country_name": "西班牙", "channel_name": "Govee", "store_name": "Govee_ES", "scene": "观影", "category": "灯柱", "product_line": "6016", "model": "H6056", "sku": "H60563D1", "msku": "H60563D1-ES", "tl": "赵六", "sales": "David Zhang", "sales_amount": 39935.61, "sales_qty": 429}, {"id": 83, "region_code": "EU", "region_name": "欧洲区", "country_code": "FR", "country_name": "法国", "channel_name": "Govee", "store_name": "Govee_FR", "scene": "居家", "category": "星空灯", "product_line": "6012", "model": "H6094", "sku": "H6094011", "msku": "H6094011-FR", "tl": "张三", "sales": "Carol Li", "sales_amount": 21892.2, "sales_qty": 682}, {"id": 84, "region_code": "EU", "region_name": "欧洲区", "country_code": "IT", "country_name": "意大利", "channel_name": "GoveeLife", "store_name": "Goveelife_IT", "scene": "传感器及控制", "category": "温湿度计", "product_line": "5111", "model": "H5179", "sku": "H5179001", "msku": "H5179001-GV-IT", "tl": "王五", "sales": "Alice Chen", "sales_amount": 16135.6, "sales_qty": 260}, {"id": 85, "region_code": "EU", "region_name": "欧洲区", "country_code": "DE", "country_name": "德国", "channel_name": "Govee", "store_name": "Govee_DE", "scene": "居家", "category": "球泡", "product_line": "6011", "model": "B6006", "sku": "B60063CA", "msku": "B60063CA-DE", "tl": "钱七", "sales": "David Zhang", "sales_amount": 33175.35, "sales_qty": 585}, {"id": 86, "region_code": "EU", "region_name": "欧洲区", "country_code": "DE", "country_name": "德国", "channel_name": "Govee", "store_name": "Govee_DE", "scene": "居家", "category": "灯带", "product_line": "6112", "model": "H6126", "sku": "H61263D2", "msku": "H61263D2-DE", "tl": "张三", "sales": "Carol Li", "sales_amount": 21349.71, "sales_qty": 739}, {"id": 87, "region_code": "EU", "region_name": "欧洲区", "country_code": "FR", "country_name": "法国", "channel_name": "Govee", "store_name": "Govee_FR", "scene": "居家", "category": "灯带", "product_line": "6112", "model": "H61B6", "sku": "H61B63D1", "msku": "H61B63D1-FR", "tl": "张三", "sales": "Alice Chen", "sales_amount": 41139.36, "sales_qty": 534}, {"id": 88, "region_code": "NA", "region_name": "北美区", "country_code": "CA", "country_name": "加拿大", "channel_name": "GoveeLife", "store_name": "Goveelife_CA", "scene": "环境电器", "category": "塔扇", "product_line": "7110", "model": "H7105", "sku": "H7105181", "msku": "H7105181-GL-CA", "tl": "李四", "sales": "David Zhang", "sales_amount": 40783.05, "sales_qty": 605}, {"id": 89, "region_code": "EU", "region_name": "欧洲区", "country_code": "GB", "country_name": "英国", "channel_name": "Govee", "store_name": "Govee_UK", "scene": "户外", "category": "屋檐灯", "product_line": "7011", "model": "H705E", "sku": "H705E201", "msku": "H705E201-UK", "tl": "王五", "sales": "Carol Li", "sales_amount": 71737.08, "sales_qty": 906}, {"id": 90, "region_code": "NA", "region_name": "北美区", "country_code": "CA", "country_name": "加拿大", "channel_name": "Govee", "store_name": "Govee_CA", "scene": "居家", "category": "吸顶灯", "product_line": "6013", "model": "H60A1", "sku": "H60A1111", "msku": "H60A1111-CA", "tl": "王五", "sales": "David Zhang", "sales_amount": 25265.91, "sales_qty": 463}, {"id": 91, "region_code": "NA", "region_name": "北美区", "country_code": "CA", "country_name": "加拿大", "channel_name": "Govee", "store_name": "Govee_CA", "scene": "居家", "category": "床头灯", "product_line": "6012", "model": "H1741", "sku": "H1741011", "msku": "H1741011-CA", "tl": "李四", "sales": "Alice Chen", "sales_amount": 24240.85, "sales_qty": 985}, {"id": 92, "region_code": "NA", "region_name": "北美区", "country_code": "CA", "country_name": "加拿大", "channel_name": "GoveeLife", "store_name": "Goveelife_CA", "scene": "传感器及控制", "category": "空气质量检测仪", "product_line": "5111", "model": "H5106", "sku": "H5106101", "msku": "H5106101-GL-CA", "tl": "赵六", "sales": "Alice Chen", "sales_amount": 12570.36, "sales_qty": 178}, {"id": 93, "region_code": "NA", "region_name": "北美区", "country_code": "CA", "country_name": "加拿大", "channel_name": "Govee", "store_name": "Govee_CA", "scene": "户外", "category": "户外灯带", "product_line": "7014", "model": "H70A2", "sku": "H70A21D1", "msku": "H70A21D1-CA", "tl": "赵六", "sales": "David Zhang", "sales_amount": 8028.21, "sales_qty": 123}, {"id": 94, "region_code": "NA", "region_name": "北美区", "country_code": "CA", "country_name": "加拿大", "channel_name": "Govee", "store_name": "Govee_CA", "scene": "居家", "category": "新形态灯带", "product_line": "6121", "model": "H61C5", "sku": "H61C51D1", "msku": "H61C51D1-CA", "tl": "孙八", "sales": "David Zhang", "sales_amount": 18792.41, "sales_qty": 193}, {"id": 95, "region_code": "EU", "region_name": "欧洲区", "country_code": "GB", "country_name": "英国", "channel_name": "Govee", "store_name": "Govee_UK", "scene": "户外", "category": "球泡灯串", "product_line": "7012", "model": "H702A", "sku": "H702A211", "msku": "H702A211-UK", "tl": "赵六", "sales": "Bob Wang", "sales_amount": 1942.05, "sales_qty": 55}, {"id": 96, "region_code": "EU", "region_name": "欧洲区", "country_code": "GB", "country_name": "英国", "channel_name": "Govee", "store_name": "Govee_UK", "scene": "居家", "category": "灯带", "product_line": "6112", "model": "H6110", "sku": "H61102A3", "msku": "H61102A3-UK", "tl": "李四", "sales": "Carol Li", "sales_amount": 31056.75, "sales_qty": 387}, {"id": 97, "region_code": "MENA", "region_name": "中东及非洲区", "country_code": "SA", "country_name": "沙特", "channel_name": "Govee", "store_name": "Govee_SA", "scene": "观影", "category": "摄像头取色系列", "product_line": "6015", "model": "H6099", "sku": "H60992D1", "msku": "H60992D1-SA", "tl": "赵六", "sales": "Carol Li", "sales_amount": 23179.41, "sales_qty": 249}, {"id": 98, "region_code": "MENA", "region_name": "中东及非洲区", "country_code": "SA", "country_name": "沙特", "channel_name": "Govee", "store_name": "Govee_SA", "scene": "居家", "category": "吸顶灯", "product_line": "6013", "model": "H60A4", "sku": "H60A4201", "msku": "H60A4201-SA", "tl": "孙八", "sales": "David Zhang", "sales_amount": 31056.75, "sales_qty": 675}, {"id": 99, "region_code": "EU", "region_name": "欧洲区", "country_code": "GB", "country_name": "英国", "channel_name": "独立站", "store_name": "独立站-UK", "scene": "户外", "category": "屋檐灯", "product_line": "7011", "model": "H705D", "sku": "H705D211", "msku": "H705D211-ZY-UK-T", "tl": "张三", "sales": "Carol Li", "sales_amount": 29275.2, "sales_qty": 720}, {"id": 100, "region_code": "NA", "region_name": "北美区", "country_code": "US", "country_name": "美国", "channel_name": "WM 3P", "store_name": "WM 3P-US", "scene": "季节", "category": "灌木丛灯", "product_line": "6813", "model": "H8811", "sku": "H8811A42", "msku": "H8811A42-MPWM-US", "tl": "李四", "sales": "Alice Chen", "sales_amount": 44549.45, "sales_qty": 757}]}</script>
+<script type="application/json" id="embedRegion">{"version": "1.0", "source": "用户提供系统截图", "note": "后续区域/国家筛选按本文件提供；国家下拉需与区域联动。", "regions": [{"region_code": "NA", "region_name": "北美区", "countries": [{"country_code": "US", "country_name": "美国"}, {"country_code": "CA", "country_name": "加拿大"}, {"country_code": "MX", "country_name": "墨西哥"}]}, {"region_code": "EU", "region_name": "欧洲区", "subregions": [{"subregion_name": "西欧", "countries": [{"country_code": "GB", "country_name": "英国"}, {"country_code": "DE", "country_name": "德国"}, {"country_code": "FR", "country_name": "法国"}, {"country_code": "IT", "country_name": "意大利"}, {"country_code": "ES", "country_name": "西班牙"}]}, {"subregion_name": "北欧", "countries": [{"country_code": "SE", "country_name": "瑞典"}, {"country_code": "NO", "country_name": "挪威"}, {"country_code": "FI", "country_name": "芬兰"}, {"country_code": "DK", "country_name": "丹麦"}]}, {"subregion_name": "东欧", "countries": [{"country_code": "PL", "country_name": "波兰"}, {"country_code": "CZ", "country_name": "捷克"}, {"country_code": "HU", "country_name": "匈牙利"}]}], "countries": [{"country_code": "GB", "country_name": "英国"}, {"country_code": "DE", "country_name": "德国"}, {"country_code": "FR", "country_name": "法国"}, {"country_code": "IT", "country_name": "意大利"}, {"country_code": "ES", "country_name": "西班牙"}, {"country_code": "SE", "country_name": "瑞典"}, {"country_code": "NO", "country_name": "挪威"}, {"country_code": "FI", "country_name": "芬兰"}, {"country_code": "DK", "country_name": "丹麦"}, {"country_code": "PL", "country_name": "波兰"}, {"country_code": "CZ", "country_name": "捷克"}, {"country_code": "HU", "country_name": "匈牙利"}]}, {"region_code": "APAC", "region_name": "亚太区", "subregions": [{"subregion_name": "东亚", "countries": [{"country_code": "CN", "country_name": "中国"}, {"country_code": "JP", "country_name": "日本"}, {"country_code": "KR", "country_name": "韩国"}]}, {"subregion_name": "东南亚", "countries": [{"country_code": "SG", "country_name": "新加坡"}, {"country_code": "MY", "country_name": "马来西亚"}, {"country_code": "TH", "country_name": "泰国"}, {"country_code": "VN", "country_name": "越南"}, {"country_code": "PH", "country_name": "菲律宾"}, {"country_code": "ID", "country_name": "印尼"}]}, {"subregion_name": "大洋洲", "countries": [{"country_code": "AU", "country_name": "澳大利亚"}, {"country_code": "NZ", "country_name": "新西兰"}]}], "countries": [{"country_code": "CN", "country_name": "中国"}, {"country_code": "JP", "country_name": "日本"}, {"country_code": "KR", "country_name": "韩国"}, {"country_code": "SG", "country_name": "新加坡"}, {"country_code": "MY", "country_name": "马来西亚"}, {"country_code": "TH", "country_name": "泰国"}, {"country_code": "VN", "country_name": "越南"}, {"country_code": "PH", "country_name": "菲律宾"}, {"country_code": "ID", "country_name": "印尼"}, {"country_code": "AU", "country_name": "澳大利亚"}, {"country_code": "NZ", "country_name": "新西兰"}]}, {"region_code": "LATAM", "region_name": "拉美区", "countries": [{"country_code": "BR", "country_name": "巴西"}, {"country_code": "CL", "country_name": "智利"}, {"country_code": "CO", "country_name": "哥伦比亚"}]}, {"region_code": "MENA", "region_name": "中东及非洲区", "countries": [{"country_code": "AE", "country_name": "阿联酋"}, {"country_code": "SA", "country_name": "沙特"}, {"country_code": "ZA", "country_name": "南非"}, {"country_code": "NG", "country_name": "尼日利亚"}]}, {"region_code": "SA", "region_name": "南亚区", "countries": [{"country_code": "IN", "country_name": "印度"}, {"country_code": "PK", "country_name": "巴基斯坦"}, {"country_code": "BD", "country_name": "孟加拉国"}]}]}</script>
+<script type="application/json" id="embedChannel">{"version": "1.1", "source": "用户提供系统截图", "note": "店铺名 GoveeLife 渠道统一为 Goveelife_*（life 小写）。与 销售基础信息_v1.json 对齐（2026-05-18）。", "channels": [{"channel_name": "Govee", "stores": ["Govee_AE", "Govee_AU", "Govee_BE", "Govee_CA", "Govee_DE", "Govee_ES", "Govee_FR", "Govee_IE", "Govee_IT", "Govee_JP", "Govee_MX", "Govee_NL", "Govee_PL", "Govee_SA", "Govee_SE", "Govee_SG", "Govee_TR", "Govee_UK", "Govee_US"]}, {"channel_name": "Govee EU", "stores": ["Govee_AU_1", "Govee_BE_1", "Govee_DE_1", "Govee_ES_1", "Govee_FR_1", "Govee_IE_1", "Govee_IT_1", "Govee_NL_1", "Govee_PL_1", "Govee_SE_1", "Govee_UK_1"]}, {"channel_name": "GoveeLife", "stores": ["Goveelife_BE", "Goveelife_CA", "Goveelife_DE", "Goveelife_ES", "Goveelife_FR", "Goveelife_IT", "Goveelife_JP", "Goveelife_MX", "Goveelife_NL", "Goveelife_PL", "Goveelife_SE", "Goveelife_UK", "Goveelife_US"]}, {"channel_name": "独立站", "stores": ["独立站-CA", "独立站-CA-GL", "独立站-EU", "独立站-EU-GL", "独立站-UK", "独立站-UK-GL", "独立站-US", "独立站-US-GL"]}, {"channel_name": "TTS", "stores": ["TTS-US"]}, {"channel_name": "Offline", "stores": ["Offline-CA", "Offline-MX", "Offline-Others", "Offline-US"]}, {"channel_name": "线下分销", "stores": ["分销-华东", "分销-华北", "分销-华南", "分销-跨境"]}, {"channel_name": "京东", "stores": ["京东旗舰店"]}, {"channel_name": "Wayfair-US", "stores": ["Wayfair-US"]}, {"channel_name": "小红书", "stores": ["小红书旗舰店"]}, {"channel_name": "APP商城", "stores": ["APP商城-CA", "APP商城-EU", "APP商城-UK", "APP商城-US"]}, {"channel_name": "品牌推广", "stores": ["品牌推广"]}, {"channel_name": "APP", "stores": ["Savvy User Store"]}, {"channel_name": "WM 3P", "stores": ["WM 3P-US"]}, {"channel_name": "BBY 3P", "stores": ["BBY 3P-US"]}, {"channel_name": "Lowes 3P", "stores": ["Lowes 3P-US"]}, {"channel_name": "Govee_VC", "stores": ["Govee_VC_JP"]}, {"channel_name": "售后CS", "stores": ["售后CS"]}, {"channel_name": "GoveeLife_BT", "stores": ["Goveelife_BT"]}, {"channel_name": "Govee_BT", "stores": ["Govee_BT"]}]}</script>
+<script type="application/json" id="embedScene">{"version": "1.0", "source": "用户提供系统截图", "note": "后续场景/品类数据以本文件为准；仅包含截图中出现的编码与名称。", "scenes": [{"scene_code": "0", "scene_name": "未分类", "categories": [{"category_code": "0001", "category_name": "未分类"}]}, {"scene_code": "1", "scene_name": "居家", "categories": [{"category_code": "1001", "category_name": "吊灯"}, {"category_code": "1002", "category_name": "吸顶灯"}, {"category_code": "1003", "category_name": "风扇灯"}, {"category_code": "1004", "category_name": "球泡"}, {"category_code": "1005", "category_name": "筒灯"}, {"category_code": "1006", "category_name": "落地灯"}, {"category_code": "1007", "category_name": "床头灯"}, {"category_code": "1008", "category_name": "星空灯"}, {"category_code": "1009", "category_name": "其他"}, {"category_code": "1010", "category_name": "灯带"}, {"category_code": "1011", "category_name": "新形态灯带"}, {"category_code": "1012", "category_name": "传感器&盒子"}, {"category_code": "1013", "category_name": "室内壁灯"}]}, {"scene_code": "2", "scene_name": "观影", "categories": [{"category_code": "2001", "category_name": "灯柱"}, {"category_code": "2002", "category_name": "摄像头取色系列"}, {"category_code": "2003", "category_name": "TV灯带"}, {"category_code": "2004", "category_name": "HDMI盒子系列"}]}, {"scene_code": "3", "scene_name": "户外", "categories": [{"category_code": "3001", "category_name": "球泡灯串"}, {"category_code": "3002", "category_name": "户外灯带"}, {"category_code": "3003", "category_name": "射灯"}, {"category_code": "3004", "category_name": "泛光灯"}, {"category_code": "3005", "category_name": "庭院灯"}, {"category_code": "3006", "category_name": "路径灯"}, {"category_code": "3007", "category_name": "路灯"}, {"category_code": "3008", "category_name": "壁灯"}, {"category_code": "3009", "category_name": "户外投影灯"}, {"category_code": "3010", "category_name": "植物灯"}, {"category_code": "3011", "category_name": "屋檐灯"}, {"category_code": "3012", "category_name": "礼盒"}, {"category_code": "3013", "category_name": "车灯"}, {"category_code": "3014", "category_name": "传感器&盒子"}]}, {"scene_code": "5", "scene_name": "传感器及控制", "categories": [{"category_code": "5001", "category_name": "空气质量检测仪"}, {"category_code": "5002", "category_name": "智能按键"}, {"category_code": "5003", "category_name": "门窗传感器"}, {"category_code": "5004", "category_name": "红外人体传感器"}, {"category_code": "5005", "category_name": "人体存在传感器"}, {"category_code": "5006", "category_name": "压力传感器"}, {"category_code": "5007", "category_name": "温湿度计"}, {"category_code": "5008", "category_name": "漏水报警器"}, {"category_code": "5009", "category_name": "智能插座"}, {"category_code": "5010", "category_name": "烤肉温度计"}, {"category_code": "5011", "category_name": "网关"}, {"category_code": "5012", "category_name": "二氧化碳检测仪"}, {"category_code": "5013", "category_name": "浇水控制器"}]}, {"scene_code": "6", "scene_name": "季节", "categories": [{"category_code": "6001", "category_name": "窗帘灯"}, {"category_code": "6002", "category_name": "贴片灯串"}, {"category_code": "6003", "category_name": "插件灯串"}, {"category_code": "6004", "category_name": "树衣灯"}, {"category_code": "6005", "category_name": "瀑布灯"}, {"category_code": "6006", "category_name": "冰帘灯"}, {"category_code": "6007", "category_name": "圣诞树灯"}, {"category_code": "6008", "category_name": "草莓灯"}, {"category_code": "6009", "category_name": "造型灯"}, {"category_code": "6010", "category_name": "灌木丛灯"}, {"category_code": "6011", "category_name": "礼盒"}, {"category_code": "6012", "category_name": "流星雨灯"}]}, {"scene_code": "7", "scene_name": "环境电器", "categories": [{"category_code": "7001", "category_name": "塔扇"}, {"category_code": "7002", "category_name": "台扇"}, {"category_code": "7003", "category_name": "空净"}, {"category_code": "7004", "category_name": "暖风机"}, {"category_code": "7005", "category_name": "加湿器"}, {"category_code": "7006", "category_name": "除湿机"}, {"category_code": "7007", "category_name": "香薰机"}, {"category_code": "7008", "category_name": "环电配件"}]}, {"scene_code": "8", "scene_name": "厨房电器", "categories": [{"category_code": "8001", "category_name": "冰食料理机"}, {"category_code": "8002", "category_name": "制冰机"}, {"category_code": "8003", "category_name": "冰淇淋机"}, {"category_code": "8004", "category_name": "厨余垃圾处理机"}, {"category_code": "8005", "category_name": "电水壶"}, {"category_code": "8006", "category_name": "电饭煲"}, {"category_code": "8007", "category_name": "厨电配件"}]}, {"scene_code": "9", "scene_name": "游戏", "categories": [{"category_code": "9001", "category_name": "方块灯"}, {"category_code": "9002", "category_name": "条状灯"}, {"category_code": "9003", "category_name": "像素灯"}, {"category_code": "9005", "category_name": "室内激光灯"}, {"category_code": "9006", "category_name": "HDMI盒子系列"}, {"category_code": "9007", "category_name": "游戏灯带"}, {"category_code": "9008", "category_name": "灯柱"}, {"category_code": "9009", "category_name": "新潮灯具"}]}]}</script>
+<script type="application/json" id="embedStoreGeo">{"version": "1.0", "note": "店铺→国家/区域；独立站-EU、Govee_DE_1 归入德国(DE)。用于国家筛选收窄有售 SKU。", "mappings": [{"store_name": "APP商城-CA", "channel_name": "APP商城", "region_code": "NA", "country_code": "US", "country_name": "美国"}, {"store_name": "APP商城-EU", "channel_name": "APP商城", "region_code": "NA", "country_code": "US", "country_name": "美国"}, {"store_name": "APP商城-UK", "channel_name": "APP商城", "region_code": "NA", "country_code": "US", "country_name": "美国"}, {"store_name": "APP商城-US", "channel_name": "APP商城", "region_code": "NA", "country_code": "US", "country_name": "美国"}, {"store_name": "BBY 3P-US", "channel_name": "BBY 3P", "region_code": "NA", "country_code": "US", "country_name": "美国"}, {"store_name": "Govee_AE", "channel_name": "Govee", "region_code": "MENA", "country_code": "AE", "country_name": "阿联酋"}, {"store_name": "Govee_AU", "channel_name": "Govee", "region_code": "APAC", "country_code": "AU", "country_name": "澳大利亚"}, {"store_name": "Govee_AU_1", "channel_name": "Govee EU", "region_code": "APAC", "country_code": "AU", "country_name": "澳大利亚"}, {"store_name": "Govee_BE", "channel_name": "Govee", "region_code": "EU", "country_code": "BE", "country_name": "BE"}, {"store_name": "Govee_BE_1", "channel_name": "Govee EU", "region_code": "EU", "country_code": "BE", "country_name": "BE"}, {"store_name": "Govee_BT", "channel_name": "Govee_BT", "region_code": "NA", "country_code": "US", "country_name": "美国"}, {"store_name": "Govee_CA", "channel_name": "Govee", "region_code": "NA", "country_code": "CA", "country_name": "加拿大"}, {"store_name": "Govee_DE", "channel_name": "Govee", "region_code": "EU", "country_code": "DE", "country_name": "德国"}, {"store_name": "Govee_DE_1", "channel_name": "Govee EU", "region_code": "EU", "country_code": "DE", "country_name": "德国"}, {"store_name": "Govee_ES", "channel_name": "Govee", "region_code": "EU", "country_code": "ES", "country_name": "西班牙"}, {"store_name": "Govee_ES_1", "channel_name": "Govee EU", "region_code": "EU", "country_code": "ES", "country_name": "西班牙"}, {"store_name": "Govee_FR", "channel_name": "Govee", "region_code": "EU", "country_code": "FR", "country_name": "法国"}, {"store_name": "Govee_FR_1", "channel_name": "Govee EU", "region_code": "EU", "country_code": "FR", "country_name": "法国"}, {"store_name": "Govee_IE", "channel_name": "Govee", "region_code": "EU", "country_code": "IE", "country_name": "IE"}, {"store_name": "Govee_IE_1", "channel_name": "Govee EU", "region_code": "EU", "country_code": "IE", "country_name": "IE"}, {"store_name": "Govee_IT", "channel_name": "Govee", "region_code": "EU", "country_code": "IT", "country_name": "意大利"}, {"store_name": "Govee_IT_1", "channel_name": "Govee EU", "region_code": "EU", "country_code": "IT", "country_name": "意大利"}, {"store_name": "Govee_JP", "channel_name": "Govee", "region_code": "APAC", "country_code": "JP", "country_name": "日本"}, {"store_name": "Govee_MX", "channel_name": "Govee", "region_code": "NA", "country_code": "MX", "country_name": "墨西哥"}, {"store_name": "Govee_NL", "channel_name": "Govee", "region_code": "EU", "country_code": "NL", "country_name": "NL"}, {"store_name": "Govee_NL_1", "channel_name": "Govee EU", "region_code": "EU", "country_code": "NL", "country_name": "NL"}, {"store_name": "Govee_PL", "channel_name": "Govee", "region_code": "EU", "country_code": "PL", "country_name": "波兰"}, {"store_name": "Govee_PL_1", "channel_name": "Govee EU", "region_code": "EU", "country_code": "PL", "country_name": "波兰"}, {"store_name": "Govee_SA", "channel_name": "Govee", "region_code": "MENA", "country_code": "SA", "country_name": "沙特"}, {"store_name": "Govee_SE", "channel_name": "Govee", "region_code": "EU", "country_code": "SE", "country_name": "瑞典"}, {"store_name": "Govee_SE_1", "channel_name": "Govee EU", "region_code": "EU", "country_code": "SE", "country_name": "瑞典"}, {"store_name": "Govee_SG", "channel_name": "Govee", "region_code": "APAC", "country_code": "SG", "country_name": "新加坡"}, {"store_name": "Govee_TR", "channel_name": "Govee", "region_code": "NA", "country_code": "US", "country_name": "美国"}, {"store_name": "Govee_UK", "channel_name": "Govee", "region_code": "EU", "country_code": "GB", "country_name": "英国"}, {"store_name": "Govee_UK_1", "channel_name": "Govee EU", "region_code": "EU", "country_code": "GB", "country_name": "英国"}, {"store_name": "Govee_US", "channel_name": "Govee", "region_code": "NA", "country_code": "US", "country_name": "美国"}, {"store_name": "Govee_VC_JP", "channel_name": "Govee_VC", "region_code": "APAC", "country_code": "JP", "country_name": "日本"}, {"store_name": "Goveelife_BE", "channel_name": "GoveeLife", "region_code": "NA", "country_code": "US", "country_name": "美国"}, {"store_name": "Goveelife_BT", "channel_name": "GoveeLife_BT", "region_code": "NA", "country_code": "US", "country_name": "美国"}, {"store_name": "Goveelife_CA", "channel_name": "GoveeLife", "region_code": "NA", "country_code": "CA", "country_name": "加拿大"}, {"store_name": "Goveelife_DE", "channel_name": "GoveeLife", "region_code": "EU", "country_code": "DE", "country_name": "德国"}, {"store_name": "Goveelife_ES", "channel_name": "GoveeLife", "region_code": "EU", "country_code": "ES", "country_name": "西班牙"}, {"store_name": "Goveelife_FR", "channel_name": "GoveeLife", "region_code": "EU", "country_code": "FR", "country_name": "法国"}, {"store_name": "Goveelife_IT", "channel_name": "GoveeLife", "region_code": "EU", "country_code": "IT", "country_name": "意大利"}, {"store_name": "Goveelife_JP", "channel_name": "GoveeLife", "region_code": "APAC", "country_code": "JP", "country_name": "日本"}, {"store_name": "Goveelife_MX", "channel_name": "GoveeLife", "region_code": "NA", "country_code": "US", "country_name": "美国"}, {"store_name": "Goveelife_NL", "channel_name": "GoveeLife", "region_code": "NA", "country_code": "US", "country_name": "美国"}, {"store_name": "Goveelife_PL", "channel_name": "GoveeLife", "region_code": "NA", "country_code": "US", "country_name": "美国"}, {"store_name": "Goveelife_SE", "channel_name": "GoveeLife", "region_code": "NA", "country_code": "US", "country_name": "美国"}, {"store_name": "Goveelife_UK", "channel_name": "GoveeLife", "region_code": "EU", "country_code": "GB", "country_name": "英国"}, {"store_name": "Goveelife_US", "channel_name": "GoveeLife", "region_code": "NA", "country_code": "US", "country_name": "美国"}, {"store_name": "Lowes 3P-US", "channel_name": "Lowes 3P", "region_code": "NA", "country_code": "US", "country_name": "美国"}, {"store_name": "Offline-CA", "channel_name": "Offline", "region_code": "NA", "country_code": "US", "country_name": "美国"}, {"store_name": "Offline-MX", "channel_name": "Offline", "region_code": "NA", "country_code": "MX", "country_name": "墨西哥"}, {"store_name": "Offline-Others", "channel_name": "Offline", "region_code": "NA", "country_code": "US", "country_name": "美国"}, {"store_name": "Offline-US", "channel_name": "Offline", "region_code": "NA", "country_code": "US", "country_name": "美国"}, {"store_name": "Savvy User Store", "channel_name": "APP", "region_code": "NA", "country_code": "US", "country_name": "美国"}, {"store_name": "TTS-US", "channel_name": "TTS", "region_code": "NA", "country_code": "US", "country_name": "美国"}, {"store_name": "WM 3P-US", "channel_name": "WM 3P", "region_code": "NA", "country_code": "US", "country_name": "美国"}, {"store_name": "Wayfair-US", "channel_name": "Wayfair-US", "region_code": "NA", "country_code": "US", "country_name": "美国"}, {"store_name": "京东旗舰店", "channel_name": "京东", "region_code": "NA", "country_code": "US", "country_name": "美国"}, {"store_name": "分销-华东", "channel_name": "线下分销", "region_code": "NA", "country_code": "US", "country_name": "美国"}, {"store_name": "分销-华北", "channel_name": "线下分销", "region_code": "NA", "country_code": "US", "country_name": "美国"}, {"store_name": "分销-华南", "channel_name": "线下分销", "region_code": "NA", "country_code": "US", "country_name": "美国"}, {"store_name": "分销-跨境", "channel_name": "线下分销", "region_code": "NA", "country_code": "US", "country_name": "美国"}, {"store_name": "品牌推广", "channel_name": "品牌推广", "region_code": "NA", "country_code": "US", "country_name": "美国"}, {"store_name": "售后CS", "channel_name": "售后CS", "region_code": "NA", "country_code": "US", "country_name": "美国"}, {"store_name": "小红书旗舰店", "channel_name": "小红书", "region_code": "NA", "country_code": "US", "country_name": "美国"}, {"store_name": "独立站-CA", "channel_name": "独立站", "region_code": "NA", "country_code": "CA", "country_name": "加拿大"}, {"store_name": "独立站-CA-GL", "channel_name": "独立站", "region_code": "NA", "country_code": "CA", "country_name": "加拿大"}, {"store_name": "独立站-EU", "channel_name": "独立站", "region_code": "EU", "country_code": "DE", "country_name": "德国"}, {"store_name": "独立站-EU-GL", "channel_name": "独立站", "region_code": "EU", "country_code": "DE", "country_name": "德国"}, {"store_name": "独立站-UK", "channel_name": "独立站", "region_code": "EU", "country_code": "GB", "country_name": "英国"}, {"store_name": "独立站-UK-GL", "channel_name": "独立站", "region_code": "EU", "country_code": "GB", "country_name": "英国"}, {"store_name": "独立站-US", "channel_name": "独立站", "region_code": "NA", "country_code": "US", "country_name": "美国"}, {"store_name": "独立站-US-GL", "channel_name": "独立站", "region_code": "NA", "country_code": "US", "country_name": "美国"}]}</script>
+<script type="application/json" id="embedIndex">{"version": "1.0", "derived_from": "销售基础信息_v1.json", "models": ["A10D3", "A61F1", "A705D", "A7067", "A706A", "A707A", "A7086", "A806A", "A8120", "B1401", "B14A1", "B14C0", "B14C1", "B14C2", "B3751", "B5040", "B5043", "B5054", "B5055", "B5058", "B5059", "B5074", "B5075", "B5080", "B5082", "B5083", "B5085", "B5086", "B5100", "B5103", "B5104", "B5105", "B5107", "B5108", "B5109", "B5110", "B5111", "B5112", "B5122", "B5151", "B5157", "B5179", "B5180", "B5191", "B5192", "B5194", "B5198", "B5220", "B5310", "B5610", "B5830", "B6004", "B6005", "B6006", "B6008", "B6009", "B600A", "B600B", "B600C", "B600D", "B6010", "B6011", "B6013", "B601A", "B601B", "B601C", "B601D", "B601E", "B601F", "B604B", "B605B", "B605D", "B6061", "B6062", "B6076", "B60A1", "B7075", "B7076", "B70B1", "B7160", "B800B", "B8015", "B801A", "B801C", "B801D", "H1000", "H1005", "H100E", "H1011", "H1020", "H1023", "H1040", "H1043", "H105C", "H1061", "H1063", "H1069", "H1075", "H1076", "H10D1", "H10D2", "H10E1", "H10Z5", "H10Z6", "H1111", "H1122", "H1124", "H1127", "H1129", "H1149", "H1162", "H1167", "H1191", "H1192", "H1250", "H1252", "H1270", "H12D0", "H1310", "H1370", "H1401", "H14C0", "H14C1", "H1630", "H16B0", "H16C0", "H1741", "H1A43", "H2A40", "H2A41", "H3001", "H3200", "H3351", "H3500", "H3501", "H3510", "H3511", "H5051", "H5059", "H5074", "H5075", "H5080", "H5083", "H5086", "H5089", "H5100", "H5103", "H5104", "H5105", "H5106", "H5107", "H5108", "H5109", "H5110", "H5111", "H5112", "H5121", "H5122", "H5123", "H5124", "H5125", "H5126", "H5127", "H5129", "H5130", "H5140", "H5160", "H5171", "H5179", "H5220", "H5830", "H6004", "H6006", "H6008", "H6009", "H600A", "H600D", "H6010", "H6020", "H6022", "H6038", "H6039", "H6042", "H6043", "H6046", "H6047", "H6048", "H604C", "H604D", "H6052", "H6054", "H6056", "H6057", "H605A", "H605C", "H6063", "H6065", "H6066", "H6069", "H606A", "H6072", "H6076", "H6078", "H6079", "H607C", "H6088", "H608A", "H608B", "H608C", "H608D", "H6092", "H6093", "H6094", "H6095", "H6097", "H6098", "H6099", "H609D", "H60A1", "H60A4", "H60A6", "H60B0", "H60B1", "H60B2", "H60B3", "H60C1", "H610A", "H6110", "H6114", "H6119", "H6125", "H6126", "H6127", "H612C", "H613B", "H6140", "H6147", "H614B", "H614E", "H6150", "H6154", "H6159", "H615B", "H6167", "H6168", "H6169", "H6170", "H6171", "H6172", "H6173", "H6175", "H6176", "H617A", "H617C", "H617E", "H617F", "H617G", "H6184", "H6187", "H6189", "H618A", "H618C", "H618E", "H618F", "H618G", "H6190", "H6198", "H6199", "H619A", "H619B", "H619C", "H619E", "H61A0", "H61A1", "H61A2", "H61A8", "H61A9", "H61B3", "H61B5", "H61B6", "H61B8", "H61B9", "H61BA", "H61BC", "H61BE", "H61C3", "H61C5", "H61D3", "H61D5", "H61D6", "H61E0", "H61E1", "H61E5", "H61E6", "H61F2", "H61F5", "H61F6", "H6601", "H6602", "H6603", "H6604", "H6609", "H6630", "H6631", "H6640", "H6641", "H6671", "H6672", "H6690", "H66A0", "H66A1", "H6800", "H6810", "H6811", "H6840", "H6841", "H6870", "H6871", "H7015", "H7016", "H7020", "H7021", "H7025", "H7026", "H7027", "H7028", "H7029", "H702A", "H702B", "H702C", "H7033", "H7037", "H7038", "H7039", "H703A", "H703B", "H7045", "H7046", "H7050", "H7051", "H7052", "H7053", "H7055", "H7056", "H7057", "H7058", "H705A", "H705B", "H705C", "H705D", "H705E", "H705F", "H7060", "H7061", "H7062", "H7063", "H7065", "H7066", "H7067", "H7068", "H7069", "H706A", "H706B", "H706C", "H7070", "H7071", "H7072", "H7073", "H7075", "H7076", "H7078", "H707A", "H707B", "H707C", "H7086", "H7087", "H7090", "H7092", "H7093", "H7094", "H70A1", "H70A2", "H70A3", "H70B1", "H70B3", "H70B4", "H70B5", "H70B6", "H70B8", "H70C1", "H70C2", "H70C4", "H70C5", "H70C7", "H70C9", "H70CB", "H70D1", "H70D2", "H70Z0", "H7105", "H7106", "H7107", "H7120", "H7122", "H7123", "H7124", "H7126", "H7127", "H7128", "H7129", "H712C", "H7140", "H7142", "H7143", "H7145", "H7147", "H7148", "H7149", "H714E", "H7151", "H7152", "H7160", "H7161", "H7162", "H7170", "H7171", "H7172", "H7173", "H7175", "H717A", "H717D", "H7180", "H7184", "H8015", "H8022", "H8025", "H802A", "H805A", "H805B", "H8066", "H806A", "H8072", "H80A1", "H80C4", "H80C5", "H80D1", "H8120", "H8121", "H8604", "H8630", "H8811", "H8841", "M5112", "R1310", "R14A1", "R1630", "R1741", "R1810", "R6871"], "skus": ["A10D3001", "A61F10H1", "A705D004", "A705D104", "A7067011", "A7067012", "A706A002", "A706A102", "A707A001", "A7086041", "A806A001", "A806A002", "A806A011", "A806A012", "A8120111", "A8120112", "B1401102", "B14A1102", "B14C01C2", "B14C01C4", "B14C03C2", "B14C11C2", "B14C11C4", "B14C13C2", "B14C21C2", "B14C23C2", "B37511D1", "B5040101", "B5040105", "B5040109", "B5043101", "B5043102", "B5043103", "B5054001", "B5054002", "B5055015", "B5055016", "B505501E", "B5055025", "B5055085", "B5058001", "B5058002", "B5059101", "B5059102", "B5059103", "B5059104", "B5059105", "B5059106", "B5059107", "B5059109", "B5074001", "B5074002", "B5074003", "B5075001", "B5075002", "B5075081", "B5075082", "B5080101", "B5080103", "B5082101", "B5082103", "B5083101", "B5083103", "B508310A", "B508310C", "B5085101", "B5085103", "B5086101", "B5086103", "B5100001", "B5100002", "B5103001", "B5103002", "B5104001", "B5104002", "B5104011", "B5104012", "B5105001", "B5107101", "B5107102", "B5107103", "B5108001", "B5108101", "B5108102", "B5108201", "B5108301", "B5108302", "B5109101", "B5109102", "B5109301", "B5109302", "B5110001", "B5110101", "B5110102", "B5110201", "B5110301", "B5111001", "B5111101", "B5111102", "B5112101", "B5122101", "B5151103", "B5151104", "B5151301", "B5157001", "B5179001", "B5180001", "B5191011", "B5192011", "B5194011", "B5198011", "B5220101", "B5310101", "B5310141", "B5310161", "B5310301", "B5610011", "B5830101", "B5830103", "B6004AC3", "B60051C1", "B60061C1", "B60061C3", "B60061CA", "B60061CC", "B60061CE", "B60062CA", "B60063CA", "B6008102", "B6008104", "B6008106", "B6008108", "B60081C1", "B60081C3", "B60081C4", "B60081C5", "B6008202", "B6008204", "B600820B", "B60082C1", "B60082C3", "B6008302", "B6008304", "B6008306", "B60083C1", "B60083C3", "B6009AC3", "B600A102", "B600A1C1", "B600A1C3", "B600B1C1", "B600B1C3", "B600B1C4", "B600C202", "B600C204", "B600C2C1", "B600C2C3", "B600C302", "B600C304", "B600C3C1", "B600C3C3", "B600D1C3", "B600D2C1", "B600D2C3", "B600D3C1", "B600D3C3", "B6010102", "B6010106", "B60101C1", "B6011AC1", "B60131C3", "B60131C4", "B601A104", "B601A106", "B601A1C3", "B601B104", "B601B1C1", "B601B1C3", "B601B304", "B601B3C3", "B601C104", "B601C106", "B601C1C3", "B601C1C4", "B601D1C4", "B601E1F4", "B601E3F4", "B601F1F4", "B604B211", "B605B112", "B605B212", "B605DA11", "B6061101", "B6061102", "B6061201", "B6061301", "B6061A02", "B6061A03", "B6062101", "B6062102", "B60621D3", "B6062201", "B6062202", "B6062301", "B6062A01", "B6062A02", "B6076113", "B6076213", "B6076313", "B60A1101", "B60A1301", "B70751D1", "B70752D1", "B70753D1", "B70761D1", "B70762D1", "B70763D1", "B70B11A1", "B7160101", "B800BAC1", "B8015A02", "B801AA04", "B801CAC3", "B801DA04", "H1000001", "H1005002", "H100E0D1", "H1011AD1", "H1020101", "H1023001", "H1040001", "H1043001", "H105C011", "H105C012", "H105C013", "H1061001", "H1061002", "H1063012", "H10630A4", "H10630A5", "H1069001", "H1075001", "H1075005", "H1075007", "H1075009", "H107500A", "H1075010", "H107501A", "H107600A", "H107600B", "H107601A", "H107601B", "H10D1000", "H10D1001", "H10D2000", "H10D2001", "H10E10D1", "H10Z5101", "H10Z5301", "H10Z6101", "H1111011", "H1111014", "H1111019", "H1111033", "H1111037", "H1122031", "H1124001", "H1124002", "H1127002", "H1127003", "H1129001", "H1129002", "H1149011", "H1162011", "H1167011", "H1191011", "H1192011", "H1250101", "H1250301", "H1252101", "H1270101", "H1270301", "H12D0101", "H12D0301", "H1310111", "H1310311", "H1370111", "H1401301", "H14C03C1", "H14C13C1", "H1630101", "H1630201", "H1630301", "H16B0111", "H16B0211", "H16B0311", "H16C0111", "H16C0211", "H16C0311", "H1741011", "H1A43101", "H2A40111", "H2A40211", "H2A40311", "H2A41111", "H2A41211", "H2A41311", "H3001011", "H3001311", "H3200111", "H3200311", "H3351111", "H3351311", "H3500111", "H3500311", "H3501111", "H3510111", "H3511111", "H5051001", "H5059101", "H5074001", "H5074002", "H5074501", "H5075001", "H5075081", "H5080101", "H5083101", "H508310A", "H5086101", "H5089101", "H5100001", "H5100002", "H5103001", "H5103002", "H5104001", "H5104011", "H5105001", "H5106101", "H5107101", "H5108001", "H5109001", "H5110001", "H5111001", "H5112101", "H5121101", "H5121301", "H5122101", "H5123101", "H5124101", "H5125101", "H5126101", "H5127101", "H5129011", "H5130001", "H5140181", "H5160111", "H5171011", "H5179001", "H5179002", "H5220101", "H5830101", "H6004B0A", "H60061C1", "H60062CA", "H60063CA", "H6008101", "H60081C1", "H6008201", "H6008301", "H60091C1", "H600A1C1", "H600D2C1", "H600D3C1", "H60101C1", "H60200F1", "H60201F1", "H60203F1", "H60221D1", "H60222D1", "H60223D1", "H60381E1", "H60383E1", "H60391E1", "H60393E1", "H6042111", "H6042211", "H6043111", "H6043311", "H6046101", "H6046111", "H6046201", "H6046211", "H6046301", "H6046311", "H6046511", "H6047171", "H6047181", "H6047371", "H6047381", "H6047A01", "H6048181", "H6048281", "H6048381", "H604CA01", "H604DA01", "H60522D1", "H60523D1", "H6052AD1", "H60541D1", "H60561D1", "H60562D1", "H60563D1", "H6057101", "H605A111", "H605A211", "H605A311", "H605C111", "H605C112", "H605C113", "H605C211", "H605C212", "H605C311", "H605C312", "H605C511", "H6063113", "H6063213", "H6063281", "H6063313", "H6063381", "H6065101", "H6065201", "H6065301", "H6066102", "H6066302", "H6069101", "H6069102", "H6069201", "H6069202", "H6069301", "H6069302", "H606A101", "H606A181", "H606A301", "H606A381", "H6072112", "H6072181", "H6072182", "H6072212", "H6072282", "H6072382", "H6076112", "H6076113", "H6076163", "H6076182", "H6076183", "H6076193", "H6076212", "H6076213", "H6076282", "H6076283", "H6076293", "H6076312", "H6076313", "H6076382", "H6076383", "H6076393", "H6076512", "H6078101", "H6078102", "H6078202", "H6078302", "H6079112", "H6079182", "H6079212", "H6079282", "H6079312", "H6079382", "H607C111", "H607C161", "H607C181", "H607C211", "H607C281", "H607C311", "H607C381", "H6088101", "H6088301", "H608A101", "H608A111", "H608B101", "H608B111", "H608C101", "H608D101", "H6092101", "H6092301", "H6093011", "H6094011", "H6095111", "H6095211", "H6095311", "H60971D1", "H60972D1", "H60973D1", "H60975D1", "H6098AD2", "H60991D1", "H60991D2", "H60991D3", "H60992D1", "H60992D2", "H60993D1", "H60993D2", "H60995D1", "H609D111", "H609D311", "H60A1101", "H60A1111", "H60A1201", "H60A1301", "H60A1311", "H60A1501", "H60A4101", "H60A4201", "H60A4301", "H60A6101", "H60A6201", "H60A6301", "H60A6A01", "H60B0111", "H60B0211", "H60B0311", "H60B0A11", "H60B1111", "H60B1211", "H60B1311", "H60B2111", "H60B2211", "H60B2311", "H60B3111", "H60B3311", "H60C11F1", "H60C12F1", "H60C13F1", "H610A1D1", "H610A2D1", "H610A3D1", "H61101A3", "H61102A3", "H61103A3", "H61140A1", "H61140A2", "H61190A1", "H6119AA1", "H61251D2", "H61253D2", "H61261D2", "H61263D2", "H61271A2", "H612CAD1", "H613B3A1", "H6140010", "H61471D2", "H61473D2", "H614B1A3", "H614E1A1", "H614E1A3", "H6150010", "H6150101", "H6150102", "H61541A1", "H61591A1", "H61591A3", "H61592A3", "H61593A3", "H615B1A1", "H61671D1", "H61672D1", "H61673D1", "H61681D1", "H61682D1", "H61683D1", "H61691D1", "H61692D1", "H61702A1", "H61711D2", "H61712D1", "H61721D1", "H61721D2", "H61722D2", "H6172AD1", "H61731D1", "H61731D2", "H61732D2", "H61733D2", "H61751D1", "H61752D1", "H61753D1", "H61761D1", "H61763D1", "H617A1D1", "H617A2D1", "H617A3D1", "H617C1D1", "H617C2D1", "H617C3D1", "H617E1D1", "H617E2D1", "H617E3D1", "H617F1D1", "H617G1D1", "H61840A1", "H6187102", "H61891A1", "H61891A2", "H618A1D1", "H618A2D1", "H618A3D1", "H618C1D1", "H618C2D1", "H618C3D1", "H618E1D1", "H618F1D1", "H618F2D1", "H618F3D1", "H618G1D1", "H61901A2", "H6198AD2", "H61991D1", "H61991D3", "H61991D4", "H61992D3", "H619A1D1", "H619A2D1", "H619A3D1", "H619BAD1", "H619C1D1", "H619C2D1", "H619C3D1", "H619E1D1", "H619E2D1", "H619E3D1", "H61A01D1", "H61A02D1", "H61A11D1", "H61A1AD1", "H61A21D1", "H61A22D1", "H61A23D1", "H61A81D1", "H61A83D1", "H61A91D2", "H61B31D1", "H61B33D1", "H61B51D1", "H61B52D1", "H61B53D1", "H61B61D1", "H61B63D1", "H61B81H1", "H61B83H1", "H61B91H1", "H61BA2D1", "H61BA3D1", "H61BC2D1", "H61BC3D1", "H61BE1D1", "H61BE2D1", "H61BE3D1", "H61C31D1", "H61C32D1", "H61C33D1", "H61C51D1", "H61C52D1", "H61C53D1", "H61D3101", "H61D3111", "H61D3201", "H61D3211", "H61D3301", "H61D3311", "H61D5101", "H61D5111", "H61D5201", "H61D5301", "H61D5311", "H61D6101", "H61D6301", "H61E02D1", "H61E11D1", "H61E11D2", "H61E12D2", "H61E13D2", "H61E51D1", "H61E52D1", "H61E53D1", "H61E61D1", "H61E63D1", "H61F21D1", "H61F51D1", "H61F52D1", "H61F53D1", "H61F61D1", "H61F63D1", "H6601211", "H6602111", "H6602112", "H6603111", "H6603211", "H6603311", "H6604112", "H6604113", "H6604212", "H6604312", "H6604313", "H6609111", "H6609112", "H6609211", "H6609312", "H6630181", "H6630281", "H6630381", "H6631181", "H6631182", "H6631281", "H6631381", "H66401D1", "H66402D1", "H66403D1", "H66403D2", "H66411D1", "H66411D2", "H66412D1", "H66413D1", "H66413D2", "H66711G1", "H66712G1", "H66713G1", "H66721G1", "H66723G1", "H66902D1", "H66903D1", "H66A0111", "H66A0211", "H66A0311", "H66A1111", "H66A1211", "H66A1311", "H6800141", "H6800241", "H6800341", "H6810141", "H6810142", "H6810341", "H6810342", "H6811141", "H6811142", "H6811241", "H6811242", "H6811341", "H6811342", "H6840102", "H6840111", "H6840112", "H6840202", "H6840211", "H6840212", "H6840302", "H6840311", "H6840312", "H6841111", "H6841311", "H6870141", "H6870241", "H6870341", "H6871141", "H6871241", "H6871341", "H70151B2", "H70161B2", "H70201B1", "H70202B1", "H70203B1", "H70211B1", "H7025AB1", "H7025BB1", "H7025CB1", "H7025EB1", "H7026111", "H7026311", "H7027111", "H7028AB1", "H70291B1", "H702A111", "H702A211", "H702A311", "H702B111", "H702B311", "H702C111", "H70331B1", "H70371B1", "H70372B1", "H70373B1", "H70381B1", "H70382B1", "H70383B1", "H70391B1", "H70393B1", "H703A101", "H703A201", "H703B101", "H7045111", "H7045311", "H7046111", "H7050111", "H7050112", "H7050311", "H7051111", "H7051311", "H7052111", "H7052311", "H7052A11", "H7053111", "H7055111", "H7055A11", "H7056111", "H7056A11", "H7057111", "H7057211", "H7057311", "H7058111", "H705A111", "H705A1D1", "H705A2D1", "H705A3D1", "H705AAD1", "H705B111", "H705B1D1", "H705B2D1", "H705B3D1", "H705C111", "H705C1D1", "H705C3D1", "H705D101", "H705D111", "H705D201", "H705D211", "H705D301", "H705D311", "H705E101", "H705E111", "H705E201", "H705E211", "H705E301", "H705E311", "H705F101", "H705F111", "H705F201", "H705F211", "H705F301", "H705F311", "H7060112", "H7060212", "H7061112", "H7061212", "H7062111", "H7063111", "H7063211", "H7063311", "H7065111", "H7065211", "H7065311", "H7066111", "H7066311", "H7066A11", "H7067111", "H7067211", "H7067311", "H7068111", "H7068311", "H7069111", "H706A101", "H706A111", "H706A201", "H706A301", "H706B101", "H706B111", "H706C101", "H706C111", "H706C112", "H7070111", "H7070211", "H7070311", "H7071111", "H7071211", "H7071311", "H7072111", "H7073111", "H7073211", "H7073311", "H70751D1", "H70752D1", "H70753D1", "H70761D1", "H7078AD1", "H707A101", "H707B101", "H707B111", "H707C101", "H707C111", "H7086141", "H7086341", "H7087111", "H70900D2", "H70920D1", "H7093111", "H7093211", "H7093311", "H7094111", "H7094311", "H70A11D1", "H70A12D1", "H70A13D1", "H70A21D1", "H70A22D1", "H70A23D1", "H70A31D1", "H70A32D1", "H70A33D1", "H70B11A1", "H70B12A1", "H70B13A1", "H70B1AA1", "H70B31A1", "H70B32A1", "H70B33A1", "H70B41A1", "H70B42A1", "H70B43A1", "H70B51A1", "H70B53A1", "H70B61A1", "H70B61A2", "H70B62A1", "H70B63A1", "H70B81A1", "H70C11D1", "H70C12D1", "H70C13D1", "H70C21D1", "H70C22D1", "H70C23D1", "H70C4101", "H70C4141", "H70C4142", "H70C4241", "H70C4242", "H70C4301", "H70C4302", "H70C4341", "H70C4342", "H70C5101", "H70C5102", "H70C5141", "H70C5142", "H70C5241", "H70C5242", "H70C5301", "H70C5302", "H70C5341", "H70C5342", "H70C7102", "H70C7141", "H70C7142", "H70C7342", "H70C9142", "H70CBAD1", "H70D11D1", "H70D11D2", "H70D12D2", "H70D13D2", "H70D21D1", "H70D21D2", "H70D22D2", "H70D23D2", "H70Z0001", "H7105111", "H7105181", "H7106101", "H7106112", "H7106212", "H7106311", "H7106701", "H7106711", "H7107211", "H7107311", "H7120101", "H7122101", "H7123101", "H7124101", "H7124201", "H7124301", "H7126101", "H7126111", "H7127201", "H7127301", "H7128101", "H7129101", "H712C101", "H7140101", "H7140201", "H7140301", "H7142101", "H7142102", "H7143111", "H7145101", "H7145111", "H7147101", "H7148101", "H7149101", "H714E201", "H714E301", "H7151101", "H7152101", "H7160101", "H7161101", "H7161301", "H7162101", "H7170111", "H7171111", "H7172181", "H7173111", "H7175111", "H717A111", "H717A181", "H717D111", "H717D181", "H7180111", "H7184111", "H8015A01", "H8022AD1", "H8025AB1", "H802AAD1", "H805AA01", "H805AA11", "H805BA01", "H805BA11", "H8066A11", "H806AA01", "H806AA11", "H8072A82", "H80A1A11", "H80C4A41", "H80C5A42", "H80D1AD1", "H8120111", "H8121111", "H8604A12", "H8630A81", "H8811A42", "H8841A12", "M5112A01", "R1310A11", "R14A1A01", "R1630A01", "R1741011", "R1810Z11", "R6871A41"], "model_count": 459, "sku_count": 1066}</script>
+<script type="application/json" id="embedSalesSubset">{"version": "1.0", "source": "销售基础信息—20260518154225.xlsx", "derived_from": "销售基础信息_v1.json", "note": "原型页 fetch 失败时的子集；MSKU×店铺与宽表一致", "records": [{"msku": "H6065301-DE", "sku": "H6065301", "model": "H6065", "店铺名称": "Govee_NL", "品线": "6014", "场景": "游戏", "品类": "方块灯"}, {"msku": "H617E3D1-DE", "sku": "H617E3D1", "model": "H617E", "店铺名称": "Govee_NL", "品线": "6112", "场景": "居家", "品类": "灯带"}, {"msku": "H66723G1-DE", "sku": "H66723G1", "model": "H6672", "店铺名称": "Govee_NL", "品线": "6015", "场景": "观影", "品类": "TV灯带"}, {"msku": "H6840312-FR", "sku": "H6840312", "model": "H6840", "店铺名称": "Govee_NL", "品线": "6812", "场景": "季节", "品类": "瀑布灯"}, {"msku": "H6840312-ZY-EU", "sku": "H6840312", "model": "H6840", "店铺名称": "独立站-EU", "品线": "6812", "场景": "季节", "品类": "瀑布灯"}, {"msku": "H6840312-ZY-EU-T", "sku": "H6840312", "model": "H6840", "店铺名称": "独立站-EU", "品线": "6812", "场景": "季节", "品类": "瀑布灯"}, {"msku": "H1310111-APP-US", "sku": "H1310111", "model": "H1310", "店铺名称": "APP商城-US", "品线": "6013", "场景": "居家", "品类": "风扇灯"}, {"msku": "H1310111-APP-US-T", "sku": "H1310111", "model": "H1310", "店铺名称": "APP商城-US", "品线": "6013", "场景": "居家", "品类": "风扇灯"}, {"msku": "H1310111-ZY-US", "sku": "H1310111", "model": "H1310", "店铺名称": "独立站-US", "品线": "6013", "场景": "居家", "品类": "风扇灯"}, {"msku": "H1310111-ZY-US-T", "sku": "H1310111", "model": "H1310", "店铺名称": "独立站-US", "品线": "6013", "场景": "居家", "品类": "风扇灯"}, {"msku": "H1310111-ZY-CA", "sku": "H1310111", "model": "H1310", "店铺名称": "独立站-CA", "品线": "6013", "场景": "居家", "品类": "风扇灯"}, {"msku": "H1310111-ZY-CA-T", "sku": "H1310111", "model": "H1310", "店铺名称": "独立站-CA", "品线": "6013", "场景": "居家", "品类": "风扇灯"}, {"msku": "H6065301-ZY-EU", "sku": "H6065301", "model": "H6065", "店铺名称": "独立站-EU", "品线": "6014", "场景": "游戏", "品类": "方块灯"}, {"msku": "H6065301-ZY-EU-T", "sku": "H6065301", "model": "H6065", "店铺名称": "独立站-EU", "品线": "6014", "场景": "游戏", "品类": "方块灯"}, {"msku": "B5040101-ZY-US-T", "sku": "B5040101", "model": "B5040", "店铺名称": "独立站-US", "品线": "5112", "场景": "传感器及控制", "品类": "漏水报警器"}, {"msku": "B5040101-ZY-CA-T", "sku": "B5040101", "model": "B5040", "店铺名称": "独立站-CA", "品线": "5112", "场景": "传感器及控制", "品类": "漏水报警器"}, {"msku": "B5040101-APP-US", "sku": "B5040101", "model": "B5040", "店铺名称": "APP商城-US", "品线": "5112", "场景": "传感器及控制", "品类": "漏水报警器"}, {"msku": "B5040101-APP-US-T", "sku": "B5040101", "model": "B5040", "店铺名称": "APP商城-US", "品线": "5112", "场景": "传感器及控制", "品类": "漏水报警器"}, {"msku": "H6076113-APP-US", "sku": "H6076113", "model": "H6076", "店铺名称": "APP商城-US", "品线": "6012", "场景": "居家", "品类": "落地灯"}, {"msku": "H6076113-APP-US-T", "sku": "H6076113", "model": "H6076", "店铺名称": "APP商城-US", "品线": "6012", "场景": "居家", "品类": "落地灯"}, {"msku": "H6076113-ZY-US", "sku": "H6076113", "model": "H6076", "店铺名称": "独立站-US", "品线": "6012", "场景": "居家", "品类": "落地灯"}, {"msku": "H6076113-ZY-US-T", "sku": "H6076113", "model": "H6076", "店铺名称": "独立站-US", "品线": "6012", "场景": "居家", "品类": "落地灯"}, {"msku": "H6076113-ZY-CA", "sku": "H6076113", "model": "H6076", "店铺名称": "独立站-CA", "品线": "6012", "场景": "居家", "品类": "落地灯"}, {"msku": "H6076113-ZY-CA-T", "sku": "H6076113", "model": "H6076", "店铺名称": "独立站-CA", "品线": "6012", "场景": "居家", "品类": "落地灯"}, {"msku": "H6093011-ZY-US", "sku": "H6093011", "model": "H6093", "店铺名称": "独立站-US", "品线": "6012", "场景": "居家", "品类": "星空灯"}, {"msku": "H6093011-ZY-US-T", "sku": "H6093011", "model": "H6093", "店铺名称": "独立站-US", "品线": "6012", "场景": "居家", "品类": "星空灯"}, {"msku": "H6093011-APP-US", "sku": "H6093011", "model": "H6093", "店铺名称": "APP商城-US", "品线": "6012", "场景": "居家", "品类": "星空灯"}, {"msku": "H6093011-APP-US-T", "sku": "H6093011", "model": "H6093", "店铺名称": "APP商城-US", "品线": "6012", "场景": "居家", "品类": "星空灯"}, {"msku": "H6093011-ZY-CA", "sku": "H6093011", "model": "H6093", "店铺名称": "独立站-CA", "品线": "6012", "场景": "居家", "品类": "星空灯"}, {"msku": "H6093011-ZY-CA-T", "sku": "H6093011", "model": "H6093", "店铺名称": "独立站-CA", "品线": "6012", "场景": "居家", "品类": "星空灯"}, {"msku": "H6093011-ZY-EU", "sku": "H6093011", "model": "H6093", "店铺名称": "独立站-EU", "品线": "6012", "场景": "居家", "品类": "星空灯"}, {"msku": "H6093011-ZY-EU-T", "sku": "H6093011", "model": "H6093", "店铺名称": "独立站-EU", "品线": "6012", "场景": "居家", "品类": "星空灯"}, {"msku": "H6840312-ES", "sku": "H6840312", "model": "H6840", "店铺名称": "Govee_NL", "品线": "6812", "场景": "季节", "品类": "瀑布灯"}, {"msku": "H6093011-DE-1", "sku": "H6093011", "model": "H6093", "店铺名称": "Govee_NL", "品线": "6012", "场景": "居家", "品类": "星空灯"}, {"msku": "B5040101-2", "sku": "B5040101", "model": "B5040", "店铺名称": "Govee_US", "品线": "5112", "场景": "传感器及控制", "品类": "漏水报警器"}, {"msku": "H6093011-US", "sku": "H6093011", "model": "H6093", "店铺名称": "Govee_US", "品线": "6012", "场景": "居家", "品类": "星空灯"}, {"msku": "H6076113-US", "sku": "H6076113", "model": "H6076", "店铺名称": "Govee_US", "品线": "6012", "场景": "居家", "品类": "落地灯"}, {"msku": "H1310111-US", "sku": "H1310111", "model": "H1310", "店铺名称": "Govee_US", "品线": "6013", "场景": "居家", "品类": "风扇灯"}, {"msku": "H6840312-FR", "sku": "H6840312", "model": "H6840", "店铺名称": "Govee_FR", "品线": "6812", "场景": "季节", "品类": "瀑布灯"}, {"msku": "H6840312-ES", "sku": "H6840312", "model": "H6840", "店铺名称": "Govee_FR", "品线": "6812", "场景": "季节", "品类": "瀑布灯"}, {"msku": "H6840312-ES", "sku": "H6840312", "model": "H6840", "店铺名称": "Govee_DE", "品线": "6812", "场景": "季节", "品类": "瀑布灯"}, {"msku": "H6093011-FR", "sku": "H6093011", "model": "H6093", "店铺名称": "Govee_FR", "品线": "6012", "场景": "居家", "品类": "星空灯"}, {"msku": "H6093011-DE-1", "sku": "H6093011", "model": "H6093", "店铺名称": "Govee_DE", "品线": "6012", "场景": "居家", "品类": "星空灯"}, {"msku": "H66723G1-DE", "sku": "H66723G1", "model": "H6672", "店铺名称": "Govee_DE", "品线": "6015", "场景": "观影", "品类": "TV灯带"}, {"msku": "H66723G1-DE", "sku": "H66723G1", "model": "H6672", "店铺名称": "Govee_FR", "品线": "6015", "场景": "观影", "品类": "TV灯带"}, {"msku": "H617E3D1-DE", "sku": "H617E3D1", "model": "H617E", "店铺名称": "Govee_DE", "品线": "6112", "场景": "居家", "品类": "灯带"}, {"msku": "H617E3D1-FR-1", "sku": "H617E3D1", "model": "H617E", "店铺名称": "Govee_FR", "品线": "6112", "场景": "居家", "品类": "灯带"}, {"msku": "H1310111-CA", "sku": "H1310111", "model": "H1310", "店铺名称": "Govee_CA", "品线": "6013", "场景": "居家", "品类": "风扇灯"}, {"msku": "H6093011-UK-2", "sku": "H6093011", "model": "H6093", "店铺名称": "Govee_UK", "品线": "6012", "场景": "居家", "品类": "星空灯"}, {"msku": "H6093011-CA", "sku": "H6093011", "model": "H6093", "店铺名称": "Govee_CA", "品线": "6012", "场景": "居家", "品类": "星空灯"}, {"msku": "H6076113-CA", "sku": "H6076113", "model": "H6076", "店铺名称": "Govee_CA", "品线": "6012", "场景": "居家", "品类": "落地灯"}, {"msku": "H6065301-DE", "sku": "H6065301", "model": "H6065", "店铺名称": "Govee_DE", "品线": "6014", "场景": "游戏", "品类": "方块灯"}]}</script>
+  <script>
+(function () {
+  "use strict";
+
+  var BASE = "基础数据/";
+  var DEMO_ROWS = [];
+  var SALES_POOL = [];
+  var REGION_DATA = { regions: [] };
+  var CHANNEL_DATA = [];
+  var SCENE_TREE = [];
+  var STORE_GEO = {};
+  var MODELS = [];
+  var PRODUCT_LINES = [];
+  var TL_OPTS = [];
+  var SALES_OPTS = [];
+
+  var activeScene = "";
+  var selectedByScene = {};
+  var selectedPL = new Set();
+  var monthPicker = null;
+  var comparePicker = null;
+  var ROW_LOGS = {};
+  var importFileRef = null;
+  var FIELD_LABELS = {
+    region_name: "区域", country_name: "国家", store_name: "店铺", channel_name: "渠道",
+    scene: "场景", category: "品类", product_line: "品线",
+    sku: "SKU", msku: "MSKU", tl: "TL", sales: "Sales",
+    sales_amount: "销售额", sales_qty: "销量"
+  };
+
+  function leafKey(scene, cat) { return scene + "\t" + cat; }
+  function allSelectedLeaves() {
+    var out = [];
+    Object.keys(selectedByScene).forEach(function (sc) {
+      (selectedByScene[sc] || []).forEach(function (k) { out.push(k); });
+    });
+    return out;
+  }
+  function escapeHtml(s) {
+    return String(s == null ? "" : s)
+      .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  }
+
+  function readEmbed(id) {
+    var el = document.getElementById(id);
+    if (!el || !el.textContent.trim()) return null;
+    try { return JSON.parse(el.textContent); } catch (e) { return null; }
+  }
+
+  var FETCH_BASES = [
+    "基础数据/",
+    "./基础数据/",
+    "../规范/基础数据/",
+    "文件夹/规范/基础数据/"
+  ];
+
+  function fetchJsonOptional(path) {
+    function tryIdx(i) {
+      if (i >= FETCH_BASES.length) return Promise.resolve(null);
+      return fetch(FETCH_BASES[i] + path).then(function (r) {
+        if (!r.ok) throw new Error("HTTP " + r.status);
+        return r.json();
+      }).catch(function () { return tryIdx(i + 1); });
+    }
+    return tryIdx(0);
+  }
+
+  function buildStoreGeo(mappings) {
+    STORE_GEO = {};
+    (mappings || []).forEach(function (m) {
+      STORE_GEO[m.store_name] = {
+        region_code: m.region_code,
+        country_code: m.country_code,
+        channel_name: m.channel_name
+      };
+    });
+  }
+
+  function countriesForRegion(regionCode) {
+    var out = [];
+    var seen = {};
+    (REGION_DATA.regions || []).forEach(function (r) {
+      if (regionCode && r.region_code !== regionCode) return;
+      (r.countries || []).forEach(function (c) {
+        if (!c.country_code || seen[c.country_code]) return;
+        seen[c.country_code] = 1;
+        out.push(c);
+      });
+    });
+    return out;
+  }
+
+  function fillSelect(el, items, allLabel) {
+    el.innerHTML = "";
+    var o0 = document.createElement("option");
+    o0.value = "";
+    o0.textContent = allLabel || "全部";
+    el.appendChild(o0);
+    items.forEach(function (it) {
+      var o = document.createElement("option");
+      o.value = it.value;
+      o.textContent = it.label;
+      el.appendChild(o);
+    });
+    syncClearableSelect(el);
+  }
+
+  function syncClearableSelect(sel) {
+    if (!sel) return;
+    var wrap = sel.closest(".ctl-wrap");
+    if (!wrap) return;
+    var btn = wrap.querySelector(".ctl-clear");
+    if (!btn) return;
+    btn.hidden = !sel.value;
+  }
+
+  function wireClearableSelects() {
+    document.querySelectorAll(".ctl-wrap select.ctl").forEach(function (sel) {
+      syncClearableSelect(sel);
+      sel.addEventListener("change", function () { syncClearableSelect(sel); });
+      var btn = sel.parentElement && sel.parentElement.querySelector(".ctl-clear");
+      if (!btn) return;
+      btn.addEventListener("click", function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        if (!sel.value) return;
+        sel.value = "";
+        syncClearableSelect(sel);
+        sel.dispatchEvent(new Event("change", { bubbles: true }));
+      });
+    });
+  }
+
+  function wireRegionCountry() {
+    var regEl = document.getElementById("fltRegion");
+    var ctyEl = document.getElementById("fltCountry");
+    fillSelect(regEl, (REGION_DATA.regions || []).map(function (r) {
+      return { value: r.region_code, label: r.region_name };
+    }));
+    function refreshCountry() {
+      var rc = regEl.value;
+      var list = countriesForRegion(rc);
+      fillSelect(ctyEl, list.map(function (c) {
+        return { value: c.country_code, label: c.country_name + "（" + c.country_code + "）" };
+      }));
+    }
+    regEl.addEventListener("change", function () {
+      ctyEl.value = "";
+      refreshCountry();
+    });
+    refreshCountry();
+  }
+
+  function wireChannelStore() {
+    var chEl = document.getElementById("fltChannel");
+    var stEl = document.getElementById("fltStore");
+    fillSelect(chEl, CHANNEL_DATA.map(function (c) {
+      return { value: c.channel, label: c.channel };
+    }));
+    function refreshStore() {
+      var ch = chEl.value;
+      var stores = [];
+      if (!ch) {
+        CHANNEL_DATA.forEach(function (c) {
+          (c.stores || []).forEach(function (s) { if (stores.indexOf(s) < 0) stores.push(s); });
+        });
+      } else {
+        var row = CHANNEL_DATA.find(function (c) { return c.channel === ch; });
+        stores = row ? row.stores.slice() : [];
+      }
+      fillSelect(stEl, stores.map(function (s) { return { value: s, label: s }; }));
+    }
+    chEl.addEventListener("change", function () {
+      stEl.value = "";
+      refreshStore();
+    });
+    refreshStore();
+  }
+
+  function renderSceneCol() {
+    var col = document.getElementById("scCatSceneCol");
+    col.innerHTML = "";
+    SCENE_TREE.forEach(function (s) {
+      var div = document.createElement("div");
+      div.className = "sc-cat-item" + (s.scene_name === activeScene ? " active" : "");
+      div.textContent = s.scene_name;
+      div.dataset.scene = s.scene_name;
+      div.addEventListener("click", function () {
+        activeScene = s.scene_name;
+        renderSceneCol();
+        renderCatCol();
+      });
+      col.appendChild(div);
+    });
+    if (!activeScene && SCENE_TREE.length) {
+      activeScene = SCENE_TREE[0].scene_name;
+      renderSceneCol();
+    }
+  }
+
+  function renderCatCol() {
+    var col = document.getElementById("scCatCatCol");
+    col.innerHTML = "";
+    var scene = SCENE_TREE.find(function (s) { return s.scene_name === activeScene; });
+    if (!scene) return;
+    var picked = selectedByScene[activeScene] || [];
+    var cats = scene.categories || [];
+    var keys = cats.map(function (c) { return leafKey(activeScene, c.category_name); });
+    var allChecked = keys.length > 0 && keys.every(function (k) { return picked.indexOf(k) >= 0; });
+    var someChecked = keys.some(function (k) { return picked.indexOf(k) >= 0; });
+
+    var allRow = document.createElement("label");
+    allRow.className = "sc-cat-item sc-cat-all";
+    var allCb = document.createElement("input");
+    allCb.type = "checkbox";
+    allCb.checked = allChecked;
+    allCb.indeterminate = someChecked && !allChecked;
+    allCb.addEventListener("change", function () {
+      selectedByScene[activeScene] = allCb.checked ? keys.slice() : [];
+      renderCatCol();
+      updateScCatTrigger();
+    });
+    var allSpan = document.createElement("span");
+    allSpan.textContent = "全部";
+    allRow.appendChild(allCb);
+    allRow.appendChild(allSpan);
+    col.appendChild(allRow);
+
+    cats.forEach(function (c) {
+      var k = leafKey(activeScene, c.category_name);
+      var div = document.createElement("label");
+      div.className = "sc-cat-item";
+      var cb = document.createElement("input");
+      cb.type = "checkbox";
+      cb.checked = picked.indexOf(k) >= 0;
+      cb.addEventListener("change", function () {
+        var arr = selectedByScene[activeScene] || [];
+        if (cb.checked) {
+          if (arr.indexOf(k) < 0) arr.push(k);
+        } else {
+          arr = arr.filter(function (x) { return x !== k; });
+        }
+        selectedByScene[activeScene] = arr;
+        renderCatCol();
+        updateScCatTrigger();
+      });
+      var span = document.createElement("span");
+      span.textContent = c.category_name;
+      div.appendChild(cb);
+      div.appendChild(span);
+      col.appendChild(div);
+    });
+  }
+
+  function updateScCatTrigger() {
+    var leaves = allSelectedLeaves();
+    var btn = document.getElementById("scCatTrigger");
+    var clearBtn = document.getElementById("scCatClear");
+    if (!leaves.length) {
+      btn.textContent = "请选择";
+      if (clearBtn) clearBtn.hidden = true;
+      return;
+    }
+    if (clearBtn) clearBtn.hidden = false;
+    if (leaves.length <= 2) {
+      btn.textContent = leaves.map(function (k) {
+        var p = k.split("\t");
+        return p[0] + "/" + p[1];
+      }).join("；");
+    } else {
+      btn.textContent = "已选 " + leaves.length + " 项";
+    }
+  }
+
+  function wireSceneCategory() {
+    var wrap = document.getElementById("scCatWrap");
+    var pop = document.getElementById("scCatPop");
+    var btn = document.getElementById("scCatTrigger");
+    btn.addEventListener("click", function (e) {
+      e.stopPropagation();
+      var open = !wrap.classList.contains("open");
+      wrap.classList.toggle("open", open);
+      pop.hidden = !open;
+      btn.setAttribute("aria-expanded", open ? "true" : "false");
+      if (open) {
+        renderSceneCol();
+        renderCatCol();
+      }
+    });
+    document.addEventListener("click", function () {
+      wrap.classList.remove("open");
+      pop.hidden = true;
+      btn.setAttribute("aria-expanded", "false");
+    });
+    pop.addEventListener("click", function (e) { e.stopPropagation(); });
+    var scClear = document.getElementById("scCatClear");
+    if (scClear) {
+      scClear.addEventListener("click", function (e) {
+        e.stopPropagation();
+        selectedByScene = {};
+        updateScCatTrigger();
+        if (wrap.classList.contains("open")) {
+          renderCatCol();
+        }
+      });
+    }
+  }
+
+  function renderPLTags() {
+    var host = document.getElementById("plHost");
+    host.innerHTML = "";
+    if (!selectedPL.size) {
+      host.innerHTML = '<span style="color:#bfbfbf;font-size:12px;">请选择</span>';
+      return;
+    }
+    selectedPL.forEach(function (code) {
+      var tag = document.createElement("span");
+      tag.className = "pl-tag";
+      tag.textContent = code;
+      var x = document.createElement("button");
+      x.type = "button";
+      x.textContent = "×";
+      x.addEventListener("click", function (e) {
+        e.stopPropagation();
+        selectedPL.delete(code);
+        renderPLTags();
+        renderPLDrop();
+      });
+      tag.appendChild(x);
+      host.appendChild(tag);
+    });
+  }
+
+  function renderPLDrop() {
+    var drop = document.getElementById("plDrop");
+    drop.innerHTML = "";
+    PRODUCT_LINES.forEach(function (code) {
+      var row = document.createElement("div");
+      row.className = "pl-opt" + (selectedPL.has(code) ? " on" : "");
+      var cb = document.createElement("input");
+      cb.type = "checkbox";
+      cb.checked = selectedPL.has(code);
+      cb.addEventListener("change", function () {
+        if (cb.checked) selectedPL.add(code); else selectedPL.delete(code);
+        renderPLTags();
+        renderPLDrop();
+      });
+      row.appendChild(cb);
+      row.appendChild(document.createTextNode(code));
+      drop.appendChild(row);
+    });
+  }
+
+  function positionPlDrop() {
+    var host = document.getElementById("plHost");
+    var drop = document.getElementById("plDrop");
+    if (!host || !drop || !drop.classList.contains("show")) return;
+    var r = host.getBoundingClientRect();
+    drop.style.left = r.left + "px";
+    drop.style.top = (r.bottom + 4) + "px";
+    drop.style.minWidth = Math.max(r.width, 200) + "px";
+  }
+
+  function wireProductLine() {
+    var host = document.getElementById("plHost");
+    var drop = document.getElementById("plDrop");
+    if (drop.parentNode !== document.body) document.body.appendChild(drop);
+    host.addEventListener("click", function (e) {
+      e.stopPropagation();
+      host.classList.add("open");
+      drop.classList.add("show");
+      renderPLDrop();
+      positionPlDrop();
+    });
+    document.addEventListener("click", function () {
+      host.classList.remove("open");
+      drop.classList.remove("show");
+    });
+    drop.addEventListener("click", function (e) { e.stopPropagation(); });
+    window.addEventListener("scroll", positionPlDrop, true);
+    window.addEventListener("resize", positionPlDrop);
+  }
+
+  function rowPassesFilter(row) {
+    var region = document.getElementById("fltRegion").value;
+    var country = document.getElementById("fltCountry").value;
+    var channel = document.getElementById("fltChannel").value;
+    var store = document.getElementById("fltStore").value;
+    var skuMode = document.getElementById("fltSkuMode").value;
+    var skuInput = document.getElementById("fltSkuInput").value.trim();
+    var tl = document.getElementById("fltTl").value;
+    var sales = document.getElementById("fltSales").value;
+
+    if (region && row.region_code !== region) return false;
+    if (country && row.country_code !== country) return false;
+    if (channel && row.channel_name !== channel) return false;
+    if (store && row.store_name !== store) return false;
+
+    var leaves = allSelectedLeaves();
+    if (leaves.length) {
+      var k = leafKey(row.scene, row.category);
+      if (leaves.indexOf(k) < 0) return false;
+    }
+    if (selectedPL.size && !selectedPL.has(row.product_line)) return false;
+
+    if (skuInput) {
+      if (skuMode === "fuzzy") {
+        if (row.sku.indexOf(skuInput) < 0) return false;
+      } else if (skuMode === "exact") {
+        if (row.msku !== skuInput) return false;
+      } else if (skuMode === "eight") {
+        if (row.sku.length !== 8 || row.sku.indexOf(skuInput) !== 0) return false;
+      }
+    }
+    if (tl && row.tl !== tl) return false;
+    if (sales && row.sales !== sales) return false;
+    return true;
+  }
+
+  function joinSlash(parts) {
+    return (parts || []).filter(function (p) { return p != null && String(p).trim() !== ""; })
+      .map(function (p) { return String(p).trim(); }).join("/");
+  }
+
+  function labeledCell(pairs) {
+    var html = (pairs || []).map(function (p) {
+      return '<div><span class="cell-k">' + escapeHtml(p.label) + "：</span>" + escapeHtml(p.value || "—") + "</div>";
+    }).join("");
+    return '<div class="cell-stack cell-labeled">' + html + "</div>";
+  }
+
+  function formatLogDiff(obj) {
+    if (!obj || !Object.keys(obj).length) return "—";
+    return Object.keys(obj).map(function (k) {
+      var label = FIELD_LABELS[k] || k;
+      var v = obj[k];
+      if (k === "sales_amount" && v != null && v !== "") {
+        v = Number(v).toLocaleString("en-US", { minimumFractionDigits: 2 });
+      }
+      return '<span class="k">' + escapeHtml(label) + "：</span>" + escapeHtml(v);
+    }).join("<br/>");
+  }
+
+  function seedRowLogs() {
+    DEMO_ROWS.forEach(function (r, idx) {
+      if (ROW_LOGS[r.id]) return;
+      if (idx === 0) {
+        ROW_LOGS[r.id] = [{
+          adjuster: "sykie",
+          time: "2026-03-01 10:20:00",
+          before: { sales_amount: 30000, sales_qty: 500 },
+          after: { sales_amount: r.sales_amount, sales_qty: r.sales_qty }
+        }];
+      } else if (idx === 1) {
+        ROW_LOGS[r.id] = [{
+          adjuster: "sykie",
+          time: "2026-03-01 10:20:00",
+          before: { tl: "李四", sales: "Bob Wang" },
+          after: { tl: r.tl, sales: r.sales }
+        }];
+      } else {
+        ROW_LOGS[r.id] = [{
+          adjuster: "系统",
+          time: "2026-02-01 09:00:00",
+          before: {},
+          after: { sku: r.sku, msku: r.msku, sales_amount: r.sales_amount }
+        }];
+      }
+    });
+  }
+
+  function appendRowLog(rowId, entry) {
+    if (!ROW_LOGS[rowId]) ROW_LOGS[rowId] = [];
+    ROW_LOGS[rowId].unshift(entry);
+  }
+
+  function buildLogHtml(row) {
+    var logs = ROW_LOGS[row.id] || [];
+    if (!logs.length) {
+      return '<p style="color:#64748b;font-size:12px;">暂无变更记录。</p>';
+    }
+    var rows = logs.map(function (log) {
+      return "<tr><td>" + escapeHtml(log.adjuster) + "</td><td>" + escapeHtml(log.time) + "</td>" +
+        '<td><div class="log-diff">' + formatLogDiff(log.before) + "</div></td>" +
+        '<td><div class="log-diff">' + formatLogDiff(log.after) + "</div></td></tr>";
+    }).join("");
+    return (
+      '<table class="log-tbl"><thead><tr><th>调整人</th><th>调整时间</th><th>调整前</th><th>调整后</th></tr></thead><tbody>' +
+      rows + "</tbody></table>" +
+      '<p class="log-note">说明：日志仅展示<strong>实际发生变更</strong>的字段（示意数据）。</p>'
+    );
+  }
+
+  function openModal(id) {
+    var el = document.getElementById(id);
+    el.hidden = false;
+    el.classList.add("show");
+  }
+
+  function closeModal(id) {
+    var el = document.getElementById(id);
+    el.classList.remove("show");
+    el.hidden = true;
+  }
+
+  function openLogModal(row) {
+    document.getElementById("logModalTitle").textContent = "日志";
+    document.getElementById("logModalBody").innerHTML = buildLogHtml(row);
+    openModal("logModal");
+  }
+
+  function closeLogModal() { closeModal("logModal"); }
+
+  function renderTable(rows) {
+    var tb = document.getElementById("tblBody");
+    tb.innerHTML = rows.map(function (r) {
+      var countryDisp = r.country_name || r.country_code || "";
+      return "<tr data-row-id=\"" + r.id + "\">" +
+        '<td class="cell-one">' + escapeHtml(joinSlash([r.region_name, countryDisp, r.store_name])) + "</td>" +
+        '<td class="cell-one">' + escapeHtml(joinSlash([r.scene, r.category, r.product_line])) + "</td>" +
+        '<td class="mono cell-stack">' + escapeHtml(r.sku) + "<br/>" + escapeHtml(r.msku) + "</td>" +
+        "<td>" + labeledCell([
+          { label: "TL", value: r.tl },
+          { label: "Sales", value: r.sales }
+        ]) + "</td>" +
+        "<td class=\"num\">" + escapeHtml(r.sales_amount.toLocaleString("en-US", { minimumFractionDigits: 2 })) + "</td>" +
+        "<td class=\"num\">" + escapeHtml(r.sales_qty) + "</td>" +
+        "<td class=\"col-actions\"><button type=\"button\" class=\"link-btn\" data-log-id=\"" + r.id + "\">日志</button></td>" +
+        "</tr>";
+    }).join("");
+    document.getElementById("resultBar").textContent =
+      "共 " + rows.length + " 条（示范数据 100 条；日期范围/对比范围仅演示控件，不参与本表过滤）";
+  }
+
+  function getNextRowId() {
+    var max = 0;
+    DEMO_ROWS.forEach(function (r) { if (r.id > max) max = r.id; });
+    return max + 1;
+  }
+
+  function regionNameByCode(code) {
+    var r = (REGION_DATA.regions || []).find(function (x) { return x.region_code === code; });
+    return r ? r.region_name : code;
+  }
+
+  function countryNameByCode(code, regionCode) {
+    var list = countriesForRegion(regionCode || "");
+    var c = list.find(function (x) { return x.country_code === code; });
+    return c ? c.country_name : code;
+  }
+
+  function channelByStore(store) {
+    var ch = "";
+    CHANNEL_DATA.forEach(function (c) {
+      if ((c.stores || []).indexOf(store) >= 0) ch = c.channel;
+    });
+    return ch;
+  }
+
+  function formRefreshCountry() {
+    var reg = document.getElementById("formRegion").value;
+    var ctyEl = document.getElementById("formCountry");
+    fillSelect(ctyEl, countriesForRegion(reg).map(function (c) {
+      return { value: c.country_code, label: c.country_name + "（" + c.country_code + "）" };
+    }));
+  }
+
+  function formRefreshStore() {
+    var ch = document.getElementById("formChannel").value;
+    var stEl = document.getElementById("formStore");
+    var stores = [];
+    if (!ch) {
+      CHANNEL_DATA.forEach(function (c) {
+        (c.stores || []).forEach(function (s) { if (stores.indexOf(s) < 0) stores.push(s); });
+      });
+    } else {
+      var row = CHANNEL_DATA.find(function (c) { return c.channel === ch; });
+      stores = row ? row.stores.slice() : [];
+    }
+    fillSelect(stEl, stores.map(function (s) { return { value: s, label: s }; }));
+  }
+
+  function formRefreshCategory() {
+    var scene = document.getElementById("formScene").value;
+    var catEl = document.getElementById("formCategory");
+    var s = SCENE_TREE.find(function (x) { return x.scene_name === scene; });
+    var cats = s ? (s.categories || []) : [];
+    fillSelect(catEl, cats.map(function (c) {
+      return { value: c.category_name, label: c.category_name };
+    }), "请选择");
+  }
+
+  function initAddFormOptions() {
+    fillSelect(document.getElementById("formRegion"), (REGION_DATA.regions || []).map(function (r) {
+      return { value: r.region_code, label: r.region_name };
+    }), "请选择");
+    fillSelect(document.getElementById("formChannel"), CHANNEL_DATA.map(function (c) {
+      return { value: c.channel, label: c.channel };
+    }), "请选择");
+    fillSelect(document.getElementById("formScene"), SCENE_TREE.map(function (s) {
+      return { value: s.scene_name, label: s.scene_name };
+    }), "请选择");
+    fillSelect(document.getElementById("formProductLine"), PRODUCT_LINES.map(function (pl) {
+      return { value: pl, label: pl };
+    }), "请选择");
+    formRefreshCountry();
+    formRefreshStore();
+    formRefreshCategory();
+  }
+
+  function resetAddForm() {
+    document.getElementById("addForm").reset();
+    formRefreshCountry();
+    formRefreshStore();
+    formRefreshCategory();
+  }
+
+  function wireFormLinkage() {
+    var regEl = document.getElementById("formRegion");
+    var ctyEl = document.getElementById("formCountry");
+    var chEl = document.getElementById("formChannel");
+    var stEl = document.getElementById("formStore");
+    var sceneEl = document.getElementById("formScene");
+
+    regEl.addEventListener("change", function () {
+      ctyEl.value = "";
+      formRefreshCountry();
+    });
+    chEl.addEventListener("change", function () {
+      stEl.value = "";
+      formRefreshStore();
+    });
+    sceneEl.addEventListener("change", function () {
+      document.getElementById("formCategory").value = "";
+      formRefreshCategory();
+    });
+    stEl.addEventListener("change", function () {
+      var store = stEl.value;
+      if (!store) return;
+      var geo = STORE_GEO[store];
+      if (geo) {
+        regEl.value = geo.region_code || "";
+        formRefreshCountry();
+        ctyEl.value = geo.country_code || "";
+      }
+      var ch = channelByStore(store);
+      if (ch) {
+        chEl.value = ch;
+        formRefreshStore();
+        stEl.value = store;
+      }
+    });
+  }
+
+  function readAddFormRow() {
+    var regionCode = document.getElementById("formRegion").value;
+    var countryCode = document.getElementById("formCountry").value;
+    var channel = document.getElementById("formChannel").value;
+    var store = document.getElementById("formStore").value;
+    var scene = document.getElementById("formScene").value;
+    var category = document.getElementById("formCategory").value;
+    var productLine = document.getElementById("formProductLine").value;
+    var sku = document.getElementById("formSku").value.trim();
+    var msku = document.getElementById("formMsku").value.trim();
+    var tl = document.getElementById("formTl").value.trim();
+    var sales = document.getElementById("formSales").value.trim();
+    var salesAmount = parseFloat(document.getElementById("formSalesAmount").value, 10) || 0;
+    var salesQty = parseInt(document.getElementById("formSalesQty").value, 10) || 0;
+    if (!store || !sku || !msku) {
+      alert("请至少填写店铺、SKU、MSKU。");
+      return null;
+    }
+    return {
+      id: getNextRowId(),
+      region_code: regionCode,
+      region_name: regionNameByCode(regionCode),
+      country_code: countryCode,
+      country_name: countryNameByCode(countryCode, regionCode),
+      channel_name: channel || channelByStore(store),
+      store_name: store,
+      scene: scene,
+      category: category,
+      product_line: productLine,
+      model: sku.length >= 5 ? sku.substring(0, 5) : sku,
+      sku: sku,
+      msku: msku,
+      tl: tl,
+      sales: sales,
+      sales_amount: salesAmount,
+      sales_qty: salesQty
+    };
+  }
+
+  function saveAddForm() {
+    var row = readAddFormRow();
+    if (!row) return;
+    DEMO_ROWS.unshift(row);
+    appendRowLog(row.id, {
+      adjuster: "sykie",
+      time: new Date().toISOString().slice(0, 19).replace("T", " "),
+      before: {},
+      after: {
+        region_name: row.region_name,
+        country_name: row.country_name,
+        store_name: row.store_name,
+        scene: row.scene,
+        category: row.category,
+        product_line: row.product_line,
+        sku: row.sku,
+        msku: row.msku,
+        tl: row.tl,
+        sales: row.sales,
+        sales_amount: row.sales_amount,
+        sales_qty: row.sales_qty
+      }
+    });
+    renderTable(DEMO_ROWS.filter(rowPassesFilter));
+    closeModal("addModal");
+    resetAddForm();
+  }
+
+  function openAddModal() {
+    initAddFormOptions();
+    openModal("addModal");
+  }
+
+  function downloadImportTemplate() {
+    var header = "区域编码,国家编码,渠道,店铺,场景,品类,品线,SKU,MSKU,TL,Sales,销售额,销量";
+    var sample = "EU,NL,Govee,Govee_NL,游戏,方块灯,6014,H6065301,H6065301-DE,钱七,Eva Liu,10000,100";
+    var blob = new Blob(["\ufeff" + header + "\n" + sample], { type: "text/csv;charset=utf-8" });
+    var a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "销售主数据导入模板.csv";
+    a.click();
+    URL.revokeObjectURL(a.href);
+  }
+
+  function setImportFile(file) {
+    importFileRef = file || null;
+    var zone = document.getElementById("importDropZone");
+    var nameEl = document.getElementById("importFileName");
+    if (file) {
+      zone.classList.add("has-file");
+      zone.textContent = "已选择文件";
+      nameEl.textContent = file.name;
+    } else {
+      zone.classList.remove("has-file");
+      zone.textContent = "点击「选择文件」或拖拽 CSV 到此处";
+      nameEl.textContent = "";
+    }
+  }
+
+  function parseCsvLine(line) {
+    return line.split(",").map(function (s) { return s.trim(); });
+  }
+
+  function importFromCsv(text) {
+    var lines = text.split(/\r?\n/).filter(function (l) { return l.trim(); });
+    if (lines.length < 2) {
+      alert("CSV 无数据行。");
+      return;
+    }
+    var cols = parseCsvLine(lines[1]);
+    var regionCode = cols[0] || "EU";
+    var countryCode = cols[1] || "NL";
+    var channel = cols[2] || "Govee";
+    var store = cols[3] || "Govee_NL";
+    var row = {
+      id: getNextRowId(),
+      region_code: regionCode,
+      region_name: regionNameByCode(regionCode),
+      country_code: countryCode,
+      country_name: countryNameByCode(countryCode, regionCode),
+      channel_name: channel,
+      store_name: store,
+      scene: cols[4] || "",
+      category: cols[5] || "",
+      product_line: cols[6] || "",
+      sku: cols[7] || "",
+      msku: cols[8] || "",
+      tl: cols[9] || "",
+      sales: cols[10] || "",
+      sales_amount: parseFloat(cols[11], 10) || 0,
+      sales_qty: parseInt(cols[12], 10) || 0,
+      model: (cols[7] || "").substring(0, 5)
+    };
+    if (!row.sku || !row.msku) {
+      alert("导入行缺少 SKU 或 MSKU。");
+      return;
+    }
+    DEMO_ROWS.unshift(row);
+    appendRowLog(row.id, {
+      adjuster: "sykie",
+      time: new Date().toISOString().slice(0, 19).replace("T", " "),
+      before: {},
+      after: {
+        sku: row.sku,
+        msku: row.msku,
+        sales_amount: row.sales_amount,
+        sales_qty: row.sales_qty
+      }
+    });
+    renderTable(DEMO_ROWS.filter(rowPassesFilter));
+    closeModal("importModal");
+    setImportFile(null);
+    document.getElementById("importFile").value = "";
+    alert("导入成功（示范：已追加 1 条）。");
+  }
+
+  function runImport() {
+    if (!importFileRef) {
+      alert("请先选择 CSV 文件。");
+      return;
+    }
+    var reader = new FileReader();
+    reader.onload = function () { importFromCsv(String(reader.result || "")); };
+    reader.readAsText(importFileRef, "UTF-8");
+  }
+
+  function wireModalClose() {
+    document.querySelectorAll("[data-close]").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        closeModal(btn.getAttribute("data-close"));
+      });
+    });
+    ["addModal", "importModal", "logModal"].forEach(function (id) {
+      document.getElementById(id).addEventListener("click", function (e) {
+        if (e.target === document.getElementById(id)) closeModal(id);
+      });
+    });
+  }
+
+  function wireImportModal() {
+    var zone = document.getElementById("importDropZone");
+    var input = document.getElementById("importFile");
+    if (!zone || !input) return;
+    input.addEventListener("change", function () {
+      setImportFile(input.files && input.files[0] ? input.files[0] : null);
+    });
+    zone.addEventListener("dragover", function (e) { e.preventDefault(); });
+    zone.addEventListener("drop", function (e) {
+      e.preventDefault();
+      var f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+      if (f) setImportFile(f);
+    });
+  }
+
+  function openImportModal() {
+    setImportFile(null);
+    document.getElementById("importFile").value = "";
+    openModal("importModal");
+  }
+
+  function doSearch() {
+    var filtered = DEMO_ROWS.filter(rowPassesFilter);
+    renderTable(filtered);
+  }
+
+  function initPickers() {
+    var now = new Date();
+    var y = now.getFullYear();
+    var m = now.getMonth() + 1;
+    var pad = m < 10 ? "0" : "";
+    var end = y + "-" + pad + m;
+    var startYm = (y - 1) + "-" + pad + m;
+    var monthHost = document.getElementById("fltMonthHost");
+    var compareHost = document.getElementById("fltCompareHost");
+    if (typeof MonthRangePicker !== "undefined") {
+      monthPicker = MonthRangePicker.mount(monthHost, { start: startYm, end: end, useBodyPortal: true });
+      comparePicker = MonthRangePicker.mount(compareHost, {
+        start: (y - 2) + "-" + pad + m,
+        end: (y - 1) + "-" + pad + m,
+        useBodyPortal: true
+      });
+    } else {
+      monthHost.innerHTML = '<input class="ctl" style="width:220px" value="' + startYm + " - " + end + '" readonly />';
+      compareHost.innerHTML = '<input class="ctl" style="width:220px" readonly placeholder="对比范围" />';
+    }
+  }
+
+  function normalizeSalesPool(records) {
+    return (records || []).map(function (r) {
+      return {
+        msku: r.msku,
+        sku: r.sku,
+        "店铺名称": r["店铺名称"] || r.store_name
+      };
+    });
+  }
+
+  function applyPayload(demo, sales, region, channel, scene, geo, index) {
+    DEMO_ROWS = (demo && demo.records) ? demo.records : [];
+    SALES_POOL = normalizeSalesPool((sales && sales.records) ? sales.records : []);
+    REGION_DATA = region || { regions: [] };
+    CHANNEL_DATA = ((channel && channel.channels) || []).map(function (c) {
+      return { channel: c.channel_name, stores: c.stores || [] };
+    });
+    SCENE_TREE = ((scene && scene.scenes) || []).filter(function (s) {
+      return s.scene_name !== "未分类";
+    });
+    buildStoreGeo((geo && geo.mappings) ? geo.mappings : []);
+    MODELS = (index && index.models) ? index.models : [];
+    var plSet = {};
+    SALES_POOL.forEach(function (r) { if (r["品线"]) plSet[r["品线"]] = 1; });
+    if (!Object.keys(plSet).length) {
+      DEMO_ROWS.forEach(function (r) { if (r.product_line) plSet[r.product_line] = 1; });
+    }
+    PRODUCT_LINES = Object.keys(plSet).sort();
+    var tlSet = {};
+    var saSet = {};
+    DEMO_ROWS.forEach(function (r) {
+      if (r.tl) tlSet[r.tl] = 1;
+      if (r.sales) saSet[r.sales] = 1;
+    });
+    TL_OPTS = Object.keys(tlSet).sort();
+    SALES_OPTS = Object.keys(saSet).sort();
+  }
+
+  function bootUi() {
+    fillSelect(document.getElementById("fltTl"), TL_OPTS.map(function (t) {
+      return { value: t, label: t };
+    }));
+    fillSelect(document.getElementById("fltSales"), SALES_OPTS.map(function (s) {
+      return { value: s, label: s };
+    }));
+    wireRegionCountry();
+    wireChannelStore();
+    wireSceneCategory();
+    wireClearableSelects();
+    wireProductLine();
+    initPickers();
+    seedRowLogs();
+    wireFormLinkage();
+    wireImportModal();
+    wireModalClose();
+    renderTable(DEMO_ROWS);
+    document.getElementById("resultBar").textContent =
+      "共 " + DEMO_ROWS.length + " 条示范数据（内嵌主数据；日期/对比范围仅演示控件）";
+  }
+
+  function loadAll() {
+    var demo = readEmbed("embedDemo");
+    var region = readEmbed("embedRegion");
+    var channel = readEmbed("embedChannel");
+    var scene = readEmbed("embedScene");
+    var geo = readEmbed("embedStoreGeo");
+    var index = readEmbed("embedIndex");
+    var subset = readEmbed("embedSalesSubset");
+    if (!demo || !demo.records || !demo.records.length) {
+      document.getElementById("resultBar").innerHTML =
+        '<span class="load-err">内嵌示范数据缺失，请重新生成页面或检查 embedDemo。</span>';
+      return;
+    }
+    applyPayload(demo, subset, region, channel, scene, geo, index);
+    bootUi();
+    fetchJsonOptional("销售基础信息_v1.json").then(function (full) {
+      if (full && full.records && full.records.length) {
+        SALES_POOL = normalizeSalesPool(full.records);
+        }
+    });
+  }
+
+  document.getElementById("btnSearch").addEventListener("click", doSearch);
+  document.getElementById("btnAdd").addEventListener("click", openAddModal);
+  document.getElementById("btnImport").addEventListener("click", openImportModal);
+  document.getElementById("addFormSubmit").addEventListener("click", saveAddForm);
+  document.getElementById("importSubmit").addEventListener("click", runImport);
+  document.getElementById("btnDownloadTemplate").addEventListener("click", downloadImportTemplate);
+  document.getElementById("tblBody").addEventListener("click", function (e) {
+    var btn = e.target.closest("[data-log-id]");
+    if (!btn) return;
+    var id = parseInt(btn.getAttribute("data-log-id"), 10);
+    var row = DEMO_ROWS.find(function (r) { return r.id === id; });
+    if (row) openLogModal(row);
+  });
+  document.getElementById("fltSkuMode").addEventListener("change", function () {
+    var mode = document.getElementById("fltSkuMode").value;
+    var input = document.getElementById("fltSkuInput");
+    input.placeholder = mode === "exact" ? "请输入 MSKU（精确）" : "请输入SKU";
+  });
+  loadAll();
+})();
+  </script>
+</body>
+</html>
