@@ -12,11 +12,12 @@ import urllib.error
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
+from zoneinfo import ZoneInfo
 
-from ..env import load_dotenv
+from ..env import load_dotenv, project_root
 from ..paths import WorkspacePaths
 from .preview_tree import refresh_preview_trees
 
@@ -25,6 +26,9 @@ CODE_REPO_BACKEND = "ERP_backend"
 CODE_REPO_FRONTEND = "ERP_frontend"
 CODE_REPO_KEYS = frozenset({CODE_REPO_BACKEND, CODE_REPO_FRONTEND})
 ERP_PRODUCT_PUSH_BRANCH = "feature-chengkaiwu-xiaoshou"
+SHANGHAI_TZ = ZoneInfo("Asia/Shanghai")
+VS_MAIN_COMPARE_HOUR = 10
+_VS_MAIN_IO_LOCK = threading.Lock()
 
 GIT_PUSH_SYSTEMS = frozenset(
     {
@@ -87,6 +91,132 @@ class GitCommandResult:
 
 def _now_label() -> str:
     return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+
+def _now_shanghai() -> datetime:
+    return datetime.now(SHANGHAI_TZ)
+
+
+def _vs_main_snapshot_path() -> Path:
+    return project_root() / "data" / "vs-main-snapshot.json"
+
+
+def _parse_iso_datetime(value: str | None) -> datetime | None:
+    if not value:
+        return None
+    try:
+        parsed = datetime.fromisoformat(value)
+    except ValueError:
+        return None
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=SHANGHAI_TZ)
+    return parsed.astimezone(SHANGHAI_TZ)
+
+
+def _vs_main_slot_start(now: datetime | None = None) -> datetime:
+    """当前应展示的对比窗口起点：已过今日 10:00 则为今日 10:00，否则为昨日 10:00。"""
+    now = now or _now_shanghai()
+    today_slot = now.replace(
+        hour=VS_MAIN_COMPARE_HOUR, minute=0, second=0, microsecond=0
+    )
+    if now >= today_slot:
+        return today_slot
+    return today_slot - timedelta(days=1)
+
+
+def _vs_main_next_slot(now: datetime | None = None) -> datetime:
+    return _vs_main_slot_start(now) + timedelta(days=1)
+
+
+def _vs_main_snapshot_due(
+    compared_at: datetime | None, now: datetime | None = None
+) -> bool:
+    now = now or _now_shanghai()
+    if compared_at is None:
+        return True
+    if compared_at.tzinfo is None:
+        compared_at = compared_at.replace(tzinfo=SHANGHAI_TZ)
+    return compared_at.astimezone(SHANGHAI_TZ) < _vs_main_slot_start(now)
+
+
+def _load_vs_main_snapshot() -> dict[str, Any]:
+    path = _vs_main_snapshot_path()
+    if not path.is_file():
+        return {}
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError, TypeError, ValueError):
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+def _save_vs_main_snapshot(snapshot: dict[str, Any]) -> None:
+    path = _vs_main_snapshot_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        json.dumps(snapshot, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+
+
+def _snapshot_compared_at(snapshot: dict[str, Any] | None = None) -> datetime | None:
+    snap = snapshot if snapshot is not None else _load_vs_main_snapshot()
+    return _parse_iso_datetime(str(snap.get("compared_at") or "") or None)
+
+
+def _with_vs_main_meta(vs: dict[str, Any], snapshot: dict[str, Any]) -> dict[str, Any]:
+    result = dict(vs)
+    compared_at = snapshot.get("compared_at")
+    if compared_at:
+        result["compared_at"] = compared_at
+        result["cached"] = True
+    result["next_compare_at"] = _vs_main_next_slot().isoformat()
+    return result
+
+
+def _capture_vs_main_snapshot(paths: WorkspacePaths) -> dict[str, Any]:
+    product: dict[str, Any] = {"ahead": None, "behind": None, "fetched": False}
+    local: dict[str, Any] = {"ahead": None, "behind": None, "fetched": False}
+
+    product_repo = paths.erp_product_dir
+    if _is_git_repo(product_repo):
+        fetched = _fetch_origin_refs(product_repo, "main", ERP_PRODUCT_PUSH_BRANCH)
+        if not fetched:
+            fetched = bool(
+                _fetch_origin_ref(product_repo, "main")
+                and _fetch_origin_ref(product_repo, ERP_PRODUCT_PUSH_BRANCH)
+            )
+        feature_ref = _feature_head_ref(product_repo)
+        behind, ahead = (None, None)
+        if feature_ref:
+            behind, ahead = _ahead_behind(product_repo, "origin/main", feature_ref)
+        product = {"ahead": ahead, "behind": behind, "fetched": fetched}
+
+    local_repo = paths.local_dir
+    if _is_git_repo(local_repo):
+        fetched = _fetch_origin_ref(local_repo, "main")
+        behind, ahead = _ahead_behind(local_repo, "origin/main", "HEAD")
+        local = {"ahead": ahead, "behind": behind, "fetched": fetched}
+
+    snapshot = {
+        "compared_at": _now_shanghai().isoformat(),
+        "product": product,
+        "local": local,
+    }
+    _save_vs_main_snapshot(snapshot)
+    return snapshot
+
+
+def _ensure_vs_main_snapshot(
+    paths: WorkspacePaths, *, force: bool = False, busy: bool = False
+) -> dict[str, Any]:
+    with _VS_MAIN_IO_LOCK:
+        snapshot = _load_vs_main_snapshot()
+        if not force and not _vs_main_snapshot_due(_snapshot_compared_at(snapshot)):
+            return snapshot
+        if busy and not force:
+            return snapshot
+        return _capture_vs_main_snapshot(paths)
 
 
 def _erp_push_branch(_system_key: str) -> str:
@@ -721,32 +851,35 @@ class GitSyncManager:
                 "busy_system": self._busy_system,
             }
 
+    def refresh_vs_main_snapshot(self, *, erp_root=None, force: bool = True) -> dict[str, Any]:
+        paths = WorkspacePaths.resolve(erp_root)
+        return _ensure_vs_main_snapshot(paths, force=force, busy=self.status_snapshot()["busy"])
+
     def list_systems(self, *, erp_root=None) -> dict[str, Any]:
         paths = WorkspacePaths.resolve(erp_root)
-        with ThreadPoolExecutor(max_workers=2) as pool:
+        busy = self.status_snapshot()["busy"]
+        with ThreadPoolExecutor(max_workers=3) as pool:
             backend_future = pool.submit(_build_code_repo_item, CODE_REPO_BACKEND, paths)
             frontend_future = pool.submit(_build_code_repo_item, CODE_REPO_FRONTEND, paths)
+            snapshot_future = pool.submit(
+                _ensure_vs_main_snapshot, paths, force=False, busy=busy
+            )
 
             product_repo = paths.erp_product_dir
             product_is_git = _is_git_repo(product_repo)
             product_branch = _current_branch(product_repo) if product_is_git else ""
             product_dirty = _count_changes(product_repo) if product_is_git else 0
-            product_fetched = False
-            if product_is_git:
-                product_fetched = _fetch_origin_refs(
-                    product_repo, "main", ERP_PRODUCT_PUSH_BRANCH
-                )
-            product_behind, product_ahead = (None, None)
-            if product_is_git:
-                feature_ref = _feature_head_ref(product_repo)
-                if feature_ref:
-                    product_behind, product_ahead = _ahead_behind(
-                        product_repo, "origin/main", feature_ref
-                    )
             items: list[dict[str, Any]] = [
                 backend_future.result(),
                 frontend_future.result(),
             ]
+            snapshot = snapshot_future.result() or {}
+
+        product_snap = snapshot.get("product") or {}
+        local_snap = snapshot.get("local") or {}
+        product_ahead = product_snap.get("ahead")
+        product_behind = product_snap.get("behind")
+        product_fetched = bool(product_snap.get("fetched"))
 
         for name in _erp_system_names(paths):
             target_branch = _erp_push_branch(name)
@@ -774,12 +907,15 @@ class GitSyncManager:
                     "repo_change_count": product_dirty,
                     "status_label": _status_label(system_changes, can_push=can_push),
                     "tracking": tracking,
-                    "vs_main": _format_vs_main(
-                        product_ahead,
-                        product_behind,
-                        fetched=product_fetched,
-                        can_merge=can_push,
-                        can_push=can_push,
+                    "vs_main": _with_vs_main_meta(
+                        _format_vs_main(
+                            product_ahead,
+                            product_behind,
+                            fetched=product_fetched,
+                            can_merge=can_push,
+                            can_push=can_push,
+                        ),
+                        snapshot,
                     ),
                 }
             )
@@ -789,6 +925,13 @@ class GitSyncManager:
         local_branch = _current_branch(local_repo) if local_is_git else ""
         local_changes = _count_changes(local_repo) if local_is_git else 0
         local_tracking = _branch_tracking(local_repo, "main") if local_is_git else None
+        local_vs = _format_vs_main(
+            local_snap.get("ahead"),
+            local_snap.get("behind"),
+            fetched=bool(local_snap.get("fetched")),
+            can_merge=False,
+            can_push=True,
+        )
         items.append(
             {
                 "key": LOCAL_SYSTEM_KEY,
@@ -804,21 +947,15 @@ class GitSyncManager:
                 "repo_change_count": local_changes,
                 "status_label": _status_label(local_changes, can_push=True),
                 "tracking": local_tracking,
-                "vs_main": (
-                    _compare_to_origin_main(
-                        local_repo, can_merge=False, can_push=True, do_fetch=True
-                    )
-                    if local_is_git
-                    else _format_vs_main(
-                        None, None, fetched=False, can_merge=False, can_push=True
-                    )
-                ),
+                "vs_main": _with_vs_main_meta(local_vs, snapshot),
             }
         )
 
         return {
             "items": items,
             "push_systems": sorted(GIT_PUSH_SYSTEMS),
+            "vs_main_compared_at": snapshot.get("compared_at"),
+            "vs_main_next_at": _vs_main_next_slot().isoformat(),
             "operation": self.status_snapshot(),
         }
 
@@ -857,7 +994,36 @@ class GitSyncManager:
             raise GitSyncError(f"系统 {key} 不支持合并 main", code="forbidden")
         self._begin("merge-request", key)
         try:
-            return self._merge_feature_into_main(key, WorkspacePaths.resolve(erp_root))
+            paths = WorkspacePaths.resolve(erp_root)
+            logs: list[str] = [f"===== ① 推送到 {ERP_PRODUCT_PUSH_BRANCH} ====="]
+            push_result = self._push_erp_system(key, paths)
+            logs.extend(push_result.get("logs") or [])
+            push_skipped = bool(push_result.get("skipped"))
+            if push_skipped:
+                logs.append(f"{key}：无变更，无需推送，继续合并 main")
+            elif push_result.get("message"):
+                logs.append(str(push_result["message"]))
+
+            logs.append(f"===== ② 合并 {ERP_PRODUCT_PUSH_BRANCH} → main =====")
+            merge_result = self._merge_feature_into_main(key, paths)
+            logs.extend(merge_result.get("logs") or [])
+
+            if push_skipped:
+                push_part = f"{key}：功能分支无新变更（{ERP_PRODUCT_PUSH_BRANCH}）"
+            else:
+                push_part = (
+                    push_result.get("message")
+                    or f"{key}：已推送到 {ERP_PRODUCT_PUSH_BRANCH}"
+                )
+            merge_part = merge_result.get("message") or f"{key}：已合并到 main"
+            return {
+                **merge_result,
+                "push_ok": bool(push_result.get("ok")),
+                "push_skipped": push_skipped,
+                "skipped": push_skipped and bool(merge_result.get("skipped")),
+                "message": f"{push_part}；{merge_part}",
+                "logs": logs,
+            }
         finally:
             self._end()
 
@@ -2013,5 +2179,29 @@ class GitSyncManager:
             "preview_message": preview.get("preview_message") or "",
             "actions_urls": preview.get("actions_urls") or [],
         }
+
+
+def start_daily_vs_main_refresh() -> threading.Event:
+    """后台在每天 10:00（北京时间）刷新相对 main 快照；错过则下次循环补做。"""
+    stop = threading.Event()
+
+    def loop() -> None:
+        while not stop.is_set():
+            snapshot = _load_vs_main_snapshot()
+            if _vs_main_snapshot_due(_snapshot_compared_at(snapshot)):
+                if git_sync_manager.status_snapshot().get("busy"):
+                    stop.wait(30)
+                    continue
+                try:
+                    git_sync_manager.refresh_vs_main_snapshot(force=True)
+                except Exception:
+                    stop.wait(60)
+                    continue
+            delay = (_vs_main_next_slot() - _now_shanghai()).total_seconds()
+            stop.wait(max(1.0, delay))
+
+    threading.Thread(target=loop, name="vs-main-daily", daemon=True).start()
+    return stop
+
 
 git_sync_manager = GitSyncManager()

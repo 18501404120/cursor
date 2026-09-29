@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from contextlib import asynccontextmanager
 import asyncio
 import json
 from pathlib import Path
@@ -12,7 +13,7 @@ from pydantic import BaseModel, Field
 
 from ..env import load_dotenv, project_root, resolve_api_key
 from ..orchestrator import OrchestratorConfig
-from .git_sync import GitSyncError, git_sync_manager
+from .git_sync import GitSyncError, git_sync_manager, start_daily_vs_main_refresh
 from .jobs import (
     JobManager,
     create_system,
@@ -27,7 +28,17 @@ STATIC_DIR = Path(__file__).resolve().parent / "static"
 
 load_dotenv(override=True)
 
-app = FastAPI(title="ERP 知识库管理服务", version="0.1.0")
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    stop = start_daily_vs_main_refresh()
+    try:
+        yield
+    finally:
+        stop.set()
+
+
+app = FastAPI(title="ERP 知识库管理服务", version="0.1.0", lifespan=lifespan)
 manager = JobManager()
 
 
