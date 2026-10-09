@@ -9,6 +9,7 @@ const actionRow = document.getElementById('actionRow');
 const busySpinner = document.getElementById('busySpinner');
 const btnClose = document.getElementById('btnClose');
 const windowSlotEl = document.getElementById('windowSlot');
+const queueBadge = document.getElementById('queueBadge');
 
 /** @type {AppState} */
 let state = 'idle';
@@ -23,6 +24,7 @@ let appendQueue = Promise.resolve();
 /** 边录边写失败时，结束仍可用内存中的分片补写完整录音 */
 let recordedChunks = [];
 let liveAppendFailed = false;
+let stopping = false;
 
 const STATUS_TITLE = {
   idle: '待机',
@@ -31,31 +33,17 @@ const STATUS_TITLE = {
   transcribing: '转写中',
 };
 
-/** @type {(() => void) | null} */
-let progressUnsub = null;
-
-function updateTranscribeProgress(payload) {
-  if (state !== 'transcribing') return;
-  const { phase, percent, message } = payload || {};
-  if (phase === 'download' && percent != null) {
-    timerEl.textContent = `${percent}%`;
-    const tip = message || `首次下载模型 ${percent}%（约 1GB）`;
-    statusDot.title = tip;
-    busySpinner.title = tip;
-    return;
-  }
-  if (message) {
-    statusDot.title = message;
-    busySpinner.title = message;
-    if (phase === 'transcribe') {
-      timerEl.textContent = formatTimer(currentDurationMs());
-    } else if (phase === 'scenario') {
-      timerEl.textContent = '梳理';
-    } else if (phase === 'load') {
-      timerEl.textContent = '加载';
-    } else if (phase === 'prepare') {
-      timerEl.textContent = '准备';
-    }
+function renderQueueBadge(count, detail) {
+  const n = Number(count) || 0;
+  if (!queueBadge) return;
+  if (n > 0) {
+    queueBadge.textContent = String(n);
+    queueBadge.classList.remove('hidden');
+    queueBadge.title = detail || `后台还有 ${n} 场`;
+  } else {
+    queueBadge.textContent = '0';
+    queueBadge.classList.add('hidden');
+    queueBadge.title = '';
   }
 }
 
@@ -178,7 +166,7 @@ async function flushPendingAppends() {
 }
 
 async function handleStart() {
-  if (state === 'recording' || state === 'transcribing') return;
+  if (stopping || state === 'recording') return;
   let createdSession = false;
   try {
     await ensureMic();
@@ -236,25 +224,14 @@ function handlePauseToggle() {
 }
 
 async function handleStop() {
-  if (!mediaRecorder || (state !== 'recording' && state !== 'paused')) return;
+  if (stopping || !mediaRecorder || (state !== 'recording' && state !== 'paused')) return;
 
+  stopping = true;
+  btnStart.disabled = true;
+  btnPause.disabled = true;
+  btnStop.disabled = true;
   const durationMs = currentDurationMs();
-  setState('transcribing');
   stopTick();
-  timerEl.textContent = '…';
-  statusDot.title = '转写中（首次可能需下载模型）';
-  busySpinner.title = statusDot.title;
-  progressUnsub = window.meetingApi.onTranscribeProgress(updateTranscribeProgress);
-
-  const cfg = await window.meetingApi.getConfig();
-  if (cfg.canOpenSecondWindow) {
-    const openSecond = confirm(
-      '本场会议正在转写（可能较久）。\n\n是否打开第二个悬浮窗，以便开始下一场会议录音？',
-    );
-    if (openSecond) {
-      await window.meetingApi.openSecondWindow();
-    }
-  }
 
   await new Promise((resolve) => {
     mediaRecorder.onstop = resolve;
@@ -274,35 +251,16 @@ async function handleStop() {
       if (audioBytes) payload.audioBytes = audioBytes;
     }
     const result = await window.meetingApi.saveAndTranscribe(payload);
-    if (!result.ok) {
-      throw new Error(result.error || '转写失败');
-    }
-    const openTarget = result.htmlPath || result.txtPath;
-    await window.meetingApi.openPath(openTarget);
-    if (result.scenarioSkipped) {
-      await window.meetingApi.notifyError({
-        title: '场景梳理未生成',
-        message: result.scenarioSkipped.slice(0, 160),
-      });
-    } else if (result.scenarioError) {
-      await window.meetingApi.notifyError({
-        title: '场景梳理未生成',
-        message: `转写已完成，但场景梳理页生成失败：${result.scenarioError.slice(0, 120)}`,
-      });
-    }
-    resetToIdle();
+    if (!result?.ok) throw new Error(result?.error || '无法加入后台转写');
+    if (result.pendingCount != null) renderQueueBadge(result.pendingCount, result.detail);
   } catch (err) {
-    const msg = String(err.message || err);
-    const brief = msg.includes('PyTorch') || msg.includes('架构')
-      ? '转写环境异常，请完全退出后重新打开应用。'
-      : msg.includes('下载') || msg.includes('模型')
-        ? `${msg.slice(0, 100)}。可先运行：npm run download:models`
-        : msg.slice(0, 120);
-    await window.meetingApi.notifyError({ title: '转写失败', message: brief });
-    resetToIdle();
+    await window.meetingApi.notifyError({
+      title: '录音未进入后台转写',
+      message: String(err.message || err).slice(0, 160),
+    });
   } finally {
-    progressUnsub?.();
-    progressUnsub = null;
+    resetToIdle();
+    stopping = false;
   }
 }
 
@@ -328,14 +286,7 @@ btnPause.addEventListener('click', handlePauseToggle);
 btnStop.addEventListener('click', handleStop);
 
 async function handleClose() {
-  if (state === 'transcribing') {
-    const ok = confirm(
-      '转写将在后台继续。\n\n可打开第二个悬浮窗录下一场会议（菜单栏图标 → 新建悬浮窗）。\n\n隐藏本窗口？',
-    );
-    if (!ok) return;
-    await window.meetingApi.hideWindow();
-    return;
-  }
+  if (stopping) return;
 
   if (state === 'recording' || state === 'paused') {
     const ok = confirm(
@@ -367,6 +318,25 @@ btnClose.addEventListener('click', (e) => {
 });
 
 const dragHandle = document.getElementById('dragHandle');
+let lastWindowSize = '';
+
+function syncWindowSize() {
+  if (!dragHandle || !window.meetingApi?.setWindowSize) return;
+  const width = Math.ceil(dragHandle.getBoundingClientRect().width);
+  const height = Math.ceil(dragHandle.getBoundingClientRect().height);
+  if (width < 40 || height < 20) return;
+  const key = `${width}x${height}`;
+  if (key === lastWindowSize) return;
+  lastWindowSize = key;
+  window.meetingApi.setWindowSize(width, height);
+}
+
+if (typeof ResizeObserver !== 'undefined') {
+  const resizeObserver = new ResizeObserver(() => syncWindowSize());
+  resizeObserver.observe(dragHandle);
+}
+requestAnimationFrame(syncWindowSize);
+
 let dragging = false;
 let lastX = 0;
 let lastY = 0;
@@ -391,8 +361,15 @@ window.addEventListener('mouseup', () => {
   dragging = false;
 });
 
+let jobsSeen = false;
+window.meetingApi.onJobsUpdated((payload) => {
+  jobsSeen = true;
+  renderQueueBadge(payload?.pendingCount, payload?.detail);
+});
+
 window.meetingApi.getConfig().then((cfg) => {
   dragHandle.title = `拖动 · 保存至 ${cfg.saveBaseDir}`;
+  if (!jobsSeen) renderQueueBadge(cfg.pendingCount ?? cfg.queueLength, cfg.detail);
   if (cfg.windowCount > 1 && windowSlotEl) {
     windowSlotEl.textContent = String(cfg.windowSlot);
     windowSlotEl.classList.remove('hidden');

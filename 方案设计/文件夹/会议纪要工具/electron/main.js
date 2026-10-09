@@ -34,8 +34,8 @@ const {
 } = require('./lib/live-recording');
 
 const MAX_FLOATING_WINDOWS = 2;
-const WIN_W = 176;
-const WIN_H = 44;
+const WIN_W = 148;
+const WIN_H = 34;
 const APP_ICON_PATH = path.join(ROOT, 'assets', 'app-icon.png');
 
 /** @type {Map<number, { win: import('electron').BrowserWindow, slot: number }>} */
@@ -47,9 +47,13 @@ let tray = null;
 /** 退出中：禁止关窗后自动重建悬浮窗，否则关机/⌘Q 会卡住需强制退出 */
 let isQuitting = false;
 
-/** 转写 + 场景梳理串行队列，避免双窗口同时跑模型 */
+/** 转写 + 场景梳理串行队列，避免和下一场录音抢模型 */
 const transcribeQueue = [];
 let transcribeQueueRunning = false;
+let jobSeq = 0;
+/** @type {Array<{ id: number, baseName: string, sessionDir: string, status: string, phaseLabel: string, error: string, note: string, noteDetail: string, openPath: string, tempDir: string|null, run: Function }>} */
+const backgroundJobs = [];
+let quitPromptOpen = false;
 
 const isDev = !app.isPackaged;
 
@@ -110,6 +114,7 @@ function forceQuitApp() {
   }
   isQuitting = true;
   flushLiveSessionsOnQuit();
+  markPendingJobsInterrupted();
   try {
     globalShortcut.unregisterAll();
   } catch (_) {
@@ -146,6 +151,122 @@ function canOpenAnotherWindow() {
   return floatingWindows.size < MAX_FLOATING_WINDOWS;
 }
 
+function pendingJobCount() {
+  return backgroundJobs.filter((job) => job.status === 'queued' || job.status === 'running').length;
+}
+
+function activeSessionDirs() {
+  const dirs = [];
+  for (const session of sessionsByWindowId.values()) {
+    if (session.paths?.sessionDir) dirs.push(session.paths.sessionDir);
+  }
+  for (const job of backgroundJobs) {
+    if ((job.status === 'queued' || job.status === 'running') && job.sessionDir) {
+      dirs.push(job.sessionDir);
+    }
+  }
+  return dirs;
+}
+
+function jobPhaseLabel(payload) {
+  if (!payload) return '';
+  const { phase, percent } = payload;
+  if (phase === 'download' && percent != null) return `下载模型 ${percent}%`;
+  if (phase === 'convert') return '转码';
+  if (phase === 'load') return '加载模型';
+  if (phase === 'prepare') return '准备';
+  if (phase === 'transcribe') return '转写';
+  if (phase === 'scenario') return '场景梳理';
+  return '';
+}
+
+function trimFinishedJobs() {
+  const finished = backgroundJobs.filter((job) => job.status === 'done' || job.status === 'failed');
+  const extra = finished.length - 8;
+  if (extra <= 0) return;
+  const drop = new Set(finished.slice(0, extra));
+  for (let i = backgroundJobs.length - 1; i >= 0; i -= 1) {
+    if (drop.has(backgroundJobs[i])) backgroundJobs.splice(i, 1);
+  }
+}
+
+function jobsSnapshot() {
+  const running = backgroundJobs.find((job) => job.status === 'running');
+  const pendingCount = pendingJobCount();
+  const detail = pendingCount
+    ? `后台还有 ${pendingCount} 场${running?.phaseLabel ? ` · ${running.phaseLabel}` : ''}`
+    : '';
+  return { pendingCount, detail, runningName: running?.baseName || '' };
+}
+
+function broadcastJobs({ refreshMenu = true } = {}) {
+  const payload = jobsSnapshot();
+  for (const { win } of floatingWindows.values()) {
+    if (win && !win.isDestroyed()) {
+      win.webContents.send('meeting:jobs-updated', payload);
+    }
+  }
+  if (tray) {
+    tray.setToolTip(payload.pendingCount ? `会议记录 · 后台 ${payload.pendingCount} 场` : '会议记录');
+  }
+  if (refreshMenu) updateTrayMenu();
+}
+
+function markPendingJobsInterrupted() {
+  for (const job of backgroundJobs) {
+    if (job.status !== 'queued' && job.status !== 'running') continue;
+    job.status = 'interrupted';
+    if (!job.sessionDir) continue;
+    try {
+      writeLiveMeta(job.sessionDir, {
+        status: 'interrupted',
+        lastChunkAt: new Date().toISOString(),
+      });
+    } catch (_) {
+      /* ignore */
+    }
+  }
+}
+
+function frontWindow() {
+  for (const { win } of floatingWindows.values()) {
+    if (win && !win.isDestroyed() && win.isVisible()) return win;
+  }
+  const first = [...floatingWindows.values()][0]?.win;
+  return first && !first.isDestroyed() ? first : undefined;
+}
+
+async function requestQuit() {
+  if (isQuitting || quitPromptOpen) return;
+  const pending = pendingJobCount();
+  if (pending > 0) {
+    quitPromptOpen = true;
+    try {
+      const parent = frontWindow();
+      const { response } = await dialog.showMessageBox(parent, {
+        type: 'warning',
+        title: '会议记录',
+        message: `还有 ${pending} 场，退出会中断。`,
+        buttons: ['继续退出', '取消'],
+        defaultId: 1,
+        cancelId: 1,
+        noLink: true,
+      });
+      if (response !== 0) return;
+    } finally {
+      quitPromptOpen = false;
+    }
+  }
+  if (isQuitting) return;
+  forceQuitApp();
+}
+
+function shortMenuLabel(text, max = 42) {
+  const value = String(text || '').replace(/\s+/g, ' ').trim();
+  if (value.length <= max) return value;
+  return `${value.slice(0, max)}…`;
+}
+
 function updateTrayMenu() {
   if (!tray) return;
   const items = [];
@@ -164,16 +285,68 @@ function updateTrayMenu() {
       click: () => openAnotherFloatingWindow(),
     });
   }
+
+  const pending = backgroundJobs.filter((job) => job.status === 'queued' || job.status === 'running');
+  if (pending.length) {
+    items.push({ type: 'separator' });
+    items.push({ label: `后台转写 ${pending.length} 场`, enabled: false });
+    for (const job of pending) {
+      const prefix = job.status === 'running' ? '进行中' : '排队';
+      const extra = job.phaseLabel ? ` · ${job.phaseLabel}` : '';
+      items.push({
+        label: shortMenuLabel(`${prefix}：${job.baseName}${extra}`),
+        enabled: false,
+      });
+    }
+  }
+
+  const finished = backgroundJobs
+    .filter((job) => job.status === 'done' || job.status === 'failed')
+    .slice(-6)
+    .reverse();
+  if (finished.length) {
+    items.push({ type: 'separator' });
+    for (const job of finished) {
+      if (job.status === 'done') {
+        const label = job.note ? `已完成：${job.baseName}（${job.note}）` : `已完成：${job.baseName}`;
+        const submenu = [];
+        if (job.noteDetail) submenu.push({ label: shortMenuLabel(job.noteDetail, 80), enabled: false });
+        submenu.push({
+          label: '在 Finder 中显示',
+          enabled: Boolean(job.openPath),
+          click: () => {
+            if (job.openPath && fs.existsSync(job.openPath)) shell.showItemInFolder(job.openPath);
+          },
+        });
+        items.push({ label: shortMenuLabel(label, 60), submenu });
+      } else {
+        items.push({
+          label: shortMenuLabel(`转写失败：${job.baseName}`),
+          submenu: [
+            { label: shortMenuLabel(job.error || '转写失败', 80), enabled: false },
+            {
+              label: '在 Finder 中显示录音',
+              enabled: Boolean(job.sessionDir),
+              click: () => {
+                const target = job.openPath && fs.existsSync(job.openPath) ? job.openPath : job.sessionDir;
+                if (target && fs.existsSync(target)) shell.showItemInFolder(target);
+              },
+            },
+          ],
+        });
+      }
+    }
+  }
+
   items.push({ type: 'separator' });
   items.push({
     label: '转写未完成的录音',
     click: () => {
-      const first = [...floatingWindows.values()][0]?.win;
-      recoverIncompleteSessions(first);
+      recoverIncompleteSessions(frontWindow());
     },
   });
   items.push({ type: 'separator' });
-  items.push({ label: '退出应用 (⌘Q)', click: () => forceQuitApp() });
+  items.push({ label: '退出应用 (⌘Q)', click: () => requestQuit() });
   tray.setContextMenu(Menu.buildFromTemplate(items));
 }
 
@@ -205,9 +378,9 @@ function createFloatingWindow(options = {}) {
   const win = new BrowserWindow({
     width: WIN_W,
     height: WIN_H,
-    minWidth: WIN_W,
+    minWidth: 112,
     minHeight: WIN_H,
-    maxWidth: WIN_W,
+    maxWidth: 260,
     maxHeight: WIN_H,
     frame: false,
     transparent: true,
@@ -310,11 +483,60 @@ async function pumpTranscribeQueue() {
   }
 }
 
-async function runTranscribePipeline({ win, paths, startedAt, durationMs, tempDir, config, sourceAudioPath }) {
-  const sendProgress = (payload) => {
-    if (win && !win.isDestroyed()) {
-      win.webContents.send('meeting:transcribe-progress', payload);
+function noteForScenario(result) {
+  if (result?.scenarioError) return { note: '场景梳理未生成', noteDetail: result.scenarioError };
+  if (result?.scenarioSkipped) return { note: '未生成场景梳理', noteDetail: result.scenarioSkipped };
+  return { note: '', noteDetail: '' };
+}
+
+function enqueueBackgroundJob(job) {
+  backgroundJobs.push(job);
+  broadcastJobs();
+  enqueueTranscribeJob(async () => {
+    if (job.status === 'interrupted') return null;
+    job.status = 'running';
+    job.phaseLabel = '开始处理';
+    broadcastJobs();
+    try {
+      const result = await job.run(job);
+      const scenarioNote = noteForScenario(result);
+      job.status = 'done';
+      job.phaseLabel = '';
+      job.baseName = result?.baseName || job.baseName;
+      job.sessionDir = result?.sessionDir || job.sessionDir;
+      job.openPath = result?.htmlPath || result?.txtPath || result?.m4aPath || job.openPath;
+      job.note = scenarioNote.note;
+      job.noteDetail = scenarioNote.noteDetail;
+      job.error = '';
+      trimFinishedJobs();
+      broadcastJobs();
+      return result;
+    } catch (err) {
+      const message = err?.message || String(err);
+      if (job.sessionDir) {
+        try {
+          writeLiveMeta(job.sessionDir, { status: 'interrupted' });
+        } catch (_) {
+          /* ignore */
+        }
+      }
+      if (job.tempDir) removeDirSafe(job.tempDir);
+      job.status = 'failed';
+      job.phaseLabel = '';
+      job.error = message;
+      trimFinishedJobs();
+      broadcastJobs();
+      console.warn('[meeting-recorder] 后台转写失败:', message);
+      return null;
     }
+  }).catch((err) => {
+    console.warn('[meeting-recorder] 后台队列异常:', err?.message || err);
+  });
+}
+
+async function runTranscribePipeline({ paths, startedAt, durationMs, tempDir, config, sourceAudioPath, onProgress }) {
+  const sendProgress = (payload) => {
+    if (typeof onProgress === 'function') onProgress(payload);
   };
 
   const tempWav = path.join(tempDir, 'transcribe.wav');
@@ -418,7 +640,7 @@ function cleanupLiveAfterSuccess(originalDir, finalDir) {
   if (finalDir && finalDir !== originalDir) cleanupLiveArtifacts(finalDir);
 }
 
-async function recoverOneSession(item, win, config) {
+function enqueueRecoverItem(item, config) {
   const startedAt = item.startedAt ? new Date(item.startedAt) : new Date();
   const paths = {
     sessionDir: item.sessionDir,
@@ -427,28 +649,50 @@ async function recoverOneSession(item, win, config) {
     txtPath: item.txtPath,
     m4aPath: item.m4aPath,
   };
-  if (!item.hasM4a) {
-    if (!item.hasWebm) throw new Error('没有可恢复的录音文件');
-    await convertToM4a(item.webmPath, item.m4aPath);
-  }
   const temp = buildTempSessionDir(path.join(app.getPath('temp'), 'meeting-recorder'));
-  writeLiveMeta(item.sessionDir, { status: 'transcribing' });
-  const result = await runTranscribePipeline({
-    win,
-    paths,
-    startedAt,
-    durationMs: item.durationMs || 0,
+  writeLiveMeta(item.sessionDir, { status: 'queued' });
+  enqueueBackgroundJob({
+    id: ++jobSeq,
+    baseName: item.baseName,
+    sessionDir: item.sessionDir,
+    status: 'queued',
+    phaseLabel: '',
+    error: '',
+    note: '',
+    noteDetail: '',
+    openPath: item.m4aPath,
     tempDir: temp.dir,
-    config,
-    sourceAudioPath: item.m4aPath,
+    run: async (job) => {
+      const onProgress = (payload) => {
+        const label = jobPhaseLabel(payload);
+        if (!label || label === job.phaseLabel) return;
+        job.phaseLabel = label;
+        broadcastJobs();
+      };
+      if (!item.hasM4a) {
+        if (!item.hasWebm) throw new Error('没有可恢复的录音文件');
+        onProgress({ phase: 'convert' });
+        await convertToM4a(item.webmPath, item.m4aPath);
+      }
+      writeLiveMeta(item.sessionDir, { status: 'transcribing' });
+      const result = await runTranscribePipeline({
+        paths,
+        startedAt,
+        durationMs: item.durationMs || 0,
+        tempDir: temp.dir,
+        config,
+        sourceAudioPath: item.m4aPath,
+        onProgress,
+      });
+      cleanupLiveAfterSuccess(item.sessionDir, result.sessionDir);
+      return result;
+    },
   });
-  cleanupLiveAfterSuccess(item.sessionDir, result.sessionDir);
-  return result;
 }
 
 async function recoverIncompleteSessions(win, { silentIfNone = false } = {}) {
   const config = loadConfig();
-  const excludeDirs = [...sessionsByWindowId.values()].map((s) => s.paths?.sessionDir).filter(Boolean);
+  const excludeDirs = activeSessionDirs();
   const items = findIncompleteSessions(config.saveBaseDir, excludeDirs);
   if (!items.length) {
     if (!silentIfNone && win && !win.isDestroyed()) {
@@ -469,7 +713,7 @@ async function recoverIncompleteSessions(win, { silentIfNone = false } = {}) {
     type: 'question',
     title: '发现未完成的会议录音',
     message: `有 ${items.length} 场录音未正常结束（崩溃或未点结束）。\n\n${list}`,
-    detail: '立即转写会从已写入磁盘的录音继续。选择稍后可在菜单栏「转写未完成的录音」再处理。',
+    detail: '立即转写会在后台排队，悬浮窗可以马上录下一场。完成后从菜单栏打开结果。',
     buttons: ['立即转写', '稍后', '删除这些录音'],
     defaultId: 0,
     cancelId: 1,
@@ -488,23 +732,7 @@ async function recoverIncompleteSessions(win, { silentIfNone = false } = {}) {
     return;
   }
 
-  for (const item of items) {
-    try {
-      const result = await enqueueTranscribeJob(() => recoverOneSession(item, win, config));
-      const openTarget = result?.htmlPath || result?.txtPath;
-      if (openTarget) shell.showItemInFolder(openTarget);
-    } catch (err) {
-      console.warn('[meeting-recorder] 恢复转写失败:', err.message);
-      await dialog.showMessageBox(win && !win.isDestroyed() ? win : undefined, {
-        type: 'error',
-        title: '恢复转写失败',
-        message: `${item.baseName}：${(err.message || String(err)).slice(0, 160)}`,
-        buttons: ['好'],
-        defaultId: 0,
-        noLink: true,
-      });
-    }
-  }
+  for (const item of items) enqueueRecoverItem(item, config);
 }
 
 function createTray() {
@@ -515,7 +743,7 @@ function createTray() {
     icon = icon.resize({ width: 22, height: 22 });
   }
   tray = new Tray(icon);
-  tray.setToolTip('会议记录（最多 2 个悬浮窗）');
+  tray.setToolTip('会议记录');
   updateTrayMenu();
   tray.on('click', () => {
     const visible = [...floatingWindows.values()].some(({ win }) => win.isVisible());
@@ -552,7 +780,7 @@ app.whenReady().then(() => {
           {
             label: '退出会议记录',
             accelerator: 'Command+Q',
-            click: () => forceQuitApp(),
+            click: () => requestQuit(),
           },
         ],
       },
@@ -572,7 +800,7 @@ app.whenReady().then(() => {
   }, 600);
 
   globalShortcut.register('CommandOrControl+Q', () => {
-    forceQuitApp();
+    requestQuit();
   });
 
   app.on('activate', () => {
@@ -586,7 +814,7 @@ app.on('before-quit', (event) => {
   if (isQuitting) return;
   // 拦截默认退出，走统一清理（关窗不重建 + 强杀转写进程），再 exit
   event.preventDefault();
-  forceQuitApp();
+  requestQuit();
 });
 
 app.on('will-quit', () => {
@@ -602,7 +830,7 @@ app.on('window-all-closed', () => {
   // macOS 托盘应用：非退出态保持进程；退出态由 forceQuitApp 处理
   if (isQuitting) return;
   if (process.platform !== 'darwin') {
-    forceQuitApp();
+    requestQuit();
   }
 });
 
@@ -619,7 +847,8 @@ ipcMain.handle('meeting:get-config', async (event) => {
     windowCount: floatingWindows.size,
     maxWindows: MAX_FLOATING_WINDOWS,
     canOpenSecondWindow: canOpenAnotherWindow(),
-    queueLength: transcribeQueue.length + (transcribeQueueRunning ? 1 : 0),
+    ...jobsSnapshot(),
+    queueLength: pendingJobCount(),
   };
 });
 
@@ -717,39 +946,55 @@ ipcMain.handle('meeting:save-and-transcribe', async (event, payload) => {
   }
 
   writeLiveMeta(paths.sessionDir, {
-    status: 'transcribing',
+    status: 'queued',
     durationMs,
     lastChunkAt: new Date().toISOString(),
   });
+  sessionsByWindowId.delete(win.id);
 
-  try {
-    await convertToM4a(liveWebm, paths.m4aPath);
-    sessionsByWindowId.delete(win.id);
-
-    const result = await enqueueTranscribeJob(() =>
-      runTranscribePipeline({
-        win,
+  enqueueBackgroundJob({
+    id: ++jobSeq,
+    baseName: paths.baseName,
+    sessionDir: paths.sessionDir,
+    status: 'queued',
+    phaseLabel: '',
+    error: '',
+    note: '',
+    noteDetail: '',
+    openPath: paths.m4aPath,
+    tempDir: temp.dir,
+    run: async (job) => {
+      const onProgress = (payload) => {
+        const label = jobPhaseLabel(payload);
+        if (!label || label === job.phaseLabel) return;
+        job.phaseLabel = label;
+        broadcastJobs();
+      };
+      writeLiveMeta(paths.sessionDir, { status: 'transcribing', durationMs });
+      if (!fs.existsSync(paths.m4aPath)) {
+        onProgress({ phase: 'convert' });
+        await convertToM4a(liveWebm, paths.m4aPath);
+      }
+      const result = await runTranscribePipeline({
         paths,
         startedAt,
         durationMs,
         tempDir: temp.dir,
         config,
         sourceAudioPath: paths.m4aPath,
-      }),
-    );
-    cleanupLiveAfterSuccess(paths.sessionDir, result.sessionDir);
-    return result;
-  } catch (err) {
-    removeDirSafe(temp?.dir);
-    writeLiveMeta(paths.sessionDir, { status: 'interrupted', durationMs });
-    sessionsByWindowId.delete(win.id);
-    return {
-      ok: false,
-      error: `${err.message || String(err)}。录音已保存在 ${paths.sessionDir}`,
-      partialDir: paths.sessionDir,
-      m4aPath: fs.existsSync(paths.m4aPath) ? paths.m4aPath : null,
-    };
-  }
+        onProgress,
+      });
+      cleanupLiveAfterSuccess(paths.sessionDir, result.sessionDir);
+      return result;
+    },
+  });
+
+  return {
+    ok: true,
+    queued: true,
+    baseName: paths.baseName,
+    ...jobsSnapshot(),
+  };
 });
 
 ipcMain.handle('meeting:open-path', async (_evt, targetPath) => {
@@ -781,7 +1026,7 @@ ipcMain.handle('meeting:cancel-session', async (event) => {
 });
 
 ipcMain.handle('meeting:quit-app', async () => {
-  forceQuitApp();
+  requestQuit();
   return { ok: true };
 });
 
@@ -814,6 +1059,19 @@ ipcMain.on('meeting:window-drag', (event, { dx, dy }) => {
   if (!win || win.isDestroyed()) return;
   const [x, y] = win.getPosition();
   win.setPosition(x + dx, y + dy);
+});
+
+ipcMain.on('meeting:window-size', (event, { width, height }) => {
+  const win = getWindowFromEvent(event);
+  if (!win || win.isDestroyed()) return;
+  const w = Math.round(Number(width));
+  const h = Math.round(Number(height));
+  if (!Number.isFinite(w) || !Number.isFinite(h)) return;
+  const nextW = Math.min(260, Math.max(112, w));
+  const nextH = WIN_H;
+  const [cw, ch] = win.getContentSize();
+  if (cw === nextW && ch === nextH) return;
+  win.setContentSize(nextW, nextH);
 });
 
 process.on('uncaughtException', (err) => {

@@ -16,5 +16,11 @@ contextBridge.exposeInMainWorld('meetingApi', {
     ipcRenderer.on('meeting:transcribe-progress', handler);
     return () => ipcRenderer.removeListener('meeting:transcribe-progress', handler);
   },
+  onJobsUpdated: (cb) => {
+    const handler = (_evt, payload) => cb(payload);
+    ipcRenderer.on('meeting:jobs-updated', handler);
+    return () => ipcRenderer.removeListener('meeting:jobs-updated', handler);
+  },
   dragWindow: (dx, dy) => ipcRenderer.send('meeting:window-drag', { dx, dy }),
+  setWindowSize: (width, height) => ipcRenderer.send('meeting:window-size', { width, height }),
 });

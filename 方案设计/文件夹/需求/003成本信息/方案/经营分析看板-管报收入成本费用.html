@@ -1,0 +1,645 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>经营分析看板（新）· 管报收入成本费用</title>
+  <style>
+    :root {
+      --bg: #eef3f8; --text: #0f172a; --muted: #64748b; --line: #e2e8f0;
+      --ink: #0f2f63; --neg: #cf1322; --shadow: 0 8px 24px rgba(15, 23, 42, .06);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; font-family: "PingFang SC", "Microsoft YaHei", sans-serif;
+      background: var(--bg); color: var(--text); line-height: 1.55;
+    }
+    .top { background: #1677ff; color: #fff; padding: 14px 22px 16px; }
+    .top h1 { margin: 0; font-size: 18px; font-weight: 700; }
+    .top p { margin: 6px 0 0; font-size: 12px; opacity: .92; }
+    .wrap { max-width: 1360px; margin: 0 auto; padding: 16px 16px 40px; }
+    .note {
+      background: #fff; border: 1px solid var(--line); border-radius: 12px;
+      padding: 12px 14px; font-size: 13px; box-shadow: var(--shadow); margin-bottom: 12px;
+    }
+    .note strong { color: var(--ink); }
+    .filters { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+    .filters span {
+      background: #fff; border: 1px solid var(--line); border-radius: 8px;
+      padding: 6px 10px; font-size: 12px; color: #334155;
+    }
+    .kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 12px; }
+    .kpi {
+      background: #fff; border: 1px solid var(--line); border-radius: 12px;
+      padding: 12px 14px; box-shadow: var(--shadow); cursor: pointer;
+    }
+    .kpi:hover, .kpi.on { border-color: #91caff; background: #f5faff; }
+    .kpi .k { font-size: 12px; color: var(--muted); }
+    .kpi .v { margin-top: 4px; font-size: 22px; font-weight: 700; color: var(--ink); font-variant-numeric: tabular-nums; }
+    .kpi .s { margin-top: 2px; font-size: 12px; color: var(--muted); }
+    .layout { display: grid; grid-template-columns: minmax(0, 1fr) 420px; gap: 12px; align-items: start; }
+    .sheet, .panel { background: #fff; border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--shadow); }
+    .sheet h2, .panel h2 {
+      margin: 0; padding: 12px 14px; font-size: 14px; color: var(--ink); border-bottom: 1px solid var(--line);
+    }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th, td { padding: 8px 12px; text-align: left; border-bottom: 1px solid #f1f5f9; vertical-align: middle; }
+    th { font-size: 12px; color: var(--muted); font-weight: 600; background: #fafbfc; }
+    td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+    tr.sec td { background: #f8fbff; font-weight: 700; color: var(--ink); font-size: 12px; }
+    tr.total td { background: #f0f7ff; font-weight: 700; }
+    tr.result td { background: #ecfdf5; font-weight: 800; color: #065f46; }
+    tr.item { cursor: pointer; }
+    tr.item:hover td { background: #f8fbff; }
+    tr.item.on td { background: #e6f4ff; }
+    tr.item td:first-child { padding-left: 22px; }
+    .nm { font-weight: 600; }
+    .tag {
+      display: inline-block; margin-left: 6px; padding: 1px 6px; border-radius: 4px;
+      background: #f1f5f9; color: #64748b; font-size: 11px; font-weight: 400; line-height: 1.6;
+    }
+    .neg { color: var(--neg); }
+    .hint { font-size: 11px; color: var(--muted); font-weight: 400; }
+    .panel { position: sticky; top: 12px; max-height: calc(100vh - 24px); overflow: auto; }
+    .panel .bd { padding: 14px; }
+    .panel h3 { margin: 0 0 4px; font-size: 16px; color: var(--ink); }
+    .path { font-size: 12px; color: var(--muted); margin-bottom: 6px; }
+    .amt { font-size: 26px; font-weight: 800; color: var(--ink); font-variant-numeric: tabular-nums; }
+    .amt.neg { color: var(--neg); }
+    .formula {
+      margin: 10px 0; padding: 10px 12px; background: #f8fafc; border-radius: 8px;
+      font-size: 13px; font-weight: 600; color: #0f2f63;
+    }
+    .block { margin-top: 12px; }
+    .block h4 { margin: 0 0 6px; font-size: 13px; color: var(--ink); }
+    .block p { font-size: 13px; margin: 0; }
+    .mini { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 6px; }
+    .mini th, .mini td { border: 1px solid var(--line); padding: 6px 8px; }
+    .mini th { background: #f8fafc; }
+    .tagline {
+      display: block; margin-top: 8px; font-size: 12px; color: #92400e;
+      background: #fffbeb; border: 1px solid #fcd34d; border-radius: 8px; padding: 8px 10px;
+    }
+    @media (max-width: 980px) {
+      .layout, .kpis { grid-template-columns: 1fr; }
+      .panel { position: static; max-height: none; }
+    }
+  </style>
+</head>
+<body>
+  <header class="top">
+    <h1>经营分析看板（新）· 管报科目</h1>
+    <p>Shopify 示例 · Govee US · 2026-09-24 至 2026-09-30 · SKU H61991。行上是末级名称，标签是全路径。点击金额看取值。</p>
+  </header>
+  <div class="wrap">
+    <div class="note">
+      <strong>口径：</strong>
+      成本只留出货授权成本、退货成本，不拆采购、关税、预留毛利。
+      退货零售销售额 = RRP × 退货 10 件。退款 640 进退货销售收入。
+      头程 = 单件头程 ×（发货销量 − 退货销量），原来的退回运费（头程单价 × 退货数量）已含在这个差额里，不再单列。
+      营业收入 = 发货零售销售额 + 退货零售销售额 + 发货销售收入 + 退货销售收入 − 渠道激励 − 税。包装、运费、包裹险放在费用里。
+    </div>
+    <div class="filters">
+      <span>平台 Shopify</span>
+      <span>站点 Govee US</span>
+      <span>2026-09-24 ~ 2026-09-30</span>
+      <span>币种 USD</span>
+      <span>汇率 1 美元 = 6.60 人民币</span>
+      <span>RRP 80.00</span>
+    </div>
+    <div class="kpis" id="kpis"></div>
+    <div class="layout">
+      <section class="sheet">
+        <h2>管报损益 <span class="hint">示例等于这一条 SKU。Shopify 没有的科目不铺 0</span></h2>
+        <table>
+          <thead>
+            <tr><th>科目</th><th class="num">金额 (USD)</th><th class="num">占发货零售销售额</th></tr>
+          </thead>
+          <tbody id="sheet"></tbody>
+        </table>
+      </section>
+      <aside class="panel">
+        <h2>取值逻辑</h2>
+        <div class="bd" id="detail"></div>
+      </aside>
+    </div>
+  </div>
+  <script>
+    function round2(n) { return Math.round((n + Number.EPSILON) * 100) / 100; }
+
+    const F = (() => {
+      const fx = 6.6;
+      const rrp = 80;
+      const shipQty = 100;
+      const returnQty = 10;
+      const shipRetail = rrp * shipQty;
+      const returnRetail = -(rrp * returnQty);
+      const shipSales = 0;
+      const returnSales = -640;
+      const priceProtect = 0;
+      const strikeDiscount = 0;
+      const discount = 320;
+      const channelIncentive = priceProtect + strikeDiscount + discount;
+      const tax = 480;
+      const revenue = shipRetail + returnRetail + shipSales + returnSales - channelIncentive - tax;
+
+      const authPurchase = 50;
+      const authTariff = 10;
+      const reserveRate = 0.1;
+      const unitCny = (authPurchase + authTariff) * (1 + reserveRate);
+      const unitUsd = unitCny / fx;
+      const shipAuth = round2(unitUsd * shipQty);
+      const returnCost = round2(-unitUsd * returnQty);
+      const goods = round2(shipAuth + returnCost);
+
+      const headUnitUsd = 13.2 / fx;
+      const head = round2(headUnitUsd * (shipQty - returnQty));
+      const tail = 320;
+      const storage = 80;
+
+      const acquire = round2(revenue * 0.05);
+      const platformOther = round2(revenue * 0.025);
+      const parcelIncome = 120;
+      const seelDeduct = round2(parcelIncome * 0.06);
+      const freightIncome = 200;
+      const salesSample = 0;
+      const adsGeneral = 0;
+      const ads = 500;
+
+      const feeTotal = round2(
+        acquire + platformOther + seelDeduct + ads + head + tail + storage
+        - freightIncome - parcelIncome
+      );
+      const gross = round2(revenue - goods - feeTotal);
+
+      const curPurchase = (shipQty - returnQty) * authPurchase / fx;
+      const curTariff = shipQty * authTariff / fx;
+      const curReserve = (curPurchase + curTariff) * reserveRate;
+
+      return {
+        fx, rrp, shipQty, returnQty, shipRetail, returnRetail, shipSales, returnSales,
+        priceProtect, strikeDiscount, discount, channelIncentive, tax, revenue, authPurchase, authTariff, reserveRate, unitCny, unitUsd,
+        shipAuth, returnCost, goods, headUnitUsd, head, tail, storage,
+        acquire, platformOther, salesSample, adsGeneral, parcelIncome, seelDeduct, freightIncome, ads, feeTotal, gross,
+        curPurchase, curTariff, curReserve
+      };
+    })();
+
+    function fmt(n) {
+      const v = round2(n);
+      const abs = Math.abs(v).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      return v < 0 ? "-" + abs : abs;
+    }
+    function pct(n) {
+      return (n / F.shipRetail * 100).toFixed(2) + "%";
+    }
+    function table(pairs) {
+      return "<table class=\"mini\"><tbody>" + pairs.map((p) => "<tr><td>" + p[0] + "</td><td class=\"num\">" + p[1] + "</td></tr>").join("") + "</tbody></table>";
+    }
+
+    const rows = [
+      { type: "sec", name: "收入 / 销量" },
+      { id: "shipQty", name: "发货销量", path: "收入 / 销量 / 发货销量", qty: F.shipQty },
+      { id: "returnQty", name: "退货销量", path: "收入 / 销量 / 退货销量", qty: F.returnQty },
+
+      { type: "sec", name: "收入 / 零售销售额" },
+      { id: "shipRetail", name: "发货零售销售额", path: "收入 / 零售销售额 / 发货零售销售额", amount: F.shipRetail },
+      { id: "returnRetail", name: "退货零售销售额", path: "收入 / 零售销售额 / 退货零售销售额", amount: F.returnRetail },
+
+      { type: "sec", name: "收入 / 销售收入" },
+      { id: "shipSales", name: "发货销售收入", path: "收入 / 销售收入 / 发货销售收入", amount: F.shipSales },
+      { id: "returnSales", name: "退货销售收入", path: "收入 / 销售收入 / 退货销售收入", amount: F.returnSales },
+
+      { type: "sec", name: "收入 / 渠道激励" },
+      { id: "priceProtect", name: "价保", path: "收入 / 渠道激励 / 价保", amount: -F.priceProtect },
+      { type: "sec", name: "收入 / 渠道激励 / 临时激励" },
+      { id: "strikeDiscount", name: "划线价折扣", path: "收入 / 渠道激励 / 临时激励 / 划线价折扣", amount: -F.strikeDiscount },
+      { id: "discount", name: "常规折扣", path: "收入 / 渠道激励 / 临时激励 / 常规折扣", amount: -F.discount },
+
+      { type: "sec", name: "收入" },
+      { id: "tax", name: "税", path: "收入 / 税", amount: -F.tax },
+      { id: "revenue", name: "营业收入", path: "收入 / 营业收入", amount: F.revenue, total: true },
+
+      { type: "sec", name: "成本" },
+      { id: "shipAuth", name: "出货授权成本", path: "成本 / 出货授权成本", amount: F.shipAuth },
+      { id: "returnCost", name: "退货成本", path: "成本 / 退货成本", amount: F.returnCost },
+      { id: "goods", name: "成本合计", path: "", amount: F.goods, total: true, calc: true },
+
+      { type: "sec", name: "费用 / 市场投入 / 销售投入 / 自主营销 / 平台费用" },
+      { id: "acquire", name: "支付通道手续费", path: "费用 / 市场投入 / 销售投入 / 自主营销 / 平台费用 / 支付通道手续费", amount: F.acquire },
+      { id: "platformOther", name: "平台其他", path: "费用 / 市场投入 / 销售投入 / 自主营销 / 平台费用 / 平台其他", amount: F.platformOther },
+      { id: "salesSample", name: "销售样机", path: "费用 / 市场投入 / 销售投入 / 自主营销 / 平台费用 / 销售样机", amount: F.salesSample },
+
+      { type: "sec", name: "费用 / 市场投入 / 销售投入 / 自主营销 / 广告投放" },
+      { id: "adsGeneral", name: "广告投放", path: "费用 / 市场投入 / 销售投入 / 自主营销 / 广告投放 / 广告投放", amount: F.adsGeneral },
+      { id: "ads", name: "电商站内投放", path: "费用 / 市场投入 / 销售投入 / 自主营销 / 广告投放 / 电商站内投放", amount: F.ads },
+
+      { type: "sec", name: "费用 / 公共费用 / 仓储物流 / 物流费用" },
+      { id: "head", name: "头程", path: "费用 / 公共费用 / 仓储物流 / 物流费用 / 头程", amount: F.head },
+      { id: "tail", name: "尾程", path: "费用 / 公共费用 / 仓储物流 / 物流费用 / 尾程", amount: F.tail },
+      { id: "storage", name: "仓储租金", path: "费用 / 公共费用 / 仓储物流 / 物流费用 / 仓储租金", amount: F.storage },
+
+      { type: "sec", name: "费用 / 其它费用 / 运费收入 / 运费收入" },
+      { id: "freightIncome", name: "发货运费收入", path: "费用 / 其它费用 / 运费收入 / 运费收入 / 发货运费收入", amount: -F.freightIncome },
+
+      { type: "sec", name: "费用 / 其它费用 / 包裹险" },
+      { id: "parcelIncome", name: "包裹险收入", path: "费用 / 其它费用 / 包裹险 / 包裹险收入", amount: -F.parcelIncome },
+      { id: "seelDeduct", name: "包裹险扣减", path: "费用 / 其它费用 / 包裹险 / 包裹险扣减", amount: F.seelDeduct },
+
+      { id: "feeTotal", name: "费用合计", path: "", amount: F.feeTotal, total: true, calc: true },
+      { id: "gross", name: "毛利", path: "毛利", amount: F.gross, result: true }
+    ];
+
+    const details = {
+      shipQty: {
+        formula: "发货销量 = 区间发货件数",
+        blocks: [
+          ["取值", "Shopify 发货单件数，排除作废，按订单购买日归集。本例与订单支付件数相同，都是 100。"],
+          ["演算", table([["发货销量", "100 件"]])]
+        ]
+      },
+      returnQty: {
+        formula: "退货销量 = 海外仓退货件数",
+        blocks: [
+          ["取值", "海外仓退货单件数，按退货日归集。不使用退款件数。本例退款 8 件只影响退货销售收入，不改这 10 件。"],
+          ["演算", table([["退货销量", "10 件"]])]
+        ]
+      },
+      shipRetail: {
+        formula: "发货零售销售额 = RRP × 发货销量",
+        blocks: [
+          ["取值", "RRP 用 Shopify 变体标价，折美元。件数用发货销量，含后来退货的件数，不扣退款。"],
+          ["演算", table([["RRP", "80.00"], ["发货销量", "100 件"], ["发货零售销售额", "80 × 100 = 8,000.00"]])]
+        ]
+      },
+      returnRetail: {
+        formula: "退货零售销售额 = − RRP × 退货销量",
+        blocks: [
+          ["取值", "按零售价另算，不使用退款金额。表上记负数，营业收入里与发货零售销售额相加。"],
+          ["演算", table([["RRP", "80.00"], ["退货销量", "10 件"], ["退货零售销售额", "−80 × 10 = −800.00"]])]
+        ]
+      },
+      shipSales: {
+        formula: "发货销售收入 = 成交价口径的发货收入",
+        blocks: [
+          ["取值", "管报与零售销售额分开。本例零售额已用 RRP，没有另一套成交销售收入，记 0。"],
+          ["演算", table([["发货销售收入", "0.00"]])]
+        ]
+      },
+      returnSales: {
+        formula: "退货销售收入 = − Shopify 退款金额",
+        blocks: [
+          ["取值", "退款快照金额，折美元。本例 640，不是 RRP × 退货 10 件。表上记负数。"],
+          ["演算", table([["退款金额", "640.00"], ["退货销售收入", "−640.00"]])],
+          ["和零售额的区别", "退货零售销售额是 −800（10 × 80）。退货销售收入是 −640。两行都进营业收入，不互相替代。"]
+        ]
+      },
+      priceProtect: {
+        formula: "价保 = 期间确认的价格保护金额",
+        blocks: [
+          ["挂接", "管报挂在收入 / 渠道激励 / 价保，与临时激励并列，不放进临时激励下面。营业收入里随渠道激励一起扣减。"],
+          ["件数", "不按发货件数或退货件数推算。价保是渠道补差，不是订单行折扣。"],
+          ["取值", "有价保单时，取该店铺、该区间已确认的价保金额，折美元。Shopify 独立站没有渠道价保。"],
+          ["不采用", "不把订单折扣、划线价差额算进价保。近 12 个月管报和手填不作为报表自动口径。"],
+          ["演算", table([
+            ["本例价保单", "无"],
+            ["发货 / 退货", "100 / 10，不参与"],
+            ["价保", "0.00"]
+          ])]
+        ]
+      },
+      strikeDiscount: {
+        formula: "划线价折扣 = （划线价 − 成交价）× 发货销量 − （划线价 − 成交价）× 退货销量",
+        blocks: [
+          ["挂接", "管报挂在收入 / 渠道激励 / 临时激励 / 划线价折扣。和常规折扣一起从营业收入里扣。"],
+          ["件数", "发货按发货销量计，退货按退货销量冲回。只统计划线价高于成交价的订单行。"],
+          ["取值", "划线价取 Shopify 变体的 compare-at price，成交价取该行实际售价，都不含税。没有划线价，或划线价小于等于成交价，该行记 0。"],
+          ["不并入", "优惠码、订单折扣、自动折扣进常规折扣，不进划线价折扣。价保也不进本行。近 12 个月管报和手填不作为报表自动口径。"],
+          ["演算", table([
+            ["本例划线价", "无高于成交价的划线价"],
+            ["发货 / 退货", "100 / 10"],
+            ["划线价折扣", "0.00"],
+            ["订单折扣另计", "320.00 进常规折扣，不在本行重复扣"]
+          ])]
+        ]
+      },
+      discount: {
+        formula: "常规折扣 = 订单折扣合计",
+        blocks: [
+          ["挂接", "管报挂在收入 / 渠道激励 / 临时激励 / 常规折扣。"],
+          ["件数", "按订单已发生的折扣金额取，不再乘退货件数。退货对应的折扣退回若在退款金额里，已进退货销售收入，本行不重复冲。"],
+          ["取值", "Shopify 订单行折扣、优惠码、自动折扣，按支付月汇率折美元。不含划线价与成交价的差额。"],
+          ["不并入", "划线价折扣、价保不进本行。近 12 个月管报和手填不作为报表自动口径。"],
+          ["演算", table([
+            ["订单折扣", "320.00"],
+            ["划线价折扣", "0.00，不重复"],
+            ["常规折扣", "−320.00"]
+          ])],
+          ["营业收入", "渠道激励按正数扣减。本例价保 0 + 划线价折扣 0 + 常规折扣 320 = 320。表上这一行显示为 −320。"]
+        ]
+      },
+      tax: {
+        formula: "税 = 订单税额",
+        blocks: [
+          ["取值", "美国、加拿大有行税用行税。本例 480。"],
+          ["演算", table([["订单税额", "480.00"], ["税", "−480.00"]])],
+          ["营业收入", "税按正数 480 从营业收入中减去。表上这一行直接显示为 −480。"]
+        ]
+      },
+      revenue: {
+        formula: "营业收入 = 发货零售销售额 + 退货零售销售额 + 发货销售收入 + 退货销售收入 − 渠道激励 − 税",
+        blocks: [
+          ["演算", table([
+            ["发货零售销售额", "8,000.00"],
+            ["退货零售销售额", "−800.00"],
+            ["发货销售收入", "0.00"],
+            ["退货销售收入", "−640.00"],
+            ["减：价保", "0.00"],
+            ["减：划线价折扣", "0.00"],
+            ["减：常规折扣", "320.00"],
+            ["减：税", "480.00"],
+            ["营业收入", "5,760.00"]
+          ])],
+          ["不含", "包装、运费、包裹险不进营业收入，放在费用 / 其它费用。"]
+        ]
+      },
+      shipAuth: {
+        formula: "出货授权成本 = 出货授权单价 × 发货销量",
+        blocks: [
+          ["单价", "（授权采购价 + 授权关税）×（1 + 预留毛利率），不含头程。三数缺一则单价按 0。页面不把采购、关税、预留拆成三行。"],
+          ["件数", "用发货销量 100。退货 10 件不从这行减，放在退货成本。"],
+          ["演算", table([
+            ["授权采购价", "50.00 元"],
+            ["授权关税", "10.00 元"],
+            ["预留毛利率", "10%"],
+            ["单价", "(50 + 10) × 1.10 = 66.00 元"],
+            ["折美元", "66.00 / 6.60 = 10.00"],
+            ["发货销量", "100"],
+            ["出货授权成本", "1,000.00"]
+          ])]
+        ],
+        warn: "现网拆开且件数不统一：采购按 90 件约 681.82，关税按 100 件约 151.52，预留约 83.33，合计约 916.67。本页合成 1,000.00。"
+      },
+      returnCost: {
+        formula: "退货成本 = − 出货授权单价 × 退货销量",
+        blocks: [
+          ["取值", "单价与出货授权成本相同，一次冲回采购、关税、预留。页面不拆退货采购成本、退货关税、退货预留毛利。"],
+          ["演算", table([
+            ["出货授权单价", "10.00"],
+            ["退货销量", "10 件"],
+            ["退货成本", "−100.00"]
+          ])]
+        ],
+        warn: "现网只按授权采购价冲回约 75.76。本页整笔冲回 100.00。"
+      },
+      goods: {
+        formula: "成本合计 = 出货授权成本 + 退货成本",
+        blocks: [
+          ["演算", table([["出货授权成本", "1,000.00"], ["退货成本", "−100.00"], ["成本合计", "900.00"]])]
+        ]
+      },
+      acquire: {
+        formula: "支付通道手续费 = 营业收入 × 收单费率",
+        blocks: [
+          ["件数", "不按发货件数，也不按退货件数冲回。退的是货，收单费按收入金额算。"],
+          ["已配置", "取该店铺、该自然月的成本费率配置里的收单费率，乘本页营业收入。营业收入小于等于 0 时，本项记 0。"],
+          ["未配置", "美国站现网默认 4.94%，加拿大 5.4%，英国 5.74%，欧洲 4.94%。本例为对齐整数，美国站按 5% 演示。"],
+          ["不采用", "不用 MSKU 成本页「售价 × 5.5%」的单件试算。近 12 个月管报和手填不作为报表自动口径。"],
+          ["演算", table([
+            ["营业收入", "5,760.00"],
+            ["收单费率", "5%"],
+            ["发货 / 退货", "100 / 10，不参与"],
+            ["支付通道手续费", "5,760.00 × 5% = 288.00"]
+          ])]
+        ]
+      },
+      platformOther: {
+        formula: "平台其他 = 营业收入 × 其他费率",
+        blocks: [
+          ["件数", "不按发货件数，也不按退货件数冲回。"],
+          ["已配置", "取同一套店铺费率里的「其他」费率，乘本页营业收入。营业收入小于等于 0 时记 0。"],
+          ["未配置", "美国站现网默认 2.39%，加拿大 5.26%，英国 2.54%，欧洲 2.26%。本例美国站按 2.5% 演示。"],
+          ["不并入", "收单放支付通道手续费，仓租放仓储租金，Seel 的 6% 放包裹险扣减。这三项都不进平台其他。近 12 个月管报和手填不作为报表自动口径。"],
+          ["演算", table([
+            ["营业收入", "5,760.00"],
+            ["其他费率", "2.5%"],
+            ["发货 / 退货", "100 / 10，不参与"],
+            ["平台其他", "5,760.00 × 2.5% = 144.00"]
+          ])]
+        ]
+      },
+      salesSample: {
+        formula: "销售样机 = 销售领用样机的货值",
+        blocks: [
+          ["挂接", "管报挂在费用 / 市场投入 / 销售投入 / 自主营销 / 平台费用 / 销售样机。给渠道、门店销售用的样机，不是广告投放下的营销样机。"],
+          ["件数", "按样机出库件数计。退货若走销售退货单，不在本行按退货销量冲；样机报废或未退回，本行不冲回。"],
+          ["取值", "样机出库数量 × 出货授权单价。没有销售样机出库时记 0。"],
+          ["不并入", "不把电商广告花费、营销寄样算进本行。近 12 个月管报和手填不作为报表自动口径。"],
+          ["演算", table([
+            ["本例销售样机出库", "无"],
+            ["发货 / 退货", "100 / 10，不参与"],
+            ["销售样机", "0.00"]
+          ])]
+        ]
+      },
+      adsGeneral: {
+        formula: "广告投放 = 未归入站内、站外的广告花费",
+        blocks: [
+          ["挂接", "管报挂在费用 / 市场投入 / 销售投入 / 自主营销 / 广告投放 / 广告投放。与电商站内投放并列，不包含站内花费。"],
+          ["件数", "不减退货件数。广告已经花出，不随退货冲回。"],
+          ["已关账", "该月广告账单中，不能归入电商站内、电商站外的花费，按店铺汇总后折美元。"],
+          ["未关账", "区间内已经拉到、且未归入站内或站外的花费。没有则记 0，不用费率去估这一行。"],
+          ["不并入", "本例站内花费 500 已在电商站内投放，不在本行重复扣。近 12 个月管报和手填不作为报表自动口径。"],
+          ["演算", table([
+            ["未归类广告花费", "0.00"],
+            ["电商站内投放另计", "500.00"],
+            ["广告投放", "0.00"]
+          ])]
+        ]
+      },
+      ads: {
+        formula: "电商站内投放 = 区间站内广告花费",
+        blocks: [
+          ["件数", "不减退货件数。广告已经花出，不随退货冲回。"],
+          ["已关账", "该月广告账单中的电商站内花费，按店铺、SKU、日期汇总后折美元。"],
+          ["未关账", "先用区间内已经拉到的站内花费。还没有花费时，用该月营销费率 × 营业收入。"],
+          ["不并入", "站外投放、品牌营销、样品费不进本行。近 12 个月管报和手填不作为报表自动口径。"],
+          ["演算", table([
+            ["本区间站内花费", "500.00"],
+            ["发货 / 退货", "100 / 10"],
+            ["电商站内投放", "仍扣 500.00，不按 90 件折"]
+          ])]
+        ]
+      },
+      head: {
+        formula: "头程 = 单件头程 ×（发货销量 − 退货销量）",
+        blocks: [
+          ["件数", "减退货件数。原先单独的退回运费 = 头程单价 × 退货数量，现已含在这个差额里，页面不再单列。"],
+          ["有货件", "用系统回写的空运单价、海运单价，按系统海运比加权，得到单件头程（人民币）。不含关税。再除以发货月人民币兑美元汇率。"],
+          ["无货件", "用预估空运 × 空运比 + 预估海运 × 海运比。有快照时优先用该月销售日利润快照的单 pcs 头程。"],
+          ["不采用", "关税不进头程，关税在出货授权单价里。近 12 个月管报和手填不作为报表自动口径。"],
+          ["演算", table([
+            ["单件头程", "13.20 元 ÷ 6.60 = 2.00 美元"],
+            ["发货销量", "100"],
+            ["退货销量", "10"],
+            ["头程", "2.00 × (100 − 10) = 180.00"]
+          ])]
+        ],
+        warn: "现网头程只乘发货 100 件，是 200.00，不减退货。本页是 180.00。"
+      },
+      tail: {
+        formula: "尾程 = 尾程单价 × 本期发货件数",
+        blocks: [
+          ["件数", "不减退货件数。货已发出，尾程不随退货冲回。"],
+          ["已关账", "该月海外仓账单尾程 ÷ 发货件数，得到单价，再 × 本期发货件数。"],
+          ["未关账", "上月实际尾程单价 × 本期发货件数。"],
+          ["仍无账单", "物流看板上月订单每公斤单价 × 总重量。"],
+          ["不采用", "近 12 个月管报和手填不作为报表自动口径。"],
+          ["演算", table([
+            ["上月尾程单价", "3.20 美元"],
+            ["发货 / 退货", "100 / 10"],
+            ["尾程", "3.20 × 100 = 320.00"]
+          ])]
+        ]
+      },
+      storage: {
+        formula: "仓储租金 = 该月仓租账单；未关账则上月单价 × 本期发货件数",
+        blocks: [
+          ["件数", "不按退货件数冲回。仓租是仓库占用，不是随货退回的运费。"],
+          ["已关账", "取 Shopify 物流看板该月仓租总额。运费、其他操作费不并入本列。同期 pcs 为 0 或没有仓租时记 0。"],
+          ["未关账", "上月仓租 ÷ 上月 pcs，得到单价，再 × 本期发货件数。"],
+          ["不采用", "近 12 个月管报和手填不作为报表自动口径。现网经营分析不扣仓储，本页按管报单列。"],
+          ["演算", table([
+            ["本月仓租账单", "80.00"],
+            ["发货 / 退货", "100 / 10"],
+            ["仓储租金", "仍扣 80.00，不按 90 件折"]
+          ])]
+        ]
+      },
+      freightIncome: {
+        formula: "发货运费收入 = − 订单发货运费",
+        blocks: [
+          ["件数", "不按退货件数从发货运费里扣。退货产生的运费退回不在本行，本例没有退货运费收入，不单列。"],
+          ["取值", "Shopify 订单上的发货运费，按支付月汇率折美元。"],
+          ["入账", "不进营业收入。挂在费用 / 其它费用，表上记负数，冲减费用合计。"],
+          ["不采用", "近 12 个月管报和手填不作为报表自动口径。"],
+          ["演算", table([
+            ["订单发货运费", "200.00"],
+            ["发货 / 退货", "100 / 10，不从运费里扣"],
+            ["发货运费收入", "−200.00"]
+          ])]
+        ]
+      },
+      parcelIncome: {
+        formula: "包裹险收入 = − Seel 行销售额",
+        blocks: [
+          ["件数", "不按退货件数改这一行。按 Seel 订单行的销售额取。"],
+          ["取值", "识别无忧达 / Seel SKU。美国、加拿大有行税则用销售额减税；没有行税则按店铺税率扣税，再折美元。"],
+          ["入账", "不进营业收入。现网是把 Seel 从净销售里剔除；本页改挂在费用 / 其它费用，表上记负数。"],
+          ["不采用", "近 12 个月管报和手填不作为报表自动口径。"],
+          ["演算", table([
+            ["Seel 行销售额", "120.00"],
+            ["发货 / 退货", "100 / 10，不参与"],
+            ["包裹险收入", "−120.00"]
+          ])]
+        ]
+      },
+      seelDeduct: {
+        formula: "包裹险扣减 = Seel 销售额 × 6%",
+        blocks: [
+          ["件数", "不按退货件数冲回。按 Seel 销售额乘固定比例。"],
+          ["基数", "用 Seel 销售额的正数 120.00，不用表上包裹险收入的 −120.00，避免乘出负数。"],
+          ["比例", "沿用现网汇总层的 6%。这一笔不并进平台其他，也不并进支付通道手续费。"],
+          ["不采用", "近 12 个月管报和手填不作为报表自动口径。"],
+          ["演算", table([
+            ["Seel 销售额", "120.00"],
+            ["比例", "6%"],
+            ["包裹险扣减", "120.00 × 6% = 7.20"]
+          ])]
+        ]
+      },
+      feeTotal: {
+        formula: "费用合计 = 各项费用相加（收入类科目已是负数）",
+        blocks: [
+          ["演算", table([
+            ["支付通道手续费", "288.00"],
+            ["平台其他", "144.00"],
+            ["销售样机", "0.00"],
+            ["广告投放", "0.00"],
+            ["电商站内投放", "500.00"],
+            ["头程", "180.00"],
+            ["尾程", "320.00"],
+            ["仓储租金", "80.00"],
+            ["发货运费收入", "−200.00"],
+            ["包裹险收入", "−120.00"],
+            ["包裹险扣减", "7.20"],
+            ["费用合计", "1,199.20"]
+          ])]
+        ]
+      },
+      gross: {
+        formula: "毛利 = 营业收入 − 出货授权成本 − 退货成本 − 费用合计",
+        blocks: [
+          ["演算", table([
+            ["营业收入", "5,760.00"],
+            ["出货授权成本", "1,000.00"],
+            ["退货成本", "−100.00"],
+            ["费用合计", "1,199.20"],
+            ["毛利", "3,660.80"]
+          ])],
+          ["利润率", "占发货零售销售额 3,660.80 / 8,000.00 = 45.76%。"]
+        ]
+      }
+    };
+
+    function renderSheet() {
+      document.getElementById("sheet").innerHTML = rows.map((row) => {
+        if (row.type === "sec") return "<tr class=\"sec\"><td colspan=\"3\">" + row.name + "</td></tr>";
+        const cls = ["item", row.total ? "total" : "", row.result ? "result" : ""].filter(Boolean).join(" ");
+        const label = "<span class=\"nm\">" + row.name + "</span>" + (row.path ? "<span class=\"tag\">" + row.path + "</span>" : "");
+        if (row.qty != null) {
+          return "<tr class=\"" + cls + "\" data-id=\"" + row.id + "\"><td>" + label + "</td><td class=\"num\">" + row.qty + " 件</td><td class=\"num\">—</td></tr>";
+        }
+        const numCls = row.amount < 0 ? "num neg" : "num";
+        return "<tr class=\"" + cls + "\" data-id=\"" + row.id + "\"><td>" + label + "</td><td class=\"" + numCls + "\">" + fmt(row.amount) + "</td><td class=\"num\">" + pct(row.amount) + "</td></tr>";
+      }).join("");
+    }
+
+    function renderKpis() {
+      const items = [
+        ["revenue", "营业收入", F.revenue, "渠道激励、税为扣减"],
+        ["goods", "成本合计", F.goods, "出货授权 1,000 + 退货 −100"],
+        ["feeTotal", "费用合计", F.feeTotal, "运费、包裹险已冲减"],
+        ["gross", "毛利", F.gross, "占发货零售销售额 45.76%"]
+      ];
+      document.getElementById("kpis").innerHTML = items.map((it) =>
+        "<div class=\"kpi\" data-id=\"" + it[0] + "\"><div class=\"k\">" + it[1] + "</div><div class=\"v\">" + fmt(it[2]) + "</div><div class=\"s\">" + it[3] + "</div></div>"
+      ).join("");
+    }
+
+    function show(id) {
+      const row = rows.find((r) => r.id === id);
+      const d = details[id];
+      if (!row || !d) return;
+      document.querySelectorAll("[data-id]").forEach((el) => el.classList.toggle("on", el.getAttribute("data-id") === id));
+      const shown = row.qty != null ? row.qty + " 件" : fmt(row.amount);
+      const numCls = row.amount < 0 ? "amt neg" : "amt";
+      const blocks = d.blocks.map((b) => "<div class=\"block\"><h4>" + b[0] + "</h4>" + (b[1].indexOf("<table") === 0 ? b[1] : "<p>" + b[1] + "</p>") + "</div>").join("");
+      const warn = d.warn ? "<div class=\"tagline\">" + d.warn + "</div>" : "";
+      document.getElementById("detail").innerHTML =
+        "<h3>" + row.name + "</h3>" + (row.path ? "<div class=\"path\">" + row.path + "</div>" : "") +
+        "<div class=\"" + numCls + "\">" + shown + "</div><div class=\"formula\">" + d.formula + "</div>" + blocks + warn;
+    }
+
+    document.body.addEventListener("click", (e) => {
+      const el = e.target.closest("[data-id]");
+      if (!el) return;
+      show(el.getAttribute("data-id"));
+    });
+
+    renderKpis();
+    renderSheet();
+    show("revenue");
+  </script>
+</body>
+</html>
