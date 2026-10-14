@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>管报二期 · 费用分析与来源追溯</title>
+  <title>管报二期 · 损益与来源追溯</title>
   <link rel="stylesheet" href="mgmt-report-v2.css">
   <script src="../../../规范/assets/date-range-picker.js"></script>
 </head>
@@ -19,8 +19,8 @@
     <main class="main">
       <header class="header">
         <div>
-          <div class="title">管报二期 · 费用分析与来源追溯</div>
-          <div class="header-sub">费用项展示、明细下钻、来源摘要、计算过程、财报差异</div>
+          <div class="title">管报二期 · 损益与来源追溯</div>
+          <div class="header-sub">损益表、费用趋势、明细下钻、来源摘要、财报差异</div>
         </div>
         <nav class="nav-tabs" aria-label="页面导航">
           <button class="nav-tab active" data-tab="overview">总览</button>
@@ -54,13 +54,20 @@
               <label class="f-item f-item--range">日期范围
                 <span id="fDateRange" class="date-range-host"></span>
               </label>
+              <label class="f-item">币种
+                <select class="ctl" id="fCurrency">
+                  <option value="USD">美元 USD</option>
+                  <option value="CNY">人民币 CNY</option>
+                  <option value="EUR">欧元 EUR</option>
+                </select>
+              </label>
               <label class="f-item">渠道
                 <select class="ctl" id="fChannel"></select>
               </label>
               <label class="f-item">店铺
                 <select class="ctl" id="fStore"></select>
               </label>
-              <label class="f-item">费用项
+              <label class="f-item">科目
                 <select class="ctl wide" id="fFeeItem"></select>
               </label>
               <label class="f-item">来源模式
@@ -82,39 +89,40 @@
             <div class="panel-head">
               <div>
                 <div class="panel-title">费用趋势</div>
-                <div class="panel-sub">参考经营趋势图样式，按日期范围展示管报费用项金额走势</div>
+                <div class="panel-sub">市场投入、公共费用、费用。各点合计等于损益表本期金额</div>
               </div>
             </div>
             <div class="overview-trend" id="overviewTrendChart"></div>
           </section>
-          <section class="panel">
-            <div class="panel-head">
-              <div>
-                <div class="panel-title">费用项总览</div>
-                <div class="panel-sub">按费用项展示金额、占比、趋势和来源模式</div>
-              </div>
-              <div class="toolbar">
-                <button class="btn" id="btnExpandAll">展开</button>
-                <button class="btn" id="btnCollapseAll">收起</button>
-              </div>
-            </div>
-            <div class="table-wrap overview-table-wrap">
-              <div class="fee-tree-table">
-                <div class="fee-tree-table-head">
-                  <div class="col-tree col-cell">费用项</div>
-                  <div class="col-num col-cell">管报金额</div>
-                  <div class="col-num col-cell">原币金额</div>
-                  <div class="col-num col-cell">占净收入</div>
-                  <div class="col-num col-cell">环比</div>
-                  <div class="col-num col-cell">同比</div>
-                  <div class="col-cell">主要来源</div>
-                  <div class="col-cell">定稿</div>
-                  <div class="col-actions col-cell">操作</div>
+          <div class="pnl-layout">
+            <section class="panel">
+              <div class="panel-head">
+                <div>
+                  <div class="panel-title">管报损益</div>
+                  <div class="panel-sub" id="pnlSub">按现行管报科目排列。占比以营业收入为分母。</div>
                 </div>
-                <div class="fee-tree-table-body" id="feeTreeBody"></div>
+                <div class="toolbar">
+                  <button class="btn" id="btnExpandAll">展开</button>
+                  <button class="btn" id="btnCollapseAll">收起</button>
+                </div>
               </div>
-            </div>
-          </section>
+              <div class="table-wrap overview-table-wrap">
+                <table class="data-table pnl-table">
+                  <thead>
+                    <tr>
+                      <th>科目</th>
+                      <th class="num" id="pnlAmountHead">本期金额 (USD)</th>
+                      <th class="num">占营业收入</th>
+                      <th class="num">环比</th>
+                      <th class="num">同比</th>
+                    </tr>
+                  </thead>
+                  <tbody id="pnlBody"></tbody>
+                </table>
+              </div>
+            </section>
+            <aside class="panel pnl-side" id="pnlSide"></aside>
+          </div>
         </section>
 
         <section class="tab-panel" data-panel="analysis">
@@ -124,9 +132,9 @@
               <div class="page-sub" id="analysisSub">按费用项、渠道、店铺、来源类型拆解金额和异常</div>
             </div>
             <div class="toolbar">
-              <button class="btn" data-quick-fee="T040202030101">进场费</button>
-              <button class="btn" data-quick-fee="T0403030101">销售退款</button>
-              <button class="btn" data-quick-fee="T040301010102">尾程</button>
+              <button class="btn" data-quick-fee="费用/市场投入/渠道投入/自主营销/平台费用/进场费">进场费</button>
+              <button class="btn" data-quick-fee="收入/渠道激励/价保">价保</button>
+              <button class="btn" data-quick-fee="费用/公共费用/仓储物流/物流费用/尾程">尾程</button>
             </div>
           </section>
           <div class="analysis-grid">
@@ -171,7 +179,7 @@
             <div class="panel-head">
               <div>
                 <div class="panel-title">费用明细</div>
-                <div class="panel-sub" id="detailSummary">展示当前筛选条件下的费用事实与来源追溯字段</div>
+                <div class="panel-sub" id="detailSummary">按业务指标、店铺、区域、型号和原币金额查看，并可继续查来源</div>
               </div>
               <div class="toolbar">
                 <button class="btn" id="btnClearFeeContext">清除费用项上下文</button>
@@ -181,15 +189,29 @@
               <table class="data-table detail-table">
                 <thead>
                   <tr>
+                    <th>年份</th>
                     <th>月份</th>
-                    <th>渠道/店铺</th>
+                    <th>业务指标名称</th>
+                    <th>店铺</th>
+                    <th>区域</th>
+                    <th>国家</th>
+                    <th>渠道</th>
+                    <th>Model</th>
+                    <th>SKU</th>
                     <th>MSKU</th>
-                    <th>费用项</th>
-                    <th class="num">金额</th>
-                    <th>分摊</th>
+                    <th>事业部</th>
+                    <th>场景</th>
+                    <th>品类</th>
+                    <th>新品标签</th>
+                    <th>上市时间</th>
+                    <th class="num">原币金额</th>
+                    <th>原币币种</th>
+                    <th class="num">汇率(兑USD)</th>
+                    <th class="num">金额(USD)</th>
+                    <th class="num" id="detailDisplayHead">金额(USD)</th>
                     <th>来源</th>
                     <th>定稿</th>
-                    <th style="min-width: 180px;">操作</th>
+                    <th class="sticky-op">操作</th>
                   </tr>
                 </thead>
                 <tbody id="detailBody"></tbody>
