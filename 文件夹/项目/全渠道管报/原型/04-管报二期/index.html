@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>管报二期 · 损益与来源追溯</title>
+  <link rel="stylesheet" href="mgmt-report-v2.css">
+  <script src="../../../../规范/assets/date-range-picker.js"></script>
+</head>
+<body>
+  <div class="layout">
+    <aside class="sider">
+      <div class="sider-logo"></div>
+      <a class="sider-item active" href="index.html">管报</a>
+      <a class="sider-item" href="../02-费用管理/index.html">费用</a>
+      <a class="sider-item" href="../../管报二期/00_索引.md">文档</a>
+    </aside>
+
+    <main class="main">
+      <header class="header">
+        <div>
+          <div class="title">管报二期 · 损益与来源追溯</div>
+          <div class="header-sub">损益表、费用趋势、明细下钻、来源摘要、财报差异</div>
+        </div>
+        <nav class="nav-tabs" aria-label="页面导航">
+          <button class="nav-tab active" data-tab="overview">总览</button>
+          <button class="nav-tab" data-tab="analysis">分析</button>
+          <button class="nav-tab" data-tab="details">明细</button>
+          <button class="nav-tab" data-tab="sources">来源</button>
+          <button class="nav-tab" data-tab="recon">差异</button>
+          <button class="nav-tab" data-tab="closing">定稿</button>
+        </nav>
+      </header>
+
+      <section class="page">
+        <div class="breadcrumb">
+          <a href="../00_索引.md">管报二期</a> / 费用分析与来源追溯
+        </div>
+
+        <section class="panel panel--filter">
+          <div class="filter-panel">
+            <div class="filter-grid">
+              <div class="f-item f-item--range"><label>日期范围</label><span id="fDateRange" class="date-range-host"></span></div>
+              <div class="f-item"><label for="fBu">事业部</label><span class="ctl-wrap"><select id="fBu" class="ctl"></select><button type="button" class="ctl-clear" hidden aria-label="清除事业部">×</button></span></div>
+              <div class="f-item"><label for="fDept">费用部门</label><span class="ctl-wrap"><select id="fDept" class="ctl"></select><button type="button" class="ctl-clear" hidden aria-label="清除费用部门">×</button></span></div>
+              <div class="f-item"><label for="fRegion">区域</label><span class="ctl-wrap"><select id="fRegion" class="ctl"></select><button type="button" class="ctl-clear" hidden aria-label="清除区域">×</button></span></div>
+              <div class="f-item"><label for="fCountry">国家</label><span class="ctl-wrap"><select id="fCountry" class="ctl"></select><button type="button" class="ctl-clear" hidden aria-label="清除国家">×</button></span></div>
+              <div class="f-item"><label for="fChannel">渠道</label><span class="ctl-wrap"><select id="fChannel" class="ctl"></select><button type="button" class="ctl-clear" hidden aria-label="清除渠道">×</button></span></div>
+              <div class="f-item"><label for="fStore">店铺</label><span class="ctl-wrap"><select id="fStore" class="ctl"></select><button type="button" class="ctl-clear" hidden aria-label="清除店铺">×</button></span></div>
+              <div class="f-item"><label for="fRetailer">零售商</label><span class="ctl-wrap"><select id="fRetailer" class="ctl"></select><button type="button" class="ctl-clear" hidden aria-label="清除零售商">×</button></span></div>
+              <div class="f-item">
+                <label>场景品类</label>
+                <div class="sc-cat-wrap" id="scCatWrap">
+                  <div class="sc-cat-trigger-row">
+                    <button type="button" class="sc-cat-trigger" id="scCatTrigger" aria-expanded="false">请选择</button>
+                    <button type="button" class="sc-cat-clear" id="scCatClear" hidden aria-label="清除场景品类">×</button>
+                  </div>
+                  <div id="scCatPop" class="sc-cat-pop" hidden>
+                    <div class="sc-cat-col" id="scCatSceneCol"></div>
+                    <div class="sc-cat-col" id="scCatCatCol"></div>
+                  </div>
+                </div>
+              </div>
+              <div class="f-item"><label for="fModel">model</label><span class="ctl-wrap"><select id="fModel" class="ctl"></select><button type="button" class="ctl-clear" hidden aria-label="清除model">×</button></span></div>
+              <div class="f-item">
+                <label for="fSkuInput">SKU</label>
+                <div class="sku-group">
+                  <select id="fSkuMode" aria-label="SKU检索模式">
+                    <option value="fuzzy">模糊</option>
+                    <option value="exact">精确</option>
+                    <option value="eight">8位搜索</option>
+                  </select>
+                  <input type="text" id="fSkuInput" placeholder="请输入SKU" autocomplete="off" title="精确模式按 MSKU 精确匹配" />
+                </div>
+              </div>
+              <div class="f-item"><label for="fNewTag">新品标签</label><span class="ctl-wrap"><select id="fNewTag" class="ctl"></select><button type="button" class="ctl-clear" hidden aria-label="清除新品标签">×</button></span></div>
+              <div class="f-item"><label for="fCurrency">币种</label>
+                <select class="ctl" id="fCurrency">
+                  <option value="USD">美元 USD</option>
+                  <option value="CNY">人民币 CNY</option>
+                  <option value="EUR">欧元 EUR</option>
+                </select>
+              </div>
+              <div class="f-item f-search">
+                <button class="btn btn-primary" id="btnQuery" type="button">查询</button>
+                <button class="btn" id="btnReset" type="button">重置</button>
+                <button class="btn" id="btnExport" type="button">导出明细</button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="tab-panel active" data-panel="overview">
+          <div class="stat-grid" id="statGrid"></div>
+          <section class="panel">
+            <div class="panel-head">
+              <div>
+                <div class="panel-title">趋势图</div>
+                <div class="panel-sub">相对区间起点的涨跌。默认营业收入、销量、毛利、营业利润，可改成任意科目。</div>
+              </div>
+              <div class="metric-picker" id="metricPicker">
+                <button type="button" class="metric-trigger" id="metricTrigger" aria-expanded="false">指标 · 已选 4 项</button>
+                <div class="metric-pop" id="metricPop" hidden>
+                  <input class="metric-search" id="metricSearch" placeholder="搜索科目" />
+                  <div class="metric-list" id="metricList"></div>
+                </div>
+              </div>
+            </div>
+            <div class="overview-trend" id="overviewTrendChart"></div>
+          </section>
+          <div class="pnl-layout">
+            <section class="panel">
+              <div class="panel-head">
+                <div>
+                  <div class="panel-title">管报损益</div>
+                  <div class="panel-sub" id="pnlSub">按现行管报科目排列。占比以营业收入为分母。</div>
+                </div>
+                <div class="toolbar">
+                  <button class="btn" id="btnExpandAll">展开</button>
+                  <button class="btn" id="btnCollapseAll">收起</button>
+                </div>
+              </div>
+              <div class="table-wrap overview-table-wrap">
+                <table class="data-table pnl-table">
+                  <thead>
+                    <tr>
+                      <th>科目</th>
+                      <th class="num" id="pnlAmountHead">本期金额 (USD)</th>
+                      <th class="num">占营业收入</th>
+                      <th class="num">环比</th>
+                      <th class="num">同比</th>
+                    </tr>
+                  </thead>
+                  <tbody id="pnlBody"></tbody>
+                </table>
+              </div>
+            </section>
+            <aside class="panel pnl-side" id="pnlSide"></aside>
+          </div>
+        </section>
+
+        <section class="tab-panel" data-panel="analysis">
+          <section class="analysis-head">
+            <div>
+              <div class="page-title" id="analysisTitle">科目分析</div>
+              <div class="page-sub" id="analysisSub">金额来自底层事实汇总，和总览同一口径</div>
+            </div>
+            <div class="subject-picker" id="subjectPicker">
+              <button type="button" class="metric-trigger" id="subjectTrigger" aria-expanded="false">选择科目</button>
+              <div class="subject-pop" id="subjectPop" hidden>
+                <input class="metric-search" id="subjectSearch" placeholder="搜索科目" />
+                <div class="metric-list" id="subjectList"></div>
+              </div>
+            </div>
+          </section>
+          <div class="ana-kpis" id="anaKpis"></div>
+          <section class="panel">
+            <div class="panel-head"><div class="panel-title">趋势</div><div class="panel-sub">当前科目的发生额。没有发生的日期不画出。</div></div>
+            <div class="chart-body" id="anaTrend"></div>
+          </section>
+          <div class="analysis-grid">
+            <section class="panel">
+              <div class="panel-head">
+                <div class="panel-title">渠道占比</div>
+                <div class="ana-switch" data-ana="place">
+                  <button type="button" data-value="channel" class="on">渠道</button>
+                  <button type="button" data-value="store">店铺</button>
+                </div>
+              </div>
+              <div class="table-wrap compact" id="anaPlace"></div>
+            </section>
+            <section class="panel">
+              <div class="panel-head">
+                <div class="panel-title">区域占比</div>
+                <div class="ana-switch" data-ana="area">
+                  <button type="button" data-value="region" class="on">区域</button>
+                  <button type="button" data-value="country">国家</button>
+                </div>
+              </div>
+              <div class="table-wrap compact" id="anaArea"></div>
+            </section>
+          </div>
+          <div class="analysis-grid">
+            <section class="panel">
+              <div class="panel-head">
+                <div class="panel-title">场景占比</div>
+                <div class="ana-switch" data-ana="scene">
+                  <button type="button" data-value="scene" class="on">场景</button>
+                  <button type="button" data-value="category">品类</button>
+                </div>
+              </div>
+              <div class="table-wrap compact" id="anaScene"></div>
+            </section>
+            <section class="panel">
+              <div class="panel-head">
+                <div class="panel-title">费用结构</div>
+                <div class="panel-sub">只展开下一层</div>
+              </div>
+              <div class="table-wrap compact" id="anaStruct"></div>
+            </section>
+          </div>
+          <section class="panel">
+            <div class="panel-head">
+              <div class="panel-title">Top</div>
+              <div class="toolbar">
+                <select class="ctl" id="anaTopGrain">
+                  <option value="sku" selected>SKU</option>
+                  <option value="model">model</option>
+                  <option value="msku">MSKU</option>
+                </select>
+                <select class="ctl" id="anaTopOrder">
+                  <option value="top" selected>前 10</option>
+                  <option value="bottom">倒 10</option>
+                </select>
+                <select class="ctl" id="anaTopDelta">
+                  <option value="amount" selected>数值</option>
+                  <option value="yoy">同比增长</option>
+                  <option value="mom">环比增长</option>
+                </select>
+              </div>
+            </div>
+            <div class="table-wrap compact" id="anaTop"></div>
+          </section>
+        </section>
+
+        <section class="tab-panel" data-panel="details">
+          <section class="panel">
+            <div class="panel-head">
+              <div>
+                <div class="panel-title">费用明细</div>
+                <div class="panel-sub" id="detailSummary">按业务指标、店铺、区域、型号和原币金额查看，并可继续查来源</div>
+              </div>
+              <div class="toolbar">
+                <button class="btn" id="btnClearFeeContext">清除科目上下文</button>
+              </div>
+            </div>
+            <div class="trace-bar">
+              <label class="f-item">来源模式 <select class="ctl" id="traceSource"></select></label>
+              <label class="f-item">定稿状态 <select class="ctl" id="traceStatus"></select></label>
+              <label class="f-item">关键字 <input class="ctl wide" id="traceKeyword" placeholder="MSKU / 单据 / 批次"></label>
+            </div>
+            <div class="table-wrap">
+              <table class="data-table detail-table">
+                <thead>
+                  <tr>
+                    <th>年份</th>
+                    <th>月份</th>
+                    <th>业务指标名称</th>
+                    <th>店铺</th>
+                    <th>区域</th>
+                    <th>国家</th>
+                    <th>渠道</th>
+                    <th>Model</th>
+                    <th>SKU</th>
+                    <th>MSKU</th>
+                    <th>事业部</th>
+                    <th>场景</th>
+                    <th>品类</th>
+                    <th>新品标签</th>
+                    <th>上市时间</th>
+                    <th class="num">原币金额</th>
+                    <th>原币币种</th>
+                    <th class="num">汇率(兑USD)</th>
+                    <th class="num">金额(USD)</th>
+                    <th class="num" id="detailDisplayHead">金额(USD)</th>
+                    <th>来源</th>
+                    <th>定稿</th>
+                    <th class="sticky-op">操作</th>
+                  </tr>
+                </thead>
+                <tbody id="detailBody"></tbody>
+              </table>
+            </div>
+          </section>
+        </section>
+
+        <section class="tab-panel" data-panel="sources">
+          <section class="panel">
+            <div class="panel-head">
+              <div>
+                <div class="panel-title">来源记录</div>
+                <div class="panel-sub">按来源类型查看单据、批次、项目、规则运行和无明细来源摘要</div>
+              </div>
+            </div>
+            <div class="source-grid" id="sourceCards"></div>
+          </section>
+        </section>
+
+        <section class="tab-panel" data-panel="recon">
+          <section class="panel">
+            <div class="panel-head">
+              <div>
+                <div class="panel-title">财报对照与差异</div>
+                <div class="panel-sub">差异率按规则展示；财务金额为 0 时差异率为 100%</div>
+              </div>
+              <label class="threshold-control">差异阈值
+                <input id="diffThreshold" type="number" min="0" step="100" value="1000">
+              </label>
+            </div>
+            <div class="trace-bar">
+              <label class="f-item">来源模式 <select class="ctl" id="reconSource"></select></label>
+              <label class="f-item">定稿状态 <select class="ctl" id="reconStatus"></select></label>
+              <label class="f-item">关键字 <input class="ctl wide" id="reconKeyword" placeholder="MSKU / 单据 / 批次"></label>
+            </div>
+            <div class="table-wrap">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>月份</th>
+                    <th>费用项</th>
+                    <th>渠道</th>
+                    <th class="num">管报金额</th>
+                    <th class="num">财务金额</th>
+                    <th class="num">差异</th>
+                    <th class="num">差异率</th>
+                    <th>处理</th>
+                    <th style="min-width: 160px;">操作</th>
+                  </tr>
+                </thead>
+                <tbody id="reconBody"></tbody>
+              </table>
+            </div>
+          </section>
+        </section>
+
+        <section class="tab-panel" data-panel="closing">
+          <div class="analysis-grid">
+            <section class="panel">
+              <div class="panel-head">
+                <div>
+                  <div class="panel-title">数据批次与关账</div>
+                  <div class="panel-sub">每月 20 日对上月关账定稿，已锁定月份只看冻结值</div>
+                </div>
+                <button class="btn btn-primary" id="btnRunClosingCheck">模拟关账检查</button>
+              </div>
+              <div class="timeline" id="closingTimeline"></div>
+            </section>
+            <section class="panel">
+              <div class="panel-head">
+                <div class="panel-title">关账检查结果</div>
+              </div>
+              <div class="check-list" id="closingChecks"></div>
+            </section>
+          </div>
+        </section>
+      </section>
+    </main>
+  </div>
+
+  <div class="drawer-mask" id="drawerMask" aria-hidden="true">
+    <aside class="drawer" role="dialog" aria-modal="true" aria-labelledby="drawerTitle">
+      <div class="drawer-hd">
+        <h2 id="drawerTitle">详情</h2>
+        <button class="modal-close" id="drawerClose" aria-label="关闭">×</button>
+      </div>
+      <div class="drawer-bd" id="drawerBody"></div>
+    </aside>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script src="mgmt-report-v2.js"></script>
+</body>
+</html>

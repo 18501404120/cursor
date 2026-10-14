@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>经营分析看板（新）· 管报科目树</title>
+  <style>
+    :root {
+      --bg: #eef3f8; --text: #0f172a; --muted: #64748b; --line: #e2e8f0;
+      --ink: #0f2f63; --neg: #cf1322; --shadow: 0 8px 24px rgba(15, 23, 42, .06);
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: "PingFang SC", "Microsoft YaHei", sans-serif; background: var(--bg); color: var(--text); line-height: 1.55; }
+    .top { background: #1677ff; color: #fff; padding: 14px 22px 16px; }
+    .top h1 { margin: 0; font-size: 18px; font-weight: 700; }
+    .top p { margin: 6px 0 0; font-size: 12px; opacity: .92; }
+    .wrap { max-width: 1360px; margin: 0 auto; padding: 16px 16px 40px; }
+    .note { background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; font-size: 13px; box-shadow: var(--shadow); margin-bottom: 12px; }
+    .note strong { color: var(--ink); }
+    .filters { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+    .filters span, .tools button { background: #fff; border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; font-size: 12px; color: #334155; }
+    .tools { display: flex; gap: 8px; margin-left: auto; }
+    .tools button { cursor: pointer; color: #1677ff; }
+    .kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 12px; }
+    .kpi { background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; box-shadow: var(--shadow); cursor: pointer; }
+    .kpi:hover, .kpi.on { border-color: #91caff; background: #f5faff; }
+    .kpi .k { font-size: 12px; color: var(--muted); }
+    .kpi .v { margin-top: 4px; font-size: 22px; font-weight: 700; color: var(--ink); font-variant-numeric: tabular-nums; }
+    .kpi .s { margin-top: 2px; font-size: 12px; color: var(--muted); }
+    .layout { display: grid; grid-template-columns: minmax(0, 1fr) 420px; gap: 12px; align-items: start; }
+    .sheet, .panel { background: #fff; border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--shadow); }
+    .sheet h2, .panel h2 { margin: 0; padding: 12px 14px; font-size: 14px; color: var(--ink); border-bottom: 1px solid var(--line); display: flex; align-items: center; gap: 8px; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th, td { padding: 7px 12px; text-align: left; border-bottom: 1px solid #f1f5f9; vertical-align: middle; }
+    th { font-size: 12px; color: var(--muted); font-weight: 600; background: #fafbfc; }
+    td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+    tr { cursor: pointer; }
+    tr:hover td { background: #f8fbff; }
+    tr.on td { background: #e6f4ff; }
+    tr.result td { background: #ecfdf5; font-weight: 800; color: #065f46; }
+    tr.result:hover td { background: #d1fae5; }
+    tr.absent td, tr.absent .nm, tr.absent .tw { color: #b6bec9; }
+    tr.absent:hover td { background: #f8fafc; }
+    tr.absent.on td { background: #f1f5f9; }
+    .namecell { display: flex; align-items: center; gap: 4px; }
+    .tw { width: 18px; height: 18px; border: 0; background: transparent; color: #64748b; cursor: pointer; padding: 0; font-size: 11px; flex: none; }
+    .tw.none { visibility: hidden; }
+    .nm { font-weight: 600; }
+    .neg { color: var(--neg); }
+    .hint { font-size: 11px; color: var(--muted); font-weight: 400; }
+    .panel { position: sticky; top: 12px; max-height: calc(100vh - 24px); overflow: auto; }
+    .panel .bd { padding: 14px; }
+    .panel h3 { margin: 0 0 4px; font-size: 16px; color: var(--ink); }
+    .path { font-size: 12px; color: var(--muted); margin-bottom: 6px; word-break: break-all; }
+    .amt { font-size: 26px; font-weight: 800; color: var(--ink); font-variant-numeric: tabular-nums; }
+    .amt.neg { color: var(--neg); }
+    .formula { margin: 10px 0; padding: 10px 12px; background: #f8fafc; border-radius: 8px; font-size: 13px; font-weight: 600; color: #0f2f63; }
+    .block { margin-top: 12px; }
+    .block h4 { margin: 0 0 6px; font-size: 13px; color: var(--ink); }
+    .block p { font-size: 13px; margin: 0; }
+    .mini { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 6px; }
+    .mini td { border: 1px solid var(--line); padding: 6px 8px; cursor: default; }
+    .tagline { display: block; margin-top: 8px; font-size: 12px; color: #92400e; background: #fffbeb; border: 1px solid #fcd34d; border-radius: 8px; padding: 8px 10px; }
+    @media (max-width: 980px) { .layout, .kpis { grid-template-columns: 1fr; } .panel { position: static; max-height: none; } }
+  </style>
+</head>
+<body>
+  <header class="top">
+    <h1>经营分析看板（新）· 管报科目树</h1>
+    <p>Shopify 示例 · Govee US · 2026-09-24 至 2026-09-30 · SKU H61991。点击箭头展开或收拢，点击科目看取值。</p>
+  </header>
+  <div class="wrap">
+    <div class="note">
+      <strong>口径：</strong>
+      科目按完整管报层级排列。上级金额是下级合计。有数的分支默认展开，金额为 0 的分支默认收起。
+      成本只显示出货授权成本、退货成本，不拆采购、关税、预留毛利。毛利 = 营业收入 − 成本。营业利润 = 毛利 − 费用。
+      灰色是自营没有的科目：渠道商利润、价保、返利，整段渠道投入，销售侧平台佣金和平台赔偿及罚款，电商站内投放，透明标签费、运杂费、运费收入、运费收入扣减、包装收入。这些科目不计入费用和营业利润。
+      营业收入 = 发货零售销售额 + 退货零售销售额 + 发货销售收入 + 退货销售收入 − 渠道激励 − 税费。
+    </div>
+    <div class="filters">
+      <span>平台 Shopify</span>
+      <span>站点 Govee US</span>
+      <span>2026-09-24 ~ 2026-09-30</span>
+      <span>币种 USD</span>
+      <span>汇率 1 美元 = 6.60 人民币</span>
+      <span>RRP 80.00</span>
+    </div>
+    <div class="kpis" id="kpis"></div>
+    <div class="layout">
+      <section class="sheet">
+        <h2>管报损益 <span class="hint">本例一条 SKU</span>
+          <span class="tools"><button type="button" id="openAll">全部展开</button><button type="button" id="closeZero">收起为零</button></span>
+        </h2>
+        <table>
+          <thead><tr><th>科目</th><th class="num">金额 (USD)</th><th class="num">占发货零售销售额</th></tr></thead>
+          <tbody id="sheet"></tbody>
+        </table>
+      </section>
+      <aside class="panel"><h2>取值逻辑</h2><div class="bd" id="detail"></div></aside>
+    </div>
+  </div>
+  <script>
+    function round2(n) { return Math.round((n + Number.EPSILON) * 100) / 100; }
+    function fmt(n) {
+      const v = round2(n);
+      const abs = Math.abs(v).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      return v < 0 ? "-" + abs : abs;
+    }
+    function table(pairs) {
+      return "<table class=\"mini\"><tbody>" + pairs.map((p) => "<tr><td>" + p[0] + "</td><td class=\"num\">" + p[1] + "</td></tr>").join("") + "</tbody></table>";
+    }
+
+    const F = (() => {
+      const shipRetail = 8000, returnRetail = -800, shipSales = 0, returnSales = -640, tax = 480, discount = 320;
+      const revenue = shipRetail + returnRetail + shipSales + returnSales - discount - tax;
+      const shipAuth = 1000, returnCost = -100, goods = 900;
+      const purchase = round2(shipAuth * 50 / 66);
+      const tariff = round2(shipAuth * 10 / 66);
+      const reserve = round2(shipAuth - purchase - tariff);
+      const retPurchase = round2(returnCost * 50 / 66);
+      const retTariff = round2(returnCost * 10 / 66);
+      const retReserve = round2(returnCost - retPurchase - retTariff);
+      const acquire = round2(revenue * 0.05);
+      const platformOther = round2(revenue * 0.025);
+      const ads = 500, head = 180, tail = 320, storage = 80, freight = 200, parcel = 120;
+      const seel = round2(parcel * 0.06);
+      const fee = round2(acquire + platformOther + head + tail + storage + seel - parcel);
+      const margin = round2(revenue - goods);
+      const profit = round2(margin - fee);
+      return { shipRetail, returnRetail, shipSales, returnSales, tax, discount, revenue, shipAuth, returnCost, goods, purchase, tariff, reserve, retPurchase, retTariff, retReserve, acquire, platformOther, ads, head, tail, storage, freight, parcel, seel, fee, margin, profit };
+    })();
+
+    const PATHS = `
+收入
+收入/销量
+收入/销量/发货销量
+收入/销量/退货销量
+收入/零售销售额
+收入/零售销售额/发货零售销售额
+收入/零售销售额/退货零售销售额
+收入/渠道商利润
+收入/销售收入
+收入/销售收入/发货销售收入
+收入/销售收入/退货销售收入
+收入/渠道激励
+收入/渠道激励/价保
+收入/渠道激励/返利
+收入/渠道激励/返利/前返
+收入/渠道激励/返利/后返
+收入/渠道激励/临时激励
+收入/渠道激励/临时激励/划线价折扣
+收入/渠道激励/临时激励/Discounts
+收入/税费
+收入/营业收入
+成本
+成本/出货授权成本
+成本/退货成本
+毛利
+费用
+费用/市场投入
+费用/市场投入/营销投入
+费用/市场投入/营销投入/自主营销
+费用/市场投入/营销投入/自主营销/产品营销
+费用/市场投入/营销投入/自主营销/产品营销/新品上市项目（IMC选品）
+费用/市场投入/营销投入/自主营销/产品营销/新品上市项目（非IMC选品）
+费用/市场投入/营销投入/自主营销/产品营销/场景campaign（IMC立项）
+费用/市场投入/营销投入/自主营销/产品营销/品线日常AO
+费用/市场投入/营销投入/自主营销/产品营销/营销样机
+费用/市场投入/营销投入/自主营销/品牌营销
+费用/市场投入/营销投入/自主营销/品牌营销/大促活动营销
+费用/市场投入/营销投入/自主营销/品牌营销/日常营销AO
+费用/市场投入/营销投入/自主营销/品牌营销/品牌大事件
+费用/市场投入/营销投入/自主营销/品牌营销/展会传播
+费用/市场投入/营销投入/自主营销/品牌营销/其他
+费用/市场投入/营销投入/自主营销/品牌营销/营销样机
+费用/市场投入/营销投入/自主营销/基础固定花费
+费用/市场投入/营销投入/自主营销/基础固定花费/翻译费
+费用/市场投入/营销投入/自主营销/基础固定花费/供应商年框合作费
+费用/市场投入/营销投入/自主营销/基础固定花费/营销工具采买
+费用/市场投入/营销投入/联合营销
+费用/市场投入/渠道投入
+费用/市场投入/渠道投入/自主营销
+费用/市场投入/渠道投入/自主营销/平台费用
+费用/市场投入/渠道投入/自主营销/平台费用/平台佣金
+费用/市场投入/渠道投入/自主营销/平台费用/进场费
+费用/市场投入/渠道投入/自主营销/平台费用/平台赔偿及罚款
+费用/市场投入/渠道投入/自主营销/平台费用/销售样机
+费用/市场投入/渠道投入/自主营销/广告投放
+费用/市场投入/渠道投入/自主营销/广告投放/零售陈列物料
+费用/市场投入/渠道投入/自主营销/广告投放/KA站外投放
+费用/市场投入/渠道投入/自主营销/广告投放/营销样机
+费用/市场投入/渠道投入/联合营销
+费用/市场投入/渠道投入/联合营销/广告投放
+费用/市场投入/渠道投入/联合营销/广告投放/展会
+费用/市场投入/渠道投入/联合营销/广告投放/KA站内投放
+费用/市场投入/渠道投入/联合营销/广告投放/分销站内投放
+费用/市场投入/渠道投入/联合营销/广告投放/KOL费用
+费用/市场投入/渠道投入/联合营销/广告投放/PR费用
+费用/市场投入/渠道投入/联合营销/广告投放/营销样机
+费用/市场投入/渠道投入/联合营销/广告投放/零售陈列物料
+费用/市场投入/销售投入
+费用/市场投入/销售投入/自主营销
+费用/市场投入/销售投入/自主营销/平台费用
+费用/市场投入/销售投入/自主营销/平台费用/平台佣金
+费用/市场投入/销售投入/自主营销/平台费用/平台佣金/发货佣金
+费用/市场投入/销售投入/自主营销/平台费用/平台佣金/退货佣金
+费用/市场投入/销售投入/自主营销/平台费用/平台服务
+费用/市场投入/销售投入/自主营销/平台费用/平台赔偿及罚款
+费用/市场投入/销售投入/自主营销/平台费用/支付通道手续费
+费用/市场投入/销售投入/自主营销/平台费用/平台其他
+费用/市场投入/销售投入/自主营销/平台费用/销售样机
+费用/市场投入/销售投入/自主营销/广告投放
+费用/市场投入/销售投入/自主营销/广告投放/电商站内投放
+费用/市场投入/销售投入/自主营销/广告投放/电商站外投放
+费用/市场投入/销售投入/自主营销/广告投放/营销样机
+费用/市场投入/销售投入/自主营销/广告投放/KOL费用
+费用/市场投入/销售投入/自主营销/广告投放/PR费用
+费用/公共费用
+费用/公共费用/仓储物流
+费用/公共费用/仓储物流/物流费用
+费用/公共费用/仓储物流/物流费用/头程
+费用/公共费用/仓储物流/物流费用/尾程
+费用/公共费用/仓储物流/仓储费用
+费用/公共费用/仓储物流/仓储费用/仓储租金
+费用/公共费用/仓储物流/仓储费用/仓储其他
+费用/公共费用/售后服务
+费用/公共费用/售后服务/品质问题
+费用/公共费用/售后服务/物流问题
+费用/公共费用/售后服务/其他问题
+费用/公共费用/售后服务/售后手续费
+费用/公共费用/售后服务/售后未影响部分
+费用/公共费用/其它费用
+费用/公共费用/其它费用/透明标签费
+费用/公共费用/其它费用/运杂费
+费用/公共费用/其它费用/运费收入
+费用/公共费用/其它费用/运费收入/运费收入
+费用/公共费用/其它费用/运费收入/运费收入/发货运费收入
+费用/公共费用/其它费用/运费收入/运费收入/退货运费收入
+费用/公共费用/其它费用/运费收入/运费收入扣减
+费用/公共费用/其它费用/运费收入/运费收入扣减/发货运费收入扣减
+费用/公共费用/其它费用/运费收入/运费收入扣减/退货运费收入扣减
+费用/公共费用/其它费用/包裹险
+费用/公共费用/其它费用/包裹险/包裹险扣减
+费用/公共费用/其它费用/包裹险/包裹险收入
+费用/公共费用/其它费用/包装收入
+费用/公共费用/其它费用/包装收入/包装收入扣减
+费用/公共费用/其它费用/包装收入/包装收入扣减/发货包装收入扣减
+费用/公共费用/其它费用/包装收入/包装收入扣减/退货包装收入扣减
+费用/公共费用/其它费用/包装收入/包装收入
+费用/公共费用/其它费用/包装收入/包装收入/发货包装收入
+费用/公共费用/其它费用/包装收入/包装收入/退货包装收入
+费用/公共费用/其它费用/其它
+营业利润
+`.trim().split("\n");
+
+    const AMOUNT = {
+      "收入/零售销售额/发货零售销售额": F.shipRetail,
+      "收入/零售销售额/退货零售销售额": F.returnRetail,
+      "收入/销售收入/发货销售收入": F.shipSales,
+      "收入/销售收入/退货销售收入": F.returnSales,
+      "收入/渠道激励/临时激励/Discounts": -F.discount,
+      "收入/税费": -F.tax,
+      "收入/营业收入": F.revenue,
+      "成本/出货授权成本": F.shipAuth,
+      "成本/退货成本": F.returnCost,
+      "毛利": F.margin,
+      "费用/市场投入/销售投入/自主营销/平台费用/支付通道手续费": F.acquire,
+      "费用/市场投入/销售投入/自主营销/平台费用/平台其他": F.platformOther,
+      "费用/公共费用/仓储物流/物流费用/头程": F.head,
+      "费用/公共费用/仓储物流/物流费用/尾程": F.tail,
+      "费用/公共费用/仓储物流/仓储费用/仓储租金": F.storage,
+      "费用/公共费用/其它费用/包裹险/包裹险收入": -F.parcel,
+      "费用/公共费用/其它费用/包裹险/包裹险扣减": F.seel,
+      "营业利润": F.profit
+    };
+    const QTY = { "收入/销量/发货销量": 100, "收入/销量/退货销量": 10 };
+    const RESULT = new Set(["收入/营业收入", "毛利", "营业利润"]);
+    const ABSENT = [
+      "收入/渠道商利润",
+      "收入/渠道激励/价保",
+      "收入/渠道激励/返利",
+      "费用/市场投入/渠道投入",
+      "费用/市场投入/销售投入/自主营销/平台费用/平台佣金",
+      "费用/市场投入/销售投入/自主营销/平台费用/平台赔偿及罚款",
+      "费用/市场投入/销售投入/自主营销/广告投放/电商站内投放",
+      "费用/公共费用/其它费用/透明标签费",
+      "费用/公共费用/其它费用/运杂费",
+      "费用/公共费用/其它费用/运费收入",
+      "费用/公共费用/其它费用/包装收入"
+    ];
+    function isAbsent(path) {
+      return ABSENT.some((p) => path === p || path.startsWith(p + "/"));
+    }
+    const HIDE_SUM = new Set(["收入", "收入/销量"]);
+
+    function buildTree() {
+      const map = new Map();
+      const roots = [];
+      PATHS.forEach((path) => {
+        const parts = path.split("/");
+        const node = { path, name: parts[parts.length - 1], children: [], amount: AMOUNT[path] || 0, qty: QTY[path], result: RESULT.has(path) };
+        map.set(path, node);
+        if (parts.length === 1) roots.push(node);
+        else map.get(parts.slice(0, -1).join("/")).children.push(node);
+      });
+      return roots;
+    }
+    const roots = buildTree();
+    const byPath = new Map();
+    (function index(list) { list.forEach((n) => { byPath.set(n.path, n); index(n.children); }); })(roots);
+
+    function rollup(node) {
+      node.children.forEach(rollup);
+      if (!node.children.length || node.result) { node.sum = node.amount || 0; return; }
+      node.sum = round2(node.children.filter((c) => !c.qty && !c.result).reduce((s, c) => s + c.sum, 0));
+    }
+    roots.forEach(rollup);
+
+    function hasSignal(node) {
+      if (node.qty) return true;
+      if (!node.children.length && Math.abs(node.amount || 0) > 1e-9) return true;
+      return node.children.some(hasSignal);
+    }
+    const open = new Set();
+    function initOpen(node) {
+      if (node.children.length && node.children.some(hasSignal)) open.add(node.path);
+      node.children.forEach(initOpen);
+    }
+    roots.forEach(initOpen);
+
+    function D(formula, blocks, warn) { return { formula, blocks, warn }; }
+    const details = {
+      "收入/销量/发货销量": D("发货销量 = 区间发货件数", [["取值", "Shopify 发货单件数，排除作废，按订单购买日归集。本例与订单支付件数相同，都是 100。"], ["演算", table([["发货销量", "100 件"]])]]),
+      "收入/销量/退货销量": D("退货销量 = 海外仓退货件数", [["取值", "海外仓退货单件数，按退货日归集。不使用退款件数。本例退款只影响退货销售收入，不改这 10 件。"], ["演算", table([["退货销量", "10 件"]])]]),
+      "收入/零售销售额/发货零售销售额": D("发货零售销售额 = RRP × 发货销量", [["取值", "RRP 用 Shopify 变体标价，折美元。件数用发货销量，含后来退货的件数，不扣退款。"], ["演算", table([["RRP", "80.00"], ["发货销量", "100 件"], ["发货零售销售额", "80 × 100 = 8,000.00"]])]]),
+      "收入/零售销售额/退货零售销售额": D("退货零售销售额 = − RRP × 退货销量", [["取值", "按零售价另算，不使用退款金额。表上记负数。"], ["演算", table([["RRP", "80.00"], ["退货销量", "10 件"], ["退货零售销售额", "−80 × 10 = −800.00"]])]]),
+      "收入/销售收入/发货销售收入": D("发货销售收入 = 成交价口径的发货收入", [["取值", "与零售销售额分开。本例零售额已用 RRP，没有另一套成交销售收入，记 0。"], ["演算", table([["发货销售收入", "0.00"]])]]),
+      "收入/销售收入/退货销售收入": D("退货销售收入 = − Shopify 退款金额", [["取值", "退款金额，不是 RRP × 退货件数。本例 640。"], ["区别", "退货零售销售额是 −800。两行都进营业收入，不互相替代。"], ["演算", table([["退款金额", "640.00"], ["退货销售收入", "−640.00"]])]]),
+      "收入/渠道激励/价保": D("价保 = 期间确认的价格保护金额", [["挂接", "与临时激励并列，不放进临时激励下面。随渠道激励从营业收入扣减。"], ["件数", "不按发货或退货件数推算。"], ["取值", "有价保单时取已确认金额。Shopify 独立站本例没有，记 0。"], ["不采用", "订单折扣和划线价差额不进价保。近 12 个月管报和手填不作为报表自动口径。"], ["演算", table([["价保", "0.00"]])]]),
+      "收入/渠道激励/临时激励/划线价折扣": D("划线价折扣 = RRP − 成交价 − 订单折扣", [["取值", "按每个订单 SKU 计算。RRP 减成交价里已经包含划线价折扣和 discount，再减去订单折扣，剩下的才是划线价折扣。"], ["退货", "退货取该订单划线价折扣的负数，不再另乘退货件数。"], ["不并入", "订单折扣单列在 Discounts，不重复扣。"], ["演算", table([["单件示例", "RRP 80 − 成交价 65 − discount 5 = 10"], ["退 1 件", "−10"]])]]),
+      "收入/渠道激励/临时激励/Discounts": D("Discounts = 订单折扣合计", [["取值", "订单行折扣、优惠码、自动折扣，折美元。不含划线价差额。"], ["件数", "按已发生折扣金额取，不另乘退货件数。"], ["演算", table([["Discounts", "−320.00"]])]]),
+      "收入/税费": D("税费 = 订单税额", [["取值", "美国、加拿大有行税用行税。本例 480。从营业收入中扣除，表上记负数。"], ["演算", table([["税费", "−480.00"]])]]),
+      "收入/营业收入": D("营业收入 = 发货零售销售额 + 退货零售销售额 + 发货销售收入 + 退货销售收入 − 渠道激励 − 税费", [["演算", table([["发货零售销售额", "8,000.00"], ["退货零售销售额", "−800.00"], ["发货销售收入", "0.00"], ["退货销售收入", "−640.00"], ["减：渠道激励", "320.00"], ["减：税费", "480.00"], ["营业收入", "5,760.00"]])], ["不含", "包装、运费、包裹险不进营业收入，放在公共费用 / 其它费用。"]]),
+      "成本/出货授权成本": D("出货授权成本 = 出货授权单价 × 发货销量", [["单价", "（授权采购价 + 授权关税）×（1 + 预留毛利率），不含头程。采购、关税、预留只在取值里说明，页面不单列。"], ["件数", "发货 100 件。退货不从本行减。"], ["演算", table([["授权采购价", "50.00 元"], ["授权关税", "10.00 元"], ["预留毛利率", "10%"], ["单价", "66 元 ÷ 6.60 = 10.00 美元"], ["发货销量", "100"], ["出货授权成本", "1,000.00"]])]]),
+      "成本/退货成本": D("退货成本 = − 出货授权单价 × 退货销量", [["取值", "单价与出货授权成本相同，采购、关税、预留一次冲回，页面不拆开。"], ["演算", table([["单价", "10.00"], ["退货销量", "10"], ["退货成本", "−100.00"]])]]),
+      "毛利": D("毛利 = 营业收入 − 成本", [["演算", table([["营业收入", "5,760.00"], ["成本", "900.00"], ["毛利", "4,860.00"]])], ["说明", "这里的成本是出货授权成本加退货成本。费用在营业利润里再扣。"]]),
+      "费用/市场投入/销售投入/自主营销/平台费用/支付通道手续费": D("支付通道手续费 = 营业收入 × 收单费率", [["配置", "运营 → 成本费率配置，按店铺 + 年月。"], ["默认", "US 4.77%、CA 5.25%、EU 5.8%、UK 6.2%。"], ["试算", "单件试算 = 售价 × 费率。例：29.99 × 4.77% ≈ 1.43。看板期间用营业收入 × 费率，试算不替代本列。"], ["演算", table([["售价 × 4.77%", "≈ 1.43"]])]]),
+      "费用/市场投入/销售投入/自主营销/平台费用/平台服务": D("平台服务 = 营业收入 × 平台费", [["对应", "平台服务费对应平台费。"], ["费率", "EU 1%、UK 0.9%、US 1%、CA 0.81%。"], ["演算", table([["美国站", "营业收入 × 1%"], ["例", "2,970,000 × 1% = 29,700"]])]]),
+      "费用/市场投入/销售投入/自主营销/平台费用/平台其他": D("平台其他 = 营业收入 × 风控费", [["对应", "平台其他对应风控费。"], ["费率", "EU 0.15%、UK 0.15%、US 0.09%、CA 0.06%。"], ["演算", table([["美国站", "营业收入 × 0.09%"], ["例", "2,970,000 × 0.09% = 2,673"]])]]),
+      "费用/市场投入/销售投入/自主营销/平台费用/销售样机": D("销售样机 = 销售领用样机数量 × 出货授权单价", [["挂接", "给销售使用的样机。广告寄样在广告投放下的营销样机，不进本行。"], ["取值", "本例没有销售样机出库，记 0。"], ["演算", table([["销售样机", "0.00"]])]]),
+      "费用/市场投入/销售投入/自主营销/广告投放/电商站内投放": D("电商站内投放", [["自营范围", "自营不设电商站内投放，不取广告账单，不计入费用。站外投放、KOL、PR、营销样机仍是自营科目。"], ["演算", table([["电商站内投放", "0.00"]])]]),
+      "费用/公共费用/仓储物流/物流费用/头程": D("头程 = 单件头程 ×（发货销量 − 退货销量）", [["老品", "近 12 月滚动加权单价。系统用回写的空运单价、海运单价、系统海运比合成。"], ["新品无货件", "预估出货授权价页面：单 pcs 海运费 × 海运占比 + 单 pcs 空运费 × 空运占比。"], ["试算", "人工空运、人工海运和本页海运比只在试算里，不改本列、不进列表毛利。系统自动计算，全渠道同一列。"], ["演算", table([["回写", "12.30 元"], ["试算", "20×0.3 + 10×0.7 = 13 元，不改本列"]])]]),
+      "费用/公共费用/仓储物流/物流费用/尾程": D("尾程 = 尾程单价 × 区间发货数量", [["件数", "和当前逻辑一致。"], ["本月财报已出", "财务系统该 MSKU 尾程总额不为 0 时，总额 ÷ 本月总发货数量 = 本月单价，再 × 查询区间发货数量。"], ["本月财报未出", "本月尾程为 0 时，上月财务尾程总额 ÷ 上月总发运数量 = 上月单价，再 × 本月发运数量，作为预估。本月财报出来后改成实际。"], ["新品", "上月财务也没有尾程时，仍用现网发货单尾程。本月财报出来后再改成财务实际。"], ["演算", table([["财报已出", "32,000 ÷ 10,000 = 3.20；区间发货 100 × 3.20 = 320.00"], ["财报未出", "上月 28,000 ÷ 10,000 = 2.80；本月发运 100 × 2.80 = 280.00，事后改实际"], ["新品", "发货单尾程 260.00，财报出来后改实际"]])]]),
+      "费用/公共费用/仓储物流/仓储费用/仓储租金": D("仓储租金 = 该月仓租账单；未关账则上月单价 × 本期发货件数", [["件数", "不按退货件数冲回。"], ["已关账", "Shopify 物流看板该月仓租。运费和其他操作费不并入。没有仓租记 0。"], ["未关账", "上月仓租 ÷ 上月 pcs × 本期发货件数。"], ["不采用", "近 12 个月管报和手填不作为报表自动口径。"], ["演算", table([["本月仓租", "80.00"], ["仓储租金", "80.00，不按 90 件折"]])]]),
+      "费用/公共费用/其它费用/运费收入/运费收入/发货运费收入": D("发货运费收入", [["自营范围", "自营不设运费收入。订单运费不进这一行，也不冲减费用。"], ["演算", table([["发货运费收入", "0.00"]])]]),
+      "费用/公共费用/其它费用/包裹险/包裹险收入": D("包裹险收入 = − Seel 行销售额", [["取值", "无忧达 / Seel 行，扣税后折美元。不按退货件数改。"], ["入账", "不进营业收入，记负数。"], ["演算", table([["Seel 销售额", "120.00"], ["包裹险收入", "−120.00"]])]]),
+      "费用/公共费用/其它费用/包裹险/包裹险扣减": D("包裹险扣减 = Seel 销售额 × 6%", [["基数", "用正数 120，不用表上的 −120。"], ["演算", table([["包裹险扣减", "120 × 6% = 7.20"]])]]),
+      "营业利润": D("营业利润 = 毛利 − 费用", [["演算", table([["毛利", "4,860.00"], ["费用", "899.20"], ["营业利润", "3,960.80"]])], ["利润率", "占发货零售销售额 3,960.80 / 8,000.00 = 49.51%。"]])
+    };
+
+    function genericDetail(node) {
+      if (node.children.length) {
+        const rows = node.children.filter((c) => !c.qty).map((c) => [c.name, c.qty ? c.qty + " 件" : fmt(c.sum)]);
+        return D(node.name + " = 下级合计", [["下级", rows.length ? table(rows) : "<p>展开查看下级。</p>"], ["金额", "本行 " + fmt(node.sum) + "。结果行（营业收入、毛利、营业利润）不重复加进上级。"]]);
+      }
+      return D(node.name + " = 0", [["取值", "本例 Shopify 美国站没有这项发生额，记 0.00。"], ["不采用", "近 12 个月管报和手填不作为报表自动口径。"], ["演算", table([[node.name, "0.00"]])]]);
+    }
+
+    let current = "收入/营业收入";
+    function visibleRows() {
+      const out = [];
+      function walk(node, depth, shown) {
+        if (!shown) return;
+        out.push({ node, depth });
+        const next = shown && open.has(node.path);
+        node.children.forEach((c) => walk(c, depth + 1, next));
+      }
+      roots.forEach((n) => walk(n, 0, true));
+      return out;
+    }
+    function render() {
+      document.getElementById("sheet").innerHTML = visibleRows().map(({ node, depth }) => {
+        const cls = (node.result ? "result " : "") + (isAbsent(node.path) ? "absent" : "");
+        const on = node.path === current ? " on" : "";
+        const twist = node.children.length
+          ? "<button class=\"tw\" data-toggle=\"" + node.path + "\" type=\"button\">" + (open.has(node.path) ? "▼" : "▶") + "</button>"
+          : "<button class=\"tw none\" type=\"button\"></button>";
+        let num = "—", pct = "—", numCls = "num";
+        if (node.qty) num = node.qty + " 件";
+        else if (!HIDE_SUM.has(node.path)) {
+          const v = node.children.length && !node.result ? node.sum : node.amount;
+          num = fmt(v);
+          pct = (v / F.shipRetail * 100).toFixed(2) + "%";
+          if (v < 0) numCls += " neg";
+        }
+        return "<tr class=\"" + cls + on + "\" data-path=\"" + node.path + "\"><td><div class=\"namecell\" style=\"padding-left:" + (depth * 16) + "px\">" + twist + "<span class=\"nm\">" + node.name + "</span></div></td><td class=\"" + numCls + "\">" + num + "</td><td class=\"num\">" + pct + "</td></tr>";
+      }).join("");
+    }
+    function show(path) {
+      current = path;
+      const node = byPath.get(path);
+      const base = details[path] || genericDetail(node);
+      const d = isAbsent(path)
+        ? { formula: base.formula, warn: base.warn, blocks: [["自营", "这项自营没有，页面置灰，不取数。"]].concat(base.blocks) }
+        : base;
+      const shown = node.qty ? node.qty + " 件" : fmt(node.children.length && !node.result ? node.sum : node.amount);
+      const neg = !node.qty && (node.children.length && !node.result ? node.sum : node.amount) < 0;
+      document.querySelectorAll("#kpis .kpi").forEach((el) => el.classList.toggle("on", el.dataset.path === path));
+      render();
+      document.getElementById("detail").innerHTML =
+        "<h3>" + node.name + "</h3><div class=\"path\">" + path.replaceAll("/", " / ") + "</div><div class=\"amt" + (neg ? " neg" : "") + "\">" + shown + "</div><div class=\"formula\">" + d.formula + "</div>" +
+        d.blocks.map((b) => "<div class=\"block\"><h4>" + b[0] + "</h4>" + (String(b[1]).indexOf("<") === 0 ? b[1] : "<p>" + b[1] + "</p>") + "</div>").join("") +
+        (d.warn ? "<div class=\"tagline\">" + d.warn + "</div>" : "");
+    }
+    function renderKpis() {
+      const items = [
+        ["收入/营业收入", "营业收入", F.revenue, "渠道激励、税费为扣减"],
+        ["成本", "成本", F.goods, "出货授权 1,000 + 退货 −100"],
+        ["费用", "费用", F.fee, "不含运费收入和站内投放"],
+        ["营业利润", "营业利润", F.profit, "占发货零售销售额 49.51%"]
+      ];
+      document.getElementById("kpis").innerHTML = items.map((it) =>
+        "<div class=\"kpi\" data-path=\"" + it[0] + "\"><div class=\"k\">" + it[1] + "</div><div class=\"v\">" + fmt(it[2]) + "</div><div class=\"s\">" + it[3] + "</div></div>"
+      ).join("");
+    }
+    document.getElementById("sheet").addEventListener("click", (e) => {
+      const btn = e.target.closest("[data-toggle]");
+      if (btn) {
+        e.stopPropagation();
+        const p = btn.dataset.toggle;
+        if (open.has(p)) open.delete(p); else open.add(p);
+        render();
+        return;
+      }
+      const tr = e.target.closest("tr[data-path]");
+      if (tr) show(tr.dataset.path);
+    });
+    document.getElementById("kpis").addEventListener("click", (e) => {
+      const el = e.target.closest("[data-path]");
+      if (!el) return;
+      let p = el.dataset.path;
+      while (p) { open.add(p); const i = p.lastIndexOf("/"); p = i < 0 ? "" : p.slice(0, i); }
+      show(el.dataset.path);
+    });
+    document.getElementById("openAll").addEventListener("click", () => { byPath.forEach((n) => { if (n.children.length) open.add(n.path); }); render(); });
+    document.getElementById("closeZero").addEventListener("click", () => { open.clear(); roots.forEach(initOpen); render(); });
+    renderKpis();
+    show("收入/营业收入");
+  </script>
+</body>
+</html>
