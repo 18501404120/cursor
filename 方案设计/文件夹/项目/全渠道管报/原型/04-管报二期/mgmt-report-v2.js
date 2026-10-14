@@ -355,16 +355,16 @@
     }
   ];
   var DETAIL_DIM = {
-    D001: { region: '北美', model: 'H6076', bu: '照明', scene: '客厅', category: '落地灯', newTag: '新品', launch: '2026-03' },
-    D002: { region: '北美', model: 'H7055', bu: '照明', scene: '户外', category: '灯带', newTag: '老品', launch: '2025-08' },
-    D003: { region: '北美', model: 'H6099', bu: '照明', scene: '客厅', category: '窗帘灯', newTag: '新品', launch: '2026-01' },
-    D004: { region: '北美', model: 'H610A', bu: '照明', scene: '电视', category: '电视背光', newTag: '老品', launch: '2024-11' },
-    D005: { region: '北美', model: 'H6052', bu: '照明', scene: '卧室', category: '台灯', newTag: '老品', launch: '2025-04' },
-    D006: { region: '北美', model: 'H619A', bu: '照明', scene: '客厅', category: '灯带', newTag: '新品', launch: '2026-02' },
-    D007: { region: '欧洲', model: 'H6076', bu: '照明', scene: '客厅', category: '落地灯', newTag: '新品', launch: '2026-03' },
-    D008: { region: '北美', model: 'H713A', bu: '家电', scene: '客厅', category: '取暖器', newTag: '老品', launch: '2025-09' },
-    D009: { region: '北美', model: 'H7060', bu: '照明', scene: '户外', category: '户外壁灯', newTag: '新品', launch: '2026-04' },
-    D010: { region: '北美', model: 'H6099', bu: '照明', scene: '客厅', category: '窗帘灯', newTag: '新品', launch: '2026-01' }
+    D001: { region: '北美区', retailer: '自营', model: 'H6076', bu: '照明', scene: '居家', category: '落地灯', newTag: '2026年新品', launch: '2026-03' },
+    D002: { region: '北美区', retailer: 'Walmart', model: 'H7055', bu: '照明', scene: '居家', category: '灯带', newTag: '2025年新品', launch: '2025-08' },
+    D003: { region: '北美区', retailer: 'Target', model: 'H6099', bu: '照明', scene: '居家', category: '落地灯', newTag: '2026年新品', launch: '2026-01' },
+    D004: { region: '北美区', retailer: 'Best Buy', model: 'H610A', bu: '照明', scene: '观影', category: 'TV灯带', newTag: '2024年新品', launch: '2024-11' },
+    D005: { region: '北美区', retailer: 'Walmart', model: 'H6052', bu: '照明', scene: '居家', category: '床头灯', newTag: '2025年新品', launch: '2025-04' },
+    D006: { region: '北美区', retailer: 'Amazon', model: 'H619A', bu: '照明', scene: '居家', category: '灯带', newTag: '2026年新品', launch: '2026-02' },
+    D007: { region: '欧洲区', retailer: '自营', model: 'H6076', bu: '照明', scene: '居家', category: '落地灯', newTag: '2026年新品', launch: '2026-03' },
+    D008: { region: '北美区', retailer: 'D&H', model: 'H713A', bu: '家电', scene: '家电', category: '取暖器', newTag: '2025年新品', launch: '2025-09' },
+    D009: { region: '北美区', retailer: "Lowe's", model: 'H7060', bu: '照明', scene: '户外', category: '户外灯带', newTag: '2026年新品', launch: '2026-04' },
+    D010: { region: '北美区', retailer: 'Target', model: 'H6099', bu: '照明', scene: '居家', category: '落地灯', newTag: '2026年新品', launch: '2026-01' }
   };
   details.forEach(function (row) {
     var dim = DETAIL_DIM[row.id] || {};
@@ -562,18 +562,51 @@
     { id: 'R009', period: '2026-05', feeId: '费用/公共费用/仓储物流/仓储费用/仓储租金', channel: '线下商超', mgmt: 16500, finance: 16500, handling: '已锁定冻结值', override: true }
   ];
 
+  function pad2(n) { return String(n).padStart(2, '0'); }
+  function isoDate(d) { return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate()); }
+  function lastMonthRange(now) {
+    var start = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    var end = new Date(now.getFullYear(), now.getMonth(), 0);
+    var prev = new Date(now.getFullYear(), now.getMonth() - 2, 1);
+    return {
+      start: isoDate(start),
+      end: isoDate(end),
+      period: isoDate(start).slice(0, 7),
+      prev: isoDate(prev).slice(0, 7)
+    };
+  }
+  var PERIOD = lastMonthRange(new Date());
+  function shiftPeriod(value) {
+    return String(value || '').replace('2026-06', PERIOD.period).replace('2026-05', PERIOD.prev);
+  }
+  details.forEach(function (row) {
+    row.period = shiftPeriod(row.period);
+    row.date = shiftPeriod(row.date);
+  });
+  recon.forEach(function (row) { row.period = shiftPeriod(row.period); });
+
+  var master = { regions: [], channels: [], scenes: [], models: [], tags: [] };
+  var scenePick = {};
+  var sceneActive = '';
+
   var state = {
     tab: 'overview',
     filters: {
-      dateStart: '2026-06-01',
-      dateEnd: '2026-06-30',
+      dateStart: PERIOD.start,
+      dateEnd: PERIOD.end,
+      dept: '',
+      region: '',
+      country: '',
       channel: '',
       store: '',
-      feeId: '',
-      sourceMode: '',
-      finalStatus: '',
-      keyword: ''
+      retailer: '',
+      model: '',
+      skuMode: 'fuzzy',
+      sku: '',
+      newTag: ''
     },
+    trace: { sourceMode: '', finalStatus: '', keyword: '' },
+    trendMetrics: ['收入/营业收入', '收入/销量', '毛利', '营业利润'],
     selectedFeeId: '收入/营业收入',
     expanded: {
       '收入': true,
@@ -709,64 +742,175 @@
     } else if (dateRangePicker) {
       dateRangePicker.set(state.filters.dateStart, state.filters.dateEnd);
     }
-    $('#fChannel').innerHTML = optionHtml(unique(details.map(function (r) { return r.channel; })).sort(), state.filters.channel, '全部渠道');
-    $('#fStore').innerHTML = optionHtml(unique(details.map(function (r) { return r.store; })).sort(), state.filters.store, '全部店铺');
-    $('#fFeeItem').innerHTML = optionHtml(feeOptionNodes().map(function (n) { return n.id + '｜' + '　'.repeat(n.level) + n.name; }), '', '全部科目');
-    $('#fSourceMode').innerHTML = optionHtml(unique(details.map(function (r) { return r.mode; })).sort(), state.filters.sourceMode, '全部来源');
-    $('#fFinalStatus').innerHTML = optionHtml(unique(details.map(function (r) { return r.finalStatus; })).sort(), state.filters.finalStatus, '全部状态');
+    fillBusinessSelects();
+    fillTraceSelects();
     syncFilterControls();
+    loadMasterData();
+  }
+
+  function fillSelect(el, values, selected, allLabel) {
+    if (!el) return;
+    el.innerHTML = optionHtml(values, selected, allLabel);
+    el.value = selected || '';
+    syncClearableSelect(el);
+  }
+
+  function syncClearableSelect(sel) {
+    var btn = sel.parentNode && sel.parentNode.querySelector('.ctl-clear');
+    if (btn) btn.hidden = !sel.value;
+  }
+
+  function countriesOf(regionName) {
+    var found = [];
+    master.regions.forEach(function (region) {
+      if (regionName && region.region_name !== regionName) return;
+      (region.countries || []).forEach(function (c) { found.push(c); });
+      (region.subregions || []).forEach(function (sub) {
+        (sub.countries || []).forEach(function (c) { found.push(c); });
+      });
+    });
+    if (!found.length) {
+      details.forEach(function (r) {
+        if (!regionName || r.region === regionName) found.push({ country_code: r.country, country_name: r.country });
+      });
+    }
+    var seen = {};
+    return found.filter(function (c) {
+      if (seen[c.country_code]) return false;
+      seen[c.country_code] = true;
+      return true;
+    });
+  }
+
+  function storesOf(channelName) {
+    var names = [];
+    master.channels.forEach(function (ch) {
+      if (!channelName || ch.channel_name === channelName) names = names.concat(ch.stores || []);
+    });
+    details.forEach(function (r) {
+      if ((!channelName || r.channel === channelName) && names.indexOf(r.store) < 0) names.push(r.store);
+    });
+    return unique(names);
+  }
+
+  function fillBusinessSelects() {
+    var f = state.filters;
+    fillSelect($('#fDept'), unique(details.map(function (r) { return r.dept; })).sort(), f.dept, '全部');
+    var regionNames = master.regions.map(function (r) { return r.region_name; });
+    if (!regionNames.length) regionNames = unique(details.map(function (r) { return r.region; }));
+    fillSelect($('#fRegion'), regionNames, f.region, '全部');
+    fillSelect($('#fCountry'), countriesOf(f.region).map(function (c) { return c.country_code + '｜' + c.country_name; }), f.country ? f.country + '｜' + (countriesOf(f.region).filter(function (c) { return c.country_code === f.country; })[0] || {}).country_name : '', '全部');
+    var countryEl = $('#fCountry');
+    if (countryEl) {
+      var opts = ['<option value="">全部</option>'].concat(countriesOf(f.region).map(function (c) {
+        return '<option value="' + esc(c.country_code) + '"' + (c.country_code === f.country ? ' selected' : '') + '>' + esc(c.country_name) + '</option>';
+      }));
+      countryEl.innerHTML = opts.join('');
+      syncClearableSelect(countryEl);
+    }
+    var channelNames = master.channels.map(function (c) { return c.channel_name; });
+    details.forEach(function (r) { if (channelNames.indexOf(r.channel) < 0) channelNames.push(r.channel); });
+    fillSelect($('#fChannel'), channelNames, f.channel, '全部');
+    fillSelect($('#fStore'), storesOf(f.channel), f.store, '全部');
+    fillSelect($('#fRetailer'), unique(details.map(function (r) { return r.retailer; })).sort(), f.retailer, '全部');
+    var models = master.models.length ? master.models : unique(details.map(function (r) { return r.model; })).sort();
+    fillSelect($('#fModel'), models, f.model, '全部');
+    var tags = master.tags.length ? master.tags : unique(details.map(function (r) { return r.newTag; }));
+    fillSelect($('#fNewTag'), tags, f.newTag, '全部');
+    if ($('#fSkuMode')) $('#fSkuMode').value = f.skuMode || 'fuzzy';
+    if ($('#fSkuInput')) $('#fSkuInput').value = f.sku || '';
+    renderSceneTrigger();
+  }
+
+  function fillTraceSelects() {
+    var modes = unique(details.map(function (r) { return r.mode; })).sort();
+    var statuses = unique(details.map(function (r) { return r.finalStatus; })).sort();
+    ['trace', 'recon'].forEach(function (prefix) {
+      fillSelect($('#' + prefix + 'Source'), modes, state.trace.sourceMode, '全部');
+      fillSelect($('#' + prefix + 'Status'), statuses, state.trace.finalStatus, '全部');
+      var input = $('#' + prefix + 'Keyword');
+      if (input) input.value = state.trace.keyword || '';
+    });
   }
 
   function syncFilterControls() {
     if (dateRangePicker) dateRangePicker.set(state.filters.dateStart, state.filters.dateEnd);
-    $('#fChannel').value = state.filters.channel;
-    $('#fStore').value = state.filters.store;
-    var feeNode = feeById[state.filters.feeId];
-    $('#fFeeItem').value = feeNode ? feeNode.id + '｜' + '　'.repeat(feeNode.level) + feeNode.name : '';
-    $('#fSourceMode').value = state.filters.sourceMode;
-    $('#fFinalStatus').value = state.filters.finalStatus;
-    $('#fKeyword').value = state.filters.keyword;
+    fillBusinessSelects();
+    fillTraceSelects();
     if ($('#fCurrency')) $('#fCurrency').value = state.currency || 'USD';
   }
 
   function readFilters() {
-    var feeSelect = $('#fFeeItem').value;
     var range = dateRangePicker ? dateRangePicker.get() : { start: state.filters.dateStart, end: state.filters.dateEnd };
-    state.filters = {
-      dateStart: range.start || '',
-      dateEnd: range.end || '',
-      channel: $('#fChannel').value,
-      store: $('#fStore').value,
-      feeId: feeSelect ? feeSelect.split('｜')[0] : '',
-      sourceMode: $('#fSourceMode').value,
-      finalStatus: $('#fFinalStatus').value,
-      keyword: $('#fKeyword').value.trim()
-    };
+    state.filters.dateStart = range.start || '';
+    state.filters.dateEnd = range.end || '';
+    state.filters.dept = $('#fDept').value;
+    state.filters.region = $('#fRegion').value;
+    state.filters.country = $('#fCountry').value;
+    state.filters.channel = $('#fChannel').value;
+    state.filters.store = $('#fStore').value;
+    state.filters.retailer = $('#fRetailer').value;
+    state.filters.model = $('#fModel').value;
+    state.filters.skuMode = $('#fSkuMode').value;
+    state.filters.sku = $('#fSkuInput').value.trim();
+    state.filters.newTag = $('#fNewTag').value;
+  }
+
+  function skuHit(row) {
+    var q = (state.filters.sku || '').trim().toLowerCase();
+    if (!q) return true;
+    var sku = String(row.sku || '').toLowerCase();
+    var msku = String(row.msku || '').toLowerCase();
+    if (state.filters.skuMode === 'exact') return msku === q;
+    if (state.filters.skuMode === 'eight') return sku === q;
+    return sku.indexOf(q) >= 0 || msku.indexOf(q) >= 0;
+  }
+
+  function sceneHit(row) {
+    var picked = [];
+    Object.keys(scenePick).forEach(function (scene) {
+      Object.keys(scenePick[scene] || {}).forEach(function (cat) {
+        if (scenePick[scene][cat]) picked.push(scene + '/' + cat);
+      });
+    });
+    if (!picked.length) return true;
+    return picked.indexOf((row.scene || '') + '/' + (row.category || '')) >= 0;
   }
 
   function rowMatches(row, opts) {
     opts = opts || {};
     var f = state.filters;
-    var feeContext = opts.feeId || f.feeId;
-    var keyword = f.keyword.toLowerCase();
+    var feeContext = opts.feeId || '';
     var dateStart = opts.dateStart != null ? opts.dateStart : f.dateStart;
     var dateEnd = opts.dateEnd != null ? opts.dateEnd : f.dateEnd;
     if (!opts.ignoreDateRange && !dateInRange(row.date, dateStart, dateEnd)) return false;
+    if (f.dept && row.dept !== f.dept) return false;
+    if (f.region && row.region !== f.region) return false;
+    if (f.country && row.country !== f.country) return false;
     if (f.channel && row.channel !== f.channel) return false;
     if (f.store && row.store !== f.store) return false;
-    if (f.sourceMode && row.mode !== f.sourceMode) return false;
-    if (f.finalStatus && row.finalStatus !== f.finalStatus) return false;
+    if (f.retailer && row.retailer !== f.retailer) return false;
+    if (f.model && row.model !== f.model) return false;
+    if (f.newTag && row.newTag !== f.newTag) return false;
+    if (!sceneHit(row) || !skuHit(row)) return false;
     if (feeContext && !isDescendantOrSelf(row.feeId, feeContext)) return false;
-    if (keyword) {
-      var hay = [row.msku, row.sku, row.model, row.product, row.sourceNo, row.batch, row.feeName, row.store, row.channel, row.dept, row.region, row.bu, row.scene, row.category, row.country].join(' ').toLowerCase();
-      if (hay.indexOf(keyword) < 0) return false;
+    return true;
+  }
+
+  function traceHit(row) {
+    var t = state.trace;
+    if (t.sourceMode && row.mode !== t.sourceMode) return false;
+    if (t.finalStatus && row.finalStatus !== t.finalStatus) return false;
+    if (t.keyword) {
+      var hay = [row.msku, row.sku, row.model, row.product, row.sourceNo, row.batch, row.feeName, row.store, row.channel].join(' ').toLowerCase();
+      if (hay.indexOf(t.keyword.toLowerCase()) < 0) return false;
     }
     return true;
   }
 
   function filteredDetails(extraFeeId) {
     return details.filter(function (row) {
-      return rowMatches(row, { feeId: extraFeeId || state.filters.feeId });
+      return rowMatches(row, { feeId: extraFeeId || '' });
     });
   }
 
@@ -833,12 +977,23 @@
     sales.yoyQty = Math.round(shipQty.yoyQty - returnQty.yoyQty);
   }
 
+  function sceneSelected() {
+    return Object.keys(scenePick).some(function (scene) {
+      return Object.keys(scenePick[scene] || {}).some(function (cat) { return scenePick[scene][cat]; });
+    });
+  }
+
   function scopeFactor() {
     var f = state.filters;
     var channelRate = { 'Shopify': 0.28, '线下商超': 0.31, '亚马逊': 0.22, '商超3P': 0.08, '线下分销': 0.11 };
     var rate = f.channel ? (channelRate[f.channel] || 0.1) : 1;
     if (f.store) rate *= 0.42;
-    return rate;
+    var matched = details.filter(function (row) { return rowMatches(row); });
+    if (!matched.length) return 0;
+    var narrowed = f.dept || f.region || f.country || f.retailer || f.model || f.sku || f.newTag || sceneSelected();
+    if (!narrowed) return rate;
+    var pool = details.filter(function (row) { return dateInRange(row.date, f.dateStart, f.dateEnd); }).length || 1;
+    return rate * matched.length / pool;
   }
 
   var FX = {
@@ -1048,9 +1203,29 @@
     return '-';
   }
 
+  function metricBase(id) {
+    var node = feeById[id];
+    if (!node) return 0;
+    if (node.qty) return Math.abs(Math.round((node.baseQty || 0) * scopeFactor()));
+    return Math.abs(shownAmount(node));
+  }
+
+  function renderMetricPicker() {
+    if (!$('#metricList')) return;
+    var q = ($('#metricSearch') && $('#metricSearch').value || '').trim();
+    if ($('#metricTrigger')) $('#metricTrigger').textContent = '指标 · 已选 ' + state.trendMetrics.length + ' 项';
+    $('#metricList').innerHTML = feeNodes.filter(function (node) {
+      return !q || node.name.indexOf(q) >= 0;
+    }).map(function (node) {
+      var on = state.trendMetrics.indexOf(node.id) >= 0;
+      return '<label class="metric-item" style="padding-left:' + (8 + node.level * 12) + 'px"><input type="checkbox" data-metric="' + esc(node.id) + '"' + (on ? ' checked' : '') + '>' + esc(node.name) + '</label>';
+    }).join('');
+  }
+
   function renderOverviewTrendChart() {
-    var dateStart = state.filters.dateStart || '2026-06-01';
-    var dateEnd = state.filters.dateEnd || '2026-06-30';
+    renderMetricPicker();
+    var dateStart = state.filters.dateStart || PERIOD.start;
+    var dateEnd = state.filters.dateEnd || PERIOD.end;
     var granularity = state.trendGranularity || 'day';
     var buckets = trendBuckets(dateStart, dateEnd, granularity);
     if (buckets.length > 31 && granularity === 'day') {
@@ -1058,105 +1233,87 @@
       state.trendGranularity = 'week';
       buckets = trendBuckets(dateStart, dateEnd, granularity);
     }
-    function spread(total, n) {
+    var colors = ['#1677ff', '#52c41a', '#fa8c16', '#722ed1', '#13c2c2', '#eb2f96', '#faad14', '#2f54eb'];
+    var ids = state.trendMetrics.filter(function (id) { return feeById[id]; });
+    if (!ids.length) {
+      $('#overviewTrendChart').innerHTML = '<div class="muted" style="padding:24px;">请至少选择一个科目。</div>';
+      return;
+    }
+    function spread(total, n, salt) {
       var weights = [];
       var i;
-      for (i = 0; i < n; i++) weights.push(0.82 + (i % 4) * 0.09);
+      for (i = 0; i < n; i++) weights.push(0.86 + ((i + salt) % 5) * 0.05);
       var sum = weights.reduce(function (a, b) { return a + b; }, 0) || 1;
-      return weights.map(function (w) { return round2(total * w / sum); });
+      return weights.map(function (w) { return (total || 1) * w / sum; });
     }
-    var marketSeries = spread(shownAmount(feeById['费用/市场投入']), buckets.length);
-    var publicSeries = spread(shownAmount(feeById['费用/公共费用']), buckets.length);
-    var totalSeries = spread(shownAmount(feeById['费用']), buckets.length);
-    var leftMax = Math.max.apply(null, marketSeries.concat(publicSeries).concat([1]));
-    var rightMax = Math.max.apply(null, totalSeries.concat([1]));
-    leftMax = Math.ceil(leftMax / 5000) * 5000 || 5000;
-    rightMax = Math.ceil(rightMax / 5000) * 5000 || 5000;
+    var series = ids.map(function (id, idx) {
+      var raw = spread(metricBase(id), buckets.length, idx * 2);
+      var base = raw[0] || 1;
+      return {
+        id: id,
+        name: feeName(id),
+        qty: !!feeById[id].qty,
+        color: colors[idx % colors.length],
+        raw: raw,
+        pcts: raw.map(function (v) { return (v - base) / Math.abs(base) * 100; })
+      };
+    });
+    var flat = [];
+    series.forEach(function (s) { flat = flat.concat(s.pcts); });
+    var yMax = Math.max(4, Math.ceil(Math.max.apply(null, flat.map(Math.abs)) / 2) * 2);
     var width = 1160;
     var height = 300;
-    var plot = { x: 52, y: 40, w: 1056, h: 206 };
-    function axisText(value) {
-      value = value * currencyRate();
-      var n = Math.abs(value);
-      if (n >= 1000000) return (value / 1000000).toFixed(1).replace(/\.0$/, '') + 'M';
-      if (n >= 1000) return Math.round(value / 1000) + 'k';
-      return String(Math.round(value));
-    }
-    var focusIndex = state.trendHoverIndex != null ? state.trendHoverIndex : (state.trendActiveIndex != null ? state.trendActiveIndex : Math.min(1, buckets.length - 1));
+    var plot = { x: 48, y: 36, w: 1070, h: 210 };
+    var focusIndex = state.trendHoverIndex != null ? state.trendHoverIndex : (state.trendActiveIndex != null ? state.trendActiveIndex : 0);
     if (focusIndex < 0 || focusIndex >= buckets.length) focusIndex = 0;
     function xAt(i) { return plot.x + (plot.w / Math.max(buckets.length - 1, 1)) * i; }
-    function bucketWidth() { return buckets.length > 1 ? plot.w / (buckets.length - 1) : plot.w; }
-    function yLeft(v) { return plot.y + plot.h - (v / leftMax) * plot.h; }
-    function yRight(v) { return plot.y + plot.h - (v / rightMax) * plot.h; }
-    function points(values, mapper) {
-      return values.map(function (v, i) { return xAt(i).toFixed(1) + ',' + mapper(v).toFixed(1); }).join(' ');
-    }
-    var gridSteps = 5;
+    function yAt(v) { return plot.y + plot.h / 2 - (v / yMax) * (plot.h / 2); }
     var grid = [];
-    for (var g = 0; g <= gridSteps; g++) {
-      var leftVal = Math.round(leftMax / gridSteps * g);
-      var rightVal = Math.round(rightMax / gridSteps * g);
-      var y = yLeft(leftVal);
+    [-yMax, -yMax / 2, 0, yMax / 2, yMax].forEach(function (v) {
+      var y = yAt(v);
       grid.push('<line class="target-grid" x1="' + plot.x + '" y1="' + y.toFixed(1) + '" x2="' + (plot.x + plot.w) + '" y2="' + y.toFixed(1) + '"></line>' +
-        '<text class="target-axis" x="' + (plot.x - 8) + '" y="' + (y + 4).toFixed(1) + '" text-anchor="end">' + esc(axisText(leftVal)) + '</text>' +
-        '<text class="target-axis" x="' + (plot.x + plot.w + 8) + '" y="' + (y + 4).toFixed(1) + '">' + esc(axisText(rightVal)) + '</text>');
-    }
+        '<text class="target-axis" x="' + (plot.x - 8) + '" y="' + (y + 4).toFixed(1) + '" text-anchor="end">' + (v > 0 ? '+' : '') + v.toFixed(0) + '%</text>');
+    });
     var labelStep = Math.max(1, Math.ceil(buckets.length / 6));
     var labels = buckets.map(function (bucket, i) {
       if (buckets.length > 8 && i % labelStep !== 0 && i !== buckets.length - 1) return '';
-      return '<text class="target-axis" x="' + xAt(i).toFixed(1) + '" y="276" text-anchor="middle">' + esc(bucket.label) + '</text>';
+      return '<text class="target-axis" x="' + xAt(i).toFixed(1) + '" y="286" text-anchor="middle">' + esc(bucket.label) + '</text>';
     }).join('');
-    var legendItems = [
-      ['market', '市场投入'], ['public', '公共费用'], ['total', '总费用']
-    ];
-    var legendHtml = legendItems.map(function (item) {
-      return '<span><i class="legend-dot ' + item[0] + '"></i>' + esc(item[1]) + '</span>';
+    var lines = series.map(function (s) {
+      var pts = s.pcts.map(function (v, i) { return xAt(i).toFixed(1) + ',' + yAt(v).toFixed(1); }).join(' ');
+      return '<polyline fill="none" stroke="' + s.color + '" stroke-width="2" points="' + pts + '"></polyline>' +
+        s.pcts.map(function (v, i) {
+          return '<circle data-trend-index="' + i + '" cx="' + xAt(i).toFixed(1) + '" cy="' + yAt(v).toFixed(1) + '" r="3" fill="' + s.color + '"></circle>';
+        }).join('');
     }).join('');
-    var hitAreas = buckets.map(function (bucket, i) {
-      var bw = bucketWidth();
-      var x = buckets.length > 1 ? (xAt(i) - bw / 2) : plot.x;
-      var cls = 'target-hit' + (i === focusIndex ? ' is-active' : '');
-      return '<rect class="' + cls + '" data-trend-index="' + i + '" x="' + x.toFixed(1) + '" y="' + plot.y + '" width="' + bw.toFixed(1) + '" height="' + plot.h + '"></rect>';
+    var bw = buckets.length > 1 ? plot.w / (buckets.length - 1) : plot.w;
+    var hits = buckets.map(function (bucket, i) {
+      var x = buckets.length > 1 ? xAt(i) - bw / 2 : plot.x;
+      return '<rect data-trend-index="' + i + '" x="' + x.toFixed(1) + '" y="' + plot.y + '" width="' + bw.toFixed(1) + '" height="' + plot.h + '" fill="transparent"></rect>';
     }).join('');
-    var markers = buckets.map(function (bucket, i) {
-      var activeCls = i === focusIndex ? ' is-active' : '';
-      return '<circle class="target-point market' + activeCls + '" data-trend-index="' + i + '" cx="' + xAt(i).toFixed(1) + '" cy="' + yLeft(marketSeries[i]).toFixed(1) + '" r="3"></circle>' +
-        '<circle class="target-point public' + activeCls + '" data-trend-index="' + i + '" cx="' + xAt(i).toFixed(1) + '" cy="' + yLeft(publicSeries[i]).toFixed(1) + '" r="3"></circle>' +
-        '<circle class="target-point total' + activeCls + '" data-trend-index="' + i + '" cx="' + xAt(i).toFixed(1) + '" cy="' + yRight(totalSeries[i]).toFixed(1) + '" r="3"></circle>';
+    var focus = buckets[focusIndex];
+    var tipRows = series.map(function (s) {
+      var pct = s.pcts[focusIndex];
+      var absText = s.qty ? fmtQty(Math.round(s.raw[focusIndex])) : usd(s.raw[focusIndex] * (shownAmount(feeById[s.id]) < 0 ? -1 : 1));
+      return '<text x="10" y="' + (36 + series.indexOf(s) * 16) + '" fill="' + s.color + '">' + esc(s.name) + ' ' + (pct >= 0 ? '+' : '') + pct.toFixed(1) + '%  ' + esc(absText) + '</text>';
     }).join('');
-    var focusBucket = buckets[focusIndex];
-    var tooltipX = Math.min(xAt(focusIndex) + 8, plot.x + plot.w - 220);
-    var granularityLabel = { day: '日', week: '周', month: '月' }[granularity] || '日';
+    var tipH = 28 + series.length * 16;
+    var tipX = Math.min(xAt(focusIndex) + 8, plot.x + plot.w - 280);
+    var legend = series.map(function (s) {
+      return '<span><i class="legend-dot" style="background:' + s.color + ';border-color:' + s.color + '"></i>' + esc(s.name) + '</span>';
+    }).join('');
     $('#overviewTrendChart').innerHTML =
-      '<div class="target-chart-head">' +
-        '<div class="target-legend">' + legendHtml + '</div>' +
+      '<div class="target-chart-head"><div class="target-legend">' + legend + '</div>' +
         '<div class="target-switch" data-trend-switch>' +
           '<button type="button" data-granularity="day"' + (granularity === 'day' ? ' class="active"' : '') + '>日</button>' +
           '<button type="button" data-granularity="week"' + (granularity === 'week' ? ' class="active"' : '') + '>周</button>' +
           '<button type="button" data-granularity="month"' + (granularity === 'month' ? ' class="active"' : '') + '>月</button>' +
-        '</div>' +
-      '</div>' +
-      '<svg class="target-chart-svg" viewBox="0 0 ' + width + ' ' + height + '" role="img" aria-label="管报费用项趋势">' +
-        '<text class="target-title left" x="' + (plot.x - 8) + '" y="24">分项费用</text>' +
-        '<text class="target-title right" x="' + (plot.x + plot.w + 8) + '" y="24">总费用</text>' +
-        grid.join('') +
-        '<line class="target-axis-line" x1="' + plot.x + '" y1="' + plot.y + '" x2="' + plot.x + '" y2="' + (plot.y + plot.h) + '"></line>' +
-        '<line class="target-axis-line" x1="' + (plot.x + plot.w) + '" y1="' + plot.y + '" x2="' + (plot.x + plot.w) + '" y2="' + (plot.y + plot.h) + '"></line>' +
-        '<line class="target-axis-line" x1="' + plot.x + '" y1="' + (plot.y + plot.h) + '" x2="' + (plot.x + plot.w) + '" y2="' + (plot.y + plot.h) + '"></line>' +
-        hitAreas +
-        '<polyline class="target-line market" points="' + esc(points(marketSeries, yLeft)) + '"></polyline>' +
-        '<polyline class="target-line public" points="' + esc(points(publicSeries, yLeft)) + '"></polyline>' +
-        '<polyline class="target-line total" points="' + esc(points(totalSeries, yRight)) + '"></polyline>' +
-        markers +
+        '</div></div>' +
+      '<svg class="target-chart-svg" viewBox="0 0 ' + width + ' ' + height + '" role="img" aria-label="科目趋势">' +
+        grid.join('') + lines + hits +
         '<line class="target-hover-line" x1="' + xAt(focusIndex).toFixed(1) + '" y1="' + plot.y + '" x2="' + xAt(focusIndex).toFixed(1) + '" y2="' + (plot.y + plot.h) + '"></line>' +
-        '<g class="target-tooltip" transform="translate(' + tooltipX.toFixed(1) + ',88)">' +
-          '<rect x="0" y="0" width="208" height="88" rx="4"></rect>' +
-          '<text x="10" y="18">' + esc(focusBucket.start === focusBucket.end ? focusBucket.start : focusBucket.start + ' ~ ' + focusBucket.end) + '</text>' +
-          '<text x="10" y="36">粒度：' + esc(granularityLabel) + '</text>' +
-          '<text x="10" y="54">● 市场投入：' + esc(usd(marketSeries[focusIndex])) + '</text>' +
-          '<text x="10" y="69">● 公共费用：' + esc(usd(publicSeries[focusIndex])) + '</text>' +
-          '<text x="10" y="84">● 总费用：' + esc(usd(totalSeries[focusIndex])) + '</text>' +
-        '</g>' +
+        '<g transform="translate(' + tipX.toFixed(1) + ',48)"><rect width="268" height="' + tipH + '" rx="4" fill="#1f2937"></rect>' +
+          '<text x="10" y="18" fill="#fff">' + esc(focus.start === focus.end ? focus.start : focus.label) + '</text>' + tipRows + '</g>' +
         labels +
       '</svg>';
   }
@@ -1297,8 +1454,8 @@
   }
 
   function renderDetails() {
-    var feeContext = state.selectedFeeId && state.tab === 'details' ? state.selectedFeeId : state.filters.feeId;
-    var rows = filteredDetails(feeContext);
+    var feeContext = state.detailFeeId || '';
+    var rows = filteredDetails(feeContext).filter(traceHit);
     var code = (FX[state.currency] || FX.USD).code;
     $('#detailSummary').textContent = '当前 ' + rows.length + ' 条；展示币种 ' + code + (feeContext ? '；科目上下文：' + feeName(feeContext) : '；未限定科目');
     $('#detailBody').innerHTML = rows.map(function (r) {
@@ -1359,9 +1516,9 @@
     var rows = recon.filter(function (r) {
       if (!periodInDateRange(r.period, f.dateStart, f.dateEnd)) return false;
       if (f.channel && r.channel !== f.channel) return false;
-      if (f.feeId && !isDescendantOrSelf(r.feeId, f.feeId)) return false;
-      if (f.store || f.sourceMode || f.finalStatus || f.keyword) {
-        return details.some(function (d) { return d.reconId === r.id && rowMatches(d, { feeId: f.feeId }); });
+      if (state.reconFeeId && !isDescendantOrSelf(r.feeId, state.reconFeeId)) return false;
+      if (f.dept || f.region || f.country || f.store || f.retailer || f.model || f.sku || f.newTag || sceneSelected() || state.trace.sourceMode || state.trace.finalStatus || state.trace.keyword) {
+        return details.some(function (d) { return d.reconId === r.id && rowMatches(d) && traceHit(d); });
       }
       return true;
     });
@@ -1519,7 +1676,8 @@
     renderClosing();
   }
 
-  function setTab(tab) {
+  function setTab(tab, keepRecon) {
+    if (tab === 'recon' && !keepRecon) state.reconFeeId = '';
     state.tab = tab;
     $all('.nav-tab').forEach(function (btn) { btn.classList.toggle('active', btn.dataset.tab === tab); });
     $all('.tab-panel').forEach(function (panel) { panel.classList.toggle('active', panel.dataset.panel === tab); });
@@ -1534,7 +1692,7 @@
   }
 
   function exportCsv() {
-    var rows = filteredDetails(state.selectedFeeId && state.tab === 'details' ? state.selectedFeeId : '');
+    var rows = filteredDetails(state.detailFeeId || '').filter(traceHit);
     var code = (FX[state.currency] || FX.USD).code;
     var heads = ['年份', '月份', '业务指标名称', '店铺', '区域', '国家', '渠道', 'Model', 'SKU', 'MSKU', '事业部', '场景', '品类', '新品标签', '上市时间', '原币金额', '原币币种', '汇率兑USD', '金额USD', '金额' + code, '来源模式', '来源编号', '定稿状态'];
     var lines = [heads].concat(rows.map(function (r) {
@@ -1555,9 +1713,156 @@
     showToast('已生成示例明细 CSV');
   }
 
+  function renderSceneTrigger() {
+    var picked = [];
+    Object.keys(scenePick).forEach(function (scene) {
+      Object.keys(scenePick[scene] || {}).forEach(function (cat) {
+        if (scenePick[scene][cat]) picked.push(scene + '/' + cat);
+      });
+    });
+    var trigger = $('#scCatTrigger');
+    var clear = $('#scCatClear');
+    if (!trigger) return;
+    trigger.textContent = !picked.length ? '请选择' : (picked.length <= 2 ? picked.join('、') : '已选 ' + picked.length + ' 项');
+    if (clear) clear.hidden = !picked.length;
+  }
+
+  function renderSceneCols() {
+    var scenes = master.scenes || [];
+    if (!sceneActive && scenes[0]) sceneActive = scenes[0].scene_name;
+    var sceneCol = $('#scCatSceneCol');
+    var catCol = $('#scCatCatCol');
+    if (!sceneCol || !catCol) return;
+    sceneCol.innerHTML = scenes.map(function (scene) {
+      return '<div class="sc-cat-item' + (scene.scene_name === sceneActive ? ' active' : '') + '" data-scene="' + esc(scene.scene_name) + '">' + esc(scene.scene_name) + '</div>';
+    }).join('');
+    var current = scenes.filter(function (s) { return s.scene_name === sceneActive; })[0];
+    var cats = current ? (current.categories || []) : [];
+    var chosen = scenePick[sceneActive] || {};
+    var allOn = cats.length && cats.every(function (c) { return chosen[c.category_name]; });
+    catCol.innerHTML = '<label class="sc-cat-item sc-cat-all"><input type="checkbox" data-cat-all="1"' + (allOn ? ' checked' : '') + '>全部</label>' +
+      cats.map(function (cat) {
+        return '<label class="sc-cat-item"><input type="checkbox" data-cat="' + esc(cat.category_name) + '"' + (chosen[cat.category_name] ? ' checked' : '') + '>' + esc(cat.category_name) + '</label>';
+      }).join('');
+    var allBox = catCol.querySelector('[data-cat-all]');
+    if (allBox && !allOn && cats.some(function (c) { return chosen[c.category_name]; })) allBox.indeterminate = true;
+  }
+
+  function loadMasterData() {
+    var base = '../../../../规范/基础数据/';
+    function get(name) { return fetch(base + name).then(function (r) { return r.json(); }); }
+    Promise.all([
+      get('区域国家基础数据_v1.json'),
+      get('渠道店铺基础数据_v1.json'),
+      get('场景品类基础数据_v1.json'),
+      get('销售主数据索引_v1.json'),
+      get('新品标签基础数据_v1.json')
+    ]).then(function (all) {
+      master.regions = all[0].regions || [];
+      master.channels = all[1].channels || [];
+      master.scenes = (all[2].scenes || []).filter(function (s) { return s.scene_name !== '未分类'; });
+      master.scenes.push({ scene_name: '家电', categories: [{ category_name: '取暖器' }] });
+      master.models = all[3].models || [];
+      master.tags = (all[4].new_product_tags || []).map(function (t) { return t.tag_name; });
+      sceneActive = master.scenes[0] ? master.scenes[0].scene_name : '';
+      fillBusinessSelects();
+      renderSceneCols();
+    }).catch(function () { renderSceneCols(); });
+  }
+
+  function readTraceFrom(prefix) {
+    state.trace.sourceMode = $('#' + prefix + 'Source') ? $('#' + prefix + 'Source').value : state.trace.sourceMode;
+    state.trace.finalStatus = $('#' + prefix + 'Status') ? $('#' + prefix + 'Status').value : state.trace.finalStatus;
+    state.trace.keyword = $('#' + prefix + 'Keyword') ? $('#' + prefix + 'Keyword').value.trim() : state.trace.keyword;
+    fillTraceSelects();
+    renderDetails();
+    renderRecon();
+  }
+
   function bindEvents() {
     $all('.nav-tab').forEach(function (btn) {
       btn.addEventListener('click', function () { setTab(btn.dataset.tab); });
+    });
+    document.querySelectorAll('.ctl-wrap select.ctl').forEach(function (sel) {
+      sel.addEventListener('change', function () { syncClearableSelect(sel); });
+      var clear = sel.parentNode.querySelector('.ctl-clear');
+      if (clear) clear.addEventListener('click', function () {
+        sel.value = '';
+        sel.dispatchEvent(new Event('change', { bubbles: true }));
+      });
+    });
+    $('#fRegion').addEventListener('change', function () {
+      state.filters.region = $('#fRegion').value;
+      state.filters.country = '';
+      fillBusinessSelects();
+    });
+    $('#fChannel').addEventListener('change', function () {
+      state.filters.channel = $('#fChannel').value;
+      state.filters.store = '';
+      fillBusinessSelects();
+    });
+    $('#fSkuMode').addEventListener('change', function () {
+      var mode = $('#fSkuMode').value;
+      $('#fSkuInput').placeholder = mode === 'exact' ? '请输入MSKU' : (mode === 'eight' ? '请输入8位SKU' : '请输入SKU');
+    });
+    $('#scCatTrigger').addEventListener('click', function () {
+      var pop = $('#scCatPop');
+      var open = pop.hidden;
+      pop.hidden = !open;
+      $('#scCatWrap').classList.toggle('open', open);
+      $('#scCatTrigger').setAttribute('aria-expanded', open ? 'true' : 'false');
+      if (open) renderSceneCols();
+    });
+    $('#scCatClear').addEventListener('click', function (event) {
+      event.stopPropagation();
+      scenePick = {};
+      renderSceneTrigger();
+      renderSceneCols();
+    });
+    $('#scCatSceneCol').addEventListener('click', function (event) {
+      var item = event.target.closest('[data-scene]');
+      if (!item) return;
+      sceneActive = item.dataset.scene;
+      renderSceneCols();
+    });
+    $('#scCatCatCol').addEventListener('change', function (event) {
+      var current = (master.scenes || []).filter(function (s) { return s.scene_name === sceneActive; })[0];
+      var cats = current ? current.categories || [] : [];
+      if (!scenePick[sceneActive]) scenePick[sceneActive] = {};
+      if (event.target.dataset.catAll != null) {
+        cats.forEach(function (cat) { scenePick[sceneActive][cat.category_name] = event.target.checked; });
+      } else if (event.target.dataset.cat) {
+        scenePick[sceneActive][event.target.dataset.cat] = event.target.checked;
+      }
+      renderSceneTrigger();
+      renderSceneCols();
+    });
+    $('#metricTrigger').addEventListener('click', function () {
+      var pop = $('#metricPop');
+      pop.hidden = !pop.hidden;
+      $('#metricTrigger').setAttribute('aria-expanded', pop.hidden ? 'false' : 'true');
+      renderMetricPicker();
+    });
+    $('#metricSearch').addEventListener('input', renderMetricPicker);
+    $('#metricList').addEventListener('change', function (event) {
+      var id = event.target.dataset.metric;
+      if (!id) return;
+      var idx = state.trendMetrics.indexOf(id);
+      if (event.target.checked && idx < 0) state.trendMetrics.push(id);
+      if (!event.target.checked && idx >= 0) state.trendMetrics.splice(idx, 1);
+      renderOverviewTrendChart();
+    });
+    ['trace', 'recon'].forEach(function (prefix) {
+      $('#' + prefix + 'Source').addEventListener('change', function () { readTraceFrom(prefix); });
+      $('#' + prefix + 'Status').addEventListener('change', function () { readTraceFrom(prefix); });
+      $('#' + prefix + 'Keyword').addEventListener('input', function () { readTraceFrom(prefix); });
+    });
+    document.addEventListener('click', function (event) {
+      if (!$('#metricPicker').contains(event.target)) $('#metricPop').hidden = true;
+      if (!$('#scCatWrap').contains(event.target)) {
+        $('#scCatPop').hidden = true;
+        $('#scCatWrap').classList.remove('open');
+      }
     });
     $('#fCurrency').addEventListener('change', function () {
       state.currency = $('#fCurrency').value || 'USD';
@@ -1565,7 +1870,7 @@
     });
     $('#btnQuery').addEventListener('click', function () {
       readFilters();
-      state.selectedFeeId = state.filters.feeId || '收入/营业收入';
+      state.selectedFeeId = state.selectedFeeId || '收入/营业收入';
       expandAncestors(state.selectedFeeId);
       state.trendHoverIndex = null;
       state.trendActiveIndex = null;
@@ -1573,7 +1878,13 @@
       showToast('查询完成');
     });
     $('#btnReset').addEventListener('click', function () {
-      state.filters = { dateStart: '2026-06-01', dateEnd: '2026-06-30', channel: '', store: '', feeId: '', sourceMode: '', finalStatus: '', keyword: '' };
+      var range = lastMonthRange(new Date());
+      state.filters = { dateStart: range.start, dateEnd: range.end, dept: '', region: '', country: '', channel: '', store: '', retailer: '', model: '', skuMode: 'fuzzy', sku: '', newTag: '' };
+      scenePick = {};
+      state.trace = { sourceMode: '', finalStatus: '', keyword: '' };
+      state.reconFeeId = '';
+      state.detailFeeId = '';
+      state.trendMetrics = ['收入/营业收入', '收入/销量', '毛利', '营业利润'];
       state.selectedFeeId = '收入/营业收入';
       expandAncestors('收入/营业收入');
       state.currency = 'USD';
@@ -1594,9 +1905,8 @@
       renderFeeTree();
     });
     $('#btnClearFeeContext').addEventListener('click', function () {
+      state.detailFeeId = '';
       state.selectedFeeId = '';
-      state.filters.feeId = '';
-      syncFilterControls();
       renderDetails();
     });
     $('#diffThreshold').addEventListener('input', renderRecon);
@@ -1667,12 +1977,13 @@
         state.selectedFeeId = target.dataset.feeId;
         setTab('analysis');
       } else if (action === 'details') {
+        state.detailFeeId = target.dataset.feeId;
         state.selectedFeeId = target.dataset.feeId;
         setTab('details');
       } else if (action === 'diff') {
-        state.filters.feeId = target.dataset.feeId;
-        syncFilterControls();
-        setTab('recon');
+        state.reconFeeId = target.dataset.feeId;
+        state.selectedFeeId = target.dataset.feeId;
+        setTab('recon', true);
       } else if (action === 'source') {
         var d1 = details.find(function (r) { return r.id === target.dataset.detailId; });
         openDrawer('来源详情', sourceDetailHtml(d1.sourceId, d1));

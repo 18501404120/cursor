@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>管报二期 · 损益与来源追溯</title>
   <link rel="stylesheet" href="mgmt-report-v2.css">
-  <script src="../../../规范/assets/date-range-picker.js"></script>
+  <script src="../../../../规范/assets/date-range-picker.js"></script>
 </head>
 <body>
   <div class="layout">
@@ -38,47 +38,53 @@
         </div>
 
         <section class="panel panel--filter">
-          <div class="panel-head">
-            <div>
-              <div class="panel-title">查询条件</div>
-              <div class="panel-sub">筛选结果会同步影响总览、分析、明细和差异页签</div>
-            </div>
-            <div class="toolbar">
-              <button class="btn btn-primary" id="btnQuery">查询</button>
-              <button class="btn" id="btnReset">重置</button>
-              <button class="btn" id="btnExport">导出明细</button>
-            </div>
-          </div>
           <div class="filter-panel">
             <div class="filter-grid">
-              <label class="f-item f-item--range">日期范围
-                <span id="fDateRange" class="date-range-host"></span>
-              </label>
-              <label class="f-item">币种
+              <div class="f-item f-item--range"><label>日期范围</label><span id="fDateRange" class="date-range-host"></span></div>
+              <div class="f-item"><label for="fDept">费用部门</label><span class="ctl-wrap"><select id="fDept" class="ctl"></select><button type="button" class="ctl-clear" hidden aria-label="清除费用部门">×</button></span></div>
+              <div class="f-item"><label for="fRegion">区域</label><span class="ctl-wrap"><select id="fRegion" class="ctl"></select><button type="button" class="ctl-clear" hidden aria-label="清除区域">×</button></span></div>
+              <div class="f-item"><label for="fCountry">国家</label><span class="ctl-wrap"><select id="fCountry" class="ctl"></select><button type="button" class="ctl-clear" hidden aria-label="清除国家">×</button></span></div>
+              <div class="f-item"><label for="fChannel">渠道</label><span class="ctl-wrap"><select id="fChannel" class="ctl"></select><button type="button" class="ctl-clear" hidden aria-label="清除渠道">×</button></span></div>
+              <div class="f-item"><label for="fStore">店铺</label><span class="ctl-wrap"><select id="fStore" class="ctl"></select><button type="button" class="ctl-clear" hidden aria-label="清除店铺">×</button></span></div>
+              <div class="f-item"><label for="fRetailer">零售商</label><span class="ctl-wrap"><select id="fRetailer" class="ctl"></select><button type="button" class="ctl-clear" hidden aria-label="清除零售商">×</button></span></div>
+              <div class="f-item">
+                <label>场景品类</label>
+                <div class="sc-cat-wrap" id="scCatWrap">
+                  <div class="sc-cat-trigger-row">
+                    <button type="button" class="sc-cat-trigger" id="scCatTrigger" aria-expanded="false">请选择</button>
+                    <button type="button" class="sc-cat-clear" id="scCatClear" hidden aria-label="清除场景品类">×</button>
+                  </div>
+                  <div id="scCatPop" class="sc-cat-pop" hidden>
+                    <div class="sc-cat-col" id="scCatSceneCol"></div>
+                    <div class="sc-cat-col" id="scCatCatCol"></div>
+                  </div>
+                </div>
+              </div>
+              <div class="f-item"><label for="fModel">model</label><span class="ctl-wrap"><select id="fModel" class="ctl"></select><button type="button" class="ctl-clear" hidden aria-label="清除model">×</button></span></div>
+              <div class="f-item">
+                <label for="fSkuInput">SKU</label>
+                <div class="sku-group">
+                  <select id="fSkuMode" aria-label="SKU检索模式">
+                    <option value="fuzzy">模糊</option>
+                    <option value="exact">精确</option>
+                    <option value="eight">8位搜索</option>
+                  </select>
+                  <input type="text" id="fSkuInput" placeholder="请输入SKU" autocomplete="off" title="精确模式按 MSKU 精确匹配" />
+                </div>
+              </div>
+              <div class="f-item"><label for="fNewTag">新品标签</label><span class="ctl-wrap"><select id="fNewTag" class="ctl"></select><button type="button" class="ctl-clear" hidden aria-label="清除新品标签">×</button></span></div>
+              <div class="f-item"><label for="fCurrency">币种</label>
                 <select class="ctl" id="fCurrency">
                   <option value="USD">美元 USD</option>
                   <option value="CNY">人民币 CNY</option>
                   <option value="EUR">欧元 EUR</option>
                 </select>
-              </label>
-              <label class="f-item">渠道
-                <select class="ctl" id="fChannel"></select>
-              </label>
-              <label class="f-item">店铺
-                <select class="ctl" id="fStore"></select>
-              </label>
-              <label class="f-item">科目
-                <select class="ctl wide" id="fFeeItem"></select>
-              </label>
-              <label class="f-item">来源模式
-                <select class="ctl wide" id="fSourceMode"></select>
-              </label>
-              <label class="f-item">定稿状态
-                <select class="ctl" id="fFinalStatus"></select>
-              </label>
-              <label class="f-item">关键字
-                <input class="ctl wide" id="fKeyword" placeholder="MSKU / 单据 / 批次">
-              </label>
+              </div>
+              <div class="f-item f-search">
+                <button class="btn btn-primary" id="btnQuery" type="button">查询</button>
+                <button class="btn" id="btnReset" type="button">重置</button>
+                <button class="btn" id="btnExport" type="button">导出明细</button>
+              </div>
             </div>
           </div>
         </section>
@@ -88,8 +94,15 @@
           <section class="panel">
             <div class="panel-head">
               <div>
-                <div class="panel-title">费用趋势</div>
-                <div class="panel-sub">市场投入、公共费用、费用。各点合计等于损益表本期金额</div>
+                <div class="panel-title">趋势图</div>
+                <div class="panel-sub">相对区间起点的涨跌。默认营业收入、销量、毛利、营业利润，可改成任意科目。</div>
+              </div>
+              <div class="metric-picker" id="metricPicker">
+                <button type="button" class="metric-trigger" id="metricTrigger" aria-expanded="false">指标 · 已选 4 项</button>
+                <div class="metric-pop" id="metricPop" hidden>
+                  <input class="metric-search" id="metricSearch" placeholder="搜索科目" />
+                  <div class="metric-list" id="metricList"></div>
+                </div>
               </div>
             </div>
             <div class="overview-trend" id="overviewTrendChart"></div>
@@ -182,8 +195,13 @@
                 <div class="panel-sub" id="detailSummary">按业务指标、店铺、区域、型号和原币金额查看，并可继续查来源</div>
               </div>
               <div class="toolbar">
-                <button class="btn" id="btnClearFeeContext">清除费用项上下文</button>
+                <button class="btn" id="btnClearFeeContext">清除科目上下文</button>
               </div>
+            </div>
+            <div class="trace-bar">
+              <label class="f-item">来源模式 <select class="ctl" id="traceSource"></select></label>
+              <label class="f-item">定稿状态 <select class="ctl" id="traceStatus"></select></label>
+              <label class="f-item">关键字 <input class="ctl wide" id="traceKeyword" placeholder="MSKU / 单据 / 批次"></label>
             </div>
             <div class="table-wrap">
               <table class="data-table detail-table">
@@ -242,6 +260,11 @@
               <label class="threshold-control">差异阈值
                 <input id="diffThreshold" type="number" min="0" step="100" value="1000">
               </label>
+            </div>
+            <div class="trace-bar">
+              <label class="f-item">来源模式 <select class="ctl" id="reconSource"></select></label>
+              <label class="f-item">定稿状态 <select class="ctl" id="reconStatus"></select></label>
+              <label class="f-item">关键字 <input class="ctl wide" id="reconKeyword" placeholder="MSKU / 单据 / 批次"></label>
             </div>
             <div class="table-wrap">
               <table class="data-table">
