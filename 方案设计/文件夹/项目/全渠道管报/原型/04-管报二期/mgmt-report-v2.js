@@ -21,6 +21,8 @@
     '收入/渠道激励/临时激励/Discounts',
     '收入/税费',
     '收入/营业收入',
+    '收入/营业收入/发货营业收入',
+    '收入/营业收入/退货营业收入',
     '成本',
     '成本/出货授权成本',
     '成本/退货成本',
@@ -201,7 +203,7 @@
   };
   var QTY_BASE = { '收入/销量/发货销量': 186000, '收入/销量/退货销量': 9200 };
   var RESULT_IDS = { '收入/营业收入': true, '毛利': true, '营业利润': true };
-  var HIDE_AMOUNT = { '收入': true };
+  var HIDE_AMOUNT = {};
 
   function round2(n) { return Math.round((n + Number.EPSILON) * 100) / 100; }
   function vary(path, salt) {
@@ -594,6 +596,7 @@
     filters: {
       dateStart: PERIOD.start,
       dateEnd: PERIOD.end,
+      bu: '',
       dept: '',
       region: '',
       country: '',
@@ -607,10 +610,12 @@
     },
     trace: { sourceMode: '', finalStatus: '', keyword: '' },
     trendMetrics: ['收入/营业收入', '收入/销量', '毛利', '营业利润'],
+    analysisView: { place: 'channel', area: 'region', scene: 'scene', topGrain: 'sku', topOrder: 'top', topDelta: 'amount' },
     selectedFeeId: '收入/营业收入',
     expanded: {
       '收入': true,
       '收入/销量': true,
+      '收入/营业收入': true,
       '收入/零售销售额': true,
       '收入/销售收入': true,
       '收入/渠道激励': true,
@@ -630,7 +635,10 @@
 
   var feeById = {};
   feeNodes.forEach(function (node) { feeById[node.id] = node; });
+  var facts = [];
+  var factsByFee = {};
   rollStatement();
+  buildFacts();
 
   function $(selector) { return document.querySelector(selector); }
   function $all(selector) { return Array.prototype.slice.call(document.querySelectorAll(selector)); }
@@ -795,7 +803,8 @@
 
   function fillBusinessSelects() {
     var f = state.filters;
-    fillSelect($('#fDept'), unique(details.map(function (r) { return r.dept; })).sort(), f.dept, '全部');
+    fillSelect($('#fBu'), unique(facts.map(function (r) { return r.bu; }).concat(details.map(function (r) { return r.bu; }))).sort(), f.bu, '全部');
+    fillSelect($('#fDept'), unique(facts.map(function (r) { return r.dept; }).concat(details.map(function (r) { return r.dept; }))).sort(), f.dept, '全部');
     var regionNames = master.regions.map(function (r) { return r.region_name; });
     if (!regionNames.length) regionNames = unique(details.map(function (r) { return r.region; }));
     fillSelect($('#fRegion'), regionNames, f.region, '全部');
@@ -810,6 +819,7 @@
     }
     var channelNames = master.channels.map(function (c) { return c.channel_name; });
     details.forEach(function (r) { if (channelNames.indexOf(r.channel) < 0) channelNames.push(r.channel); });
+    facts.forEach(function (r) { if (channelNames.indexOf(r.channel) < 0) channelNames.push(r.channel); });
     fillSelect($('#fChannel'), channelNames, f.channel, '全部');
     fillSelect($('#fStore'), storesOf(f.channel), f.store, '全部');
     fillSelect($('#fRetailer'), unique(details.map(function (r) { return r.retailer; })).sort(), f.retailer, '全部');
@@ -844,6 +854,7 @@
     var range = dateRangePicker ? dateRangePicker.get() : { start: state.filters.dateStart, end: state.filters.dateEnd };
     state.filters.dateStart = range.start || '';
     state.filters.dateEnd = range.end || '';
+    state.filters.bu = $('#fBu').value;
     state.filters.dept = $('#fDept').value;
     state.filters.region = $('#fRegion').value;
     state.filters.country = $('#fCountry').value;
@@ -884,6 +895,7 @@
     var dateStart = opts.dateStart != null ? opts.dateStart : f.dateStart;
     var dateEnd = opts.dateEnd != null ? opts.dateEnd : f.dateEnd;
     if (!opts.ignoreDateRange && !dateInRange(row.date, dateStart, dateEnd)) return false;
+    if (f.bu && row.bu !== f.bu) return false;
     if (f.dept && row.dept !== f.dept) return false;
     if (f.region && row.region !== f.region) return false;
     if (f.country && row.country !== f.country) return false;
@@ -955,16 +967,21 @@
       });
     }
     feeNodes.filter(function (n) { return !n.parent; }).forEach(visit);
-    function revenue(field) {
+    function shipRevenue(field) {
       return (feeById['收入/零售销售额/发货零售销售额'][field] || 0)
-        + (feeById['收入/零售销售额/退货零售销售额'][field] || 0)
         + (feeById['收入/销售收入/发货销售收入'][field] || 0)
-        + (feeById['收入/销售收入/退货销售收入'][field] || 0)
         + (feeById['收入/渠道激励'][field] || 0)
         + (feeById['收入/税费'][field] || 0);
     }
+    function returnRevenue(field) {
+      return (feeById['收入/零售销售额/退货零售销售额'][field] || 0)
+        + (feeById['收入/销售收入/退货销售收入'][field] || 0);
+    }
     ['base', 'basePrev', 'baseYoy'].forEach(function (field) {
-      feeById['收入/营业收入'][field] = round2(revenue(field));
+      feeById['收入/营业收入/发货营业收入'][field] = round2(shipRevenue(field));
+      feeById['收入/营业收入/退货营业收入'][field] = round2(returnRevenue(field));
+      feeById['收入/营业收入'][field] = round2(shipRevenue(field) + returnRevenue(field));
+      feeById['收入'][field] = feeById['收入/营业收入'][field];
       feeById['毛利'][field] = round2(feeById['收入/营业收入'][field] - feeById['成本'][field]);
       feeById['营业利润'][field] = round2(feeById['毛利'][field] - feeById['费用'][field]);
     });
@@ -975,6 +992,210 @@
     sales.baseQty = Math.round(shipQty.baseQty - returnQty.baseQty);
     sales.prevQty = Math.round(shipQty.prevQty - returnQty.prevQty);
     sales.yoyQty = Math.round(shipQty.yoyQty - returnQty.yoyQty);
+  }
+
+  function hashSeed(text) {
+    var h = 2166136261;
+    var i;
+    for (i = 0; i < text.length; i++) {
+      h ^= text.charCodeAt(i);
+      h = Math.imul(h, 16777619);
+    }
+    return h >>> 0;
+  }
+  function randOf(seed) {
+    var a = seed >>> 0;
+    return function () {
+      a = a + 0x6D2B79F5 | 0;
+      var t = Math.imul(a ^ a >>> 15, 1 | a);
+      t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+      return ((t ^ t >>> 14) >>> 0) / 4294967296;
+    };
+  }
+  function splitTotal(total, n, seed) {
+    if (!n) return [];
+    var rand = randOf(seed);
+    var weights = [];
+    var i;
+    for (i = 0; i < n; i++) weights.push(0.35 + rand());
+    var sum = weights.reduce(function (a, b) { return a + b; }, 0) || 1;
+    var out = [];
+    var acc = 0;
+    for (i = 0; i < n - 1; i++) {
+      var part = round2(total * weights[i] / sum);
+      out.push(part);
+      acc = round2(acc + part);
+    }
+    out.push(round2(total - acc));
+    return out;
+  }
+  function shiftIso(iso, months) {
+    var p = String(iso || PERIOD.start).split('-');
+    var d = new Date(Number(p[0]), Number(p[1]) - 1 + months, Number(p[2] || 1));
+    return isoDate(d);
+  }
+  function windowFor(kind) {
+    var start = state.filters.dateStart || PERIOD.start;
+    var end = state.filters.dateEnd || PERIOD.end;
+    if (kind === 'prev') return { start: shiftIso(start, -1), end: shiftIso(end, -1) };
+    if (kind === 'yoy') return { start: shiftIso(start, -12), end: shiftIso(end, -12) };
+    return { start: start, end: end };
+  }
+  function monthDate(period, day) {
+    var p = period.split('-');
+    var last = new Date(Number(p[0]), Number(p[1]), 0).getDate();
+    return period + '-' + pad2(Math.min(day, last));
+  }
+  function buildFacts() {
+    var dims = [
+      { bu: '照明', dept: '109 · Trading / 新渠道', region: '北美区', country: 'US', channel: 'Shopify', store: 'Govee US', retailer: '自营', scene: '居家', category: '落地灯', model: 'H6076', sku: 'H607601', msku: 'H607601-US', newTag: '2026年新品' },
+      { bu: '照明', dept: '110 · Trading US / 商超', region: '北美区', country: 'US', channel: '线下商超', store: 'Walmart', retailer: 'Walmart', scene: '居家', category: '灯带', model: 'H7055', sku: 'H705501', msku: 'H705501-US', newTag: '2025年新品' },
+      { bu: '照明', dept: '110 · Trading US / 商超', region: '北美区', country: 'US', channel: '线下商超', store: 'Target', retailer: 'Target', scene: '观影', category: 'TV灯带', model: 'H610A', sku: 'H610A01', msku: 'H610A01-US', newTag: '2024年新品' },
+      { bu: '照明', dept: '102 · Govee / 亚马逊', region: '北美区', country: 'US', channel: '亚马逊', store: 'Amazon US', retailer: 'Amazon', scene: '居家', category: '灯带', model: 'H619A', sku: 'H619A01', msku: 'H619A01-US', newTag: '2026年新品' },
+      { bu: '照明', dept: '109 · Trading / 新渠道', region: '欧洲区', country: 'DE', channel: 'Shopify', store: 'Govee EU', retailer: '自营', scene: '居家', category: '落地灯', model: 'H6076', sku: 'H607602', msku: 'H607602-EU', newTag: '2026年新品' },
+      { bu: '家电', dept: '110 · Trading US / 分销', region: '北美区', country: 'US', channel: '线下分销', store: 'D&H US', retailer: 'D&H', scene: '家电', category: '取暖器', model: 'H713A', sku: 'H713A01', msku: 'H713A01-US', newTag: '2025年新品' },
+      { bu: '照明', dept: '110 · Trading US / 商超', region: '北美区', country: 'CA', channel: '线下商超', store: 'Best Buy', retailer: 'Best Buy', scene: '户外', category: '户外灯带', model: 'H7060', sku: 'H706001', msku: 'H706001-CA', newTag: '2026年新品' },
+      { bu: '照明', dept: '110 · Trading US / 商超3P', region: '欧洲区', country: 'GB', channel: '商超3P', store: 'Walmart 3P', retailer: 'Walmart', scene: '居家', category: '床头灯', model: 'H6052', sku: 'H605201', msku: 'H605201-GB', newTag: '2025年新品' }
+    ];
+    var yoyPeriod = String(Number(PERIOD.period.slice(0, 4)) - 1) + PERIOD.period.slice(4);
+    var periods = [
+      { key: 'base', period: PERIOD.period },
+      { key: 'basePrev', period: PERIOD.prev },
+      { key: 'baseYoy', period: yoyPeriod }
+    ];
+    function pushFact(row) {
+      facts.push(row);
+      if (!factsByFee[row.feeId]) factsByFee[row.feeId] = [];
+      factsByFee[row.feeId].push(row);
+    }
+    var skipLeaf = { '收入/营业收入/发货营业收入': 1, '收入/营业收入/退货营业收入': 1 };
+    feeNodes.forEach(function (node) {
+      if (skipLeaf[node.id] || childrenOf(node.id).length || node.result) return;
+      periods.forEach(function (p, pi) {
+        if (node.qty) {
+          var qtyTotal = p.key === 'base' ? node.baseQty : (p.key === 'basePrev' ? node.prevQty : node.yoyQty);
+          if (!qtyTotal) return;
+          splitTotal(qtyTotal, dims.length, hashSeed(node.id + p.key)).forEach(function (qty, i) {
+            if (!qty) return;
+            var dim = dims[i];
+            pushFact(Object.assign({ feeId: node.id, date: monthDate(p.period, 3 + i * 3), amount: 0, qty: qty }, dim));
+          });
+          return;
+        }
+        var total = node[p.key] || 0;
+        if (!total) return;
+        splitTotal(total, dims.length, hashSeed(node.id + '#' + p.key + pi)).forEach(function (amount, i) {
+          if (!amount) return;
+          var dim = dims[i];
+          pushFact(Object.assign({ feeId: node.id, date: monthDate(p.period, 2 + i * 3), amount: amount, qty: 0 }, dim));
+        });
+      });
+    });
+  }
+
+  function factInScope(f, kind, window) {
+    var w = window || windowFor(kind);
+    if (f.date < w.start || f.date > w.end) return false;
+    var filters = state.filters;
+    if (filters.bu && f.bu !== filters.bu) return false;
+    if (filters.dept && f.dept !== filters.dept) return false;
+    if (filters.region && f.region !== filters.region) return false;
+    if (filters.country && f.country !== filters.country) return false;
+    if (filters.channel && f.channel !== filters.channel) return false;
+    if (filters.store && f.store !== filters.store) return false;
+    if (filters.retailer && f.retailer !== filters.retailer) return false;
+    if (filters.model && f.model !== filters.model) return false;
+    if (filters.newTag && f.newTag !== filters.newTag) return false;
+    if (!skuHit(f) || !sceneHit(f)) return false;
+    return true;
+  }
+  function sumFee(feeId, kind, field, window) {
+    var list = factsByFee[feeId] || [];
+    var total = 0;
+    var i;
+    for (i = 0; i < list.length; i++) {
+      if (factInScope(list[i], kind, window)) total += list[i][field] || 0;
+    }
+    return total;
+  }
+  function eachContrib(nodeId, fn) {
+    if (nodeId === '收入' || nodeId === '收入/营业收入') {
+      eachContrib('收入/营业收入/发货营业收入', fn);
+      eachContrib('收入/营业收入/退货营业收入', fn);
+      return;
+    }
+    if (nodeId === '收入/营业收入/发货营业收入') {
+      ['收入/零售销售额/发货零售销售额', '收入/销售收入/发货销售收入', '收入/渠道激励', '收入/税费'].forEach(function (id) { eachContrib(id, fn); });
+      return;
+    }
+    if (nodeId === '收入/营业收入/退货营业收入') {
+      ['收入/零售销售额/退货零售销售额', '收入/销售收入/退货销售收入'].forEach(function (id) { eachContrib(id, fn); });
+      return;
+    }
+    if (nodeId === '毛利') {
+      eachContrib('收入/营业收入', fn);
+      eachContrib('成本', function (id, sign, field) { fn(id, -sign, field); });
+      return;
+    }
+    if (nodeId === '营业利润') {
+      eachContrib('毛利', fn);
+      eachContrib('费用', function (id, sign, field) { fn(id, -sign, field); });
+      return;
+    }
+    if (nodeId === '收入/销量') {
+      eachContrib('收入/销量/发货销量', fn);
+      eachContrib('收入/销量/退货销量', function (id, sign, field) { fn(id, -sign, field); });
+      return;
+    }
+    var node = feeById[nodeId];
+    if (!node) return;
+    if (node.qty) { fn(nodeId, 1, 'qty'); return; }
+    var kids = childrenOf(nodeId).filter(function (k) { return !k.result; });
+    if (!kids.length) { fn(nodeId, 1, 'amount'); return; }
+    kids.forEach(function (k) { eachContrib(k.id, fn); });
+  }
+  function moneyOf(id, kind, window) {
+    var total = 0;
+    eachContrib(id, function (feeId, sign, field) {
+      if (field === 'amount') total += sign * sumFee(feeId, kind, 'amount', window);
+    });
+    return round2(total);
+  }
+  function qtyOf(id, kind, window) {
+    var total = 0;
+    eachContrib(id, function (feeId, sign, field) {
+      if (field === 'qty') total += sign * sumFee(feeId, kind, 'qty', window);
+    });
+    return Math.round(total);
+  }
+  function measureOf(id, kind, window) {
+    return feeById[id] && feeById[id].qty ? qtyOf(id, kind, window) : moneyOf(id, kind, window);
+  }
+  function groupBy(nodeId, kind, keyFn) {
+    var map = {};
+    var qtyMode = !!(feeById[nodeId] && feeById[nodeId].qty);
+    eachContrib(nodeId, function (feeId, sign, field) {
+      if (qtyMode && field !== 'qty') return;
+      if (!qtyMode && field !== 'amount') return;
+      (factsByFee[feeId] || []).forEach(function (f) {
+        if (!factInScope(f, kind)) return;
+        var key = keyFn(f) || '未填';
+        map[key] = (map[key] || 0) + sign * (f[field] || 0);
+      });
+    });
+    return map;
+  }
+  function dimRows(nodeId, keyFn) {
+    var cur = groupBy(nodeId, 'cur', keyFn);
+    var prev = groupBy(nodeId, 'prev', keyFn);
+    var yoy = groupBy(nodeId, 'yoy', keyFn);
+    var keys = {};
+    [cur, prev, yoy].forEach(function (m) { Object.keys(m).forEach(function (k) { keys[k] = 1; }); });
+    return Object.keys(keys).map(function (k) {
+      return { name: k, cur: cur[k] || 0, prev: prev[k] || 0, yoy: yoy[k] || 0 };
+    }).filter(function (r) {
+      return Math.abs(r.cur) + Math.abs(r.prev) + Math.abs(r.yoy) > 0.004;
+    }).sort(function (a, b) { return Math.abs(b.cur) - Math.abs(a.cur); });
   }
 
   function sceneSelected() {
@@ -1013,10 +1234,8 @@
 
   function scopeNote() {
     var f = state.filters;
-    var base = '全渠道示例 · 2026-06 · 占比以营业收入为分母';
-    if (f.channel && f.store) base = '演示口径：' + f.channel + ' / ' + f.store + ' 按比例缩小，环比同比不变';
-    else if (f.channel) base = '演示口径：' + f.channel + ' 按渠道比例，环比同比不变';
-    else if (f.store) base = '演示口径：' + f.store + ' 按店铺比例，环比同比不变';
+    var base = '金额为底层事实汇总 · 占比以营业收入为分母';
+    if (f.bu || f.dept || f.region || f.country || f.channel || f.store || f.retailer || f.model || f.sku || f.newTag || sceneSelected()) base = '当前筛选下的底层事实汇总';
     return base + fxNote();
   }
 
@@ -1030,9 +1249,9 @@
     return round2((node[field] || 0) * scopeFactor());
   }
 
-  function shownAmount(node) { return node ? shownOf(node, 'base') : 0; }
-  function shownPrev(node) { return node ? shownOf(node, 'basePrev') : 0; }
-  function shownYoy(node) { return node ? shownOf(node, 'baseYoy') : 0; }
+  function shownAmount(node) { return node && !node.qty ? moneyOf(node.id, 'cur') : 0; }
+  function shownPrev(node) { return node && !node.qty ? moneyOf(node.id, 'prev') : 0; }
+  function shownYoy(node) { return node && !node.qty ? moneyOf(node.id, 'yoy') : 0; }
 
   function fmtSigned(value) {
     var n = round2(value || 0);
@@ -1079,7 +1298,10 @@
 
   function formulaFor(node) {
     var map = {
-      '收入/营业收入': '营业收入 = 发货零售销售额 + 退货零售销售额 + 发货销售收入 + 退货销售收入 + 渠道激励 + 税费。渠道激励和税费以负数入账。渠道商利润单列，不进入营业收入。',
+      '收入': '收入显示营业收入。销量是件数，不进这个金额。渠道商利润单列，不进营业收入。',
+      '收入/营业收入': '营业收入 = 发货营业收入 + 退货营业收入。',
+      '收入/营业收入/发货营业收入': '发货营业收入 = 发货零售销售额 + 发货销售收入 + 渠道激励 + 税费。渠道激励和税费整笔记在发货侧，以负数入账。',
+      '收入/营业收入/退货营业收入': '退货营业收入 = 退货零售销售额 + 退货销售收入。',
       '毛利': '毛利 = 营业收入 − 成本。这里的成本是出货授权成本加退货成本。',
       '营业利润': '营业利润 = 毛利 − 费用。',
       '成本': '成本 = 出货授权成本 + 退货成本。采购、关税、预留毛利不在损益表单列。',
@@ -1206,7 +1428,7 @@
   function metricBase(id) {
     var node = feeById[id];
     if (!node) return 0;
-    if (node.qty) return Math.abs(Math.round((node.baseQty || 0) * scopeFactor()));
+    if (node.qty) return Math.abs(qtyOf(node.id, 'cur'));
     return Math.abs(shownAmount(node));
   }
 
@@ -1239,23 +1461,64 @@
       $('#overviewTrendChart').innerHTML = '<div class="muted" style="padding:24px;">请至少选择一个科目。</div>';
       return;
     }
-    function spread(total, n, salt) {
-      var weights = [];
+    function hashSeed(text) {
+      var h = 2166136261;
       var i;
-      for (i = 0; i < n; i++) weights.push(0.86 + ((i + salt) % 5) * 0.05);
-      var sum = weights.reduce(function (a, b) { return a + b; }, 0) || 1;
-      return weights.map(function (w) { return (total || 1) * w / sum; });
+      for (i = 0; i < text.length; i++) {
+        h ^= text.charCodeAt(i);
+        h = Math.imul(h, 16777619);
+      }
+      return h >>> 0;
+    }
+    function randOf(seed) {
+      var a = seed >>> 0;
+      return function () {
+        a = a + 0x6D2B79F5 | 0;
+        var t = Math.imul(a ^ a >>> 15, 1 | a);
+        t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+        return ((t ^ t >>> 14) >>> 0) / 4294967296;
+      };
+    }
+    function smoothPath(points) {
+      if (points.length < 2) return '';
+      var d = 'M' + points[0].x.toFixed(1) + ',' + points[0].y.toFixed(1);
+      var i;
+      for (i = 0; i < points.length - 1; i++) {
+        var p0 = points[Math.max(i - 1, 0)];
+        var p1 = points[i];
+        var p2 = points[i + 1];
+        var p3 = points[Math.min(i + 2, points.length - 1)];
+        var c1x = p1.x + (p2.x - p0.x) / 6;
+        var c1y = p1.y + (p2.y - p0.y) / 6;
+        var c2x = p2.x - (p3.x - p1.x) / 6;
+        var c2y = p2.y - (p3.y - p1.y) / 6;
+        d += ' C' + c1x.toFixed(1) + ',' + c1y.toFixed(1) + ' ' + c2x.toFixed(1) + ',' + c2y.toFixed(1) + ' ' + p2.x.toFixed(1) + ',' + p2.y.toFixed(1);
+      }
+      return d;
     }
     var series = ids.map(function (id, idx) {
-      var raw = spread(metricBase(id), buckets.length, idx * 2);
-      var base = raw[0] || 1;
+      var n = buckets.length;
+      var rand = randOf(hashSeed(id + '#' + dateStart + '#' + granularity));
+      var pcts = [0];
+      var level = 0;
+      var i;
+      for (i = 1; i < n; i++) {
+        level += (rand() - 0.48) * 6.4 - level * 0.12;
+        if (level > 20) level = 16 + rand() * 3;
+        if (level < -16) level = -13 - rand() * 2;
+        pcts.push(level);
+      }
+      var daily = (metricBase(id) || 1) / Math.max(n, 1);
+      var factors = pcts.map(function (p) { return Math.max(0.15, 1 + p / 100); });
+      var avg = factors.reduce(function (a, b) { return a + b; }, 0) / Math.max(n, 1);
+      var raw = factors.map(function (f) { return daily * f / avg; });
       return {
         id: id,
         name: feeName(id),
         qty: !!feeById[id].qty,
         color: colors[idx % colors.length],
         raw: raw,
-        pcts: raw.map(function (v) { return (v - base) / Math.abs(base) * 100; })
+        pcts: pcts
       };
     });
     var flat = [];
@@ -1280,11 +1543,12 @@
       return '<text class="target-axis" x="' + xAt(i).toFixed(1) + '" y="286" text-anchor="middle">' + esc(bucket.label) + '</text>';
     }).join('');
     var lines = series.map(function (s) {
-      var pts = s.pcts.map(function (v, i) { return xAt(i).toFixed(1) + ',' + yAt(v).toFixed(1); }).join(' ');
-      return '<polyline fill="none" stroke="' + s.color + '" stroke-width="2" points="' + pts + '"></polyline>' +
-        s.pcts.map(function (v, i) {
-          return '<circle data-trend-index="' + i + '" cx="' + xAt(i).toFixed(1) + '" cy="' + yAt(v).toFixed(1) + '" r="3" fill="' + s.color + '"></circle>';
-        }).join('');
+      var points = s.pcts.map(function (v, i) { return { x: xAt(i), y: yAt(v) }; });
+      return '<path fill="none" stroke="' + s.color + '" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="' + smoothPath(points) + '"></path>';
+    }).join('') + series.map(function (s) {
+      return s.pcts.map(function (v, i) {
+        return '<circle data-trend-index="' + i + '" cx="' + xAt(i).toFixed(1) + '" cy="' + yAt(v).toFixed(1) + '" r="3.5" fill="#fff" stroke="' + s.color + '" stroke-width="2"></circle>';
+      }).join('');
     }).join('');
     var bw = buckets.length > 1 ? plot.w / (buckets.length - 1) : plot.w;
     var hits = buckets.map(function (bucket, i) {
@@ -1333,9 +1597,9 @@
   function metricCells(node) {
     if (node.hideAmount) return '<td class="num muted">—</td><td class="num muted">—</td><td class="num muted">—</td><td class="num muted">—</td>';
     if (node.qty) {
-      var qty = Math.round(node.baseQty * scopeFactor());
-      var prevQty = Math.round(node.prevQty * scopeFactor());
-      var yoyQty = Math.round(node.yoyQty * scopeFactor());
+      var qty = qtyOf(node.id, 'cur');
+      var prevQty = qtyOf(node.id, 'prev');
+      var yoyQty = qtyOf(node.id, 'yoy');
       return '<td class="num">' + esc(fmtQty(qty)) + '</td><td class="num muted">—</td><td class="num">' + esc(rateText(qty, prevQty)) + '</td><td class="num">' + esc(rateText(qty, yoyQty)) + '</td>';
     }
     var amount = shownAmount(node);
@@ -1343,39 +1607,40 @@
     return '<td class="' + cls + '">' + esc(fmtAmt(amount)) + '</td><td class="num">' + esc(shareText(amount)) + '</td><td class="num">' + esc(rateText(amount, shownPrev(node))) + '</td><td class="num">' + esc(rateText(amount, shownYoy(node))) + '</td>';
   }
 
+  function fmtDelta(cur, prev, qty) {
+    var delta = (cur || 0) - (prev || 0);
+    var text = qty ? fmtQty(Math.round(delta)) : fmtAmt(delta);
+    return delta > 0 ? '+' + text : text;
+  }
+
   function renderPnlSide() {
-    var node = feeById[state.selectedFeeId] || feeById['收入/营业收入'];
+    var node = feeById[state.selectedFeeId] || feeById['收入'];
     if (!node || !$('#pnlSide')) return;
-    var amountText = node.hideAmount ? '—' : (node.qty ? fmtQty(Math.round(node.baseQty * scopeFactor())) : fmtAmt(shownAmount(node)));
-    var neg = !node.qty && !node.hideAmount && shownAmount(node) < 0;
-    var modes = nodeSources(node.id);
-    if (!modes.length) {
-      (function collect(current) {
-        var kids = childrenOf(current.id);
-        if (!kids.length) { if (current.mode) modes.push(current.mode); return; }
-        kids.forEach(collect);
-      })(node);
-      modes = unique(modes).slice(0, 3);
-    }
-    var status = nodeStatus(node.id);
-    if (status === '-') status = (node.qty ? node.baseQty : node.base) ? '业务预估' : '未定稿';
-    var share = node.hideAmount || node.qty ? '—' : shareText(shownAmount(node));
-    var mom = node.hideAmount ? '—' : (node.qty ? rateText(Math.round(node.baseQty * scopeFactor()), Math.round(node.prevQty * scopeFactor())) : rateText(shownAmount(node), shownPrev(node)));
-    var yoy = node.hideAmount ? '—' : (node.qty ? rateText(Math.round(node.baseQty * scopeFactor()), Math.round(node.yoyQty * scopeFactor())) : rateText(shownAmount(node), shownYoy(node)));
+    var qty = !!node.qty;
+    var cur = qty ? qtyOf(node.id, 'cur') : shownAmount(node);
+    var prev = qty ? qtyOf(node.id, 'prev') : shownPrev(node);
+    var yoyBase = qty ? qtyOf(node.id, 'yoy') : shownYoy(node);
+    var amountText = node.hideAmount ? '—' : (qty ? fmtQty(cur) : fmtAmt(cur));
+    var neg = !qty && !node.hideAmount && cur < 0;
+    var share = node.hideAmount || qty ? '—' : shareText(cur);
+    var momRate = node.hideAmount ? '—' : rateText(cur, prev);
+    var yoyRate = node.hideAmount ? '—' : rateText(cur, yoyBase);
+    var prevText = node.hideAmount ? '—' : (qty ? fmtQty(prev) : fmtAmt(prev));
+    var yoyText = node.hideAmount ? '—' : (qty ? fmtQty(yoyBase) : fmtAmt(yoyBase));
+    var momDelta = node.hideAmount ? '—' : fmtDelta(cur, prev, qty);
+    var yoyDelta = node.hideAmount ? '—' : fmtDelta(cur, yoyBase, qty);
     $('#pnlSide').innerHTML =
       '<div class="panel-head"><div class="panel-title">科目说明</div></div>' +
       '<div class="pnl-side-body">' +
         '<h3>' + esc(node.name) + '</h3>' +
         '<div class="pnl-path">' + esc(node.id.replace(/\//g, ' / ')) + '</div>' +
         '<div class="pnl-amt' + (neg ? ' neg' : '') + '">' + esc(amountText) + '</div>' +
-        '<div class="pnl-metrics">' +
-          '<div class="pnl-metric"><div class="k">占营业收入</div><div class="v">' + esc(share) + '</div></div>' +
-          '<div class="pnl-metric"><div class="k">环比</div><div class="v">' + esc(mom) + '</div></div>' +
-          '<div class="pnl-metric"><div class="k">同比</div><div class="v">' + esc(yoy) + '</div></div>' +
+        '<div class="pnl-metric pnl-share"><div class="k">占营业收入</div><div class="v">' + esc(share) + '</div></div>' +
+        '<div class="pnl-compare">' +
+          '<div class="pnl-metric"><div class="k">环比</div><div class="v">' + esc(momRate) + '</div><div class="s">上期 ' + esc(prevText) + '</div><div class="s">增减 ' + esc(momDelta) + '</div></div>' +
+          '<div class="pnl-metric"><div class="k">同比</div><div class="v">' + esc(yoyRate) + '</div><div class="s">去年同期 ' + esc(yoyText) + '</div><div class="s">增减 ' + esc(yoyDelta) + '</div></div>' +
         '</div>' +
-        '<div class="pnl-formula">' + esc(formulaFor(node)) + '</div>' +
-        '<div class="pnl-block"><h4>主要来源</h4><div class="tag-row">' + (modes.map(sourceTag).join(' ') || '<span class="muted">汇总科目</span>') + '</div></div>' +
-        '<div class="pnl-block"><h4>定稿</h4>' + statusTag(status) + '</div>' +
+        '<div class="pnl-block"><h4>费用说明</h4><div class="pnl-formula">' + esc(formulaFor(node)) + '</div></div>' +
         '<div class="pnl-block"><h4>下钻</h4><div class="toolbar">' +
           '<button class="btn" data-action="analyze" data-fee-id="' + esc(node.id) + '">分析</button>' +
           '<button class="btn" data-action="details" data-fee-id="' + esc(node.id) + '">明细</button>' +
@@ -1426,26 +1691,247 @@
     }).join('') || '<div class="muted">该科目暂无来源样本，金额以损益表为准。</div>';
   }
 
+  function fmtMeasure(id, n) {
+    return feeById[id] && feeById[id].qty ? fmtQty(Math.round(n)) : fmtAmt(n);
+  }
+  function shareBars(nodeId, rows) {
+    var max = Math.max.apply(null, rows.map(function (r) { return Math.abs(r.cur); }).concat([1]));
+    return '<div class="share-bars">' + rows.map(function (r) {
+      var width = Math.max(2, Math.round(Math.abs(r.cur) / max * 100));
+      var neg = r.cur < 0;
+      return '<div class="share-row"><span class="share-name">' + esc(r.name) + '</span><span class="share-track"><span class="share-fill' + (neg ? ' neg' : '') + '" style="width:' + width + '%"></span></span><span class="share-val' + (neg ? ' neg' : '') + '">' + esc(fmtMeasure(nodeId, r.cur)) + '</span></div>';
+    }).join('') + '</div>';
+  }
+  function sharePie(nodeId, rows) {
+    var slices = rows.filter(function (r) { return Math.abs(r.cur) > 0.004; });
+    if (!slices.length) return '';
+    var absSum = slices.reduce(function (s, r) { return s + Math.abs(r.cur); }, 0) || 1;
+    var subject = measureOf(nodeId, 'cur') || absSum;
+    var posColors = ['#1677ff', '#13c2c2', '#597ef7', '#95de64', '#ffc53d', '#9254de', '#69c0ff', '#ff9c6e', '#36cfc9', '#b37feb'];
+    var negColors = ['#ff4d4f', '#cf1322', '#ff7875', '#a8071a'];
+    var cx = 88;
+    var cy = 88;
+    var radius = 78;
+    var angle = -Math.PI / 2;
+    var posI = 0;
+    var negI = 0;
+    function arc(a0, a1) {
+      var sweep = a1 - a0;
+      if (sweep >= Math.PI * 2 - 0.0001) {
+        return 'M ' + cx + ' ' + (cy - radius) + ' A ' + radius + ' ' + radius + ' 0 1 1 ' + (cx - 0.01) + ' ' + (cy - radius) + ' Z';
+      }
+      var x0 = cx + radius * Math.cos(a0);
+      var y0 = cy + radius * Math.sin(a0);
+      var x1 = cx + radius * Math.cos(a1);
+      var y1 = cy + radius * Math.sin(a1);
+      var large = sweep > Math.PI ? 1 : 0;
+      return 'M ' + cx + ' ' + cy + ' L ' + x0.toFixed(2) + ' ' + y0.toFixed(2) + ' A ' + radius + ' ' + radius + ' 0 ' + large + ' 1 ' + x1.toFixed(2) + ' ' + y1.toFixed(2) + ' Z';
+    }
+    var paths = slices.map(function (row) {
+      var frac = Math.abs(row.cur) / absSum;
+      var a0 = angle;
+      var a1 = angle + frac * Math.PI * 2;
+      angle = a1;
+      var color = row.cur < 0 ? negColors[negI++ % negColors.length] : posColors[posI++ % posColors.length];
+      var share = pct(row.cur / subject);
+      return '<path d="' + arc(a0, a1) + '" fill="' + color + '" stroke="#fff" stroke-width="1"><title>' + esc(row.name) + ' ' + fmtMeasure(nodeId, row.cur) + ' ' + share + '</title></path>';
+    });
+    posI = 0;
+    negI = 0;
+    var legend = slices.map(function (row) {
+      var color = row.cur < 0 ? negColors[negI++ % negColors.length] : posColors[posI++ % posColors.length];
+      var neg = row.cur < 0 ? ' neg' : '';
+      return '<li><i class="pie-swatch" style="background:' + color + '"></i><span class="pie-name">' + esc(row.name) + '</span><span class="pie-amt' + neg + '">' + esc(fmtMeasure(nodeId, row.cur)) + '</span><span class="pie-pct">' + esc(pct(row.cur / subject)) + '</span></li>';
+    }).join('');
+    return '<div class="share-pie"><svg class="pie-svg" viewBox="0 0 176 176" role="img" aria-label="占比饼图">' + paths.join('') + '</svg><ul class="pie-legend">' + legend + '</ul></div>';
+  }
+  function renderBreakTable(el, nodeId, rows, withShare, chart) {
+    if (!el) return;
+    if (!rows.length) {
+      el.innerHTML = '<div class="muted" style="padding:16px;">当前没有可汇总的数据。</div>';
+      return;
+    }
+    var total = rows.reduce(function (s, r) { return s + r.cur; }, 0) || 1;
+    var qty = !!(feeById[nodeId] && feeById[nodeId].qty);
+    var head = '<table class="data-table"><thead><tr><th>名称</th><th class="num">本期</th>' +
+      (withShare ? '<th class="num">占比</th>' : '') +
+      '<th class="num">环比</th><th class="num">环比增减</th><th class="num">同比</th><th class="num">同比增减</th></tr></thead><tbody>';
+    var table = head + rows.map(function (r) {
+      var cls = r.cur < 0 ? 'num neg' : 'num';
+      return '<tr><td>' + esc(r.name) + '</td><td class="' + cls + '">' + esc(fmtMeasure(nodeId, r.cur)) + '</td>' +
+        (withShare ? '<td class="num">' + esc(pct(r.cur / (measureOf(nodeId, 'cur') || total))) + '</td>' : '') +
+        '<td class="num">' + esc(rateText(r.cur, r.prev)) + '</td><td class="num">' + esc(fmtDelta(r.cur, r.prev, qty)) + '</td>' +
+        '<td class="num">' + esc(rateText(r.cur, r.yoy)) + '</td><td class="num">' + esc(fmtDelta(r.cur, r.yoy, qty)) + '</td></tr>';
+    }).join('') + '</tbody></table>';
+    var graphic = '';
+    if (withShare) graphic = chart === 'pie' ? sharePie(nodeId, rows) : shareBars(nodeId, rows);
+    el.innerHTML = graphic + table;
+  }
+  function renderSubjectPicker() {
+    if (!$('#subjectList')) return;
+    var q = ($('#subjectSearch') && $('#subjectSearch').value || '').trim();
+    var current = state.selectedFeeId || '收入/营业收入';
+    if ($('#subjectTrigger')) $('#subjectTrigger').textContent = feeName(current);
+    $('#subjectList').innerHTML = feeNodes.filter(function (n) { return !q || n.name.indexOf(q) >= 0; }).map(function (n) {
+      return '<button type="button" class="subject-item' + (n.id === current ? ' on' : '') + '" data-subject="' + esc(n.id) + '" style="padding-left:' + (8 + n.level * 12) + 'px">' + esc(n.name) + '</button>';
+    }).join('');
+  }
+  function renderAnaTrend(id) {
+    var el = $('#anaTrend');
+    if (!el) return;
+    var grain = 'day';
+    var buckets = trendBuckets(state.filters.dateStart || PERIOD.start, state.filters.dateEnd || PERIOD.end, grain);
+    if (buckets.length > 45) {
+      grain = 'week';
+      buckets = trendBuckets(state.filters.dateStart, state.filters.dateEnd, grain);
+    }
+    var points = [];
+    buckets.forEach(function (b) {
+      var value = measureOf(id, 'cur', { start: b.start, end: b.end });
+      if (Math.abs(value) > 0.004) points.push({ label: b.label, start: b.start, end: b.end, value: value });
+    });
+    if (!points.length) {
+      el.innerHTML = '<div class="muted" style="padding:16px;">所选日期内没有发生额。</div>';
+      return;
+    }
+    var min = Math.min.apply(null, points.map(function (p) { return p.value; }).concat([0]));
+    var max = Math.max.apply(null, points.map(function (p) { return p.value; }).concat([0]));
+    if (min === max) { min -= Math.abs(max) * 0.2 || 1; max += Math.abs(max) * 0.2 || 1; }
+    var pad = (max - min) * 0.12;
+    min -= pad;
+    max += pad;
+    var width = 1160;
+    var height = 280;
+    var plot = { x: 56, y: 28, w: 1060, h: 200 };
+    var focus = state.anaHover;
+    if (focus == null || focus < 0 || focus >= points.length) focus = points.length - 1;
+    function xAt(i) { return plot.x + (plot.w / Math.max(points.length - 1, 1)) * i; }
+    function yAt(v) { return plot.y + plot.h - ((v - min) / (max - min)) * plot.h; }
+    function axisAmt(v) {
+      var n = v * currencyRate();
+      var sign = n < 0 ? '-' : '';
+      var a = Math.abs(n);
+      if (a >= 1000000) return sign + (a / 1000000).toFixed(1).replace(/\.0$/, '') + 'M';
+      if (a >= 1000) return sign + Math.round(a / 1000) + 'k';
+      return sign + Math.round(a);
+    }
+    function smooth(pts) {
+      if (pts.length < 2) return '';
+      var d = 'M' + pts[0].x.toFixed(1) + ',' + pts[0].y.toFixed(1);
+      var i;
+      for (i = 0; i < pts.length - 1; i++) {
+        var p0 = pts[Math.max(i - 1, 0)];
+        var p1 = pts[i];
+        var p2 = pts[i + 1];
+        var p3 = pts[Math.min(i + 2, pts.length - 1)];
+        d += ' C' + (p1.x + (p2.x - p0.x) / 6).toFixed(1) + ',' + (p1.y + (p2.y - p0.y) / 6).toFixed(1) +
+          ' ' + (p2.x - (p3.x - p1.x) / 6).toFixed(1) + ',' + (p2.y - (p3.y - p1.y) / 6).toFixed(1) +
+          ' ' + p2.x.toFixed(1) + ',' + p2.y.toFixed(1);
+      }
+      return d;
+    }
+    var coords = points.map(function (p, i) { return { x: xAt(i), y: yAt(p.value) }; });
+    var grid = [];
+    var g;
+    for (g = 0; g <= 4; g++) {
+      var val = min + (max - min) * g / 4;
+      var y = yAt(val);
+      grid.push('<line class="target-grid" x1="' + plot.x + '" y1="' + y.toFixed(1) + '" x2="' + (plot.x + plot.w) + '" y2="' + y.toFixed(1) + '"></line>' +
+        '<text class="target-axis" x="' + (plot.x - 8) + '" y="' + (y + 4).toFixed(1) + '" text-anchor="end">' + esc(axisAmt(val)) + '</text>');
+    }
+    var step = Math.max(1, Math.ceil(points.length / 6));
+    var labels = points.map(function (p, i) {
+      if (points.length > 8 && i % step !== 0 && i !== points.length - 1) return '';
+      return '<text class="target-axis" x="' + xAt(i).toFixed(1) + '" y="268" text-anchor="middle">' + esc(p.label) + '</text>';
+    }).join('');
+    var hitW = points.length > 1 ? plot.w / (points.length - 1) : plot.w;
+    var hits = points.map(function (p, i) {
+      var x = points.length > 1 ? xAt(i) - hitW / 2 : plot.x;
+      return '<rect data-ana-index="' + i + '" x="' + x.toFixed(1) + '" y="' + plot.y + '" width="' + hitW.toFixed(1) + '" height="' + plot.h + '" fill="transparent"></rect>';
+    }).join('');
+    var fp = points[focus];
+    var tipX = Math.min(xAt(focus) + 8, plot.x + plot.w - 220);
+    el.innerHTML =
+      '<svg class="target-chart-svg" viewBox="0 0 ' + width + ' ' + height + '" role="img" aria-label="科目趋势">' +
+        grid.join('') +
+        '<path fill="none" stroke="#1677ff" stroke-width="2" stroke-linecap="round" d="' + smooth(coords) + '"></path>' +
+        coords.map(function (c, i) {
+          return '<circle data-ana-index="' + i + '" cx="' + c.x.toFixed(1) + '" cy="' + c.y.toFixed(1) + '" r="3.5" fill="#fff" stroke="#1677ff" stroke-width="2"></circle>';
+        }).join('') +
+        hits +
+        '<line class="target-hover-line" x1="' + xAt(focus).toFixed(1) + '" y1="' + plot.y + '" x2="' + xAt(focus).toFixed(1) + '" y2="' + (plot.y + plot.h) + '"></line>' +
+        '<g transform="translate(' + tipX.toFixed(1) + ',36)"><rect width="200" height="46" rx="4" fill="#1f2937"></rect>' +
+          '<text x="10" y="18" fill="#fff">' + esc(fp.start === fp.end ? fp.start : fp.label) + '</text>' +
+          '<text x="10" y="36" fill="#fff">' + esc(feeName(id)) + '  ' + esc(fmtMeasure(id, fp.value)) + '</text></g>' +
+        labels +
+      '</svg>';
+  }
   function renderAnalysis() {
-    var selected = state.selectedFeeId || state.filters.feeId || '费用';
+    var selected = state.selectedFeeId || '收入/营业收入';
+    if (!feeById[selected]) selected = '收入/营业收入';
+    var view = state.analysisView;
     $('#analysisTitle').textContent = feeName(selected) + ' · 科目分析';
-    $('#analysisSub').textContent = selected + '｜当前筛选下 ' + filteredDetails(selected).length + ' 条明细';
-    renderTrendChart();
-    renderSourceChart();
-    var rows = filteredDetails(selected);
-    var byStore = {};
-    rows.forEach(function (r) { byStore[r.store] = (byStore[r.store] || 0) + r.amountUSD; });
-    var total = sumUsd(rows) || 1;
-    var top = Object.keys(byStore).map(function (k) { return ['店铺', k, byStore[k]]; }).sort(function (a, b) { return b[2] - a[2]; }).slice(0, 5);
-    $('#topBody').innerHTML = top.map(function (r) {
-      return '<tr><td>' + esc(r[0]) + '</td><td>' + esc(r[1]) + '</td><td class="num">' + usd(r[2]) + '</td><td class="num">' + pct(r[2] / total) + '</td></tr>';
-    }).join('') || '<tr><td colspan="4" class="muted">暂无数据</td></tr>';
-    var alerts = [];
-    if (rows.some(function (r) { return r.noDetail; })) alerts.push(['blue', '存在无明细来源，已按来源摘要展示，不做行级下钻。']);
-    if (rows.some(function (r) { return r.historical; })) alerts.push(['', '存在历史过渡口径，趋势分析默认参与，请在明细中查看标记。']);
-    if (recon.some(function (r) { return isDescendantOrSelf(r.feeId, selected) && Math.abs(r.mgmt - r.finance) > 1000; })) alerts.push(['red', '财报差异超过阈值，建议从差异页查看处理说明。']);
-    if (!alerts.length) alerts.push(['blue', '当前筛选未发现需要处理的异常。']);
-    $('#alertList').innerHTML = alerts.map(function (a) { return '<div class="alert-item ' + a[0] + '">' + esc(a[1]) + '</div>'; }).join('');
+    $('#analysisSub').textContent = '筛选与总览相同。金额是该科目底层事实的汇总。';
+    renderSubjectPicker();
+    var cur = measureOf(selected, 'cur');
+    var prev = measureOf(selected, 'prev');
+    var yoy = measureOf(selected, 'yoy');
+    var qty = !!(feeById[selected] && feeById[selected].qty);
+    if ($('#anaKpis')) {
+      $('#anaKpis').innerHTML =
+        '<div class="pnl-metric"><div class="k">本期</div><div class="v">' + esc(fmtMeasure(selected, cur)) + '</div><div class="s">占营业收入 ' + esc(qty ? '—' : shareText(cur)) + '</div></div>' +
+        '<div class="pnl-metric"><div class="k">环比 ' + esc(rateText(cur, prev)) + '</div><div class="s">上期 ' + esc(fmtMeasure(selected, prev)) + '</div><div class="s">增减 ' + esc(fmtDelta(cur, prev, qty)) + '</div></div>' +
+        '<div class="pnl-metric"><div class="k">同比 ' + esc(rateText(cur, yoy)) + '</div><div class="s">去年同期 ' + esc(fmtMeasure(selected, yoy)) + '</div><div class="s">增减 ' + esc(fmtDelta(cur, yoy, qty)) + '</div></div>';
+    }
+    renderAnaTrend(selected);
+    var placeKey = view.place === 'store' ? function (f) { return f.store; } : function (f) { return f.channel; };
+    var areaKey = view.area === 'country' ? function (f) { return f.country; } : function (f) { return f.region; };
+    var sceneKey = view.scene === 'category' ? function (f) { return f.category; } : function (f) { return f.scene; };
+    renderBreakTable($('#anaPlace'), selected, dimRows(selected, placeKey), true, view.place === 'store' ? 'pie' : 'bar');
+    renderBreakTable($('#anaArea'), selected, dimRows(selected, areaKey), true, view.area === 'country' ? 'pie' : 'bar');
+    renderBreakTable($('#anaScene'), selected, dimRows(selected, sceneKey), true, view.scene === 'category' ? 'pie' : 'bar');
+    var kids = childrenOf(selected).filter(function (k) { return !k.qty; });
+    if ($('#anaStruct')) {
+      if (!kids.length) $('#anaStruct').innerHTML = '<div class="muted" style="padding:16px;">当前科目没有下一层。</div>';
+      else renderBreakTable($('#anaStruct'), selected, kids.map(function (k) {
+        return { name: k.name, cur: measureOf(k.id, 'cur'), prev: measureOf(k.id, 'prev'), yoy: measureOf(k.id, 'yoy') };
+      }), true);
+    }
+    var grain = view.topGrain || 'sku';
+    var rankBy = view.topDelta || 'amount';
+    var ranked = dimRows(selected, function (f) { return f[grain]; });
+    function growthRate(row) {
+      var base = rankBy === 'yoy' ? row.yoy : row.prev;
+      if (!base) return null;
+      return (row.cur - base) / Math.abs(base);
+    }
+    if (rankBy === 'amount') {
+      ranked.sort(function (a, b) { return view.topOrder === 'bottom' ? a.cur - b.cur : b.cur - a.cur; });
+    } else {
+      ranked = ranked.filter(function (row) { return growthRate(row) != null; });
+      ranked.sort(function (a, b) {
+        return view.topOrder === 'bottom' ? growthRate(a) - growthRate(b) : growthRate(b) - growthRate(a);
+      });
+    }
+    ranked = ranked.slice(0, 10);
+    var growthLabel = rankBy === 'yoy' ? '同比' : '环比';
+    var extraHead = rankBy === 'amount' ? '' : '<th class="num">' + growthLabel + '增长率</th><th class="num">' + growthLabel + '增减</th>';
+    if ($('#anaTop')) {
+      $('#anaTop').innerHTML = '<table class="data-table"><thead><tr><th>' + esc(grain === 'model' ? 'model' : grain.toUpperCase()) + '</th><th class="num">本期</th>' + extraHead + '</tr></thead><tbody>' +
+        (ranked.map(function (r) {
+          var base = rankBy === 'yoy' ? r.yoy : r.prev;
+          var extra = rankBy === 'amount' ? '' : '<td class="num">' + esc(rateText(r.cur, base)) + '</td><td class="num">' + esc(fmtDelta(r.cur, base, qty)) + '</td>';
+          return '<tr><td>' + esc(r.name) + '</td><td class="num">' + esc(fmtMeasure(selected, r.cur)) + '</td>' + extra + '</tr>';
+        }).join('') || '<tr><td colspan="4" class="muted">暂无数据</td></tr>') + '</tbody></table>';
+    }
+    document.querySelectorAll('.ana-switch').forEach(function (group) {
+      group.querySelectorAll('button').forEach(function (btn) {
+        btn.classList.toggle('on', btn.dataset.value === view[group.dataset.ana]);
+      });
+    });
+    if ($('#anaTopGrain')) $('#anaTopGrain').value = grain;
+    if ($('#anaTopOrder')) $('#anaTopOrder').value = view.topOrder;
+    if ($('#anaTopDelta')) $('#anaTopDelta').value = view.topDelta;
   }
 
   function signedAmount(row, value) {
@@ -1837,6 +2323,40 @@
       renderSceneTrigger();
       renderSceneCols();
     });
+    if ($('#subjectTrigger')) {
+      $('#subjectTrigger').addEventListener('click', function () {
+        var pop = $('#subjectPop');
+        pop.hidden = !pop.hidden;
+        renderSubjectPicker();
+      });
+      $('#subjectSearch').addEventListener('input', renderSubjectPicker);
+      $('#subjectList').addEventListener('click', function (event) {
+        var btn = event.target.closest('[data-subject]');
+        if (!btn) return;
+        state.selectedFeeId = btn.dataset.subject;
+        $('#subjectPop').hidden = true;
+        expandAncestors(state.selectedFeeId);
+        renderFeeTree();
+        renderAnalysis();
+      });
+    }
+    document.querySelectorAll('.ana-switch').forEach(function (group) {
+      group.addEventListener('click', function (event) {
+        var btn = event.target.closest('button');
+        if (!btn) return;
+        state.analysisView[group.dataset.ana] = btn.dataset.value;
+        renderAnalysis();
+      });
+    });
+    ['anaTopGrain', 'anaTopOrder', 'anaTopDelta'].forEach(function (id) {
+      if (!$('#' + id)) return;
+      $('#' + id).addEventListener('change', function () {
+        if (id === 'anaTopGrain') state.analysisView.topGrain = $('#' + id).value;
+        if (id === 'anaTopOrder') state.analysisView.topOrder = $('#' + id).value;
+        if (id === 'anaTopDelta') state.analysisView.topDelta = $('#' + id).value;
+        renderAnalysis();
+      });
+    });
     $('#metricTrigger').addEventListener('click', function () {
       var pop = $('#metricPop');
       pop.hidden = !pop.hidden;
@@ -1858,7 +2378,8 @@
       $('#' + prefix + 'Keyword').addEventListener('input', function () { readTraceFrom(prefix); });
     });
     document.addEventListener('click', function (event) {
-      if (!$('#metricPicker').contains(event.target)) $('#metricPop').hidden = true;
+      if ($('#metricPicker') && !$('#metricPicker').contains(event.target)) $('#metricPop').hidden = true;
+      if ($('#subjectPicker') && !$('#subjectPicker').contains(event.target) && $('#subjectPop')) $('#subjectPop').hidden = true;
       if (!$('#scCatWrap').contains(event.target)) {
         $('#scCatPop').hidden = true;
         $('#scCatWrap').classList.remove('open');
@@ -1879,7 +2400,7 @@
     });
     $('#btnReset').addEventListener('click', function () {
       var range = lastMonthRange(new Date());
-      state.filters = { dateStart: range.start, dateEnd: range.end, dept: '', region: '', country: '', channel: '', store: '', retailer: '', model: '', skuMode: 'fuzzy', sku: '', newTag: '' };
+      state.filters = { dateStart: range.start, dateEnd: range.end, bu: '', dept: '', region: '', country: '', channel: '', store: '', retailer: '', model: '', skuMode: 'fuzzy', sku: '', newTag: '' };
       scenePick = {};
       state.trace = { sourceMode: '', finalStatus: '', keyword: '' };
       state.reconFeeId = '';
@@ -1938,6 +2459,23 @@
         renderOverviewTrendChart();
       }
     });
+    if ($('#anaTrend')) {
+      $('#anaTrend').addEventListener('mousemove', function (event) {
+        var hit = event.target.closest('[data-ana-index]');
+        if (!hit) return;
+        var next = Number(hit.dataset.anaIndex);
+        if (state.anaHover !== next) {
+          state.anaHover = next;
+          renderAnaTrend(state.selectedFeeId || '收入/营业收入');
+        }
+      });
+      $('#anaTrend').addEventListener('mouseleave', function () {
+        if (state.anaHover != null) {
+          state.anaHover = null;
+          renderAnaTrend(state.selectedFeeId || '收入/营业收入');
+        }
+      });
+    }
     $('#overviewTrendChart').addEventListener('mouseleave', function () {
       if (state.trendActiveIndex != null) {
         if (state.trendHoverIndex !== state.trendActiveIndex) {
