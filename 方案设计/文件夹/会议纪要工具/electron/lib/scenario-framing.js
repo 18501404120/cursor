@@ -185,10 +185,10 @@ function enrichFromFacts(data, facts) {
             label: ds.name || `数据源 ${i + 1}`,
             title: ds.name || '',
             bullets: [
-              ...(ds.fields?.length ? [`字段：${ds.fields.join('、')}`] : []),
+              ...(asList(ds.fields).length ? [`字段：${asList(ds.fields).join('、')}`] : []),
               ds.granularity ? `粒度：${ds.granularity}` : '',
-              ...(ds.pros || []).map((p) => `优点：${p}`),
-              ...(ds.cons || []).map((c) => `局限：${c}`),
+              ...asList(ds.pros).map((p) => `优点：${p}`),
+              ...asList(ds.cons).map((c) => `局限：${c}`),
               ds.sampleNote ? `样本：${ds.sampleNote}` : '',
             ].filter(Boolean),
           })),
@@ -243,11 +243,24 @@ function topicFromFolderName(name) {
     .trim();
 }
 
+function asList(value) {
+  if (Array.isArray(value)) return value.map((v) => (v == null ? '' : String(v))).filter(Boolean);
+  if (value == null || value === '') return [];
+  if (typeof value === 'string') {
+    return value
+      .split(/[、,，;；\n]/)
+      .map((s) => s.trim())
+      .filter(Boolean);
+  }
+  return [String(value)];
+}
+
 /** 录音结束时的默认占位名（如「会议」「会议-2」），不能覆盖 LLM 主题 */
 function isGenericTopicName(name) {
   const t = topicFromFolderName(name).replace(/\s+/g, '');
   if (!t) return true;
   if (t === '会议梳理') return true;
+  if (t.includes('基于转写自动兜底生成')) return true;
   return /^会议(-\d+)?$/.test(t);
 }
 
@@ -281,9 +294,9 @@ function refineMeetingTopic(data, facts) {
   }
 
   const hero = String(data.hero || '').trim();
-  if (hero.length >= 8) {
+  if (hero.length >= 8 && !hero.includes('基于转写自动兜底生成')) {
     const clause = hero.split(/[，,。；;]/)[0].trim();
-    if (clause.length >= 4 && clause.length <= 40) {
+    if (clause.length >= 4 && clause.length <= 40 && !isGenericTopicName(clause)) {
       data.meetingTopic = sanitizeFilename(clause) || data.meetingTopic;
     }
   }
@@ -574,7 +587,11 @@ async function analyzeTranscript(config, transcript, onProgress, topicHint) {
     );
   }
 
-  data = enrichFromFacts(data, facts);
+  try {
+    data = enrichFromFacts(data, facts);
+  } catch (err) {
+    console.warn('[meeting-recorder] 事实回填失败，保留已有场景结构:', err.message);
+  }
 
   if (!data.sections?.length) {
     data = normalizeAnalysisData(buildFallbackAnalysis(facts, topicHint));
