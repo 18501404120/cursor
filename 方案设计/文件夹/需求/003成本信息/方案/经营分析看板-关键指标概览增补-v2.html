@@ -39,6 +39,11 @@
     td { border:1px solid var(--line); padding:6px 8px; }
     td.n { text-align:right; }
     button { border:1px solid #bfdbfe; background:#fff; color:#1677ff; border-radius:6px; padding:4px 8px; cursor:pointer; }
+    .switch { display:flex; border:1px solid #bfdbfe; border-radius:6px; overflow:hidden; }
+    .switch button { border:0; }
+    .switch button.on { background:#1677ff; color:#fff; }
+    #plPie { width:220px; height:220px; cursor:pointer; }
+    .crumb button { border:0; background:transparent; padding:0; }
     @media (max-width:980px) { .old, .cost { grid-template-columns:1fr; } .old .wide { grid-column:auto; } }
   </style>
 </head>
@@ -84,6 +89,38 @@
         <strong>国家成本结构</strong>
         <span class="hint">与成本结构相同，不显示净利润。营销投入按国家取管报金额。</span>
         <div id="country"></div>
+      </div>
+      <div class="box" style="margin-top:12px" id="pline">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+          <strong>品线销售趋势</strong>
+          <div style="display:flex;gap:8px;align-items:center">
+            <div class="switch">
+              <button type="button" id="btnLine" class="on">品线</button>
+              <button type="button" id="btnCat">品类</button>
+            </div>
+            <button type="button" id="plExp">导出</button>
+          </div>
+        </div>
+        <div class="cost" style="margin-top:12px">
+          <div>
+            <div class="hint" style="margin-bottom:8px"><span id="tabChart" style="color:#1677ff;font-weight:700;cursor:pointer">图表</span> <span id="tabTable" style="cursor:pointer">明细</span></div>
+            <div class="crumb hint" id="crumb"></div>
+            <div id="chartPane">
+              <div class="hint" id="pieTitle">品线销售额占比</div>
+              <div class="pie-wrap">
+                <div class="pie" id="plPie"></div>
+                <div class="legend" id="plLegend"></div>
+              </div>
+            </div>
+            <div id="tablePane" style="display:none"></div>
+          </div>
+          <div>
+            <strong>品线趋势图</strong>
+            <span class="hint">始终按品线，不随左侧切换</span>
+            <div class="bars" id="plBars"></div>
+            <div class="hint" id="barNames" style="margin-top:8px"></div>
+          </div>
+        </div>
       </div>
       <div id="more"></div>
     </div>
@@ -180,7 +217,105 @@
       countries.map((c) => "<tr><td>" + c[0] + "</td>" + countryItems.map((s) => "<td class=\"n\">" + Math.round(s[1] * c[1]).toLocaleString("en-US") + "</td>").join("") + "</tr>").join("") +
       "</table>";
 
-    document.getElementById("more").innerHTML = ["流量指标","品线销售额","品线国家销售额占比","品线销售利润分析","SKU 明细","积分 Top10 兑换","积分相关指标","市场销售额"].map((t) =>
+    const plines = [
+      { name: "51线", value: 80000, cats: [{ name: "灯泡", value: 50000 }, { name: "灯条", value: 30000 }] },
+      { name: "户外", value: 40000, cats: [{ name: "露营灯", value: 25000 }, { name: "灯带", value: 15000 }] },
+      { name: "家电", value: 120000, cats: [{ name: "台灯", value: 50000 }, { name: "落地灯", value: 40000 }, { name: "灯带", value: 30000 }] },
+      { name: "季节", value: 30000, cats: [{ name: "节日灯", value: 30000 }] },
+      { name: "游戏", value: 10000, cats: [{ name: "氛围灯", value: 10000 }] },
+      { name: "观影", value: 20000, cats: [{ name: "投影灯", value: 12000 }, { name: "屏幕灯", value: 8000 }] }
+    ];
+    const plTotal = plines.reduce((s, x) => s + x.value, 0);
+    const plColors = ["#1677ff", "#34d399", "#fb923c", "#a78bfa", "#f472b6", "#facc15", "#2dd4bf", "#94a3b8"];
+    let plMode = "line";
+    let plSelected = "";
+    let plTab = "chart";
+    function plMoney(n) { return n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+    function plItems() {
+      if (plMode === "line" && !plSelected) return plines.map((x) => ({ label: x.name, value: x.value, base: plTotal, key: x.name }));
+      if (plMode === "line" && plSelected) {
+        const line = plines.find((x) => x.name === plSelected);
+        return line.cats.map((c) => ({ label: c.name, value: c.value, base: line.value }));
+      }
+      const all = [];
+      plines.forEach((line) => line.cats.forEach((c) => {
+        const dup = plines.filter((l) => l.cats.some((x) => x.name === c.name)).length > 1;
+        all.push({ label: dup ? line.name + " / " + c.name : c.name, value: c.value, base: plTotal });
+      }));
+      return all;
+    }
+    function plView() {
+      if (plMode === "cat") return "全部品类";
+      if (plSelected) return "品线「" + plSelected + "」下的品类";
+      return "品线";
+    }
+    function renderLine() {
+      document.getElementById("btnLine").classList.toggle("on", plMode === "line");
+      document.getElementById("btnCat").classList.toggle("on", plMode === "cat");
+      document.getElementById("tabChart").style.fontWeight = plTab === "chart" ? "700" : "400";
+      document.getElementById("tabChart").style.color = plTab === "chart" ? "#1677ff" : "#64748b";
+      document.getElementById("tabTable").style.fontWeight = plTab === "table" ? "700" : "400";
+      document.getElementById("tabTable").style.color = plTab === "table" ? "#1677ff" : "#64748b";
+      document.getElementById("chartPane").style.display = plTab === "chart" ? "" : "none";
+      document.getElementById("tablePane").style.display = plTab === "table" ? "" : "none";
+      const items = plItems();
+      document.getElementById("pieTitle").textContent = (plMode === "line" && !plSelected ? "品线" : "品类") + "销售额占比 · 分母 " + plMoney(items[0] ? items[0].base : plTotal);
+      document.getElementById("crumb").innerHTML = plMode === "line" && plSelected
+        ? "<button type=\"button\" id=\"plBack\">全部品线</button> / " + plSelected
+        : (plMode === "cat" ? "全部品类" : "全部品线");
+      let start = 0;
+      const stops = items.map((it, i) => {
+        const from = start;
+        start += it.value / it.base * 100;
+        return plColors[i % plColors.length] + " " + from.toFixed(2) + "% " + start.toFixed(2) + "%";
+      });
+      document.getElementById("plPie").style.background = "conic-gradient(" + stops.join(",") + ")";
+      document.getElementById("plLegend").innerHTML = items.map((it, i) =>
+        "<div data-i=\"" + i + "\">" + it.label + "：" + plMoney(it.value) + "（" + (it.value / it.base * 100).toFixed(2) + "%）</div>"
+      ).join("");
+      document.getElementById("tablePane").innerHTML = "<table><tr><td>" + (plMode === "line" && !plSelected ? "品线" : "品类") + "</td><td class=\"n\">销售额</td><td class=\"n\">占比</td></tr>" +
+        items.map((it) => "<tr><td>" + it.label + "</td><td class=\"n\">" + plMoney(it.value) + "</td><td class=\"n\">" + (it.value / it.base * 100).toFixed(2) + "%</td></tr>").join("") + "</table>";
+      const back = document.getElementById("plBack");
+      if (back) back.onclick = () => { plSelected = ""; renderLine(); };
+    }
+    document.getElementById("btnLine").onclick = () => { plMode = "line"; plSelected = ""; renderLine(); };
+    document.getElementById("btnCat").onclick = () => { plMode = "cat"; plSelected = ""; renderLine(); };
+    document.getElementById("tabChart").onclick = () => { plTab = "chart"; renderLine(); };
+    document.getElementById("tabTable").onclick = () => { plTab = "table"; renderLine(); };
+    document.getElementById("plLegend").onclick = (e) => {
+      const el = e.target.closest("[data-i]");
+      if (!el || plMode !== "line" || plSelected) return;
+      plSelected = plItems()[Number(el.dataset.i)].key;
+      renderLine();
+    };
+    document.getElementById("plPie").onclick = (e) => {
+      if (plMode !== "line" || plSelected) return;
+      const rect = e.currentTarget.getBoundingClientRect();
+      const x = e.clientX - rect.left - rect.width / 2;
+      const y = e.clientY - rect.top - rect.height / 2;
+      let deg = Math.atan2(y, x) * 180 / Math.PI + 90;
+      if (deg < 0) deg += 360;
+      const items = plItems();
+      let degAcc = 0;
+      for (let i = 0; i < items.length; i++) {
+        degAcc += items[i].value / items[i].base * 360;
+        if (deg <= degAcc) { plSelected = items[i].key; renderLine(); return; }
+      }
+    };
+    document.getElementById("plExp").onclick = () => {
+      const items = plItems();
+      const csv = ["名称,销售额,占比,视图"].concat(items.map((it) => it.label + "," + it.value + "," + (it.value / it.base * 100).toFixed(2) + "%," + plView()));
+      const blob = new Blob(["\uFEFF" + csv.join("\n")], { type: "text/csv;charset=utf-8" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = "品线销售额-" + plView() + ".csv";
+      a.click();
+    };
+    document.getElementById("plBars").innerHTML = [70, 88, 60, 76, 64, 48, 40].map((h) => "<i style=\"height:" + h + "%\"></i>").join("");
+    document.getElementById("barNames").textContent = plines.map((x) => x.name).join("  ");
+    renderLine();
+
+    document.getElementById("more").innerHTML = ["流量指标","品线国家销售额占比","品线销售利润分析","SKU 明细","积分 Top10 兑换","积分相关指标","市场销售额"].map((t) =>
       "<div class=\"box\" style=\"margin-top:12px\"><strong>" + t + "</strong><p class=\"hint\">现网区块保留，本次不改取数。</p></div>"
     ).join("");
   </script>
