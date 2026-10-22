@@ -2,8 +2,11 @@ from __future__ import annotations
 
 import unittest
 from datetime import datetime, timedelta
+from pathlib import Path
 from unittest.mock import patch
 from zoneinfo import ZoneInfo
+
+import http.client
 
 from kb_orchestrator.service.git_sync import (
     CODE_REPO_BACKEND,
@@ -16,6 +19,7 @@ from kb_orchestrator.service.git_sync import (
     GitSyncError,
     _ensure_github_repo_access,
     _format_vs_main,
+    _github_api_get,
     _is_sensitive_git_path,
     _vs_main_slot_start,
     _vs_main_snapshot_due,
@@ -298,6 +302,80 @@ class VsMainSnapshotTests(unittest.TestCase):
         self.assertEqual(local["vs_main"]["ahead"], 0)
         self.assertEqual(local["vs_main"]["behind"], 0)
         self.assertEqual(data["vs_main_compared_at"], compared.isoformat())
+
+
+def _response(payload: bytes):
+    class Response:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return False
+
+        def read(self):
+            return payload
+
+    return Response()
+
+
+def _incomplete_read():
+    class Response:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return False
+
+        def read(self):
+            raise http.client.IncompleteRead(b'{"workflow_runs":', 20)
+
+    return Response()
+
+
+class GithubApiRetryTests(unittest.TestCase):
+    @patch("kb_orchestrator.service.git_sync.time.sleep")
+    @patch("kb_orchestrator.service.git_sync.urllib.request.urlopen")
+    def test_github_api_get_retries_incomplete_read(self, urlopen, _sleep) -> None:
+        urlopen.side_effect = [
+            _incomplete_read(),
+            _response(b'{"workflow_runs": []}'),
+        ]
+        result = _github_api_get("repos/o/n/actions/runs")
+        self.assertEqual(result, {"workflow_runs": []})
+        self.assertEqual(urlopen.call_count, 2)
+
+    @patch("kb_orchestrator.service.git_sync.time.sleep")
+    @patch("kb_orchestrator.service.git_sync.urllib.request.urlopen")
+    def test_github_api_get_incomplete_read_becomes_git_sync_error(self, urlopen, _sleep) -> None:
+        urlopen.side_effect = [_incomplete_read(), _incomplete_read(), _incomplete_read()]
+        with self.assertRaises(GitSyncError) as ctx:
+            _github_api_get("repos/o/n/actions/runs")
+        self.assertEqual(ctx.exception.code, "github_api")
+        self.assertIn("IncompleteRead", ctx.exception.details)
+        self.assertEqual(urlopen.call_count, 3)
+
+    @patch("kb_orchestrator.service.git_sync.time.sleep")
+    @patch("kb_orchestrator.service.git_sync._github_api_get")
+    @patch("kb_orchestrator.service.git_sync._live_stamp_matches", return_value=(False, "sha=old"))
+    @patch("kb_orchestrator.service.git_sync._load_github_token", return_value="token")
+    @patch("kb_orchestrator.service.git_sync._local_repo_slug", return_value=("18501404120", "cursor"))
+    def test_preview_auth_failure_does_not_raise(
+        self, _slug, _token, _stamp, api_get, _sleep
+    ) -> None:
+        api_get.side_effect = GitSyncError(
+            "GitHub API 请求失败（401）",
+            details="Bad credentials",
+            code="github_api",
+        )
+        result = git_sync_manager._await_local_preview(
+            Path("."),
+            "abc1234def",
+            since_iso="2026-10-22T00:00:00Z",
+            wait_for_new_deploy=False,
+        )
+        self.assertFalse(result["preview_ok"])
+        self.assertTrue(result["preview_fixable"])
+        self.assertIn("解决预览", result["preview_message"])
 
 
 if __name__ == "__main__":

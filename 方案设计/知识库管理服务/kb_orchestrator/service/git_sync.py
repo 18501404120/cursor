@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import http.client
 import json
 import os
 import re
@@ -248,6 +249,62 @@ def _github_headers(token: str) -> dict[str, str]:
     }
 
 
+_TRANSIENT_HTTP_CODES = frozenset({429, 500, 502, 503, 504})
+
+
+def _github_error_is_fatal(exc: GitSyncError) -> bool:
+    text = f"{exc} {exc.details or ''}"
+    return any(f"（{code}）" in text for code in (401, 403, 404, 422))
+
+
+def _github_open_json(
+    req: urllib.request.Request,
+    *,
+    timeout: int,
+    attempts: int = 3,
+) -> Any:
+    """读取 GitHub JSON。响应被截断（IncompleteRead）或瞬时 5xx 时重试。"""
+    delay = 0.4
+    last: BaseException | None = None
+    for attempt in range(attempts):
+        try:
+            with urllib.request.urlopen(req, timeout=timeout) as resp:
+                body = resp.read().decode("utf-8")
+            return json.loads(body) if body else {}
+        except urllib.error.HTTPError as exc:
+            if exc.code in _TRANSIENT_HTTP_CODES and attempt + 1 < attempts:
+                last = exc
+                try:
+                    exc.read()
+                except Exception:
+                    pass
+                time.sleep(delay)
+                delay = min(delay * 2, 2.0)
+                continue
+            raise
+        except (
+            urllib.error.URLError,
+            TimeoutError,
+            http.client.HTTPException,
+            ConnectionError,
+            json.JSONDecodeError,
+        ) as exc:
+            last = exc
+            if attempt + 1 >= attempts:
+                raise GitSyncError(
+                    "GitHub API 请求失败",
+                    details=str(exc),
+                    code="github_api",
+                ) from exc
+            time.sleep(delay)
+            delay = min(delay * 2, 2.0)
+    raise GitSyncError(
+        "GitHub API 请求失败",
+        details=str(last) if last else "empty response",
+        code="github_api",
+    )
+
+
 def _github_request(
     method: str,
     url: str,
@@ -263,9 +320,7 @@ def _github_request(
         headers["Content-Type"] = "application/json"
     req = urllib.request.Request(url, data=data, headers=headers, method=method)
     try:
-        with urllib.request.urlopen(req, timeout=timeout) as resp:
-            body = resp.read().decode("utf-8")
-            return json.loads(body) if body else {}
+        return _github_open_json(req, timeout=timeout)
     except urllib.error.HTTPError as exc:
         detail = exc.read().decode("utf-8", errors="replace")
         try:
@@ -278,8 +333,6 @@ def _github_request(
             details=message,
             code="github_api",
         ) from exc
-    except (urllib.error.URLError, json.JSONDecodeError, TimeoutError) as exc:
-        raise GitSyncError("GitHub API 请求失败", details=str(exc), code="github_api") from exc
 
 
 def _github_login(token: str) -> str:
@@ -351,9 +404,7 @@ def _github_api_get(path: str, token: str = "") -> Any:
         headers["Authorization"] = f"Bearer {token}"
     req = urllib.request.Request(url, headers=headers)
     try:
-        with urllib.request.urlopen(req, timeout=30) as resp:
-            body = resp.read().decode("utf-8")
-            return json.loads(body) if body else {}
+        return _github_open_json(req, timeout=30)
     except urllib.error.HTTPError as exc:
         detail = exc.read().decode("utf-8", errors="replace")
         raise GitSyncError(
@@ -361,8 +412,16 @@ def _github_api_get(path: str, token: str = "") -> Any:
             details=detail,
             code="github_api",
         ) from exc
-    except (urllib.error.URLError, json.JSONDecodeError, TimeoutError) as exc:
-        raise GitSyncError("GitHub API 请求失败", details=str(exc), code="github_api") from exc
+
+
+def _github_api_get_soft(path: str, token: str = "") -> Any | None:
+    """预览轮询用。瞬时失败返回 None；鉴权或权限错误继续抛出。"""
+    try:
+        return _github_api_get(path, token)
+    except GitSyncError as exc:
+        if _github_error_is_fatal(exc):
+            raise
+        return None
 
 
 def _utc_now_iso() -> str:
@@ -394,10 +453,10 @@ def _find_workflow_run(
     branch: str = "",
     since_iso: str = "",
 ) -> dict[str, Any] | None:
-    query = f"repos/{owner}/{name}/actions/runs?per_page=30"
+    query = f"repos/{owner}/{name}/actions/runs?per_page=30&exclude_pull_requests=true"
     if branch:
         query += f"&branch={branch}"
-    data = _github_api_get(query, token)
+    data = _github_api_get_soft(query, token)
     runs = data.get("workflow_runs") if isinstance(data, dict) else None
     if not isinstance(runs, list):
         return None
@@ -1904,6 +1963,39 @@ class GitSyncManager:
         since_iso: str,
         wait_for_new_deploy: bool,
     ) -> dict[str, Any]:
+        try:
+            return self._collect_local_preview(
+                repo,
+                head_sha,
+                since_iso=since_iso,
+                wait_for_new_deploy=wait_for_new_deploy,
+            )
+        except GitSyncError as exc:
+            detail = (exc.details or "").strip()
+            logs = [f"查询 GitHub Actions 失败: {exc}"]
+            if detail:
+                logs.append(detail[:500])
+            return {
+                "preview_ok": False,
+                "preview_fixable": True,
+                "preview_message": "查询 Pages 状态失败，可点「解决预览」重试",
+                "actions_urls": [
+                    {
+                        "label": "Actions",
+                        "url": "https://github.com/18501404120/cursor/actions",
+                    }
+                ],
+                "logs": logs,
+            }
+
+    def _collect_local_preview(
+        self,
+        repo: Path,
+        head_sha: str,
+        *,
+        since_iso: str,
+        wait_for_new_deploy: bool,
+    ) -> dict[str, Any]:
         logs: list[str] = []
         actions_urls: list[dict[str, str]] = []
         token = _load_github_token()
@@ -1978,19 +2070,25 @@ class GitSyncManager:
                     logs.append(f"找到 Deploy 任务: {deploy_run.get('status')}/{deploy_run.get('conclusion')}")
 
             if deploy_run:
-                deploy_run = _github_api_get(
+                refreshed = _github_api_get_soft(
                     f"repos/{owner}/{name}/actions/runs/{deploy_run['id']}", token
                 )
-                status = deploy_run.get("status")
-                conclusion = deploy_run.get("conclusion")
-                if status == "completed" and conclusion != "success":
-                    return {
-                        "preview_ok": False,
-                        "preview_fixable": True,
-                        "preview_message": f"Deploy GitHub Pages 失败（{conclusion}）",
-                        "actions_urls": actions_urls,
-                        "logs": logs,
-                    }
+                if not isinstance(refreshed, dict):
+                    note = "查询 Deploy 状态暂时失败，继续等待"
+                    if not logs or logs[-1] != note:
+                        logs.append(note)
+                else:
+                    deploy_run = refreshed
+                    status = deploy_run.get("status")
+                    conclusion = deploy_run.get("conclusion")
+                    if status == "completed" and conclusion != "success":
+                        return {
+                            "preview_ok": False,
+                            "preview_fixable": True,
+                            "preview_message": f"Deploy GitHub Pages 失败（{conclusion}）",
+                            "actions_urls": actions_urls,
+                            "logs": logs,
+                        }
 
             if pages_run is None:
                 pages_run = _find_workflow_run(
@@ -2007,12 +2105,19 @@ class GitSyncManager:
                     )
 
             if pages_run:
-                pages_run = _github_api_get(
+                refreshed = _github_api_get_soft(
                     f"repos/{owner}/{name}/actions/runs/{pages_run['id']}", token
                 )
-                status = pages_run.get("status")
-                conclusion = pages_run.get("conclusion")
-                if status == "completed":
+                if not isinstance(refreshed, dict):
+                    note = "查询 Pages 构建状态暂时失败，继续等待"
+                    if not logs or logs[-1] != note:
+                        logs.append(note)
+                    refreshed = None
+                else:
+                    pages_run = refreshed
+                status = pages_run.get("status") if isinstance(refreshed, dict) else None
+                conclusion = pages_run.get("conclusion") if isinstance(refreshed, dict) else None
+                if isinstance(refreshed, dict) and status == "completed":
                     if conclusion == "success":
                         stamp_ok, stamp_text = _live_stamp_matches(head_sha)
                         if stamp_ok:
