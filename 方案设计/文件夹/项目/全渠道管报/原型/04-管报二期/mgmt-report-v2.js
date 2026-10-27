@@ -216,6 +216,7 @@
   function modeFor(path) {
     if (path.indexOf('划线价折扣') >= 0 || path.indexOf('Discounts') >= 0) return '业务系统单据取数';
     if (path.indexOf('渠道激励') >= 0) return '计提/扣款规则计算';
+    if (path.indexOf('退货销售收入') >= 0) return '退款规则计算';
     if (path.indexOf('税费') >= 0) return '平台报告取数';
     if (path.indexOf('营销投入') >= 0) return '项目预算取数';
     if (path.indexOf('广告投放') >= 0 || path.indexOf('进场费') >= 0) return '费用导入分摊';
@@ -625,6 +626,16 @@
       '费用/公共费用': true
     },
     currency: 'USD',
+    detailFeePick: null,
+    detailDimOn: null,
+    detailTreeOpen: { '收入': true, '成本': true, '费用': true },
+    detailAnaId: '',
+    detailCompare: { mode: 'mom', over: {} },
+    detailGrain: 'day',
+    detailCmpPick: null,
+    cmpTreeOpen: { '收入': true, '成本': true, '费用': true },
+    detailModal: null,
+    detailModalOrigin: null,
     trendGranularity: 'day',
     trendHoverIndex: null,
     trendActiveIndex: null,
@@ -1078,7 +1089,7 @@
           splitTotal(qtyTotal, dims.length, hashSeed(node.id + p.key)).forEach(function (qty, i) {
             if (!qty) return;
             var dim = dims[i];
-            pushFact(Object.assign({ feeId: node.id, date: monthDate(p.period, 3 + i * 3), amount: 0, qty: qty }, dim));
+            pushFact(Object.assign({ feeId: node.id, date: monthDate(p.period, 2 + i * 3), amount: 0, qty: qty }, dim));
           });
           return;
         }
@@ -1242,7 +1253,6 @@
   function applyCurrencyChrome() {
     var code = (FX[state.currency] || FX.USD).code;
     if ($('#pnlAmountHead')) $('#pnlAmountHead').textContent = '本期金额 (' + code + ')';
-    if ($('#detailDisplayHead')) $('#detailDisplayHead').textContent = '金额(' + code + ')';
   }
 
   function shownOf(node, field) {
@@ -1939,44 +1949,934 @@
     return row.sign === '负数' ? -Math.abs(n) : n;
   }
 
-  function renderDetails() {
+  var DETAIL_DIMS = [
+    { key: 'date', label: '日期' },
+    { key: 'store', label: '店铺' },
+    { key: 'region', label: '区域' },
+    { key: 'country', label: '国家' },
+    { key: 'channel', label: '渠道' },
+    { key: 'model', label: 'Model' },
+    { key: 'sku', label: 'SKU' },
+    { key: 'msku', label: 'MSKU' },
+    { key: 'bu', label: '事业部' },
+    { key: 'scene', label: '场景' },
+    { key: 'category', label: '品类' },
+    { key: 'newTag', label: '新品标签' },
+    { key: 'launch', label: '上市时间' }
+  ];
+  var detailViewRows = [];
+
+  function leafColumnIds(rootId) {
+    if (rootId && feeById[rootId] && !childrenOf(rootId).length) return [rootId];
+    return feeNodes.filter(function (node) {
+      if (childrenOf(node.id).length) return false;
+      if (!rootId) return true;
+      return node.id !== rootId && isDescendantOrSelf(node.id, rootId);
+    }).map(function (node) { return node.id; });
+  }
+  function dimOn(key) {
+    if (!state.detailDimOn) return true;
+    return !!state.detailDimOn[key];
+  }
+  function feeColOn(id) {
+    if (state.detailFeePick) return !!state.detailFeePick[id];
+    return leafColumnIds(state.detailFeeId || '').indexOf(id) >= 0;
+  }
+  function materializeFeePick() {
+    if (state.detailFeePick) return;
+    var on = {};
+    leafColumnIds(state.detailFeeId || '').forEach(function (id) { on[id] = 1; });
+    state.detailFeePick = {};
+    feeNodes.forEach(function (node) { state.detailFeePick[node.id] = !!on[node.id]; });
+  }
+  function materializeDimOn() {
+    if (state.detailDimOn) return;
+    state.detailDimOn = {};
+    DETAIL_DIMS.forEach(function (dim) { state.detailDimOn[dim.key] = true; });
+  }
+  function visibleDims() {
+    return DETAIL_DIMS.filter(function (dim) { return dimOn(dim.key); });
+  }
+  function visibleFees() {
+    return feeNodes.filter(function (node) { return feeColOn(node.id); }).map(function (node) { return node.id; });
+  }
+  function columnLabel(id, ids) {
+    var node = feeById[id];
+    if (!node) return id;
+    var same = ids.filter(function (other) { return feeName(other) === node.name; });
+    if (same.length > 1 && node.parent) return node.name + '（' + feeName(node.parent) + '）';
+    return node.name;
+  }
+  function groupLeafMap(lines) {
+    var map = {};
+    lines.forEach(function (row) {
+      var node = feeById[row.feeId];
+      var value = node && node.qty ? (Number(row.qty) || 0) : signedAmount(row, row.amountUSD);
+      map[row.feeId] = (map[row.feeId] || 0) + value;
+    });
+    return map;
+  }
+  function subjectUsd(feeId, leafMap) {
+    var qty = !!(feeById[feeId] && feeById[feeId].qty);
+    var total = 0;
+    eachContrib(feeId, function (id, sign, field) {
+      if (qty && field !== 'qty') return;
+      if (!qty && field !== 'amount') return;
+      total += sign * (leafMap[id] || 0);
+    });
+    return qty ? Math.round(total) : round2(total);
+  }
+  function contribLines(feeId, lines) {
+    var ids = {};
+    eachContrib(feeId, function (id) { ids[id] = 1; });
+    return lines.filter(function (row) { return ids[row.feeId]; });
+  }
+  var LAUNCH_BY_MODEL = {
+    H6076: '2026-03', H7055: '2025-08', H610A: '2024-11', H619A: '2026-02',
+    H713A: '2025-09', H7060: '2026-04', H6052: '2025-04'
+  };
+  function detailLineFromFact(fact) {
+    var node = feeById[fact.feeId] || {};
+    var mode = node.mode || '业务系统单据取数';
+    var qty = !!node.qty;
+    var amount = qty ? 0 : (fact.amount || 0);
+    var ym = String(fact.date || '').replace(/-/g, '').slice(0, 6);
+    var sourceNo = mode === '项目预算取数' ? ('PRJ-' + ym + '-' + fact.msku)
+      : mode === '费用导入分摊' ? ('IMP' + ym + '-' + fact.sku)
+      : mode === '平台报告取数' ? ('AMZ-' + ym + '-' + fact.country)
+      : ('KD-' + ym + '-' + fact.msku);
+    var line = {
+      id: 'F|' + fact.feeId + '|' + fact.date + '|' + fact.msku,
+      period: String(fact.date || '').slice(0, 7),
+      date: fact.date,
+      channel: fact.channel,
+      store: fact.store,
+      country: fact.country,
+      region: fact.region,
+      msku: fact.msku,
+      sku: fact.sku,
+      model: fact.model,
+      bu: fact.bu,
+      dept: fact.dept,
+      retailer: fact.retailer,
+      scene: fact.scene,
+      category: fact.category,
+      newTag: fact.newTag,
+      launch: LAUNCH_BY_MODEL[fact.model] || '',
+      feeId: fact.feeId,
+      feeName: node.name || fact.feeId,
+      feePath: fullFeePath(fact.feeId),
+      sign: '正数',
+      amount: amount,
+      currency: 'USD',
+      rate: 1,
+      amountUSD: amount,
+      qty: fact.qty || 0,
+      mode: mode,
+      allocated: mode === '费用导入分摊' || mode === '项目预算取数',
+      allocationRule: mode === '费用导入分摊' || mode === '项目预算取数' ? '按营收占比分摊' : '直接取数',
+      allocationBase: Math.abs(amount) || fact.qty || 0,
+      sourceAmount: amount,
+      allocationRatio: 1,
+      sourceId: 'SRC|' + mode + '|' + fact.date + '|' + fact.msku + '|' + fact.feeId,
+      sourceNo: sourceNo,
+      batch: 'BATCH-' + ym,
+      finalStatus: mode === '财务系统同口径取数' ? '财务定稿' : '业务预估',
+      noDetail: !LINE_TRACE_MODES[mode],
+      remark: ''
+    };
+    ensureFactSource(line);
+    return line;
+  }
+  function ensureFactSource(line) {
+    if (sourceDocs[line.sourceId]) return;
+    var caliber = {
+      '财务系统同口径取数': '直接取财务字段金额。只保留来源类型、期间、金额、币种、汇率和取值口径。',
+      '计提/扣款规则计算': '按客户计提规则计入。不展开计算明细。',
+      '退款规则计算': '按滚动退款率计入。不展开计算明细。',
+      '比例/参数计算': '按费率或参数计入。不展开计算明细。'
+    }[line.mode];
+    if (caliber || line.noDetail) {
+      sourceDocs[line.sourceId] = {
+        title: line.feeName + ' · ' + line.period,
+        type: line.mode,
+        system: line.mode === '财务系统同口径取数' ? '财务系统' : '规则运行',
+        owner: '财务运营',
+        status: line.finalStatus,
+        noDetail: true,
+        summary: caliber || '该来源没有稳定行号，只保留单据摘要。',
+        fields: [],
+        lines: []
+      };
+      return;
+    }
+    var shown = line.qty ? fmtQty(line.qty) : money(line.amount, 'USD');
+    var system = line.mode === '平台报告取数' ? '亚马逊报告' : line.mode === '费用导入分摊' ? '费用填报管理' : line.mode === '项目预算取数' ? '项目平台-预算' : '金蝶';
+    var summary = line.mode === '费用导入分摊' ? '按归属月导入后分摊到店铺和 MSKU。'
+      : line.mode === '项目预算取数' ? '项目立项通过后按收益期间进入管报。'
+      : line.mode === '平台报告取数' ? '取平台报告字段进入管报。'
+      : '从业务单据行取金额和数量。';
+    sourceDocs[line.sourceId] = {
+      title: line.sourceNo,
+      type: line.mode,
+      system: system,
+      owner: '财务运营',
+      status: '已审核',
+      summary: summary,
+      fields: [
+        ['来源编号', line.sourceNo],
+        ['期间', line.period],
+        ['店铺', line.store],
+        [line.qty ? '数量' : '金额', shown]
+      ],
+      lines: [[line.sku || '1', line.msku, line.feeName, shown]]
+    };
+  }
+  function detailLinesForGrid() {
     var feeContext = state.detailFeeId || '';
-    var rows = filteredDetails(feeContext).filter(traceHit);
+    return facts.filter(function (fact) {
+      if (!fact.amount && !fact.qty) return false;
+      if (!factInScope(fact, 'cur')) return false;
+      if (feeContext && !isDescendantOrSelf(fact.feeId, feeContext)) return false;
+      return true;
+    }).map(detailLineFromFact);
+  }
+  function detailDateLabel(row, grain) {
+    if (grain === 'month') return String(row.date || '').slice(0, 7);
+    if (grain === 'range') return (state.filters.dateStart || '') + ' ~ ' + (state.filters.dateEnd || '');
+    return row.date || '';
+  }
+  function buildDetailGroups() {
+    var grain = state.detailGrain || 'day';
+    var map = {};
+    var groups = [];
+    detailLinesForGrid().forEach(function (row) {
+      var dateLabel = detailDateLabel(row, grain);
+      var key = DETAIL_DIMS.map(function (dim) {
+        if (dim.key !== 'date') return row[dim.key] || '';
+        return grain === 'range' ? '' : dateLabel;
+      }).join('\u0001');
+      if (!map[key]) {
+        map[key] = { dim: {}, lines: [] };
+        DETAIL_DIMS.forEach(function (dim) {
+          map[key].dim[dim.key] = dim.key === 'date' ? dateLabel : (row[dim.key] || '');
+        });
+        groups.push(map[key]);
+      }
+      map[key].lines.push(row);
+    });
+    groups.sort(function (a, b) {
+      if (a.dim.date !== b.dim.date) return a.dim.date < b.dim.date ? 1 : -1;
+      return String(a.dim.store).localeCompare(String(b.dim.store), 'zh');
+    });
+    return groups;
+  }
+  function renderColTree() {
+    var box = $('#colTree');
+    if (!box) return;
+    var scroll = box.scrollTop;
+    var q = ($('#colSearch') && $('#colSearch').value || '').trim();
+    function nodeShown(node) {
+      if (!q) return true;
+      if (node.name.indexOf(q) >= 0) return true;
+      return childrenOf(node.id).some(nodeShown);
+    }
+    function feeTree(parentId, depth) {
+      return feeNodes.filter(function (node) { return node.parent === parentId && nodeShown(node); }).map(function (node) {
+        var kids = childrenOf(node.id);
+        var open = q ? (kids.some(nodeShown) || !!state.detailTreeOpen[node.id]) : !!state.detailTreeOpen[node.id];
+        var twist = kids.length
+          ? '<button type="button" class="col-twist" data-col-toggle="' + esc(node.id) + '">' + (open ? '▼' : '▶') + '</button>'
+          : '<button type="button" class="col-twist none" tabindex="-1"></button>';
+        var row = '<div class="col-row" style="padding-left:' + (depth * 14) + 'px">' + twist +
+          '<label><input type="checkbox" data-col-fee="' + esc(node.id) + '"' + (feeColOn(node.id) ? ' checked' : '') + '>' + esc(node.name) + '</label></div>';
+        if (kids.length && open) row += feeTree(node.id, depth + 1);
+        return row;
+      }).join('');
+    }
+    var dims = DETAIL_DIMS.filter(function (dim) { return !q || dim.label.indexOf(q) >= 0; }).map(function (dim) {
+      return '<label class="col-row" style="padding-left:8px"><input type="checkbox" data-col-dim="' + dim.key + '"' + (dimOn(dim.key) ? ' checked' : '') + '>' + esc(dim.label) + '</label>';
+    }).join('');
+    box.innerHTML = (dims ? '<div class="col-sec">维度</div>' + dims : '') + '<div class="col-sec">科目</div>' + (feeTree(null, 0) || '<div class="muted">没有匹配的科目</div>');
+    box.scrollTop = scroll;
+  }
+  function detailCellHtml(group, groupIndex, feeId) {
+    var lines = contribLines(feeId, group.lines);
+    if (!lines.length) return '<td class="num muted">—</td>';
+    var amount = subjectUsd(feeId, groupLeafMap(group.lines));
+    var qty = !!(feeById[feeId] && feeById[feeId].qty);
+    var text = qty ? fmtQty(amount) : fmtAmt(amount);
+    var neg = !qty && amount < 0;
+    if (group.isTotal) return '<td class="num' + (neg ? ' neg' : '') + '">' + esc(text) + '</td>';
+    return '<td class="num"><button type="button" class="num-link' + (neg ? ' neg' : '') + '" data-detail-cell="1" data-group="' + groupIndex + '" data-fee="' + esc(feeId) + '">' + esc(text) + '</button></td>';
+  }
+  function totalDetailGroup(groups) {
+    var lines = [];
+    groups.forEach(function (group) { lines = lines.concat(group.lines); });
+    var dim = {};
+    DETAIL_DIMS.forEach(function (dimItem) { dim[dimItem.key] = dimItem.key === 'date' ? '合计' : ''; });
+    return { dim: dim, lines: lines, isTotal: true };
+  }
+  function pageSlice() {
+    var f = state.filters;
+    return {
+      dateStart: f.dateStart,
+      dateEnd: f.dateEnd,
+      bu: f.bu,
+      dept: f.dept,
+      region: f.region,
+      country: f.country,
+      channel: f.channel,
+      store: f.store,
+      retailer: f.retailer,
+      model: f.model,
+      newTag: f.newTag,
+      scenePage: true,
+      skuPage: true
+    };
+  }
+  function sliceHit(fact, slice) {
+    if (slice.dateStart && fact.date < slice.dateStart) return false;
+    if (slice.dateEnd && fact.date > slice.dateEnd) return false;
+    if (slice.bu && fact.bu !== slice.bu) return false;
+    if (slice.dept && fact.dept !== slice.dept) return false;
+    if (slice.region && fact.region !== slice.region) return false;
+    if (slice.country && fact.country !== slice.country) return false;
+    if (slice.channel && fact.channel !== slice.channel) return false;
+    if (slice.store && fact.store !== slice.store) return false;
+    if (slice.retailer && fact.retailer !== slice.retailer) return false;
+    if (slice.model && fact.model !== slice.model) return false;
+    if (slice.newTag && fact.newTag !== slice.newTag) return false;
+    if (slice.msku && fact.msku !== slice.msku) return false;
+    if (!slice.skuPage && slice.sku) {
+      var q = String(slice.sku).toLowerCase();
+      var skuText = String(fact.sku || '').toLowerCase();
+      var mskuText = String(fact.msku || '').toLowerCase();
+      var skuMode = slice.skuMode || 'fuzzy';
+      if (skuMode === 'exact' && mskuText !== q) return false;
+      if (skuMode === 'eight' && skuText !== q) return false;
+      if (skuMode !== 'exact' && skuMode !== 'eight' && skuText.indexOf(q) < 0 && mskuText.indexOf(q) < 0) return false;
+    }
+    if (slice.launch && (LAUNCH_BY_MODEL[fact.model] || '') !== slice.launch) return false;
+    if (slice.scene && fact.scene !== slice.scene) return false;
+    if (slice.category && fact.category !== slice.category) return false;
+    if (slice.scenePage && !sceneHit(fact)) return false;
+    if (slice.skuPage && !skuHit(fact)) return false;
+    return true;
+  }
+  function measureSlice(id, slice, kind) {
+    var start = slice.dateStart || PERIOD.start;
+    var end = slice.dateEnd || PERIOD.end;
+    if (kind === 'prev') { start = shiftIso(start, -1); end = shiftIso(end, -1); }
+    else if (kind === 'yoy') { start = shiftIso(start, -12); end = shiftIso(end, -12); }
+    var scoped = Object.assign({}, slice, { dateStart: start, dateEnd: end });
+    var qty = !!(feeById[id] && feeById[id].qty);
+    var total = 0;
+    eachContrib(id, function (feeId, sign, field) {
+      if (qty && field !== 'qty') return;
+      if (!qty && field !== 'amount') return;
+      (factsByFee[feeId] || []).forEach(function (fact) {
+        if (!sliceHit(fact, scoped)) return;
+        total += sign * (fact[field] || 0);
+      });
+    });
+    return qty ? Math.round(total) : round2(total);
+  }
+  function detailAnaId() {
+    return state.detailAnaId || state.detailFeeId || '收入/营业收入';
+  }
+  function fillSubjectSelect(el, selected) {
+    if (!el) return;
+    el.innerHTML = feeNodes.map(function (node) {
+      return '<option value="' + esc(node.id) + '">' + esc(new Array(node.level + 1).join('　') + node.name) + '</option>';
+    }).join('');
+    el.value = feeById[selected] ? selected : '收入/营业收入';
+  }
+  function factValues(key) {
+    if (key === 'launch') return unique(Object.keys(LAUNCH_BY_MODEL).map(function (model) { return LAUNCH_BY_MODEL[model]; })).sort();
+    return unique(facts.map(function (fact) { return fact[key]; })).sort();
+  }
+  function filterSelect(key, value, emptyLabel, dataName) {
+    var values = factValues(key).slice();
+    if (value && values.indexOf(value) < 0) values.push(value);
+    values.sort();
+    var options = ['<option value="">' + esc(emptyLabel) + '</option>'].concat(values.map(function (item) {
+      return '<option value="' + esc(item) + '"' + (item === value ? ' selected' : '') + '>' + esc(item) + '</option>';
+    }));
+    return '<select class="ctl" data-' + (dataName || 'filter') + '="' + esc(key) + '">' + options.join('') + '</select>';
+  }
+  function renderSliceTrend(el, id, slice) {
+    if (!el) return;
+    var grain = 'day';
+    var buckets = trendBuckets(slice.dateStart || PERIOD.start, slice.dateEnd || PERIOD.end, grain);
+    if (buckets.length > 45) {
+      grain = 'week';
+      buckets = trendBuckets(slice.dateStart, slice.dateEnd, grain);
+    }
+    var points = [];
+    buckets.forEach(function (bucket) {
+      var value = measureSlice(id, Object.assign({}, slice, { dateStart: bucket.start, dateEnd: bucket.end }), 'cur');
+      if (Math.abs(value) > 0.004) points.push({ label: bucket.label, value: value });
+    });
+    if (!points.length) {
+      el.innerHTML = '<div class="muted" style="padding:8px 0;">这段日期里没有发生额。把日期放宽后可以看到趋势。</div>';
+      return;
+    }
+    var min = Math.min.apply(null, points.map(function (p) { return p.value; }).concat([0]));
+    var max = Math.max.apply(null, points.map(function (p) { return p.value; }).concat([0]));
+    if (min === max) { min -= Math.abs(max) * 0.2 || 1; max += Math.abs(max) * 0.2 || 1; }
+    var width = 1160;
+    var height = 220;
+    var plot = { x: 56, y: 16, w: 1060, h: 160 };
+    function xAt(i) { return plot.x + (plot.w / Math.max(points.length - 1, 1)) * i; }
+    function yAt(v) { return plot.y + plot.h - ((v - min) / (max - min)) * plot.h; }
+    var coords = points.map(function (p, i) { return { x: xAt(i), y: yAt(p.value) }; });
+    function smooth(pts) {
+      if (pts.length < 2) return '';
+      var d = 'M' + pts[0].x.toFixed(1) + ',' + pts[0].y.toFixed(1);
+      var i;
+      for (i = 0; i < pts.length - 1; i++) {
+        var p0 = pts[Math.max(i - 1, 0)];
+        var p1 = pts[i];
+        var p2 = pts[i + 1];
+        var p3 = pts[Math.min(i + 2, pts.length - 1)];
+        d += ' C' + (p1.x + (p2.x - p0.x) / 6).toFixed(1) + ',' + (p1.y + (p2.y - p0.y) / 6).toFixed(1) +
+          ' ' + (p2.x - (p3.x - p1.x) / 6).toFixed(1) + ',' + (p2.y - (p3.y - p1.y) / 6).toFixed(1) +
+          ' ' + p2.x.toFixed(1) + ',' + p2.y.toFixed(1);
+      }
+      return d;
+    }
+    var step = Math.max(1, Math.ceil(points.length / 6));
+    el.innerHTML = '<svg class="target-chart-svg" viewBox="0 0 ' + width + ' ' + height + '" role="img">' +
+      (coords.length > 1 ? '<path fill="none" stroke="#1677ff" stroke-width="2" d="' + smooth(coords) + '"></path>' : '') +
+      coords.map(function (c, i) {
+        var qty = feeById[id] && feeById[id].qty;
+        var text = points[i].label + '  ' + (qty ? fmtQty(points[i].value) : fmtAmt(points[i].value));
+        return '<circle cx="' + c.x.toFixed(1) + '" cy="' + c.y.toFixed(1) + '" r="3.5" fill="#fff" stroke="#1677ff" stroke-width="2"><title>' + esc(text) + '</title></circle>';
+      }).join('') +
+      points.map(function (p, i) {
+        if (points.length > 8 && i % step !== 0 && i !== points.length - 1) return '';
+        return '<text class="target-axis" x="' + xAt(i).toFixed(1) + '" y="208" text-anchor="middle">' + esc(p.label) + '</text>';
+      }).join('') +
+      '</svg>';
+  }
+  function kpiBlock(title, cur, prev, yoy, qty) {
+    return '<div class="pnl-metric"><div class="k">本期</div><div class="v">' + esc(qty ? fmtQty(cur) : fmtAmt(cur)) + '</div><div class="s">' + esc(title) + '</div></div>' +
+      '<div class="pnl-metric"><div class="k">环比 ' + esc(rateText(cur, prev)) + '</div><div class="s">上期 ' + esc(qty ? fmtQty(prev) : fmtAmt(prev)) + '</div><div class="s">增减 ' + esc(fmtDelta(cur, prev, qty)) + '</div></div>' +
+      '<div class="pnl-metric"><div class="k">同比 ' + esc(rateText(cur, yoy)) + '</div><div class="s">去年同期 ' + esc(qty ? fmtQty(yoy) : fmtAmt(yoy)) + '</div><div class="s">增减 ' + esc(fmtDelta(cur, yoy, qty)) + '</div></div>';
+  }
+  function renderDetailAnalysis() {
+    var id = detailAnaId();
+    if (!feeById[id]) id = '收入/营业收入';
+    fillSubjectSelect($('#detailAnaSubject'), id);
+    var cur = measureOf(id, 'cur');
+    var prev = measureOf(id, 'prev');
+    var yoy = measureOf(id, 'yoy');
+    var qty = !!(feeById[id] && feeById[id].qty);
+    if ($('#detailAnaKpis')) $('#detailAnaKpis').innerHTML = kpiBlock(feeName(id), cur, prev, yoy, qty);
+    renderSliceTrend($('#detailTrend'), id, pageSlice());
+  }
+  function scenePair() {
+    var pairs = [];
+    Object.keys(scenePick).forEach(function (scene) {
+      Object.keys(scenePick[scene] || {}).forEach(function (cat) {
+        if (scenePick[scene][cat]) pairs.push({ scene: scene, category: cat });
+      });
+    });
+    return pairs.length === 1 ? pairs[0] : { scene: '', category: '' };
+  }
+  function writeScenePick(scene, category) {
+    scenePick = {};
+    if (scene && category) {
+      scenePick[scene] = {};
+      scenePick[scene][category] = true;
+    } else if (scene) {
+      var found = (master.scenes || []).filter(function (item) { return item.scene_name === scene; })[0];
+      scenePick[scene] = {};
+      ((found && found.categories) || [{ category_name: category || '全部' }]).forEach(function (cat) {
+        if (cat.category_name) scenePick[scene][cat.category_name] = true;
+      });
+    }
+    if (typeof renderSceneCols === 'function') renderSceneCols();
+    if (typeof renderSceneTrigger === 'function') renderSceneTrigger();
+  }
+  function compareSlice() {
+    var page = pageSlice();
+    var over = state.detailCompare.over || {};
+    var mode = state.detailCompare.mode || 'mom';
+    var slice = Object.assign({}, page, { msku: '', launch: '' });
+    ['bu', 'dept', 'region', 'country', 'channel', 'store', 'retailer', 'model', 'newTag'].forEach(function (key) {
+      if (Object.prototype.hasOwnProperty.call(over, key)) slice[key] = over[key];
+    });
+    slice.scenePage = !Object.prototype.hasOwnProperty.call(over, 'scene') && !Object.prototype.hasOwnProperty.call(over, 'category');
+    slice.skuPage = !Object.prototype.hasOwnProperty.call(over, 'sku') && !Object.prototype.hasOwnProperty.call(over, 'skuMode');
+    slice.scene = Object.prototype.hasOwnProperty.call(over, 'scene') ? over.scene : '';
+    slice.category = Object.prototype.hasOwnProperty.call(over, 'category') ? over.category : '';
+    slice.sku = Object.prototype.hasOwnProperty.call(over, 'sku') ? over.sku : '';
+    slice.skuMode = Object.prototype.hasOwnProperty.call(over, 'skuMode') ? over.skuMode : (state.filters.skuMode || 'fuzzy');
+    if (mode === 'mom') {
+      slice.dateStart = shiftIso(page.dateStart, -1);
+      slice.dateEnd = shiftIso(page.dateEnd, -1);
+    } else if (mode === 'yoy') {
+      slice.dateStart = shiftIso(page.dateStart, -12);
+      slice.dateEnd = shiftIso(page.dateEnd, -12);
+    } else {
+      slice.dateStart = over.dateStart || page.dateStart;
+      slice.dateEnd = over.dateEnd || page.dateEnd;
+    }
+    return slice;
+  }
+  function cmpShown(key) {
+    var over = state.detailCompare.over || {};
+    if (Object.prototype.hasOwnProperty.call(over, key)) return over[key] || '';
+    if (key === 'scene') return scenePair().scene;
+    if (key === 'category') return scenePair().category;
+    if (key === 'sku') return state.filters.sku || '';
+    return state.filters[key] || '';
+  }
+  function applyCurFilter(key, value) {
+    if (key === 'dateStart' || key === 'dateEnd') {
+      state.filters[key] = value;
+      if (dateRangePicker) dateRangePicker.set(state.filters.dateStart, state.filters.dateEnd);
+    } else if (key === 'skuMode') {
+      state.filters.skuMode = value || 'fuzzy';
+      if ($('#fSkuMode')) $('#fSkuMode').value = state.filters.skuMode;
+    } else if (key === 'sku') {
+      state.filters.sku = (value || '').trim();
+      if ($('#fSkuInput')) $('#fSkuInput').value = state.filters.sku;
+    } else if (key === 'scene' || key === 'category') {
+      var pair = scenePair();
+      var next = { scene: pair.scene, category: pair.category };
+      next[key] = value;
+      writeScenePick(next.scene, next.category);
+    } else {
+      state.filters[key] = value;
+      if (key === 'region') state.filters.country = '';
+      if (key === 'channel') state.filters.store = '';
+      fillBusinessSelects();
+    }
+    renderAll();
+  }
+  function applyCmpFilter(key, value) {
+    var over = state.detailCompare.over;
+    var pageVal = key === 'scene' || key === 'category' ? scenePair()[key] : (key === 'sku' ? (state.filters.sku || '') : (key === 'skuMode' ? (state.filters.skuMode || 'fuzzy') : (state.filters[key] || '')));
+    if (key === 'dateStart' || key === 'dateEnd') over[key] = value;
+    else if ((value || '') === (pageVal || '')) delete over[key];
+    else over[key] = value;
+    renderDetailCompare();
+  }
+  function cmpDefaultIds() {
+    return ['收入/销量', '收入/营业收入', '毛利', '成本', '营业利润'].filter(function (id) { return feeById[id]; });
+  }
+  function cmpColOn(id) {
+    if (state.detailCmpPick) return !!state.detailCmpPick[id];
+    return cmpDefaultIds().indexOf(id) >= 0;
+  }
+  function materializeCmpPick() {
+    if (state.detailCmpPick) return;
+    var on = {};
+    cmpDefaultIds().forEach(function (id) { on[id] = 1; });
+    state.detailCmpPick = {};
+    feeNodes.forEach(function (node) { state.detailCmpPick[node.id] = !!on[node.id]; });
+  }
+  function cmpVisibleFees() {
+    if (!state.detailCmpPick) return cmpDefaultIds();
+    return feeNodes.filter(function (node) { return state.detailCmpPick[node.id]; }).map(function (node) { return node.id; });
+  }
+  function renderCmpColTree() {
+    var box = $('#cmpColTree');
+    if (!box) return;
+    var scroll = box.scrollTop;
+    var q = ($('#cmpColSearch') && $('#cmpColSearch').value || '').trim();
+    function nodeShown(node) {
+      if (!q) return true;
+      if (node.name.indexOf(q) >= 0) return true;
+      return childrenOf(node.id).some(nodeShown);
+    }
+    function feeTree(parentId, depth) {
+      return feeNodes.filter(function (node) { return node.parent === parentId && nodeShown(node); }).map(function (node) {
+        var kids = childrenOf(node.id);
+        var open = q ? kids.some(nodeShown) : !!(state.cmpTreeOpen && state.cmpTreeOpen[node.id]);
+        var twist = kids.length
+          ? '<button type="button" class="col-twist" data-cmp-toggle="' + esc(node.id) + '">' + (open ? '▼' : '▶') + '</button>'
+          : '<button type="button" class="col-twist none" tabindex="-1"></button>';
+        var row = '<div class="col-row" style="padding-left:' + (depth * 14) + 'px">' + twist +
+          '<label><input type="checkbox" data-cmp-col="' + esc(node.id) + '"' + (cmpColOn(node.id) ? ' checked' : '') + '>' + esc(node.name) + '</label></div>';
+        if (kids.length && open) row += feeTree(node.id, depth + 1);
+        return row;
+      }).join('');
+    }
+    box.innerHTML = feeTree(null, 0) || '<div class="muted">没有匹配的科目</div>';
+    box.scrollTop = scroll;
+  }
+  function renderDetailCompare() {
+    var mode = state.detailCompare.mode || 'mom';
+    var over = state.detailCompare.over || {};
+    var slice = compareSlice();
+    var box = $('#detailCmpFilters');
+    if (box) {
+      var dateLocked = mode !== 'custom';
+      var fields = [
+        ['bu', '事业部'], ['dept', '费用部门'], ['region', '区域'], ['country', '国家'], ['channel', '渠道'],
+        ['store', '店铺'], ['retailer', '零售商'], ['scene', '场景'], ['category', '品类'], ['model', 'Model'],
+        ['newTag', '新品标签']
+      ];
+      var skuMode = cmpShown('skuMode') || state.filters.skuMode || 'fuzzy';
+      box.innerHTML =
+        '<div class="f-item f-item--range"><label>日期范围</label><input class="ctl" type="date" data-cmp-filter="dateStart" value="' + esc(slice.dateStart || '') + '"' + (dateLocked ? ' disabled' : '') + '><span>至</span><input class="ctl" type="date" data-cmp-filter="dateEnd" value="' + esc(slice.dateEnd || '') + '"' + (dateLocked ? ' disabled' : '') + '></div>' +
+        fields.map(function (field) {
+          return '<div class="f-item"><label>' + esc(field[1]) + '</label>' + filterSelect(field[0], cmpShown(field[0]), '全部', 'cmp-filter') + '</div>';
+        }).join('') +
+        '<div class="f-item"><label>SKU</label><div class="sku-group"><select data-cmp-filter="skuMode" aria-label="对比SKU检索模式"><option value="fuzzy"' + (skuMode === 'fuzzy' ? ' selected' : '') + '>模糊</option><option value="exact"' + (skuMode === 'exact' ? ' selected' : '') + '>精确</option><option value="eight"' + (skuMode === 'eight' ? ' selected' : '') + '>8位</option></select><input data-cmp-filter="sku" value="' + esc(cmpShown('sku')) + '" placeholder="请输入SKU"></div></div>';
+    }
+    document.querySelectorAll('#detailCmpMode button').forEach(function (btn) {
+      btn.classList.toggle('on', btn.dataset.cmp === mode);
+    });
+    var fees = cmpVisibleFees();
+    var table = $('#detailCmpTable');
+    if (!table) return;
+    if (!fees.length) {
+      table.innerHTML = '<div class="muted" style="padding:16px;">请在自定义列里勾选科目。</div>';
+      return;
+    }
+    var page = pageSlice();
+    function tone(n) { return n > 0.0001 ? 'cmp-up' : (n < -0.0001 ? 'cmp-down' : ''); }
+    function row(label, htmlFn) {
+      return '<tr><td class="lab">' + esc(label) + '</td>' + fees.map(htmlFn).join('') + '</tr>';
+    }
+    function moneyRow(label, pick) {
+      return row(label, function (id) {
+        var qty = !!(feeById[id] && feeById[id].qty);
+        var n = pick(id, qty);
+        if (Math.abs(n) < 0.004) return '<td class="muted">—</td>';
+        return '<td class="' + tone(qty ? 0 : n) + '">' + esc(qty ? fmtQty(n) : fmtAmt(n)) + '</td>';
+      });
+    }
+    function rateRow(label, curPick, basePick) {
+      return row(label, function (id) {
+        var qty = !!(feeById[id] && feeById[id].qty);
+        var cur = curPick(id);
+        var base = basePick(id);
+        var delta = (cur || 0) - (base || 0);
+        if (Math.abs(cur) < 0.004 && Math.abs(base) < 0.004) return '<td class="muted">—</td>';
+        return '<td class="' + tone(delta) + '">' + esc(rateText(cur, base)) + '<div>' + esc(fmtDelta(cur, base, qty)) + '</div></td>';
+      });
+    }
+    table.innerHTML = '<table class="cmp-table"><thead><tr><th class="lab">指标</th>' +
+      fees.map(function (id) { return '<th class="num" title="' + esc(fullFeePath(id)) + '">' + esc(columnLabel(id, fees)) + '</th>'; }).join('') +
+      '</tr></thead><tbody>' +
+      moneyRow('本期', function (id) { return measureSlice(id, page, 'cur'); }) +
+      rateRow('本期环比', function (id) { return measureSlice(id, page, 'cur'); }, function (id) { return measureSlice(id, page, 'prev'); }) +
+      rateRow('本期同比', function (id) { return measureSlice(id, page, 'cur'); }, function (id) { return measureSlice(id, page, 'yoy'); }) +
+      moneyRow('对比期', function (id) { return measureSlice(id, slice, 'cur'); }) +
+      '</tbody></table>';
+    renderCmpTrend();
+  }
+  function renderCmpTrend() {
+    var el = $('#detailTrend');
+    var legend = $('#detailTrendLegend');
+    if (!el) return;
+    var ids = cmpVisibleFees();
+    var slice = pageSlice();
+    var colors = ['#1677ff', '#13c2c2', '#52c41a', '#fa8c16', '#722ed1', '#eb2f96'];
+    var buckets = trendBuckets(slice.dateStart || PERIOD.start, slice.dateEnd || PERIOD.end, 'day');
+    if (buckets.length > 45) buckets = trendBuckets(slice.dateStart, slice.dateEnd, 'week');
+    var series = ids.map(function (id, idx) {
+      var raw = buckets.map(function (bucket) {
+        return measureSlice(id, Object.assign({}, slice, { dateStart: bucket.start, dateEnd: bucket.end }), 'cur');
+      });
+      var base = null;
+      var pcts = raw.map(function (value) {
+        if (base == null && Math.abs(value) > 0.004) base = value;
+        if (base == null || Math.abs(base) < 0.004) return 0;
+        return (value - base) / Math.abs(base) * 100;
+      });
+      return { id: id, name: feeName(id), qty: !!(feeById[id] && feeById[id].qty), color: colors[idx % colors.length], raw: raw, pcts: pcts };
+    });
+    state.cmpTrend = { buckets: buckets, series: series };
+    if (legend) {
+      legend.innerHTML = series.map(function (item) {
+        return '<span><i style="background:' + item.color + '"></i>' + esc(item.name) + '</span>';
+      }).join('');
+    }
+    var keep = [];
+    buckets.forEach(function (bucket, index) {
+      if (series.some(function (item) { return Math.abs(item.raw[index]) > 0.004; })) keep.push(index);
+    });
+    if (!keep.length) {
+      el.innerHTML = '<div class="muted" style="padding:8px 16px;">所选日期内这些指标没有发生额。</div>';
+      return;
+    }
+    var viewBuckets = keep.map(function (index) { return buckets[index]; });
+    series.forEach(function (item) {
+      item.raw = keep.map(function (index) { return item.raw[index]; });
+      item.pcts = keep.map(function (index) { return item.pcts[index]; });
+    });
+    var flat = [];
+    series.forEach(function (item) { flat = flat.concat(item.pcts); });
+    var yMax = Math.max(4, Math.ceil(Math.max.apply(null, flat.map(function (n) { return Math.abs(n); })) / 2) * 2);
+    var width = 1160;
+    var height = 280;
+    var plot = { x: 52, y: 28, w: 1060, h: 190 };
+    function xAt(i) { return plot.x + (plot.w / Math.max(viewBuckets.length - 1, 1)) * i; }
+    function yAt(v) { return plot.y + plot.h / 2 - (v / yMax) * (plot.h / 2); }
+    function smooth(pts) {
+      if (pts.length < 2) return '';
+      var d = 'M' + pts[0].x.toFixed(1) + ',' + pts[0].y.toFixed(1);
+      var i;
+      for (i = 0; i < pts.length - 1; i++) {
+        var p0 = pts[Math.max(i - 1, 0)];
+        var p1 = pts[i];
+        var p2 = pts[i + 1];
+        var p3 = pts[Math.min(i + 2, pts.length - 1)];
+        d += ' C' + (p1.x + (p2.x - p0.x) / 6).toFixed(1) + ',' + (p1.y + (p2.y - p0.y) / 6).toFixed(1) +
+          ' ' + (p2.x - (p3.x - p1.x) / 6).toFixed(1) + ',' + (p2.y - (p3.y - p1.y) / 6).toFixed(1) +
+          ' ' + p2.x.toFixed(1) + ',' + p2.y.toFixed(1);
+      }
+      return d;
+    }
+    var focus = state.cmpHover;
+    if (focus == null || focus < 0 || focus >= viewBuckets.length) focus = viewBuckets.length - 1;
+    var grid = [];
+    [-yMax, 0, yMax].forEach(function (v) {
+      var y = yAt(v);
+      grid.push('<line class="target-grid" x1="' + plot.x + '" y1="' + y.toFixed(1) + '" x2="' + (plot.x + plot.w) + '" y2="' + y.toFixed(1) + '"></line>' +
+        '<text class="target-axis" x="' + (plot.x - 8) + '" y="' + (y + 4).toFixed(1) + '" text-anchor="end">' + (v > 0 ? '+' : '') + v + '%</text>');
+    });
+    var step = Math.max(1, Math.ceil(viewBuckets.length / 6));
+    var paths = series.map(function (item) {
+      var pts = item.pcts.map(function (v, i) { return { x: xAt(i), y: yAt(v) }; });
+      return '<path fill="none" stroke="' + item.color + '" stroke-width="2" d="' + smooth(pts) + '"></path>';
+    }).join('');
+    var dots = series.map(function (item) {
+      return item.pcts.map(function (v, i) {
+        return '<circle data-cmp-index="' + i + '" cx="' + xAt(i).toFixed(1) + '" cy="' + yAt(v).toFixed(1) + '" r="3" fill="#fff" stroke="' + item.color + '" stroke-width="2"></circle>';
+      }).join('');
+    }).join('');
+    var hitW = viewBuckets.length > 1 ? plot.w / (viewBuckets.length - 1) : plot.w;
+    var hits = viewBuckets.map(function (bucket, i) {
+      var x = viewBuckets.length > 1 ? xAt(i) - hitW / 2 : plot.x;
+      return '<rect data-cmp-index="' + i + '" x="' + x.toFixed(1) + '" y="' + plot.y + '" width="' + hitW.toFixed(1) + '" height="' + plot.h + '" fill="transparent"></rect>';
+    }).join('');
+    var tip = series.map(function (item, idx) {
+      var actual = item.qty ? fmtQty(item.raw[focus]) : fmtAmt(item.raw[focus]);
+      var pct = item.pcts[focus];
+      var text = (pct > 0 ? '+' : '') + pct.toFixed(1) + '%';
+      return '<text x="10" y="' + (34 + idx * 16) + '" fill="' + item.color + '">' + esc(item.name) + '  ' + esc(actual) + '  ' + text + '</text>';
+    }).join('');
+    var tipH = 24 + series.length * 16;
+    var tipX = Math.min(xAt(focus) + 8, plot.x + plot.w - 240);
+    el.innerHTML = '<svg class="target-chart-svg" viewBox="0 0 ' + width + ' ' + height + '" role="img">' +
+      grid.join('') + paths + dots + hits +
+      '<line class="target-hover-line" x1="' + xAt(focus).toFixed(1) + '" y1="' + plot.y + '" x2="' + xAt(focus).toFixed(1) + '" y2="' + (plot.y + plot.h) + '"></line>' +
+      '<g transform="translate(' + tipX.toFixed(1) + ',16)"><rect width="228" height="' + tipH + '" rx="4" fill="#1f2937"></rect>' +
+      '<text x="10" y="16" fill="#fff">' + esc(viewBuckets[focus].label) + '</text>' + tip + '</g>' +
+      viewBuckets.map(function (bucket, i) {
+        if (viewBuckets.length > 8 && i % step !== 0 && i !== viewBuckets.length - 1) return '';
+        return '<text class="target-axis" x="' + xAt(i).toFixed(1) + '" y="268" text-anchor="middle">' + esc(bucket.label) + '</text>';
+      }).join('') +
+      '</svg>';
+  }
+  var MODAL_FIELDS = [
+    ['store', '店铺'], ['region', '区域'], ['country', '国家'], ['channel', '渠道'], ['model', 'Model'],
+    ['sku', 'SKU'], ['msku', 'MSKU'], ['bu', '事业部'], ['dept', '费用部门'], ['retailer', '零售商'],
+    ['scene', '场景'], ['category', '品类'], ['newTag', '新品标签'], ['launch', '上市时间']
+  ];
+  function modalSlice() {
+    var m = state.detailModal || {};
+    return {
+      dateStart: m.dateStart,
+      dateEnd: m.dateEnd,
+      bu: m.bu || '',
+      dept: m.dept || '',
+      region: m.region || '',
+      country: m.country || '',
+      channel: m.channel || '',
+      store: m.store || '',
+      retailer: m.retailer || '',
+      model: m.model || '',
+      sku: m.sku || '',
+      msku: m.msku || '',
+      scene: m.scene || '',
+      category: m.category || '',
+      newTag: m.newTag || '',
+      launch: m.launch || '',
+      scenePage: false
+    };
+  }
+  function sourceProfile(line) {
+    var mode = line.mode || '';
+    var qty = !!(line.qty && !(line.amount));
+    var docNo = line.sourceNo || '';
+    var system = '业务系统';
+    var docType = '业务单据';
+    if (mode === '业务系统单据取数') {
+      system = '金蝶';
+      docType = (line.feeName || '').indexOf('退货') >= 0 ? '销售退货单' : ((line.feeId || '').indexOf('销量') >= 0 || (line.feeId || '').indexOf('零售') >= 0 || (line.feeId || '').indexOf('销售收入') >= 0 ? '销售出库单' : '业务单据');
+    } else if (mode === '平台报告取数') {
+      system = '亚马逊';
+      docType = (line.feeId || '').indexOf('广告') >= 0 ? '广告报告' : '交易报告';
+    } else if (mode === '费用导入分摊') {
+      system = '费用填报';
+      docType = '费用导入';
+    } else if (mode === '项目预算取数') {
+      system = '项目平台';
+      docType = '项目预算';
+    } else if (mode === '财务系统同口径取数') {
+      system = '财务系统';
+      docType = '财务同口径';
+      docNo = '';
+    } else if (mode === '计提/扣款规则计算' || mode === '退款规则计算' || mode === '比例/参数计算') {
+      system = '规则运行';
+      docType = mode === '退款规则计算' ? '退款规则' : (mode === '比例/参数计算' ? '费率规则' : '计提规则');
+      docNo = '';
+    }
+    var amount = qty ? Math.round(line.qty || 0).toLocaleString('en-US') : fmtSigned(line.amount);
+    return {
+      system: system,
+      docType: docType,
+      docNo: docNo || '—',
+      store: line.store || '—',
+      msku: line.msku || '—',
+      time: line.date || line.period || '—',
+      amount: amount,
+      currency: qty ? '件' : (line.currency || 'USD'),
+      neg: !qty && Number(line.amount) < 0
+    };
+  }
+  function sourceTableHtml(lines) {
+    if (!lines.length) return '<div class="muted">当前条件下没有来源。</div>';
+    var shown = lines.slice(0, 40);
+    var heads = ['来源系统', '来源单据类型', '来源单号', '店铺', 'MSKU', '时间', '金额', '币种'];
+    return '<div class="table-wrap compact"><table class="data-table"><thead><tr>' +
+      heads.map(function (head) { return '<th>' + esc(head) + '</th>'; }).join('') +
+      '</tr></thead><tbody>' +
+      shown.map(function (line) {
+        var row = sourceProfile(line);
+        return '<tr><td>' + esc(row.system) + '</td><td>' + esc(row.docType) + '</td><td>' + esc(row.docNo) + '</td><td>' + esc(row.store) + '</td><td>' + esc(row.msku) + '</td><td>' + esc(row.time) + '</td><td class="num' + (row.neg ? ' neg' : '') + '">' + esc(row.amount) + '</td><td>' + esc(row.currency) + '</td></tr>';
+      }).join('') +
+      '</tbody></table></div>' +
+      (lines.length > shown.length ? '<div class="muted">还有 ' + (lines.length - shown.length) + ' 笔未展开，请把条件收窄。</div>' : '');
+  }
+  function renderDetailModal() {
+    var modal = state.detailModal;
+    var mask = $('#detailModal');
+    if (!modal || !mask) return;
+    var id = modal.feeId && feeById[modal.feeId] ? modal.feeId : '收入/营业收入';
+    modal.feeId = id;
+    $('#detailModalTitle').textContent = feeName(id) + ' · 明细';
+    var slice = modalSlice();
+    var cur = measureSlice(id, slice, 'cur');
+    var prev = measureSlice(id, slice, 'prev');
+    var yoy = measureSlice(id, slice, 'yoy');
+    var qty = !!(feeById[id] && feeById[id].qty);
+    var lines = facts.filter(function (fact) {
+      if (!fact.amount && !fact.qty) return false;
+      if (!sliceHit(fact, slice)) return false;
+      var ids = {};
+      eachContrib(id, function (feeId) { ids[feeId] = 1; });
+      return !!ids[fact.feeId];
+    }).map(detailLineFromFact);
+    $('#detailModalBody').innerHTML =
+      '<div class="modal-filters">' +
+        '<label>开始日期<input class="ctl" type="date" data-modal-filter="dateStart" value="' + esc(modal.dateStart || '') + '"></label>' +
+        '<label>结束日期<input class="ctl" type="date" data-modal-filter="dateEnd" value="' + esc(modal.dateEnd || '') + '"></label>' +
+        MODAL_FIELDS.map(function (field) {
+          return '<label>' + esc(field[1]) + filterSelect(field[0], modal[field[0]] || '', '全部', 'modal-filter') + '</label>';
+        }).join('') +
+        '<label>科目<select class="ctl" data-modal-filter="feeId">' + feeNodes.map(function (node) {
+          return '<option value="' + esc(node.id) + '"' + (node.id === id ? ' selected' : '') + '>' + esc(new Array(node.level + 1).join('　') + node.name) + '</option>';
+        }).join('') + '</select></label>' +
+      '</div>' +
+      '<div class="toolbar" style="margin-bottom:12px"><button class="btn" type="button" id="detailModalReset">恢复到点开时的条件</button></div>' +
+      '<div class="ana-kpis modal-kpis">' + kpiBlock(fullFeePath(id), cur, prev, yoy, qty) + '</div>' +
+      '<div id="detailModalTrend"></div>' +
+      '<div class="modal-source"><h3 style="margin:12px 0 8px;">来源 ' + lines.length + ' 笔</h3>' +
+        '<div class="muted" style="margin-bottom:8px;">金额、币种按来源原币。销量行的金额列是件数，币种为件。</div>' +
+        sourceTableHtml(lines) +
+      '</div>';
+    renderSliceTrend($('#detailModalTrend'), id, slice);
+    mask.hidden = false;
+  }
+  function openDetailCell(groupIndex, feeId) {
+    var group = detailViewRows[groupIndex];
+    var node = feeById[feeId];
+    if (!group || !node) return;
+    var sample = group.lines[0] || {};
+    var dateLabel = group.dim.date || '';
+    var dateStart = dateLabel;
+    var dateEnd = dateLabel;
+    if (dateLabel.indexOf('~') >= 0) {
+      var dateParts = dateLabel.split('~');
+      dateStart = dateParts[0].trim();
+      dateEnd = dateParts[1].trim();
+    } else if (/^\d{4}-\d{2}$/.test(dateLabel)) {
+      var monthParts = dateLabel.split('-');
+      var monthLast = new Date(Number(monthParts[0]), Number(monthParts[1]), 0).getDate();
+      dateStart = dateLabel + '-01';
+      dateEnd = dateLabel + '-' + (monthLast < 10 ? '0' + monthLast : String(monthLast));
+    }
+    var modal = {
+      dateStart: dateStart,
+      dateEnd: dateEnd,
+      store: group.dim.store || '',
+      region: group.dim.region || '',
+      country: group.dim.country || '',
+      channel: group.dim.channel || '',
+      model: group.dim.model || '',
+      sku: group.dim.sku || '',
+      msku: group.dim.msku || '',
+      bu: group.dim.bu || '',
+      dept: sample.dept || '',
+      retailer: sample.retailer || '',
+      scene: group.dim.scene || '',
+      category: group.dim.category || '',
+      newTag: group.dim.newTag || '',
+      launch: group.dim.launch || '',
+      feeId: feeId
+    };
+    state.detailModalOrigin = Object.assign({}, modal);
+    state.detailModal = modal;
+    renderDetailModal();
+  }
+
+  function renderDetails() {
+    if (!$('#detailBody') || !$('#detailHead')) return;
+    var feeContext = state.detailFeeId || '';
     var code = (FX[state.currency] || FX.USD).code;
-    $('#detailSummary').textContent = '当前 ' + rows.length + ' 条；展示币种 ' + code + (feeContext ? '；科目上下文：' + feeName(feeContext) : '；未限定科目');
-    $('#detailBody').innerHTML = rows.map(function (r) {
-      var sourceTags = sourceTag(r.mode) + (r.noDetail ? ' <span class="tag tag-gray">无明细来源</span>' : '');
-      var flags = statusTag(r.finalStatus) + (r.historical ? ' <span class="tag tag-orange">历史过渡</span>' : '') + (r.financeFinal ? ' <span class="tag tag-green">财务覆盖</span>' : '');
-      var original = signedAmount(r, r.amount);
-      var usdAmount = signedAmount(r, r.amountUSD);
-      var display = round2(usdAmount * currencyRate());
-      var numCls = function (n) { return n < 0 ? 'num neg' : 'num'; };
-      return '<tr>' +
-        '<td>' + esc(String(r.period).slice(0, 4)) + '</td>' +
-        '<td>' + esc(r.period) + '</td>' +
-        '<td>' + esc(r.feeName) + '</td>' +
-        '<td>' + esc(r.store) + '</td>' +
-        '<td>' + esc(r.region || '') + '</td>' +
-        '<td>' + esc(r.country) + '</td>' +
-        '<td>' + esc(r.channel) + '</td>' +
-        '<td>' + esc(r.model || r.sku) + '</td>' +
-        '<td>' + esc(r.sku) + '</td>' +
-        '<td>' + esc(r.msku) + '</td>' +
-        '<td>' + esc(r.bu || '') + '</td>' +
-        '<td>' + esc(r.scene || '') + '</td>' +
-        '<td>' + esc(r.category || '') + '</td>' +
-        '<td>' + esc(r.newTag || '') + '</td>' +
-        '<td>' + esc(r.launch || '') + '</td>' +
-        '<td class="' + numCls(original) + '">' + esc(fmtSigned(original)) + '</td>' +
-        '<td>' + esc(r.currency) + '</td>' +
-        '<td class="num">' + esc(Number(r.rate).toFixed(4)) + '</td>' +
-        '<td class="' + numCls(usdAmount) + '">' + esc(fmtSigned(usdAmount)) + '</td>' +
-        '<td class="' + numCls(display) + '">' + esc(fmtSigned(display)) + '</td>' +
-        '<td>' + sourceTags + '<div class="muted">' + esc(r.sourceNo || r.sourceId) + '</div></td>' +
-        '<td>' + flags + '</td>' +
-        '<td class="sticky-op"><button class="btn-link" data-action="source" data-detail-id="' + esc(r.id) + '">来源</button><button class="btn-link" data-action="calc" data-detail-id="' + esc(r.id) + '">计算</button><button class="btn-link" data-action="diff-row" data-detail-id="' + esc(r.id) + '">差异</button></td>' +
-      '</tr>';
-    }).join('') || '<tr><td colspan="23" class="muted">暂无明细数据</td></tr>';
+    var dims = visibleDims();
+    var fees = visibleFees();
+    detailViewRows = buildDetailGroups();
+    var custom = !!state.detailFeePick;
+    if ($('#detailSummary')) {
+      $('#detailSummary').textContent = '当前 ' + detailViewRows.length + ' 行；金额单位 ' + code + '；数字来自底层事实' +
+        (feeContext ? '；科目上下文：' + feeName(feeContext) : '') +
+        (custom ? '；列已自定义' : '；科目列默认显示末级');
+    }
+    var head = '<tr>' + dims.map(function (dim, index) {
+      return '<th class="' + (index === 0 ? 'detail-sticky' : '') + '">' + esc(dim.label) + '</th>';
+    }).join('') + fees.map(function (id) {
+      var qty = feeById[id] && feeById[id].qty;
+      return '<th class="num" title="' + esc(fullFeePath(id)) + '">' + esc(columnLabel(id, fees)) + (qty ? '' : '') + '</th>';
+    }).join('') + '</tr>';
+    $('#detailHead').innerHTML = head;
+    var colspan = Math.max(dims.length + fees.length, 1);
+    var total = detailViewRows.length ? totalDetailGroup(detailViewRows) : null;
+    function detailTr(group, groupIndex) {
+      var cls = group.isTotal ? ' class="detail-total"' : '';
+      return '<tr' + cls + '>' + dims.map(function (dim, index) {
+        var text = group.isTotal && index === 0 ? '合计' : (group.dim[dim.key] || (group.isTotal ? '' : '—'));
+        return '<td class="' + (index === 0 ? 'detail-sticky' : '') + '">' + esc(text) + '</td>';
+      }).join('') + fees.map(function (id) {
+        return detailCellHtml(group, groupIndex, id);
+      }).join('') + '</tr>';
+    }
+    $('#detailBody').innerHTML = (total ? detailTr(total, -1) : '') + detailViewRows.map(function (group, groupIndex) {
+      return detailTr(group, groupIndex);
+    }).join('') || '<tr><td colspan="' + colspan + '" class="muted">暂无明细数据</td></tr>';
+    if ($('#detailGrain')) $('#detailGrain').value = state.detailGrain || 'day';
+    if ($('#colPop') && !$('#colPop').hidden) renderColTree();
+    renderDetailCompare();
   }
 
   function renderSources() {
@@ -1986,7 +2886,7 @@
       var src = sourceDocs[id];
       var sourceRows = rows.filter(function (r) { return r.sourceId === id; });
       var amount = sumUsd(sourceRows);
-      var noDetail = sourceRows.some(function (r) { return r.noDetail; }) || (src && src.noDetail);
+      var noDetail = !sourceRows.some(function (r) { return lineTraceKind(r) === 'lines'; });
       return '<article class="source-card">' +
         '<div class="source-card-title"><span>' + esc(src ? src.title : id) + '</span>' + (noDetail ? '<span class="tag tag-gray">无明细</span>' : '<span class="tag tag-blue">可下钻</span>') + '</div>' +
         '<div class="source-meta">' + esc(src ? src.system : '-') + '<br>' + esc(src ? src.status : '-') + '</div>' +
@@ -2066,7 +2966,46 @@
     }).join('') + '</div>';
   }
 
+  var LINE_TRACE_MODES = {
+    '业务系统单据取数': 1,
+    '平台报告取数': 1,
+    '费用导入分摊': 1,
+    '项目预算取数': 1
+  };
+  function lineTraceKind(line) {
+    if (!line || !LINE_TRACE_MODES[line.mode]) return 'summary';
+    if (line.noDetail) return 'header';
+    var src = sourceDocs[line.sourceId];
+    if (src && src.noDetail) return 'header';
+    return 'lines';
+  }
+  function sourceSummaryHtml(line) {
+    var src = sourceDocs[line.sourceId] || {};
+    var original = signedAmount(line, line.amount);
+    var code = (FX[state.currency] || FX.USD).code;
+    return kvHtml([
+      ['来源类型', line.mode || src.type || '—'],
+      ['期间', line.period || '—'],
+      ['原币金额', money(original, line.currency)],
+      ['币种', line.currency || '—'],
+      ['汇率兑USD', Number(line.rate || 0).toFixed(4)],
+      ['金额', code + ' ' + fmtAmt(signedAmount(line, line.amountUSD))],
+      ['取值口径', src.summary || line.remark || line.allocationRule || '—']
+    ]);
+  }
+  function sourceHeaderHtml(line) {
+    var src = sourceDocs[line.sourceId];
+    var html = sourceSummaryHtml(line);
+    if (src && src.fields && src.fields.length) {
+      html += '<div class="drawer-section"><h3>单据摘要</h3>' + kvHtml(src.fields) + '</div>';
+    }
+    html += '<div class="note warn">' + esc(line.noDetailReason || '该来源没有稳定行号，只保留单据摘要。') + '</div>';
+    return html;
+  }
   function sourceDetailHtml(sourceId, detail) {
+    var line = detail || details.filter(function (row) { return row.sourceId === sourceId; })[0];
+    if (line && lineTraceKind(line) === 'summary') return sourceSummaryHtml(line);
+    if (line && lineTraceKind(line) === 'header') return sourceHeaderHtml(line);
     var src = sourceDocs[sourceId];
     if (!src) return '<div class="note warn">未找到来源记录。</div>';
     var fields = [
@@ -2098,16 +3037,18 @@
   }
 
   function calculationHtml(detail) {
+    if (lineTraceKind(detail) !== 'lines') return sourceSummaryHtml(detail);
+    if (detail.qty) {
+      return kvHtml([
+        ['费用项', detail.feeName],
+        ['来源模式', detail.mode],
+        ['来源编号', detail.sourceNo || detail.sourceId]
+      ]) + '<div class="drawer-section"><h3>计算公式</h3><div class="formula">' + esc('件数 = 业务单据数量\n' + fmtQty(detail.qty)) + '</div></div>';
+    }
     var formula;
     if (detail.mode === '费用导入分摊') {
       formula = '分摊金额 = 导入金额 × 当前 MSKU 净收入 / 匹配范围净收入合计\n' +
         money(detail.amount, detail.currency) + ' = ' + usd(detail.sourceAmount) + ' × ' + pct(detail.allocationRatio);
-    } else if (detail.mode === '退款规则计算') {
-      formula = '当月计提退款 = 实际退款 + 期末计提退款余额 - 期初计提退款余额\n' +
-        '计提用收入 = 销售收入 - 退货退款对应收入';
-    } else if (detail.mode === '比例/参数计算') {
-      formula = '支付通道手续费 = 费率基数 × 费率\n' +
-        money(detail.amount, detail.currency) + ' = EUR 181,000.00 × 4.95%';
     } else if (detail.mode === '项目预算取数') {
       formula = '管报金额 = 项目预算行金额 × 当前 MSKU 净收入 / 匹配范围净收入合计\n' +
         money(detail.amount, detail.currency) + ' = USD 42,000.00 × ' + pct(detail.allocationRatio);
@@ -2165,6 +3106,7 @@
   function setTab(tab, keepRecon) {
     if (tab === 'recon' && !keepRecon) state.reconFeeId = '';
     state.tab = tab;
+    if ($('#cmpFilterLine')) $('#cmpFilterLine').hidden = tab !== 'details';
     $all('.nav-tab').forEach(function (btn) { btn.classList.toggle('active', btn.dataset.tab === tab); });
     $all('.tab-panel').forEach(function (panel) { panel.classList.toggle('active', panel.dataset.panel === tab); });
     renderAll();
@@ -2178,13 +3120,21 @@
   }
 
   function exportCsv() {
-    var rows = filteredDetails(state.detailFeeId || '').filter(traceHit);
+    var groups = buildDetailGroups();
+    var dims = visibleDims();
+    var fees = visibleFees();
     var code = (FX[state.currency] || FX.USD).code;
-    var heads = ['年份', '月份', '业务指标名称', '店铺', '区域', '国家', '渠道', 'Model', 'SKU', 'MSKU', '事业部', '场景', '品类', '新品标签', '上市时间', '原币金额', '原币币种', '汇率兑USD', '金额USD', '金额' + code, '来源模式', '来源编号', '定稿状态'];
-    var lines = [heads].concat(rows.map(function (r) {
-      var original = signedAmount(r, r.amount);
-      var usdAmount = signedAmount(r, r.amountUSD);
-      return [String(r.period).slice(0, 4), r.period, r.feeName, r.store, r.region, r.country, r.channel, r.model, r.sku, r.msku, r.bu, r.scene, r.category, r.newTag, r.launch, original, r.currency, r.rate, usdAmount, round2(usdAmount * currencyRate()), r.mode, r.sourceNo || r.sourceId, r.finalStatus];
+    var exported = (groups.length ? [totalDetailGroup(groups)] : []).concat(groups);
+    var heads = dims.map(function (dim) { return dim.label; }).concat(fees.map(function (id) {
+      return columnLabel(id, fees) + (feeById[id] && feeById[id].qty ? '(件)' : '(' + code + ')');
+    }));
+    var lines = [heads].concat(exported.map(function (group) {
+      var leafMap = groupLeafMap(group.lines);
+      return dims.map(function (dim, index) { return group.isTotal && index === 0 ? '合计' : (group.dim[dim.key] || ''); }).concat(fees.map(function (id) {
+        if (!contribLines(id, group.lines).length) return '';
+        var amount = subjectUsd(id, leafMap);
+        return feeById[id] && feeById[id].qty ? amount : round2(amount * currencyRate());
+      }));
     }));
     var csv = lines.map(function (row) {
       return row.map(function (cell) { return '"' + String(cell).replace(/"/g, '""') + '"'; }).join(',');
@@ -2193,7 +3143,8 @@
     var url = URL.createObjectURL(blob);
     var a = document.createElement('a');
     a.href = url;
-    a.download = '管报二期费用明细示例.csv';
+    var grainName = { day: '按日', month: '按月', range: '按日期合计' }[state.detailGrain || 'day'];
+    a.download = '管报二期费用明细-' + grainName + '.csv';
     a.click();
     URL.revokeObjectURL(url);
     showToast('已生成示例明细 CSV');
@@ -2372,13 +3323,147 @@
       if (!event.target.checked && idx >= 0) state.trendMetrics.splice(idx, 1);
       renderOverviewTrendChart();
     });
-    ['trace', 'recon'].forEach(function (prefix) {
+    ['recon'].forEach(function (prefix) {
+      if (!$('#' + prefix + 'Source')) return;
       $('#' + prefix + 'Source').addEventListener('change', function () { readTraceFrom(prefix); });
       $('#' + prefix + 'Status').addEventListener('change', function () { readTraceFrom(prefix); });
       $('#' + prefix + 'Keyword').addEventListener('input', function () { readTraceFrom(prefix); });
     });
+    if ($('#detailAnaSubject')) {
+      $('#detailAnaSubject').addEventListener('change', function () {
+        state.detailAnaId = $('#detailAnaSubject').value;
+        renderDetailAnalysis();
+      });
+    }
+    if ($('#cmpColTrigger')) {
+      $('#cmpColTrigger').addEventListener('click', function () {
+        var pop = $('#cmpColPop');
+        pop.hidden = !pop.hidden;
+        $('#cmpColTrigger').setAttribute('aria-expanded', pop.hidden ? 'false' : 'true');
+        if (!pop.hidden) renderCmpColTree();
+      });
+    }
+    if ($('#cmpColSearch')) $('#cmpColSearch').addEventListener('input', renderCmpColTree);
+    if ($('#cmpColTree')) {
+      $('#cmpColTree').addEventListener('change', function (event) {
+        var id = event.target.dataset.cmpCol;
+        if (!id) return;
+        materializeCmpPick();
+        state.detailCmpPick[id] = event.target.checked;
+        renderDetailCompare();
+        renderCmpColTree();
+      });
+      $('#cmpColTree').addEventListener('click', function (event) {
+        var twist = event.target.closest('[data-cmp-toggle]');
+        if (!twist) return;
+        event.preventDefault();
+        var id = twist.dataset.cmpToggle;
+        if (!state.cmpTreeOpen) state.cmpTreeOpen = { '收入': true, '成本': true, '费用': true };
+        state.cmpTreeOpen[id] = !state.cmpTreeOpen[id];
+        renderCmpColTree();
+      });
+    }
+    if ($('#detailCmpMode')) {
+      $('#detailCmpMode').addEventListener('click', function (event) {
+        var btn = event.target.closest('[data-cmp]');
+        if (!btn) return;
+        if (btn.dataset.cmp === 'custom' && state.detailCompare.mode !== 'custom') {
+          var current = compareSlice();
+          state.detailCompare.over.dateStart = current.dateStart;
+          state.detailCompare.over.dateEnd = current.dateEnd;
+        }
+        state.detailCompare.mode = btn.dataset.cmp;
+        renderDetailCompare();
+      });
+    }
+    if ($('#detailCmpFilters')) {
+      $('#detailCmpFilters').addEventListener('change', function (event) {
+        var curKey = event.target.dataset.curFilter;
+        var cmpKey = event.target.dataset.cmpFilter;
+        if (curKey) applyCurFilter(curKey, event.target.value);
+        if (cmpKey) applyCmpFilter(cmpKey, event.target.value);
+      });
+    }
+    if ($('#detailTrend')) {
+      $('#detailTrend').addEventListener('mousemove', function (event) {
+        var hit = event.target.closest('[data-cmp-index]');
+        if (!hit) return;
+        var next = Number(hit.dataset.cmpIndex);
+        if (state.cmpHover !== next) {
+          state.cmpHover = next;
+          renderCmpTrend();
+        }
+      });
+    }
+    if ($('#detailModalClose')) {
+      $('#detailModalClose').addEventListener('click', function () {
+        state.detailModal = null;
+        $('#detailModal').hidden = true;
+      });
+    }
+    if ($('#detailModal')) {
+      $('#detailModal').addEventListener('click', function (event) {
+        if (event.target.id !== 'detailModal') return;
+        state.detailModal = null;
+        $('#detailModal').hidden = true;
+      });
+    }
+    if ($('#detailModalBody')) {
+      $('#detailModalBody').addEventListener('change', function (event) {
+        var key = event.target.dataset.modalFilter;
+        if (!key || !state.detailModal) return;
+        state.detailModal[key] = event.target.value;
+        renderDetailModal();
+      });
+      $('#detailModalBody').addEventListener('click', function (event) {
+        if (event.target.id !== 'detailModalReset' || !state.detailModalOrigin) return;
+        state.detailModal = Object.assign({}, state.detailModalOrigin);
+        renderDetailModal();
+      });
+    }
+    if ($('#colTrigger')) {
+      $('#colTrigger').addEventListener('click', function () {
+        var pop = $('#colPop');
+        pop.hidden = !pop.hidden;
+        $('#colTrigger').setAttribute('aria-expanded', pop.hidden ? 'false' : 'true');
+        if (!pop.hidden) renderColTree();
+      });
+    }
+    if ($('#colSearch')) $('#colSearch').addEventListener('input', renderColTree);
+    if ($('#colTree')) {
+      $('#colTree').addEventListener('change', function (event) {
+        var feeId = event.target.dataset.colFee;
+        var dimKey = event.target.dataset.colDim;
+        if (feeId) {
+          materializeFeePick();
+          state.detailFeePick[feeId] = event.target.checked;
+          renderDetails();
+        }
+        if (dimKey) {
+          materializeDimOn();
+          state.detailDimOn[dimKey] = event.target.checked;
+          renderDetails();
+        }
+      });
+      $('#colTree').addEventListener('click', function (event) {
+        var twist = event.target.closest('[data-col-toggle]');
+        if (!twist) return;
+        event.preventDefault();
+        state.detailTreeOpen[twist.dataset.colToggle] = !state.detailTreeOpen[twist.dataset.colToggle];
+        renderColTree();
+      });
+    }
+    if ($('#detailBody')) {
+      $('#detailBody').addEventListener('click', function (event) {
+        var cell = event.target.closest('[data-detail-cell]');
+        if (!cell) return;
+        openDetailCell(Number(cell.dataset.group), cell.dataset.fee);
+      });
+    }
     document.addEventListener('click', function (event) {
       if ($('#metricPicker') && !$('#metricPicker').contains(event.target)) $('#metricPop').hidden = true;
+      if ($('#colPicker') && !$('#colPicker').contains(event.target) && $('#colPop')) $('#colPop').hidden = true;
+      if ($('#cmpColPicker') && !$('#cmpColPicker').contains(event.target) && $('#cmpColPop')) $('#cmpColPop').hidden = true;
       if ($('#subjectPicker') && !$('#subjectPicker').contains(event.target) && $('#subjectPop')) $('#subjectPop').hidden = true;
       if (!$('#scCatWrap').contains(event.target)) {
         $('#scCatPop').hidden = true;
@@ -2398,13 +3483,22 @@
       renderAll();
       showToast('查询完成');
     });
-    $('#btnReset').addEventListener('click', function () {
+    if ($('#detailGrain')) {
+      $('#detailGrain').addEventListener('change', function () {
+        state.detailGrain = $('#detailGrain').value || 'day';
+        renderDetails();
+      });
+    }
+    if ($('#btnReset')) $('#btnReset').addEventListener('click', function () {
       var range = lastMonthRange(new Date());
       state.filters = { dateStart: range.start, dateEnd: range.end, bu: '', dept: '', region: '', country: '', channel: '', store: '', retailer: '', model: '', skuMode: 'fuzzy', sku: '', newTag: '' };
       scenePick = {};
       state.trace = { sourceMode: '', finalStatus: '', keyword: '' };
       state.reconFeeId = '';
       state.detailFeeId = '';
+      state.detailFeePick = null;
+      state.detailDimOn = null;
+      state.detailCmpPick = null;
       state.trendMetrics = ['收入/营业收入', '收入/销量', '毛利', '营业利润'];
       state.selectedFeeId = '收入/营业收入';
       expandAncestors('收入/营业收入');
@@ -2427,6 +3521,8 @@
     });
     $('#btnClearFeeContext').addEventListener('click', function () {
       state.detailFeeId = '';
+      state.detailFeePick = null;
+      state.detailAnaId = '';
       state.selectedFeeId = '';
       renderDetails();
     });
@@ -2516,6 +3612,8 @@
         setTab('analysis');
       } else if (action === 'details') {
         state.detailFeeId = target.dataset.feeId;
+        state.detailFeePick = null;
+        state.detailAnaId = '';
         state.selectedFeeId = target.dataset.feeId;
         setTab('details');
       } else if (action === 'diff') {
@@ -2536,6 +3634,8 @@
       } else if (action === 'recon-details') {
         var rec = recon.find(function (r) { return r.id === target.dataset.reconId; });
         state.selectedFeeId = rec ? rec.feeId : '';
+        state.detailFeeId = rec ? rec.feeId : '';
+        state.detailFeePick = null;
         setTab('details');
       } else if (action === 'recon-source') {
         var rr = recon.find(function (r) { return r.id === target.dataset.reconId; });

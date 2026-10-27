@@ -39,6 +39,8 @@
 
         <section class="panel panel--filter">
           <div class="filter-panel">
+            <div class="filter-line">
+              <div class="filter-line-tag">当前</div>
             <div class="filter-grid">
               <div class="f-item f-item--range"><label>日期范围</label><span id="fDateRange" class="date-range-host"></span></div>
               <div class="f-item"><label for="fBu">事业部</label><span class="ctl-wrap"><select id="fBu" class="ctl"></select><button type="button" class="ctl-clear" hidden aria-label="清除事业部">×</button></span></div>
@@ -83,9 +85,12 @@
               </div>
               <div class="f-item f-search">
                 <button class="btn btn-primary" id="btnQuery" type="button">查询</button>
-                <button class="btn" id="btnReset" type="button">重置</button>
-                <button class="btn" id="btnExport" type="button">导出明细</button>
               </div>
+            </div>
+            </div>
+            <div class="filter-line" id="cmpFilterLine" hidden>
+              <div class="filter-line-tag">对比</div>
+              <div class="filter-grid" id="detailCmpFilters"></div>
             </div>
           </div>
         </section>
@@ -227,47 +232,62 @@
           <section class="panel">
             <div class="panel-head">
               <div>
+                <div class="panel-title">对比</div>
+                <div class="panel-sub">指标表使用页面上的当前和对比筛选。</div>
+              </div>
+              <div class="toolbar">
+                <div class="col-picker" id="cmpColPicker">
+                  <button class="btn" type="button" id="cmpColTrigger" aria-expanded="false">自定义列</button>
+                  <div class="col-pop" id="cmpColPop" hidden>
+                    <input class="metric-search" id="cmpColSearch" placeholder="搜索科目" />
+                    <div class="col-hint">默认五项。勾选其它科目后会出现在对比表。</div>
+                    <div class="col-tree" id="cmpColTree"></div>
+                  </div>
+                </div>
+                <div class="ana-switch" id="detailCmpMode">
+                  <button type="button" data-cmp="custom">自定义</button>
+                  <button type="button" data-cmp="mom" class="on">环比</button>
+                  <button type="button" data-cmp="yoy">同比</button>
+                </div>
+              </div>
+            </div>
+            <div class="cmp-scroll" id="detailCmpTable"></div>
+            <div class="panel-head cmp-trend-head">
+              <div>
+                <div class="panel-title">趋势</div>
+                <div class="panel-sub">相对区间起点的涨跌。线是对比表当前勾选的指标，悬停看实际金额或件数。</div>
+              </div>
+            </div>
+            <div class="cmp-legend" id="detailTrendLegend"></div>
+            <div class="chart-body" id="detailTrend"></div>
+          </section>
+          <section class="panel">
+            <div class="panel-head">
+              <div>
                 <div class="panel-title">费用明细</div>
                 <div class="panel-sub" id="detailSummary">按业务指标、店铺、区域、型号和原币金额查看，并可继续查来源</div>
               </div>
               <div class="toolbar">
+                <div class="col-picker" id="colPicker">
+                  <button class="btn" type="button" id="colTrigger" aria-expanded="false">列设置</button>
+                  <div class="col-pop" id="colPop" hidden>
+                    <input class="metric-search" id="colSearch" placeholder="搜索列" />
+                    <div class="col-hint">勾选即显示该列。默认只勾选末级，上级科目可在树里单独勾选。</div>
+                    <div class="col-tree" id="colTree"></div>
+                  </div>
+                </div>
+                <select class="ctl" id="detailGrain" aria-label="明细汇总">
+                  <option value="day" selected>按日</option>
+                  <option value="month">按月</option>
+                  <option value="range">按日期合计</option>
+                </select>
+                <button class="btn" id="btnExport" type="button">导出明细</button>
                 <button class="btn" id="btnClearFeeContext">清除科目上下文</button>
               </div>
             </div>
-            <div class="trace-bar">
-              <label class="f-item">来源模式 <select class="ctl" id="traceSource"></select></label>
-              <label class="f-item">定稿状态 <select class="ctl" id="traceStatus"></select></label>
-              <label class="f-item">关键字 <input class="ctl wide" id="traceKeyword" placeholder="MSKU / 单据 / 批次"></label>
-            </div>
             <div class="table-wrap">
               <table class="data-table detail-table">
-                <thead>
-                  <tr>
-                    <th>年份</th>
-                    <th>月份</th>
-                    <th>业务指标名称</th>
-                    <th>店铺</th>
-                    <th>区域</th>
-                    <th>国家</th>
-                    <th>渠道</th>
-                    <th>Model</th>
-                    <th>SKU</th>
-                    <th>MSKU</th>
-                    <th>事业部</th>
-                    <th>场景</th>
-                    <th>品类</th>
-                    <th>新品标签</th>
-                    <th>上市时间</th>
-                    <th class="num">原币金额</th>
-                    <th>原币币种</th>
-                    <th class="num">汇率(兑USD)</th>
-                    <th class="num">金额(USD)</th>
-                    <th class="num" id="detailDisplayHead">金额(USD)</th>
-                    <th>来源</th>
-                    <th>定稿</th>
-                    <th class="sticky-op">操作</th>
-                  </tr>
-                </thead>
+                <thead id="detailHead"></thead>
                 <tbody id="detailBody"></tbody>
               </table>
             </div>
@@ -355,6 +375,16 @@
       </div>
       <div class="drawer-bd" id="drawerBody"></div>
     </aside>
+  </div>
+
+  <div class="modal-mask" id="detailModal" hidden>
+    <div class="modal-panel" role="dialog" aria-modal="true" aria-labelledby="detailModalTitle">
+      <div class="drawer-hd">
+        <h2 id="detailModalTitle">明细</h2>
+        <button class="modal-close" id="detailModalClose" type="button" aria-label="关闭">×</button>
+      </div>
+      <div class="drawer-bd" id="detailModalBody"></div>
+    </div>
   </div>
 
   <div class="toast" id="toast"></div>

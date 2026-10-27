@@ -31,14 +31,24 @@
     .pie-wrap { display:flex; gap:16px; align-items:center; }
     .pie { width:180px; height:180px; border-radius:50%; flex:none; }
     .legend { font-size:12px; flex:1; }
-    .legend div { display:flex; justify-content:space-between; gap:8px; padding:3px 0; cursor:pointer; }
+    .legend div { display:flex; justify-content:space-between; gap:8px; padding:3px 0; }
+    .legend div.on { background:#f8fafc; border-radius:4px; }
     .legend i { display:inline-block; width:8px; height:8px; border-radius:2px; margin-right:6px; }
+    .legend .explain { display:inline-flex; align-items:center; justify-content:center; width:14px; height:14px; margin-left:4px; padding:0; border:1px solid #94a3b8; border-radius:50%; color:#64748b; background:#fff; font-size:10px; line-height:1; vertical-align:1px; }
     .barline { display:flex; align-items:flex-end; gap:8px; height:120px; margin-top:8px; }
     .barline span { flex:1; background:#93c5fd; border-radius:3px 3px 0 0; }
     table { width:100%; border-collapse:collapse; font-size:12px; margin-top:8px; }
     td { border:1px solid var(--line); padding:6px 8px; }
     td.n { text-align:right; }
     button { border:1px solid #bfdbfe; background:#fff; color:#1677ff; border-radius:6px; padding:4px 8px; cursor:pointer; }
+    .mask { position:fixed; inset:0; background:rgba(15,23,42,.45); display:none; align-items:center; justify-content:center; z-index:20; padding:16px; }
+    .mask.show { display:flex; }
+    .dialog { width:820px; max-width:100%; max-height:calc(100vh - 32px); overflow:auto; background:#fff; border-radius:10px; padding:16px; }
+    .dialog h3 { margin:0 0 6px; font-size:16px; color:var(--ink); }
+    .dialog input { width:100%; border:1px solid var(--line); border-radius:6px; padding:4px 6px; font-size:12px; }
+    .dialog .ops { display:flex; justify-content:flex-end; gap:8px; margin-top:12px; }
+    .dialog .err { min-height:18px; margin-top:8px; font-size:12px; color:var(--neg); }
+    .dialog button.primary { background:#1677ff; color:#fff; }
     .switch { display:flex; border:1px solid #bfdbfe; border-radius:6px; overflow:hidden; }
     .switch button { border:0; }
     .switch button.on { background:#1677ff; color:#fff; }
@@ -67,8 +77,13 @@
         <div class="hint" id="trendLegend" style="margin-top:8px;line-height:1.8"></div>
         <div class="bars" id="kpiBars"></div>
       </div>
-      <h2>成本结构 <span class="hint">饼图占比分母 = 成本 + 各项费用 + 净利润。国家成本结构不含净利润</span>
-        <button type="button" id="exp">导出</button>
+      <h2 style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+        <span>成本结构 <span class="hint">饼图占比分母 = 成本 + 各项费用 + 净利润。国家成本结构不含净利润</span></span>
+        <span style="margin-left:auto;display:flex;gap:8px">
+          <button type="button" id="cfgRate">费率配置</button>
+          <button type="button" id="cfgWeight">头程权重</button>
+          <button type="button" id="exp">导出</button>
+        </span>
       </h2>
       <div class="cost">
         <div class="box">
@@ -77,7 +92,6 @@
             <div class="pie" id="pie"></div>
             <div class="legend" id="legend"></div>
           </div>
-          <div id="slice" style="margin-top:8px;font-size:13px;line-height:1.6"></div>
         </div>
         <div class="box">
           <strong>成本趋势</strong>
@@ -125,6 +139,51 @@
       <div id="more"></div>
     </div>
   </div>
+  <div class="mask" id="rateMask">
+    <div class="dialog" role="dialog" aria-labelledby="rateTitle">
+      <h3 id="rateTitle">费率配置</h3>
+      <p class="hint">按站点 + 生效月份维护。查询历史月份时用那个月的费率。本页示例用美国站、营业收入 2,970,000 重算平台服务、平台其他、支付通道手续费、仓储其它，并重算成本结构净利润。支付通道正式环境仍在运营 → 成本费率配置，按店铺 + 年月。</p>
+      <div style="margin:10px 0;font-size:13px">生效月份 <input id="rateMonth" type="month" style="width:140px;margin-left:8px">　Seel 费率 <input id="rateSeel" type="number" min="0" step="0.01" style="width:80px"> %</div>
+      <table>
+        <tr><td>站点</td><td class="n">平台服务 %</td><td class="n">平台其他 %</td><td class="n">支付通道 %</td><td class="n">仓储其它 %</td></tr>
+        <tr><td>EU</td><td><input data-site="EU" data-key="platform"></td><td><input data-site="EU" data-key="risk"></td><td><input data-site="EU" data-key="pay"></td><td><input data-site="EU" data-key="storage"></td></tr>
+        <tr><td>UK</td><td><input data-site="UK" data-key="platform"></td><td><input data-site="UK" data-key="risk"></td><td><input data-site="UK" data-key="pay"></td><td><input data-site="UK" data-key="storage"></td></tr>
+        <tr><td>US</td><td><input data-site="US" data-key="platform"></td><td><input data-site="US" data-key="risk"></td><td><input data-site="US" data-key="pay"></td><td><input data-site="US" data-key="storage"></td></tr>
+        <tr><td>CA</td><td><input data-site="CA" data-key="platform"></td><td><input data-site="CA" data-key="risk"></td><td><input data-site="CA" data-key="pay"></td><td><input data-site="CA" data-key="storage"></td></tr>
+      </table>
+      <div class="err" id="rateErr"></div>
+      <div class="ops">
+        <button type="button" id="rateCancel">取消</button>
+        <button type="button" class="primary" id="rateSave">保存</button>
+      </div>
+    </div>
+  </div>
+  <div class="mask" id="weightMask">
+    <div class="dialog" role="dialog" aria-labelledby="weightTitle">
+      <h3 id="weightTitle">头程权重</h3>
+      <p class="hint">只在该月没有已发运，或某种运输方式没有物流计算器报价时使用。有发运且报价齐全的月份仍按 Shipment 占比。每组三项权重合计为 100%。英国、欧盟的快船默认 0。</p>
+      <table>
+        <tr><td>站点</td><td class="n">普船 %</td><td class="n">快船 %</td><td class="n">专线 %</td><td class="n">合计</td></tr>
+        <tr><td>美国、加拿大</td><td><input id="usSea" type="number" min="0" step="0.1"></td><td><input id="usFast" type="number" min="0" step="0.1"></td><td><input id="usLine" type="number" min="0" step="0.1"></td><td class="n" id="usSum"></td></tr>
+        <tr><td>英国、欧盟</td><td><input id="euSea" type="number" min="0" step="0.1"></td><td><input id="euFast" type="number" min="0" step="0.1"></td><td><input id="euLine" type="number" min="0" step="0.1"></td><td class="n" id="euSum"></td></tr>
+      </table>
+      <p class="hint" id="weightPreview" style="margin-top:8px"></p>
+      <div class="err" id="weightErr"></div>
+      <div class="ops">
+        <button type="button" id="weightCancel">取消</button>
+        <button type="button" class="primary" id="weightSave">保存</button>
+      </div>
+    </div>
+  </div>
+  <div class="mask" id="explainMask">
+    <div class="dialog" role="dialog" aria-labelledby="explainTitle">
+      <h3 id="explainTitle"></h3>
+      <p id="explainBody" style="font-size:13px;line-height:1.7"></p>
+      <div class="ops">
+        <button type="button" class="primary" id="explainClose">关闭</button>
+      </div>
+    </div>
+  </div>
   <script>
     const oldCards = [
       ["净销售额","3,943,742.62","同比 +16.87%",1],
@@ -168,29 +227,88 @@
       ["净利润", 897532, "#ef4444", "净利润 = 净销售额 − Seel净销售 × 6% − 成本 − 营销投入 − 平台服务 − 支付通道手续费 − 平台其他 − 电商站外投放 − 头程 − 尾程 − 仓储租金 − 仓储其它 − 其它全部（不含包裹险收入、不含包裹险扣减）。Seel 的 6% 只减一次。示例净销售额 2,970,000，Seel净销售 120,000，6% = 7,200。其它全部不含包裹险 = 79,000。2,970,000 − 7,200 − 915,000 − 1,150,268 = 897,532。概览上的现网净利润不改。"]
     ];
     const revenueBase = 2970000;
-    const pieBase = slices.reduce((s, x) => s + x[1], 0);
-    let acc = 0;
-    const stops = slices.map((s) => {
-      const start = acc;
-      acc += s[1] / pieBase * 100;
-      return s[2] + " " + start.toFixed(2) + "% " + acc.toFixed(2) + "%";
-    });
-    document.getElementById("pie").style.background = "conic-gradient(" + stops.join(",") + ")";
-    document.getElementById("legend").innerHTML = slices.map((s, i) =>
-      "<div data-i=\"" + i + "\"><span><i style=\"background:" + s[2] + "\"></i>" + s[0] + "</span><span>" + (s[1] / pieBase * 100).toFixed(2) + "%</span></div>"
-    ).join("");
-    document.getElementById("trend").innerHTML = [46, 52, 40, 58, 49, 44, 36].map((h) => "<span style=\"height:" + h + "%\"></span>").join("");
-    function showSlice(i) {
+    const seelNet = 120000;
+    const countries = [
+      ["美国", 0.46], ["加拿大", 0.12], ["英国", 0.1], ["德国", 0.09], ["法国", 0.07],
+      ["荷兰", 0.05], ["意大利", 0.04], ["西班牙", 0.03], ["波兰", 0.02], ["其他", 0.02]
+    ];
+    const rates = {
+      month: "2025-10",
+      seel: 6,
+      EU: { platform: 1, risk: 0.15, pay: 5.8, storage: 0.8 },
+      UK: { platform: 0.9, risk: 0.15, pay: 6.2, storage: 0.8 },
+      US: { platform: 1, risk: 0.09, pay: 4.77, storage: 0.58 },
+      CA: { platform: 0.81, risk: 0.06, pay: 5.25, storage: 0.41 }
+    };
+    const weights = { usSea: 70, usFast: 20, usLine: 10, euSea: 90, euFast: 0, euLine: 10 };
+    function sliceByName(name) { return slices.find((s) => s[0] === name); }
+    function money(n) { return Math.round(n).toLocaleString("en-US"); }
+    function num(v) {
+      const n = Number(v);
+      return Number.isFinite(n) ? n : NaN;
+    }
+    function headText() {
+      const usUnit = 1.18 * weights.usSea / 100 + 2.40 * weights.usFast / 100;
+      const euUnit = 1.18 * weights.euSea / 100 + 2.40 * weights.euFast / 100;
+      const usAmt = 90 * usUnit / 6.60;
+      const euAmt = 90 * euUnit / 6.60;
+      return "该 MSKU 已有头程单价：查询区间内各月都按老品，用近 12 月滚动加权单价。没有头程单价：取 Shipment 费用页近 3 个自然月，每月单独算综合单价。归月用发货时间（DL 创建时间）。只统计目的仓为海外仓、已发运、shipped 数量大于 0 的计划。占比 = 该运输方式 shipped 数量 ÷ 该月已发运总件数。每种方式在物流计算器都有报价时，综合单价 = Σ（预估成本元/PCS × 占比）。始发仓 Shenzhen Warehouse，目的国按站点。该月没有已发运，或任一运输方式没有对应报价时，改用固定权重。美国、加拿大：当前普船 × " + weights.usSea + "% + 当前快船 × " + weights.usFast + "% + 当前专线 × " + weights.usLine + "%，没有快船或专线报价时该项按 0。英国、欧盟：当前普船 × " + weights.euSea + "% + 当前快船 × " + weights.euFast + "% + 当前专线 × " + weights.euLine + "%，没有报价时该项按 0。快船默认 0。件数 = 发货销量 − 退货销量，Shipment 件数只用于占比。头程 = 件数 × 该月单价 ÷ 发货月美元汇率（1 美元 = x 人民币）。跨月按月拆开。当月未过完时，占比只用已发运件数。试算用的人工空运、人工海运只在试算里，不改本列。例：发货 100、退货 10，汇率 6.60。10 月普船 240 件、快船 60 件，单价 1.18、2.40，综合单价 = 1.18×0.8 + 2.40×0.2 = 1.424，头程 = 90 × 1.424 ÷ 6.60 = 19.42 美元。该月无发运或运输方式无报价时改固定权重：美国或加拿大 " + usUnit.toFixed(3) + " 元/PCS、头程 " + usAmt.toFixed(2) + " 美元；英国或欧盟 " + euUnit.toFixed(3) + " 元/PCS、头程 " + euAmt.toFixed(2) + " 美元。已有头程单价且滚动单价 12.30 时，头程 = 167.73 美元。本列期间合计示例仍为 180,000。权重在本页「头程权重」中维护。";
+    }
+    function applyConfig() {
+      const us = rates.US;
+      const platform = Math.round(revenueBase * us.platform / 100);
+      const pay = Math.round(revenueBase * us.pay / 100);
+      const risk = Math.round(revenueBase * us.risk / 100);
+      const storage = Math.round(revenueBase * us.storage / 100);
+      const seelFee = Math.round(seelNet * rates.seel / 100);
+      const middle = 180000 + platform + pay + risk + 120000 + 180000 + 320000 + 80000 + storage + 79000;
+      const profit = revenueBase - seelFee - 915000 - middle;
+      sliceByName("平台服务")[1] = platform;
+      sliceByName("平台服务")[3] = "对应平台费，金额 = 营业收入 × 站点平台费率。生效月份 " + rates.month + "。EU " + rates.EU.platform + "%、UK " + rates.UK.platform + "%、US " + rates.US.platform + "%、CA " + rates.CA.platform + "%。本例美国站 2,970,000 × " + us.platform + "% = " + money(platform) + "。费率在本页「费率配置」中维护。";
+      sliceByName("支付通道手续费")[1] = pay;
+      sliceByName("支付通道手续费")[3] = "维护收单 / 提现费率：运营 → 成本费率配置，按店铺 + 年月。看板金额 = 营业收入 × 费率。本页「费率配置」维护站点默认值，生效月份 " + rates.month + "。默认：US " + rates.US.pay + "%、CA " + rates.CA.pay + "%、EU " + rates.EU.pay + "%、UK " + rates.UK.pay + "%。本例美国站 2,970,000 × " + us.pay + "% = " + money(pay) + "。单件试算不替代本列期间金额。";
+      sliceByName("平台其他")[1] = risk;
+      sliceByName("平台其他")[3] = "对应风控费，金额 = 营业收入 × 站点风控费率。生效月份 " + rates.month + "。EU " + rates.EU.risk + "%、UK " + rates.UK.risk + "%、US " + rates.US.risk + "%、CA " + rates.CA.risk + "%。本例美国站 2,970,000 × " + us.risk + "% = " + money(risk) + "。费率在本页「费率配置」中维护。";
+      sliceByName("仓储其它")[1] = storage;
+      sliceByName("仓储其它")[3] = "按 Listing 站点维护海外仓费率，对应管报仓储其他。看板期间 = 营业收入 × 同一费率。生效月份 " + rates.month + "。US " + rates.US.storage + "%、CA " + rates.CA.storage + "%、EU " + rates.EU.storage + "%、UK " + rates.UK.storage + "%，未列站点记 0。例：美国站 2,970,000 × " + us.storage + "% = " + money(storage) + "。费率在本页「费率配置」中维护。";
+      sliceByName("头程")[3] = headText();
+      sliceByName("净利润")[1] = profit;
+      sliceByName("净利润")[3] = "净利润 = 净销售额 − Seel净销售 × " + rates.seel + "% − 成本 − 营销投入 − 平台服务 − 支付通道手续费 − 平台其他 − 电商站外投放 − 头程 − 尾程 − 仓储租金 − 仓储其它 − 其它全部（不含包裹险收入、不含包裹险扣减）。Seel 的费率只减一次。示例净销售额 2,970,000，Seel净销售 120,000，" + rates.seel + "% = " + money(seelFee) + "。其它全部不含包裹险 = 79,000。2,970,000 − " + money(seelFee) + " − 915,000 − " + money(middle) + " = " + money(profit) + "。概览上的现网净利润不改。";
+    }
+    function renderCost() {
+      applyConfig();
+      const pieBase = slices.reduce((s, x) => s + x[1], 0);
+      let acc = 0;
+      const stops = slices.map((s) => {
+        const start = acc;
+        acc += s[1] / pieBase * 100;
+        return s[2] + " " + start.toFixed(2) + "% " + acc.toFixed(2) + "%";
+      });
+      document.getElementById("pie").style.background = "conic-gradient(" + stops.join(",") + ")";
+      document.getElementById("legend").innerHTML = slices.map((s, i) =>
+        "<div><span><i style=\"background:" + s[2] + "\"></i>" + s[0] + "<button type=\"button\" class=\"explain\" data-i=\"" + i + "\" title=\"查看测算逻辑\" aria-label=\"" + s[0] + "测算逻辑\">?</button></span><span>" + (s[1] / pieBase * 100).toFixed(2) + "%</span></div>"
+      ).join("");
+      const countryItems = slices.filter((s) => s[0] !== "净利润");
+      document.getElementById("country").innerHTML = "<table><tr><td>国家</td>" + countryItems.map((s) => "<td class=\"n\">" + s[0] + "</td>").join("") + "</tr>" +
+        countries.map((c) => "<tr><td>" + c[0] + "</td>" + countryItems.map((s) => "<td class=\"n\">" + Math.round(s[1] * c[1]).toLocaleString("en-US") + "</td>").join("") + "</tr>").join("") +
+        "</table>";
+    }
+    function showExplain(i) {
+      const pieBase = slices.reduce((s, x) => s + x[1], 0);
       const s = slices[i];
-      document.getElementById("slice").innerHTML = "<strong>" + s[0] + "</strong> " + s[1].toLocaleString("en-US") +
-        "（" + (s[1] / pieBase * 100).toFixed(2) + "%）<br>" + s[3];
+      document.getElementById("explainTitle").textContent = s[0];
+      document.getElementById("explainBody").innerHTML = s[1].toLocaleString("en-US") + "（" + (s[1] / pieBase * 100).toFixed(2) + "%）<br>" + s[3];
+      document.getElementById("explainMask").classList.add("show");
     }
     document.getElementById("legend").addEventListener("click", (e) => {
-      const el = e.target.closest("[data-i]");
-      if (el) showSlice(Number(el.dataset.i));
+      const el = e.target.closest(".explain");
+      if (el) showExplain(Number(el.dataset.i));
     });
-    showSlice(0);
+    document.getElementById("explainClose").onclick = () => document.getElementById("explainMask").classList.remove("show");
+    document.getElementById("explainMask").onclick = (e) => { if (e.target.id === "explainMask") document.getElementById("explainMask").classList.remove("show"); };
+    document.getElementById("trend").innerHTML = [46, 52, 40, 58, 49, 44, 36].map((h) => "<span style=\"height:" + h + "%\"></span>").join("");
     document.getElementById("exp").addEventListener("click", () => {
+      const pieBase = slices.reduce((s, x) => s + x[1], 0);
       const lines = ["费用项,金额,占饼图合计,来源"];
       slices.forEach((s) => lines.push(s[0] + "," + s[1] + "," + (s[1] / pieBase * 100).toFixed(2) + "%," + (s[0] === "营销投入" ? "管报" : "本页")));
       lines.push("饼图合计," + pieBase + ",100%,分母");
@@ -208,15 +326,95 @@
       a.download = "成本结构-v2.csv";
       a.click();
     });
-
-    const countryItems = slices.filter((s) => s[0] !== "净利润");
-    const countries = [
-      ["美国", 0.46], ["加拿大", 0.12], ["英国", 0.1], ["德国", 0.09], ["法国", 0.07],
-      ["荷兰", 0.05], ["意大利", 0.04], ["西班牙", 0.03], ["波兰", 0.02], ["其他", 0.02]
-    ];
-    document.getElementById("country").innerHTML = "<table><tr><td>国家</td>" + countryItems.map((s) => "<td class=\"n\">" + s[0] + "</td>").join("") + "</tr>" +
-      countries.map((c) => "<tr><td>" + c[0] + "</td>" + countryItems.map((s) => "<td class=\"n\">" + Math.round(s[1] * c[1]).toLocaleString("en-US") + "</td>").join("") + "</tr>").join("") +
-      "</table>";
+    function fillRateForm() {
+      document.getElementById("rateMonth").value = rates.month;
+      document.getElementById("rateSeel").value = rates.seel;
+      document.querySelectorAll("#rateMask input[data-site]").forEach((input) => {
+        input.value = rates[input.dataset.site][input.dataset.key];
+      });
+      document.getElementById("rateErr").textContent = "";
+    }
+    function fillWeightForm() {
+      document.getElementById("usSea").value = weights.usSea;
+      document.getElementById("usFast").value = weights.usFast;
+      document.getElementById("usLine").value = weights.usLine;
+      document.getElementById("euSea").value = weights.euSea;
+      document.getElementById("euFast").value = weights.euFast;
+      document.getElementById("euLine").value = weights.euLine;
+      document.getElementById("weightErr").textContent = "";
+      refreshWeightPreview();
+    }
+    function refreshWeightPreview() {
+      const usSea = num(document.getElementById("usSea").value);
+      const usFast = num(document.getElementById("usFast").value);
+      const usLine = num(document.getElementById("usLine").value);
+      const euSea = num(document.getElementById("euSea").value);
+      const euFast = num(document.getElementById("euFast").value);
+      const euLine = num(document.getElementById("euLine").value);
+      document.getElementById("usSum").textContent = [usSea, usFast, usLine].some((n) => Number.isNaN(n)) ? "—" : (usSea + usFast + usLine).toFixed(1).replace(/\.0$/, "") + "%";
+      document.getElementById("euSum").textContent = [euSea, euFast, euLine].some((n) => Number.isNaN(n)) ? "—" : (euSea + euFast + euLine).toFixed(1).replace(/\.0$/, "") + "%";
+      if ([usSea, usFast, usLine, euSea, euFast, euLine].some((n) => Number.isNaN(n))) {
+        document.getElementById("weightPreview").textContent = "";
+        return;
+      }
+      const usUnit = 1.18 * usSea / 100 + 2.40 * usFast / 100;
+      const euUnit = 1.18 * euSea / 100 + 2.40 * euFast / 100;
+      document.getElementById("weightPreview").textContent = "按示例报价（普船 1.18、快船 2.40、专线无报价，90 件，汇率 6.60）：美国或加拿大 " + usUnit.toFixed(3) + " 元/PCS、" + (90 * usUnit / 6.60).toFixed(2) + " 美元；英国或欧盟 " + euUnit.toFixed(3) + " 元/PCS、" + (90 * euUnit / 6.60).toFixed(2) + " 美元。饼图头程期间合计仍为 180,000。";
+    }
+    document.getElementById("cfgRate").onclick = () => { fillRateForm(); document.getElementById("rateMask").classList.add("show"); };
+    document.getElementById("rateCancel").onclick = () => document.getElementById("rateMask").classList.remove("show");
+    document.getElementById("rateSave").onclick = () => {
+      const month = document.getElementById("rateMonth").value;
+      const seel = num(document.getElementById("rateSeel").value);
+      const next = { month: month, seel: seel, EU: {}, UK: {}, US: {}, CA: {} };
+      let bad = !month || Number.isNaN(seel) || seel < 0;
+      document.querySelectorAll("#rateMask input[data-site]").forEach((input) => {
+        const value = num(input.value);
+        next[input.dataset.site][input.dataset.key] = value;
+        if (Number.isNaN(value) || value < 0) bad = true;
+      });
+      if (bad) {
+        document.getElementById("rateErr").textContent = "请填写生效月份，费率填写大于或等于 0 的数字。";
+        return;
+      }
+      rates.month = next.month;
+      rates.seel = next.seel;
+      ["EU", "UK", "US", "CA"].forEach((site) => Object.assign(rates[site], next[site]));
+      renderCost();
+      document.getElementById("rateMask").classList.remove("show");
+    };
+    document.getElementById("cfgWeight").onclick = () => { fillWeightForm(); document.getElementById("weightMask").classList.add("show"); };
+    document.getElementById("weightCancel").onclick = () => document.getElementById("weightMask").classList.remove("show");
+    ["usSea", "usFast", "usLine", "euSea", "euFast", "euLine"].forEach((id) => {
+      document.getElementById(id).addEventListener("input", refreshWeightPreview);
+    });
+    document.getElementById("weightSave").onclick = () => {
+      const next = {
+        usSea: num(document.getElementById("usSea").value),
+        usFast: num(document.getElementById("usFast").value),
+        usLine: num(document.getElementById("usLine").value),
+        euSea: num(document.getElementById("euSea").value),
+        euFast: num(document.getElementById("euFast").value),
+        euLine: num(document.getElementById("euLine").value)
+      };
+      const values = Object.values(next);
+      if (values.some((n) => Number.isNaN(n) || n < 0)) {
+        document.getElementById("weightErr").textContent = "权重填写大于或等于 0 的数字。";
+        return;
+      }
+      const usSum = next.usSea + next.usFast + next.usLine;
+      const euSum = next.euSea + next.euFast + next.euLine;
+      if (Math.abs(usSum - 100) > 0.05 || Math.abs(euSum - 100) > 0.05) {
+        document.getElementById("weightErr").textContent = "两组都是普船、快船、专线三项合计为 100%。";
+        return;
+      }
+      Object.assign(weights, next);
+      renderCost();
+      document.getElementById("weightMask").classList.remove("show");
+    };
+    document.getElementById("rateMask").onclick = (e) => { if (e.target.id === "rateMask") document.getElementById("rateMask").classList.remove("show"); };
+    document.getElementById("weightMask").onclick = (e) => { if (e.target.id === "weightMask") document.getElementById("weightMask").classList.remove("show"); };
+    renderCost();
 
     const plines = [
       { name: "51线", value: 80000, cats: [{ name: "灯泡", value: 50000 }, { name: "灯条", value: 30000 }] },
