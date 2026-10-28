@@ -85,6 +85,7 @@
           <button type="button" id="exp">导出</button>
         </span>
       </h2>
+      <p class="hint" id="rateNote"></p>
       <div class="cost">
         <div class="box">
           <strong>成本结构饼图</strong>
@@ -142,8 +143,7 @@
   <div class="mask" id="rateMask">
     <div class="dialog" role="dialog" aria-labelledby="rateTitle">
       <h3 id="rateTitle">费率配置</h3>
-      <p class="hint">按站点 + 生效月份维护。查询历史月份时用那个月的费率。本页示例美国站营业收入和净销售额都是 2,970,000。平台服务、平台其他、支付通道手续费、仓储其它按营业收入重算。其他费用按净销售额重算，净销售额为负时记 0。保存后概览净利润与饼图净利润一起变。支付通道正式环境仍在运营 → 成本费率配置，按店铺 + 年月。</p>
-      <div style="margin:10px 0;font-size:13px">生效月份 <input id="rateMonth" type="month" style="width:140px;margin-left:8px">　Seel 费率 <input id="rateSeel" type="number" min="0" step="0.01" style="width:80px"> %</div>
+      <p class="hint">按站点维护。保存后从次日生效，保存日和更早的日期仍用改之前的费率。平台服务费率已含 Seel 费用，净利润不再单独扣 Seel。本页查询区间是 2025-10-07 至 2025-10-13，早于次日，所以保存后这块金额不变。平台服务、平台其他、支付通道手续费、仓储其它按营业收入计算。其他费用按净销售额计算，净销售额为负时记 0。支付通道正式环境仍在运营 → 成本费率配置，按店铺 + 年月。</p>
       <table>
         <tr><td>站点</td><td class="n">平台服务 %</td><td class="n">平台其他 %</td><td class="n">支付通道 %</td><td class="n">仓储其它 %</td><td class="n">其他费用 %</td></tr>
         <tr><td>EU</td><td><input data-site="EU" data-key="platform"></td><td><input data-site="EU" data-key="risk"></td><td><input data-site="EU" data-key="pay"></td><td><input data-site="EU" data-key="storage"></td><td><input data-site="EU" data-key="other"></td></tr>
@@ -187,8 +187,8 @@
   <script>
     const oldCards = [
       ["净销售额","2,970,000.00","",1,"netSales"],
-      ["净利润","1,085,549","",1,"profit"],
-      ["净利润率","36.550 %","",0,"profitRate"],
+      ["净利润","1,092,749","",1,"profit"],
+      ["净利润率","36.793 %","",0,"profitRate"],
       ["流量","1,708,961","同比 +34.35%",0],
       ["转化率","1.204 %","",0],["连带率","1.51","",0],["ASP","126.878 USD","",0],["AOV","191.639 USD","",0],
       ["复购率","35.77 %","",0],["退款金额","183,712.21 USD","",0],["退款占比","4.658 %","",0],["海运比","100 %","",0],
@@ -223,17 +223,15 @@
       ["仓储租金", 80000, "#a3e635", "取物流系统 → 看板 → Shopify 物流看板费用表（MSKU 口径、自然月、与本页同币种）的仓租总额。例：本月仓租 80,000。"],
       ["仓储其它", 17226, "#fbbf24", "按 Listing 站点维护海外仓费率，对应管报仓储其他。看板期间 = 营业收入 × 同一费率。US 0.58%、CA 0.41%、EU 0.8%、UK 0.8%，未列站点记 0。例：美国站 2,970,000 × 0.58% = 17,226。"],
       ["其他费用", 70983, "#fb923c", "沿用现网。金额 = 净销售额 × 其他费率。净销售额为负时记 0。初始费率 EU 2.26%、UK 2.54%、US 2.39%、CA 5.26%。本例美国站 2,970,000 × 2.39% = 70,983。费率在本页「费率配置」中维护。"],
-      ["净利润", 1085549, "#ef4444", "净利润 = 净销售额 − Seel净销售 × 6% − 成本 − 平台服务 − 支付通道手续费 − 平台其他 − 电商站外投放 − 头程 − 尾程 − 仓储租金 − 仓储其它 − 其他费用。概览卡片使用同一个数。"]
+      ["净利润", 1092749, "#ef4444", "净利润 = 净销售额 − 成本 − 平台服务 − 支付通道手续费 − 平台其他 − 电商站外投放 − 头程 − 尾程 − 仓储租金 − 仓储其它 − 其他费用。平台服务费率已含 Seel 费用，不再单独扣 Seel净销售 × 6%。概览卡片使用同一个数。"]
     ];
     const revenueBase = 2970000;
-    const seelNet = 120000;
+    const queryEnd = "2025-10-13";
     const countries = [
       ["美国", 0.46], ["加拿大", 0.12], ["英国", 0.1], ["德国", 0.09], ["法国", 0.07],
       ["荷兰", 0.05], ["意大利", 0.04], ["西班牙", 0.03], ["波兰", 0.02], ["其他", 0.02]
     ];
     const rates = {
-      month: "2025-10",
-      seel: 6,
       EU: { platform: 1, risk: 0.15, pay: 5.8, storage: 0.8, other: 2.26 },
       UK: { platform: 0.9, risk: 0.15, pay: 6.2, storage: 0.8, other: 2.54 },
       US: { platform: 1, risk: 0.09, pay: 4.77, storage: 0.58, other: 2.39 },
@@ -260,22 +258,21 @@
       const risk = Math.round(revenueBase * us.risk / 100);
       const storage = Math.round(revenueBase * us.storage / 100);
       const otherFee = revenueBase < 0 ? 0 : Math.round(revenueBase * us.other / 100);
-      const seelFee = Math.round(seelNet * rates.seel / 100);
       const middle = platform + pay + risk + 120000 + 180000 + 320000 + 80000 + storage + otherFee;
-      const profit = revenueBase - seelFee - 915000 - middle;
+      const profit = revenueBase - 915000 - middle;
       sliceByName("平台服务")[1] = platform;
-      sliceByName("平台服务")[3] = "对应平台费，金额 = 营业收入 × 站点平台费率。生效月份 " + rates.month + "。EU " + rates.EU.platform + "%、UK " + rates.UK.platform + "%、US " + rates.US.platform + "%、CA " + rates.CA.platform + "%。本例美国站 2,970,000 × " + us.platform + "% = " + money(platform) + "。费率在本页「费率配置」中维护。";
+      sliceByName("平台服务")[3] = "对应平台费，金额 = 营业收入 × 站点平台费率。该费率已含 Seel 费用，不再单独扣 Seel净销售 × 6%。当前查询用保存日之前的费率：EU " + rates.EU.platform + "%、UK " + rates.UK.platform + "%、US " + rates.US.platform + "%、CA " + rates.CA.platform + "%。本例美国站 2,970,000 × " + us.platform + "% = " + money(platform) + "。";
       sliceByName("支付通道手续费")[1] = pay;
-      sliceByName("支付通道手续费")[3] = "维护收单 / 提现费率：运营 → 成本费率配置，按店铺 + 年月。看板金额 = 营业收入 × 费率。本页「费率配置」维护站点默认值，生效月份 " + rates.month + "。默认：US " + rates.US.pay + "%、CA " + rates.CA.pay + "%、EU " + rates.EU.pay + "%、UK " + rates.UK.pay + "%。本例美国站 2,970,000 × " + us.pay + "% = " + money(pay) + "。单件试算不替代本列期间金额。";
+      sliceByName("支付通道手续费")[3] = "维护收单 / 提现费率：运营 → 成本费率配置，按店铺 + 年月。看板金额 = 营业收入 × 费率。本页「费率配置」维护站点默认值。当前查询用保存日之前的费率：US " + rates.US.pay + "%、CA " + rates.CA.pay + "%、EU " + rates.EU.pay + "%、UK " + rates.UK.pay + "%。本例美国站 2,970,000 × " + us.pay + "% = " + money(pay) + "。单件试算不替代本列期间金额。";
       sliceByName("平台其他")[1] = risk;
-      sliceByName("平台其他")[3] = "对应风控费，金额 = 营业收入 × 站点风控费率。生效月份 " + rates.month + "。EU " + rates.EU.risk + "%、UK " + rates.UK.risk + "%、US " + rates.US.risk + "%、CA " + rates.CA.risk + "%。本例美国站 2,970,000 × " + us.risk + "% = " + money(risk) + "。费率在本页「费率配置」中维护。";
+      sliceByName("平台其他")[3] = "对应风控费，金额 = 营业收入 × 站点风控费率。当前查询用保存日之前的费率：EU " + rates.EU.risk + "%、UK " + rates.UK.risk + "%、US " + rates.US.risk + "%、CA " + rates.CA.risk + "%。本例美国站 2,970,000 × " + us.risk + "% = " + money(risk) + "。";
       sliceByName("仓储其它")[1] = storage;
-      sliceByName("仓储其它")[3] = "按 Listing 站点维护海外仓费率，对应管报仓储其他。看板期间 = 营业收入 × 同一费率。生效月份 " + rates.month + "。US " + rates.US.storage + "%、CA " + rates.CA.storage + "%、EU " + rates.EU.storage + "%、UK " + rates.UK.storage + "%，未列站点记 0。例：美国站 2,970,000 × " + us.storage + "% = " + money(storage) + "。费率在本页「费率配置」中维护。";
+      sliceByName("仓储其它")[3] = "按 Listing 站点维护海外仓费率，对应管报仓储其他。看板期间 = 营业收入 × 同一费率。当前查询用保存日之前的费率：US " + rates.US.storage + "%、CA " + rates.CA.storage + "%、EU " + rates.EU.storage + "%、UK " + rates.UK.storage + "%，未列站点记 0。例：美国站 2,970,000 × " + us.storage + "% = " + money(storage) + "。";
       sliceByName("其他费用")[1] = otherFee;
-      sliceByName("其他费用")[3] = "沿用现网。金额 = 净销售额 × 其他费率。净销售额为负时记 0。生效月份 " + rates.month + "。EU " + rates.EU.other + "%、UK " + rates.UK.other + "%、US " + rates.US.other + "%、CA " + rates.CA.other + "%。本例美国站 2,970,000 × " + us.other + "% = " + money(otherFee) + "。费率在本页「费率配置」中维护。";
+      sliceByName("其他费用")[3] = "沿用现网。金额 = 净销售额 × 其他费率。净销售额为负时记 0。当前查询用保存日之前的费率：EU " + rates.EU.other + "%、UK " + rates.UK.other + "%、US " + rates.US.other + "%、CA " + rates.CA.other + "%。本例美国站 2,970,000 × " + us.other + "% = " + money(otherFee) + "。";
       sliceByName("头程")[3] = headText();
       sliceByName("净利润")[1] = profit;
-      sliceByName("净利润")[3] = "净利润 = 净销售额 − Seel净销售 × " + rates.seel + "% − 成本 − 平台服务 − 支付通道手续费 − 平台其他 − 电商站外投放 − 头程 − 尾程 − 仓储租金 − 仓储其它 − 其他费用。Seel 的费率只减一次。示例净销售额 2,970,000，Seel净销售 120,000，" + rates.seel + "% = " + money(seelFee) + "。其他费用 = " + money(otherFee) + "。2,970,000 − " + money(seelFee) + " − 915,000 − " + money(middle) + " = " + money(profit) + "。概览卡片使用同一个数，净利润率 = 净利润 ÷ 净销售额。";
+      sliceByName("净利润")[3] = "净利润 = 净销售额 − 成本 − 平台服务 − 支付通道手续费 − 平台其他 − 电商站外投放 − 头程 − 尾程 − 仓储租金 − 仓储其它 − 其他费用。平台服务费率已含 Seel 费用，不再单独扣 Seel净销售 × 6%。示例净销售额 2,970,000。其他费用 = " + money(otherFee) + "。2,970,000 − 915,000 − " + money(middle) + " = " + money(profit) + "。概览卡片使用同一个数，净利润率 = 净利润 ÷ 净销售额。";
       document.querySelector("[data-k=netSales] .v").textContent = revenueBase.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
       document.querySelector("[data-k=profit] .v").textContent = Math.round(profit).toLocaleString("en-US");
       document.querySelector("[data-k=profitRate] .v").textContent = (profit / revenueBase * 100).toFixed(3) + " %";
@@ -323,11 +320,17 @@
       a.download = "成本结构-v2.csv";
       a.click();
     });
+    const futureRates = JSON.parse(JSON.stringify(rates));
+    function nextDay() {
+      const d = new Date();
+      d.setDate(d.getDate() + 1);
+      const m = String(d.getMonth() + 1).padStart(2, "0");
+      const day = String(d.getDate()).padStart(2, "0");
+      return d.getFullYear() + "-" + m + "-" + day;
+    }
     function fillRateForm() {
-      document.getElementById("rateMonth").value = rates.month;
-      document.getElementById("rateSeel").value = rates.seel;
       document.querySelectorAll("#rateMask input[data-site]").forEach((input) => {
-        input.value = rates[input.dataset.site][input.dataset.key];
+        input.value = futureRates[input.dataset.site][input.dataset.key];
       });
       document.getElementById("rateErr").textContent = "";
     }
@@ -361,23 +364,20 @@
     document.getElementById("cfgRate").onclick = () => { fillRateForm(); document.getElementById("rateMask").classList.add("show"); };
     document.getElementById("rateCancel").onclick = () => document.getElementById("rateMask").classList.remove("show");
     document.getElementById("rateSave").onclick = () => {
-      const month = document.getElementById("rateMonth").value;
-      const seel = num(document.getElementById("rateSeel").value);
-      const next = { month: month, seel: seel, EU: {}, UK: {}, US: {}, CA: {} };
-      let bad = !month || Number.isNaN(seel) || seel < 0;
+      const next = { EU: {}, UK: {}, US: {}, CA: {} };
+      let bad = false;
       document.querySelectorAll("#rateMask input[data-site]").forEach((input) => {
         const value = num(input.value);
         next[input.dataset.site][input.dataset.key] = value;
         if (Number.isNaN(value) || value < 0) bad = true;
       });
       if (bad) {
-        document.getElementById("rateErr").textContent = "请填写生效月份，费率填写大于或等于 0 的数字。";
+        document.getElementById("rateErr").textContent = "费率填写大于或等于 0 的数字。";
         return;
       }
-      rates.month = next.month;
-      rates.seel = next.seel;
-      ["EU", "UK", "US", "CA"].forEach((site) => Object.assign(rates[site], next[site]));
-      renderCost();
+      ["EU", "UK", "US", "CA"].forEach((site) => Object.assign(futureRates[site], next[site]));
+      const start = nextDay();
+      document.getElementById("rateNote").textContent = "费率已保存，自 " + start + " 起生效。当前查询到 " + queryEnd + " 为止，仍用保存前的费率，金额不变。";
       document.getElementById("rateMask").classList.remove("show");
     };
     document.getElementById("cfgWeight").onclick = () => { fillWeightForm(); document.getElementById("weightMask").classList.add("show"); };
