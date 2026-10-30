@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>经营分析看板（新）· 成本结构 v2</title>
+  <style>
+    :root { --bg:#f3f6fb; --line:#e6edf5; --ink:#0f2f63; --muted:#64748b; --neg:#cf1322; --blue:#1677ff; }
+    * { box-sizing: border-box; }
+    body { margin:0; font-family:"PingFang SC","Microsoft YaHei",sans-serif; background:var(--bg); color:#0f172a; }
+    .top { height:48px; background:var(--blue); color:#fff; display:flex; align-items:center; padding:0 16px; font-size:14px; }
+    .page { display:grid; grid-template-columns:72px 1fr; min-height:calc(100vh - 48px); }
+    .side { background:#1f2a44; color:#c5d0e6; font-size:12px; padding:12px 0; }
+    .side div { text-align:center; padding:10px 0; }
+    .main { padding:12px 14px 28px; }
+    .filters { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:12px; }
+    .filters span { background:#fff; border:1px solid var(--line); border-radius:6px; padding:6px 10px; font-size:12px; }
+    h2 { margin:14px 0 8px; font-size:15px; color:var(--ink); }
+    .hint { font-size:12px; color:var(--muted); font-weight:400; }
+    .note { background:#fff; border:1px solid #fcd34d; border-radius:10px; padding:10px 12px; font-size:13px; margin-bottom:12px; }
+    .old { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; }
+    .old .wide { grid-column:span 2; }
+    .card, .box, .chart { background:#fff; border:1px solid var(--line); border-radius:8px; padding:10px 12px; }
+    .card .k { font-size:12px; color:var(--muted); }
+    .card .v { margin-top:4px; font-size:20px; font-weight:700; color:var(--ink); }
+    .card .s { margin-top:2px; font-size:12px; color:#16a34a; }
+    .chart { margin-top:12px; }
+    .bars { display:flex; align-items:flex-end; gap:14px; height:140px; margin-top:12px; }
+    .bars i { display:block; width:28px; background:#f25c54; border-radius:3px 3px 0 0; }
+    .cost { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+    .pie-wrap { display:flex; gap:16px; align-items:center; }
+    .pie { width:180px; height:180px; border-radius:50%; flex:none; }
+    .legend { font-size:12px; flex:1; }
+    .legend div { display:flex; justify-content:space-between; gap:8px; padding:3px 0; }
+    .legend .num { white-space:nowrap; }
+    .legend div.on { background:#f8fafc; border-radius:4px; }
+    .legend i { display:inline-block; width:8px; height:8px; border-radius:2px; margin-right:6px; }
+    .legend .explain { display:inline-flex; align-items:center; justify-content:center; width:14px; height:14px; margin-left:4px; padding:0; border:1px solid #94a3b8; border-radius:50%; color:#64748b; background:#fff; font-size:10px; line-height:1; vertical-align:1px; }
+    .barline { display:flex; align-items:flex-end; gap:8px; height:120px; margin-top:8px; }
+    .barline span { flex:1; background:#93c5fd; border-radius:3px 3px 0 0; }
+    table { width:100%; border-collapse:collapse; font-size:12px; margin-top:8px; }
+    td { border:1px solid var(--line); padding:6px 8px; }
+    td.n { text-align:right; }
+    button { border:1px solid #bfdbfe; background:#fff; color:#1677ff; border-radius:6px; padding:4px 8px; cursor:pointer; }
+    .mask { position:fixed; inset:0; background:rgba(15,23,42,.45); display:none; align-items:center; justify-content:center; z-index:20; padding:16px; }
+    .mask.show { display:flex; }
+    .dialog { width:980px; max-width:100%; max-height:calc(100vh - 32px); overflow:auto; background:#fff; border-radius:10px; padding:16px; }
+    .dialog h3 { margin:0 0 6px; font-size:16px; color:var(--ink); }
+    .dialog input { width:100%; border:1px solid var(--line); border-radius:6px; padding:4px 6px; font-size:12px; }
+    .dialog .ops { display:flex; justify-content:flex-end; gap:8px; margin-top:12px; }
+    .dialog .err { min-height:18px; margin-top:8px; font-size:12px; color:var(--neg); }
+    .dialog button.primary { background:#1677ff; color:#fff; }
+    .switch { display:flex; border:1px solid #bfdbfe; border-radius:6px; overflow:hidden; }
+    .switch button { border:0; }
+    .switch button.on { background:#1677ff; color:#fff; }
+    #plPie { width:220px; height:220px; cursor:pointer; }
+    .crumb button { border:0; background:transparent; padding:0; }
+    @media (max-width:980px) { .old, .cost { grid-template-columns:1fr; } .old .wide { grid-column:auto; } }
+  </style>
+</head>
+<body>
+  <div class="top">经营分析看板（新） · 成本结构 v2</div>
+  <div class="page">
+    <aside class="side"><div>看板</div><div>运营</div><div>客服</div><div>订单</div></aside>
+    <div class="main">
+      <div class="filters">
+        <span>平台 shopify</span><span>站点 全部</span><span>北京时间</span>
+        <span>2025-10-07 至 2025-10-13</span><span>环比 同比</span>
+      </div>
+      <div class="note">成本结构与概览的净利润是同一条公式、同一个数。流量等其余概览指标仍是现网口径。饼图含净利润，占比分母是饼图各项合计；国家成本结构不含净利润，占比分母是该国成本与费用合计。</div>
+      <h2>关键指标概览</h2>
+      <div class="old" id="old"></div>
+      <div class="chart">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <strong>指标趋势</strong>
+          <button type="button" id="expTrend">导出汇总+趋势</button>
+        </div>
+        <div class="hint" id="trendLegend" style="margin-top:8px;line-height:1.8"></div>
+        <div class="bars" id="kpiBars"></div>
+      </div>
+      <h2 style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+        <span>成本结构 <span class="hint">饼图占比分母 = 成本 + 各项费用 + 净利润。国家成本结构不含净利润</span></span>
+        <span style="margin-left:auto;display:flex;gap:8px">
+          <button type="button" id="cfgRate">费率配置</button>
+          <button type="button" id="cfgWeight">头程权重</button>
+          <button type="button" id="exp">导出</button>
+        </span>
+      </h2>
+      <p class="hint" id="rateNote"></p>
+      <div class="cost">
+        <div class="box">
+          <strong>成本结构饼图</strong>
+          <div class="pie-wrap">
+            <div class="pie" id="pie"></div>
+            <div class="legend" id="legend"></div>
+          </div>
+        </div>
+        <div class="box">
+          <strong>成本趋势</strong>
+          <span class="hint">序列改为管报费用项和净利润。</span>
+          <div class="barline" id="trend"></div>
+        </div>
+      </div>
+      <div class="box" style="margin-top:12px">
+        <strong>国家成本结构</strong>
+        <span class="hint">与成本结构相同，不显示净利润。占比分母是该国成本与费用合计。</span>
+        <div id="country"></div>
+      </div>
+      <div class="box" style="margin-top:12px" id="pline">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+          <strong>品线销售趋势</strong>
+          <div style="display:flex;gap:8px;align-items:center">
+            <div class="switch">
+              <button type="button" id="btnLine" class="on">品线</button>
+              <button type="button" id="btnCat">品类</button>
+            </div>
+            <button type="button" id="plExp">导出</button>
+          </div>
+        </div>
+        <div class="cost" style="margin-top:12px">
+          <div>
+            <div class="hint" style="margin-bottom:8px"><span id="tabChart" style="color:#1677ff;font-weight:700;cursor:pointer">图表</span> <span id="tabTable" style="cursor:pointer">明细</span></div>
+            <div class="crumb hint" id="crumb"></div>
+            <div id="chartPane">
+              <div class="hint" id="pieTitle">品线销售额占比</div>
+              <div class="pie-wrap">
+                <div class="pie" id="plPie"></div>
+                <div class="legend" id="plLegend"></div>
+              </div>
+            </div>
+            <div id="tablePane" style="display:none"></div>
+          </div>
+          <div>
+            <strong>品线趋势图</strong>
+            <span class="hint">始终按品线，不随左侧切换</span>
+            <div class="bars" id="plBars"></div>
+            <div class="hint" id="barNames" style="margin-top:8px"></div>
+          </div>
+        </div>
+      </div>
+      <div id="more"></div>
+    </div>
+  </div>
+  <div class="mask" id="rateMask">
+    <div class="dialog" role="dialog" aria-labelledby="rateTitle">
+      <h3 id="rateTitle">费率配置</h3>
+      <p class="hint">按站点维护。保存后从次日生效，保存日和更早的日期仍用改之前的费率。平台服务费率已含 Seel 费用，净利润不再单独扣 Seel。本页查询区间是 2025-10-07 至 2025-10-13，早于次日，所以保存后这块金额不变。平台服务、平台其他、支付通道手续费、仓储其它按营业收入计算。其他费用按净销售额计算，净销售额为负时记 0。支付通道正式环境仍在运营 → 成本费率配置，按店铺 + 年月。</p>
+      <table>
+        <tr><td>站点</td><td class="n">平台服务 %</td><td class="n">平台其他 %</td><td class="n">支付通道 %</td><td class="n">仓储其它 %</td><td class="n">其他费用 %</td></tr>
+        <tr><td>EU</td><td><input data-site="EU" data-key="platform"></td><td><input data-site="EU" data-key="risk"></td><td><input data-site="EU" data-key="pay"></td><td><input data-site="EU" data-key="storage"></td><td><input data-site="EU" data-key="other"></td></tr>
+        <tr><td>UK</td><td><input data-site="UK" data-key="platform"></td><td><input data-site="UK" data-key="risk"></td><td><input data-site="UK" data-key="pay"></td><td><input data-site="UK" data-key="storage"></td><td><input data-site="UK" data-key="other"></td></tr>
+        <tr><td>US</td><td><input data-site="US" data-key="platform"></td><td><input data-site="US" data-key="risk"></td><td><input data-site="US" data-key="pay"></td><td><input data-site="US" data-key="storage"></td><td><input data-site="US" data-key="other"></td></tr>
+        <tr><td>CA</td><td><input data-site="CA" data-key="platform"></td><td><input data-site="CA" data-key="risk"></td><td><input data-site="CA" data-key="pay"></td><td><input data-site="CA" data-key="storage"></td><td><input data-site="CA" data-key="other"></td></tr>
+      </table>
+      <div class="err" id="rateErr"></div>
+      <div class="ops">
+        <button type="button" id="rateCancel">取消</button>
+        <button type="button" class="primary" id="rateSave">保存</button>
+      </div>
+    </div>
+  </div>
+  <div class="mask" id="weightMask">
+    <div class="dialog" role="dialog" aria-labelledby="weightTitle">
+      <h3 id="weightTitle">头程权重</h3>
+      <p class="hint">只在该月没有已发运，或某种运输方式没有物流计算器报价时使用。有发运且报价齐全的月份仍按 Shipment 占比。每组三项权重合计为 100%。英国、欧盟的快船默认 0。</p>
+      <table>
+        <tr><td>站点</td><td class="n">普船 %</td><td class="n">快船 %</td><td class="n">专线 %</td><td class="n">合计</td></tr>
+        <tr><td>美国、加拿大</td><td><input id="usSea" type="number" min="0" step="0.1"></td><td><input id="usFast" type="number" min="0" step="0.1"></td><td><input id="usLine" type="number" min="0" step="0.1"></td><td class="n" id="usSum"></td></tr>
+        <tr><td>英国、欧盟</td><td><input id="euSea" type="number" min="0" step="0.1"></td><td><input id="euFast" type="number" min="0" step="0.1"></td><td><input id="euLine" type="number" min="0" step="0.1"></td><td class="n" id="euSum"></td></tr>
+      </table>
+      <p class="hint" id="weightPreview" style="margin-top:8px"></p>
+      <div class="err" id="weightErr"></div>
+      <div class="ops">
+        <button type="button" id="weightCancel">取消</button>
+        <button type="button" class="primary" id="weightSave">保存</button>
+      </div>
+    </div>
+  </div>
+  <div class="mask" id="explainMask">
+    <div class="dialog" role="dialog" aria-labelledby="explainTitle">
+      <h3 id="explainTitle"></h3>
+      <p id="explainBody" style="font-size:13px;line-height:1.7"></p>
+      <div class="ops">
+        <button type="button" class="primary" id="explainClose">关闭</button>
+      </div>
+    </div>
+  </div>
+  <script>
+    const oldCards = [
+      ["净销售额","2,970,000.00","",1,"netSales"],
+      ["净利润","1,092,749","",1,"profit"],
+      ["净利润率","36.793 %","",0,"profitRate"],
+      ["流量","1,708,961","同比 +34.35%",0],
+      ["转化率","1.204 %","",0],["连带率","1.51","",0],["ASP","126.878 USD","",0],["AOV","191.639 USD","",0],
+      ["复购率","35.77 %","",0],["退款金额","183,712.21 USD","",0],["退款占比","4.658 %","",0],["海运比","100 %","",0],
+      ["订单数量","20,579","",0],["客户数","20,789","",0],["跳出率","63.169 %","",0],["加购率","2.955 %","",0],
+      ["折扣比","38.343 %","",0],["Seel 销售额","12,794.71 USD","",0],["Seel 订单数","5,187","",0],["MCF加急配送订单数","6,022","",0]
+    ];
+    document.getElementById("old").innerHTML = oldCards.map((c) =>
+      "<div class=\"card" + (c[3] ? " wide" : "") + "\"" + (c[4] ? " data-k=\"" + c[4] + "\"" : "") + "\"><div class=\"k\">" + c[0] + "</div><div class=\"v\">" + c[1] + "</div>" + (c[2] ? "<div class=\"s\">" + c[2] + "</div>" : "") + "</div>"
+    ).join("");
+
+    const trendSeries = ["净销售额","净利润","净利润率","流量","转化率","连带率","ASP","AOV","复购率","海运比","订单数量","客户数","跳出率","加购率","折扣比","Seel销售额","Seel订单数","B2B净销售额","B2B订单数","MCF加急配送订单数"];
+    document.getElementById("trendLegend").innerHTML = trendSeries.map((n) => "<span style=\"display:inline-block;margin-right:8px\">" + n + "</span>").join("");
+    document.getElementById("kpiBars").innerHTML = [78,92,70,64,55,48,40].map((h) => "<i style=\"height:" + h + "%\"></i>").join("");
+    document.getElementById("expTrend").addEventListener("click", () => {
+      const head = ["日期"].concat(trendSeries).join(",");
+      const row = ["2025-10-07","563000","104000","18.51%","244000","1.20%","1.51","126.88","191.64","35.77%","100%","2940","2970","63.17%","2.96%","38.34%","1800","740","0","0","860"].join(",");
+      const blob = new Blob(["\uFEFF" + head + "\n" + row], { type: "text/csv;charset=utf-8" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = "汇总+趋势.csv";
+      a.click();
+    });
+
+    const slices = [
+      ["成本", 915000, "#94a3b8", "出货授权成本 980,000 + 退货成本 −65,000 = 915,000。不拆采购、关税、预留。"],
+      ["平台服务", 29700, "#facc15", "对应平台费，金额 = 营业收入 × 站点平台费率。EU 1%、UK 0.9%、US 1%、CA 0.81%。本例美国站 2,970,000 × 1% = 29,700。"],
+      ["支付通道手续费", 141669, "#38bdf8", "维护收单 / 提现费率：运营 → 成本费率配置，按店铺 + 年月。看板金额 = 营业收入 × 费率。默认：US 4.77%、CA 5.25%、EU 5.8%、UK 6.2%。本例美国站 2,970,000 × 4.77% = 141,669。单件试算：售价 29.99 × 4.77% ≈ 1.43，试算不替代本列期间金额。"],
+      ["平台其他", 2673, "#818cf8", "对应风控费，金额 = 营业收入 × 站点风控费率。EU 0.15%、UK 0.15%、US 0.09%、CA 0.06%。本例美国站 2,970,000 × 0.09% = 2,673。"],
+      ["电商站外投放", 120000, "#f472b6", "取广告概览看板选定周期内的广告花费。需要单价时，用近一个月花费 ÷ 销量，再 × 本期销量。例：近一月花费 96,000、销量 1,600，单价 60；本期销量 2,000 × 60 = 120,000。电商站内投放自营没有，不进本图。"],
+      ["头程", 180000, "#34d399", "该 MSKU 已有头程单价：查询区间内各月都按老品，用近 12 月滚动加权单价。没有头程单价：取 Shipment 费用页近 3 个自然月，每月单独算综合单价。归月用发货时间（DL 创建时间）。只统计目的仓为海外仓、已发运、shipped 数量大于 0 的计划。占比 = 该运输方式 shipped 数量 ÷ 该月已发运总件数。每种方式在物流计算器都有报价时，综合单价 = Σ（预估成本元/PCS × 占比）。始发仓 Shenzhen Warehouse，目的国按站点。该月没有已发运，或任一运输方式没有对应报价时，改用固定权重。美国、加拿大：当前普船 × 0.7 + 当前快船 × 0.2 + 当前专线 × 0.1，没有快船或专线报价时该项按 0。英国、欧盟：当前普船 × 0.9 + 当前专线 × 0.1，没有专线报价时专线按 0。件数 = 发货销量 − 退货销量，Shipment 件数只用于占比。头程 = 件数 × 该月单价 ÷ 发货月美元汇率（1 美元 = x 人民币）。跨月按月拆开。当月未过完时，占比只用已发运件数。试算用的人工空运、人工海运只在试算里，不改本列。例：发货 100、退货 10，汇率 6.60。10 月普船 240 件、快船 60 件，单价 1.18、2.40，综合单价 = 1.18×0.8 + 2.40×0.2 = 1.424，头程 = 90 × 1.424 ÷ 6.60 = 19.42 美元。该月无发运或运输方式无报价时改固定权重：美国或加拿大 1.306 元/PCS、头程 17.81 美元；英国或欧盟 1.18×0.9 + 0 = 1.062 元/PCS、头程 14.48 美元。已有头程单价且滚动单价 12.30 时，头程 = 167.73 美元。本列期间合计示例仍为 180,000。"],
+      ["尾程", 320000, "#2dd4bf", "和当前逻辑一致。1）本月财报尾程不为 0：取财务系统该 MSKU 尾程总额 ÷ 本月总发货数量 = 单价，再 × 查询区间发货数量。例：总额 32,000、总发货 10,000，单价 3.20；区间发货 100,000，尾程 = 3.20 × 100,000 = 320,000。2）本月尾程为 0：上月财务尾程总额 ÷ 上月总发运数量 = 上月单价，再 × 本月发运数量。例：上月总额 28,000、发运 10,000，单价 2.80；本月发运 10,000，预估 28,000。本月财报出来后改成实际。3）新品且上月财务也没有尾程：仍用现网发货单尾程。例：发货单尾程合计 26,000。本月财报出来后再改成财务实际。"],
+      ["仓储租金", 80000, "#a3e635", "取物流系统 → 看板 → Shopify 物流看板费用表（MSKU 口径、自然月、与本页同币种）的仓租总额。例：本月仓租 80,000。"],
+      ["仓储其它", 17226, "#fbbf24", "按 Listing 站点维护海外仓费率，对应管报仓储其他。看板期间 = 营业收入 × 同一费率。US 0.58%、CA 0.41%、EU 0.8%、UK 0.8%，未列站点记 0。例：美国站 2,970,000 × 0.58% = 17,226。"],
+      ["其他费用", 70983, "#fb923c", "沿用现网。金额 = 净销售额 × 其他费率。净销售额为负时记 0。初始费率 EU 2.26%、UK 2.54%、US 2.39%、CA 5.26%。本例美国站 2,970,000 × 2.39% = 70,983。费率在本页「费率配置」中维护。"],
+      ["净利润", 1092749, "#ef4444", "净利润 = 净销售额 − 成本 − 平台服务 − 支付通道手续费 − 平台其他 − 电商站外投放 − 头程 − 尾程 − 仓储租金 − 仓储其它 − 其他费用。平台服务费率已含 Seel 费用，不再单独扣 Seel净销售 × 6%。概览卡片使用同一个数。"]
+    ];
+    const revenueBase = 2970000;
+    const queryEnd = "2025-10-13";
+    const countries = [
+      ["美国", 0.46], ["加拿大", 0.12], ["英国", 0.1], ["德国", 0.09], ["法国", 0.07],
+      ["荷兰", 0.05], ["意大利", 0.04], ["西班牙", 0.03], ["波兰", 0.02], ["其他", 0.02]
+    ];
+    const rates = {
+      EU: { platform: 1, risk: 0.15, pay: 5.8, storage: 0.8, other: 2.26 },
+      UK: { platform: 0.9, risk: 0.15, pay: 6.2, storage: 0.8, other: 2.54 },
+      US: { platform: 1, risk: 0.09, pay: 4.77, storage: 0.58, other: 2.39 },
+      CA: { platform: 0.81, risk: 0.06, pay: 5.25, storage: 0.41, other: 5.26 }
+    };
+    const weights = { usSea: 70, usFast: 20, usLine: 10, euSea: 90, euFast: 0, euLine: 10 };
+    function sliceByName(name) { return slices.find((s) => s[0] === name); }
+    function money(n) { return Math.round(n).toLocaleString("en-US"); }
+    function num(v) {
+      const n = Number(v);
+      return Number.isFinite(n) ? n : NaN;
+    }
+    function headText() {
+      const usUnit = 1.18 * weights.usSea / 100 + 2.40 * weights.usFast / 100;
+      const euUnit = 1.18 * weights.euSea / 100 + 2.40 * weights.euFast / 100;
+      const usAmt = 90 * usUnit / 6.60;
+      const euAmt = 90 * euUnit / 6.60;
+      return "该 MSKU 已有头程单价：查询区间内各月都按老品，用近 12 月滚动加权单价。没有头程单价：取 Shipment 费用页近 3 个自然月，每月单独算综合单价。归月用发货时间（DL 创建时间）。只统计目的仓为海外仓、已发运、shipped 数量大于 0 的计划。占比 = 该运输方式 shipped 数量 ÷ 该月已发运总件数。每种方式在物流计算器都有报价时，综合单价 = Σ（预估成本元/PCS × 占比）。始发仓 Shenzhen Warehouse，目的国按站点。该月没有已发运，或任一运输方式没有对应报价时，改用固定权重。美国、加拿大：当前普船 × " + weights.usSea + "% + 当前快船 × " + weights.usFast + "% + 当前专线 × " + weights.usLine + "%，没有快船或专线报价时该项按 0。英国、欧盟：当前普船 × " + weights.euSea + "% + 当前快船 × " + weights.euFast + "% + 当前专线 × " + weights.euLine + "%，没有报价时该项按 0。快船默认 0。件数 = 发货销量 − 退货销量，Shipment 件数只用于占比。头程 = 件数 × 该月单价 ÷ 发货月美元汇率（1 美元 = x 人民币）。跨月按月拆开。当月未过完时，占比只用已发运件数。试算用的人工空运、人工海运只在试算里，不改本列。例：发货 100、退货 10，汇率 6.60。10 月普船 240 件、快船 60 件，单价 1.18、2.40，综合单价 = 1.18×0.8 + 2.40×0.2 = 1.424，头程 = 90 × 1.424 ÷ 6.60 = 19.42 美元。该月无发运或运输方式无报价时改固定权重：美国或加拿大 " + usUnit.toFixed(3) + " 元/PCS、头程 " + usAmt.toFixed(2) + " 美元；英国或欧盟 " + euUnit.toFixed(3) + " 元/PCS、头程 " + euAmt.toFixed(2) + " 美元。已有头程单价且滚动单价 12.30 时，头程 = 167.73 美元。本列期间合计示例仍为 180,000。权重在本页「头程权重」中维护。";
+    }
+    function applyConfig() {
+      const us = rates.US;
+      const platform = Math.round(revenueBase * us.platform / 100);
+      const pay = Math.round(revenueBase * us.pay / 100);
+      const risk = Math.round(revenueBase * us.risk / 100);
+      const storage = Math.round(revenueBase * us.storage / 100);
+      const otherFee = revenueBase < 0 ? 0 : Math.round(revenueBase * us.other / 100);
+      const middle = platform + pay + risk + 120000 + 180000 + 320000 + 80000 + storage + otherFee;
+      const profit = revenueBase - 915000 - middle;
+      sliceByName("平台服务")[1] = platform;
+      sliceByName("平台服务")[3] = "对应平台费，金额 = 营业收入 × 站点平台费率。该费率已含 Seel 费用，不再单独扣 Seel净销售 × 6%。当前查询用保存日之前的费率：EU " + rates.EU.platform + "%、UK " + rates.UK.platform + "%、US " + rates.US.platform + "%、CA " + rates.CA.platform + "%。本例美国站 2,970,000 × " + us.platform + "% = " + money(platform) + "。";
+      sliceByName("支付通道手续费")[1] = pay;
+      sliceByName("支付通道手续费")[3] = "维护收单 / 提现费率：运营 → 成本费率配置，按店铺 + 年月。看板金额 = 营业收入 × 费率。本页「费率配置」维护站点默认值。当前查询用保存日之前的费率：US " + rates.US.pay + "%、CA " + rates.CA.pay + "%、EU " + rates.EU.pay + "%、UK " + rates.UK.pay + "%。本例美国站 2,970,000 × " + us.pay + "% = " + money(pay) + "。单件试算不替代本列期间金额。";
+      sliceByName("平台其他")[1] = risk;
+      sliceByName("平台其他")[3] = "对应风控费，金额 = 营业收入 × 站点风控费率。当前查询用保存日之前的费率：EU " + rates.EU.risk + "%、UK " + rates.UK.risk + "%、US " + rates.US.risk + "%、CA " + rates.CA.risk + "%。本例美国站 2,970,000 × " + us.risk + "% = " + money(risk) + "。";
+      sliceByName("仓储其它")[1] = storage;
+      sliceByName("仓储其它")[3] = "按 Listing 站点维护海外仓费率，对应管报仓储其他。看板期间 = 营业收入 × 同一费率。当前查询用保存日之前的费率：US " + rates.US.storage + "%、CA " + rates.CA.storage + "%、EU " + rates.EU.storage + "%、UK " + rates.UK.storage + "%，未列站点记 0。例：美国站 2,970,000 × " + us.storage + "% = " + money(storage) + "。";
+      sliceByName("其他费用")[1] = otherFee;
+      sliceByName("其他费用")[3] = "沿用现网。金额 = 净销售额 × 其他费率。净销售额为负时记 0。当前查询用保存日之前的费率：EU " + rates.EU.other + "%、UK " + rates.UK.other + "%、US " + rates.US.other + "%、CA " + rates.CA.other + "%。本例美国站 2,970,000 × " + us.other + "% = " + money(otherFee) + "。";
+      sliceByName("头程")[3] = headText();
+      sliceByName("净利润")[1] = profit;
+      sliceByName("净利润")[3] = "净利润 = 净销售额 − 成本 − 平台服务 − 支付通道手续费 − 平台其他 − 电商站外投放 − 头程 − 尾程 − 仓储租金 − 仓储其它 − 其他费用。平台服务费率已含 Seel 费用，不再单独扣 Seel净销售 × 6%。示例净销售额 2,970,000。其他费用 = " + money(otherFee) + "。2,970,000 − 915,000 − " + money(middle) + " = " + money(profit) + "。概览卡片使用同一个数，净利润率 = 净利润 ÷ 净销售额。";
+      document.querySelector("[data-k=netSales] .v").textContent = revenueBase.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      document.querySelector("[data-k=profit] .v").textContent = Math.round(profit).toLocaleString("en-US");
+      document.querySelector("[data-k=profitRate] .v").textContent = (profit / revenueBase * 100).toFixed(3) + " %";
+    }
+    function renderCost() {
+      applyConfig();
+      const pieBase = slices.reduce((s, x) => s + x[1], 0);
+      let acc = 0;
+      const stops = slices.map((s) => {
+        const start = acc;
+        acc += s[1] / pieBase * 100;
+        return s[2] + " " + start.toFixed(2) + "% " + acc.toFixed(2) + "%";
+      });
+      document.getElementById("pie").style.background = "conic-gradient(" + stops.join(",") + ")";
+      document.getElementById("legend").innerHTML = slices.map((s, i) =>
+        "<div><span><i style=\"background:" + s[2] + "\"></i>" + s[0] + "<button type=\"button\" class=\"explain\" data-i=\"" + i + "\" title=\"查看测算逻辑\" aria-label=\"" + s[0] + "测算逻辑\">?</button></span><span class=\"num\">" + s[1].toLocaleString("en-US") + "　" + (s[1] / pieBase * 100).toFixed(2) + "%</span></div>"
+      ).join("");
+      const countryItems = slices.filter((s) => s[0] !== "净利润");
+      document.getElementById("country").innerHTML = "<table><tr><td>国家</td>" + countryItems.map((s) => "<td class=\"n\">" + s[0] + "</td>").join("") + "</tr>" +
+        countries.map((c) => "<tr><td>" + c[0] + "</td>" + countryItems.map((s) => "<td class=\"n\">" + Math.round(s[1] * c[1]).toLocaleString("en-US") + "</td>").join("") + "</tr>").join("") +
+        "</table>";
+    }
+    function showExplain(i) {
+      const pieBase = slices.reduce((s, x) => s + x[1], 0);
+      const s = slices[i];
+      document.getElementById("explainTitle").textContent = s[0];
+      document.getElementById("explainBody").innerHTML = s[1].toLocaleString("en-US") + "（" + (s[1] / pieBase * 100).toFixed(2) + "%）<br>" + s[3];
+      document.getElementById("explainMask").classList.add("show");
+    }
+    document.getElementById("legend").addEventListener("click", (e) => {
+      const el = e.target.closest(".explain");
+      if (el) showExplain(Number(el.dataset.i));
+    });
+    document.getElementById("explainClose").onclick = () => document.getElementById("explainMask").classList.remove("show");
+    document.getElementById("explainMask").onclick = (e) => { if (e.target.id === "explainMask") document.getElementById("explainMask").classList.remove("show"); };
+    document.getElementById("trend").innerHTML = [46, 52, 40, 58, 49, 44, 36].map((h) => "<span style=\"height:" + h + "%\"></span>").join("");
+    document.getElementById("exp").addEventListener("click", () => {
+      const pieBase = slices.reduce((s, x) => s + x[1], 0);
+      const lines = ["费用项,金额,占饼图合计,来源"];
+      slices.forEach((s) => lines.push(s[0] + "," + s[1] + "," + (s[1] / pieBase * 100).toFixed(2) + "%,本页"));
+      lines.push("饼图合计," + pieBase + ",100%,分母");
+      const blob = new Blob(["\uFEFF" + lines.join("\n")], { type: "text/csv;charset=utf-8" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = "成本结构-v2.csv";
+      a.click();
+    });
+    const futureRates = JSON.parse(JSON.stringify(rates));
+    function nextDay() {
+      const d = new Date();
+      d.setDate(d.getDate() + 1);
+      const m = String(d.getMonth() + 1).padStart(2, "0");
+      const day = String(d.getDate()).padStart(2, "0");
+      return d.getFullYear() + "-" + m + "-" + day;
+    }
+    function fillRateForm() {
+      document.querySelectorAll("#rateMask input[data-site]").forEach((input) => {
+        input.value = futureRates[input.dataset.site][input.dataset.key];
+      });
+      document.getElementById("rateErr").textContent = "";
+    }
+    function fillWeightForm() {
+      document.getElementById("usSea").value = weights.usSea;
+      document.getElementById("usFast").value = weights.usFast;
+      document.getElementById("usLine").value = weights.usLine;
+      document.getElementById("euSea").value = weights.euSea;
+      document.getElementById("euFast").value = weights.euFast;
+      document.getElementById("euLine").value = weights.euLine;
+      document.getElementById("weightErr").textContent = "";
+      refreshWeightPreview();
+    }
+    function refreshWeightPreview() {
+      const usSea = num(document.getElementById("usSea").value);
+      const usFast = num(document.getElementById("usFast").value);
+      const usLine = num(document.getElementById("usLine").value);
+      const euSea = num(document.getElementById("euSea").value);
+      const euFast = num(document.getElementById("euFast").value);
+      const euLine = num(document.getElementById("euLine").value);
+      document.getElementById("usSum").textContent = [usSea, usFast, usLine].some((n) => Number.isNaN(n)) ? "—" : (usSea + usFast + usLine).toFixed(1).replace(/\.0$/, "") + "%";
+      document.getElementById("euSum").textContent = [euSea, euFast, euLine].some((n) => Number.isNaN(n)) ? "—" : (euSea + euFast + euLine).toFixed(1).replace(/\.0$/, "") + "%";
+      if ([usSea, usFast, usLine, euSea, euFast, euLine].some((n) => Number.isNaN(n))) {
+        document.getElementById("weightPreview").textContent = "";
+        return;
+      }
+      const usUnit = 1.18 * usSea / 100 + 2.40 * usFast / 100;
+      const euUnit = 1.18 * euSea / 100 + 2.40 * euFast / 100;
+      document.getElementById("weightPreview").textContent = "按示例报价（普船 1.18、快船 2.40、专线无报价，90 件，汇率 6.60）：美国或加拿大 " + usUnit.toFixed(3) + " 元/PCS、" + (90 * usUnit / 6.60).toFixed(2) + " 美元；英国或欧盟 " + euUnit.toFixed(3) + " 元/PCS、" + (90 * euUnit / 6.60).toFixed(2) + " 美元。饼图头程期间合计仍为 180,000。";
+    }
+    document.getElementById("cfgRate").onclick = () => { fillRateForm(); document.getElementById("rateMask").classList.add("show"); };
+    document.getElementById("rateCancel").onclick = () => document.getElementById("rateMask").classList.remove("show");
+    document.getElementById("rateSave").onclick = () => {
+      const next = { EU: {}, UK: {}, US: {}, CA: {} };
+      let bad = false;
+      document.querySelectorAll("#rateMask input[data-site]").forEach((input) => {
+        const value = num(input.value);
+        next[input.dataset.site][input.dataset.key] = value;
+        if (Number.isNaN(value) || value < 0) bad = true;
+      });
+      if (bad) {
+        document.getElementById("rateErr").textContent = "费率填写大于或等于 0 的数字。";
+        return;
+      }
+      ["EU", "UK", "US", "CA"].forEach((site) => Object.assign(futureRates[site], next[site]));
+      const start = nextDay();
+      document.getElementById("rateNote").textContent = "费率已保存，自 " + start + " 起生效。当前查询到 " + queryEnd + " 为止，仍用保存前的费率，金额不变。";
+      document.getElementById("rateMask").classList.remove("show");
+    };
+    document.getElementById("cfgWeight").onclick = () => { fillWeightForm(); document.getElementById("weightMask").classList.add("show"); };
+    document.getElementById("weightCancel").onclick = () => document.getElementById("weightMask").classList.remove("show");
+    ["usSea", "usFast", "usLine", "euSea", "euFast", "euLine"].forEach((id) => {
+      document.getElementById(id).addEventListener("input", refreshWeightPreview);
+    });
+    document.getElementById("weightSave").onclick = () => {
+      const next = {
+        usSea: num(document.getElementById("usSea").value),
+        usFast: num(document.getElementById("usFast").value),
+        usLine: num(document.getElementById("usLine").value),
+        euSea: num(document.getElementById("euSea").value),
+        euFast: num(document.getElementById("euFast").value),
+        euLine: num(document.getElementById("euLine").value)
+      };
+      const values = Object.values(next);
+      if (values.some((n) => Number.isNaN(n) || n < 0)) {
+        document.getElementById("weightErr").textContent = "权重填写大于或等于 0 的数字。";
+        return;
+      }
+      const usSum = next.usSea + next.usFast + next.usLine;
+      const euSum = next.euSea + next.euFast + next.euLine;
+      if (Math.abs(usSum - 100) > 0.05 || Math.abs(euSum - 100) > 0.05) {
+        document.getElementById("weightErr").textContent = "两组都是普船、快船、专线三项合计为 100%。";
+        return;
+      }
+      Object.assign(weights, next);
+      renderCost();
+      document.getElementById("weightMask").classList.remove("show");
+    };
+    document.getElementById("rateMask").onclick = (e) => { if (e.target.id === "rateMask") document.getElementById("rateMask").classList.remove("show"); };
+    document.getElementById("weightMask").onclick = (e) => { if (e.target.id === "weightMask") document.getElementById("weightMask").classList.remove("show"); };
+    renderCost();
+
+    const plines = [
+      { name: "51线", value: 80000, cats: [{ name: "灯泡", value: 50000 }, { name: "灯条", value: 30000 }] },
+      { name: "户外", value: 40000, cats: [{ name: "露营灯", value: 25000 }, { name: "灯带", value: 15000 }] },
+      { name: "家电", value: 120000, cats: [{ name: "台灯", value: 50000 }, { name: "落地灯", value: 40000 }, { name: "灯带", value: 30000 }] },
+      { name: "季节", value: 30000, cats: [{ name: "节日灯", value: 30000 }] },
+      { name: "游戏", value: 10000, cats: [{ name: "氛围灯", value: 10000 }] },
+      { name: "观影", value: 20000, cats: [{ name: "投影灯", value: 12000 }, { name: "屏幕灯", value: 8000 }] }
+    ];
+    const plTotal = plines.reduce((s, x) => s + x.value, 0);
+    const plColors = ["#1677ff", "#34d399", "#fb923c", "#a78bfa", "#f472b6", "#facc15", "#2dd4bf", "#94a3b8"];
+    let plMode = "line";
+    let plSelected = "";
+    let plTab = "chart";
+    function plMoney(n) { return n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+    function plItems() {
+      if (plMode === "line" && !plSelected) return plines.map((x) => ({ label: x.name, value: x.value, base: plTotal, key: x.name }));
+      if (plMode === "line" && plSelected) {
+        const line = plines.find((x) => x.name === plSelected);
+        return line.cats.map((c) => ({ label: c.name, value: c.value, base: line.value }));
+      }
+      const all = [];
+      plines.forEach((line) => line.cats.forEach((c) => {
+        const dup = plines.filter((l) => l.cats.some((x) => x.name === c.name)).length > 1;
+        all.push({ label: dup ? line.name + " / " + c.name : c.name, value: c.value, base: plTotal });
+      }));
+      return all;
+    }
+    function plView() {
+      if (plMode === "cat") return "全部品类";
+      if (plSelected) return "品线「" + plSelected + "」下的品类";
+      return "品线";
+    }
+    function renderLine() {
+      document.getElementById("btnLine").classList.toggle("on", plMode === "line");
+      document.getElementById("btnCat").classList.toggle("on", plMode === "cat");
+      document.getElementById("tabChart").style.fontWeight = plTab === "chart" ? "700" : "400";
+      document.getElementById("tabChart").style.color = plTab === "chart" ? "#1677ff" : "#64748b";
+      document.getElementById("tabTable").style.fontWeight = plTab === "table" ? "700" : "400";
+      document.getElementById("tabTable").style.color = plTab === "table" ? "#1677ff" : "#64748b";
+      document.getElementById("chartPane").style.display = plTab === "chart" ? "" : "none";
+      document.getElementById("tablePane").style.display = plTab === "table" ? "" : "none";
+      const items = plItems();
+      document.getElementById("pieTitle").textContent = (plMode === "line" && !plSelected ? "品线" : "品类") + "销售额占比 · 分母 " + plMoney(items[0] ? items[0].base : plTotal);
+      document.getElementById("crumb").innerHTML = plMode === "line" && plSelected
+        ? "<button type=\"button\" id=\"plBack\">全部品线</button> / " + plSelected
+        : (plMode === "cat" ? "全部品类" : "全部品线");
+      let start = 0;
+      const stops = items.map((it, i) => {
+        const from = start;
+        start += it.value / it.base * 100;
+        return plColors[i % plColors.length] + " " + from.toFixed(2) + "% " + start.toFixed(2) + "%";
+      });
+      document.getElementById("plPie").style.background = "conic-gradient(" + stops.join(",") + ")";
+      document.getElementById("plLegend").innerHTML = items.map((it, i) =>
+        "<div data-i=\"" + i + "\">" + it.label + "：" + plMoney(it.value) + "（" + (it.value / it.base * 100).toFixed(2) + "%）</div>"
+      ).join("");
+      document.getElementById("tablePane").innerHTML = "<table><tr><td>" + (plMode === "line" && !plSelected ? "品线" : "品类") + "</td><td class=\"n\">销售额</td><td class=\"n\">占比</td></tr>" +
+        items.map((it) => "<tr><td>" + it.label + "</td><td class=\"n\">" + plMoney(it.value) + "</td><td class=\"n\">" + (it.value / it.base * 100).toFixed(2) + "%</td></tr>").join("") + "</table>";
+      const back = document.getElementById("plBack");
+      if (back) back.onclick = () => { plSelected = ""; renderLine(); };
+    }
+    document.getElementById("btnLine").onclick = () => { plMode = "line"; plSelected = ""; renderLine(); };
+    document.getElementById("btnCat").onclick = () => { plMode = "cat"; plSelected = ""; renderLine(); };
+    document.getElementById("tabChart").onclick = () => { plTab = "chart"; renderLine(); };
+    document.getElementById("tabTable").onclick = () => { plTab = "table"; renderLine(); };
+    document.getElementById("plLegend").onclick = (e) => {
+      const el = e.target.closest("[data-i]");
+      if (!el || plMode !== "line" || plSelected) return;
+      plSelected = plItems()[Number(el.dataset.i)].key;
+      renderLine();
+    };
+    document.getElementById("plPie").onclick = (e) => {
+      if (plMode !== "line" || plSelected) return;
+      const rect = e.currentTarget.getBoundingClientRect();
+      const x = e.clientX - rect.left - rect.width / 2;
+      const y = e.clientY - rect.top - rect.height / 2;
+      let deg = Math.atan2(y, x) * 180 / Math.PI + 90;
+      if (deg < 0) deg += 360;
+      const items = plItems();
+      let degAcc = 0;
+      for (let i = 0; i < items.length; i++) {
+        degAcc += items[i].value / items[i].base * 360;
+        if (deg <= degAcc) { plSelected = items[i].key; renderLine(); return; }
+      }
+    };
+    document.getElementById("plExp").onclick = () => {
+      const items = plItems();
+      const csv = ["名称,销售额,占比,视图"].concat(items.map((it) => it.label + "," + it.value + "," + (it.value / it.base * 100).toFixed(2) + "%," + plView()));
+      const blob = new Blob(["\uFEFF" + csv.join("\n")], { type: "text/csv;charset=utf-8" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = "品线销售额-" + plView() + ".csv";
+      a.click();
+    };
+    document.getElementById("plBars").innerHTML = [70, 88, 60, 76, 64, 48, 40].map((h) => "<i style=\"height:" + h + "%\"></i>").join("");
+    document.getElementById("barNames").textContent = plines.map((x) => x.name).join("  ");
+    renderLine();
+
+    document.getElementById("more").innerHTML = ["流量指标","品线国家销售额占比","品线销售利润分析","SKU 明细","积分 Top10 兑换","积分相关指标","市场销售额"].map((t) =>
+      "<div class=\"box\" style=\"margin-top:12px\"><strong>" + t + "</strong><p class=\"hint\">现网区块保留，本次不改取数。</p></div>"
+    ).join("");
+  </script>
+</body>
+</html>

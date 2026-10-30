@@ -1,0 +1,2663 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>经营分析明细详细</title>
+  <style>
+    :root {
+      --page-bg: #f0f2f5;
+      --panel: #ffffff;
+      --line: #d9d9d9;
+      --line-soft: #e8edf3;
+      --text: rgba(0, 0, 0, 0.88);
+      --text-sec: rgba(0, 0, 0, 0.45);
+      --blue: #1677ff;
+      --blue-soft: #eaf3ff;
+      --green: #52c41a;
+      --red: #ff4d4f;
+      --orange: #fa8c16;
+      --purple: #722ed1;
+      --purple-soft: #f9f0ff;
+      --sider: #001529;
+      --shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+      /* 明细表：全表统一 1px 连续网格（与经营分析看板参考图一致） */
+      --detail-grid: #cbd5e1;
+    }
+
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+      margin: 0;
+      font-family: "PingFang SC", "Microsoft YaHei", -apple-system, sans-serif;
+      font-size: 13px;
+      color: var(--text);
+      background: var(--page-bg);
+    }
+
+    .layout {
+      display: flex;
+      min-height: 100vh;
+    }
+
+    .sider {
+      width: 56px;
+      flex-shrink: 0;
+      background: var(--sider);
+      border-right: 1px solid #002140;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      padding: 12px 0;
+    }
+
+    .sider-logo {
+      width: 36px;
+      height: 36px;
+      border-radius: 8px;
+      background: linear-gradient(135deg, #69b1ff, #2f54eb);
+      margin-bottom: 8px;
+    }
+
+    .sider-item {
+      width: 40px;
+      min-height: 40px;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: rgba(255, 255, 255, 0.65);
+      font-size: 11px;
+      line-height: 1.15;
+      text-align: center;
+      padding: 3px;
+    }
+
+    .sider-item.active {
+      background: rgba(255, 255, 255, 0.12);
+      color: #fff;
+    }
+
+    .main {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .header {
+      height: 48px;
+      background: var(--blue);
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 18px;
+      box-shadow: 0 1px 4px rgba(0, 21, 41, 0.12);
+    }
+
+    .header .title {
+      font-size: 16px;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+    }
+
+    .header .actions {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      font-size: 13px;
+    }
+
+    .page {
+      flex: 1;
+      overflow: auto;
+      padding: 16px;
+    }
+
+    .panel {
+      background: var(--panel);
+      border: 1px solid #e8e8e8;
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+      margin-bottom: 14px;
+      overflow: hidden;
+    }
+
+    /* 筛选区含自绘下拉：避免 .panel 的 overflow:hidden 裁切；并高于下方明细表 sticky 表头（z 至 20） */
+    .panel.panel--filter-stack {
+      overflow: visible;
+      position: relative;
+      z-index: 40;
+    }
+
+    .panel-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 16px;
+      border-bottom: 1px solid #f0f0f0;
+      background: linear-gradient(180deg, #fafafa 0%, #fff 100%);
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .panel-title {
+      font-size: 14px;
+      font-weight: 700;
+    }
+
+    .panel-sub {
+      font-size: 12px;
+      color: var(--text-sec);
+    }
+
+    .filter-panel {
+      padding: 12px 14px;
+      border-bottom: 1px solid #f0f0f0;
+    }
+
+    .filter-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px 10px;
+      align-items: center;
+    }
+
+    .f {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .f > label {
+      color: var(--text-sec);
+      white-space: nowrap;
+      font-size: 12px;
+    }
+
+    .f select,
+    .f input[type="text"] {
+      height: 28px;
+      padding: 2px 8px;
+      border: 1px solid var(--line);
+      border-radius: 4px;
+      font-size: 12px;
+      min-width: 88px;
+      max-width: 150px;
+      background: #fff;
+      color: var(--text);
+    }
+
+    .f input[type="date"] {
+      height: 28px;
+      padding: 2px 8px;
+      border: 1px solid var(--line);
+      border-radius: 4px;
+      font-size: 12px;
+      min-width: 138px;
+      background: #fff;
+      color: var(--text);
+    }
+
+    .f select:focus,
+    .f input:focus {
+      outline: none;
+      border-color: var(--blue);
+      box-shadow: 0 0 0 2px rgba(22, 119, 255, 0.12);
+    }
+
+    .date-range {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 2px 0;
+    }
+
+    .date-sep {
+      color: #94a3b8;
+      font-size: 12px;
+    }
+
+    .sku-input-group {
+      display: inline-flex;
+      align-items: stretch;
+      height: 28px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      overflow: hidden;
+      background: #fff;
+    }
+
+    .sku-mode {
+      border: none;
+      border-right: 1px solid var(--line);
+      background: #fafafa;
+      min-width: 90px;
+      font-size: 12px;
+      padding: 0 8px;
+    }
+
+    .sku-keyword {
+      border: none;
+      min-width: 150px;
+      padding: 0 10px;
+      font-size: 12px;
+    }
+
+    .toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 12px 14px;
+      flex-wrap: wrap;
+    }
+
+    .toolbar-left,
+    .toolbar-right,
+    .quick-tags,
+    .segment,
+    .switches {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .btn,
+    .tab,
+    .tag-btn,
+    .switch-btn {
+      height: 30px;
+      border-radius: 6px;
+      border: 1px solid var(--line);
+      background: #fff;
+      color: var(--text);
+      font-size: 12px;
+      padding: 0 12px;
+      cursor: pointer;
+      font-family: inherit;
+      transition: all 0.15s ease;
+    }
+
+    .btn:hover,
+    .tab:hover,
+    .tag-btn:hover,
+    .switch-btn:hover {
+      border-color: var(--blue);
+      color: var(--blue);
+    }
+
+    .btn-primary,
+    .tab.active,
+    .switch-btn.active {
+      background: var(--blue);
+      border-color: var(--blue);
+      color: #fff;
+    }
+
+    .tag-btn.active {
+      background: var(--purple-soft);
+      border-color: #d3adf7;
+      color: var(--purple);
+    }
+
+    .more-filters {
+      display: none;
+      border-top: 1px dashed #e6eaf0;
+      padding: 12px 14px;
+      background: #fafcff;
+    }
+
+    .more-filters.open {
+      display: block;
+    }
+
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(140px, 1fr));
+      gap: 10px;
+      padding: 0 14px 14px;
+    }
+
+    .card {
+      border: 1px solid var(--line-soft);
+      border-radius: 10px;
+      background: linear-gradient(180deg, #fff 0%, #fcfdff 100%);
+      padding: 12px;
+      min-height: 108px;
+      position: relative;
+    }
+
+    .card-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: #334155;
+    }
+
+    .card-value {
+      margin-top: 10px;
+      font-size: 28px;
+      font-weight: 800;
+      line-height: 1.05;
+      letter-spacing: -0.02em;
+    }
+
+    .card-sub {
+      margin-top: 8px;
+      display: flex;
+      gap: 10px;
+      font-size: 12px;
+      flex-wrap: wrap;
+    }
+
+    .card-note {
+      margin-top: 8px;
+      font-size: 11px;
+      color: var(--text-sec);
+    }
+
+    .trend-up { color: var(--red); }
+    .trend-down { color: var(--green); }
+    .trend-neutral { color: #475569; }
+
+    .status-grid {
+      display: grid;
+      grid-template-columns: 1.3fr 1fr 1fr 1fr;
+      gap: 10px;
+      padding: 0 14px 14px;
+    }
+
+    .status-card {
+      border: 1px solid var(--line-soft);
+      border-radius: 10px;
+      background: #fff;
+      padding: 12px;
+      min-height: 108px;
+    }
+
+    .status-card.warn {
+      background: linear-gradient(180deg, #fffaf0 0%, #fff 100%);
+      border-color: #ffd8bf;
+    }
+
+    .status-card .label {
+      font-size: 13px;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+
+    .status-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      height: 26px;
+      padding: 0 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      border: 1px solid #dbe7ff;
+      background: var(--blue-soft);
+      color: #1d4ed8;
+    }
+
+    .pill.warn {
+      border-color: #ffd8bf;
+      background: #fff7e6;
+      color: #d46b08;
+    }
+
+    .pill.danger {
+      border-color: #ffccc7;
+      background: #fff1f0;
+      color: #cf1322;
+    }
+
+    .chart-panel {
+      padding: 12px 14px 14px;
+    }
+
+    .flow-panel {
+      padding: 12px 14px 14px;
+      display: grid;
+      grid-template-columns: minmax(900px, 1fr) 360px;
+      gap: 14px;
+      align-items: start;
+    }
+
+    .flow-wrap {
+      border: 1px solid #d8e7ff;
+      border-radius: 10px;
+      background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+      overflow: hidden;
+    }
+
+    .flow-svg {
+      width: 100%;
+      min-width: 0;
+      height: auto;
+      aspect-ratio: 1560 / 620;
+      display: block;
+    }
+
+    .flow-detail {
+      border: 1px solid #e5eaf2;
+      border-radius: 10px;
+      background: #fff;
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .flow-detail-title {
+      font-size: 15px;
+      font-weight: 700;
+      margin-bottom: 6px;
+      color: #1e293b;
+      line-height: 1.4;
+    }
+
+    .flow-detail-sub {
+      font-size: 12px;
+      color: #64748b;
+      margin-bottom: 12px;
+      line-height: 1.5;
+    }
+
+    .flow-detail-list {
+      display: grid;
+      gap: 10px;
+      align-content: start;
+    }
+
+    .flow-detail-item {
+      border: 1px solid #dbe5f2;
+      border-radius: 8px;
+      padding: 10px 12px;
+      background: #f8fbff;
+    }
+
+    .flow-detail-current {
+      border: 1px dashed #94a3b8;
+      border-radius: 10px;
+      padding: 12px 14px;
+      margin-bottom: 12px;
+      background: linear-gradient(180deg, #f8fafc 0%, #fff 100%);
+    }
+
+    .flow-metric-block {
+      margin-top: 0;
+      display: grid;
+      grid-template-columns: minmax(72px, 1.35fr) minmax(0, 1fr) minmax(0, 1fr);
+      column-gap: 12px;
+      row-gap: 6px;
+      align-items: baseline;
+    }
+
+    .flow-metric-name {
+      font-size: 13px;
+      font-weight: 700;
+      line-height: 1.35;
+      color: #1e293b;
+      min-width: 0;
+    }
+
+    .flow-metric-name--empty {
+      visibility: hidden;
+      user-select: none;
+      pointer-events: none;
+    }
+
+    .flow-metric-head-val {
+      font-size: 13px;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+      color: #1e293b;
+      text-align: left;
+      justify-self: start;
+      min-width: 0;
+    }
+
+    .flow-metric-head-ratio {
+      font-size: 13px;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+      color: #64748b;
+      text-align: right;
+      justify-self: stretch;
+    }
+
+    .flow-metric-lbl {
+      font-size: 11px;
+      font-weight: 600;
+      color: #94a3b8;
+      text-align: left;
+      line-height: 1.35;
+    }
+
+    .flow-metric-trend-val {
+      font-size: 11px;
+      font-weight: 600;
+      color: #94a3b8;
+      text-align: left;
+      font-variant-numeric: tabular-nums;
+      line-height: 1.35;
+      justify-self: start;
+      min-width: 0;
+    }
+
+    .flow-metric-trend-ratio {
+      font-size: 11px;
+      font-weight: 600;
+      color: #94a3b8;
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+      line-height: 1.35;
+      justify-self: stretch;
+    }
+
+    .flow-detail-item .flow-metric-block {
+      margin-top: 0;
+    }
+
+    @media (max-width: 1360px) {
+      .flow-panel {
+        grid-template-columns: 1fr;
+      }
+
+      .flow-detail {
+        margin-top: 10px;
+        min-height: 0;
+      }
+    }
+
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .legend-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
+      color: #475569;
+      font-size: 12px;
+      user-select: none;
+    }
+
+    .legend-item.off {
+      opacity: 0.35;
+    }
+
+    .legend-line {
+      width: 14px;
+      height: 2px;
+      border-radius: 2px;
+    }
+
+    .chart-box {
+      margin-top: 10px;
+      border: 1px solid #cfe0ff;
+      border-radius: 8px;
+      background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+      padding: 12px 12px 4px;
+    }
+
+    svg.chart {
+      width: 100%;
+      height: 320px;
+      display: block;
+    }
+
+    .table-panel {
+      padding: 0;
+    }
+
+    .table-tools {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 12px 14px;
+      border-bottom: 1px solid #f0f0f0;
+      flex-wrap: wrap;
+      background: linear-gradient(180deg, #fafafa 0%, #fff 100%);
+    }
+
+    .table-wrap {
+      overflow: auto;
+      max-height: 58vh;
+    }
+
+    .export-wrap {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .export-menu {
+      position: absolute;
+      top: calc(100% + 6px);
+      right: 0;
+      min-width: 172px;
+      background: #fff;
+      border: 1px solid #dbe3ef;
+      border-radius: 6px;
+      box-shadow: 0 8px 20px rgba(15, 23, 42, 0.12);
+      padding: 6px;
+      z-index: 30;
+      display: none;
+    }
+
+    .export-menu.open {
+      display: block;
+    }
+
+    .export-option {
+      display: block;
+      width: 100%;
+      border: none;
+      background: #fff;
+      text-align: left;
+      font-size: 13px;
+      color: #0f172a;
+      padding: 8px 10px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-family: inherit;
+    }
+
+    .export-option:hover {
+      background: #f1f5ff;
+      color: #1d4ed8;
+    }
+
+    table {
+      border-collapse: collapse;
+      min-width: 4480px;
+      width: 100%;
+    }
+
+    th, td {
+      padding: 7px 8px;
+      font-size: 12px;
+      text-align: center;
+      white-space: nowrap;
+      vertical-align: top;
+    }
+
+    /* 表头与表体同一套 1px 格线，禁止混用 2px/多色边 + 伪阴影叠线（全局规范：数据表格-表头固定） */
+    #detailTable thead th,
+    #detailTable tbody td {
+      border: 1px solid var(--detail-grid);
+    }
+
+    #detailTable thead {
+      --thead-group-h: 40px; /* 与 thead tr.cols th 的 top 一致，避免滚动时层间假缝隙 */
+    }
+
+    th {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      background: #f8fbff;
+      color: #334155;
+      font-weight: 700;
+    }
+
+    thead tr.group th {
+      top: 0;
+      background: #eef5ff;
+      z-index: 12;
+    }
+
+    #detailTable thead tr.group th:not([rowspan]) {
+      min-height: var(--thead-group-h);
+      height: var(--thead-group-h);
+      box-sizing: border-box;
+      vertical-align: middle;
+    }
+
+    thead tr.cols th {
+      top: var(--thead-group-h);
+      z-index: 11;
+    }
+
+    /* 冻结列：left 累加必须与各列 width 一致，否则会与右侧指标列重叠错位 */
+    th.left,
+    td.left {
+      text-align: left;
+      position: sticky;
+      left: 0;
+      box-sizing: border-box;
+      width: 200px;
+      min-width: 200px;
+      max-width: 200px;
+      white-space: normal;
+      word-break: break-word;
+      background: #fff;
+      z-index: 6;
+    }
+
+    th.left-2,
+    td.left-2 {
+      position: sticky;
+      left: 200px;
+      box-sizing: border-box;
+      width: 200px;
+      min-width: 200px;
+      max-width: 200px;
+      white-space: normal;
+      word-break: break-word;
+      background: #fff;
+      z-index: 6;
+    }
+
+    th.left-3,
+    td.left-3 {
+      position: sticky;
+      left: 400px;
+      box-sizing: border-box;
+      width: 180px;
+      min-width: 180px;
+      max-width: 180px;
+      white-space: normal;
+      word-break: break-word;
+      background: #fff;
+      z-index: 6;
+    }
+
+    th.left-4,
+    td.left-4 {
+      position: sticky;
+      left: 580px;
+      box-sizing: border-box;
+      width: 220px;
+      min-width: 220px;
+      max-width: 220px;
+      white-space: normal;
+      word-break: break-word;
+      background: #fff;
+      z-index: 6;
+    }
+
+    th.left-5,
+    td.left-5 {
+      position: sticky;
+      left: 800px;
+      box-sizing: border-box;
+      width: 160px;
+      min-width: 140px;
+      max-width: 200px;
+      white-space: normal;
+      word-break: break-word;
+      background: #fff;
+      z-index: 6;
+    }
+
+    thead tr.group th.left,
+    thead tr.group th.left-2,
+    thead tr.group th.left-3,
+    thead tr.group th.left-4,
+    thead tr.group th.left-5 {
+      z-index: 20;
+      background: #eef5ff;
+    }
+
+    .sticky-base {
+      background: #fff;
+    }
+
+    .retailer-dim-label {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
+      user-select: none;
+      color: var(--text);
+    }
+
+    .retailer-dim-label input {
+      margin: 0;
+      cursor: pointer;
+    }
+
+    .retailer-filter-wrap {
+      align-items: center;
+    }
+
+    .retailer-ms {
+      position: relative;
+      min-width: 200px;
+    }
+
+    .retailer-ms-trigger {
+      height: 28px;
+      padding: 0 10px;
+      border: 1px solid var(--line);
+      border-radius: 4px;
+      background: #fff;
+      font-size: 12px;
+      cursor: pointer;
+      text-align: left;
+      width: 100%;
+      color: var(--text);
+    }
+
+    .retailer-ms-trigger:focus {
+      outline: none;
+      border-color: var(--blue);
+      box-shadow: 0 0 0 2px rgba(22, 119, 255, 0.12);
+    }
+
+    .retailer-ms-panel {
+      display: none;
+      position: absolute;
+      z-index: 50;
+      top: calc(100% + 4px);
+      left: 0;
+      min-width: 240px;
+      max-height: 260px;
+      overflow: auto;
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      padding: 8px;
+    }
+
+    .retailer-ms-panel.open {
+      display: block;
+    }
+
+    .retailer-ms-search {
+      width: 100%;
+      height: 26px;
+      margin-bottom: 8px;
+      padding: 0 8px;
+      border: 1px solid var(--line);
+      border-radius: 4px;
+      font-size: 12px;
+    }
+
+    .retailer-ms-actions {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 6px;
+      font-size: 11px;
+    }
+
+    .retailer-ms-actions button {
+      border: none;
+      background: none;
+      color: var(--blue);
+      cursor: pointer;
+      padding: 0;
+    }
+
+    .retailer-check-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 2px;
+      font-size: 12px;
+    }
+
+    .retailer-check-row.hidden-by-search {
+      display: none;
+    }
+
+    .metric-main {
+      font-weight: 700;
+      color: #111827;
+    }
+
+    .metric-sub {
+      margin-top: 3px;
+      font-size: 11px;
+      color: #64748b;
+    }
+
+    .sortable-th {
+      cursor: pointer;
+      user-select: none;
+      white-space: nowrap;
+    }
+
+    #detailTable thead tr.cols th.sortable-th {
+      min-width: 152px;
+      box-sizing: border-box;
+      vertical-align: top;
+    }
+
+    #detailTable thead tr.cols th.achieve-head {
+      min-width: 112px;
+      box-sizing: border-box;
+    }
+
+    .th-metric-head {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 8px;
+      min-width: 0;
+    }
+
+    .th-metric-head .th-title {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .th-metric-head .sort-ic {
+      flex-shrink: 0;
+      margin-left: 0;
+      line-height: 1.25;
+      padding-top: 1px;
+    }
+
+    .sortable-th .sort-ic {
+      margin-left: 4px;
+      font-size: 11px;
+      color: #1677ff;
+      font-weight: 700;
+    }
+
+    .sortable-th.th-sorted {
+      background: #e8f3ff;
+      box-shadow: inset 0 -2px 0 #1677ff;
+    }
+
+    .row-toggle {
+      width: 18px;
+      height: 18px;
+      border: 1px solid #cbd5e1;
+      border-radius: 4px;
+      background: #fff;
+      color: #475569;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      margin-right: 8px;
+      cursor: pointer;
+      font-size: 11px;
+      vertical-align: middle;
+    }
+
+    .row-toggle.open {
+      background: #eaf3ff;
+      border-color: #91caff;
+      color: #1d4ed8;
+    }
+
+    .row-label {
+      display: inline-flex;
+      align-items: center;
+      min-height: 18px;
+    }
+
+    .row-meta {
+      line-height: 1.5;
+      white-space: normal;
+    }
+
+    .row-meta-sub {
+      color: #64748b;
+      font-size: 11px;
+    }
+
+    .boundary-callout {
+      margin: 0 0 14px;
+      padding: 10px 14px;
+      border: 1px solid #bae0ff;
+      background: #e6f4ff;
+      border-radius: 8px;
+      font-size: 12px;
+      color: #0958d9;
+      line-height: 1.55;
+    }
+
+    .boundary-callout strong {
+      color: #003a8c;
+    }
+
+    .achieve-head {
+      text-align: right;
+      font-size: 11px;
+      font-weight: 700;
+      color: #1d4ed8;
+      white-space: nowrap;
+      background: #f0f7ff;
+    }
+
+    .achieve-head.th-sorted {
+      background: #d9ecff;
+      box-shadow: inset 0 -2px 0 #1677ff;
+    }
+
+    .achieve-cell {
+      text-align: right;
+      font-size: 12px;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+      color: #0f172a;
+      background: #fafcff;
+    }
+
+    tr.summary-row td {
+      background: #fcfdff;
+      font-weight: 700;
+    }
+
+    tr.summary-row td.left,
+    tr.summary-row td.left-2,
+    tr.summary-row td.left-3,
+    tr.summary-row td.left-4,
+    tr.summary-row td.left-5 {
+      background: #fcfdff;
+    }
+
+    .achieve-cell.achieve-cell-pad {
+      font-weight: 500;
+      color: #cbd5e1;
+      background: #f8fafc;
+    }
+
+    tr.expand-row td {
+      background: #f8fbff;
+    }
+
+    tr.expand-row td.sticky-base {
+      background: #f8fbff;
+    }
+
+    .expand-label {
+      color: #1d4ed8;
+      font-weight: 700;
+    }
+
+    .state-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      border-radius: 999px;
+      padding: 1px 6px;
+      font-size: 11px;
+      border: 1px solid #d9e6ff;
+      background: #f5f9ff;
+      color: #1d4ed8;
+    }
+
+    .state-tag.partial {
+      border-color: #ffe7ba;
+      background: #fff7e6;
+      color: #d46b08;
+    }
+
+    .state-tag.missing {
+      border-color: #ffccc7;
+      background: #fff1f0;
+      color: #cf1322;
+    }
+
+    .state-tag.offline {
+      border-color: #e5e7eb;
+      background: #f9fafb;
+      color: #6b7280;
+    }
+
+    .cell-missing {
+      background: #fff7f7;
+    }
+
+    .cell-partial {
+      background: #fffaf0;
+    }
+
+    .th-title {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      line-height: 1.2;
+      white-space: normal;
+    }
+
+    button.calc-icon {
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      border: 1px solid #91caff;
+      background: #eaf3ff;
+      color: #1d4ed8;
+      font-size: 11px;
+      font-weight: 700;
+      font-family: inherit;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      user-select: none;
+      flex-shrink: 0;
+      padding: 0;
+      line-height: 1;
+      vertical-align: middle;
+    }
+
+    button.calc-icon:hover {
+      border-color: #1677ff;
+      background: #e0efff;
+    }
+
+    .calc-pop-external {
+      display: none;
+      position: fixed;
+      z-index: 10050;
+      width: min(320px, calc(100vw - 24px));
+      border: 1px solid #bfd7ff;
+      border-radius: 8px;
+      background: #ffffff;
+      box-shadow: 0 8px 20px rgba(15, 23, 42, 0.15);
+      text-align: left;
+      padding: 10px 12px;
+      font-size: 12px;
+      color: #334155;
+      white-space: normal;
+      line-height: 1.5;
+    }
+
+    .calc-pop-external.show {
+      display: block;
+    }
+
+    #detailTable tbody td.metric-col:not(.achieve-cell) {
+      min-width: 152px;
+      box-sizing: border-box;
+      white-space: normal;
+    }
+
+    #detailTable tbody td.metric-col.achieve-cell {
+      min-width: 112px;
+      box-sizing: border-box;
+    }
+
+    .req-dot {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 14px;
+      height: 14px;
+      margin-left: 6px;
+      border-radius: 50%;
+      background: #ef4444;
+      color: #fff;
+      font-size: 10px;
+      font-weight: 700;
+      cursor: pointer;
+      line-height: 1;
+      vertical-align: middle;
+      user-select: none;
+    }
+
+    .req-popover {
+      position: fixed;
+      z-index: 999;
+      display: none;
+      width: 420px;
+      max-width: calc(100vw - 24px);
+      border: 1px solid #fecaca;
+      border-radius: 10px;
+      background: #fff5f5;
+      box-shadow: 0 10px 24px rgba(15, 23, 42, 0.16);
+      padding: 10px 12px;
+      font-size: 12px;
+      color: #7f1d1d;
+      line-height: 1.55;
+      white-space: normal;
+    }
+
+    .req-popover.show {
+      display: block;
+    }
+
+    .req-popover a {
+      color: #1d4ed8;
+      text-decoration: underline;
+      text-underline-offset: 2px;
+      word-break: break-all;
+    }
+
+    .req-popover a:hover {
+      color: #1e40af;
+    }
+
+    .tag {
+      font-size: 11px;
+      color: var(--purple);
+      background: var(--purple-soft);
+      border: 1px solid #d3adf7;
+      padding: 1px 5px;
+      border-radius: 999px;
+    }
+
+    @media (max-width: 1440px) {
+      .status-grid { grid-template-columns: repeat(2, minmax(200px, 1fr)); }
+    }
+  </style>
+</head>
+<body>
+  <div class="layout">
+    <aside class="sider">
+      <div class="sider-logo"></div>
+      <div class="sider-item active">看板</div>
+      <div class="sider-item">分析</div>
+      <div class="sider-item">预算</div>
+      <div class="sider-item">对账</div>
+      <div class="sider-item">配置</div>
+    </aside>
+
+    <main class="main">
+      <header class="header">
+        <div class="title">经营分析明细详细</div>
+        <div class="actions">
+          <span>项目平台</span>
+          <span>物流系统</span>
+          <span>KA</span>
+        </div>
+      </header>
+
+      <div class="page">
+        <section class="panel panel--filter-stack">
+          <div class="panel-head">
+            <div>
+              <div class="panel-title">筛选与口径控制</div>
+              <div class="panel-sub">筛选后点击「搜索」刷新下方明细表。</div>
+            </div>
+          </div>
+
+          <div class="filter-panel">
+            <div class="filter-grid">
+              <div class="f">
+                <label>日期范围<span class="req-dot" data-req-key="filter-date-range">!</span></label>
+                <div class="date-range">
+                  <input type="date" id="dateStart" value="2026-04-01" />
+                  <span class="date-sep">至</span>
+                  <input type="date" id="dateEnd" value="2026-04-27" />
+                </div>
+              </div>
+              <div class="f"><label>区域<span class="req-dot" data-req-key="filter-region-country-link">!</span></label><select id="regionFilter"><option>全部</option></select></div>
+              <div class="f"><label>国家<span class="req-dot" data-req-key="filter-region-country-link">!</span></label><select id="countryFilter"><option>全部</option></select></div>
+              <div class="f"><label>渠道<span class="req-dot" data-req-key="filter-channel-store-link">!</span></label><select id="channelFilter"><option>全部</option></select></div>
+              <div class="f"><label>店铺<span class="req-dot" data-req-key="filter-channel-store-link">!</span></label><select id="storeFilter"><option>全部</option></select></div>
+              <div class="f"><label>部门</label><select><option>全部</option><option>销售</option><option>品牌</option></select></div>
+              <div class="f"><label>场景</label><select id="sceneFilter"><option>全部</option><option>居家</option><option>氛围</option></select></div>
+              <div class="f"><label>品类</label><select><option>全部</option><option>落地灯</option><option>灯带</option></select></div>
+              <div class="f"><label>品线</label><select><option>全部</option><option>6011</option><option>6159</option></select></div>
+              <div class="f"><label>model</label><select><option>全部</option><option>H6011</option><option>H6159</option></select></div>
+              <div class="f"><label>模组</label><select><option>全部</option><option>001</option><option>002</option></select></div>
+              <div class="f">
+                <label>SKU<span class="req-dot" data-req-key="filter-sku-mode">!</span></label>
+                <div class="sku-input-group">
+                  <select class="sku-mode" id="skuMode"><option>模糊</option><option>精确</option></select>
+                  <input class="sku-keyword" id="skuKeyword" type="text" value="H6011" />
+                </div>
+              </div>
+              <div class="f"><label>新品标签</label><select><option>全部</option><option>新品</option><option>老品</option></select></div>
+              <div class="f"><label>销售状态</label><select><option>全部</option><option>在售</option><option>清仓</option></select></div>
+              <div class="f"><label>币种<span class="req-dot" data-req-key="filter-currency-rule">!</span></label><select id="currencyFilter" disabled><option value="USD">USD</option></select></div>
+              <div class="f"><label>费用项范围</label><select><option>全部</option><option>收入链路</option><option>成本费用链路</option></select></div>
+              <div class="f" style="display:flex;align-items:center;flex-wrap:wrap;gap:10px;">
+                <div class="f retailer-filter-wrap" id="retailerFilterWrap" style="display:none;margin:0;">
+                  <label>零售商<span class="req-dot" data-req-key="retailer-filter">!</span></label>
+                  <div class="retailer-ms" id="retailerMsRoot">
+                    <button type="button" class="retailer-ms-trigger" id="retailerMsTrigger">全部零售商（未筛选）</button>
+                    <div class="retailer-ms-panel" id="retailerMsPanel">
+                      <input type="text" class="retailer-ms-search" id="retailerSearch" placeholder="搜索零售商" autocomplete="off" />
+                      <div class="retailer-ms-actions">
+                        <button type="button" id="retailerSelectAll">全选</button>
+                        <button type="button" id="retailerClearAll">清空</button>
+                      </div>
+                      <div id="retailerCheckList"></div>
+                    </div>
+                  </div>
+                </div>
+                <button class="btn btn-primary" id="searchBtn" type="button">搜索<span class="req-dot" data-req-key="search-trigger">!</span></button>
+                <div class="f retailer-dim-wrap" style="margin:0;">
+                  <label class="retailer-dim-label"><input type="checkbox" id="retailerDim" />零售商维度<span class="req-dot" data-req-key="retailer-dimension">!</span></label>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel table-panel">
+          <div class="table-tools">
+            <div>
+              <div class="panel-title">明细表<span class="req-dot" data-req-key="table-detail-overview">!</span></div>
+              <div class="panel-sub" id="tableDesc">点击列标题排序；默认按营收达成%从高到低。首行为当前筛选下「总计」汇总。</div>
+            </div>
+            <div class="export-wrap">
+              <button class="btn" id="exportBtn" type="button">导出</button>
+              <span class="req-dot" data-req-key="export-template">!</span>
+              <div class="export-menu" id="exportMenu">
+                <button class="export-option" type="button" data-export-type="date-summary">按日期合计导出</button>
+                <button class="export-option" type="button" data-export-type="date-detail">按日期明细导出</button>
+                <button class="export-option" type="button" data-export-type="month-detail">按月份明细导出</button>
+                <button class="export-option" type="button" data-export-type="year-detail">按年份明细导出</button>
+              </div>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table id="detailTable"></table>
+          </div>
+        </section>
+      </div>
+    </main>
+  </div>
+  <div class="req-popover" id="reqPopover"></div>
+  <div class="calc-pop-external" id="calcPopover" role="tooltip"></div>
+
+  <script>
+    /** 底表「销售额」计算列（括号内占比为 100% 的基准列） */
+    const SALES_AMOUNT_FEE = "销售额（计算值=净销售额+包装收入+运费收入）";
+
+    const feeColumns = [
+      "订单销售额",
+      "净销售额",
+      "运费收入",
+      "包装收入",
+      "销售额（计算值=净销售额+包装收入+运费收入）",
+      "折扣",
+      "直接扣减折扣",
+      "优惠合计（计算值=折扣）",
+      "销售收款（计算值=销售额-优惠合计）",
+      "销售退款",
+      "销售净额（计算值=销售收款-销售退款）",
+      "销售税/VAT",
+      "收入净额（计算值=销售净额-销售税/VAT）",
+      "出货授权成本",
+      "退货成本",
+      "平台赔偿",
+      "货值成本净额（计算值=出货授权成本+退货成本+平台赔偿）",
+      "广告费",
+      "品牌营销费",
+      "推广费",
+      "样品费",
+      "广告宣传小计（计算值=广告费+品牌营销费+推广费+样品费）",
+      "头程运费",
+      "尾程运费/FBA物流",
+      "退货运费",
+      "仓储费",
+      "物流成本小计（计算值=头程运费+尾程运费/FBA物流+退货运费+仓储费）",
+      "FBA佣金",
+      "平台服务费",
+      "收单费用/Payment Discount",
+      "店铺费用",
+      "Commission Fee",
+      "交易及平台费用小计（计算值=FBA佣金+平台服务费+收单费用/Payment Discount+店铺费用+Commission Fee）",
+      "运杂费",
+      "销量",
+      "营收",
+      "毛利"
+    ];
+
+    const feeStates = {
+      "订单销售额": "ok",
+      "净销售额": "ok",
+      "运费收入": "partial",
+      "包装收入": "partial",
+      "销售额（计算值=净销售额+包装收入+运费收入）": "calc",
+      "折扣": "ok",
+      "直接扣减折扣": "partial",
+      "优惠合计（计算值=折扣）": "calc",
+      "销售收款（计算值=销售额-优惠合计）": "calc",
+      "销售退款": "ok",
+      "销售净额（计算值=销售收款-销售退款）": "calc",
+      "销售税/VAT": "ok",
+      "收入净额（计算值=销售净额-销售税/VAT）": "calc",
+      "出货授权成本": "partial",
+      "退货成本": "ok",
+      "平台赔偿": "partial",
+      "货值成本净额（计算值=出货授权成本+退货成本+平台赔偿）": "calc",
+      "广告费": "ok",
+      "品牌营销费": "missing",
+      "推广费": "partial",
+      "样品费": "partial",
+      "广告宣传小计（计算值=广告费+品牌营销费+推广费+样品费）": "calc",
+      "头程运费": "ok",
+      "尾程运费/FBA物流": "ok",
+      "退货运费": "partial",
+      "仓储费": "partial",
+      "物流成本小计（计算值=头程运费+尾程运费/FBA物流+退货运费+仓储费）": "calc",
+      "FBA佣金": "ok",
+      "平台服务费": "missing",
+      "收单费用/Payment Discount": "missing",
+      "店铺费用": "missing",
+      "Commission Fee": "partial",
+      "交易及平台费用小计（计算值=FBA佣金+平台服务费+收单费用/Payment Discount+店铺费用+Commission Fee）": "calc",
+      "运杂费": "missing",
+      "销量": "ok",
+      "营收": "calc",
+      "毛利": "calc"
+    };
+
+    function revenueRatioBase(values) {
+      const sales = values[SALES_AMOUNT_FEE];
+      if (sales !== null && sales !== undefined && Math.abs(Number(sales)) > 1e-9) return Number(sales);
+      const r = values["营收"];
+      if (r !== null && r !== undefined && Math.abs(Number(r)) > 1e-9) return Number(r);
+      const alt = values["收入净额（计算值=销售净额-销售税/VAT）"];
+      if (alt !== null && alt !== undefined && Math.abs(Number(alt)) > 1e-9) return Number(alt);
+      return 0;
+    }
+
+    function feeStatsCounts() {
+      const keys = feeColumns.filter((f) => f !== "销量");
+      const by = (st) => keys.filter((f) => feeStates[f] === st).length;
+      return {
+        total: keys.length,
+        ok: by("ok"),
+        partial: by("partial"),
+        missing: by("missing"),
+        offline: by("offline"),
+        calc: by("calc")
+      };
+    }
+
+    function feeColumnExtraHint(fee) {
+      if (fee === "订单销售额") {
+        return "以订单成交金额视角为口径，仅提供与财务的销售额进行核对，在业务管理报表中不参与计算";
+      }
+      return "";
+    }
+
+    function feeCalcHintHtml(fee) {
+      const parsed = parseCalcInfo(fee);
+      const extra = feeColumnExtraHint(fee);
+      const parts = [];
+      if (parsed.calc) parts.push(parsed.calc);
+      if (extra) parts.push(extra);
+      return parts.join("<br><br>");
+    }
+
+    function round2(value) {
+      return Number(value.toFixed(2));
+    }
+
+    function buildBusinessValues(source) {
+      const values = {};
+      values["订单销售额"] = round2(source.orderSales);
+      values["净销售额"] = round2(source.netSales);
+      values["运费收入"] = round2(source.freightIncome);
+      values["包装收入"] = round2(source.packageIncome);
+      values["销售额（计算值=净销售额+包装收入+运费收入）"] = round2(values["净销售额"] + values["运费收入"] + values["包装收入"]);
+      values["折扣"] = round2(source.discount);
+      values["直接扣减折扣"] = round2(source.directDiscount);
+      values["优惠合计（计算值=折扣）"] = round2(values["折扣"]);
+      values["销售收款（计算值=销售额-优惠合计）"] = round2(values["销售额（计算值=净销售额+包装收入+运费收入）"] - values["优惠合计（计算值=折扣）"]);
+      values["销售退款"] = round2(source.refund);
+      values["销售净额（计算值=销售收款-销售退款）"] = round2(values["销售收款（计算值=销售额-优惠合计）"] - values["销售退款"]);
+      values["销售税/VAT"] = round2(source.tax);
+      values["收入净额（计算值=销售净额-销售税/VAT）"] = round2(values["销售净额（计算值=销售收款-销售退款）"] - values["销售税/VAT"]);
+      values["出货授权成本"] = round2(source.shipCost + source.dutyCost + source.reserveGross);
+      values["退货成本"] = round2(source.returnCost);
+      values["平台赔偿"] = round2(source.platformCompensation);
+      values["货值成本净额（计算值=出货授权成本+退货成本+平台赔偿）"] = round2(values["出货授权成本"] + values["退货成本"] + values["平台赔偿"]);
+      values["广告费"] = round2(source.adCost);
+      values["品牌营销费"] = round2(source.brandCost);
+      values["推广费"] = round2(source.promoCost);
+      values["样品费"] = round2(source.sampleCost);
+      values["广告宣传小计（计算值=广告费+品牌营销费+推广费+样品费）"] = round2(values["广告费"] + values["品牌营销费"] + values["推广费"] + values["样品费"]);
+      values["头程运费"] = round2(source.firstLeg);
+      values["尾程运费/FBA物流"] = round2(source.lastLeg);
+      values["退货运费"] = round2(source.returnFreight);
+      values["仓储费"] = round2(source.storageCost);
+      values["物流成本小计（计算值=头程运费+尾程运费/FBA物流+退货运费+仓储费）"] =
+        round2(values["头程运费"] + values["尾程运费/FBA物流"] + values["退货运费"] + values["仓储费"]);
+      values["FBA佣金"] = round2(source.fbaFee);
+      values["平台服务费"] = round2(source.platformFee);
+      values["收单费用/Payment Discount"] = round2(source.paymentFee);
+      values["店铺费用"] = round2(source.shopFee);
+      values["Commission Fee"] = round2(source.commissionFee);
+      values["交易及平台费用小计（计算值=FBA佣金+平台服务费+收单费用/Payment Discount+店铺费用+Commission Fee）"] =
+        round2(values["FBA佣金"] + values["平台服务费"] + values["收单费用/Payment Discount"] + values["店铺费用"] + values["Commission Fee"]);
+      values["运杂费"] = round2(source.miscCost);
+      values["销量"] = Math.round(source.qty);
+      values["营收"] = values["收入净额（计算值=销售净额-销售税/VAT）"];
+      values["毛利"] = round2(
+        values["营收"]
+        - values["货值成本净额（计算值=出货授权成本+退货成本+平台赔偿）"]
+        - values["广告宣传小计（计算值=广告费+品牌营销费+推广费+样品费）"]
+        - values["物流成本小计（计算值=头程运费+尾程运费/FBA物流+退货运费+仓储费）"]
+        - values["交易及平台费用小计（计算值=FBA佣金+平台服务费+收单费用/Payment Discount+店铺费用+Commission Fee）"]
+        - values["运杂费"]
+      );
+      return values;
+    }
+
+    const RETAIL_ACCOUNT_CHANNELS = new Set(["商超", "分销"]);
+    const ALL_RETAILER_OPTIONS = ["沃尔玛商超", "Target商超", "家乐福分销", "区域分销A", "未知"];
+
+    const SOURCE_NUM_KEYS = [
+      "orderSales",
+      "netSales",
+      "freightIncome",
+      "packageIncome",
+      "discount",
+      "directDiscount",
+      "refund",
+      "tax",
+      "shipCost",
+      "returnCost",
+      "platformCompensation",
+      "adCost",
+      "brandCost",
+      "promoCost",
+      "sampleCost",
+      "firstLeg",
+      "lastLeg",
+      "returnFreight",
+      "storageCost",
+      "dutyCost",
+      "fbaFee",
+      "platformFee",
+      "paymentFee",
+      "shopFee",
+      "commissionFee",
+      "miscCost",
+      "reserveGross",
+      "qty"
+    ];
+
+    function zeroSource() {
+      const z = {};
+      SOURCE_NUM_KEYS.forEach((k) => {
+        z[k] = 0;
+      });
+      return z;
+    }
+
+    function addSource(a, b) {
+      const out = { ...a };
+      SOURCE_NUM_KEYS.forEach((k) => {
+        out[k] = Number(out[k] || 0) + Number(b[k] || 0);
+      });
+      out.qty = Math.round(out.qty);
+      return out;
+    }
+
+    function scaleSource(src, factor) {
+      const out = {};
+      SOURCE_NUM_KEYS.forEach((k) => {
+        out[k] = (Number(src[k]) || 0) * factor;
+      });
+      out.qty = Math.round(out.qty);
+      return out;
+    }
+
+    function mergeRowsByStoreMsku(rows) {
+      const groups = new Map();
+      rows.forEach((row) => {
+        const key = `${row.store}|${row.msku}`;
+        if (!groups.has(key)) {
+          groups.set(key, { template: row, sources: [] });
+        }
+        groups.get(key).sources.push(row._source);
+      });
+      return Array.from(groups.values()).map((g) => {
+        const mergedSource = g.sources.reduce((acc, s) => addSource(acc, s), zeroSource());
+        const values = buildBusinessValues(mergedSource);
+        const t = g.template;
+        return {
+          region: t.region,
+          scene: t.scene,
+          team: t.team,
+          tl: t.tl,
+          sku: t.sku,
+          msku: t.msku,
+          channel: t.channel,
+          store: t.store,
+          retailer: "",
+          values,
+          _source: mergedSource
+        };
+      });
+    }
+
+    function createGranularSeedRows(count = 50) {
+      const regions = [
+        { region: "北美区", country: "US", store: "Govee US" },
+        { region: "北美区", country: "CA", store: "Govee CA" },
+        { region: "欧洲区", country: "DE", store: "Govee DE" },
+        { region: "欧洲区", country: "FR", store: "Govee FR" },
+        { region: "亚太区", country: "JP", store: "Govee JP" }
+      ];
+      const channels = ["亚马逊", "独立站", "TikTok", "沃尔玛", "Temu", "商超", "分销"];
+      const retailSplits = [
+        { retailer: "沃尔玛商超", w: 0.5 },
+        { retailer: "Target商超", w: 0.35 },
+        { retailer: "未知", w: 0.15 }
+      ];
+      const distSplits = [
+        { retailer: "家乐福分销", w: 0.42 },
+        { retailer: "区域分销A", w: 0.4 },
+        { retailer: "未知", w: 0.18 }
+      ];
+      const scenes = [
+        { scene: "居家", category: "落地灯", line: "6011" },
+        { scene: "居家", category: "灯带", line: "6159" },
+        { scene: "氛围", category: "氛围灯", line: "6102" },
+        { scene: "娱乐", category: "电视灯", line: "6198" },
+        { scene: "户外", category: "庭院灯", line: "6201" }
+      ];
+      const salesOwners = ["kaiwu", "vicky", "allen", "raina", "jack"];
+      const tls = ["bingna", "harry", "luna", "mia", "evan"];
+      const rows = [];
+
+      for (let idx = 0; idx < count; idx += 1) {
+        const i = idx + 1;
+        const regionInfo = regions[idx % regions.length];
+        const channel = channels[idx % channels.length];
+        const sceneInfo = scenes[idx % scenes.length];
+        const owner = salesOwners[idx % salesOwners.length];
+        const tl = tls[idx % tls.length];
+        const skuCode = `H${6011000 + i}`;
+        const factor = 0.68 + ((idx % 9) * 0.07);
+        const bump = ((idx % 5) * 47);
+
+        const netSales = 7600 * factor + 3500 + bump;
+        const fullSource = {
+          orderSales: netSales * 1.042 + (idx % 6) * 18,
+          netSales,
+          freightIncome: 420 * factor + (idx % 4) * 60,
+          packageIncome: 210 * factor + (idx % 3) * 40,
+          discount: 260 * factor + (idx % 4) * 20,
+          directDiscount: 120 * factor + (idx % 3) * 18,
+          refund: 180 * factor + (idx % 4) * 16,
+          tax: 210 * factor + (idx % 4) * 22,
+          shipCost: 1750 * factor + (idx % 5) * 65,
+          returnCost: 150 * factor + (idx % 3) * 14,
+          platformCompensation: 12 * factor + (idx % 2) * 8,
+          adCost: 420 * factor + (idx % 3) * 35,
+          brandCost: 130 * factor + (idx % 4) * 16,
+          promoCost: 240 * factor + (idx % 4) * 20,
+          sampleCost: 55 * factor + (idx % 3) * 10,
+          firstLeg: 340 * factor + (idx % 4) * 24,
+          lastLeg: 470 * factor + (idx % 4) * 32,
+          returnFreight: 118 * factor + (idx % 3) * 11,
+          storageCost: 106 * factor + (idx % 3) * 10,
+          dutyCost: 74 * factor + (idx % 4) * 9,
+          fbaFee: 165 * factor + (idx % 4) * 14,
+          platformFee: 82 * factor + (idx % 3) * 10,
+          paymentFee: 44 * factor + (idx % 3) * 8,
+          shopFee: 32 * factor + (idx % 2) * 6,
+          commissionFee: 22 * factor + (idx % 4) * 4,
+          miscCost: 28 * factor + (idx % 3) * 5,
+          reserveGross: 105 * factor + (idx % 3) * 9,
+          qty: 650 * factor + (idx % 7) * 28
+        };
+
+        const baseMeta = {
+          region: `${regionInfo.region}/${regionInfo.country}/${regionInfo.store}`,
+          scene: `${sceneInfo.scene}/${sceneInfo.category}/${sceneInfo.line}`,
+          team: `sales: ${owner}`,
+          tl: `TL: ${tl}`,
+          sku: `sku:${skuCode}`,
+          msku: `${skuCode}+${channel}+${regionInfo.country}`,
+          channel,
+          store: regionInfo.store
+        };
+
+        if (RETAIL_ACCOUNT_CHANNELS.has(channel)) {
+          const splits = channel === "商超" ? retailSplits : distSplits;
+          splits.forEach((sp) => {
+            const src = scaleSource(fullSource, sp.w);
+            rows.push({
+              ...baseMeta,
+              retailer: sp.retailer,
+              values: buildBusinessValues(src),
+              _source: src
+            });
+          });
+        } else {
+          rows.push({
+            ...baseMeta,
+            retailer: "",
+            values: buildBusinessValues(fullSource),
+            _source: { ...fullSource }
+          });
+        }
+      }
+      return rows;
+    }
+
+    const granularSeedRows = createGranularSeedRows(50);
+
+    const financeMultipliers = {
+      ok: 0.985,
+      partial: 0.78,
+      missing: null,
+      calc: null,
+      offline: null
+    };
+
+    function deriveFinanceValue(fee, businessValue) {
+      const state = feeStates[fee];
+      if (state === "calc") return null;
+      if (state === "offline") return null;
+      const multiplier = financeMultipliers[state];
+      if (multiplier === null) return null;
+      if (fee === "销量") return businessValue;
+      return Number((businessValue * multiplier).toFixed(2));
+    }
+
+    function deriveFinanceRow(row) {
+      const values = {};
+      feeColumns.forEach((fee) => {
+        values[fee] = deriveFinanceValue(fee, row.values[fee]);
+      });
+
+      const sales = (values["净销售额"] || 0) + (values["运费收入"] || 0) + (values["包装收入"] || 0);
+      values["销售额（计算值=净销售额+包装收入+运费收入）"] = sales || null;
+      values["优惠合计（计算值=折扣）"] = (values["折扣"] !== null && values["折扣"] !== undefined)
+        ? Number((values["折扣"] || 0).toFixed(2))
+        : null;
+      values["销售收款（计算值=销售额-优惠合计）"] = sales && values["优惠合计（计算值=折扣）"] !== null
+        ? Number((sales - (values["优惠合计（计算值=折扣）"] || 0)).toFixed(2))
+        : null;
+      values["销售净额（计算值=销售收款-销售退款）"] = values["销售收款（计算值=销售额-优惠合计）"] !== null
+        ? Number((values["销售收款（计算值=销售额-优惠合计）"] - (values["销售退款"] || 0)).toFixed(2))
+        : null;
+      values["收入净额（计算值=销售净额-销售税/VAT）"] = values["销售净额（计算值=销售收款-销售退款）"] !== null
+        ? Number((values["销售净额（计算值=销售收款-销售退款）"] - (values["销售税/VAT"] || 0)).toFixed(2))
+        : null;
+      values["货值成本净额（计算值=出货授权成本+退货成本+平台赔偿）"] = (values["出货授权成本"] || 0) + (values["退货成本"] || 0) + (values["平台赔偿"] || 0) || null;
+      values["广告宣传小计（计算值=广告费+品牌营销费+推广费+样品费）"] = (values["广告费"] || 0) + (values["品牌营销费"] || 0) + (values["推广费"] || 0) + (values["样品费"] || 0) || null;
+      values["物流成本小计（计算值=头程运费+尾程运费/FBA物流+退货运费+仓储费）"] = (values["头程运费"] || 0) + (values["尾程运费/FBA物流"] || 0) + (values["退货运费"] || 0) + (values["仓储费"] || 0) || null;
+      values["交易及平台费用小计（计算值=FBA佣金+平台服务费+收单费用/Payment Discount+店铺费用+Commission Fee）"] =
+        (values["FBA佣金"] || 0) + (values["平台服务费"] || 0) + (values["收单费用/Payment Discount"] || 0) + (values["店铺费用"] || 0) + (values["Commission Fee"] || 0) || null;
+      values["营收"] = values["收入净额（计算值=销售净额-销售税/VAT）"];
+      values["毛利"] = values["营收"] !== null
+        ? Number((
+            values["营收"]
+            - (values["货值成本净额（计算值=出货授权成本+退货成本+平台赔偿）"] || 0)
+            - (values["广告宣传小计（计算值=广告费+品牌营销费+推广费+样品费）"] || 0)
+            - (values["物流成本小计（计算值=头程运费+尾程运费/FBA物流+退货运费+仓储费）"] || 0)
+            - (values["交易及平台费用小计（计算值=FBA佣金+平台服务费+收单费用/Payment Discount+店铺费用+Commission Fee）"] || 0)
+            - (values["运杂费"] || 0)
+          ).toFixed(2))
+        : null;
+      return { ...row, values };
+    }
+
+    const displayFeeColumns = [
+      "销量",
+      "营收",
+      "毛利",
+      "净销售额",
+      "运费收入",
+      "包装收入",
+      "销售额（计算值=净销售额+包装收入+运费收入）",
+      "折扣",
+      "优惠合计（计算值=折扣）",
+      "销售收款（计算值=销售额-优惠合计）",
+      "销售退款",
+      "销售净额（计算值=销售收款-销售退款）",
+      "销售税/VAT",
+      "收入净额（计算值=销售净额-销售税/VAT）",
+      "出货授权成本",
+      "退货成本",
+      "平台赔偿",
+      "货值成本净额（计算值=出货授权成本+退货成本+平台赔偿）",
+      "广告费",
+      "品牌营销费",
+      "推广费",
+      "样品费",
+      "广告宣传小计（计算值=广告费+品牌营销费+推广费+样品费）",
+      "头程运费",
+      "尾程运费/FBA物流",
+      "退货运费",
+      "仓储费",
+      "物流成本小计（计算值=头程运费+尾程运费/FBA物流+退货运费+仓储费）",
+      "FBA佣金",
+      "平台服务费",
+      "收单费用/Payment Discount",
+      "店铺费用",
+      "Commission Fee",
+      "交易及平台费用小计（计算值=FBA佣金+平台服务费+收单费用/Payment Discount+店铺费用+Commission Fee）",
+      "运杂费"
+    ];
+
+    const state = {
+      showRatio: true,
+      retailerDimension: false,
+      selectedRetailers: new Set(),
+      sortKey: "ach:营收",
+      sortDir: "desc"
+    };
+
+    function applyRetailerNameFilter(rows) {
+      if (!state.retailerDimension || state.selectedRetailers.size === 0) return rows;
+      return rows.filter((r) => {
+        const name = r.retailer || "";
+        if (!name) return true;
+        return state.selectedRetailers.has(name);
+      });
+    }
+
+    function getDetailRowsForDisplay() {
+      const filtered = applyRetailerNameFilter(granularSeedRows);
+      if (state.retailerDimension) return filtered;
+      return mergeRowsByStoreMsku(filtered);
+    }
+
+    let baseRows = [];
+    let financeRows = [];
+
+    function syncRetailerDimensionFromUi() {
+      const el = document.getElementById("retailerDim");
+      state.retailerDimension = !!(el && el.checked);
+    }
+
+    function rebuildBaseAndFinance() {
+      syncRetailerDimensionFromUi();
+      const detail = getDetailRowsForDisplay();
+      const totalValues = {};
+      feeColumns.forEach((fee) => {
+        const sum = detail.reduce((acc, row) => acc + (Number(row.values[fee]) || 0), 0);
+        totalValues[fee] = fee === "销量" ? Math.round(sum) : round2(sum);
+      });
+      baseRows = [
+        {
+          region: "总计",
+          scene: "全场景/全部品类/全部品线",
+          team: "sales: 全部",
+          tl: "TL: 全部",
+          sku: "sku: 全部SKU",
+          msku: "",
+          retailer: "",
+          values: totalValues
+        },
+        ...detail
+      ];
+      financeRows = baseRows.map(deriveFinanceRow);
+    }
+
+    const detailTable = document.getElementById("detailTable");
+    const tableDesc = document.getElementById("tableDesc");
+    const reqPopover = document.getElementById("reqPopover");
+    const calcPopover = document.getElementById("calcPopover");
+    const exportBtn = document.getElementById("exportBtn");
+    const exportMenu = document.getElementById("exportMenu");
+    const regionFilter = document.getElementById("regionFilter");
+    const countryFilter = document.getElementById("countryFilter");
+    const channelFilter = document.getElementById("channelFilter");
+    const storeFilter = document.getElementById("storeFilter");
+    const currencyFilter = document.getElementById("currencyFilter");
+
+    const reqTextMap = {
+      "filter-date-range": `日期范围筛选逻辑：<br>
+1. 默认值为“上月开始日期 ~ 上月结束日期”。<br>
+2. 日期控件为范围选择，不允许结束日期早于开始日期。<br>
+3. 若跨月，财务维度行在时间与结账粒度上的拆分与展示规则见明细表「财务维度」说明。`,
+      "filter-region-country-link": `区域/国家筛选逻辑：<br>
+1. 区域默认“全部”，国家默认“全部”。<br>
+2. 国家下拉与区域联动：先选区域，再仅加载该区域国家。<br>
+3. 区域=“全部”时，国家展示全量国家。<br>
+4. 区域变更时，国家重置为“全部”。`,
+      "filter-sku-mode": `SKU筛选逻辑：<br>
+1. 支持“模糊/精确”两种模式。<br>
+2. 精确模式下建议输入完整 MSKU（sku+渠道+国家），例如 H6011001+亚马逊+US。<br>
+3. 模糊模式用于关键词检索（SKU前缀/片段）。`,
+      "filter-channel-store-link": `渠道/店铺筛选逻辑：<br>
+1. 渠道默认“全部”，店铺默认“全部”。<br>
+2. 店铺下拉与渠道联动：先选渠道，再仅加载该渠道店铺。<br>
+3. 渠道=“全部”时，店铺展示全量店铺。<br>
+4. 渠道变更时，店铺重置为“全部”。`,
+      "filter-currency-rule": `币种筛选逻辑：<br>
+1. 仅当“国家”筛选为单一国家时，币种可选。<br>
+2. 可选项仅保留“USD”和“本币”。<br>
+3. 选择“本币”后，页面金额按该国家本地币种统一刷新展示。<br>
+4. 当国家为“全部”或非单一国家时，币种固定为USD且不支持选择。`,
+      "search-trigger": `搜索按钮逻辑：<br>
+1. 点击后应用当前筛选条件刷新明细表。<br>
+2. 若筛选条件非法（如日期反向），需前置拦截并提示。<br>
+3. 不需要额外“重置/应用”按钮，当前页仅保留搜索按钮。`,
+      "trend-grain-rule": `趋势图时间粒度逻辑：<br>
+1. 日维度显示每日值。<br>
+2. 周/月维度显示平均值（按分桶后的均值展示）。<br>
+3. 需保留原有指标并新增流量、转化率等；渠道版趋势图不展示毛利率曲线。`,
+      "trend-legend-rule": `趋势图图例逻辑：<br>
+0. <strong>最多同时勾选 2 条曲线</strong>（会议结论：避免曲线过多不可读）；左轴多为金额类，右轴为转化率、促销力度等比例类。<br>
+1. 图例支持点击开关指标；已选满 2 条时再选新指标将自动取消最早选中的一项（原型交互）。<br>
+2. 成交价、促销力度仅在<strong>全局筛选结果为单个 MSKU</strong>（精确 SKU 条件命中唯一 MSKU）时显示。<br>
+3. 成交价 = 总营收 / 销量。<br>
+4. 促销力度 = 1 - 成交价 / RRP价。<br>
+5. 转化率、促销力度走右侧纵轴，其余指标走左侧纵轴。<br>
+6. 勾选「零售商维度」后，明细可有多行同一 MSKU（不同零售商）；趋势图中成交价/促销力度仍以<strong>全局唯一 MSKU</strong>为展示前提，语义为<strong>该 MSKU 下当前序列的成交价</strong>（若需按零售商拆线，由数据模块定义；原型仍为单序列演示）。`,
+      "table-detail-overview": `经营分析明细（本页仅保留筛选 + 本表）：<br>
+1. <strong>首行「总计」</strong>为当前筛选下全量汇总，不参与排序，始终置顶。<br>
+2. <strong>结果指标</strong>内顺序为：销量、销量达成%、营收、营收达成%、毛利、毛利达成%；达成列为<strong>原型演示数</strong>，用于排序对比。<br>
+3. 其余列为收入链路 / 成本费用链路费用项；<strong>已移除「订单销售额」列</strong>；各数值列与达成列均支持<strong>点击表头排序</strong>（默认按营收达成%降序）。括号内占比以<strong>销售额</strong>为 100% 分母。<br>
+4. 本页不再展示财务维度展开行与业务−财务对照行（若需对账请在财务系统或专项页查看）。<br>
+5. <strong>零售商维度</strong>：勾选后按店铺+MSKU+零售商拆行；未勾选按店铺+MSKU 合并。`,
+      "retailer-dimension": `零售商维度（全页共用）：<br>
+1. 默认<strong>不勾选</strong>：列表与筛选区<strong>不展示</strong>零售商；明细粒度为<strong>店铺+MSKU</strong>，商超/分销下多零售商数据<strong>合并</strong>，缺失零售商已并入<strong>未知</strong>后再汇总。<br>
+2. <strong>勾选</strong>：列表增加「零售商」列，筛选区出现「零售商」多选（可搜索）；粒度为<strong>店铺+MSKU+零售商</strong>。<br>
+3. 非商超/分销渠道：零售商字段<strong>为空</strong>（导出同规则）。<br>
+4. 合并粒度下各指标在「店铺+MSKU」上按<strong>底表规则重算</strong>（原型对业务行先合并底层 source 再重跑 buildBusinessValues 链演示）。`,
+      "retailer-filter": `零售商筛选：<br>
+1. 仅在勾选「零售商维度」时显示。<br>
+2. 与渠道、店铺<strong>无联动</strong>，选项为零售商主数据全集（可搜索、多选）。<br>
+3. <strong>未选任何零售商</strong>表示不做零售商子集限制（仍仅展示已勾选维度下的拆行结果）。<br>
+4. 有选择时：过滤零售商名称命中项；零售商为空的行（其他渠道）<strong>始终展示</strong>。`,
+      "table-finance-dimension": `<strong>财务维度行：两套取数 + 映射填数</strong><br>
+1. <strong>独立链路</strong>：业务主行与财务维度行分别走业务系统、财务系统，数据源与加工逻辑不同。<br>
+2. <strong>按映射填格</strong>：每个业务列表头对应一项业务指标。若映射为「销售额 ↔ 财务销售额」，则该列财务维度格为<strong>财务系统</strong>销售额汇总；若映射为「业务 A ↔ 财务 B + C（及允许的减项）」，则该格为财务系统中 B、C 等按配置运算后的汇总。<br>
+3. <strong>无映射则空</strong>：某业务列未配置任何「业务→财务」映射时，<strong>财务维度</strong>在该列下为<strong>空</strong>（不默认沿用业务主行值）。<br><br>
+<strong>时间粒度与预估（财务常为整月）</strong><br>
+1. 财务侧多为<strong>整月关账</strong>粒度，非逐日即席。<br>
+2. 非整月区间可用「整月财务 / 当月天数 × 区间内落当月天数」等方式做<strong>预估展示</strong>（以数据模块定义为准）。<br>
+3. 筛选为整月时与财务关账整月数对齐。<br>
+4. 跨月且某月缺少财务整月数据时，该月可不展示金额、仅保留占比类展示（若产品开启）。<br>
+5. 有整月数据的月份可按日拆分估算；无整月财务数据则不强行展示金额。`,
+      "table-delta-rule": `业务−财务（次要对照）逻辑：<br>
+1. 差额 = 业务维度值 − 财务维度值（同一列、同一展开维度下对齐相减）。<br>
+2. 若<strong>财务维度为空</strong>（含：未配置映射、无财务关账数据、不满足展示条件等），<strong>不强行计算</strong>，该格为空或缺失态。<br>
+3. 本行<strong>非管报主叙事</strong>，仅用于排查映射/结账差异；不作为财务确认或记账依据。`,
+      "table-header-rule": `明细表列与分组（本页）：<br>
+1. 列分组及命名需与管报 Excel 方案一致（渠道版「出货授权成本」为打包展示）。<br>
+2. 「结果指标」内含销量、销量达成%、营收、营收达成%、毛利、毛利达成%（达成列为原型演示）。<br>
+3. 各列表头可点击排序；带「（计算值=…）」类列的口径说明在表头「i」浮层中。<br>
+4. 各列下方占比：分母统一为<strong>销售额</strong>（净销售额+包装收入+运费收入 的计算列），副文案为括号内百分比；<strong>销售额</strong>列自身为 <strong>(100%)</strong>。<br>
+5. 收入链路含<strong>净销售额</strong>列；「直接扣减折扣」不在本表展示；<strong>优惠合计</strong>原型演示为<strong>仅含折扣</strong>（与「销售收款」链路一致）。`,
+      "export-template": `导出模版：<a href="https://alidocs.dingtalk.com/i/nodes/a9E05BDRVQ6gzQaAh2Y9g407J63zgkYA" target="_blank" rel="noopener noreferrer">在钉钉文档打开</a><br><br>
+<strong>导出与「零售商」列（模版字段保持一致）</strong><br>
+1. 导出文件<strong>始终包含「零售商」列</strong>，与线上模版列一致。<br>
+2. <strong>未勾选「零售商维度」</strong>：行为「店铺+MSKU」合并导出，「零售商」列<strong>留空</strong>（合并后不再区分零售商）。<br>
+3. <strong>勾选「零售商维度」</strong>：按零售商拆行导出，「零售商」列填写对应名称；非商超/分销行为空。<br>
+4. 导出范围与当前筛选、时间粒度等一致，由导出类型（按日合计/明细等）决定。`
+    };
+
+    function parseCalcInfo(fee) {
+      const matched = fee.match(/^(.*?)（(计算值=.*)）$/);
+      if (!matched) return { title: fee, calc: null };
+      return { title: matched[1], calc: matched[2] };
+    }
+
+    /** 表头短标题 */
+    function feeHeaderDisplayTitle(fee) {
+      if (fee === SALES_AMOUNT_FEE) return "销售额";
+      return parseCalcInfo(fee).title;
+    }
+
+    const REGION_COUNTRY_DATA = [
+      { region: "北美区", countries: ["US", "CA", "MX"] },
+      { region: "欧洲区", countries: ["GB", "DE", "FR", "IT", "ES", "SE", "NO", "FI", "DK", "PL", "CZ", "HU"] },
+      { region: "亚太区", countries: ["CN", "JP", "KR", "SG", "MY", "TH", "VN", "PH", "ID", "AU", "NZ"] },
+      { region: "拉美区", countries: ["BR", "CL", "CO"] },
+      { region: "中东及非洲区", countries: ["AE", "SA", "ZA", "NG"] },
+      { region: "南亚区", countries: ["IN", "PK", "BD"] }
+    ];
+    const CHANNEL_STORE_DATA = [
+      { channel: "Govee", stores: ["Govee_US","Govee_CA","Govee_MX","Govee_UK","Govee_DE","Govee_FR","Govee_IT","Govee_ES","Govee_NL","Govee_SE","Govee_PL","Govee_TR","Govee_BE","Govee_JP","Govee_AU","Govee_SG","Govee_AE","Govee_SA","Govee_IE"] },
+      { channel: "Govee EU", stores: ["Govee_DE_1","Govee_UK_1","Govee_FR_1","Govee_IT_1","Govee_ES_1","Govee_NL_1","Govee_SE_1","Govee_PL_1","Govee_BE_1","Govee_IE_1","Govee_AU_1"] },
+      { channel: "GoveeLife", stores: ["Goveelife_US","Goveelife_CA","Goveelife_MX","Goveelife_UK","Goveelife_FR","Goveelife_DE","Goveelife_IT","GoveeLife_ES","GoveeLife_NL","GoveeLife_SE","GoveeLife_PL","GoveeLife_BE","GoveeLife_JP"] },
+      { channel: "独立站", stores: ["独立站-US","独立站-UK","独立站-EU","独立站-CA","独立站-US-GL","独立站-EU-GL","独立站-UK-GL","独立站-CA-GL"] },
+      { channel: "TTS", stores: ["TTS-US"] },
+      { channel: "Offline", stores: ["Offline-MX","Offline-CA","Offline-US","Offline-Others"] },
+      { channel: "京东", stores: ["京东旗舰店"] },
+      { channel: "Wayfair-US", stores: ["Wayfair-US"] },
+      { channel: "小红书", stores: ["小红书旗舰店"] },
+      { channel: "APP商城", stores: ["APP商城-US","APP商城-CA","APP商城-UK","APP商城-EU"] },
+      { channel: "品牌推广", stores: ["品牌推广"] },
+      { channel: "APP", stores: ["Savvy User Store"] },
+      { channel: "WM 3P", stores: ["WM 3P-US"] },
+      { channel: "BBY 3P", stores: ["BBY 3P-US"] },
+      { channel: "Lowes 3P", stores: ["Lowes 3P-US"] },
+      { channel: "Govee_VC", stores: ["Govee_VC_JP"] },
+      { channel: "售后CS", stores: ["售后CS"] },
+      { channel: "GoveeLife_BT", stores: ["Goveelife_BT"] },
+      { channel: "Govee_BT", stores: ["Govee_BT"] }
+    ];
+
+    function setupRegionCountryLinkage() {
+      if (!regionFilter || !countryFilter) return;
+      regionFilter.innerHTML = `<option value="全部">全部</option>${REGION_COUNTRY_DATA.map((x) => `<option value="${x.region}">${x.region}</option>`).join("")}`;
+
+      const allCountries = Array.from(new Set(REGION_COUNTRY_DATA.flatMap((x) => x.countries)));
+      const renderCountryOptions = (countries) => {
+        countryFilter.innerHTML = `<option value="全部">全部</option>${countries.map((c) => `<option value="${c}">${c}</option>`).join("")}`;
+      };
+
+      renderCountryOptions(allCountries);
+      regionFilter.addEventListener("change", () => {
+        const selectedRegion = regionFilter.value;
+        if (!selectedRegion || selectedRegion === "全部") {
+          renderCountryOptions(allCountries);
+        } else {
+          const hit = REGION_COUNTRY_DATA.find((x) => x.region === selectedRegion);
+          renderCountryOptions(hit ? hit.countries : []);
+        }
+        countryFilter.value = "全部";
+        updateCurrencyFilterByCountry();
+      });
+    }
+
+    function setupChannelStoreLinkage() {
+      if (!channelFilter || !storeFilter) return;
+      channelFilter.innerHTML = `<option value="全部">全部</option>${CHANNEL_STORE_DATA.map((x) => `<option value="${x.channel}">${x.channel}</option>`).join("")}`;
+      const allStores = Array.from(new Set(CHANNEL_STORE_DATA.flatMap((x) => x.stores)));
+      const renderStoreOptions = (stores) => {
+        storeFilter.innerHTML = `<option value="全部">全部</option>${stores.map((s) => `<option value="${s}">${s}</option>`).join("")}`;
+      };
+      renderStoreOptions(allStores);
+      channelFilter.addEventListener("change", () => {
+        const selectedChannel = channelFilter.value;
+        if (!selectedChannel || selectedChannel === "全部") {
+          renderStoreOptions(allStores);
+        } else {
+          const hit = CHANNEL_STORE_DATA.find((x) => x.channel === selectedChannel);
+          renderStoreOptions(hit ? hit.stores : []);
+        }
+        storeFilter.value = "全部";
+      });
+    }
+
+    const countryCurrencyMap = {
+      US: "USD",
+      DE: "EUR",
+      CA: "CAD",
+      FR: "EUR",
+      JP: "JPY"
+    };
+
+    const currencyRateMap = {
+      USD: 1,
+      EUR: 0.92,
+      CAD: 1.36,
+      JPY: 155.00,
+      CNY: 7.20
+    };
+
+    function isSingleCountrySelected() {
+      const countryNode = document.getElementById("countryFilter");
+      const country = (countryNode?.value || "").trim();
+      return !!country && country !== "全部" && !country.includes(",");
+    }
+
+    function currentCurrencyCode() {
+      const currencyNode = document.getElementById("currencyFilter");
+      const countryNode = document.getElementById("countryFilter");
+      if (!currencyNode) return "USD";
+      const raw = currencyNode.value;
+      if (raw === "LOCAL") {
+        const country = (countryNode?.value || "").trim();
+        return countryCurrencyMap[country] || "USD";
+      }
+      return raw || "USD";
+    }
+
+    function currentCurrencyRate() {
+      const code = currentCurrencyCode();
+      return currencyRateMap[code] || 1;
+    }
+
+    function convertAmount(value) {
+      const n = Number(value);
+      if (!Number.isFinite(n)) return value;
+      return n * currentCurrencyRate();
+    }
+
+    function updateCurrencyFilterByCountry() {
+      const currencyNode = document.getElementById("currencyFilter");
+      const countryNode = document.getElementById("countryFilter");
+      if (!currencyNode) return;
+      const singleCountry = isSingleCountrySelected();
+      if (!singleCountry) {
+        currencyNode.innerHTML = `<option value="USD">USD</option>`;
+        currencyNode.value = "USD";
+        currencyNode.disabled = true;
+        return;
+      }
+
+      const country = (countryNode?.value || "").trim();
+      const localCurrency = countryCurrencyMap[country] || "USD";
+      currencyNode.disabled = false;
+      currencyNode.innerHTML = `
+        <option value="USD">USD</option>
+        <option value="LOCAL">本币（${localCurrency}）</option>
+      `;
+      currencyNode.value = "USD";
+    }
+
+    function formatDateInputValue(date) {
+      const y = date.getFullYear();
+      const m = String(date.getMonth() + 1).padStart(2, "0");
+      const d = String(date.getDate()).padStart(2, "0");
+      return `${y}-${m}-${d}`;
+    }
+
+    function setDefaultDateRangeToLastMonth() {
+      const startNode = document.getElementById("dateStart");
+      const endNode = document.getElementById("dateEnd");
+      if (!startNode || !endNode) return;
+      const now = new Date();
+      const firstDayThisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+      const firstDayLastMonth = new Date(firstDayThisMonth.getFullYear(), firstDayThisMonth.getMonth() - 1, 1);
+      const lastDayLastMonth = new Date(firstDayThisMonth.getTime() - 24 * 60 * 60 * 1000);
+      startNode.value = formatDateInputValue(firstDayLastMonth);
+      endNode.value = formatDateInputValue(lastDayLastMonth);
+    }
+
+    function formatValue(value, fee) {
+      if (value === null || value === undefined) return "--";
+      if (fee === "销量") return String(Math.round(value));
+      if (typeof value === "number") return convertAmount(value).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      return String(value);
+    }
+
+    function calcRatioMap(values) {
+      const base = revenueRatioBase(values);
+      const ratios = {};
+      feeColumns.forEach((fee) => {
+        const v = values[fee];
+        if (fee === "销量" || v === null || v === undefined) {
+          ratios[fee] = null;
+          return;
+        }
+        ratios[fee] = base ? (Number(v) / base) * 100 : null;
+      });
+      return ratios;
+    }
+
+    function buildRowsForView(view) {
+      const src = view === "business" ? baseRows : financeRows;
+      const rows = src.map((row) => {
+        const ratios = calcRatioMap(row.values);
+        return { ...row, ratios };
+      });
+      if (view !== "delta") return rows;
+
+      return baseRows.map((row, idx) => {
+        const finance = financeRows[idx].values;
+        const values = {};
+        feeColumns.forEach((fee) => {
+          const b = row.values[fee];
+          const f = finance[fee];
+          values[fee] = (b !== null && b !== undefined && f !== null && f !== undefined) ? Number((b - f).toFixed(2)) : null;
+        });
+        return { ...row, values, ratios: calcRatioMap(values) };
+      });
+    }
+
+    function getVisibleFees() {
+      return displayFeeColumns;
+    }
+
+    const REVENUE_FEE_SET = new Set([
+      "净销售额", "运费收入", "包装收入", "销售额（计算值=净销售额+包装收入+运费收入）",
+      "折扣", "优惠合计（计算值=折扣）",
+      "销售收款（计算值=销售额-优惠合计）", "销售退款", "销售净额（计算值=销售收款-销售退款）",
+      "销售税/VAT", "收入净额（计算值=销售净额-销售税/VAT）"
+    ]);
+
+    function getCellState(fee, view, value) {
+      const base = feeStates[fee];
+      if (base === "missing") return "cell-missing";
+      if (base === "partial") return "cell-partial";
+      return "";
+    }
+
+    function achievePercentMap(row) {
+      if (!row || row.region === "总计") {
+        return { 销量: 95.8, 营收: 97.2, 毛利: 96.4 };
+      }
+      const seed = `${row.region || ""}|${row.sku || ""}|${row.msku || ""}|${row.retailer || ""}`;
+      let h = 0;
+      for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) | 0;
+      const base = 86 + (Math.abs(h) % 12);
+      return {
+        销量: Number((base + 2 + ((h >> 6) % 10)).toFixed(1)),
+        营收: Number((base + (h % 10)).toFixed(1)),
+        毛利: Number((base + 1 + ((h >> 3) % 10)).toFixed(1))
+      };
+    }
+
+    function buildFlatTableColumns() {
+      const base = displayFeeColumns.filter((f) => f !== "订单销售额");
+      const first = ["销量", "营收", "毛利"];
+      const out = [];
+      for (const fee of first) {
+        if (!base.includes(fee)) continue;
+        out.push({ kind: "fee", fee, sortKey: `fee:${fee}` });
+        out.push({
+          kind: "achieve",
+          forFee: fee,
+          label: fee === "销量" ? "销量达成%" : fee === "营收" ? "营收达成%" : "毛利达成%",
+          sortKey: `ach:${fee}`
+        });
+      }
+      for (const fee of base) {
+        if (first.includes(fee)) continue;
+        out.push({ kind: "fee", fee, sortKey: `fee:${fee}` });
+      }
+      return out;
+    }
+
+    function columnGroupOf(col) {
+      if (col.kind === "achieve") return "result";
+      const f = col.fee;
+      if (["销量", "营收", "毛利"].includes(f)) return "result";
+      if (REVENUE_FEE_SET.has(f)) return "revenue";
+      return "cost";
+    }
+
+    function sortIconHtml(sortKey) {
+      const on = state.sortKey === sortKey;
+      const ic = on ? (state.sortDir === "asc" ? "↑" : "↓") : "↕";
+      return `<span class="sort-ic" aria-hidden="true">${ic}</span>`;
+    }
+
+    function getSortValue(row, sortKey) {
+      if (!sortKey || !row) return 0;
+      if (sortKey.startsWith("dim:")) {
+        const k = sortKey.slice(4);
+        if (k === "region") return row.region || "";
+        if (k === "scene") return row.scene || "";
+        if (k === "team") return `${row.team || ""}\t${row.tl || ""}`;
+        if (k === "sku") return `${row.sku || ""}\t${row.msku || ""}`;
+        if (k === "retailer") return row.retailer || "";
+        return "";
+      }
+      if (sortKey.startsWith("ach:")) {
+        const fee = sortKey.slice(4);
+        const m = achievePercentMap(row);
+        return m[fee] ?? 0;
+      }
+      if (sortKey.startsWith("fee:")) {
+        const fee = sortKey.slice(4);
+        const v = row.values[fee];
+        if (v === null || v === undefined) return Number.NEGATIVE_INFINITY;
+        return Number(v);
+      }
+      return 0;
+    }
+
+    function compareRowsSort(a, b) {
+      const k = state.sortKey;
+      const dir = state.sortDir === "asc" ? 1 : -1;
+      if (k.startsWith("dim:")) {
+        const sa = String(getSortValue(a, k));
+        const sb = String(getSortValue(b, k));
+        return sa.localeCompare(sb, "zh-CN") * dir;
+      }
+      const va = getSortValue(a, k);
+      const vb = getSortValue(b, k);
+      if (va === vb) return 0;
+      return (Number(va) < Number(vb) ? -1 : 1) * dir;
+    }
+
+    function renderTable() {
+      calcPopover?.classList.remove("show");
+      const retailerCol = state.retailerDimension;
+      const flatCols = buildFlatTableColumns();
+      const groupCount = {
+        result: flatCols.filter((c) => columnGroupOf(c) === "result").length,
+        revenue: flatCols.filter((c) => columnGroupOf(c) === "revenue").length,
+        cost: flatCols.filter((c) => columnGroupOf(c) === "cost").length
+      };
+
+      const businessRowsAll = buildRowsForView("business");
+      const head = businessRowsAll[0];
+      const tail = businessRowsAll.slice(1).sort(compareRowsSort);
+      const businessRows = head ? [head, ...tail] : [];
+
+      tableDesc.textContent = retailerCol
+        ? "点击列标题排序；默认按营收达成%从高到低。首行为「总计」。勾选零售商维度时按店铺+MSKU+零售商拆行。"
+        : "点击列标题排序；默认按营收达成%从高到低。首行为「总计」。未勾选零售商时按店铺+MSKU 合并。";
+
+      const retailerTh = retailerCol
+        ? `<th rowspan="2" class="left-5 sticky-base sortable-th${state.sortKey === "dim:retailer" ? " th-sorted" : ""}" data-sort-key="dim:retailer" scope="col">零售商${sortIconHtml("dim:retailer")}</th>`
+        : "";
+
+      const thDim = (key, cls, label) => {
+        const sk = `dim:${key}`;
+        const sortedCls = state.sortKey === sk ? " th-sorted" : "";
+        return `<th rowspan="2" class="${cls} sortable-th${sortedCls}" data-sort-key="${sk}" scope="col">${label}${sortIconHtml(sk)}</th>`;
+      };
+
+      const thFlat = (col) => {
+        const sortedCls = state.sortKey === col.sortKey ? " th-sorted" : "";
+        if (col.kind === "achieve") {
+          return `<th class="achieve-head sortable-th${sortedCls}" data-sort-key="${col.sortKey}" scope="col">${col.label}${sortIconHtml(col.sortKey)}</th>`;
+        }
+        const parsed = parseCalcInfo(col.fee);
+        const extra = feeColumnExtraHint(col.fee);
+        const hintParts = [];
+        if (parsed.calc) hintParts.push(parsed.calc);
+        if (extra) hintParts.push(extra);
+        const info = hintParts.length
+          ? `<button type="button" class="calc-icon" data-calc-fee="${encodeURIComponent(col.fee)}" aria-label="本列口径说明">i</button>`
+          : "";
+        return `<th class="sortable-th${sortedCls}" data-sort-key="${col.sortKey}" scope="col"><div class="th-metric-head"><span class="th-title">${feeHeaderDisplayTitle(col.fee)}${info}</span>${sortIconHtml(col.sortKey)}</div></th>`;
+      };
+
+      let thead = `
+        <thead>
+          <tr class="group">
+            ${thDim("region", "left sticky-base", "区域/国家/店铺")}
+            ${thDim("scene", "left-2 sticky-base", "场景/品类/品线")}
+            ${thDim("team", "left-3 sticky-base", "销售/TL")}
+            ${thDim("sku", "left-4 sticky-base", "SKU信息")}
+            ${retailerTh}
+            <th colspan="${groupCount.result}">结果指标<span class="req-dot" data-req-key="table-header-rule">!</span></th>
+            <th colspan="${groupCount.revenue}">收入链路</th>
+            <th colspan="${groupCount.cost}">成本费用链路</th>
+          </tr>
+          <tr class="cols">
+            ${flatCols.map((c) => thFlat(c)).join("")}
+          </tr>
+        </thead>
+      `;
+
+      const renderMetricCell = (row, col) => {
+        if (col.kind === "achieve") {
+          const p = achievePercentMap(row);
+          const v = p[col.forFee];
+          return `<td class="achieve-cell metric-col">${v != null ? `${v}%` : "—"}</td>`;
+        }
+        const fee = col.fee;
+        const value = row.values[fee];
+        const ratio = row.ratios[fee];
+        const cellCls = getCellState(fee, "business", value);
+        let ratioText = "(--)";
+        if (fee === SALES_AMOUNT_FEE && ratio !== null && Number.isFinite(ratio)) {
+          ratioText = "(100%)";
+        } else if (ratio !== null && Number.isFinite(ratio)) {
+          ratioText = `(${ratio.toFixed(2)}%)`;
+        }
+        return `
+          <td class="${cellCls} metric-col">
+            <div class="metric-main">${formatValue(value, fee)}</div>
+            ${(state.showRatio && fee !== "销量") ? `<div class="metric-sub">${ratioText}</div>` : ""}
+          </td>
+        `;
+      };
+
+      const tbody = businessRows.map((row) => {
+        const isSummary = row.region === "总计";
+        const teamBlock = `
+          <div class="row-meta">
+            <div>${row.team || "--"}</div>
+            <div class="row-meta-sub">${row.tl || "--"}</div>
+          </div>
+        `;
+        const skuBlock = `
+          <div class="row-meta">
+            <div>${row.sku || "--"}</div>
+            ${row.msku ? `<div class="row-meta-sub">${row.msku}</div>` : ""}
+          </div>
+        `;
+        const retailerCell = retailerCol
+          ? `<td class="left-5 sticky-base">${row.retailer ? row.retailer : "—"}</td>`
+          : "";
+        return `
+          <tr class="${isSummary ? "summary-row" : ""}">
+            <td class="left sticky-base">${row.region}</td>
+            <td class="left-2 sticky-base">${row.scene}</td>
+            <td class="left-3 sticky-base">${teamBlock}</td>
+            <td class="left-4 sticky-base">${skuBlock}</td>
+            ${retailerCell}
+            ${flatCols.map((c) => renderMetricCell(row, c)).join("")}
+          </tr>
+        `;
+      }).join("");
+
+      detailTable.innerHTML = thead + `<tbody>${tbody}</tbody>`;
+    }
+
+    function renderAll() {
+      rebuildBaseAndFinance();
+      renderTable();
+    }
+
+    document.getElementById("searchBtn").addEventListener("click", () => {
+      renderAll();
+    });
+
+    countryFilter?.addEventListener("change", () => {
+      updateCurrencyFilterByCountry();
+      renderAll();
+    });
+
+    currencyFilter?.addEventListener("change", () => {
+      renderAll();
+    });
+
+    exportBtn?.addEventListener("click", (event) => {
+      event.stopPropagation();
+      exportMenu?.classList.toggle("open");
+    });
+
+    exportMenu?.addEventListener("click", (event) => {
+      const option = event.target.closest("[data-export-type]");
+      if (!option) return;
+      exportMenu.classList.remove("open");
+      const dimOn = document.getElementById("retailerDim")?.checked === true;
+      const retailerHint = dimOn
+        ? "导出按零售商拆行；模版始终含「零售商」列并填入名称（非商超/分销行为空）。"
+        : "导出为店铺+MSKU 合并；模版仍含「零售商」列但该列为空；数据已按合并粒度重算。";
+      alert(`${option.textContent}\n\n${retailerHint}\n（原型提示，实际文件由导出任务生成。）`);
+    });
+
+    let retailerCheckListBuilt = false;
+
+    function renderRetailerCheckList() {
+      const host = document.getElementById("retailerCheckList");
+      if (!host) return;
+      host.innerHTML = ALL_RETAILER_OPTIONS.map((name) => `
+        <label class="retailer-check-row" data-name="${name}">
+          <input type="checkbox" value="${name}" ${state.selectedRetailers.has(name) ? "checked" : ""} />
+          <span>${name}</span>
+        </label>
+      `).join("");
+      filterRetailerListBySearch();
+      retailerCheckListBuilt = true;
+    }
+
+    function ensureRetailerCheckListBuilt() {
+      if (retailerCheckListBuilt) return;
+      renderRetailerCheckList();
+    }
+
+    function filterRetailerListBySearch() {
+      const q = (document.getElementById("retailerSearch")?.value || "").trim().toLowerCase();
+      document.querySelectorAll("#retailerCheckList .retailer-check-row").forEach((row) => {
+        const name = (row.dataset.name || "").toLowerCase();
+        row.classList.toggle("hidden-by-search", Boolean(q && !name.includes(q)));
+      });
+    }
+
+    function updateRetailerTriggerText() {
+      const btn = document.getElementById("retailerMsTrigger");
+      if (!btn) return;
+      if (!state.selectedRetailers.size) {
+        btn.textContent = "全部零售商（未筛选）";
+        return;
+      }
+      btn.textContent = `已选 ${state.selectedRetailers.size} 项`;
+    }
+
+    function setupRetailerControls() {
+      const wrap = document.getElementById("retailerFilterWrap");
+      const dim = document.getElementById("retailerDim");
+      const trigger = document.getElementById("retailerMsTrigger");
+      const panel = document.getElementById("retailerMsPanel");
+      const search = document.getElementById("retailerSearch");
+      const host = document.getElementById("retailerCheckList");
+
+      document.getElementById("retailerSelectAll")?.addEventListener("click", (e) => {
+        e.preventDefault();
+        ensureRetailerCheckListBuilt();
+        ALL_RETAILER_OPTIONS.forEach((n) => state.selectedRetailers.add(n));
+        renderRetailerCheckList();
+        updateRetailerTriggerText();
+        renderAll();
+      });
+      document.getElementById("retailerClearAll")?.addEventListener("click", (e) => {
+        e.preventDefault();
+        state.selectedRetailers.clear();
+        renderRetailerCheckList();
+        updateRetailerTriggerText();
+        renderAll();
+      });
+
+      host?.addEventListener("change", (event) => {
+        const box = event.target.closest("input[type=\"checkbox\"][value]");
+        if (!box || !host.contains(box)) return;
+        if (box.checked) state.selectedRetailers.add(box.value);
+        else state.selectedRetailers.delete(box.value);
+        updateRetailerTriggerText();
+        renderAll();
+      });
+
+      dim?.addEventListener("change", () => {
+        state.retailerDimension = dim.checked;
+        if (wrap) wrap.style.display = dim.checked ? "flex" : "none";
+        if (!dim.checked) {
+          panel?.classList.remove("open");
+          state.selectedRetailers.clear();
+          if (host) {
+            host.innerHTML = "";
+            retailerCheckListBuilt = false;
+          }
+          updateRetailerTriggerText();
+        }
+        renderAll();
+      });
+
+      trigger?.addEventListener("click", (e) => {
+        e.stopPropagation();
+        const opening = !panel?.classList.contains("open");
+        panel?.classList.toggle("open");
+        if (opening) ensureRetailerCheckListBuilt();
+      });
+
+      search?.addEventListener("input", () => {
+        filterRetailerListBySearch();
+      });
+
+      document.addEventListener("click", (e) => {
+        if (!panel?.classList.contains("open")) return;
+        if (e.target.closest("#retailerMsRoot")) return;
+        panel.classList.remove("open");
+      });
+
+      if (wrap) wrap.style.display = "none";
+      if (host) {
+        host.innerHTML = "";
+        retailerCheckListBuilt = false;
+      }
+      updateRetailerTriggerText();
+    }
+
+    detailTable.addEventListener("click", (event) => {
+      const calcBtn = event.target.closest("button.calc-icon[data-calc-fee]");
+      if (calcBtn && calcPopover) {
+        event.preventDefault();
+        event.stopPropagation();
+        const raw = calcBtn.getAttribute("data-calc-fee") || "";
+        let fee = raw;
+        try {
+          fee = decodeURIComponent(raw);
+        } catch {
+          fee = raw;
+        }
+        const html = feeCalcHintHtml(fee);
+        if (!html) return;
+        calcPopover.innerHTML = html;
+        const rect = calcBtn.getBoundingClientRect();
+        const pw = Math.min(320, window.innerWidth - 24);
+        let left = rect.left + rect.width / 2 - pw / 2;
+        left = Math.max(12, Math.min(left, window.innerWidth - pw - 12));
+        let top = rect.bottom + 8;
+        const estH = 160;
+        if (top + estH > window.innerHeight - 12) {
+          top = Math.max(12, rect.top - estH - 8);
+        }
+        calcPopover.style.width = `${pw}px`;
+        calcPopover.style.left = `${left}px`;
+        calcPopover.style.top = `${top}px`;
+        calcPopover.classList.add("show");
+        return;
+      }
+
+      const th = event.target.closest("thead th.sortable-th[data-sort-key]");
+      if (th) {
+        const key = th.getAttribute("data-sort-key");
+        if (!key) return;
+        if (state.sortKey === key) {
+          state.sortDir = state.sortDir === "asc" ? "desc" : "asc";
+        } else {
+          state.sortKey = key;
+          state.sortDir = key.startsWith("dim:") ? "asc" : "desc";
+        }
+        renderTable();
+        event.stopPropagation();
+      }
+    });
+
+    document.addEventListener("click", (event) => {
+      if (!event.target.closest(".export-wrap")) {
+        exportMenu?.classList.remove("open");
+      }
+
+      const reqDot = event.target.closest(".req-dot");
+      if (reqDot) {
+        calcPopover?.classList.remove("show");
+        const key = reqDot.dataset.reqKey;
+        const text = reqTextMap[key];
+        if (text) {
+          reqPopover.innerHTML = text;
+          const rect = reqDot.getBoundingClientRect();
+          const left = Math.max(12, Math.min(window.innerWidth - 432, rect.left - 180));
+          const top = Math.min(window.innerHeight - 24, rect.bottom + 8);
+          reqPopover.style.left = `${left}px`;
+          reqPopover.style.top = `${top}px`;
+          reqPopover.classList.add("show");
+        }
+        return;
+      }
+
+      if (event.target.closest("#reqPopover")) {
+        return;
+      }
+
+      if (event.target.closest("#calcPopover")) {
+        return;
+      }
+
+      if (!event.target.closest("button.calc-icon[data-calc-fee]")) {
+        calcPopover?.classList.remove("show");
+      }
+      reqPopover.classList.remove("show");
+    });
+
+    setupRegionCountryLinkage();
+    setupChannelStoreLinkage();
+    setupRetailerControls();
+    setDefaultDateRangeToLastMonth();
+    updateCurrencyFilterByCountry();
+    renderAll();
+  </script>
+</body>
+</html>

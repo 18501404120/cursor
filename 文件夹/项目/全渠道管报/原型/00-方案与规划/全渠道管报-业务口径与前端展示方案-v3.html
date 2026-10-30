@@ -1,0 +1,866 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>全渠道管报 · 业务口径与前端展示方案 v3</title>
+  <style>
+    :root {
+      --bg: #eef3fb;
+      --surface: #ffffff;
+      --text: #0f172a;
+      --muted: #475569;
+      --line: #dbe4f0;
+      --brand: #0b5ed7;
+      --brand-soft: #e7f1ff;
+      --good: #0f766e;
+      --good-soft: #e6fffb;
+      --warn: #b45309;
+      --warn-soft: #fff7ed;
+      --cost: #7c3aed;
+      --cost-soft: #f5f3ff;
+      --danger: #b91c1c;
+      --danger-soft: #fef2f2;
+      --shadow: 0 10px 26px rgba(15, 23, 42, 0.08);
+      --radius: 16px;
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "PingFang SC", "Microsoft YaHei", sans-serif;
+      background: linear-gradient(160deg, #eaf0fb 0%, var(--bg) 65%, #f6f9ff 100%);
+      color: var(--text);
+    }
+
+    .page {
+      max-width: 1280px;
+      margin: 0 auto;
+      padding: 24px 16px 48px;
+    }
+
+    .doc-title {
+      margin: 0 0 8px;
+      font-size: 22px;
+      font-weight: 800;
+      color: #0f2f63;
+      letter-spacing: 0.01em;
+    }
+
+    .doc-cross {
+      margin: 0 0 14px;
+      font-size: 13px;
+      line-height: 1.65;
+      color: var(--muted);
+    }
+
+    .doc-cross a { color: var(--brand); font-weight: 700; }
+
+    .shifts {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+      margin-bottom: 4px;
+    }
+
+    .shift {
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 10px 12px;
+      box-shadow: var(--shadow);
+      font-size: 12px;
+      line-height: 1.6;
+      color: #334155;
+    }
+
+    .shift b {
+      display: block;
+      margin-bottom: 2px;
+      color: #0f2f63;
+      font-size: 13px;
+    }
+
+    .panel {
+      margin-top: 16px;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    .panel-hd {
+      padding: 12px 16px;
+      font-size: 13px;
+      font-weight: 800;
+      color: #0f2f63;
+      border-bottom: 1px solid var(--line);
+      background: #f8fbff;
+    }
+
+    .kpi-map {
+      padding: 14px;
+      display: grid;
+      grid-template-columns: 1fr 56px 1fr 56px 1fr;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .kpi {
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: #fff;
+      padding: 12px;
+      min-height: 132px;
+    }
+
+    .kpi .name { font-size: 15px; font-weight: 800; margin-bottom: 8px; }
+    .kpi .desc { font-size: 12px; line-height: 1.65; color: var(--muted); }
+    .kpi.revenue { border-color: #93c5fd; background: #eff6ff; }
+    .kpi.gross { border-color: #86efac; background: #f0fdf4; }
+    .kpi.profit { border-color: #c4b5fd; background: #f5f3ff; }
+
+    .arrow {
+      text-align: center;
+      font-size: 24px;
+      color: #64748b;
+      font-weight: 700;
+    }
+
+    .formula {
+      margin-top: 10px;
+      border-top: 1px dashed #cbd5e1;
+      padding-top: 8px;
+      font-size: 12px;
+      color: #0f172a;
+      line-height: 1.7;
+      font-weight: 700;
+    }
+
+    .layout { padding: 14px; }
+
+    .flow {
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 12px;
+      background: #fcfeff;
+    }
+
+    .row {
+      display: grid;
+      grid-template-columns: 220px 1fr;
+      gap: 10px;
+      margin-bottom: 10px;
+      align-items: stretch;
+    }
+
+    .row:last-child { margin-bottom: 0; }
+
+    .left {
+      border-radius: 10px;
+      padding: 10px;
+      font-size: 12px;
+      font-weight: 800;
+      color: #1f2937;
+      border: 1px solid var(--line);
+      background: #fff;
+      display: flex;
+      align-items: center;
+    }
+
+    .right {
+      border-radius: 10px;
+      border: 1px dashed #cbd5e1;
+      padding: 8px 10px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-content: center;
+      background: #fff;
+    }
+
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      border-radius: 8px;
+      padding: 5px 8px;
+      font-size: 12px;
+      font-weight: 700;
+      border: 1px solid;
+      line-height: 1.45;
+    }
+
+    .chip.sum { background: var(--brand-soft); border-color: #93c5fd; color: #1d4ed8; }
+    .chip.sub { background: var(--danger-soft); border-color: #fca5a5; color: #991b1b; }
+    .chip.cost { background: var(--cost-soft); border-color: #c4b5fd; color: #5b21b6; }
+    .chip.keep { background: var(--good-soft); border-color: #99f6e4; color: #0f766e; }
+    .chip.aside { background: #f8fafc; border-color: #cbd5e1; color: #475569; }
+    .chip.move { background: var(--warn-soft); border-color: #fdba74; color: #9a3412; }
+
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      padding: 12px 14px 0;
+    }
+
+    .graph-wrap {
+      padding: 12px;
+      background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+    }
+
+    .graph-card {
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      overflow: hidden;
+      background: #fff;
+      box-shadow: 0 8px 22px rgba(15, 23, 42, 0.06);
+    }
+
+    .graph-card svg { width: 100%; height: auto; display: block; }
+
+    .graph-note {
+      padding: 10px 12px 12px;
+      font-size: 12px;
+      color: #475569;
+      border-top: 1px solid #edf2f7;
+      line-height: 1.7;
+      background: #fbfdff;
+    }
+
+    .atlas {
+      display: grid;
+      grid-template-columns: 340px minmax(0, 1fr);
+      gap: 12px;
+      padding: 14px;
+    }
+
+    .stack { display: flex; flex-direction: column; gap: 12px; }
+
+    .block {
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: #fcfeff;
+      overflow: hidden;
+    }
+
+    .block h3 {
+      margin: 0;
+      padding: 10px 12px;
+      font-size: 13px;
+      color: #0f2f63;
+      background: #f8fbff;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .block .bd { padding: 10px 12px 12px; }
+
+    .grp { margin-top: 8px; }
+    .grp:first-child { margin-top: 0; }
+
+    .k {
+      font-size: 12px;
+      font-weight: 800;
+      color: #0f2f63;
+      line-height: 1.5;
+    }
+
+    .k span {
+      font-weight: 600;
+      color: var(--muted);
+    }
+
+    .nest {
+      margin: 6px 0 0 10px;
+      padding-left: 10px;
+      border-left: 2px solid #e2e8f0;
+    }
+
+    .pills { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+
+    .pill {
+      font-size: 12px;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: 8px;
+      border: 1px solid #dbe4f0;
+      background: #fff;
+      color: #334155;
+      line-height: 1.45;
+    }
+
+    .pill.add { background: #eff6ff; border-color: #93c5fd; color: #1d4ed8; }
+    .pill.sub { background: #fef2f2; border-color: #fca5a5; color: #991b1b; }
+    .pill.fee { background: #f5f3ff; border-color: #c4b5fd; color: #5b21b6; }
+    .pill.move { background: #fff7ed; border-color: #fdba74; color: #9a3412; }
+    .pill.qty { background: #f8fafc; border-color: #cbd5e1; color: #475569; }
+    .pill.out { background: #f1f5f9; border-color: #cbd5e1; color: #64748b; }
+    .pill.result { background: #ecfdf5; border-color: #6ee7b7; color: #065f46; }
+
+    .fee-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+      align-items: start;
+    }
+
+    .fee-col {
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: #fff;
+      padding: 8px;
+      min-width: 0;
+    }
+
+    .fee-col h4 {
+      margin: 0 0 6px;
+      font-size: 12px;
+      color: #5b21b6;
+    }
+
+    .hint {
+      margin: 10px 14px 14px;
+      font-size: 12px;
+      line-height: 1.7;
+      color: #475569;
+    }
+
+    @media (max-width: 1100px) {
+      .shifts, .fee-grid, .atlas { grid-template-columns: 1fr; }
+      .kpi-map { grid-template-columns: 1fr; }
+      .arrow { transform: rotate(90deg); }
+      .row { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <h1 class="doc-title">全渠道管报 · 业务口径展示（v3）</h1>
+    <p class="doc-cross">
+      本页按最新管报科目树展示营业收入、毛利、营业利润和费用项。菜单仍在
+      <a href="./全渠道管报项目规划原型-v2.html">项目规划原型 v2</a> 维护。上一版漏斗见
+      <a href="./全渠道管报-业务口径与前端展示方案-v2.html">业务口径 v2</a>。
+      取值示例见
+      <a href="../../../../需求/003成本信息/方案/经营分析看板-管报收入成本费用.html">经营分析看板 · 管报科目树</a>。
+    </p>
+
+    <div class="shifts">
+      <div class="shift"><b>结果链</b>营业收入 → 毛利 → 营业利润。毛利只扣成本。</div>
+      <div class="shift"><b>收入构成</b>零售销售额与销售收入，扣减渠道激励和税费。</div>
+      <div class="shift"><b>费用两段</b>市场投入（营销、渠道、销售），公共费用（仓储物流、售后、其它）。</div>
+      <div class="shift"><b>改挂费用</b>包装收入、运费收入、包裹险在其它费用，不进营业收入。</div>
+    </div>
+
+    <section class="panel">
+      <div class="panel-hd">一、结果指标（先看总公式）</div>
+      <div class="kpi-map">
+        <div class="kpi revenue">
+          <div class="name">营业收入</div>
+          <div class="desc">零售额与销售收入扣减渠道激励、税费后的收入。</div>
+          <div class="formula">
+            营业收入 = 发货零售销售额 + 退货零售销售额 + 发货销售收入 + 退货销售收入 − 渠道激励 − 税费
+          </div>
+        </div>
+        <div class="arrow">→</div>
+        <div class="kpi gross">
+          <div class="name">毛利</div>
+          <div class="desc">营业收入扣除货值成本后的结果。平台费、广告、物流在下一步扣。</div>
+          <div class="formula">
+            成本 = 出货授权成本 + 退货成本<br>
+            毛利 = 营业收入 − 成本
+          </div>
+        </div>
+        <div class="arrow">→</div>
+        <div class="kpi profit">
+          <div class="name">营业利润</div>
+          <div class="desc">毛利扣除全部费用后的经营结果。</div>
+          <div class="formula">
+            费用 = 市场投入 + 公共费用<br>
+            营业利润 = 毛利 − 费用
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-hd">二、科目关系（汇总 / 扣减 / 结果）</div>
+      <div class="legend">
+        <span class="chip sum">汇总，计入上级</span>
+        <span class="chip sub">扣减</span>
+        <span class="chip cost">费用</span>
+        <span class="chip keep">结果</span>
+        <span class="chip aside">件数或并列，不进金额公式</span>
+        <span class="chip move">改挂在其它费用</span>
+      </div>
+      <div class="layout">
+        <div class="flow">
+          <div class="row">
+            <div class="left">A. 收入 → 营业收入</div>
+            <div class="right">
+              <span class="chip sum">发货零售销售额 = RRP × 发货销量</span>
+              <span class="chip sum">退货零售销售额 = − RRP × 退货销量</span>
+              <span class="chip sum">发货销售收入</span>
+              <span class="chip sum">退货销售收入（退款金额，记负数）</span>
+              <span class="chip sub">渠道激励 = 价保 + 返利（前返、后返）+ 临时激励（划线价折扣、Discounts）</span>
+              <span class="chip sub">税费</span>
+              <span class="chip keep">营业收入</span>
+              <span class="chip aside">渠道商利润：单独列示，营业收入不含本项</span>
+              <span class="chip aside">销量：发货销量、退货销量，只计件数</span>
+            </div>
+          </div>
+          <div class="row">
+            <div class="left">B. 成本 → 毛利</div>
+            <div class="right">
+              <span class="chip cost">出货授权成本</span>
+              <span class="chip cost">退货成本（同单价冲回，记负数）</span>
+              <span class="chip aside">页面列这两项；采购、关税、预留毛利写在取值说明里</span>
+              <span class="chip keep">毛利 = 营业收入 − 成本</span>
+            </div>
+          </div>
+          <div class="row">
+            <div class="left">C. 市场投入</div>
+            <div class="right">
+              <span class="chip cost">营销投入 = 自主营销（产品营销、品牌营销、基础固定花费）+ 联合营销</span>
+              <span class="chip cost">渠道投入 = 自主营销（平台费用、广告投放）+ 联合营销（广告投放）</span>
+              <span class="chip cost">销售投入 = 自主营销（平台费用、广告投放）</span>
+            </div>
+          </div>
+          <div class="row">
+            <div class="left">D. 公共费用 → 营业利润</div>
+            <div class="right">
+              <span class="chip cost">仓储物流 = 物流费用（头程、尾程）+ 仓储费用（仓储租金、仓储其他）</span>
+              <span class="chip cost">售后服务 = 品质问题 + 物流问题 + 其他问题 + 售后手续费 + 售后未影响部分</span>
+              <span class="chip move">其它费用含透明标签费、运杂费、运费收入、包裹险、包装收入、其它</span>
+              <span class="chip keep">营业利润 = 毛利 − 市场投入 − 公共费用</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-hd">三、图形化总览</div>
+      <div class="graph-wrap">
+        <div class="graph-card">
+          <svg viewBox="0 0 1400 1140" role="img" aria-label="全渠道管报口径漏斗 v3">
+            <defs>
+              <marker id="arrBlue" markerWidth="3" markerHeight="3" refX="2.7" refY="1.5" orient="auto">
+                <path d="M0,0 L3,1.5 L0,3 z" fill="#8b5cf6"></path>
+              </marker>
+              <marker id="arrGray" markerWidth="3" markerHeight="3" refX="2.7" refY="1.5" orient="auto">
+                <path d="M0,0 L3,1.5 L0,3 z" fill="#94a3b8"></path>
+              </marker>
+              <filter id="soft" x="-10%" y="-10%" width="120%" height="120%">
+                <feDropShadow dx="0" dy="2" stdDeviation="2.4" flood-opacity="0.08"></feDropShadow>
+              </filter>
+              <linearGradient id="gRev" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%" stop-color="#ecfeff"></stop>
+                <stop offset="100%" stop-color="#e0f2fe"></stop>
+              </linearGradient>
+              <linearGradient id="gGross" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%" stop-color="#ecfdf5"></stop>
+                <stop offset="100%" stop-color="#dcfce7"></stop>
+              </linearGradient>
+              <linearGradient id="gProfit" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%" stop-color="#f5f3ff"></stop>
+                <stop offset="100%" stop-color="#ede9fe"></stop>
+              </linearGradient>
+              <style>
+                .t { font-family: "PingFang SC", "Microsoft YaHei", sans-serif; fill: #0f172a; }
+                .h { font-size: 18px; font-weight: 800; }
+                .s { font-size: 13px; font-weight: 700; }
+                .n { font-size: 12px; font-weight: 600; fill: #334155; }
+                .xs { font-size: 11px; font-weight: 600; fill: #334155; }
+              </style>
+            </defs>
+
+            <rect x="16" y="12" width="1368" height="1116" rx="20" fill="#ffffff" stroke="#edf2f7"></rect>
+
+            <polygon points="150,28 1250,28 1170,132 230,132" fill="url(#gRev)" stroke="#38bdf8" stroke-width="3" filter="url(#soft)"></polygon>
+            <text x="700" y="72" text-anchor="middle" class="t h" fill="#075985">收入</text>
+            <text x="700" y="98" text-anchor="middle" class="t n">发货零售销售额 + 退货零售销售额 + 发货销售收入 + 退货销售收入</text>
+            <text x="700" y="118" text-anchor="middle" class="t xs" fill="#64748b">销量（发货 / 退货）只计件数，不进金额</text>
+
+            <rect x="36" y="168" width="500" height="128" rx="12" fill="#fff7ed" stroke="#fdba74"></rect>
+            <text x="286" y="194" text-anchor="middle" class="t s" fill="#b45309">渠道激励</text>
+            <text x="286" y="220" text-anchor="middle" class="t n">价保</text>
+            <text x="286" y="242" text-anchor="middle" class="t n">返利 · 前返 / 后返</text>
+            <text x="286" y="264" text-anchor="middle" class="t n">临时激励 · 划线价折扣 / Discounts</text>
+
+            <rect x="820" y="168" width="250" height="86" rx="12" fill="#fff7ed" stroke="#fdba74"></rect>
+            <text x="945" y="202" text-anchor="middle" class="t s" fill="#b45309">税费</text>
+            <text x="945" y="226" text-anchor="middle" class="t n">从营业收入扣减</text>
+
+            <rect x="1090" y="168" width="274" height="108" rx="12" fill="#f8fafc" stroke="#cbd5e1"></rect>
+            <text x="1227" y="202" text-anchor="middle" class="t s" fill="#475569">渠道商利润</text>
+            <text x="1227" y="226" text-anchor="middle" class="t n">单独列示</text>
+            <text x="1227" y="248" text-anchor="middle" class="t xs">营业收入不含本项</text>
+
+            <line x1="430" y1="132" x2="286" y2="168" stroke="#94a3b8" stroke-width="4" stroke-linecap="round" stroke-dasharray="5 5" marker-end="url(#arrGray)"></line>
+            <line x1="980" y1="132" x2="945" y2="168" stroke="#94a3b8" stroke-width="4" stroke-linecap="round" stroke-dasharray="5 5" marker-end="url(#arrGray)"></line>
+            <line x1="1120" y1="132" x2="1227" y2="168" stroke="#94a3b8" stroke-width="4" stroke-linecap="round" stroke-dasharray="5 5" marker-end="url(#arrGray)"></line>
+            <line x1="700" y1="132" x2="700" y2="328" stroke="#8b5cf6" stroke-width="5" stroke-linecap="round" marker-end="url(#arrBlue)"></line>
+
+            <polygon points="250,328 1150,328 1080,430 320,430" fill="#eff6ff" stroke="#2563eb" stroke-width="3" filter="url(#soft)"></polygon>
+            <text x="700" y="372" text-anchor="middle" class="t h" fill="#1d4ed8">营业收入</text>
+            <text x="700" y="400" text-anchor="middle" class="t n">零售销售额 + 销售收入 − 渠道激励 − 税费</text>
+
+            <rect x="120" y="466" width="300" height="96" rx="12" fill="#faf5ff" stroke="#a78bfa"></rect>
+            <text x="270" y="506" text-anchor="middle" class="t s" fill="#6d28d9">出货授权成本</text>
+            <text x="270" y="530" text-anchor="middle" class="t n">按发货销量</text>
+
+            <rect x="980" y="466" width="300" height="96" rx="12" fill="#faf5ff" stroke="#a78bfa"></rect>
+            <text x="1130" y="506" text-anchor="middle" class="t s" fill="#6d28d9">退货成本</text>
+            <text x="1130" y="530" text-anchor="middle" class="t n">同单价冲回，记负数</text>
+
+            <line x1="480" y1="430" x2="270" y2="466" stroke="#94a3b8" stroke-width="4" stroke-linecap="round" stroke-dasharray="5 5" marker-end="url(#arrGray)"></line>
+            <line x1="920" y1="430" x2="1130" y2="466" stroke="#94a3b8" stroke-width="4" stroke-linecap="round" stroke-dasharray="5 5" marker-end="url(#arrGray)"></line>
+            <line x1="700" y1="430" x2="700" y2="600" stroke="#8b5cf6" stroke-width="5" stroke-linecap="round" marker-end="url(#arrBlue)"></line>
+
+            <polygon points="360,600 1040,600 980,700 420,700" fill="url(#gGross)" stroke="#16a34a" stroke-width="3" filter="url(#soft)"></polygon>
+            <text x="700" y="644" text-anchor="middle" class="t h" fill="#166534">毛利</text>
+            <text x="700" y="672" text-anchor="middle" class="t n">营业收入 − 出货授权成本 − 退货成本</text>
+
+            <rect x="28" y="748" width="600" height="226" rx="12" fill="#faf5ff" stroke="#a78bfa"></rect>
+            <text x="328" y="774" text-anchor="middle" class="t s" fill="#6d28d9">市场投入</text>
+            <rect x="44" y="790" width="180" height="168" rx="10" fill="#ffffff" stroke="#ddd6fe"></rect>
+            <text x="134" y="814" text-anchor="middle" class="t s" fill="#5b21b6">营销投入</text>
+            <text x="134" y="840" text-anchor="middle" class="t xs">自主营销</text>
+            <text x="134" y="860" text-anchor="middle" class="t xs">产品营销</text>
+            <text x="134" y="880" text-anchor="middle" class="t xs">品牌营销</text>
+            <text x="134" y="900" text-anchor="middle" class="t xs">基础固定花费</text>
+            <text x="134" y="928" text-anchor="middle" class="t xs">联合营销</text>
+
+            <rect x="236" y="790" width="180" height="168" rx="10" fill="#ffffff" stroke="#ddd6fe"></rect>
+            <text x="326" y="814" text-anchor="middle" class="t s" fill="#5b21b6">渠道投入</text>
+            <text x="326" y="840" text-anchor="middle" class="t xs">自主营销</text>
+            <text x="326" y="860" text-anchor="middle" class="t xs">平台费用</text>
+            <text x="326" y="880" text-anchor="middle" class="t xs">广告投放</text>
+            <text x="326" y="908" text-anchor="middle" class="t xs">联合营销</text>
+            <text x="326" y="928" text-anchor="middle" class="t xs">广告投放</text>
+
+            <rect x="428" y="790" width="180" height="168" rx="10" fill="#ffffff" stroke="#ddd6fe"></rect>
+            <text x="518" y="814" text-anchor="middle" class="t s" fill="#5b21b6">销售投入</text>
+            <text x="518" y="840" text-anchor="middle" class="t xs">自主营销</text>
+            <text x="518" y="860" text-anchor="middle" class="t xs">平台费用</text>
+            <text x="518" y="880" text-anchor="middle" class="t xs">发货 / 退货佣金</text>
+            <text x="518" y="908" text-anchor="middle" class="t xs">广告投放</text>
+
+            <rect x="772" y="748" width="600" height="226" rx="12" fill="#faf5ff" stroke="#a78bfa"></rect>
+            <text x="1072" y="774" text-anchor="middle" class="t s" fill="#6d28d9">公共费用</text>
+            <rect x="788" y="790" width="180" height="168" rx="10" fill="#ffffff" stroke="#ddd6fe"></rect>
+            <text x="878" y="814" text-anchor="middle" class="t s" fill="#5b21b6">仓储物流</text>
+            <text x="878" y="840" text-anchor="middle" class="t xs">物流费用</text>
+            <text x="878" y="860" text-anchor="middle" class="t xs">头程 / 尾程</text>
+            <text x="878" y="888" text-anchor="middle" class="t xs">仓储费用</text>
+            <text x="878" y="908" text-anchor="middle" class="t xs">仓储租金</text>
+            <text x="878" y="928" text-anchor="middle" class="t xs">仓储其他</text>
+
+            <rect x="980" y="790" width="180" height="168" rx="10" fill="#ffffff" stroke="#ddd6fe"></rect>
+            <text x="1070" y="814" text-anchor="middle" class="t s" fill="#5b21b6">售后服务</text>
+            <text x="1070" y="840" text-anchor="middle" class="t xs">品质问题</text>
+            <text x="1070" y="860" text-anchor="middle" class="t xs">物流问题</text>
+            <text x="1070" y="880" text-anchor="middle" class="t xs">其他问题</text>
+            <text x="1070" y="900" text-anchor="middle" class="t xs">售后手续费</text>
+            <text x="1070" y="920" text-anchor="middle" class="t xs">售后未影响部分</text>
+
+            <rect x="1172" y="790" width="180" height="168" rx="10" fill="#fff7ed" stroke="#fdba74"></rect>
+            <text x="1262" y="814" text-anchor="middle" class="t s" fill="#b45309">其它费用</text>
+            <text x="1262" y="838" text-anchor="middle" class="t xs">透明标签费</text>
+            <text x="1262" y="856" text-anchor="middle" class="t xs">运杂费</text>
+            <text x="1262" y="878" text-anchor="middle" class="t xs" fill="#9a3412">运费收入</text>
+            <text x="1262" y="896" text-anchor="middle" class="t xs" fill="#9a3412">包裹险</text>
+            <text x="1262" y="914" text-anchor="middle" class="t xs" fill="#9a3412">包装收入</text>
+            <text x="1262" y="936" text-anchor="middle" class="t xs">其它</text>
+
+            <line x1="560" y1="700" x2="328" y2="748" stroke="#94a3b8" stroke-width="4" stroke-linecap="round" stroke-dasharray="5 5" marker-end="url(#arrGray)"></line>
+            <line x1="840" y1="700" x2="1072" y2="748" stroke="#94a3b8" stroke-width="4" stroke-linecap="round" stroke-dasharray="5 5" marker-end="url(#arrGray)"></line>
+            <line x1="700" y1="700" x2="700" y2="1016" stroke="#8b5cf6" stroke-width="5" stroke-linecap="round" marker-end="url(#arrBlue)"></line>
+
+            <polygon points="470,1016 930,1016 890,1112 510,1112" fill="url(#gProfit)" stroke="#7c3aed" stroke-width="3" filter="url(#soft)"></polygon>
+            <text x="700" y="1058" text-anchor="middle" class="t h" fill="#5b21b6">营业利润</text>
+            <text x="700" y="1084" text-anchor="middle" class="t n">毛利 − 市场投入 − 公共费用</text>
+          </svg>
+        </div>
+        <div class="graph-note">
+          主链自上而下：收入经渠道激励、税费得到营业收入，再扣出货授权成本与退货成本得到毛利，再扣市场投入与公共费用得到营业利润。橙色块是扣减或改挂项；灰色「渠道商利润」单独列示。末级科目在下一节。
+        </div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-hd">四、科目树（与管报科目树同层）</div>
+      <div class="atlas">
+        <div class="stack">
+          <article class="block">
+            <h3>收入</h3>
+            <div class="bd">
+              <div class="grp">
+                <div class="k">销量 <span>件数</span></div>
+                <div class="pills">
+                  <span class="pill qty">发货销量</span>
+                  <span class="pill qty">退货销量</span>
+                </div>
+              </div>
+              <div class="grp">
+                <div class="k">零售销售额</div>
+                <div class="pills">
+                  <span class="pill add">发货零售销售额</span>
+                  <span class="pill add">退货零售销售额</span>
+                </div>
+              </div>
+              <div class="grp">
+                <div class="k">渠道商利润 <span>营业收入不含</span></div>
+                <div class="pills"><span class="pill out">渠道商利润</span></div>
+              </div>
+              <div class="grp">
+                <div class="k">销售收入</div>
+                <div class="pills">
+                  <span class="pill add">发货销售收入</span>
+                  <span class="pill add">退货销售收入</span>
+                </div>
+              </div>
+              <div class="grp">
+                <div class="k">渠道激励</div>
+                <div class="nest">
+                  <div class="k">价保</div>
+                  <div class="pills"><span class="pill sub">价保</span></div>
+                  <div class="grp">
+                    <div class="k">返利</div>
+                    <div class="pills">
+                      <span class="pill sub">前返</span>
+                      <span class="pill sub">后返</span>
+                    </div>
+                  </div>
+                  <div class="grp">
+                    <div class="k">临时激励</div>
+                    <div class="pills">
+                      <span class="pill sub">划线价折扣</span>
+                      <span class="pill sub">Discounts</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="grp">
+                <div class="k">税费</div>
+                <div class="pills"><span class="pill sub">税费</span></div>
+              </div>
+              <div class="grp">
+                <div class="pills"><span class="pill result">营业收入</span></div>
+              </div>
+            </div>
+          </article>
+
+          <article class="block">
+            <h3>成本 → 毛利</h3>
+            <div class="bd">
+              <div class="pills">
+                <span class="pill fee">出货授权成本</span>
+                <span class="pill fee">退货成本</span>
+                <span class="pill result">毛利</span>
+              </div>
+            </div>
+          </article>
+
+          <article class="block">
+            <h3>营业利润</h3>
+            <div class="bd">
+              <div class="pills"><span class="pill result">营业利润 = 毛利 − 费用</span></div>
+            </div>
+          </article>
+        </div>
+
+        <div class="stack">
+          <article class="block">
+            <h3>费用 / 市场投入</h3>
+            <div class="bd">
+              <div class="fee-grid">
+                <div class="fee-col">
+                  <h4>营销投入</h4>
+                  <div class="k">自主营销 / 产品营销</div>
+                  <div class="pills">
+                    <span class="pill fee">新品上市项目（IMC选品）</span>
+                    <span class="pill fee">新品上市项目（非IMC选品）</span>
+                    <span class="pill fee">场景campaign（IMC立项）</span>
+                    <span class="pill fee">品线日常AO</span>
+                    <span class="pill fee">营销样机</span>
+                  </div>
+                  <div class="grp">
+                    <div class="k">自主营销 / 品牌营销</div>
+                    <div class="pills">
+                      <span class="pill fee">大促活动营销</span>
+                      <span class="pill fee">日常营销AO</span>
+                      <span class="pill fee">品牌大事件</span>
+                      <span class="pill fee">展会传播</span>
+                      <span class="pill fee">其他</span>
+                      <span class="pill fee">营销样机</span>
+                    </div>
+                  </div>
+                  <div class="grp">
+                    <div class="k">自主营销 / 基础固定花费</div>
+                    <div class="pills">
+                      <span class="pill fee">翻译费</span>
+                      <span class="pill fee">供应商年框合作费</span>
+                      <span class="pill fee">营销工具采买</span>
+                    </div>
+                  </div>
+                  <div class="grp">
+                    <div class="k">联合营销 <span>无下级</span></div>
+                  </div>
+                </div>
+
+                <div class="fee-col">
+                  <h4>渠道投入</h4>
+                  <div class="k">自主营销 / 平台费用</div>
+                  <div class="pills">
+                    <span class="pill fee">平台佣金</span>
+                    <span class="pill fee">进场费</span>
+                    <span class="pill fee">平台赔偿及罚款</span>
+                    <span class="pill fee">销售样机</span>
+                  </div>
+                  <div class="grp">
+                    <div class="k">自主营销 / 广告投放</div>
+                    <div class="pills">
+                      <span class="pill fee">零售陈列物料</span>
+                      <span class="pill fee">KA站外投放</span>
+                      <span class="pill fee">营销样机</span>
+                    </div>
+                  </div>
+                  <div class="grp">
+                    <div class="k">联合营销 / 广告投放</div>
+                    <div class="pills">
+                      <span class="pill fee">展会</span>
+                      <span class="pill fee">KA站内投放</span>
+                      <span class="pill fee">分销站内投放</span>
+                      <span class="pill fee">KOL费用</span>
+                      <span class="pill fee">PR费用</span>
+                      <span class="pill fee">营销样机</span>
+                      <span class="pill fee">零售陈列物料</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="fee-col">
+                  <h4>销售投入</h4>
+                  <div class="k">自主营销 / 平台费用</div>
+                  <div class="nest">
+                    <div class="k">平台佣金</div>
+                    <div class="pills">
+                      <span class="pill fee">发货佣金</span>
+                      <span class="pill fee">退货佣金</span>
+                    </div>
+                  </div>
+                  <div class="pills">
+                    <span class="pill fee">平台服务</span>
+                    <span class="pill fee">平台赔偿及罚款</span>
+                    <span class="pill fee">支付通道手续费</span>
+                    <span class="pill fee">平台其他</span>
+                    <span class="pill fee">销售样机</span>
+                  </div>
+                  <div class="grp">
+                    <div class="k">自主营销 / 广告投放</div>
+                    <div class="pills">
+                      <span class="pill fee">电商站内投放</span>
+                      <span class="pill fee">电商站外投放</span>
+                      <span class="pill fee">营销样机</span>
+                      <span class="pill fee">KOL费用</span>
+                      <span class="pill fee">PR费用</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </article>
+
+          <article class="block">
+            <h3>费用 / 公共费用</h3>
+            <div class="bd">
+              <div class="fee-grid">
+                <div class="fee-col">
+                  <h4>仓储物流</h4>
+                  <div class="k">物流费用</div>
+                  <div class="pills">
+                    <span class="pill fee">头程</span>
+                    <span class="pill fee">尾程</span>
+                  </div>
+                  <div class="grp">
+                    <div class="k">仓储费用</div>
+                    <div class="pills">
+                      <span class="pill fee">仓储租金</span>
+                      <span class="pill fee">仓储其他</span>
+                    </div>
+                  </div>
+                </div>
+                <div class="fee-col">
+                  <h4>售后服务</h4>
+                  <div class="pills">
+                    <span class="pill fee">品质问题</span>
+                    <span class="pill fee">物流问题</span>
+                    <span class="pill fee">其他问题</span>
+                    <span class="pill fee">售后手续费</span>
+                    <span class="pill fee">售后未影响部分</span>
+                  </div>
+                </div>
+                <div class="fee-col">
+                  <h4>其它费用</h4>
+                  <div class="pills">
+                    <span class="pill fee">透明标签费</span>
+                    <span class="pill fee">运杂费</span>
+                    <span class="pill fee">其它</span>
+                  </div>
+                  <div class="grp">
+                    <div class="k">运费收入 <span>改挂</span></div>
+                    <div class="nest">
+                      <div class="k">运费收入</div>
+                      <div class="pills">
+                        <span class="pill move">发货运费收入</span>
+                        <span class="pill move">退货运费收入</span>
+                      </div>
+                      <div class="grp">
+                        <div class="k">运费收入扣减</div>
+                        <div class="pills">
+                          <span class="pill move">发货运费收入扣减</span>
+                          <span class="pill move">退货运费收入扣减</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="grp">
+                    <div class="k">包裹险 <span>改挂</span></div>
+                    <div class="pills">
+                      <span class="pill move">包裹险收入</span>
+                      <span class="pill move">包裹险扣减</span>
+                    </div>
+                  </div>
+                  <div class="grp">
+                    <div class="k">包装收入 <span>改挂</span></div>
+                    <div class="nest">
+                      <div class="k">包装收入</div>
+                      <div class="pills">
+                        <span class="pill move">发货包装收入</span>
+                        <span class="pill move">退货包装收入</span>
+                      </div>
+                      <div class="grp">
+                        <div class="k">包装收入扣减</div>
+                        <div class="pills">
+                          <span class="pill move">发货包装收入扣减</span>
+                          <span class="pill move">退货包装收入扣减</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </article>
+        </div>
+      </div>
+      <p class="hint">
+        上级金额是下级合计。营业收入、毛利、营业利润是结果行，不重复加进上级。同名科目按所在路径区分，例如营销样机分别挂在产品营销、品牌营销、渠道广告和销售广告下；渠道投入的平台佣金是末级，销售投入的平台佣金再拆发货佣金、退货佣金。某渠道没有的科目在看板上可以置灰，本页保留全渠道完整结构。
+      </p>
+    </section>
+  </div>
+</body>
+</html>
