@@ -64,7 +64,11 @@
     <aside class="side"><div>看板</div><div>运营</div><div>客服</div><div>订单</div></aside>
     <div class="main">
       <div class="filters">
-        <span>平台 shopify</span><span>站点 全部</span><span>北京时间</span>
+        <div class="switch" id="platformSwitch" title="切换渠道后成本结构使用对应渠道的费率与头程权重">
+          <button type="button" id="pfShopify" class="on">Shopify</button>
+          <button type="button" id="pfApp">APP商城</button>
+        </div>
+        <span>站点 全部</span><span>北京时间</span>
         <span>2025-10-07 至 2025-10-13</span><span>环比 同比</span>
       </div>
       <div class="note">成本结构与概览的净利润是同一条公式、同一个数。流量等其余概览指标仍是现网口径。饼图含净利润，占比分母是饼图各项合计；国家成本结构不含净利润，占比分母是该国成本与费用合计。</div>
@@ -144,7 +148,11 @@
   <div class="mask" id="rateMask">
     <div class="dialog" role="dialog" aria-labelledby="rateTitle">
       <h3 id="rateTitle">费率配置</h3>
-      <p class="hint">按站点维护。保存后从次日生效，保存日和更早的日期仍用改之前的费率。平台服务费率已含 Seel 费用，净利润不再单独扣 Seel。本页查询区间是 2025-10-07 至 2025-10-13，早于次日，所以保存后这块金额不变。平台服务、平台其他、支付通道手续费、仓储其它按营业收入计算。其他费用按净销售额计算，净销售额为负时记 0。支付通道正式环境仍在运营 → 成本费率配置，按店铺 + 年月。</p>
+      <div class="switch" id="rateChannelSwitch" style="margin-bottom:10px">
+        <button type="button" id="rateChShopify" class="on">Shopify</button>
+        <button type="button" id="rateChApp">APP商城</button>
+      </div>
+      <p class="hint">按渠道、站点分别维护。Shopify 与 APP商城 两套配置互不影响。保存后从次日生效，保存日和更早的日期仍用改之前的费率。平台服务费率已含 Seel 费用。本页查询到 2025-10-13，保存后当前区间金额仍用保存前的费率。支付通道正式环境仍在运营 → 成本费率配置，按店铺 + 年月。</p>
       <table>
         <tr><td>站点</td><td class="n">平台服务 %</td><td class="n">平台其他 %</td><td class="n">支付通道 %</td><td class="n">仓储其它 %</td><td class="n">其他费用 %</td></tr>
         <tr><td>EU</td><td><input data-site="EU" data-key="platform"></td><td><input data-site="EU" data-key="risk"></td><td><input data-site="EU" data-key="pay"></td><td><input data-site="EU" data-key="storage"></td><td><input data-site="EU" data-key="other"></td></tr>
@@ -162,7 +170,11 @@
   <div class="mask" id="weightMask">
     <div class="dialog" role="dialog" aria-labelledby="weightTitle">
       <h3 id="weightTitle">头程权重</h3>
-      <p class="hint">只在该月没有已发运，或某种运输方式没有物流计算器报价时使用。有发运且报价齐全的月份仍按 Shipment 占比。每组三项权重合计为 100%。英国、欧盟的快船默认 0。</p>
+      <div class="switch" id="weightChannelSwitch" style="margin-bottom:10px">
+        <button type="button" id="weightChShopify" class="on">Shopify</button>
+        <button type="button" id="weightChApp">APP商城</button>
+      </div>
+      <p class="hint">按渠道分别维护。Shopify 与 APP商城 两套权重互不影响。只在该月没有已发运，或某种运输方式没有物流计算器报价时使用。有发运且报价齐全的月份仍按 Shipment 占比。每组三项权重合计为 100%。</p>
       <table>
         <tr><td>站点</td><td class="n">普船 %</td><td class="n">快船 %</td><td class="n">专线 %</td><td class="n">合计</td></tr>
         <tr><td>美国、加拿大</td><td><input id="usSea" type="number" min="0" step="0.1"></td><td><input id="usFast" type="number" min="0" step="0.1"></td><td><input id="usLine" type="number" min="0" step="0.1"></td><td class="n" id="usSum"></td></tr>
@@ -232,13 +244,33 @@
       ["美国", 0.46], ["加拿大", 0.12], ["英国", 0.1], ["德国", 0.09], ["法国", 0.07],
       ["荷兰", 0.05], ["意大利", 0.04], ["西班牙", 0.03], ["波兰", 0.02], ["其他", 0.02]
     ];
-    const rates = {
+    const defaultRateTable = {
       EU: { platform: 1, risk: 0.15, pay: 5.8, storage: 0.8, other: 2.26 },
       UK: { platform: 0.9, risk: 0.15, pay: 6.2, storage: 0.8, other: 2.54 },
       US: { platform: 1, risk: 0.09, pay: 4.77, storage: 0.58, other: 2.39 },
       CA: { platform: 0.81, risk: 0.06, pay: 5.25, storage: 0.41, other: 5.26 }
     };
-    const weights = { usSea: 70, usFast: 20, usLine: 10, euSea: 90, euFast: 0, euLine: 10 };
+    const defaultRateTableApp = {
+      EU: { platform: 1, risk: 0.15, pay: 5.5, storage: 0.75, other: 2.1 },
+      UK: { platform: 0.9, risk: 0.15, pay: 6.0, storage: 0.75, other: 2.4 },
+      US: { platform: 1, risk: 0.09, pay: 5.5, storage: 0.55, other: 2.0 },
+      CA: { platform: 0.81, risk: 0.06, pay: 5.1, storage: 0.38, other: 5.0 }
+    };
+    const defaultWeights = { usSea: 70, usFast: 20, usLine: 10, euSea: 90, euFast: 0, euLine: 10 };
+    const defaultWeightsApp = { usSea: 75, usFast: 15, usLine: 10, euSea: 85, euFast: 5, euLine: 10 };
+    function cloneRates(t) { return JSON.parse(JSON.stringify(t)); }
+    const channelRates = {
+      shopify: { active: cloneRates(defaultRateTable), future: cloneRates(defaultRateTable) },
+      app: { active: cloneRates(defaultRateTableApp), future: cloneRates(defaultRateTableApp) }
+    };
+    const channelWeights = {
+      shopify: cloneRates(defaultWeights),
+      app: cloneRates(defaultWeightsApp)
+    };
+    let pageChannel = "shopify";
+    let rateModalChannel = "shopify";
+    let weightModalChannel = "shopify";
+    const channelLabel = { shopify: "Shopify", app: "APP商城" };
     function sliceByName(name) { return slices.find((s) => s[0] === name); }
     function money(n) { return Math.round(n).toLocaleString("en-US"); }
     function num(v) {
@@ -246,13 +278,15 @@
       return Number.isFinite(n) ? n : NaN;
     }
     function headText() {
+      const weights = channelWeights[pageChannel];
       const usUnit = 1.18 * weights.usSea / 100 + 2.40 * weights.usFast / 100;
       const euUnit = 1.18 * weights.euSea / 100 + 2.40 * weights.euFast / 100;
       const usAmt = 90 * usUnit / 6.60;
       const euAmt = 90 * euUnit / 6.60;
-      return "该 MSKU 已有头程单价：查询区间内各月都按老品，用近 12 月滚动加权单价。没有头程单价：取 Shipment 费用页近 3 个自然月，每月单独算综合单价。归月用发货时间（DL 创建时间）。只统计目的仓为海外仓、已发运、shipped 数量大于 0 的计划。占比 = 该运输方式 shipped 数量 ÷ 该月已发运总件数。每种方式在物流计算器都有报价时，综合单价 = Σ（预估成本元/PCS × 占比）。始发仓 Shenzhen Warehouse，目的国按站点。该月没有已发运，或任一运输方式没有对应报价时，改用固定权重。美国、加拿大：当前普船 × " + weights.usSea + "% + 当前快船 × " + weights.usFast + "% + 当前专线 × " + weights.usLine + "%，没有快船或专线报价时该项按 0。英国、欧盟：当前普船 × " + weights.euSea + "% + 当前快船 × " + weights.euFast + "% + 当前专线 × " + weights.euLine + "%，没有报价时该项按 0。快船默认 0。件数 = 发货销量 − 退货销量，Shipment 件数只用于占比。头程 = 件数 × 该月单价 ÷ 发货月美元汇率（1 美元 = x 人民币）。跨月按月拆开。当月未过完时，占比只用已发运件数。试算用的人工空运、人工海运只在试算里，不改本列。例：发货 100、退货 10，汇率 6.60。10 月普船 240 件、快船 60 件，单价 1.18、2.40，综合单价 = 1.18×0.8 + 2.40×0.2 = 1.424，头程 = 90 × 1.424 ÷ 6.60 = 19.42 美元。该月无发运或运输方式无报价时改固定权重：美国或加拿大 " + usUnit.toFixed(3) + " 元/PCS、头程 " + usAmt.toFixed(2) + " 美元；英国或欧盟 " + euUnit.toFixed(3) + " 元/PCS、头程 " + euAmt.toFixed(2) + " 美元。已有头程单价且滚动单价 12.30 时，头程 = 167.73 美元。本列期间合计示例仍为 180,000。权重在本页「头程权重」中维护。";
+      return "该 MSKU 已有头程单价：查询区间内各月都按老品，用近 12 月滚动加权单价。没有头程单价：取 Shipment 费用页近 3 个自然月，每月单独算综合单价。归月用发货时间（DL 创建时间）。只统计目的仓为海外仓、已发运、shipped 数量大于 0 的计划。占比 = 该运输方式 shipped 数量 ÷ 该月已发运总件数。每种方式在物流计算器都有报价时，综合单价 = Σ（预估成本元/PCS × 占比）。始发仓 Shenzhen Warehouse，目的国按站点。该月没有已发运，或任一运输方式没有对应报价时，改用固定权重。美国、加拿大：当前普船 × " + weights.usSea + "% + 当前快船 × " + weights.usFast + "% + 当前专线 × " + weights.usLine + "%，没有快船或专线报价时该项按 0。英国、欧盟：当前普船 × " + weights.euSea + "% + 当前快船 × " + weights.euFast + "% + 当前专线 × " + weights.euLine + "%，没有报价时该项按 0。件数 = 发货销量 − 退货销量，Shipment 件数只用于占比。头程 = 件数 × 该月单价 ÷ 发货月美元汇率（1 美元 = x 人民币）。跨月按月拆开。当月未过完时，占比只用已发运件数。试算用的人工空运、人工海运只在试算里，不改本列。例：发货 100、退货 10，汇率 6.60。10 月普船 240 件、快船 60 件，单价 1.18、2.40，综合单价 = 1.18×0.8 + 2.40×0.2 = 1.424，头程 = 90 × 1.424 ÷ 6.60 = 19.42 美元。该月无发运或运输方式无报价时改固定权重：美国或加拿大 " + usUnit.toFixed(3) + " 元/PCS、头程 " + usAmt.toFixed(2) + " 美元；英国或欧盟 " + euUnit.toFixed(3) + " 元/PCS、头程 " + euAmt.toFixed(2) + " 美元。已有头程单价且滚动单价 12.30 时，头程 = 167.73 美元。本列期间合计示例仍为 180,000。权重按当前渠道「" + channelLabel[pageChannel] + "」在「头程权重」中维护。";
     }
     function applyConfig() {
+      const rates = channelRates[pageChannel].active;
       const us = rates.US;
       const platform = Math.round(revenueBase * us.platform / 100);
       const pay = Math.round(revenueBase * us.pay / 100);
@@ -321,7 +355,6 @@
       a.download = "成本结构-v2.csv";
       a.click();
     });
-    const futureRates = JSON.parse(JSON.stringify(rates));
     function nextDay() {
       const d = new Date();
       d.setDate(d.getDate() + 1);
@@ -329,21 +362,61 @@
       const day = String(d.getDate()).padStart(2, "0");
       return d.getFullYear() + "-" + m + "-" + day;
     }
-    function fillRateForm() {
+    function setChannelSwitch(containerId, channel, onChange) {
+      const root = document.getElementById(containerId);
+      if (!root) return;
+      root.querySelectorAll("button").forEach((btn) => {
+        btn.classList.toggle("on", btn.id.endsWith(channel === "shopify" ? "Shopify" : "App"));
+      });
+      if (onChange) onChange(channel);
+    }
+    function readRateFormInto(channel) {
+      const future = channelRates[channel].future;
       document.querySelectorAll("#rateMask input[data-site]").forEach((input) => {
-        input.value = futureRates[input.dataset.site][input.dataset.key];
+        const v = num(input.value);
+        if (!Number.isNaN(v)) future[input.dataset.site][input.dataset.key] = v;
+      });
+    }
+    function fillRateForm() {
+      const future = channelRates[rateModalChannel].future;
+      document.querySelectorAll("#rateMask input[data-site]").forEach((input) => {
+        input.value = future[input.dataset.site][input.dataset.key];
       });
       document.getElementById("rateErr").textContent = "";
+      setChannelSwitch("rateChannelSwitch", rateModalChannel);
+    }
+    function switchRateModalChannel(next) {
+      if (next === rateModalChannel) return;
+      readRateFormInto(rateModalChannel);
+      rateModalChannel = next;
+      fillRateForm();
     }
     function fillWeightForm() {
-      document.getElementById("usSea").value = weights.usSea;
-      document.getElementById("usFast").value = weights.usFast;
-      document.getElementById("usLine").value = weights.usLine;
-      document.getElementById("euSea").value = weights.euSea;
-      document.getElementById("euFast").value = weights.euFast;
-      document.getElementById("euLine").value = weights.euLine;
+      const w = channelWeights[weightModalChannel];
+      document.getElementById("usSea").value = w.usSea;
+      document.getElementById("usFast").value = w.usFast;
+      document.getElementById("usLine").value = w.usLine;
+      document.getElementById("euSea").value = w.euSea;
+      document.getElementById("euFast").value = w.euFast;
+      document.getElementById("euLine").value = w.euLine;
       document.getElementById("weightErr").textContent = "";
+      setChannelSwitch("weightChannelSwitch", weightModalChannel);
       refreshWeightPreview();
+    }
+    function readWeightFormInto(channel) {
+      const w = channelWeights[channel];
+      w.usSea = num(document.getElementById("usSea").value);
+      w.usFast = num(document.getElementById("usFast").value);
+      w.usLine = num(document.getElementById("usLine").value);
+      w.euSea = num(document.getElementById("euSea").value);
+      w.euFast = num(document.getElementById("euFast").value);
+      w.euLine = num(document.getElementById("euLine").value);
+    }
+    function switchWeightModalChannel(next) {
+      if (next === weightModalChannel) return;
+      readWeightFormInto(weightModalChannel);
+      weightModalChannel = next;
+      fillWeightForm();
     }
     function refreshWeightPreview() {
       const usSea = num(document.getElementById("usSea").value);
@@ -362,7 +435,13 @@
       const euUnit = 1.18 * euSea / 100 + 2.40 * euFast / 100;
       document.getElementById("weightPreview").textContent = "按示例报价（普船 1.18、快船 2.40、专线无报价，90 件，汇率 6.60）：美国或加拿大 " + usUnit.toFixed(3) + " 元/PCS、" + (90 * usUnit / 6.60).toFixed(2) + " 美元；英国或欧盟 " + euUnit.toFixed(3) + " 元/PCS、" + (90 * euUnit / 6.60).toFixed(2) + " 美元。饼图头程期间合计仍为 180,000。";
     }
-    document.getElementById("cfgRate").onclick = () => { fillRateForm(); document.getElementById("rateMask").classList.add("show"); };
+    document.getElementById("cfgRate").onclick = () => {
+      rateModalChannel = pageChannel;
+      fillRateForm();
+      document.getElementById("rateMask").classList.add("show");
+    };
+    document.getElementById("rateChShopify").onclick = () => switchRateModalChannel("shopify");
+    document.getElementById("rateChApp").onclick = () => switchRateModalChannel("app");
     document.getElementById("rateCancel").onclick = () => document.getElementById("rateMask").classList.remove("show");
     document.getElementById("rateSave").onclick = () => {
       const next = { EU: {}, UK: {}, US: {}, CA: {} };
@@ -376,12 +455,19 @@
         document.getElementById("rateErr").textContent = "费率填写大于或等于 0 的数字。";
         return;
       }
-      ["EU", "UK", "US", "CA"].forEach((site) => Object.assign(futureRates[site], next[site]));
+      const future = channelRates[rateModalChannel].future;
+      ["EU", "UK", "US", "CA"].forEach((site) => Object.assign(future[site], next[site]));
       const start = nextDay();
-      document.getElementById("rateNote").textContent = "费率已保存，自 " + start + " 起生效。当前查询到 " + queryEnd + " 为止，仍用保存前的费率，金额不变。";
+      document.getElementById("rateNote").textContent = channelLabel[rateModalChannel] + " 费率已保存，自 " + start + " 起生效。当前查询到 " + queryEnd + " 为止，仍用保存前的费率，金额不变。";
       document.getElementById("rateMask").classList.remove("show");
     };
-    document.getElementById("cfgWeight").onclick = () => { fillWeightForm(); document.getElementById("weightMask").classList.add("show"); };
+    document.getElementById("cfgWeight").onclick = () => {
+      weightModalChannel = pageChannel;
+      fillWeightForm();
+      document.getElementById("weightMask").classList.add("show");
+    };
+    document.getElementById("weightChShopify").onclick = () => switchWeightModalChannel("shopify");
+    document.getElementById("weightChApp").onclick = () => switchWeightModalChannel("app");
     document.getElementById("weightCancel").onclick = () => document.getElementById("weightMask").classList.remove("show");
     ["usSea", "usFast", "usLine", "euSea", "euFast", "euLine"].forEach((id) => {
       document.getElementById(id).addEventListener("input", refreshWeightPreview);
@@ -406,9 +492,19 @@
         document.getElementById("weightErr").textContent = "两组都是普船、快船、专线三项合计为 100%。";
         return;
       }
-      Object.assign(weights, next);
-      renderCost();
+      Object.assign(channelWeights[weightModalChannel], next);
+      if (weightModalChannel === pageChannel) renderCost();
       document.getElementById("weightMask").classList.remove("show");
+    };
+    document.getElementById("pfShopify").onclick = () => {
+      pageChannel = "shopify";
+      setChannelSwitch("platformSwitch", pageChannel);
+      renderCost();
+    };
+    document.getElementById("pfApp").onclick = () => {
+      pageChannel = "app";
+      setChannelSwitch("platformSwitch", pageChannel);
+      renderCost();
     };
     document.getElementById("rateMask").onclick = (e) => { if (e.target.id === "rateMask") document.getElementById("rateMask").classList.remove("show"); };
     document.getElementById("weightMask").onclick = (e) => { if (e.target.id === "weightMask") document.getElementById("weightMask").classList.remove("show"); };
