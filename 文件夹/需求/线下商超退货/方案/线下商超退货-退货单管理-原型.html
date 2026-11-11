@@ -1,0 +1,2126 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>线下商超退货 · 退货单管理</title>
+  <style>
+    :root {
+      --brand: #1677ff; --brand-soft: #e6f4ff;
+      --border: #d9d9d9; --line: #f0f0f0;
+      --text: #1e293b; --muted: #64748b; --label: #595959;
+      --good: #0f766e; --warn: #b45309; --danger: #b91c1c;
+      --a1: #0369a1; --a2: #0f766e; --b: #b45309;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+      font-size: 13px; color: var(--text); background: #f5f7fa;
+    }
+    .erp-layout { min-height: 100vh; display: flex; flex-direction: column; }
+    .topbar {
+      background: #001529; color: #fff; padding: 0 20px; height: 48px;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .topbar .logo { font-weight: 700; font-size: 14px; }
+    .topbar a { color: #91caff; font-size: 12px; text-decoration: none; margin-left: 12px; }
+    .topbar a:hover { text-decoration: underline; }
+    .page-hd {
+      background: #fff; border-bottom: 1px solid var(--line);
+      padding: 14px 20px;
+    }
+    .page-hd h1 { margin: 0 0 4px; font-size: 18px; color: #0f2f63; }
+    .page-hd p { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.55; }
+    .page-hd a { color: var(--brand); }
+    .solution-banner {
+      margin: 12px 20px 0; padding: 12px 14px; background: var(--brand-soft);
+      border: 1px solid #91caff; border-radius: 8px; font-size: 12px; line-height: 1.6;
+    }
+    .solution-banner strong { color: #0958d9; }
+    .filter-panel {
+      background: #fff; padding: 14px 20px 16px; border-bottom: 1px solid var(--line);
+    }
+    .filter-grid {
+      display: flex; flex-wrap: wrap; gap: 12px 16px; align-items: center;
+    }
+    .f-item { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+    .f-item > label { color: var(--label); font-size: 13px; white-space: nowrap; }
+    .ctl-wrap { position: relative; display: inline-flex; align-items: center; }
+    select.ctl {
+      height: 32px; min-width: 88px; max-width: 120px;
+      padding: 0 28px 0 10px; border: 1px solid var(--border);
+      border-radius: 6px; font-size: 13px; background: #fff;
+    }
+    select.ctl:focus { border-color: var(--brand); outline: none; box-shadow: 0 0 0 2px rgba(22,119,255,.12); }
+    .ctl-clear {
+      position: absolute; right: 22px; top: 50%; transform: translateY(-50%);
+      border: none; background: transparent; color: rgba(0,0,0,.25);
+      cursor: pointer; font-size: 12px; padding: 2px 4px; z-index: 1;
+    }
+    .ctl-clear:hover { color: rgba(0,0,0,.45); }
+    .ctl-clear[hidden] { display: none; }
+    input.ctl-text {
+      height: 32px; width: 140px; padding: 0 10px;
+      border: 1px solid var(--border); border-radius: 6px;
+    }
+    .btn {
+      height: 32px; padding: 0 14px; border-radius: 6px; font-size: 13px;
+      cursor: pointer; border: 1px solid var(--border); background: #fff;
+      font-family: inherit;
+    }
+    .btn-primary { background: var(--brand); color: #fff; border-color: var(--brand); }
+    .btn-primary:hover { background: #4096ff; }
+    .btn-ghost:hover { color: var(--brand); border-color: var(--brand); }
+    .toolbar {
+      display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
+      padding: 12px 20px; background: #fff; border-bottom: 1px solid var(--line);
+    }
+    .main { flex: 1; padding: 0 20px 24px; }
+    .table-wrap {
+      background: #fff; border: 1px solid var(--line); border-radius: 8px;
+      margin-top: 12px;
+    }
+    .table-scroll {
+      overflow-x: auto;
+      overflow-y: auto;
+      max-height: calc(100vh - 320px);
+      -webkit-overflow-scrolling: touch;
+    }
+    table.data {
+      width: max-content;
+      min-width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+    table.data th, table.data td {
+      border: 1px solid var(--line); padding: 8px 10px; text-align: left;
+      vertical-align: middle;
+      white-space: nowrap;
+    }
+    table.data thead th {
+      position: sticky; top: 0; z-index: 2;
+      background: #fafafa; font-weight: 600; color: var(--label);
+      box-shadow: 0 1px 0 var(--line);
+    }
+    table.data tbody tr:hover { background: #fafbff; }
+    table.data tbody tr.row-warn { background: #fffbeb; }
+    .tag {
+      display: inline-block; padding: 2px 8px; border-radius: 4px;
+      font-size: 11px; font-weight: 600;
+    }
+    .tag-a1 { background: #e0f2fe; color: var(--a1); }
+    .tag-a2 { background: #ccfbf1; color: var(--a2); }
+    .tag-b { background: #fef3c7; color: var(--b); }
+    .tag-status { background: #f1f5f9; color: #475569; }
+    .tag-action { background: #f5f3ff; color: #6d28d9; white-space: nowrap; }
+    select.cell-sel {
+      width: 72px; height: 28px; font-size: 12px;
+      border: 1px solid var(--border); border-radius: 4px;
+    }
+    select.cell-handle {
+      min-width: 118px; max-width: 140px; width: auto;
+    }
+    select.cell-sel:disabled { background: #f5f5f5; color: #999; }
+    input.cell-inp, select.cell-msku {
+      height: 28px; padding: 0 6px; font-size: 12px;
+      border: 1px solid var(--border); border-radius: 4px;
+      background: #fff; width: 100%; min-width: 72px;
+    }
+    input.cell-inp:focus, select.cell-msku:focus {
+      border-color: var(--brand); outline: none; box-shadow: 0 0 0 2px rgba(22,119,255,.12);
+    }
+    input.cell-inp.num { text-align: right; width: 64px; min-width: 64px; }
+    select.cell-msku { min-width: 100px; max-width: 120px; }
+    select.cell-currency {
+      width: 68px; min-width: 68px; height: 28px; padding: 0 4px;
+      font-size: 12px; border: 1px solid var(--border); border-radius: 4px;
+      background: #fff;
+    }
+    select.cell-currency:focus {
+      border-color: var(--brand); outline: none; box-shadow: 0 0 0 2px rgba(22,119,255,.12);
+    }
+    td.col-currency { white-space: nowrap; }
+    td.col-month { min-width: 196px; padding: 4px 6px; }
+    td.col-month .mrp-wrap { width: 100%; max-width: 196px; min-width: 184px; }
+    /* 保留左右内边距，避免日历/清空与「YYYY-MM - YYYY-MM」重叠 */
+    td.col-month .mrp-trigger {
+      height: 28px; min-width: 0; width: 100%; font-size: 12px;
+      padding: 0 24px 0 26px; box-sizing: border-box;
+    }
+    td.col-month .mrp-ico-cal { left: 7px; width: 14px; height: 14px; opacity: .65; }
+    td.col-month .mrp-ico-clear { right: 4px; width: 20px; height: 20px; font-size: 13px; }
+    td.col-month .mrp-text { font-size: 12px; }
+    td.col-doc input.cell-inp { width: 108px; min-width: 96px; max-width: 140px; }
+    .num-r { text-align: right; font-variant-numeric: tabular-nums; }
+    .link { color: var(--brand); cursor: pointer; text-decoration: none; }
+    .link:hover { text-decoration: underline; }
+    .col-batch { font-variant-numeric: tabular-nums; white-space: nowrap; }
+    .list-summary {
+      padding: 10px 14px; background: #f8fafc; border-bottom: 1px solid var(--line);
+      font-size: 12px; color: var(--muted);
+    }
+    .list-summary strong { color: #0f2f63; }
+    .op-cell {
+      display: inline-flex; flex-wrap: nowrap; align-items: center; gap: 4px;
+      white-space: nowrap;
+    }
+    .op-done {
+      display: inline-block; padding: 2px 6px; border-radius: 4px;
+      font-size: 11px; color: var(--good); background: #ecfdf5;
+      border: 1px solid #a7f3d0; white-space: nowrap;
+    }
+    .op-finish {
+      display: inline-block; padding: 2px 6px; border-radius: 4px;
+      font-size: 11px; color: #475569; background: #f1f5f9;
+      white-space: nowrap;
+    }
+    .btn-op {
+      height: 26px; padding: 0 8px; border-radius: 4px; font-size: 11px;
+      cursor: pointer; border: 1px solid var(--brand); background: var(--brand-soft);
+      color: var(--brand); font-family: inherit; white-space: nowrap;
+    }
+    .btn-op:hover { background: #bae0ff; }
+    td.col-op { white-space: nowrap; }
+    td.col-pending { white-space: nowrap; }
+    .batch-btn-group {
+      display: inline-flex; flex-wrap: wrap; gap: 6px; align-items: center;
+      margin-left: 4px; max-width: calc(100% - 280px);
+    }
+    .batch-btn-group .btn-batch-action {
+      height: 32px; padding: 0 10px; font-size: 12px; white-space: nowrap;
+    }
+    .batch-btn-group .btn-batch-action:disabled { opacity: 0.45; cursor: not-allowed; }
+    .batch-btn-group .btn-batch-action.btn-batch-ready:not(:disabled) {
+      border-color: var(--brand); background: var(--brand-soft); color: var(--brand);
+    }
+    .batch-edit-wrap {
+      display: inline-flex; align-items: center; gap: 6px; margin-left: 8px;
+      padding-left: 10px; border-left: 1px solid var(--line); flex-shrink: 0;
+    }
+    .batch-edit-wrap label { font-size: 12px; color: var(--muted); white-space: nowrap; }
+    .batch-edit-wrap select.ctl {
+      min-width: 148px; max-width: 180px; height: 32px; font-size: 12px;
+    }
+    .batch-edit-wrap #btn-batch-edit-apply { height: 32px; font-size: 12px; white-space: nowrap; }
+    .batch-edit-wrap select.ctl:disabled,
+    .batch-edit-wrap #btn-batch-edit-apply:disabled { opacity: 0.45; cursor: not-allowed; }
+    .batch-edit-summary {
+      margin: 0 0 12px; padding: 10px 12px; background: #f8fafc;
+      border: 1px solid var(--line); border-radius: 8px; font-size: 12px; line-height: 1.6;
+    }
+    .batch-edit-summary strong { color: var(--brand); }
+
+    /* Modal */
+    .modal-mask {
+      display: none; position: fixed; inset: 0; background: rgba(0,0,0,.45);
+      z-index: 100; align-items: center; justify-content: center; padding: 20px;
+    }
+    .modal-mask.open { display: flex; }
+    .modal {
+      background: #fff; border-radius: 10px; width: 100%; max-width: 720px;
+      max-height: 90vh; overflow: hidden; display: flex; flex-direction: column;
+      box-shadow: 0 12px 40px rgba(0,0,0,.15);
+    }
+    .modal-hd {
+      padding: 14px 18px; border-bottom: 1px solid var(--line);
+      font-weight: 700; font-size: 15px;
+    }
+    .modal-bd { padding: 18px; overflow-y: auto; flex: 1; }
+    .modal-ft {
+      padding: 12px 18px; border-top: 1px solid var(--line);
+      display: flex; justify-content: flex-end; gap: 8px;
+    }
+    .steps { display: flex; gap: 0; margin-bottom: 18px; }
+    .step {
+      flex: 1; text-align: center; padding: 8px; font-size: 12px;
+      border-bottom: 2px solid var(--line); color: var(--muted);
+    }
+    .step.active { border-color: var(--brand); color: var(--brand); font-weight: 700; }
+    .step.done { border-color: var(--good); color: var(--good); }
+    .form-row { margin-bottom: 14px; }
+    .form-row label { display: block; margin-bottom: 6px; color: var(--label); font-weight: 600; }
+    .type-cards { display: flex; gap: 10px; flex-wrap: wrap; }
+    .type-card {
+      flex: 1; min-width: 180px; padding: 12px; border: 2px solid var(--line);
+      border-radius: 8px; cursor: pointer; transition: all .15s;
+    }
+    .type-card:hover { border-color: #93c5fd; }
+    .type-card.selected { border-color: var(--brand); background: var(--brand-soft); }
+    .type-card h4 { margin: 0 0 4px; font-size: 13px; }
+    .type-card p { margin: 0; font-size: 11px; color: var(--muted); }
+    .upload-zone {
+      border: 2px dashed var(--border); border-radius: 8px; padding: 28px;
+      text-align: center; color: var(--muted); cursor: pointer;
+    }
+    .upload-zone:hover { border-color: var(--brand); background: #fafbff; }
+    .upload-zone input { display: none; }
+    .parse-preview { font-size: 12px; color: var(--muted); margin-top: 8px; }
+    .toast {
+      position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+      background: #1e293b; color: #fff; padding: 10px 18px; border-radius: 8px;
+      font-size: 13px; z-index: 200; display: none;
+    }
+    .toast.show { display: block; animation: fadeUp .3s ease; }
+    @keyframes fadeUp { from { opacity: 0; transform: translate(-50%, 8px); } to { opacity: 1; transform: translate(-50%, 0); } }
+
+    /* 角色通知 */
+    .topbar-right { display: flex; align-items: center; gap: 12px; }
+    .role-sel {
+      height: 28px; padding: 0 8px; border-radius: 4px; border: 1px solid #434343;
+      background: #141414; color: #fff; font-size: 12px;
+    }
+    .notify-btn {
+      position: relative; height: 28px; padding: 0 10px; border-radius: 4px;
+      border: 1px solid #434343; background: #141414; color: #fff;
+      cursor: pointer; font-size: 12px;
+    }
+    .notify-btn .badge {
+      position: absolute; top: -6px; right: -6px; min-width: 16px; height: 16px;
+      padding: 0 4px; border-radius: 8px; background: #ff4d4f; color: #fff;
+      font-size: 10px; line-height: 16px; text-align: center;
+    }
+    .notify-panel {
+      margin: 0 20px 12px; background: #fff; border: 1px solid var(--line);
+      border-radius: 8px; overflow: hidden;
+    }
+    .notify-panel-hd {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 10px 14px; background: #f8fafc; border-bottom: 1px solid var(--line);
+      font-size: 13px; font-weight: 600; color: #0f2f63;
+    }
+    .notify-panel-hd span { font-weight: 400; font-size: 12px; color: var(--muted); }
+    .notify-list { max-height: 160px; overflow-y: auto; }
+    .notify-item {
+      display: flex; align-items: flex-start; gap: 10px; padding: 10px 14px;
+      border-bottom: 1px solid var(--line); font-size: 12px; cursor: pointer;
+    }
+    .notify-item:hover { background: #fafbff; }
+    .notify-item.done { opacity: .55; }
+    .notify-item.highlight { background: #fff7e6; }
+    .notify-role {
+      flex-shrink: 0; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600;
+    }
+    .notify-role.biz { background: #e0f2fe; color: #0369a1; }
+    .notify-role.log { background: #ecfdf5; color: #0f766e; }
+    .notify-role.fin { background: #fef3c7; color: #b45309; }
+    .notify-body { flex: 1; line-height: 1.5; }
+    .notify-body strong { color: var(--brand); }
+    .notify-time { flex-shrink: 0; color: var(--muted); font-size: 11px; }
+    .tag-role {
+      display: inline-block; padding: 1px 6px; border-radius: 3px;
+      font-size: 10px; font-weight: 600; margin-left: 4px;
+    }
+    .tag-role.biz { background: #e0f2fe; color: #0369a1; }
+    .tag-role.log { background: #ecfdf5; color: #0f766e; }
+    .tag-role.fin { background: #fef3c7; color: #b45309; }
+    td.col-sales-org {
+      max-width: 168px; overflow: hidden; text-overflow: ellipsis;
+      white-space: nowrap; font-size: 11px;
+    }
+    .batch-file-link { font-weight: 600; }
+    .file-meta-grid {
+      display: grid; grid-template-columns: 88px 1fr; gap: 6px 12px;
+      font-size: 12px; margin-bottom: 14px; padding: 12px;
+      background: #f8fafc; border-radius: 8px; border: 1px solid var(--line);
+    }
+    .file-meta-grid dt { color: var(--muted); margin: 0; }
+    .file-meta-grid dd { margin: 0; color: var(--text); word-break: break-all; }
+    .file-preview-box {
+      border: 1px solid var(--line); border-radius: 8px; background: #fff;
+      max-height: 360px; overflow: auto; padding: 12px;
+    }
+    .file-preview-box pre {
+      margin: 0; font-size: 11px; line-height: 1.55; white-space: pre-wrap;
+      font-family: ui-monospace, Menlo, monospace; color: #334155;
+    }
+    .file-preview-tip {
+      margin: 0; font-size: 12px; color: var(--muted); line-height: 1.6;
+    }
+    select.ctl.wide { min-width: 280px; max-width: 420px; }
+    input.cell-person { min-width: 72px; max-width: 96px; width: 88px; }
+    input.cell-person.cell-req-missing { border-color: #ff4d4f; background: #fff2f0; }
+    th .req { color: var(--danger); font-weight: 400; }
+    td.col-shop input.cell-person { min-width: 88px; width: 96px; }
+  </style>
+</head>
+<body>
+<div class="erp-layout">
+  <header class="topbar">
+    <span class="logo">ERP · 全渠道管报</span>
+    <div class="topbar-right">
+      <label style="font-size:12px;color:#91caff">当前待办人</label>
+      <select class="role-sel" id="current-viewer" title="切换待办接收人，筛选本人相关通知" style="min-width:120px;max-width:160px">
+        <option value="">全部（演示）</option>
+      </select>
+      <button type="button" class="notify-btn" id="btn-toggle-notify" title="待办通知">
+        🔔 待办 <span class="badge" id="notify-badge">0</span>
+      </button>
+      <nav>
+        <a href="线下商超退货-完整流程说明.html">流程说明</a>
+        <a href="线下商超退货-退货单管理-解决方案.md">解决方案 MD</a>
+      </nav>
+    </div>
+  </header>
+
+  <div class="page-hd">
+    <h1>线下商超退货 · 退货单管理</h1>
+    <p>导入客户对账单或原始凭证 → 自动解析<strong>MSKU</strong>、数量、单价、手续费单价 → 行级编辑与<strong>处理方式</strong> → 操作栏状态流转</p>
+  </div>
+
+  <div class="solution-banner">
+    <strong>方案要点：</strong>Excel 导入带出<strong>店铺、Sales、物流、财务</strong>（必填，页面可改）；待办<strong>通知给对应填写人</strong>，切换顶部「当前待办人」查看；流程步骤仍按商务/物流/财务分工。
+    行级<strong>处理方式</strong>决定操作链；详见 <a href="线下商超退货-退货单管理-解决方案.md">解决方案文档</a>。
+  </div>
+
+  <div class="notify-panel" id="notify-panel">
+    <div class="notify-panel-hd">
+      <span>待办通知 · 按填写人推送</span>
+      <span id="notify-hint">切换顶部「当前待办人」查看本人待办；点击通知定位到对应行</span>
+    </div>
+    <div class="notify-list" id="notify-list"></div>
+  </div>
+
+  <div class="filter-panel">
+    <div class="filter-grid">
+      <div class="f-item">
+        <label>销售组织</label>
+        <div class="ctl-wrap">
+          <select class="ctl wide" id="f-sales-org" style="min-width:200px;max-width:280px">
+            <option value="">全部</option>
+          </select>
+          <button type="button" class="ctl-clear" hidden data-for="f-sales-org">×</button>
+        </div>
+      </div>
+      <div class="f-item">
+        <label>客户 KA</label>
+        <div class="ctl-wrap">
+          <select class="ctl" id="f-ka">
+            <option value="">全部</option>
+            <option>Costco</option>
+            <option>沃尔玛</option>
+            <option>山姆</option>
+          </select>
+          <button type="button" class="ctl-clear" hidden data-for="f-ka">×</button>
+        </div>
+      </div>
+      <div class="f-item">
+        <label>退货类型</label>
+        <div class="ctl-wrap">
+          <select class="ctl" id="f-type">
+            <option value="">全部</option>
+            <option value="A-1">A-1 退款+退货</option>
+            <option value="A-2">A-2 仅退款</option>
+            <option value="B">B 批量滞销</option>
+          </select>
+          <button type="button" class="ctl-clear" hidden data-for="f-type">×</button>
+        </div>
+      </div>
+      <div class="f-item">
+        <label>批次状态</label>
+        <div class="ctl-wrap">
+          <select class="ctl" id="f-status">
+            <option value="">全部</option>
+            <option>已确认</option>
+            <option>已WMS预报</option>
+            <option>已上架</option>
+            <option>推金蝶退货单</option>
+            <option>已建其他入库单</option>
+            <option>已财务核对</option>
+            <option>已核销</option>
+          </select>
+          <button type="button" class="ctl-clear" hidden data-for="f-status">×</button>
+        </div>
+      </div>
+      <div class="f-item">
+        <label>店铺</label>
+        <div class="ctl-wrap">
+          <select class="ctl" id="f-shop" style="min-width:100px;max-width:140px">
+            <option value="">全部</option>
+          </select>
+          <button type="button" class="ctl-clear" hidden data-for="f-shop">×</button>
+        </div>
+      </div>
+      <div class="f-item">
+        <label>Sales</label>
+        <div class="ctl-wrap">
+          <select class="ctl" id="f-sales-person" style="min-width:88px;max-width:120px">
+            <option value="">全部</option>
+          </select>
+          <button type="button" class="ctl-clear" hidden data-for="f-sales-person">×</button>
+        </div>
+      </div>
+      <div class="f-item">
+        <label>物流</label>
+        <div class="ctl-wrap">
+          <select class="ctl" id="f-logistics-person" style="min-width:88px;max-width:120px">
+            <option value="">全部</option>
+          </select>
+          <button type="button" class="ctl-clear" hidden data-for="f-logistics-person">×</button>
+        </div>
+      </div>
+      <div class="f-item">
+        <label>财务</label>
+        <div class="ctl-wrap">
+          <select class="ctl" id="f-finance-person" style="min-width:88px;max-width:120px">
+            <option value="">全部</option>
+          </select>
+          <button type="button" class="ctl-clear" hidden data-for="f-finance-person">×</button>
+        </div>
+      </div>
+      <div class="f-item">
+        <label>退货批次</label>
+        <input type="text" class="ctl-text" id="f-batch" placeholder="如 RT-20260526" style="width:120px">
+      </div>
+      <div class="f-item">
+        <label>订单/PO</label>
+        <input type="text" class="ctl-text" id="f-order-po" placeholder="模糊搜索" style="width:120px">
+      </div>
+      <div class="f-item">
+        <label>invoice/PI</label>
+        <input type="text" class="ctl-text" id="f-invoice-pi" placeholder="模糊搜索" style="width:120px">
+      </div>
+      <div class="f-item">
+        <label>MSKU</label>
+        <input type="text" class="ctl-text" id="f-msku" placeholder="模糊搜索">
+      </div>
+      <button type="button" class="btn btn-primary" id="btn-query">查询</button>
+      <button type="button" class="btn btn-ghost" id="btn-reset">重置</button>
+    </div>
+  </div>
+
+  <div class="toolbar">
+    <button type="button" class="btn btn-primary" id="btn-import">导入对账单 / 凭证</button>
+    <div class="batch-btn-group" id="batch-btn-group" aria-label="批量流程操作"></div>
+    <div class="batch-edit-wrap" aria-label="批量修改字段">
+      <label for="batch-edit-field">批量修改</label>
+      <select class="ctl" id="batch-edit-field" disabled title="请先勾选明细行">
+        <option value="">请选择修改项</option>
+        <option value="currency">批量修改币种</option>
+        <option value="salesPerson">批量修改 Sales</option>
+        <option value="logisticsPerson">批量修改物流</option>
+        <option value="financePerson">批量修改财务</option>
+        <option value="handleMode">批量修改处理方式</option>
+      </select>
+      <button type="button" class="btn btn-ghost" id="btn-batch-edit-apply" disabled title="请先勾选行并选择修改项">确定修改</button>
+    </div>
+    <span style="margin-left:auto;color:var(--muted);font-size:12px">共 <strong id="row-count">20</strong> 行明细</span>
+  </div>
+
+  <main class="main">
+    <div class="table-wrap">
+      <div class="list-summary" id="list-summary">当前列表共 <strong>20</strong> 行 · 含 <strong>3</strong> 个退货批次</div>
+      <div class="table-scroll">
+        <table class="data" id="detail-table">
+          <thead>
+            <tr>
+              <th style="width:32px"><input type="checkbox" id="chk-all" title="全选当前列表"></th>
+              <th>行号</th>
+              <th>退货批次</th>
+              <th>销售组织</th>
+              <th>客户</th>
+              <th>订单/PO</th>
+              <th>invoice/PI</th>
+              <th>店铺<span class="req">*</span></th>
+              <th>Sales<span class="req">*</span></th>
+              <th>物流<span class="req">*</span></th>
+              <th>财务<span class="req">*</span></th>
+              <th>MSKU</th>
+              <th class="num-r">数量</th>
+              <th class="num-r">单价</th>
+              <th class="num-r">手续费单价</th>
+              <th class="num-r">退款金额</th>
+              <th>币种</th>
+              <th>退货月份范围</th>
+              <th>退货类型</th>
+              <th>处理方式</th>
+              <th>操作</th>
+              <th>待办角色</th>
+              <th>建议 ERP 动作</th>
+              <th>行状态</th>
+            </tr>
+          </thead>
+          <tbody id="tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- 导入向导 -->
+<div class="modal-mask" id="modal-import" role="dialog" aria-labelledby="import-title">
+  <div class="modal">
+    <div class="modal-hd" id="import-title">导入对账单 / 原始凭证</div>
+    <div class="modal-bd">
+      <div class="steps">
+        <div class="step active" data-step="1">1. 类型与文件</div>
+        <div class="step" data-step="2">2. 解析预览</div>
+        <div class="step" data-step="3">3. 确认入库</div>
+      </div>
+      <div id="panel-step1">
+        <div class="form-row">
+          <label>销售组织 <span style="color:var(--danger)">*</span></label>
+          <select class="ctl wide" id="imp-sales-org" required>
+            <option value="">请选择销售组织</option>
+          </select>
+        </div>
+        <div class="form-row">
+          <label>客户 KA</label>
+          <select class="ctl" id="imp-ka" style="min-width:160px;max-width:none">
+            <option value="Costco">Costco</option>
+            <option value="沃尔玛">沃尔玛</option>
+            <option value="山姆">山姆</option>
+          </select>
+        </div>
+        <div class="form-row">
+          <label>退货类型（批次级，导入前必选）</label>
+          <div class="type-cards" id="type-cards">
+            <div class="type-card selected" data-type="A-1">
+              <h4>A-1 退款 + 退货</h4>
+              <p>实物回猫头鹰仓；需选处理方式</p>
+            </div>
+            <div class="type-card" data-type="A-2">
+              <h4>A-2 仅退款</h4>
+              <p>无实物；仅核对扣款金额</p>
+            </div>
+            <div class="type-card" data-type="B">
+              <h4>B 批量滞销</h4>
+              <p>全新未拆箱；签收后销售退货单</p>
+            </div>
+          </div>
+        </div>
+        <div class="form-row">
+          <label>上传文件</label>
+          <label class="upload-zone" id="upload-zone">
+            <input type="file" id="file-input" accept=".xlsx,.xls,.csv">
+            <div>点击或拖拽上传 Costco 对账导出 / 沃尔玛 RMA / CSV 模板</div>
+            <div class="parse-preview" id="file-name">未选择文件（原型：点击下一步将模拟解析 3 行）</div>
+          </label>
+        </div>
+      </div>
+      <div id="panel-step2" hidden>
+        <p style="margin:0 0 10px;color:var(--muted);font-size:12px">已解析 <strong id="parse-count">0</strong> 行；<strong>店铺 / Sales / 物流 / 财务 / 订单/PO / invoice/PI</strong> 来自 Excel，人员列必填；映射失败行标黄。</p>
+        <div style="overflow:auto;max-height:280px;border:1px solid var(--line);border-radius:6px">
+          <table class="data" style="min-width:1280px">
+            <thead>
+              <tr>
+                <th>店铺<span class="req">*</span></th><th>Sales<span class="req">*</span></th>
+                <th>物流<span class="req">*</span></th><th>财务<span class="req">*</span></th>
+                <th>订单/PO</th><th>invoice/PI</th>
+                <th>MSKU</th><th>数量</th><th>单价</th><th>手续费单价</th><th>退款金额</th>
+                <th>处理方式</th>
+              </tr>
+            </thead>
+            <tbody id="preview-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+      <div id="panel-step3" hidden>
+        <p style="margin:0;font-size:13px">将生成退货批次 <strong id="new-batch-id">RT-NEW</strong>，共 <strong id="confirm-count">0</strong> 行。</p>
+        <p style="margin:8px 0 0;font-size:12px;color:var(--muted)">销售组织：<strong id="confirm-sales-org">—</strong> · 附件：<strong id="confirm-file-name">—</strong></p>
+        <ul style="margin:12px 0 0;padding-left:18px;color:var(--muted);font-size:12px;line-height:1.7" id="confirm-summary"></ul>
+      </div>
+    </div>
+    <div class="modal-ft">
+      <button type="button" class="btn btn-ghost" id="btn-modal-cancel">取消</button>
+      <button type="button" class="btn btn-ghost" id="btn-modal-prev" hidden>上一步</button>
+      <button type="button" class="btn btn-primary" id="btn-modal-next">下一步</button>
+    </div>
+  </div>
+</div>
+
+<!-- 批次附件预览 -->
+<div class="modal-mask" id="modal-batch-file" role="dialog" aria-labelledby="file-modal-title">
+  <div class="modal" style="max-width:880px">
+    <div class="modal-hd" id="file-modal-title">退货批次 · 上传文件</div>
+    <div class="modal-bd">
+      <dl class="file-meta-grid" id="file-meta"></dl>
+      <div class="file-preview-box" id="file-preview-box">
+        <pre id="file-preview-content" hidden></pre>
+        <p class="file-preview-tip" id="file-preview-tip"></p>
+      </div>
+    </div>
+    <div class="modal-ft">
+      <button type="button" class="btn btn-primary" id="btn-file-download">下载原文件</button>
+      <button type="button" class="btn btn-ghost" id="btn-file-close">关闭</button>
+    </div>
+  </div>
+</div>
+
+<!-- 批量修改字段 -->
+<div class="modal-mask" id="modal-batch-edit" role="dialog" aria-labelledby="batch-edit-title">
+  <div class="modal" style="max-width:480px">
+    <div class="modal-hd" id="batch-edit-title">批量修改</div>
+    <div class="modal-bd">
+      <div class="batch-edit-summary" id="batch-edit-summary"></div>
+      <div class="form-row" style="margin-bottom:0">
+        <label id="batch-edit-value-label">修改为</label>
+        <div id="batch-edit-value-wrap"></div>
+      </div>
+    </div>
+    <div class="modal-ft">
+      <button type="button" class="btn btn-ghost" id="btn-batch-edit-cancel">取消</button>
+      <button type="button" class="btn btn-primary" id="btn-batch-edit-confirm">确认修改</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="../../../规范/assets/month-range-picker.js"></script>
+<script>
+(function () {
+  var HANDLE_MODES = ['返修上架', '原箱上架', '拆其他 SKU 上架', '报废'];
+  var TYPE_LABELS = {
+    'A-1': 'A-1 退款+退货',
+    'A-2': 'A-2 仅退款',
+    'B': 'B 批量滞销'
+  };
+
+  var FLOW_BY_MODE = {
+    '报废': ['已确认', '已财务核对'],
+    '返修上架': ['已WMS预报', '已上架', '推金蝶退货单', '已财务核对'],
+    '原箱上架': ['已WMS预报', '已上架', '推金蝶退货单', '已财务核对'],
+    '拆其他 SKU 上架': ['已WMS预报', '已上架', '已建其他入库单', '已财务核对']
+  };
+  var FLOW_A2 = ['已财务核对'];
+
+  var STEP_ROLES = {
+    '已确认': '商务',
+    '已WMS预报': '物流',
+    '已上架': '物流',
+    '推金蝶退货单': '财务',
+    '已建其他入库单': '物流',
+    '已财务核对': '财务'
+  };
+
+  /** 工具栏批量按钮（与行内流程步骤一致，按顺序展示） */
+  var BATCH_ACTIONS = ['已确认', '已WMS预报', '已上架', '推金蝶退货单', '已建其他入库单', '已财务核对'];
+
+  var BATCH_EDIT_META = {
+    currency: { label: '币种', field: 'currency', valueLabel: '目标币种' },
+    salesPerson: { label: 'Sales', field: 'salesPerson', valueLabel: 'Sales 姓名' },
+    logisticsPerson: { label: '物流', field: 'logisticsPerson', valueLabel: '物流 姓名' },
+    financePerson: { label: '财务', field: 'financePerson', valueLabel: '财务 姓名' },
+    handleMode: { label: '处理方式', field: 'handleMode', valueLabel: '处理方式' }
+  };
+
+  var pendingBatchEditField = '';
+
+  var SALES_ORGS = [
+    '深圳市千岩科技有限公司',
+    '深圳市智岩科技有限公司',
+    'Govee Moments Trading Limited (RMB)',
+    'GOVEE MOMENTS (US) TRADING LIMITED',
+    'GOVEE MOMENTS (UK) TRADING LIMITED',
+    'GOVEE MOMENTS (DE) HANDLE GMBH(EUR)'
+  ];
+
+  /** 批次级上传文件（原型 mock；正式环境由对象存储提供预览/下载地址） */
+  var batchFiles = {};
+  var importPendingFile = null;
+  var currentPreviewBatch = null;
+
+  var notifications = [];
+  var notifySeq = 0;
+  var currentViewer = '';
+  var importPreviewRows = [];
+
+  var PERSON_POOL = {
+    sales: ['王晓雨', '陈思远', '赵一帆', '林商务'],
+    logistics: ['刘仓储', '周预报', '吴物流', '郑入库'],
+    finance: ['孙会计', '钱核对', '郑金蝶', '冯财务']
+  };
+  var SHOP_BY_KA = { Costco: 'Govee_US', '沃尔玛': 'Goveelife_CA', '山姆': 'Govee_US' };
+
+  var MSKU_CATALOG = [
+    'H70501', 'H70502', 'H70503', 'H70504', 'H61201', 'H61202', 'H61203',
+    'H61234', 'H61235', 'H61236', 'H61237', 'H61238', 'H61239',
+    'H61200', 'H61205', 'H61206', 'H61207', 'H61208', 'H61209'
+  ];
+
+  /** MSKU 主销国家 → 默认币种（来自销售主数据，原型 mock） */
+  var MSKU_META = {
+    H70501: { country: 'US', currency: 'USD' },
+    H70502: { country: 'US', currency: 'USD' },
+    H70503: { country: 'US', currency: 'USD' },
+    H70504: { country: 'US', currency: 'USD' },
+    H61201: { country: 'US', currency: 'USD' },
+    H61202: { country: 'US', currency: 'USD' },
+    H61203: { country: 'US', currency: 'USD' },
+    H61234: { country: 'US', currency: 'USD' },
+    H61235: { country: 'CA', currency: 'CAD' },
+    H61236: { country: 'MX', currency: 'MXN' },
+    H61237: { country: 'US', currency: 'USD' },
+    H61238: { country: 'US', currency: 'USD' },
+    H61239: { country: 'US', currency: 'USD' },
+    H61200: { country: 'US', currency: 'USD' },
+    H61205: { country: 'US', currency: 'USD' },
+    H61206: { country: 'US', currency: 'USD' },
+    H61207: { country: 'US', currency: 'USD' },
+    H61208: { country: 'US', currency: 'USD' },
+    H61209: { country: 'US', currency: 'USD' }
+  };
+
+  var CURRENCIES = ['USD', 'CAD', 'EUR', 'GBP', 'CNY', 'MXN', 'JPY'];
+  var KA_CURRENCY = { Costco: 'USD', '沃尔玛': 'USD', '山姆': 'USD' };
+
+  function currencyFromMsku(r) {
+    if (r.msku && MSKU_META[r.msku]) return MSKU_META[r.msku].currency;
+    if (KA_CURRENCY[r.ka]) return KA_CURRENCY[r.ka];
+    return 'USD';
+  }
+
+  var allRows = [
+    { line: 1, batch: 'RT-20260526-001', ka: 'Costco', msku: 'H70501', qty: 12, price: 89.99, feeUnit: 0, type: 'A-1', handleMode: '返修上架', flowStep: 0, status: '待确认' },
+    { line: 2, batch: 'RT-20260526-001', ka: 'Costco', msku: 'H70502', qty: 8, price: 79.50, feeUnit: 0, type: 'A-1', handleMode: '拆其他 SKU 上架', flowStep: 1, status: '待确认' },
+    { line: 3, batch: 'RT-20260526-001', ka: 'Costco', msku: '', qty: 5, price: 120, feeUnit: 0, type: 'A-1', handleMode: '报废', flowStep: 0, status: '待确认', warn: true },
+    { line: 4, batch: 'RT-20260526-001', ka: 'Costco', msku: 'H70503', qty: 15, price: 65.00, feeUnit: 0, type: 'A-1', handleMode: '返修上架', flowStep: 1, status: '待预报' },
+    { line: 5, batch: 'RT-20260526-001', ka: 'Costco', msku: 'H70504', qty: 6, price: 99.00, feeUnit: 0, type: 'A-1', handleMode: '原箱上架', flowStep: 2, status: '已签收' },
+    { line: 6, batch: 'RT-20260526-001', ka: 'Costco', msku: 'H61201', qty: 10, price: 45.50, feeUnit: 0, type: 'A-1', handleMode: '返修上架', flowStep: 0, status: '待确认' },
+    { line: 7, batch: 'RT-20260526-001', ka: 'Costco', msku: 'H61202', qty: 4, price: 128.00, feeUnit: 0, type: 'A-1', handleMode: '报废', flowStep: 2, status: '已核销' },
+    { line: 8, batch: 'RT-20260526-001', ka: 'Costco', msku: 'H61203', qty: 20, price: 38.00, feeUnit: 0, type: 'A-1', handleMode: '拆其他 SKU 上架', flowStep: 0, status: '待预报' },
+    { line: 9, batch: 'RT-20260525-002', ka: '沃尔玛', msku: 'H61234', qty: 20, price: 45, feeUnit: 4.5, type: 'A-2', handleMode: null, flowStep: 1, status: '已确认' },
+    { line: 10, batch: 'RT-20260525-002', ka: '沃尔玛', msku: 'H61235', qty: 35, price: 52, feeUnit: 5.2, type: 'A-2', handleMode: null, flowStep: 0, status: '已确认' },
+    { line: 11, batch: 'RT-20260525-002', ka: '沃尔玛', msku: 'H61236', qty: 12, price: 48, feeUnit: 4.8, type: 'A-2', handleMode: null, flowStep: 0, status: '待确认' },
+    { line: 12, batch: 'RT-20260525-002', ka: '沃尔玛', msku: 'H61237', qty: 8, price: 61, feeUnit: 6.1, type: 'A-2', handleMode: null, flowStep: 1, status: '已确认' },
+    { line: 13, batch: 'RT-20260525-002', ka: '沃尔玛', msku: 'H61238', qty: 50, price: 29.9, feeUnit: 2.99, type: 'A-2', handleMode: null, flowStep: 0, status: '已确认' },
+    { line: 14, batch: 'RT-20260525-002', ka: '沃尔玛', msku: 'H61239', qty: 16, price: 55, feeUnit: 5.5, type: 'A-2', handleMode: null, flowStep: 0, status: '待确认' },
+    { line: 15, batch: 'RT-20260524-003', ka: '山姆', msku: 'H61200', qty: 200, price: 32.5, feeUnit: 0, type: 'B', handleMode: '原箱上架', flowStep: 0, status: '待预报' },
+    { line: 16, batch: 'RT-20260524-003', ka: '山姆', msku: 'H61205', qty: 150, price: 28.0, feeUnit: 0, type: 'B', handleMode: '原箱上架', flowStep: 1, status: '待预报' },
+    { line: 17, batch: 'RT-20260524-003', ka: '山姆', msku: 'H61206', qty: 80, price: 41.5, feeUnit: 0, type: 'B', handleMode: '原箱上架', flowStep: 3, status: '已签收' },
+    { line: 18, batch: 'RT-20260524-003', ka: '山姆', msku: 'H61207', qty: 120, price: 36.0, feeUnit: 0, type: 'B', handleMode: '原箱上架', flowStep: 4, status: '已核销' },
+    { line: 19, batch: 'RT-20260524-003', ka: '山姆', msku: 'H61208', qty: 60, price: 55.0, feeUnit: 0, type: 'B', handleMode: '原箱上架', flowStep: 0, status: '待确认' },
+    { line: 20, batch: 'RT-20260524-003', ka: '山姆', msku: 'H61209', qty: 100, price: 22.5, feeUnit: 0, type: 'B', handleMode: '原箱上架', flowStep: 2, status: '待预报' }
+  ];
+
+  var MONTH_SAMPLES = [
+    ['2026-01', '2026-01'],
+    ['2026-02', '2026-03'],
+    ['2025-12', '2026-01'],
+    ['2026-03', '2026-03']
+  ];
+  function mockBatchPreviewText(batchId, ka) {
+    return (
+      '# 退货对账导入文件（原型预览）\n' +
+      '批次号: ' + batchId + '\n' +
+      '客户 KA: ' + ka + '\n' +
+      '列: 店铺, Sales, 物流, 财务, 订单/PO, invoice/PI, MSKU, 数量, 单价, …\n' +
+      '---\n' +
+      'Govee_US, 王晓雨, 刘仓储, 孙会计, PO-COS-2026-001, INV-COS-260526-01, H70501, 12, 89.99, 0\n' +
+      'Govee_US, 陈思远, 周预报, 钱核对, PO-COS-2026-002, INV-COS-260526-02, H70502, 8, 79.50, 0\n' +
+      '...\n'
+    );
+  }
+
+  function registerBatchFile(batchId, meta) {
+    batchFiles[batchId] = meta;
+  }
+
+  function initSalesOrgSelects() {
+    var opts = '<option value="">全部</option>' + SALES_ORGS.map(function (o) {
+      return '<option value="' + o + '">' + o + '</option>';
+    }).join('');
+    var filterSel = document.getElementById('f-sales-org');
+    filterSel.innerHTML = opts;
+    var impSel = document.getElementById('imp-sales-org');
+    impSel.innerHTML = '<option value="">请选择销售组织</option>' + SALES_ORGS.map(function (o) {
+      return '<option value="' + o + '">' + o + '</option>';
+    }).join('');
+  }
+
+  function seedBatchFiles() {
+    registerBatchFile('RT-20260526-001', {
+      fileName: 'Costco_RMA_20260526.xlsx',
+      fileType: 'xlsx',
+      salesOrg: '深圳市智岩科技有限公司',
+      ka: 'Costco',
+      uploadedAt: '2026-05-26 10:32',
+      sizeLabel: '128 KB',
+      previewText: mockBatchPreviewText('RT-20260526-001', 'Costco')
+    });
+    registerBatchFile('RT-20260525-002', {
+      fileName: 'Walmart_CreditMemo_20260525.csv',
+      fileType: 'csv',
+      salesOrg: 'GOVEE MOMENTS (US) TRADING LIMITED',
+      ka: '沃尔玛',
+      uploadedAt: '2026-05-25 15:08',
+      sizeLabel: '42 KB',
+      previewText: mockBatchPreviewText('RT-20260525-002', '沃尔玛')
+    });
+    registerBatchFile('RT-20260524-003', {
+      fileName: 'Sams_Club_BulkReturn_20260524.xlsx',
+      fileType: 'xlsx',
+      salesOrg: 'Govee Moments Trading Limited (RMB)',
+      ka: '山姆',
+      uploadedAt: '2026-05-24 09:15',
+      sizeLabel: '256 KB',
+      previewText: mockBatchPreviewText('RT-20260524-003', '山姆')
+    });
+  }
+
+  function applySalesOrgToRows() {
+    allRows.forEach(function (r) {
+      var bf = batchFiles[r.batch];
+      if (bf && bf.salesOrg) r.salesOrg = bf.salesOrg;
+      else if (!r.salesOrg) r.salesOrg = SALES_ORGS[0];
+    });
+  }
+
+  function mockExcelAssignees(ka, idx) {
+    var pool = PERSON_POOL;
+    return {
+      shop: SHOP_BY_KA[ka] || 'Govee_US',
+      salesPerson: pool.sales[idx % pool.sales.length],
+      logisticsPerson: pool.logistics[idx % pool.logistics.length],
+      financePerson: pool.finance[idx % pool.finance.length]
+    };
+  }
+
+  function applyAssigneesToRows() {
+    allRows.forEach(function (r, idx) {
+      if (!r.shop || !r.salesPerson) {
+        var a = mockExcelAssignees(r.ka, idx);
+        if (!r.shop) r.shop = a.shop;
+        if (!r.salesPerson) r.salesPerson = a.salesPerson;
+        if (!r.logisticsPerson) r.logisticsPerson = a.logisticsPerson;
+        if (!r.financePerson) r.financePerson = a.financePerson;
+      }
+    });
+  }
+
+  function escapeAttr(s) {
+    return String(s || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+  }
+
+  function validateRowAssignees(r) {
+    var missing = [];
+    if (!r.shop || !String(r.shop).trim()) missing.push('店铺');
+    if (!r.salesPerson || !String(r.salesPerson).trim()) missing.push('Sales');
+    if (!r.logisticsPerson || !String(r.logisticsPerson).trim()) missing.push('物流');
+    if (!r.financePerson || !String(r.financePerson).trim()) missing.push('财务');
+    return missing;
+  }
+
+  function getAssigneeForAction(r, action) {
+    if (action === '已确认') return String(r.salesPerson || '').trim();
+    if (action === '已WMS预报' || action === '已上架' || action === '已建其他入库单') {
+      return String(r.logisticsPerson || '').trim();
+    }
+    if (action === '推金蝶退货单' || action === '已财务核对') {
+      return String(r.financePerson || '').trim();
+    }
+    return String(r.salesPerson || '').trim();
+  }
+
+  function collectUniqueFieldValues(field) {
+    var set = {};
+    allRows.forEach(function (r) {
+      var v = (r[field] || '').trim();
+      if (v) set[v] = true;
+    });
+    return Object.keys(set).sort();
+  }
+
+  function fillFilterSelect(id, values) {
+    var sel = document.getElementById(id);
+    var cur = sel.value;
+    sel.innerHTML = '<option value="">全部</option>' + values.map(function (v) {
+      return '<option value="' + escapeAttr(v) + '">' + v + '</option>';
+    }).join('');
+    if (cur && values.indexOf(cur) !== -1) sel.value = cur;
+  }
+
+  function initPersonFilterSelects() {
+    fillFilterSelect('f-shop', collectUniqueFieldValues('shop'));
+    fillFilterSelect('f-sales-person', collectUniqueFieldValues('salesPerson'));
+    fillFilterSelect('f-logistics-person', collectUniqueFieldValues('logisticsPerson'));
+    fillFilterSelect('f-finance-person', collectUniqueFieldValues('financePerson'));
+  }
+
+  function initViewerSelect() {
+    var names = {};
+    allRows.forEach(function (r) {
+      [r.salesPerson, r.logisticsPerson, r.financePerson].forEach(function (n) {
+        n = (n || '').trim();
+        if (n) names[n] = true;
+      });
+    });
+    var list = Object.keys(names).sort();
+    var sel = document.getElementById('current-viewer');
+    var cur = sel.value;
+    sel.innerHTML = '<option value="">全部（演示）</option>' + list.map(function (n) {
+      return '<option value="' + escapeAttr(n) + '">' + n + '</option>';
+    }).join('');
+    if (cur && (cur === '' || names[cur])) sel.value = cur;
+    else if (list.length) {
+      currentViewer = list[0];
+      sel.value = list[0];
+    }
+  }
+
+  function personInputHtml(r, field) {
+    var val = r[field] || '';
+    var empty = !String(val).trim();
+    return '<input type="text" class="cell-inp cell-person' + (empty ? ' cell-req-missing' : '') +
+      '" data-line="' + r.line + '" data-field="' + field + '" value="' + escapeAttr(val) +
+      '" placeholder="必填" title="必填，来自 Excel 可修改">';
+  }
+
+  function previewPersonInput(val, field) {
+    var empty = !String(val || '').trim();
+    return '<input type="text" class="cell-inp cell-person' + (empty ? ' cell-req-missing' : '') +
+      '" data-prev-field="' + field + '" value="' + escapeAttr(val) + '" placeholder="必填">';
+  }
+
+  function docTextHtml(r, field, placeholder) {
+    return '<input type="text" class="cell-inp" data-line="' + r.line + '" data-field="' + field +
+      '" value="' + escapeAttr(r[field] || '') + '" placeholder="' + escapeAttr(placeholder || '') +
+      '" title="来自 Excel，可修改">';
+  }
+
+  function previewDocInput(val, field, placeholder) {
+    return '<input type="text" class="cell-inp" data-prev-field="' + field + '" value="' +
+      escapeAttr(val || '') + '" placeholder="' + escapeAttr(placeholder || '') + '">';
+  }
+
+  var DOC_SAMPLES = {
+    Costco: { orderPo: ['PO-COS-2026-001', 'PO-COS-2026-002', 'PO-COS-2026-003'], invoicePi: ['INV-COS-260526-01', 'INV-COS-260526-02', 'INV-COS-260526-03'] },
+    '沃尔玛': { orderPo: ['WM-PO-9912', 'WM-PO-9913', 'WM-PO-9914'], invoicePi: ['PI-WM-260525-01', 'PI-WM-260525-02', 'PI-WM-260525-03'] },
+    '山姆': { orderPo: ['SAM-PO-BULK-01', 'SAM-PO-BULK-02', 'SAM-PO-BULK-03'], invoicePi: ['PI-SAM-260524-01', 'PI-SAM-260524-02', 'PI-SAM-260524-03'] }
+  };
+
+  function mockDocFields(ka, idx) {
+    var pool = DOC_SAMPLES[ka] || DOC_SAMPLES.Costco;
+    return {
+      orderPo: pool.orderPo[idx % pool.orderPo.length],
+      invoicePi: pool.invoicePi[idx % pool.invoicePi.length]
+    };
+  }
+
+  seedBatchFiles();
+  initSalesOrgSelects();
+  applySalesOrgToRows();
+  applyAssigneesToRows();
+
+  allRows.forEach(function (r, idx) {
+    var mp = MONTH_SAMPLES[idx % MONTH_SAMPLES.length];
+    if (!r.monthStart) r.monthStart = mp[0];
+    if (!r.monthEnd) r.monthEnd = mp[1];
+    if (!r.currency) r.currency = currencyFromMsku(r);
+    r.currencyManual = !!r.currencyManual;
+    if (!r.orderPo || !r.invoicePi) {
+      var doc = mockDocFields(r.ka, idx);
+      if (!r.orderPo) r.orderPo = doc.orderPo;
+      if (!r.invoicePi) r.invoicePi = doc.invoicePi;
+    }
+    syncStatusFromFlow(r);
+  });
+
+  var rows = allRows.slice();
+  /** 勾选行号（跨筛选保留；仅对当前可见行批量） */
+  var selectedLines = new Set();
+
+  function typeLabel(type) { return TYPE_LABELS[type] || type; }
+
+  function getFlowSteps(r) {
+    if (r.type === 'A-2') return FLOW_A2.slice();
+    return (FLOW_BY_MODE[r.handleMode] || []).slice();
+  }
+
+  function syncStatusFromFlow(r) {
+    var p = getPendingAction(r);
+    r.status = p ? p.action : '已核销';
+  }
+
+  function getPendingAction(r) {
+    var steps = getFlowSteps(r);
+    var cur = r.flowStep || 0;
+    if (cur >= steps.length) return null;
+    var action = steps[cur];
+    return { action: action, role: STEP_ROLES[action] || '—' };
+  }
+
+  function roleClass(role) {
+    if (role === '商务') return 'biz';
+    if (role === '物流') return 'log';
+    if (role === '财务') return 'fin';
+    return 'biz';
+  }
+
+  function pushNotification(r, action) {
+    var missing = validateRowAssignees(r);
+    if (missing.length) return;
+    var role = STEP_ROLES[action] || '—';
+    var assignee = getAssigneeForAction(r, action);
+    if (!assignee) return;
+    notifySeq += 1;
+    notifications.unshift({
+      id: notifySeq,
+      line: r.line,
+      batch: r.batch,
+      role: role,
+      assignee: assignee,
+      action: action,
+      text: '批次 ' + r.batch + ' · 行 ' + r.line + '（' + (r.msku || '—') + '）请「' + action + '」→ 通知 ' + assignee,
+      status: 'pending',
+      time: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
+    });
+    renderNotifyPanel();
+  }
+
+  function completeNotificationsForStep(r, action) {
+    notifications.forEach(function (n) {
+      if (n.line === r.line && n.action === action && n.status === 'pending') {
+        n.status = 'done';
+      }
+    });
+    renderNotifyPanel();
+  }
+
+  function renderNotifyPanel() {
+    var viewer = currentViewer;
+    var pending = notifications.filter(function (n) {
+      return n.status === 'pending' && (!viewer || n.assignee === viewer);
+    });
+    var list = document.getElementById('notify-list');
+    var badge = document.getElementById('notify-badge');
+    badge.textContent = pending.length;
+    badge.style.display = pending.length ? 'block' : 'none';
+
+    var shown = notifications.filter(function (n) {
+      if (viewer && n.assignee !== viewer) return false;
+      return n.status === 'pending' || n.status === 'done';
+    }).slice(0, 12);
+
+    if (!shown.length) {
+      list.innerHTML = '<div style="padding:14px;color:var(--muted);font-size:12px">「' +
+        (viewer || '全部') + '」暂无待办通知</div>';
+      return;
+    }
+
+    list.innerHTML = shown.map(function (n) {
+      return '<div class="notify-item' + (n.status === 'done' ? ' done' : '') + '" data-line="' + n.line + '">' +
+        '<span class="notify-role ' + roleClass(n.role) + '">' + (n.assignee || n.role) + '</span>' +
+        '<div class="notify-body">' + n.text + (n.status === 'done' ? ' <em>（已完成）</em>' : '') + '</div>' +
+        '<span class="notify-time">' + n.time + '</span></div>';
+    }).join('');
+
+    list.querySelectorAll('.notify-item:not(.done)').forEach(function (el) {
+      el.addEventListener('click', function () {
+        var line = +el.dataset.line;
+        var tr = document.querySelector('#tbody tr[data-line="' + line + '"]');
+        if (tr) {
+          tr.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          tr.style.outline = '2px solid #1677ff';
+          setTimeout(function () { tr.style.outline = ''; }, 2000);
+        }
+      });
+    });
+  }
+
+  function seedNotificationsFromRows() {
+    notifications = [];
+    notifySeq = 0;
+    allRows.forEach(function (r) {
+      var p = getPendingAction(r);
+      if (p) pushNotification(r, p.action);
+    });
+  }
+
+  function refreshNotificationsForRows(rows) {
+    rows.forEach(function (r) {
+      notifications.forEach(function (n) {
+        if (n.line === r.line && n.status === 'pending') {
+          var assignee = getAssigneeForAction(r, n.action);
+          n.assignee = assignee;
+          n.text = '批次 ' + r.batch + ' · 行 ' + r.line + '（' + (r.msku || '—') + '）请「' + n.action + '」→ 通知 ' + assignee;
+        }
+      });
+    });
+    renderNotifyPanel();
+  }
+
+  function notifyAfterImport(batchId, count, salesOrg, ka, parsedRows) {
+    var parsed = parsedRows || mockParseRows();
+    parsed.forEach(function (p) {
+      var row = {
+        line: allRows.length + 1,
+        batch: batchId,
+        ka: ka || document.getElementById('imp-ka').value,
+        salesOrg: salesOrg,
+        shop: p.shop,
+        salesPerson: p.salesPerson,
+        logisticsPerson: p.logisticsPerson,
+        financePerson: p.financePerson,
+        orderPo: p.orderPo || '',
+        invoicePi: p.invoicePi || '',
+        msku: p.msku,
+        qty: p.qty,
+        price: p.price,
+        feeUnit: p.feeUnit || 0,
+        type: importType,
+        handleMode: p.handleMode,
+        flowStep: 0,
+        warn: !!p.warn
+      };
+      if (importType === 'A-2') row.handleMode = null;
+      syncStatusFromFlow(row);
+      var mp = MONTH_SAMPLES[allRows.length % MONTH_SAMPLES.length];
+      row.monthStart = mp[0];
+      row.monthEnd = mp[1];
+      row.currency = currencyFromMsku(row);
+      allRows.push(row);
+      var pending = getPendingAction(row);
+      if (pending) pushNotification(row, pending.action);
+    });
+    rows = allRows.slice();
+    initPersonFilterSelects();
+    initViewerSelect();
+    renderTable();
+    toast('批次 ' + batchId + ' 已生成 ' + count + ' 行，待办已通知对应填写人');
+  }
+
+  function pendingRoleHtml(r) {
+    var p = getPendingAction(r);
+    if (!p) return '<span style="color:#999">—</span>';
+    var who = getAssigneeForAction(r, p.action);
+    var missing = validateRowAssignees(r);
+    if (missing.length) {
+      return '<span style="font-size:11px;color:#b91c1c">缺：' + missing.join('、') + '</span>';
+    }
+    return '<span class="tag-role ' + roleClass(p.role) + '">' + who + '</span>' +
+      '<span style="font-size:11px;color:var(--muted)">' + p.action + '</span>';
+  }
+
+  function operationCellHtml(r) {
+    var steps = getFlowSteps(r);
+    if (!steps.length) return '<span style="color:#999">—</span>';
+    var cur = r.flowStep || 0;
+    if (cur >= steps.length) {
+      return '<div class="op-cell">' +
+        steps.map(function (s) { return '<span class="op-done">✓ ' + s + '</span>'; }).join('') +
+        '<span class="op-finish">已完成</span></div>';
+    }
+    var html = '';
+    for (var i = 0; i < cur; i++) {
+      html += '<span class="op-done">✓ ' + steps[i] + '</span>';
+    }
+    html += '<button type="button" class="btn-op" data-line="' + r.line + '">' + steps[cur] + '</button>';
+    return '<div class="op-cell">' + html + '</div>';
+  }
+
+  function advanceFlow(line, opts) {
+    opts = opts || {};
+    var r = allRows.find(function (x) { return x.line === line; });
+    if (!r) return false;
+    var missing = validateRowAssignees(r);
+    if (missing.length) {
+      if (!opts.silent) toast('行 ' + line + ' 请先填写必填项：' + missing.join('、'));
+      return false;
+    }
+    var steps = getFlowSteps(r);
+    if ((r.flowStep || 0) >= steps.length) return false;
+    var label = steps[r.flowStep || 0];
+    var doneAssignee = getAssigneeForAction(r, label);
+    r.flowStep = (r.flowStep || 0) + 1;
+    completeNotificationsForStep(r, label);
+    syncStatusFromFlow(r);
+    var pending = getPendingAction(r);
+    if (!opts.silent) {
+      if (pending) {
+        pushNotification(r, pending.action);
+        var nextWho = getAssigneeForAction(r, pending.action);
+        toast('「' + doneAssignee + '」已完成「' + label + '」→ 已通知「' + nextWho + '」处理「' + pending.action + '」');
+      } else {
+        toast('行 ' + line + '：全部操作已完成，流程结束');
+      }
+      renderTable();
+    } else if (pending) {
+      pushNotification(r, pending.action);
+    }
+    return true;
+  }
+
+  function getSelectedRows() {
+    return rows.filter(function (r) { return selectedLines.has(r.line); });
+  }
+
+  /** 勾选行是否同一行状态（行状态 = 当前待办操作，与操作列同步） */
+  function analyzeHomogeneousSelection(sel) {
+    sel = sel || getSelectedRows();
+    if (!sel.length) {
+      return { ok: false, reason: '请先勾选需要批量操作的行' };
+    }
+    var statuses = [];
+    var blocked = [];
+    sel.forEach(function (r) {
+      syncStatusFromFlow(r);
+      if (r.status === '已核销') blocked.push('行' + r.line + '（已完成）');
+      else statuses.push(r.status);
+    });
+    if (blocked.length) {
+      return {
+        ok: false,
+        reason: '含不可操作行：' + blocked.slice(0, 3).join('、') + (blocked.length > 3 ? '…' : '')
+      };
+    }
+    var statusSet = statuses.filter(function (s, i, arr) { return arr.indexOf(s) === i; });
+    if (statusSet.length > 1) {
+      return {
+        ok: false,
+        reason: '行状态不一致（' + statusSet.join(' / ') + '），请仅勾选相同行状态的行'
+      };
+    }
+    return { ok: true, action: statusSet[0], status: statusSet[0], count: sel.length };
+  }
+
+  function analyzeBatchSelectionForAction(expectedAction) {
+    var info = analyzeHomogeneousSelection();
+    if (!info.ok) return info;
+    if (info.action !== expectedAction) {
+      return {
+        ok: false,
+        reason: '所选行待办为「' + info.action + '」，不是「' + expectedAction + '」'
+      };
+    }
+    return info;
+  }
+
+  function updateBatchBtns() {
+    var sel = getSelectedRows();
+    var homo = analyzeHomogeneousSelection(sel);
+    document.querySelectorAll('#batch-btn-group .btn-batch-action').forEach(function (btn) {
+      var action = btn.dataset.action;
+      if (!sel.length) {
+        btn.disabled = true;
+        btn.classList.remove('btn-batch-ready');
+        btn.title = '请先勾选需要批量「' + action + '」的行';
+        return;
+      }
+      if (!homo.ok) {
+        btn.disabled = true;
+        btn.classList.remove('btn-batch-ready');
+        btn.title = homo.reason;
+        return;
+      }
+      var match = homo.action === action;
+      btn.disabled = !match;
+      btn.classList.toggle('btn-batch-ready', match);
+      btn.title = match
+        ? '对 ' + homo.count + ' 行执行「' + action + '」（行状态：' + homo.status + '）'
+        : '所选行待办为「' + homo.action + '」，不是「' + action + '」';
+    });
+    updateBatchEditControls();
+  }
+
+  function updateBatchEditControls() {
+    var n = getSelectedRows().length;
+    var fieldSel = document.getElementById('batch-edit-field');
+    var applyBtn = document.getElementById('btn-batch-edit-apply');
+    fieldSel.disabled = !n;
+    fieldSel.title = n ? '选择要批量修改的字段' : '请先勾选明细行';
+    if (!n) {
+      fieldSel.value = '';
+      applyBtn.disabled = true;
+      applyBtn.title = '请先勾选行并选择修改项';
+      return;
+    }
+    applyBtn.disabled = !fieldSel.value;
+    applyBtn.title = fieldSel.value
+      ? '对 ' + n + ' 行批量修改「' + (BATCH_EDIT_META[fieldSel.value] || {}).label + '」'
+      : '请先选择修改项';
+  }
+
+  function getBatchEditTargetRows(fieldKey) {
+    var sel = getSelectedRows();
+    if (fieldKey === 'handleMode') {
+      return sel.filter(function (r) { return r.type !== 'A-2'; });
+    }
+    return sel;
+  }
+
+  function buildBatchEditValueInput(fieldKey) {
+    var wrap = document.getElementById('batch-edit-value-wrap');
+    if (fieldKey === 'currency') {
+      wrap.innerHTML = '<select class="ctl wide" id="batch-edit-value">' +
+        CURRENCIES.map(function (c) {
+          return '<option value="' + c + '">' + c + '</option>';
+        }).join('') + '</select>';
+      return;
+    }
+    if (fieldKey === 'handleMode') {
+      wrap.innerHTML = '<select class="ctl wide" id="batch-edit-value">' +
+        HANDLE_MODES.map(function (m) {
+          return '<option value="' + m + '">' + m + '</option>';
+        }).join('') + '</select>';
+      return;
+    }
+    var poolKey = fieldKey === 'salesPerson' ? 'sales'
+      : fieldKey === 'logisticsPerson' ? 'logistics' : 'finance';
+    var list = PERSON_POOL[poolKey] || [];
+    wrap.innerHTML = '<select class="ctl wide" id="batch-edit-value">' +
+      list.map(function (n) {
+        return '<option value="' + escapeAttr(n) + '">' + n + '</option>';
+      }).join('') + '</select>';
+  }
+
+  function openBatchEditModal(fieldKey) {
+    var meta = BATCH_EDIT_META[fieldKey];
+    if (!meta) return;
+    var targets = getBatchEditTargetRows(fieldKey);
+    if (!targets.length) {
+      if (fieldKey === 'handleMode') {
+        toast('所选行均为 A-2（仅退款），不支持修改处理方式');
+      } else {
+        toast('请先勾选需要修改的行');
+      }
+      return;
+    }
+    pendingBatchEditField = fieldKey;
+    document.getElementById('batch-edit-title').textContent = '批量修改 · ' + meta.label;
+    var skipped = getSelectedRows().length - targets.length;
+    var summary = '将对 <strong>' + targets.length + '</strong> 行批量修改「' + meta.label + '」。';
+    if (skipped > 0) {
+      summary += ' <span style="color:#b45309">（已跳过 ' + skipped + ' 行 A-2，不支持修改处理方式）</span>';
+    }
+    document.getElementById('batch-edit-summary').innerHTML = summary;
+    document.getElementById('batch-edit-value-label').textContent = meta.valueLabel;
+    buildBatchEditValueInput(fieldKey);
+    document.getElementById('modal-batch-edit').classList.add('open');
+  }
+
+  function closeBatchEditModal() {
+    document.getElementById('modal-batch-edit').classList.remove('open');
+    pendingBatchEditField = '';
+  }
+
+  function applyBatchEdit() {
+    var fieldKey = pendingBatchEditField;
+    var meta = BATCH_EDIT_META[fieldKey];
+    if (!meta) return;
+    var valEl = document.getElementById('batch-edit-value');
+    if (!valEl) return;
+    var newVal = valEl.value;
+    if (!String(newVal).trim()) {
+      toast('请选择或填写修改值');
+      return;
+    }
+    var targets = getBatchEditTargetRows(fieldKey);
+    if (!targets.length) {
+      toast('没有可修改的行');
+      closeBatchEditModal();
+      return;
+    }
+    var field = meta.field;
+    var needPersonRefresh = field === 'salesPerson' || field === 'logisticsPerson' || field === 'financePerson';
+    targets.forEach(function (r) {
+      if (field === 'currency') {
+        r.currency = newVal;
+        r.currencyManual = true;
+      } else if (field === 'handleMode') {
+        r.handleMode = newVal;
+        r.flowStep = 0;
+        syncStatusFromFlow(r);
+        notifications = notifications.filter(function (n) { return n.line !== r.line; });
+        var p = getPendingAction(r);
+        if (p) pushNotification(r, p.action);
+      } else {
+        r[field] = newVal;
+      }
+    });
+    if (needPersonRefresh) {
+      initPersonFilterSelects();
+      initViewerSelect();
+      refreshNotificationsForRows(targets);
+    }
+    closeBatchEditModal();
+    renderTable();
+    toast('已批量修改「' + meta.label + '」为「' + newVal + '」，共 ' + targets.length + ' 行');
+  }
+
+  function initBatchButtons() {
+    var group = document.getElementById('batch-btn-group');
+    group.innerHTML = BATCH_ACTIONS.map(function (action) {
+      return '<button type="button" class="btn btn-ghost btn-batch-action" data-action="' + action +
+        '" disabled title="请先勾选需要批量「' + action + '」的行">批量' + action + '</button>';
+    }).join('');
+    group.querySelectorAll('.btn-batch-action').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        runBatchAdvanceForAction(btn.dataset.action);
+      });
+    });
+  }
+
+  function syncChkAll() {
+    var chkAll = document.getElementById('chk-all');
+    var boxes = document.querySelectorAll('#tbody .row-chk');
+    if (!boxes.length) {
+      chkAll.checked = false;
+      chkAll.indeterminate = false;
+      return;
+    }
+    var n = 0;
+    boxes.forEach(function (b) { if (b.checked) n++; });
+    chkAll.checked = n === boxes.length;
+    chkAll.indeterminate = n > 0 && n < boxes.length;
+  }
+
+  function bindRowCheckboxes() {
+    /* 勾选由 tbody 事件委托处理，见 initRowCheckboxDelegation */
+  }
+
+  function initRowCheckboxDelegation() {
+    document.getElementById('tbody').addEventListener('change', function (e) {
+      var cb = e.target;
+      if (!cb.classList || !cb.classList.contains('row-chk')) return;
+      var line = +cb.dataset.line;
+      if (cb.checked) selectedLines.add(line);
+      else selectedLines.delete(line);
+      syncChkAll();
+      updateBatchBtns();
+    });
+  }
+
+  function runBatchAdvanceForAction(action) {
+    var info = analyzeBatchSelectionForAction(action);
+    if (!info.ok) {
+      toast(info.reason);
+      return;
+    }
+    var sel = getSelectedRows().slice();
+    sel.forEach(function (r) { syncStatusFromFlow(r); });
+    for (var i = 0; i < sel.length; i++) {
+      var miss = validateRowAssignees(sel[i]);
+      if (miss.length) {
+        toast('行 ' + sel[i].line + ' 缺少必填项：' + miss.join('、'));
+        return;
+      }
+    }
+    var done = 0;
+    sel.forEach(function (r) {
+      if (advanceFlow(r.line, { silent: true })) done++;
+    });
+    renderTable();
+    toast('已批量完成「' + action + '」共 ' + done + ' 行（行状态：' + info.status + '）');
+  }
+
+  function amount(r) {
+    var q = r.qty || 0;
+    return (q * r.price + q * (r.feeUnit || 0)).toFixed(2);
+  }
+
+  function mskuSelectHtml(r) {
+    var cur = r.msku || '';
+    var opts = ['<option value="">请选择 MSKU</option>'];
+    if (cur && MSKU_CATALOG.indexOf(cur) === -1) {
+      opts.push('<option value="' + cur + '" selected>' + cur + '</option>');
+    }
+    MSKU_CATALOG.forEach(function (m) {
+      opts.push('<option value="' + m + '"' + (m === cur ? ' selected' : '') + '>' + m + '</option>');
+    });
+    return '<select class="cell-msku" data-line="' + r.line + '" data-field="msku">' + opts.join('') + '</select>';
+  }
+
+  function editableNumHtml(r, field, val) {
+    return '<input type="number" step="any" min="0" class="cell-inp num" data-line="' + r.line + '" data-field="' + field + '" value="' + val + '">';
+  }
+
+  function currencySelectHtml(r) {
+    var cur = r.currency || currencyFromMsku(r);
+    var opts = CURRENCIES.map(function (c) {
+      return '<option value="' + c + '"' + (c === cur ? ' selected' : '') + '>' + c + '</option>';
+    });
+    return '<select class="cell-currency" data-line="' + r.line + '" title="根据 MSKU 主销国家自动带出，可手动修改">' +
+      opts.join('') + '</select>';
+  }
+
+  function monthRangeHostHtml(r) {
+    return '<div class="month-range-host" id="month-host-' + r.line + '" data-line="' + r.line + '"></div>';
+  }
+
+  function bindMonthPickers() {
+    if (typeof MonthRangePicker === 'undefined') return;
+    rows.forEach(function (r) {
+      var host = document.getElementById('month-host-' + r.line);
+      if (!host) return;
+      MonthRangePicker.mount(host, {
+        start: r.monthStart || '',
+        end: r.monthEnd || '',
+        placeholder: '请选择月份范围',
+        useBodyPortal: true,
+        onChange: function (v) {
+          r.monthStart = v.start || '';
+          r.monthEnd = v.end || '';
+        }
+      });
+    });
+  }
+
+  function suggestAction(r) {
+    if (r.type === 'A-2') return '回款扣款核对';
+    var m = r.handleMode;
+    if (!m || m === '—') return '待配置处理方式';
+    if (m === '报废') return '报废，无入库单';
+    if (m === '拆其他 SKU 上架') return '其他入库单（物流）';
+    if (r.type === 'B' && m === '原箱上架') return '签收后→销售退货单';
+    if (m === '返修上架' || m === '原箱上架') return 'WMS预报→签收→销售退货单';
+    return '待配置处理方式';
+  }
+
+  function handleSelectHtml(r) {
+    if (r.type === 'A-2') {
+      return '<select class="cell-sel cell-handle" disabled><option>—</option></select>';
+    }
+    var cur = r.handleMode || HANDLE_MODES[0];
+    return '<select class="cell-sel cell-handle" data-line="' + r.line + '">' +
+      HANDLE_MODES.map(function (o) {
+        return '<option' + (o === cur ? ' selected' : '') + '>' + o + '</option>';
+      }).join('') + '</select>';
+  }
+
+  function tagClass(type) {
+    return type === 'A-1' ? 'tag-a1' : type === 'A-2' ? 'tag-a2' : 'tag-b';
+  }
+
+  function batchLinkHtml(r) {
+    var hasFile = !!batchFiles[r.batch];
+    var title = hasFile
+      ? '点击查看并下载本批次上传的对账/凭证文件'
+      : '该批次暂无附件记录';
+    return '<a class="link batch-file-link" href="#" data-batch="' + r.batch + '" title="' + title + '">' +
+      r.batch + (hasFile ? ' 📎' : '') + '</a>';
+  }
+
+  function formatFileSize(bytes) {
+    if (!bytes && bytes !== 0) return '—';
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+    return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+  }
+
+  function openBatchFileModal(batchId) {
+    var meta = batchFiles[batchId];
+    if (!meta) {
+      toast('批次 ' + batchId + ' 暂无上传文件记录');
+      return;
+    }
+    currentPreviewBatch = batchId;
+    document.getElementById('file-modal-title').textContent = '退货批次 · ' + batchId;
+    document.getElementById('file-meta').innerHTML =
+      '<dt>销售组织</dt><dd>' + (meta.salesOrg || '—') + '</dd>' +
+      '<dt>客户 KA</dt><dd>' + (meta.ka || '—') + '</dd>' +
+      '<dt>文件名</dt><dd>' + meta.fileName + '</dd>' +
+      '<dt>上传时间</dt><dd>' + (meta.uploadedAt || '—') + '</dd>' +
+      '<dt>文件大小</dt><dd>' + (meta.sizeLabel || formatFileSize(meta.sizeBytes)) + '</dd>';
+    var pre = document.getElementById('file-preview-content');
+    var tip = document.getElementById('file-preview-tip');
+    if (meta.previewText) {
+      pre.hidden = false;
+      pre.textContent = meta.previewText;
+      tip.textContent = meta.fileType === 'xlsx' || (meta.fileName && /\.xlsx?$/i.test(meta.fileName))
+        ? 'Excel 在正式环境支持在线预览；以下为解析摘要（原型）。'
+        : '文本预览（原型模拟解析结果，正式环境以服务端预览为准）。';
+    } else {
+      pre.hidden = true;
+      pre.textContent = '';
+      tip.textContent = '该附件为二进制文件，正式环境将调用文档预览服务；原型仅支持下载。';
+    }
+    document.getElementById('modal-batch-file').classList.add('open');
+  }
+
+  function downloadBatchFile(batchId) {
+    var meta = batchFiles[batchId];
+    if (!meta) {
+      toast('无可下载文件');
+      return;
+    }
+    var body = meta.previewText || ('批次 ' + batchId + ' 导入附件（原型占位内容）\n文件名: ' + meta.fileName);
+    var blob = new Blob([body], { type: 'text/plain;charset=utf-8' });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = meta.fileName || (batchId + '.txt');
+    a.click();
+    URL.revokeObjectURL(url);
+    toast('已开始下载：' + (meta.fileName || batchId));
+  }
+
+  function bindBatchFileLinks() {
+    document.querySelectorAll('#tbody .batch-file-link').forEach(function (a) {
+      a.addEventListener('click', function (e) {
+        e.preventDefault();
+        openBatchFileModal(a.dataset.batch);
+      });
+    });
+  }
+
+  function updateSummary() {
+    var batches = {};
+    rows.forEach(function (r) { batches[r.batch] = true; });
+    var n = rows.length;
+    var b = Object.keys(batches).length;
+    document.getElementById('row-count').textContent = n;
+    document.getElementById('list-summary').innerHTML =
+      '当前列表共 <strong>' + n + '</strong> 行 · 含 <strong>' + b + '</strong> 个退货批次';
+  }
+
+  function renderTable() {
+    rows.forEach(function (r) { syncStatusFromFlow(r); });
+    var tb = document.getElementById('tbody');
+    tb.innerHTML = rows.map(function (r) {
+      return '<tr class="' + (r.warn ? 'row-warn' : '') + '" data-line="' + r.line + '">' +
+        '<td><input type="checkbox" class="row-chk" data-line="' + r.line + '"' +
+          (selectedLines.has(r.line) ? ' checked' : '') + '></td>' +
+        '<td>' + r.line + '</td>' +
+        '<td class="col-batch">' + batchLinkHtml(r) + '</td>' +
+        '<td class="col-sales-org" title="' + (r.salesOrg || '') + '">' + (r.salesOrg || '—') + '</td>' +
+        '<td>' + r.ka + '</td>' +
+        '<td class="col-doc">' + docTextHtml(r, 'orderPo', '订单/PO') + '</td>' +
+        '<td class="col-doc">' + docTextHtml(r, 'invoicePi', 'invoice/PI') + '</td>' +
+        '<td class="col-shop">' + personInputHtml(r, 'shop') + '</td>' +
+        '<td>' + personInputHtml(r, 'salesPerson') + '</td>' +
+        '<td>' + personInputHtml(r, 'logisticsPerson') + '</td>' +
+        '<td>' + personInputHtml(r, 'financePerson') + '</td>' +
+        '<td>' + mskuSelectHtml(r) + '</td>' +
+        '<td class="num-r">' + editableNumHtml(r, 'qty', r.qty) + '</td>' +
+        '<td class="num-r">' + editableNumHtml(r, 'price', r.price) + '</td>' +
+        '<td class="num-r">' + editableNumHtml(r, 'feeUnit', r.feeUnit || 0) + '</td>' +
+        '<td class="num-r">' + amount(r) + '</td>' +
+        '<td class="col-currency">' + currencySelectHtml(r) + '</td>' +
+        '<td class="col-month">' + monthRangeHostHtml(r) + '</td>' +
+        '<td><span class="tag ' + tagClass(r.type) + '">' + typeLabel(r.type) + '</span></td>' +
+        '<td>' + handleSelectHtml(r) + '</td>' +
+        '<td class="col-op">' + operationCellHtml(r) + '</td>' +
+        '<td class="col-pending">' + pendingRoleHtml(r) + '</td>' +
+        '<td><span class="tag tag-action">' + suggestAction(r) + '</span></td>' +
+        '<td><span class="tag tag-status">' + r.status + '</span></td>' +
+        '</tr>';
+    }).join('');
+    updateSummary();
+    bindRowSelects();
+    bindOpButtons();
+    bindEditableCells();
+    bindMonthPickers();
+    bindRowCheckboxes();
+    bindBatchFileLinks();
+    syncChkAll();
+    updateBatchBtns();
+  }
+
+  function bindEditableCells() {
+    document.querySelectorAll('#tbody .cell-msku').forEach(function (el) {
+      el.addEventListener('change', function () {
+        var r = allRows.find(function (x) { return x.line === +el.dataset.line; });
+        if (!r) return;
+        r.msku = el.value;
+        r.warn = !r.msku;
+        if (!r.currencyManual) r.currency = currencyFromMsku(r);
+        renderTable();
+      });
+    });
+    document.querySelectorAll('#tbody select.cell-currency').forEach(function (el) {
+      el.addEventListener('change', function () {
+        var r = allRows.find(function (x) { return x.line === +el.dataset.line; });
+        if (!r) return;
+        r.currency = el.value;
+        r.currencyManual = true;
+      });
+    });
+    document.querySelectorAll('#tbody input.cell-inp').forEach(function (el) {
+      el.addEventListener('change', function () {
+        var r = allRows.find(function (x) { return x.line === +el.dataset.line; });
+        if (!r) return;
+        var field = el.dataset.field;
+        if (field === 'shop' || field === 'salesPerson' || field === 'logisticsPerson' || field === 'financePerson') {
+          r[field] = el.value.trim();
+          initPersonFilterSelects();
+          initViewerSelect();
+          renderTable();
+          return;
+        }
+        if (field === 'orderPo' || field === 'invoicePi') {
+          r[field] = el.value.trim();
+          return;
+        }
+        var v = field === 'qty' ? parseInt(el.value, 10) : parseFloat(el.value);
+        if (isNaN(v) || v < 0) v = 0;
+        r[field] = v;
+        renderTable();
+      });
+    });
+  }
+
+  function bindOpButtons() {
+    document.querySelectorAll('#tbody .btn-op').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        advanceFlow(+btn.dataset.line);
+      });
+    });
+  }
+
+  function applyFilter() {
+    var ka = document.getElementById('f-ka').value;
+    var type = document.getElementById('f-type').value;
+    var status = document.getElementById('f-status').value;
+    var salesOrg = document.getElementById('f-sales-org').value;
+    var batch = document.getElementById('f-batch').value.trim().toLowerCase();
+    var orderPo = document.getElementById('f-order-po').value.trim().toLowerCase();
+    var invoicePi = document.getElementById('f-invoice-pi').value.trim().toLowerCase();
+    var msku = document.getElementById('f-msku').value.trim().toLowerCase();
+    var shop = document.getElementById('f-shop').value;
+    var salesPerson = document.getElementById('f-sales-person').value;
+    var logisticsPerson = document.getElementById('f-logistics-person').value;
+    var financePerson = document.getElementById('f-finance-person').value;
+    rows = allRows.filter(function (r) {
+      if (salesOrg && r.salesOrg !== salesOrg) return false;
+      if (shop && r.shop !== shop) return false;
+      if (salesPerson && r.salesPerson !== salesPerson) return false;
+      if (logisticsPerson && r.logisticsPerson !== logisticsPerson) return false;
+      if (financePerson && r.financePerson !== financePerson) return false;
+      if (ka && r.ka !== ka) return false;
+      if (type && r.type !== type) return false;
+      if (status && r.status !== status) return false;
+      if (batch && r.batch.toLowerCase().indexOf(batch) === -1) return false;
+      if (orderPo && (!r.orderPo || r.orderPo.toLowerCase().indexOf(orderPo) === -1)) return false;
+      if (invoicePi && (!r.invoicePi || r.invoicePi.toLowerCase().indexOf(invoicePi) === -1)) return false;
+      if (msku && (!r.msku || r.msku.toLowerCase().indexOf(msku) === -1)) return false;
+      return true;
+    });
+    renderTable();
+  }
+
+  function bindRowSelects() {
+    document.querySelectorAll('#tbody select.cell-handle').forEach(function (el) {
+      el.addEventListener('change', function () {
+        var line = +el.dataset.line;
+        var r = allRows.find(function (x) { return x.line === line; });
+        if (!r) return;
+        r.handleMode = el.value;
+        r.flowStep = 0;
+        syncStatusFromFlow(r);
+        notifications = notifications.filter(function (n) { return n.line !== r.line; });
+        var p = getPendingAction(r);
+        if (p) pushNotification(r, p.action);
+        renderTable();
+      });
+    });
+  }
+
+  /* 可清除下拉 */
+  document.querySelectorAll('.ctl-wrap select.ctl').forEach(function (sel) {
+    var clear = sel.parentElement.querySelector('.ctl-clear');
+    function sync() {
+      if (!clear) return;
+      clear.hidden = !sel.value;
+    }
+    sel.addEventListener('change', sync);
+    if (clear) clear.addEventListener('click', function () {
+      sel.value = '';
+      sel.dispatchEvent(new Event('change'));
+    });
+    sync();
+  });
+
+  function toast(msg) {
+    var t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    setTimeout(function () { t.classList.remove('show'); }, 2800);
+  }
+
+  /* 导入向导 */
+  var step = 1;
+  var importType = 'A-1';
+
+  document.querySelectorAll('.type-card').forEach(function (card) {
+    card.addEventListener('click', function () {
+      document.querySelectorAll('.type-card').forEach(function (c) { c.classList.remove('selected'); });
+      card.classList.add('selected');
+      importType = card.dataset.type;
+    });
+  });
+
+  document.getElementById('file-input').addEventListener('change', function (e) {
+    var f = e.target.files[0];
+    importPendingFile = f || null;
+    document.getElementById('file-name').textContent = f
+      ? f.name + '（' + formatFileSize(f.size) + '）'
+      : '未选择文件（原型：点击下一步将模拟解析）';
+  });
+
+  function setStep(n) {
+    step = n;
+    document.querySelectorAll('.step').forEach(function (s) {
+      var sn = +s.dataset.step;
+      s.classList.remove('active', 'done');
+      if (sn < n) s.classList.add('done');
+      if (sn === n) s.classList.add('active');
+    });
+    document.getElementById('panel-step1').hidden = n !== 1;
+    document.getElementById('panel-step2').hidden = n !== 2;
+    document.getElementById('panel-step3').hidden = n !== 3;
+    document.getElementById('btn-modal-prev').hidden = n === 1;
+    document.getElementById('btn-modal-next').textContent = n === 3 ? '确认生成批次' : '下一步';
+  }
+
+  function enrichParseRow(p, ka, idx) {
+    var a = mockExcelAssignees(ka, idx);
+    p.shop = p.shop || a.shop;
+    p.salesPerson = p.salesPerson || a.salesPerson;
+    p.logisticsPerson = p.logisticsPerson || a.logisticsPerson;
+    p.financePerson = p.financePerson || a.financePerson;
+    var doc = mockDocFields(ka, idx);
+    if (!p.orderPo) p.orderPo = doc.orderPo;
+    if (!p.invoicePi) p.invoicePi = doc.invoicePi;
+    return p;
+  }
+
+  function mockParseRows() {
+    var ka = document.getElementById('imp-ka').value;
+    if (importType === 'A-2') {
+      return [
+        enrichParseRow({ msku: 'H61234', qty: 15, price: 52, feeUnit: 5.2, handleMode: null }, ka, 0),
+        enrichParseRow({ msku: 'H61235', qty: 10, price: 48, feeUnit: 4.8, handleMode: null }, ka, 1)
+      ];
+    }
+    if (importType === 'B') {
+      return [enrichParseRow({ msku: 'H61200', qty: 500, price: 28, feeUnit: 0, handleMode: '原箱上架' }, ka, 0)];
+    }
+    return [
+      enrichParseRow({ msku: 'H70501', qty: 6, price: 95, feeUnit: 0, handleMode: '返修上架' }, ka, 0),
+      enrichParseRow({ msku: 'H70502', qty: 4, price: 88, feeUnit: 0, handleMode: '拆其他 SKU 上架' }, ka, 1),
+      enrichParseRow({ msku: '', qty: 2, price: 110, feeUnit: 0, handleMode: '报废', warn: true }, ka, 2)
+    ];
+  }
+
+  function readPreviewRowsFromDom() {
+    var trs = document.querySelectorAll('#preview-tbody tr');
+    importPreviewRows.forEach(function (p, i) {
+      var tr = trs[i];
+      if (!tr) return;
+      ['shop', 'salesPerson', 'logisticsPerson', 'financePerson', 'orderPo', 'invoicePi'].forEach(function (field) {
+        var inp = tr.querySelector('[data-prev-field="' + field + '"]');
+        if (inp) p[field] = inp.value.trim();
+      });
+    });
+  }
+
+  function validatePreviewRows(rows) {
+    for (var i = 0; i < rows.length; i++) {
+      var miss = validateRowAssignees(rows[i]);
+      if (miss.length) return '第 ' + (i + 1) + ' 行缺少：' + miss.join('、');
+    }
+    return null;
+  }
+
+  function renderImportPreview() {
+    document.getElementById('preview-tbody').innerHTML = importPreviewRows.map(function (p, i) {
+      var mskuOpts = MSKU_CATALOG.slice(0, 5).map(function (m) {
+        return '<option' + (m === p.msku ? ' selected' : '') + '>' + m + '</option>';
+      }).join('');
+      return '<tr' + (p.warn ? ' class="row-warn"' : '') + '>' +
+        '<td>' + previewPersonInput(p.shop, 'shop') + '</td>' +
+        '<td>' + previewPersonInput(p.salesPerson, 'salesPerson') + '</td>' +
+        '<td>' + previewPersonInput(p.logisticsPerson, 'logisticsPerson') + '</td>' +
+        '<td>' + previewPersonInput(p.financePerson, 'financePerson') + '</td>' +
+        '<td>' + previewDocInput(p.orderPo, 'orderPo', '订单/PO') + '</td>' +
+        '<td>' + previewDocInput(p.invoicePi, 'invoicePi', 'invoice/PI') + '</td>' +
+        '<td><select class="cell-msku"><option value="">请选择</option>' + mskuOpts + '</select></td>' +
+        '<td><input class="cell-inp num" value="' + p.qty + '"></td>' +
+        '<td><input class="cell-inp num" value="' + p.price + '"></td>' +
+        '<td><input class="cell-inp num" value="' + (p.feeUnit || 0) + '"></td>' +
+        '<td class="num-r">' + previewAmount(p) + '</td>' +
+        '<td>' + previewHandleSelect(p.handleMode) + '</td></tr>';
+    }).join('');
+  }
+
+  function previewAmount(p) {
+    return (p.qty * p.price + p.qty * (p.feeUnit || 0)).toFixed(2);
+  }
+
+  function previewHandleSelect(val) {
+    if (importType === 'A-2') return '<span style="color:#999">—</span>';
+    var cur = val || '返修上架';
+    return '<select class="cell-sel cell-handle">' +
+      HANDLE_MODES.map(function (o) {
+        return '<option' + (o === cur ? ' selected' : '') + '>' + o + '</option>';
+      }).join('') + '</select>';
+  }
+
+  function openImport() {
+    step = 1;
+    importType = 'A-1';
+    importPendingFile = null;
+    document.getElementById('imp-sales-org').value = '';
+    document.getElementById('file-input').value = '';
+    document.getElementById('file-name').textContent = '未选择文件（原型：点击下一步将模拟解析）';
+    document.querySelectorAll('.type-card').forEach(function (c) {
+      c.classList.toggle('selected', c.dataset.type === 'A-1');
+    });
+    setStep(1);
+    document.getElementById('modal-import').classList.add('open');
+  }
+
+  document.getElementById('btn-import').addEventListener('click', openImport);
+  document.getElementById('btn-modal-cancel').addEventListener('click', function () {
+    document.getElementById('modal-import').classList.remove('open');
+  });
+
+  document.getElementById('btn-modal-prev').addEventListener('click', function () {
+    if (step > 1) setStep(step - 1);
+  });
+
+  document.getElementById('btn-modal-next').addEventListener('click', function () {
+    if (step === 1) {
+      var salesOrg = document.getElementById('imp-sales-org').value;
+      if (!salesOrg) {
+        toast('请选择销售组织');
+        return;
+      }
+      if (!importPendingFile) {
+        toast('请先上传对账单或原始凭证文件');
+        return;
+      }
+      importPreviewRows = mockParseRows();
+      document.getElementById('parse-count').textContent = importPreviewRows.length;
+      renderImportPreview();
+      setStep(2);
+      return;
+    }
+    if (step === 2) {
+      readPreviewRowsFromDom();
+      var err = validatePreviewRows(importPreviewRows);
+      if (err) {
+        toast(err);
+        return;
+      }
+      var parsed = importPreviewRows.slice();
+      var salesOrg = document.getElementById('imp-sales-org').value;
+      var ka = document.getElementById('imp-ka').value;
+      document.getElementById('confirm-count').textContent = parsed.length;
+      document.getElementById('new-batch-id').textContent = 'RT-' + Date.now().toString().slice(-8);
+      document.getElementById('confirm-sales-org').textContent = salesOrg;
+      document.getElementById('confirm-file-name').textContent = importPendingFile
+        ? importPendingFile.name
+        : '—';
+      var sum = document.getElementById('confirm-summary');
+      sum.innerHTML = '';
+      if (importType === 'A-1') {
+        sum.innerHTML += '<li>非「报废」行 → 待预报（猫头鹰 WMS 入库单）</li>';
+        sum.innerHTML += '<li>「返修上架 / 原箱上架」→ 签收后待财务「销售退货单」</li>';
+        sum.innerHTML += '<li>「拆其他 SKU 上架」→ 待物流「其他入库单」</li>';
+        sum.innerHTML += '<li>「报废」→ 无 ERP 入库单</li>';
+      } else if (importType === 'A-2') {
+        sum.innerHTML += '<li>无实物，无处理方式；全部进入「回款扣款核对」</li>';
+      } else {
+        sum.innerHTML += '<li>默认「原箱上架」，签收完成后生成销售退货单任务</li>';
+      }
+      sum.innerHTML += '<li><strong>待办将通知给 Sales / 物流 / 财务 列填写的人员</strong>（按当前步骤对应）</li>';
+      setStep(3);
+      return;
+    }
+    readPreviewRowsFromDom();
+    var finalErr = validatePreviewRows(importPreviewRows);
+    if (finalErr) {
+      toast(finalErr);
+      return;
+    }
+    document.getElementById('modal-import').classList.remove('open');
+    var batchId = document.getElementById('new-batch-id').textContent;
+    var cnt = +document.getElementById('confirm-count').textContent;
+    var salesOrg = document.getElementById('imp-sales-org').value;
+    var ka = document.getElementById('imp-ka').value;
+    var f = importPendingFile;
+    registerBatchFile(batchId, {
+      fileName: f ? f.name : batchId + '_import.xlsx',
+      fileType: f && /\.csv$/i.test(f.name) ? 'csv' : 'xlsx',
+      salesOrg: salesOrg,
+      ka: ka,
+      uploadedAt: new Date().toLocaleString('zh-CN', { hour12: false }),
+      sizeBytes: f ? f.size : 0,
+      sizeLabel: f ? formatFileSize(f.size) : '—',
+      previewText: mockBatchPreviewText(batchId, ka)
+    });
+    notifyAfterImport(batchId, cnt, salesOrg, ka, importPreviewRows.slice());
+    importPendingFile = null;
+  });
+
+  document.getElementById('btn-file-close').addEventListener('click', function () {
+    document.getElementById('modal-batch-file').classList.remove('open');
+    currentPreviewBatch = null;
+  });
+  document.getElementById('btn-file-download').addEventListener('click', function () {
+    if (currentPreviewBatch) downloadBatchFile(currentPreviewBatch);
+  });
+  document.getElementById('modal-batch-file').addEventListener('click', function (e) {
+    if (e.target === document.getElementById('modal-batch-file')) {
+      document.getElementById('modal-batch-file').classList.remove('open');
+    }
+  });
+
+  document.getElementById('chk-all').addEventListener('change', function () {
+    var on = this.checked;
+    this.indeterminate = false;
+    document.querySelectorAll('#tbody .row-chk').forEach(function (cb) {
+      cb.checked = on;
+      var line = +cb.dataset.line;
+      if (on) selectedLines.add(line);
+      else selectedLines.delete(line);
+    });
+    updateBatchBtns();
+  });
+
+  initBatchButtons();
+  initRowCheckboxDelegation();
+
+  document.getElementById('batch-edit-field').addEventListener('change', updateBatchEditControls);
+  document.getElementById('btn-batch-edit-apply').addEventListener('click', function () {
+    var fieldKey = document.getElementById('batch-edit-field').value;
+    if (!fieldKey) {
+      toast('请先选择要修改的项');
+      return;
+    }
+    if (!getSelectedRows().length) {
+      toast('请先勾选需要修改的行');
+      return;
+    }
+    openBatchEditModal(fieldKey);
+  });
+  document.getElementById('btn-batch-edit-cancel').addEventListener('click', closeBatchEditModal);
+  document.getElementById('btn-batch-edit-confirm').addEventListener('click', applyBatchEdit);
+  document.getElementById('modal-batch-edit').addEventListener('click', function (e) {
+    if (e.target === document.getElementById('modal-batch-edit')) closeBatchEditModal();
+  });
+
+  document.getElementById('btn-query').addEventListener('click', function () {
+    applyFilter();
+    toast('已按筛选条件刷新，共 ' + rows.length + ' 行');
+  });
+  document.getElementById('btn-reset').addEventListener('click', function () {
+    ['f-sales-org', 'f-shop', 'f-sales-person', 'f-logistics-person', 'f-finance-person', 'f-ka', 'f-type', 'f-status'].forEach(function (id) {
+      var el = document.getElementById(id);
+      el.value = '';
+      el.dispatchEvent(new Event('change'));
+    });
+    document.getElementById('f-batch').value = '';
+    document.getElementById('f-order-po').value = '';
+    document.getElementById('f-invoice-pi').value = '';
+    document.getElementById('f-msku').value = '';
+    rows = allRows.slice();
+    renderTable();
+    toast('已重置筛选');
+  });
+
+  document.getElementById('current-viewer').addEventListener('change', function (e) {
+    currentViewer = e.target.value;
+    renderNotifyPanel();
+  });
+
+  seedNotificationsFromRows();
+  initPersonFilterSelects();
+  initViewerSelect();
+  renderTable();
+})();
+</script>
+</body>
+</html>

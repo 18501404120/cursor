@@ -1,0 +1,609 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>大促看板</title>
+  <style>
+    :root {
+      --blue: #1677ff; --sider: #001529; --text: #1f2937; --muted: #8c8c8c;
+      --line: #f0f0f0; --good: #389e0d; --bad: #cf1322; --head: #fafafa;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: "PingFang SC", "Microsoft YaHei", sans-serif; color: var(--text); background: #f0f2f5; font-size: 13px; }
+    button, select { font-family: inherit; }
+    a { color: var(--blue); text-decoration: none; }
+    .app { display: flex; min-height: 100vh; }
+    .sider { width: 64px; background: var(--sider); color: rgba(255,255,255,.75); flex: none; }
+    .sider .logo { height: 48px; display: grid; place-items: center; color: #fff; font-weight: 700; background: #002140; }
+    .sider .item { height: 56px; display: grid; place-items: center; font-size: 12px; }
+    .sider .item.on { background: var(--blue); color: #fff; }
+    .main { flex: 1; min-width: 0; }
+    .top { height: 48px; background: var(--blue); color: #fff; display: flex; align-items: center; padding: 0 16px; gap: 18px; }
+    .top b { font-size: 14px; }
+    .top a, .top span { color: rgba(255,255,255,.85); font-size: 13px; }
+    .top a.on { color: #fff; font-weight: 700; }
+    .body { padding: 10px; }
+    .note { background: #fffbe6; border: 1px solid #ffe58f; border-radius: 6px; padding: 8px 12px; margin-bottom: 8px; line-height: 1.6; }
+    .note b { color: #874d00; }
+    .card { background: #fff; border-radius: 4px; padding: 10px 12px; margin-bottom: 8px; }
+    .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+    .tag { background: #e6f4ff; color: #0958d9; border-radius: 4px; padding: 4px 8px; }
+    select, .fake { height: 30px; border: 1px solid #d9d9d9; border-radius: 4px; padding: 0 8px; background: #fff; color: #333; }
+    .btn { height: 30px; border: 1px solid var(--blue); background: var(--blue); color: #fff; border-radius: 4px; padding: 0 12px; cursor: pointer; }
+    .btn.ghost { background: #fff; color: #333; border-color: #d9d9d9; }
+    .filters { display: flex; flex-direction: column; gap: 8px; }
+    .kpis { display: flex; flex-wrap: wrap; gap: 22px; }
+    .kpis .k { color: var(--muted); }
+    .kpis .v { font-weight: 700; margin-top: 2px; }
+    .sec-h { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 8px; }
+    .sec-h h2 { margin: 0; font-size: 14px; }
+    .sub { color: #8c8c8c; font-weight: 400; font-size: 12px; }
+    .scroll { overflow: auto; }
+    table { border-collapse: collapse; width: max-content; min-width: 100%; }
+    th, td { border: 1px solid #f0f0f0; padding: 6px 8px; text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+    th { background: var(--head); font-weight: 600; text-align: center; color: #4b5563; }
+    th.grp { background: #f5f8ff; }
+    td.lab, th.lab { text-align: left; position: sticky; left: 0; background: #fff; z-index: 1; font-weight: 600; }
+    th.lab { background: var(--head); z-index: 2; }
+    th button.link { border: 0; background: transparent; color: #0958d9; cursor: pointer; font-weight: 600; padding: 0; }
+    .good { color: var(--good); }
+    .bad { color: var(--bad); }
+    .chips { display: flex; flex-wrap: wrap; gap: 8px 12px; margin: 8px 0; }
+    .chip { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; user-select: none; }
+    .dot { width: 12px; height: 12px; border: 2px solid #ccc; border-radius: 50%; }
+    .chip.on .dot { border-color: var(--c); background: var(--c); }
+    .chart { width: 100%; height: 260px; }
+    .modes button, .mini-tabs button { height: 26px; border: 1px solid #d9d9d9; background: #fff; padding: 0 10px; cursor: pointer; }
+    .modes button.on, .mini-tabs button.on { color: var(--blue); border-color: var(--blue); background: #e6f4ff; }
+    .split { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .prod { display: flex; gap: 8px; align-items: center; text-align: left; }
+    .ph { width: 36px; height: 36px; border-radius: 4px; background: #e6f4ff; color: #0958d9; display: grid; place-items: center; font-size: 11px; flex: none; }
+    .subn { display: block; color: var(--muted); font-size: 11px; font-weight: 400; }
+    .drawer-mask { position: fixed; inset: 0; background: rgba(0,0,0,.25); display: none; z-index: 20; }
+    .drawer-mask.show { display: block; }
+    .drawer { position: fixed; top: 0; right: 0; height: 100%; width: min(440px, 100%); background: #fff; z-index: 21; transform: translateX(100%); transition: .2s; box-shadow: -8px 0 24px rgba(0,0,0,.08); padding: 16px 18px; overflow: auto; }
+    .drawer.show { transform: none; }
+    .drawer h3 { margin: 0 0 6px; }
+    .drawer .path { color: var(--muted); font-size: 12px; margin-bottom: 8px; }
+    .drawer .formula { background: #f6ffed; border: 1px solid #b7eb8f; border-radius: 6px; padding: 8px 10px; }
+    .drawer .formula p { margin: 0 0 6px; }
+    .col-actions { display: flex; gap: 8px; margin-bottom: 10px; }
+    .col-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 12px; }
+    .col-grid label { display: flex; gap: 6px; align-items: center; }
+    .toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); background: #1f2937; color: #fff; padding: 8px 14px; border-radius: 6px; display: none; z-index: 30; }
+    .toast.show { display: block; }
+    @media (max-width: 900px) { .split, .col-grid { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <aside class="sider">
+      <div class="logo">智</div>
+      <div class="item">销售</div>
+      <div class="item on">看板</div>
+      <div class="item">目标</div>
+      <div class="item">风控</div>
+    </aside>
+    <div class="main">
+      <header class="top">
+        <b>运营平台 / 销售系统</b>
+        <a class="on" href="./大促看板-自营.html">大促看板</a>
+        <a href="./大促目标管理-自营.html">大促目标管理</a>
+      </header>
+      <div class="body">
+        <div class="note">
+          <b>三个渠道同一套列。</b>
+          下拉切换亚马逊、Shopify、APP 商城。占比全部除以营业收入。毛利 = 营业收入 − 成本，毛利率就是毛利占比。贡献毛利 = 营业利润 = 营业收入 − 成本 − 全部费用，贡献毛利率与营业利润占比是同一个数。电商站内投放自营为 0。目标达成只对销量、营业收入、毛利、营业利润，目标来自项目。
+        </div>
+        <section class="card">
+          <div class="filters">
+            <div class="row">
+              <span class="tag">当期</span>
+              <select id="channel">
+                <option value="amazon">渠道 亚马逊</option>
+                <option value="shopify">渠道 Shopify</option>
+                <option value="app">渠道 APP 商城</option>
+              </select>
+              <select id="site">
+                <option value="US">区域 北美 / 站点 US</option>
+                <option value="CA">区域 北美 / 站点 CA</option>
+                <option value="EU">区域 欧洲 / 站点 EU</option>
+                <option value="UK">区域 欧洲 / 站点 UK</option>
+              </select>
+              <select id="shop"></select>
+              <select><option>品线 全部</option><option>照明</option></select>
+              <span class="fake">2026-11-27 ~ 2026-12-03</span>
+            </div>
+            <div class="row">
+              <span class="tag">往期</span>
+              <span class="fake">2026-11-20 ~ 2026-11-26</span>
+              <span class="fake">同比 2025-11-28 ~ 2025-12-04</span>
+              <span class="fake" id="projectName">项目</span>
+              <button class="btn" id="search" type="button">搜索</button>
+              <button class="btn ghost" id="colsBtn" type="button">自定义列</button>
+              <button class="btn ghost" id="export" type="button">导出</button>
+            </div>
+          </div>
+        </section>
+        <section class="card"><div class="kpis" id="kpis"></div></section>
+        <section class="card">
+          <div class="sec-h">
+            <h2>销售情况对比 <span class="sub" id="rangeText"></span></h2>
+            <span class="sub">点列表头看取值。费用和折扣变大标红，收入、毛利、营业利润变大标绿。</span>
+          </div>
+          <div class="scroll"><table id="cmp"></table></div>
+        </section>
+        <section class="card">
+          <div class="sec-h">
+            <h2>总体情况 & 目标达成</h2>
+            <div class="modes" id="grain">
+              <button type="button" data-g="day" class="on">日</button>
+              <button type="button" data-g="week">周</button>
+              <button type="button" data-g="month">月</button>
+            </div>
+          </div>
+          <div class="chips" id="chips"></div>
+          <svg class="chart" id="chart" viewBox="0 0 860 260"></svg>
+        </section>
+        <section class="card">
+          <div class="row" style="margin-bottom:8px">
+            <div class="mini-tabs" id="liveTabs">
+              <button type="button" data-k="retail" class="on">零售销售额</button>
+              <button type="button" data-k="revenue">营业收入</button>
+              <button type="button" data-k="qty">销量</button>
+            </div>
+            <span class="fake">2026-12-01</span>
+            <span class="fake">对比 2026-11-24</span>
+          </div>
+          <div class="split">
+            <div><h2 style="font-size:14px;margin:0 0 6px">当日累计</h2><svg class="chart" id="liveL" viewBox="0 0 420 220"></svg></div>
+            <div><h2 style="font-size:14px;margin:0 0 6px">时段</h2><svg class="chart" id="liveR" viewBox="0 0 420 220"></svg></div>
+          </div>
+        </section>
+        <section class="card">
+          <div class="sec-h">
+            <h2>产品销售明细</h2>
+            <span class="sub">与对比表同一套自定义列。只有四个目标指标显示达成。</span>
+          </div>
+          <div class="scroll"><table id="sku"></table></div>
+        </section>
+      </div>
+    </div>
+  </div>
+  <div class="drawer-mask" id="mask"></div>
+  <aside class="drawer" id="drawer"></aside>
+  <div class="toast" id="toast"></div>
+  <script>
+    const RATES = {
+      US: { plat: 0.01, pay: 0.0477, po: 0.0009, who: 0.0058, platTxt: "US 1%", payTxt: "US 4.77%", poTxt: "US 0.09%", whoTxt: "US 0.58%" },
+      CA: { plat: 0.0081, pay: 0.0525, po: 0.0006, who: 0.0041, platTxt: "CA 0.81%", payTxt: "CA 5.25%", poTxt: "CA 0.06%", whoTxt: "CA 0.41%" },
+      EU: { plat: 0.01, pay: 0.058, po: 0.0015, who: 0.008, platTxt: "EU 1%", payTxt: "EU 5.8%", poTxt: "EU 0.15%", whoTxt: "EU 0.8%" },
+      UK: { plat: 0.009, pay: 0.062, po: 0.0015, who: 0.008, platTxt: "UK 0.9%", payTxt: "UK 6.2%", poTxt: "UK 0.15%", whoTxt: "UK 0.8%" }
+    };
+    const FEE = [
+      ["mkt", "营销投入"], ["plat", "平台服务"], ["pay", "支付通道手续费"], ["po", "平台其他"],
+      ["off", "电商站外投放"], ["onsite", "电商站内投放"], ["head", "头程"], ["tail", "尾程"],
+      ["rent", "仓储租金"], ["who", "仓储其它"], ["oth", "其它全部"]
+    ];
+    const FEE_KEYS = FEE.map((f) => f[0]);
+    const COLORS = ["#1677ff", "#52c41a", "#fa8c16", "#eb2f96", "#722ed1", "#13c2c2", "#fadb14", "#f5222d", "#2f54eb", "#a0d911", "#597ef7", "#36cfc9", "#ffc53d", "#b37feb", "#cf1322", "#0958d9", "#389e0d", "#d46b08", "#531dab", "#08979c", "#c41d7f"];
+
+    function metric(key, name, group, extra) {
+      return Object.assign({ key: key, name: name, group: group, up: true }, extra || {});
+    }
+    const METRICS = [
+      metric("qty", "销量", "收入", { kind: "qty", aim: true }),
+      metric("retail", "零售销售额", "收入"),
+      metric("sales", "销售收入", "收入"),
+      metric("line", "划线价折扣", "收入", { up: false, contra: true }),
+      metric("lineRate", "划线价折扣占比", "收入", { rate: true, base: "line", up: false, contra: true }),
+      metric("disc", "Discounts", "收入", { up: false, contra: true }),
+      metric("discRate", "Discounts占比", "收入", { rate: true, base: "disc", up: false, contra: true }),
+      metric("revenue", "营业收入", "收入", { aim: true }),
+      metric("rma", "大促退货率", "收入", { rate: true, up: false }),
+      metric("cost", "成本", "成本", { up: false }),
+      metric("costRate", "成本占比", "成本", { rate: true, base: "cost", up: false }),
+      metric("margin", "毛利", "利润", { aim: true }),
+      metric("marginRate", "毛利率", "利润", { rate: true, base: "margin" })
+    ];
+    FEE.forEach((f) => {
+      METRICS.push(metric(f[0], f[1], "费用", { up: false }));
+      METRICS.push(metric(f[0] + "Rate", f[1] + "占比", "费用", { rate: true, base: f[0], up: false }));
+    });
+    METRICS.push(metric("profit", "营业利润", "利润", { aim: true }));
+    METRICS.push(metric("profitRate", "营业利润占比", "利润", { rate: true, base: "profit" }));
+    METRICS.push(metric("contribRate", "贡献毛利率", "利润", { rate: true, base: "profit" }));
+
+    function pack(o) {
+      const fees = FEE_KEYS.reduce((s, k) => s + (o[k] || 0), 0);
+      const margin = o.revenue - o.cost;
+      const profit = margin - fees;
+      const rate = (n) => (o.revenue ? n / o.revenue : 0);
+      const out = Object.assign({}, o, { fees: fees, margin: margin, profit: profit, marginRate: rate(margin), profitRate: rate(profit), contribRate: rate(profit) });
+      out.lineRate = rate(o.line || 0);
+      out.discRate = rate(o.disc || 0);
+      out.costRate = rate(o.cost || 0);
+      FEE_KEYS.forEach((k) => { out[k + "Rate"] = rate(o[k] || 0); });
+      return out;
+    }
+    function applySite(base, site) {
+      const r = RATES[site];
+      return pack(Object.assign({}, base, {
+        plat: Math.round(base.revenue * r.plat),
+        pay: Math.round(base.revenue * r.pay),
+        po: Math.round(base.revenue * r.po),
+        who: Math.round(base.revenue * r.who)
+      }));
+    }
+
+    const CHANNELS = {
+      amazon: {
+        name: "亚马逊",
+        project: "2026-Amazon-北美-BFCM",
+        shops: ["Amazon US", "Amazon CA", "Amazon DE", "Amazon UK"],
+        skus: [
+          { sku: "H61991", shop: "Amazon US", line: "照明 / 主力", w: 0.48 },
+          { sku: "H6072", shop: "Amazon US", line: "照明 / 新品", w: 0.31 },
+          { sku: "H61E1", shop: "Amazon DE", line: "照明 / 常规", w: 0.21 }
+        ],
+        cur: { qty: 22000, retail: 5200000, sales: 5200000, revenue: 4100000, line: -380000, disc: -520000, rma: 0.08, cost: 1280000, mkt: 90000, plat: 410000, pay: 0, po: 15000, off: 40000, onsite: 280000, head: 210000, tail: 390000, rent: 95000, who: 24000, oth: 30000 },
+        prev: { qty: 19800, retail: 4600000, sales: 4600000, revenue: 3600000, line: -330000, disc: -460000, rma: 0.074, cost: 1150000, mkt: 80000, plat: 360000, pay: 0, po: 12000, off: 35000, onsite: 250000, head: 190000, tail: 350000, rent: 88000, who: 20000, oth: 28000 },
+        yoy: { qty: 16000, retail: 3700000, sales: 3700000, revenue: 2900000, line: -260000, disc: -380000, rma: 0.091, cost: 980000, mkt: 70000, plat: 290000, pay: 0, po: 10000, off: 30000, onsite: 200000, head: 150000, tail: 280000, rent: 70000, who: 16000, oth: 22000 },
+        aim: { qty: 20000, revenue: 3800000, margin: 2600000, profit: 1100000 }
+      },
+      shopify: {
+        name: "Shopify",
+        project: "2026-Shopify-北美-BFCM",
+        shops: ["Govee US", "Govee CA", "Govee EU", "Govee UK"],
+        skus: [
+          { sku: "H61991", shop: "Govee US", line: "照明 / 主力", w: 0.46 },
+          { sku: "H6072", shop: "Govee US", line: "照明 / 新品", w: 0.32 },
+          { sku: "H61E1", shop: "Govee EU", line: "照明 / 常规", w: 0.22 }
+        ],
+        cur: { qty: 17360, retail: 3920000, sales: 3920000, revenue: 2970000, line: -292000, disc: -448000, rma: 1240 / 18600, cost: 915000, mkt: 180000, off: 120000, onsite: 0, head: 180000, tail: 320000, rent: 80000, oth: 56200 },
+        prev: { qty: 15820, retail: 3510000, sales: 3510000, revenue: 2650000, line: -260000, disc: -400000, rma: 0.061, cost: 860000, mkt: 210000, off: 150000, onsite: 0, head: 165000, tail: 290000, rent: 72000, oth: 48000 },
+        yoy: { qty: 12100, retail: 2740000, sales: 2740000, revenue: 2080000, line: -210000, disc: -320000, rma: 0.072, cost: 670000, mkt: 140000, off: 90000, onsite: 0, head: 130000, tail: 230000, rent: 56000, oth: 40000 },
+        aim: { qty: 16000, revenue: 2800000, margin: 1900000, profit: 850000 }
+      },
+      app: {
+        name: "APP 商城",
+        project: "2026-APP-北美-BFCM",
+        shops: ["APP US", "APP CA", "APP EU", "APP UK"],
+        skus: [
+          { sku: "H61991", shop: "APP US", line: "照明 / 主力", w: 0.5 },
+          { sku: "H6072", shop: "APP US", line: "照明 / 新品", w: 0.3 },
+          { sku: "H61E1", shop: "APP UK", line: "照明 / 常规", w: 0.2 }
+        ],
+        cur: { qty: 8640, retail: 1960000, sales: 1960000, revenue: 1480000, line: -146000, disc: -224000, rma: 0.071, cost: 456000, mkt: 72000, off: 48000, onsite: 0, head: 90000, tail: 160000, rent: 36000, oth: 28000 },
+        prev: { qty: 7900, retail: 1760000, sales: 1760000, revenue: 1320000, line: -130000, disc: -200000, rma: 0.068, cost: 420000, mkt: 80000, off: 56000, onsite: 0, head: 82000, tail: 148000, rent: 33000, oth: 24000 },
+        yoy: { qty: 6100, retail: 1380000, sales: 1380000, revenue: 1040000, line: -100000, disc: -160000, rma: 0.08, cost: 340000, mkt: 52000, off: 36000, onsite: 0, head: 64000, tail: 112000, rent: 26000, oth: 18000 },
+        aim: { qty: 8200, revenue: 1400000, margin: 900000, profit: 460000 }
+      }
+    };
+
+    let ch = "shopify";
+    let site = "US";
+    let grain = "day";
+    let selected = ["revenue", "profit"];
+    let liveKey = "retail";
+    let hidden = {};
+    try { hidden = JSON.parse(localStorage.getItem("promoBoardHidden") || "{}"); } catch (e) { hidden = {}; }
+
+    function shown() { return METRICS.filter((m) => !hidden[m.key]); }
+    function snap(kind) {
+      const base = CHANNELS[ch][kind];
+      return ch === "amazon" ? pack(base) : applySite(base, site);
+    }
+    function money(n) {
+      const v = Math.round(n);
+      const abs = Math.abs(v).toLocaleString("en-US");
+      return v < 0 ? "-" + abs : abs;
+    }
+    function pct(n) { return (n * 100).toFixed(1) + "%"; }
+    function showNum(m, row) {
+      if (m.kind === "qty") return Math.round(row[m.key]).toLocaleString("en-US");
+      if (m.rate) return pct(row[m.key] || 0);
+      return money(row[m.key] || 0);
+    }
+    function changeOf(m, cur, prev) {
+      if (m.contra) {
+        const c = Math.abs(cur[m.base || m.key] || 0);
+        const p = Math.abs(prev[m.base || m.key] || 0);
+        return p ? (c - p) / p : 0;
+      }
+      const c = cur[m.key] || 0;
+      const p = prev[m.key] || 0;
+      return p ? (c - p) / Math.abs(p) : 0;
+    }
+    function tone(m, delta) {
+      if (!delta) return "";
+      return (m.up ? delta > 0 : delta < 0) ? "good" : "bad";
+    }
+    function arrow(delta) { return delta > 0 ? " ↑" : delta < 0 ? " ↓" : ""; }
+
+    function tips(cur) {
+      const r = RATES[site];
+      const feeNames = FEE.map((f) => f[1]).join("、");
+      const base = {
+        qty: ["销量 = 发货销量 − 退货销量。", "项目目标只对比这一列的销量，不对比费用。"],
+        retail: ["零售销售额 = 发货零售销售额 + 退货零售销售额。", "发货 = RRP × 发货销量，退货 = − RRP × 退货销量。"],
+        sales: ["自营的销售收入与零售销售额同一套算法，示例两列相同。", "亚马逊示例同样按管报名称展示。"],
+        line: ["划线价折扣 = RRP − 成交价 − 订单折扣。退货记该订单金额的负数。", "表上为净额，示例 Shopify 为 -292,000。已经含在营业收入里，不从营业利润再扣一次。"],
+        lineRate: ["划线价折扣占比 = 划线价折扣 / 营业收入。"],
+        disc: ["Discounts = 订单折扣。发货为正的折扣，退货记负数，表上是净额。", "不重复算进划线价折扣。示例 Shopify 为 -448,000。"],
+        discRate: ["Discounts占比 = Discounts / 营业收入。"],
+        revenue: ["营业收入 = 发货营业收入 + 退货营业收入。", "发货营业收入 = 发货销售收入 − 发货临时激励 − 发货税费。临时激励 = 划线价折扣 + Discounts。", "项目里填写的是营业收入目标。"],
+        rma: ch === "amazon"
+          ? ["大促退货率取 MSKU 基础信息里手填的大促退货率。", "只展示，不参与营业收入和营业利润计算。"]
+          : ["自营大促退货率 = 退货销量 / 发货销量。", "只展示，不参与营业收入和营业利润计算。"],
+        cost: ["成本 = 出货授权成本 + 退货成本。", "出货授权单价 =（授权采购价 + 授权关税）×（1 + 预留毛利率），不含头程。页面不拆采购、关税、预留。", "成本不在项目目标里填写。"],
+        costRate: ["成本占比 = 成本 / 营业收入。"],
+        margin: ["毛利 = 营业收入 − 成本。费用不进毛利。", "本例 " + money(cur.revenue) + " − " + money(cur.cost) + " = " + money(cur.margin) + "。", "项目里填写毛利目标。"],
+        marginRate: ["毛利率 = 毛利 / 营业收入。毛利占比用这一列，不再单列。"],
+        mkt: ["营销投入取管报「营销投入」整段，含自主营销和联合营销。本页不往下拆。"],
+        plat: ch === "amazon"
+          ? ["亚马逊与自营同一列。示例为演示金额。"]
+          : ["平台服务 = 营业收入 × 站点平台费率。当前 " + r.platTxt + "，金额 " + money(cur.plat) + "。"],
+        pay: ch === "amazon"
+          ? ["亚马逊示例本列为 0。自营 = 营业收入 × 收单费率。"]
+          : ["支付通道手续费 = 营业收入 × 收单费率。当前 " + r.payTxt + "，金额 " + money(cur.pay) + "。"],
+        po: ch === "amazon"
+          ? ["平台其他与自营同一列。亚马逊示例为演示金额。"]
+          : ["平台其他 = 营业收入 × 风控费率。当前 " + r.poTxt + "，金额 " + money(cur.po) + "。"],
+        off: ["电商站外投放取广告概览选定周期的站外花费。"],
+        onsite: ["电商站内投放是亚马逊站内广告花费。", "Shopify、APP 商城没有这项，记 0，自定义列可以藏。"],
+        head: ["头程按发货销量减退货销量。老品用近 12 月空运、海运加权，新品无货件用预估占比。"],
+        tail: ["尾程优先用本月财务单价 × 区间发货数量；本月没有则用上月单价；新品再用发货单尾程。"],
+        rent: [ch === "shopify" ? "仓储租金取 Shopify 物流看板的仓租。" : ch === "app" ? "仓储租金取 App 物流面板的仓租。" : "仓储租金与自营同一列。亚马逊示例为演示金额。", "运费和其他操作费不进本列。"],
+        who: ["仓储其它 = 管报仓储其他，仓储项下除租金以外的费用都在本列。", ch === "amazon" ? "亚马逊示例为演示金额。" : "自营 = 营业收入 × 海外仓费率。当前 " + r.whoTxt + "，金额 " + money(cur.who) + "。"],
+        oth: ["其它全部 = 销售样机 + 广告投放下的营销样机 + KOL + PR + 售后服务 + 其它 + 包裹险。", "不含已经单列的费用，也不含电商站内投放。"],
+        profit: ["营业利润 = 营业收入 − 成本 − 全部费用。", "费用包括 " + feeNames + "。", money(cur.revenue) + " − " + money(cur.cost) + " − " + money(cur.fees) + " = " + money(cur.profit) + "。", "项目里填写营业利润目标。"],
+        profitRate: ["营业利润占比 = 营业利润 / 营业收入。"],
+        contribRate: ["贡献毛利就是营业利润，贡献毛利率 = 营业利润 / 营业收入。", "与营业利润占比相同，需要时用自定义列藏掉一列。"]
+      };
+      FEE_KEYS.forEach((k) => {
+        base[k + "Rate"] = [FEE.find((f) => f[0] === k)[1] + "占比 = 该项金额 / 营业收入。"];
+      });
+      return base;
+    }
+
+    function renderShop() {
+      const c = CHANNELS[ch];
+      document.getElementById("shop").innerHTML = c.shops.map((s) => "<option>" + s + "</option>").join("");
+      document.getElementById("projectName").textContent = "项目 " + c.project;
+    }
+    function renderKpis() {
+      const cur = snap("cur");
+      const aim = CHANNELS[ch].aim;
+      const items = [["销量", cur.qty, aim.qty, false], ["营业收入", cur.revenue, aim.revenue, true], ["毛利", cur.margin, aim.margin, true], ["营业利润", cur.profit, aim.profit, true]];
+      document.getElementById("kpis").innerHTML = items.map((it) => {
+        const rate = it[2] ? it[1] / it[2] : 0;
+        const target = it[3] ? money(it[2]) : Math.round(it[2]).toLocaleString("en-US");
+        return "<div><div class='k'>当前" + it[0] + "目标：" + target + "</div><div class='v'>当前进度：" + pct(rate) + "</div></div>";
+      }).join("") + "<div><div class='k'>当前时间进度（US）：57%</div><div class='v'>当前时间进度（EU）：62%</div></div>";
+      const siteNote = ch === "amazon" ? "　亚马逊示例不随站点费率变化" : "　自营费率类费用随站点重算";
+      document.getElementById("rangeText").textContent = CHANNELS[ch].name + " / " + site + "　当前 2026-11-27 ~ 2026-12-03" + siteNote;
+    }
+    function renderCmp() {
+      const cur = snap("cur"), prev = snap("prev"), yoy = snap("yoy"), aim = CHANNELS[ch].aim;
+      const list = shown();
+      const groups = [];
+      list.forEach((m) => {
+        const last = groups[groups.length - 1];
+        if (!last || last.name !== m.group) groups.push({ name: m.group, span: 1 });
+        else last.span += 1;
+      });
+      let html = "<thead><tr><th class='lab' rowspan='2'>指标</th>";
+      html += groups.map((g) => "<th class='grp' colspan='" + g.span + "'>" + g.name + "</th>").join("");
+      html += "</tr><tr>" + list.map((m) => "<th><button class='link' data-tip='" + m.key + "'>" + m.name + "</button></th>").join("") + "</tr></thead><tbody>";
+      const rows = [
+        ["当期达成", (m) => showNum(m, cur)],
+        ["往期达成", (m) => showNum(m, prev)],
+        ["环比", (m) => {
+          const d = changeOf(m, cur, prev);
+          return "<td class='" + tone(m, d) + "'>" + pct(d) + arrow(d) + "</td>";
+        }],
+        ["目标达成", (m) => {
+          if (!m.aim) return "<td>—</td>";
+          const actual = m.key === "margin" ? cur.margin : m.key === "profit" ? cur.profit : cur[m.key];
+          const ratio = aim[m.key] ? actual / aim[m.key] : 0;
+          return "<td class='" + (ratio >= 1 ? "good" : "bad") + "'>" + pct(ratio) + "</td>";
+        }],
+        ["同比", (m) => {
+          const d = changeOf(m, cur, yoy);
+          return "<td class='" + tone(m, d) + "'>" + pct(d) + arrow(d) + "</td>";
+        }]
+      ];
+      rows.forEach((row) => {
+        html += "<tr><td class='lab'>" + row[0] + "</td>";
+        list.forEach((m) => {
+          const val = row[1](m);
+          html += val.indexOf("<td") === 0 ? val : "<td>" + val + "</td>";
+        });
+        html += "</tr>";
+      });
+      document.getElementById("cmp").innerHTML = html + "</tbody>";
+    }
+    function labelsOf() {
+      if (grain === "day") return ["11-27", "11-28", "11-29", "11-30", "12-01", "12-02", "12-03"];
+      if (grain === "week") return ["W1", "W2", "W3", "大促周"];
+      return ["10月", "11月", "12月"];
+    }
+    function share(total, weights) {
+      const rounded = weights.map((w) => Math.round(total * w));
+      rounded[rounded.length - 1] += Math.round(total) - rounded.reduce((a, b) => a + b, 0);
+      return rounded;
+    }
+    function series(key) {
+      const labels = labelsOf();
+      const total = snap("cur")[key] || 0;
+      const m = METRICS.find((x) => x.key === key);
+      if (m.rate) return labels.map((_, i) => total * (0.9 + (i % 4) * 0.05));
+      const w = grain === "day" ? [0.1, 0.12, 0.11, 0.18, 0.16, 0.17, 0.16] : grain === "week" ? [0.18, 0.2, 0.22, 0.4] : [0.22, 0.48, 0.3];
+      return share(total, w);
+    }
+    function renderChart() {
+      const list = shown();
+      selected = selected.filter((k) => list.some((m) => m.key === k));
+      if (!selected.length && list.length) selected = [list[0].key];
+      const labels = labelsOf();
+      const w = 860, h = 260, l = 36, t = 16, b = 28, iw = w - l - 12, ih = h - t - b;
+      let body = "";
+      selected.forEach((key) => {
+        const idx = METRICS.findIndex((x) => x.key === key);
+        const color = COLORS[idx % COLORS.length];
+        const data = series(key);
+        const max = Math.max.apply(null, data.map((n) => Math.abs(n)).concat([1]));
+        const pts = data.map((n, i) => {
+          const x = l + (labels.length === 1 ? iw / 2 : (iw * i) / (labels.length - 1));
+          const y = t + ih - (Math.abs(n) / max) * ih;
+          return [x, y];
+        });
+        body += "<polyline fill='none' stroke='" + color + "' stroke-width='2' points='" + pts.map((p) => p.join(",")).join(" ") + "'/>";
+        pts.forEach((p) => { body += "<circle cx='" + p[0] + "' cy='" + p[1] + "' r='3' fill='" + color + "'/>"; });
+      });
+      labels.forEach((lb, i) => {
+        const x = l + (labels.length === 1 ? iw / 2 : (iw * i) / (labels.length - 1));
+        body += "<text x='" + x + "' y='" + (h - 8) + "' text-anchor='middle' font-size='11' fill='#8c8c8c'>" + lb + "</text>";
+      });
+      document.getElementById("chart").innerHTML = body;
+      document.getElementById("chips").innerHTML = list.map((m) => {
+        const on = selected.indexOf(m.key) >= 0;
+        const color = COLORS[METRICS.indexOf(m) % COLORS.length];
+        return "<label class='chip" + (on ? " on" : "") + "' style='--c:" + color + "'><input data-key='" + m.key + "' type='checkbox' " + (on ? "checked" : "") + " hidden><i class='dot'></i>" + m.name + "</label>";
+      }).join("");
+    }
+    function hourly(seed) {
+      const arr = [];
+      for (let i = 0; i < 24; i++) arr.push(Math.max(0.05, Math.sin((i - 8) / 3) * 0.35 + 0.7 + ((i * seed) % 5) * 0.02));
+      const sum = arr.reduce((a, b) => a + b, 0);
+      return arr.map((n) => n / sum);
+    }
+    function accumulate(arr) { let s = 0; return arr.map((n) => (s += n)); }
+    function drawLive(id, today, compare) {
+      const w = 420, h = 220, l = 8, t = 16, b = 22, iw = w - 16, ih = h - t - b;
+      const max = Math.max.apply(null, today.concat(compare).concat([1]));
+      const line = (arr, color) => "<polyline fill='none' stroke='" + color + "' stroke-width='2' points='" + arr.map((n, i) => (l + (iw * i) / 23) + "," + (t + ih - (n / max) * ih)).join(" ") + "'/>";
+      let axis = "";
+      [0, 6, 12, 18, 23].forEach((i) => { axis += "<text x='" + (l + (iw * i) / 23) + "' y='" + (h - 4) + "' font-size='10' fill='#8c8c8c'>" + i + "</text>"; });
+      document.getElementById(id).innerHTML = line(compare, "#91caff") + line(today, "#1677ff") + axis;
+    }
+    function renderLive() {
+      const day = (snap("cur")[liveKey] || 0) / 7;
+      const a = hourly(3), b = hourly(7);
+      drawLive("liveL", accumulate(a.map((n) => n * day)), accumulate(b.map((n) => n * day * 0.86)));
+      drawLive("liveR", a.map((n) => n * day), b.map((n) => n * day * 0.86));
+    }
+    function renderSku() {
+      const cur = snap("cur"), aim = CHANNELS[ch].aim, list = shown();
+      let html = "<thead><tr><th class='lab'>产品</th><th>品线 / 定位</th>" + list.map((m) => "<th>" + m.name + "</th>").join("") + "</tr></thead><tbody>";
+      CHANNELS[ch].skus.concat([{ sku: "合计", total: true, w: 1 }]).forEach((s) => {
+        html += "<tr><td class='lab'>" + (s.total ? "合计" : "<div class='prod'><div class='ph'>SKU</div><div><b>" + s.sku + "</b><div class='subn'>" + s.shop + "</div></div></div>") + "</td><td style='text-align:left'>" + (s.line || "") + "</td>";
+        list.forEach((m) => {
+          const actual = m.rate ? cur[m.key] : cur[m.key] * (s.total ? 1 : s.w);
+          let extra = "";
+          if (m.aim) {
+            const target = aim[m.key] * (s.total ? 1 : s.w);
+            const rate = target ? actual / target : 0;
+            extra = "<span class='subn " + (rate >= 1 ? "good" : "bad") + "'>达成 " + pct(rate) + "</span>";
+          }
+          html += "<td>" + (m.rate ? pct(actual) : m.kind === "qty" ? Math.round(actual).toLocaleString("en-US") : money(actual)) + extra + "</td>";
+        });
+        html += "</tr>";
+      });
+      document.getElementById("sku").innerHTML = html + "</tbody>";
+    }
+    function openDrawer(html) {
+      document.getElementById("drawer").innerHTML = html;
+      document.getElementById("drawer").classList.add("show");
+      document.getElementById("mask").classList.add("show");
+    }
+    function closeDrawer() {
+      document.getElementById("drawer").classList.remove("show");
+      document.getElementById("mask").classList.remove("show");
+    }
+    function openTip(key) {
+      const m = METRICS.find((x) => x.key === key);
+      const lines = (tips(snap("cur"))[key] || ["按管报名称展示。"]).map((t) => "<p>" + t + "</p>").join("");
+      openDrawer("<h3>" + m.name + "</h3><div class='path'>" + m.group + " · " + CHANNELS[ch].name + " / " + site + "</div><div class='formula'>" + lines + "</div>");
+    }
+    function openCols() {
+      const groups = [];
+      METRICS.forEach((m) => {
+        const last = groups[groups.length - 1];
+        if (!last || last.name !== m.group) groups.push({ name: m.group, items: [m] });
+        else last.items.push(m);
+      });
+      const body = groups.map((g) => "<h3 style='margin:12px 0 6px'>" + g.name + "</h3><div class='col-grid'>" + g.items.map((m) => "<label><input type='checkbox' data-col='" + m.key + "'" + (hidden[m.key] ? "" : " checked") + ">" + m.name + "</label>").join("") + "</div>").join("");
+      openDrawer("<h3>自定义列</h3><p class='path'>对比表、趋势图、产品明细共用。选择记在本机浏览器。</p><div class='col-actions'><button class='btn ghost' id='colAll' type='button'>全选</button><button class='btn ghost' id='colReset' type='button'>恢复默认</button></div>" + body);
+    }
+    function saveHidden() {
+      try { localStorage.setItem("promoBoardHidden", JSON.stringify(hidden)); } catch (e) {}
+    }
+    function toast(text) {
+      const el = document.getElementById("toast");
+      el.textContent = text;
+      el.classList.add("show");
+      setTimeout(() => el.classList.remove("show"), 1600);
+    }
+    function render() {
+      document.getElementById("channel").value = ch;
+      document.getElementById("site").value = site;
+      renderShop();
+      renderKpis();
+      renderCmp();
+      renderChart();
+      renderLive();
+      renderSku();
+    }
+    document.getElementById("channel").addEventListener("change", (e) => { ch = e.target.value; render(); });
+    document.getElementById("site").addEventListener("change", (e) => { site = e.target.value; render(); });
+    document.getElementById("search").addEventListener("click", () => { render(); toast("已按渠道和站点刷新"); });
+    document.getElementById("export").addEventListener("click", () => toast("导出当前显示的 " + shown().length + " 列"));
+    document.getElementById("colsBtn").addEventListener("click", openCols);
+    document.getElementById("cmp").addEventListener("click", (e) => {
+      const btn = e.target.closest("[data-tip]");
+      if (btn) openTip(btn.dataset.tip);
+    });
+    document.getElementById("chips").addEventListener("click", (e) => {
+      const chip = e.target.closest(".chip");
+      if (!chip) return;
+      const key = chip.querySelector("input").dataset.key;
+      if (selected.indexOf(key) >= 0) selected = selected.filter((k) => k !== key);
+      else selected = selected.concat(key);
+      if (!selected.length) selected = [key];
+      renderChart();
+    });
+    document.getElementById("grain").addEventListener("click", (e) => {
+      const btn = e.target.closest("button");
+      if (!btn) return;
+      grain = btn.dataset.g;
+      document.querySelectorAll("#grain button").forEach((b) => b.classList.toggle("on", b === btn));
+      renderChart();
+    });
+    document.getElementById("liveTabs").addEventListener("click", (e) => {
+      const btn = e.target.closest("button");
+      if (!btn) return;
+      liveKey = btn.dataset.k;
+      document.querySelectorAll("#liveTabs button").forEach((b) => b.classList.toggle("on", b === btn));
+      renderLive();
+    });
+    document.getElementById("drawer").addEventListener("change", (e) => {
+      const input = e.target.closest("[data-col]");
+      if (!input) return;
+      if (input.checked) delete hidden[input.dataset.col];
+      else hidden[input.dataset.col] = 1;
+      if (shown().length === 0) { delete hidden[input.dataset.col]; input.checked = true; toast("至少保留一列"); return; }
+      saveHidden();
+      render();
+    });
+    document.getElementById("drawer").addEventListener("click", (e) => {
+      if (e.target.id === "colAll") { hidden = {}; saveHidden(); openCols(); render(); }
+      if (e.target.id === "colReset") { hidden = {}; saveHidden(); openCols(); render(); }
+    });
+    document.getElementById("mask").addEventListener("click", closeDrawer);
+    render();
+  </script>
+</body>
+</html>

@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>自营系统能力全景</title>
+  <style>
+    :root {
+      --bg: #f3f4f6;
+      --text: #1f1f1f;
+      --muted: #595959;
+      --line: #d9d9d9;
+      --chip-line: #c4c4c4;
+      --build: #ffe566;
+      --build-line: #e3c84a;
+      --gap: #e8c99a;
+      --gap-line: #c9a36a;
+      --blue: #1677ff;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "PingFang SC", "Microsoft YaHei", sans-serif;
+      color: var(--text);
+      background: #e7edf5;
+      line-height: 1.5;
+    }
+    .frame {
+      max-width: 1360px;
+      margin: 16px auto 32px;
+      padding: 16px 18px 18px;
+      background: var(--bg);
+      border: 3px solid #5b8ec9;
+    }
+    .top {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      align-items: center;
+      gap: 8px 12px;
+      margin-bottom: 12px;
+    }
+    .legend { display: flex; flex-wrap: wrap; gap: 8px; }
+    .legend button {
+      font: inherit;
+      font-size: 13px;
+      height: 32px;
+      padding: 0 12px;
+      border-radius: 2px;
+      cursor: pointer;
+      color: var(--text);
+    }
+    .legend button.have { background: #fff; border: 1px solid var(--chip-line); }
+    .legend button.build { background: var(--build); border: 1px solid var(--build-line); }
+    .legend button.gap { background: var(--gap); border: 1px solid var(--gap-line); }
+    .legend button[aria-pressed="false"] { opacity: .38; }
+    .legend button:focus-visible, .domain:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+    h1 {
+      margin: 0;
+      text-align: center;
+      font-size: 26px;
+      letter-spacing: 2px;
+      font-weight: 700;
+    }
+    .map { display: flex; flex-direction: column; gap: 14px; }
+    .row { display: grid; gap: 12px; align-items: stretch; }
+    .row[hidden] { display: none; }
+    .domain {
+      display: flex;
+      flex-direction: column;
+      width: 100%;
+      min-width: 0;
+      margin: 0;
+      padding: 0;
+      border: 0;
+      background: transparent;
+      color: inherit;
+      font: inherit;
+      text-align: left;
+      cursor: pointer;
+      appearance: none;
+    }
+    .domain-name {
+      margin: 0 0 6px;
+      text-align: center;
+      font-size: 15px;
+      font-weight: 700;
+      color: #1f1f1f;
+    }
+    .panel {
+      flex: 1;
+      padding: 10px;
+      background: #fff;
+      border: 1px solid #d0d0d0;
+      border-radius: 4px;
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+      gap: 8px;
+      align-content: start;
+    }
+    .domain.on .panel { border-color: var(--blue); box-shadow: inset 0 0 0 1px var(--blue); }
+    .panel.cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .chip {
+      min-height: 34px;
+      padding: 4px 8px;
+      border-radius: 2px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      font-size: 13px;
+      line-height: 1.25;
+      word-break: keep-all;
+      overflow-wrap: anywhere;
+    }
+    .chip.have { background: #fff; border: 1px solid var(--chip-line); }
+    .chip.build { background: var(--build); border: 1px solid var(--build-line); }
+    .chip.gap { background: var(--gap); border: 1px solid var(--gap-line); }
+    .chip.span-2 { grid-column: span 2; }
+    .detail {
+      margin-top: 14px;
+      min-height: 72px;
+      padding: 12px 14px;
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 4px;
+      font-size: 14px;
+    }
+    .detail b { font-size: 15px; }
+    .detail p { margin: 6px 0 0; }
+    .detail .line { margin: 4px 0 0; }
+    .detail .k { color: var(--muted); }
+    @media (max-width: 980px) {
+      .top { grid-template-columns: 1fr; }
+      h1 { text-align: left; }
+      .row { grid-template-columns: 1fr !important; }
+    }
+  </style>
+</head>
+<body>
+  <div class="frame">
+    <div class="top">
+      <div class="legend" id="legend"></div>
+      <h1>自营系统</h1>
+      <div></div>
+    </div>
+    <div class="map" id="map"></div>
+    <div class="detail" id="detail">点一个板块，查看这一块在做什么。</div>
+  </div>
+  <script>
+    const STATUS = { have: "已有能力", build: "建设中能力", gap: "待补齐能力" };
+
+    const rows = [
+      {
+        domains: [
+          {
+            name: "看板",
+            span: "1fr",
+            intro: "看 App 商城、Shopify、京东和小红书的销售、广告和进销存。经营分析含新版看板。即时销售、产品表现、商城销量、进销存和营销插件促销已能看。广告分成总看板、概览和明细。大促看板按渠道看大促期间的销量、收入、毛利、利润和目标达成，自营侧是 Shopify 和 APP 商城。管报看板用来看全渠道收入、成本和费用。",
+            items: [
+              { name: "经营分析看板", status: "have" },
+              { name: "自营销售即时看板", status: "have" },
+              { name: "产品表现看板", status: "have" },
+              { name: "进销存看板", status: "have" },
+              { name: "商城销量看板", status: "have" },
+              { name: "营销插件促销看板", status: "have" },
+              { name: "自营广告看板", status: "have" },
+              { name: "广告概览看板", status: "have" },
+              { name: "广告明细看板", status: "have" },
+              { name: "大促看板", status: "gap" },
+              { name: "管报看板", status: "gap" }
+            ]
+          }
+        ]
+      },
+      {
+        domains: [
+          {
+            name: "App商城",
+            span: "1.35fr",
+            intro: "维护商城首页、搜索、分类、商品、优惠券、问答、订阅、游戏和奖池。商品列表含基础信息、多属性和 Bundle。帮我选、Feedback 和 Media Inquiry 也在这一块。",
+            items: [
+              { name: "首页管理", status: "have" },
+              { name: "商城搜索管理", status: "have" },
+              { name: "商品类别管理", status: "have" },
+              { name: "商品列表", status: "have" },
+              { name: "商品优惠券管理", status: "have" },
+              { name: "问答管理", status: "have" },
+              { name: "问答用户管理", status: "have" },
+              { name: "海外仓库存明细", status: "have" },
+              { name: "企业团购", status: "have" },
+              { name: "套装随心购管理", status: "have" },
+              { name: "订阅管理", status: "have" },
+              { name: "游戏管理", status: "have" },
+              { name: "奖池管理", status: "have" },
+              { name: "金币中心管理", status: "have" },
+              { name: "帮我选问题管理", status: "have" },
+              { name: "Feedback管理", status: "have" },
+              { name: "Media Inquiry", status: "have" }
+            ]
+          },
+          {
+            name: "Shopify",
+            span: "1.15fr",
+            intro: "维护商品信息、直降、折扣码、标签、联盟和 Deal。规格、Model 和活动详情并在对应页面里。自营促销规划按月先建活动骨架，只填店铺、名称和时间，不填价格和 MSKU。释放后给营销日历对照，不自动生成正式促销。",
+            items: [
+              { name: "shopify商品信息管理", status: "have" },
+              { name: "直降活动管理", status: "have" },
+              { name: "折扣码管理", status: "have" },
+              { name: "批量折扣码列表", status: "have" },
+              { name: "商品标签管理", status: "have" },
+              { name: "Where to buy", status: "have" },
+              { name: "联盟合作归档", status: "have" },
+              { name: "联盟订单归属打标", status: "have" },
+              { name: "Deal发布监控", status: "have" },
+              { name: "VAT下载记录", status: "have" },
+              { name: "商品能效等级内容设置", status: "have" },
+              { name: "自营促销规划", status: "gap" }
+            ]
+          },
+          {
+            name: "多渠道",
+            span: "0.9fr",
+            cols: 2,
+            intro: "维护京东在线产品、视频购物和货件差异。大促目标管理按 SKU 填一档窗口目标：销量、营业收入、毛利、营业利润。",
+            items: [
+              { name: "京东在线产品", status: "have" },
+              { name: "视频购物管理", status: "have" },
+              { name: "货件差异看板", status: "have" },
+              { name: "大促目标管理", status: "gap" }
+            ]
+          }
+        ]
+      },
+      {
+        domains: [
+          {
+            name: "营销",
+            span: "1.35fr",
+            intro: "做推荐、秒杀满减、活动页、人群和大使礼品。推荐商品、人工干预和组合购买已在用。活动管理含秒杀和满减的新建与编辑。用户画像、人群和广告关键词推荐也在这一块。",
+            items: [
+              { name: "推荐商品管理", status: "have" },
+              { name: "推荐规则人工干预", status: "have" },
+              { name: "组合购买", status: "have" },
+              { name: "活动管理", status: "have" },
+              { name: "活动页配置", status: "have" },
+              { name: "活动页管理", status: "have" },
+              { name: "成本配置", status: "have" },
+              { name: "大使礼品审核", status: "have" },
+              { name: "商品推荐明细", status: "have" },
+              { name: "用户画像", status: "have" },
+              { name: "人群管理", status: "have" },
+              { name: "广告关键词推荐", status: "have" }
+            ]
+          },
+          {
+            name: "库存",
+            span: "1fr",
+            cols: 2,
+            intro: "管借货、共享库存、库存校准和产品档级，并把 Shopify 库存同步出去。FAQ 也在这一块维护。借货申请的填写并在借货管理里。自营销量预测按自营渠道的历史销量和影响因子给出未来销量，供备货判断。",
+            items: [
+              { name: "借货管理", status: "have" },
+              { name: "共享库存设置", status: "have" },
+              { name: "库存校准", status: "have" },
+              { name: "产品档级管理", status: "have" },
+              { name: "shopify库存同步", status: "have" },
+              { name: "FAQ管理", status: "have" },
+              { name: "自营销量预测", status: "gap" }
+            ]
+          }
+        ]
+      },
+      {
+        domains: [
+          {
+            name: "订单",
+            span: "1fr",
+            cols: 2,
+            intro: "查客户和各渠道订单，并建样品推广订单。覆盖 App 商城、京东和小红书。新建、编辑和详情并在对应订单里。",
+            items: [
+              { name: "客户管理", status: "have" },
+              { name: "App商城订单", status: "have" },
+              { name: "京东订单", status: "have" },
+              { name: "小红书订单", status: "have" },
+              { name: "Model信息", status: "have" },
+              { name: "样品推广订单", status: "have" }
+            ]
+          },
+          {
+            name: "发货售后",
+            span: "1.25fr",
+            intro: "处理发货、退货和售后。App 商城、Shopify 和小红书各自有单据。",
+            items: [
+              { name: "APP商城发货单", status: "have" },
+              { name: "APP商城售后管理", status: "have" },
+              { name: "Shopify退货订单", status: "have" },
+              { name: "小红书出库单", status: "have" }
+            ]
+          },
+          {
+            name: "工具",
+            span: "0.75fr",
+            cols: 2,
+            intro: "导入流量报告，并监控全渠道价格。",
+            items: [
+              { name: "导入报告", status: "have" },
+              { name: "全渠道价格监控", status: "have" }
+            ]
+          }
+        ]
+      }
+    ];
+
+    const on = { have: true, build: true, gap: true };
+    let selected = null;
+
+    function allItems() {
+      const list = [];
+      rows.forEach((row) => row.domains.forEach((d) => d.items.forEach((item) => list.push(item))));
+      return list;
+    }
+
+    function visibleItems(domain) {
+      return domain.items.filter((item) => on[item.status]);
+    }
+
+    function findDomain(name) {
+      for (const row of rows) {
+        const domain = row.domains.find((d) => d.name === name);
+        if (domain) return domain;
+      }
+      return null;
+    }
+
+    function renderLegend() {
+      const items = allItems();
+      const legend = document.getElementById("legend");
+      legend.innerHTML = "";
+      Object.keys(STATUS).forEach((key) => {
+        const count = items.filter((item) => item.status === key).length;
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = key;
+        btn.setAttribute("aria-pressed", on[key] ? "true" : "false");
+        btn.textContent = STATUS[key] + " " + count;
+        btn.addEventListener("click", () => {
+          const solo = on[key] && Object.keys(on).every((k) => on[k] === (k === key));
+          Object.keys(on).forEach((k) => { on[k] = solo ? true : k === key; });
+          render();
+        });
+        legend.appendChild(btn);
+      });
+    }
+
+    function statusNames(domain, status) {
+      return domain.items.filter((item) => item.status === status).map((item) => item.name);
+    }
+
+    function renderDetail() {
+      const box = document.getElementById("detail");
+      const domain = selected ? findDomain(selected) : null;
+      if (!domain || !visibleItems(domain).length) {
+        selected = null;
+        box.textContent = "点一个板块，查看这一块在做什么。";
+        return;
+      }
+      box.replaceChildren();
+      const title = document.createElement("b");
+      title.textContent = domain.name;
+      const lead = document.createElement("p");
+      lead.textContent = domain.intro;
+      box.append(title, lead);
+      [["build", "建设中"], ["gap", "待补齐"]].forEach(([status, label]) => {
+        const names = statusNames(domain, status);
+        if (!names.length) return;
+        const line = document.createElement("p");
+        line.className = "line";
+        const k = document.createElement("span");
+        k.className = "k";
+        k.textContent = label + "：";
+        line.append(k, document.createTextNode(names.join("、")));
+        box.append(line);
+      });
+    }
+
+    function render() {
+      renderLegend();
+      const map = document.getElementById("map");
+      map.innerHTML = "";
+      rows.forEach((row) => {
+        const visible = row.domains.filter((d) => visibleItems(d).length);
+        const rowEl = document.createElement("div");
+        rowEl.className = "row";
+        if (!visible.length) {
+          rowEl.hidden = true;
+          map.appendChild(rowEl);
+          return;
+        }
+        rowEl.style.gridTemplateColumns = visible.map((d) => d.span || "1fr").join(" ");
+        visible.forEach((domain) => {
+          const wrap = document.createElement("button");
+          wrap.type = "button";
+          wrap.className = "domain" + (selected === domain.name ? " on" : "");
+          const title = document.createElement("div");
+          title.className = "domain-name";
+          title.textContent = domain.name;
+          const panel = document.createElement("div");
+          panel.className = "panel" + (domain.cols ? " cols-" + domain.cols : "");
+          visibleItems(domain).forEach((item) => {
+            const chip = document.createElement("div");
+            chip.className = "chip " + item.status + (item.span ? " span-" + item.span : "");
+            chip.textContent = item.name;
+            panel.appendChild(chip);
+          });
+          wrap.append(title, panel);
+          wrap.addEventListener("click", () => {
+            selected = domain.name;
+            render();
+            document.getElementById("detail").scrollIntoView({ block: "nearest" });
+          });
+          rowEl.appendChild(wrap);
+        });
+        map.appendChild(rowEl);
+      });
+      renderDetail();
+    }
+
+    render();
+  </script>
+</body>
+</html>
