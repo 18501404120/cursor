@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>经营分析看板（新）· 关键指标概览增补</title>
+  <style>
+    :root { --bg:#f3f6fb; --line:#e6edf5; --ink:#0f2f63; --muted:#64748b; --neg:#cf1322; --blue:#1677ff; }
+    * { box-sizing: border-box; }
+    body { margin:0; font-family:"PingFang SC","Microsoft YaHei",sans-serif; background:var(--bg); color:#0f172a; }
+    .top { height:48px; background:var(--blue); color:#fff; display:flex; align-items:center; padding:0 16px; font-size:14px; }
+    .page { display:grid; grid-template-columns:72px 1fr; min-height:calc(100vh - 48px); }
+    .side { background:#1f2a44; color:#c5d0e6; font-size:12px; padding:12px 0; }
+    .side div { text-align:center; padding:10px 0; }
+    .main { padding:12px 14px 28px; }
+    .filters { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:12px; }
+    .filters span { background:#fff; border:1px solid var(--line); border-radius:6px; padding:6px 10px; font-size:12px; }
+    h2 { margin:0 0 8px; font-size:15px; color:var(--ink); }
+    .hint { font-size:12px; color:var(--muted); font-weight:400; }
+    .note { background:#fff; border:1px solid #fcd34d; border-radius:10px; padding:10px 12px; font-size:13px; margin-bottom:12px; }
+    .old, .neo { display:grid; gap:8px; margin-bottom:10px; }
+    .old { grid-template-columns:repeat(4,1fr); }
+    .old .wide { grid-column:span 2; }
+    .card { background:#fff; border:1px solid var(--line); border-radius:8px; padding:10px 12px; }
+    .card .k { font-size:12px; color:var(--muted); }
+    .card .v { margin-top:4px; font-size:20px; font-weight:700; color:var(--ink); font-variant-numeric:tabular-nums; }
+    .card .s { margin-top:2px; font-size:12px; color:#16a34a; }
+    .neo { grid-template-columns:repeat(4,1fr); }
+    .neo .card { cursor:pointer; border-color:#bfdbfe; }
+    .neo .card:hover, .neo .card.on { border-color:var(--blue); box-shadow:0 0 0 2px #e6f4ff; }
+    .layout { display:grid; grid-template-columns:minmax(0,1fr) 420px; gap:12px; align-items:start; }
+    .chart { background:#fff; border:1px solid var(--line); border-radius:8px; padding:12px; min-height:220px; }
+    .bars { display:flex; align-items:flex-end; gap:14px; height:140px; margin-top:16px; }
+    .bars i { display:block; width:28px; background:#f25c54; border-radius:3px 3px 0 0; }
+    .panel { background:#fff; border:1px solid var(--line); border-radius:8px; position:sticky; top:12px; max-height:calc(100vh - 24px); overflow:auto; }
+    .panel h3 { margin:0; padding:12px 14px; font-size:14px; border-bottom:1px solid var(--line); color:var(--ink); }
+    .bd { padding:12px 14px 16px; }
+    .child { display:flex; justify-content:space-between; gap:8px; padding:8px 0; border-bottom:1px solid #f1f5f9; cursor:pointer; }
+    .child.on { background:#f5faff; }
+    .child b { font-variant-numeric:tabular-nums; }
+    .formula { background:#f8fafc; border-radius:8px; padding:8px 10px; font-size:13px; font-weight:600; color:var(--ink); margin:8px 0; }
+    p { font-size:13px; margin:6px 0; line-height:1.6; }
+    table { width:100%; border-collapse:collapse; font-size:12px; margin-top:6px; }
+    td { border:1px solid var(--line); padding:6px 8px; }
+    td.n { text-align:right; font-variant-numeric:tabular-nums; }
+    .neg { color:var(--neg); }
+    .cost { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:14px; }
+    .box, .cost .box { background:#fff; border:1px solid var(--line); border-radius:8px; padding:12px; }
+    .pie-wrap { display:flex; gap:16px; align-items:center; }
+    .pie { width:180px; height:180px; border-radius:50%; flex:none; }
+    .legend { font-size:12px; flex:1; }
+    .legend div { display:flex; justify-content:space-between; gap:8px; padding:3px 0; cursor:pointer; }
+    .legend i { display:inline-block; width:8px; height:8px; border-radius:2px; margin-right:6px; }
+    .barline { display:flex; align-items:flex-end; gap:8px; height:120px; margin-top:8px; }
+    .barline span { flex:1; background:#93c5fd; border-radius:3px 3px 0 0; }
+    @media (max-width:980px) { .old,.neo,.layout,.cost { grid-template-columns:1fr; } .old .wide { grid-column:auto; } .panel { position:static; } }
+  </style>
+</head>
+<body>
+  <div class="top">经营分析看板（新） · 关键指标概览增补原型</div>
+  <div class="page">
+    <aside class="side"><div>看板</div><div>运营</div><div>客服</div><div>订单</div></aside>
+    <div class="main">
+      <div class="filters">
+        <span>平台 shopify</span><span>站点 全部</span><span>北京时间</span>
+        <span>2025-10-07 至 2025-10-13</span><span>环比 同比</span>
+      </div>
+      <div class="note">上方营业收入、营业利润已改为管报口径。营业收入 2,970,000.00。平台服务 = 营业收入 × 平台费，平台其他 = 营业收入 × 风控费。营业利润 = 营业收入 − 成本 − 各项费用 = 927,532.00。下方管报卡片可下钻。成本结构点击图例看取值和示例，占比分母是营业收入。</div>
+      <h2>关键指标概览 <span class="hint">上半部分为现网指标</span></h2>
+      <div class="old" id="old"></div>
+      <h2>管报指标 <span class="hint">新增，点击下钻</span></h2>
+      <div class="layout">
+        <div>
+          <div class="neo" id="neo"></div>
+          <div class="chart">
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <strong>指标趋势</strong>
+              <button type="button" id="expTrend" style="border:1px solid #bfdbfe;background:#fff;color:#1677ff;border-radius:6px;padding:4px 8px;cursor:pointer">导出汇总+趋势</button>
+            </div>
+            <div class="hint" id="trendLegend" style="margin-top:8px;line-height:1.8"></div>
+            <div class="bars" id="kpiBars"></div>
+            <p class="hint">净销售额序列已改为营业收入。新增销量、零售销售额、销售收入、临时激励、税费、成本。营业利润按营业收入 − 成本 − 费用。流量等原有指标保留。</p>
+          </div>
+        </div>
+        <aside class="panel"><h3 id="pt">下钻</h3><div class="bd" id="detail"></div></aside>
+      </div>
+      <h2 style="margin-top:16px">成本结构 <span class="hint">占比分母 = 营业收入。成本 + 各项费用 + 营业利润 = 营业收入</span>
+        <button type="button" id="exp" style="margin-left:8px;border:1px solid #bfdbfe;background:#fff;color:#1677ff;border-radius:6px;padding:4px 8px;cursor:pointer">导出</button>
+      </h2>
+      <div class="cost">
+        <div class="box">
+          <strong>成本结构饼图</strong>
+          <div class="pie-wrap">
+            <div class="pie" id="pie"></div>
+            <div class="legend" id="legend"></div>
+          </div>
+          <div id="slice" style="margin-top:8px;font-size:13px"></div>
+        </div>
+        <div class="box">
+          <strong>成本趋势</strong>
+          <span class="hint">序列改为下列费用项和营业利润，日 / 周 / 月切换保留。</span>
+          <div class="barline" id="trend"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script>
+    const oldCards = [
+      ["营业收入","2,970,000.00","管报口径",1],
+      ["营业利润","927,532.00","营业收入 − 成本 − 费用",1],
+      ["营业利润率","31.23 %","营业利润 / 营业收入",0],
+      ["流量","1,708,961","同比 +34.35%",0],
+      ["转化率","1.204 %","",0],["连带率","1.51","",0],["ASP","126.878 USD","",0],["AOV","191.639 USD","",0],
+      ["复购率","35.77 %","",0],["退款金额","183,712.21 USD","",0],["退款占比","4.658 %","",0],["海运比","100 %","",0],
+      ["订单数量","20,579","",0],["客户数","20,789","",0],["跳出率","63.169 %","",0],["加购率","2.955 %","",0],
+      ["折扣比","38.343 %","",0],["Seel 销售额","12,794.71 USD","",0],["Seel 订单数","5,187","",0],["MCF加急配送订单数","6,022","",0]
+    ];
+    document.getElementById("old").innerHTML = oldCards.map((c) =>
+      "<div class=\"card" + (c[3] ? " wide" : "") + "\"><div class=\"k\">" + c[0] + "</div><div class=\"v\">" + c[1] + "</div>" + (c[2] ? "<div class=\"s\">" + c[2] + "</div>" : "") + "</div>"
+    ).join("");
+
+    const cards = {
+      qty: {
+        name: "销量", value: "17,360 件", sub: "18,600 − 1,240",
+        formula: "销量 = 发货销量 − 退货销量。卡片是扣过退货后的净销量。",
+        children: [
+          ["发货销量","18,600 件","Shopify 发货单件数，排除作废，按订单购买日归集。例：18,600 件。"],
+          ["退货销量","1,240 件","海外仓退货单件数，按退货日归集。从发货销量中扣减。例：1,240 件。净销量 18,600 − 1,240 = 17,360 件。"]
+        ]
+      },
+      retail: {
+        name: "零售销售额", value: "3,920,000.00", sub: "4,200,000 + (−280,000)",
+        formula: "零售销售额 = 发货零售销售额 + 退货零售销售额。退货记负数，相当于扣减退货。",
+        children: [
+          ["发货零售销售额","4,200,000.00","RRP × 发货销量，折美元。例：4,200,000.00。"],
+          ["退货零售销售额","−280,000.00","− RRP × 退货销量。例：−280,000.00。合计 3,920,000.00。"]
+        ]
+      },
+      sales: {
+        name: "销售收入", value: "3,920,000.00", sub: "与零售销售额同一套算法",
+        formula: "发货销售收入与发货零售销售额相同，退货销售收入与退货零售销售额相同。销售收入 = 两者相加。",
+        children: [
+          ["发货销售收入","4,200,000.00","算法同发货零售销售额：RRP × 发货销量。例：4,200,000.00。"],
+          ["退货销售收入","−280,000.00","算法同退货零售销售额：− RRP × 退货销量。例：−280,000.00。合计 3,920,000.00。"]
+        ]
+      },
+      promo: {
+        name: "临时激励", value: "−740,000.00", sub: "划线价折扣 −292,000 + Discounts −448,000",
+        formula: "临时激励 = 划线价折扣 + Discounts。两边都是发货金额加退货负数。价保、返利自营没有。",
+        children: [
+          ["划线价折扣","−292,000.00","每个订单 SKU：RRP − 成交价 − 订单折扣。RRP 减成交价里已经含划线价折扣和 discount，再减 discount 才是划线价折扣。退货取该订单金额的负数。例：发货 RRP 4,200,000 − 成交价 3,400,000 − discount 480,000 = 320,000；退货订单 −28,000（其 RRP 280,000 − 成交价 220,000 − discount 32,000 = 28,000）。净额 292,000，表上 −292,000。单件示例：RRP 80、成交价 65、discount 5，划线价折扣 = 80 − 65 − 5 = 10；退 1 件记 −10。"],
+          ["Discounts","−448,000.00","订单折扣。发货 480,000，退货订单负数 −32,000，净额 448,000，表上 −448,000。不重复算进划线价折扣。"]
+        ]
+      },
+      tax: {
+        name: "税费", value: "−192,000.00", sub: "发货 210,000 + 退货 −18,000",
+        formula: "税费 = 发货税费 + 退货税费。退货税费是原订单税额的负数。",
+        children: [
+          ["发货税费","210,000.00","发货订单税额。美国、加拿大有行税用行税，否则按店铺税率。例：210,000.00。"],
+          ["退货税费","−18,000.00","退货订单税额的负数。例：−18,000.00。净税费 192,000，从收入扣减，卡片 −192,000.00。"]
+        ]
+      },
+      revenue: {
+        name: "营业收入", value: "2,970,000.00", sub: "发货 3,190,000 + 退货 −220,000",
+        formula: "营业收入 = 发货营业收入 + 退货营业收入。包装、运费、包裹险不进收入。",
+        children: [
+          ["发货营业收入","3,190,000.00","发货销售收入 − 发货临时激励 − 发货税费。发货临时激励 = 划线价折扣 320,000 + Discounts 480,000 = 800,000。例：4,200,000 − 800,000 − 210,000 = 3,190,000.00。"],
+          ["退货营业收入","−220,000.00","退货订单的成交金额，记负数。不是 − RRP × 退货销量。例：退货成交价 220,000，记 −220,000.00。"],
+          ["营业收入","2,970,000.00","3,190,000.00 + (−220,000.00) = 2,970,000.00。"]
+        ]
+      },
+      cost: {
+        name: "成本", value: "915,000.00", sub: "出货授权 980,000 + 退货 −65,000",
+        formula: "成本 = 出货授权成本 + 退货成本。页面只到这两级，不拆采购、关税、预留毛利。",
+        children: [
+          ["出货授权成本","980,000.00","出货授权单价 × 发货销量。单价 =（授权采购价 + 授权关税）×（1 + 预留毛利率），不含头程。发 100、退 10 时这行用 100。例：区间合计 980,000.00。采购、关税、预留只在单价里，不单列。"],
+          ["退货成本","−65,000.00","− 同一出货授权单价 × 退货销量。整笔冲回，不拆退货采购、退货关税、退货预留。例：−65,000.00。"]
+        ]
+      }
+    };
+
+    const order = ["qty","retail","sales","promo","tax","revenue","cost"];
+    let cur = "qty";
+    let sub = 0;
+    function renderCards() {
+      document.getElementById("neo").innerHTML = order.map((id) => {
+        const c = cards[id];
+        return "<div class=\"card" + (id === cur ? " on" : "") + "\" data-id=\"" + id + "\"><div class=\"k\">" + c.name + "</div><div class=\"v" + (String(c.value).indexOf("−") === 0 ? " neg" : "") + "\">" + c.value + "</div><div class=\"s\" style=\"color:#64748b\">" + c.sub + "</div></div>";
+      }).join("");
+    }
+    function renderDetail() {
+      const c = cards[cur];
+      document.getElementById("pt").textContent = c.name + " · 下钻";
+      const rows = c.children.map((row, i) =>
+        "<div class=\"child" + (i === sub ? " on" : "") + "\" data-i=\"" + i + "\"><span>" + row[0] + "</span><b class=\"" + (String(row[1]).indexOf("−") === 0 ? "neg" : "") + "\">" + row[1] + "</b></div>"
+      ).join("");
+      const item = c.children[sub];
+      document.getElementById("detail").innerHTML =
+        "<div class=\"formula\">" + c.formula + "</div>" + rows +
+        "<h4 style=\"margin:12px 0 4px;color:#0f2f63\">" + item[0] + "</h4><p>" + item[2] + "</p>" +
+        "<table><tr><td>示例</td><td class=\"n\">" + item[1] + "</td></tr><tr><td>区间</td><td class=\"n\">2025-10-07 至 2025-10-13</td></tr><tr><td>平台</td><td class=\"n\">Shopify</td></tr></table>";
+    }
+    document.getElementById("neo").addEventListener("click", (e) => {
+      const el = e.target.closest("[data-id]");
+      if (!el) return;
+      cur = el.dataset.id; sub = 0; renderCards(); renderDetail();
+    });
+    document.getElementById("detail").addEventListener("click", (e) => {
+      const el = e.target.closest("[data-i]");
+      if (!el) return;
+      sub = Number(el.dataset.i); renderDetail();
+    });
+    renderCards();
+    renderDetail();
+
+    const slices = [
+      ["成本", 915000, "#94a3b8", "出货授权成本 980,000 + 退货成本 −65,000 = 915,000。不拆采购、关税、预留。"],
+      ["营销投入", 180000, "#fb923c", "取值从管报获取，本页不把产品营销、品牌营销、基础固定花费、联合营销再加总。示例区间管报金额 180,000。产品营销、品牌营销下的营销样机含在这笔管报金额里。"],
+      ["平台服务", 29700, "#facc15", "对应平台费，金额 = 营业收入 × 站点平台费率。EU 1%、UK 0.9%、US 1%、CA 0.81%。本例美国站 2,970,000 × 1% = 29,700。"],
+      ["支付通道手续费", 141669, "#38bdf8", "维护收单 / 提现费率：运营 → 成本费率配置，按店铺 + 年月。看板金额 = 营业收入 × 费率。默认：US 4.77%、CA 5.25%、EU 5.8%、UK 6.2%。本例美国站 2,970,000 × 4.77% = 141,669。单件试算：售价 29.99 × 4.77% ≈ 1.43，试算不替代本列期间金额。"],
+      ["平台其他", 2673, "#818cf8", "对应风控费，金额 = 营业收入 × 站点风控费率。EU 0.15%、UK 0.15%、US 0.09%、CA 0.06%。本例美国站 2,970,000 × 0.09% = 2,673。"],
+      ["电商站外投放", 120000, "#f472b6", "取广告概览看板选定周期内的广告花费。需要单价时，用近一个月花费 ÷ 销量，再 × 本期销量。例：近一月花费 96,000、销量 1,600，单价 60；本期销量 2,000 × 60 = 120,000。电商站内投放自营没有，不进本图。"],
+      ["头程", 180000, "#34d399", "该 MSKU 已有头程单价：各月都用近 12 月滚动加权单价。没有头程单价：Shipment 费用页近 3 个自然月，按发货时间归月，每月单独算综合单价。只统计海外仓、已发运、shipped 数量大于 0。占比按 shipped 数量。报价齐全时，综合单价 = Σ（物流计算器元/PCS × 占比），始发仓 Shenzhen Warehouse，目的国按站点。该月无发运或某运输方式无报价时改固定权重。美国、加拿大：普船 × 0.7 + 快船 × 0.2 + 专线 × 0.1。英国、欧盟：普船 × 0.9 + 专线 × 0.1。件数 = 发货销量 − 退货销量。头程 = 件数 × 该月单价 ÷ 发货月汇率。跨月按月拆开。试算不改本列。例：10 月普船 240、快船 60，单价 1.18、2.40，综合单价 1.424，90 件、汇率 6.60，头程 19.42 美元。无发运时美国或加拿大 17.81 美元，英国或欧盟 14.48 美元。"],
+      ["尾程", 320000, "#2dd4bf", "和当前逻辑一致。1）本月财报尾程不为 0：取财务系统该 MSKU 尾程总额 ÷ 本月总发货数量 = 单价，再 × 查询区间发货数量。例：总额 32,000、总发货 10,000，单价 3.20；区间发货 100,000，尾程 = 3.20 × 100,000 = 320,000。2）本月尾程为 0：上月财务尾程总额 ÷ 上月总发运数量 = 上月单价，再 × 本月发运数量。例：上月总额 28,000、发运 10,000，单价 2.80；本月发运 10,000，预估 28,000。本月财报出来后改成实际。3）新品且上月财务也没有尾程：仍用现网发货单尾程。例：发货单尾程合计 26,000。本月财报出来后再改成财务实际。"],
+      ["仓储租金", 80000, "#a3e635", "取物流系统 → 看板 → Shopify 物流看板费用表（MSKU 口径、自然月、与本页同币种）的仓租总额。例：本月仓租 80,000。运费和其他操作费不并入。"],
+      ["仓储其它", 17226, "#fbbf24", "按 Listing 站点维护海外仓费率，对应管报仓储其他。看板期间 = 营业收入 × 同一费率。US 0.58%、CA 0.41%、EU 0.8%、UK 0.8%，未列站点记 0。例：美国站 2,970,000 × 0.58% = 17,226。"],
+      ["其它全部", 56200, "#c4b5fd", "销售样机 8,000 + 营销样机 15,000 + KOL 25,000 + PR 10,000 + 售后服务 16,000 + 其它 5,000 + 包裹险收入 −30,000 + 包裹险扣减 7,200 = 56,200。营销样机仅指销售投入 / 广告投放 / 营销样机。包裹险收入为负，包裹险扣减为正。"],
+      ["营业利润", 927532, "#ef4444", "营业利润 = 营业收入 − 成本 − 上述费用之和。2,970,000 − 915,000 − 1,127,468 = 927,532。营业利润率 = 927,532 / 2,970,000 = 31.23%。"]
+    ];
+    const revenueBase = 2970000;
+    const colors = slices.map((s) => s[2]);
+    let acc = 0;
+    const stops = slices.map((s) => {
+      const start = acc;
+      acc += s[1] / revenueBase * 100;
+      return s[2] + " " + start.toFixed(2) + "% " + acc.toFixed(2) + "%";
+    });
+    document.getElementById("pie").style.background = "conic-gradient(" + stops.join(",") + ")";
+    document.getElementById("legend").innerHTML = slices.map((s, i) =>
+      "<div data-i=\"" + i + "\"><span><i style=\"background:" + s[2] + "\"></i>" + s[0] + "</span><span>" + (s[1] / revenueBase * 100).toFixed(2) + "%</span></div>"
+    ).join("");
+    document.getElementById("trend").innerHTML = [46, 52, 40, 58, 49, 44, 36].map((h) => "<span style=\"height:" + h + "%\"></span>").join("");
+    function showSlice(i) {
+      const s = slices[i];
+      document.getElementById("slice").innerHTML = "<strong>" + s[0] + "</strong> " + s[1].toLocaleString("en-US") +
+        "（" + (s[1] / revenueBase * 100).toFixed(2) + "%）<br>" + s[3];
+    }
+    document.getElementById("legend").addEventListener("click", (e) => {
+      const el = e.target.closest("[data-i]");
+      if (el) showSlice(Number(el.dataset.i));
+    });
+    showSlice(0);
+    document.getElementById("exp").addEventListener("click", () => {
+      const lines = ["费用项,金额,占营业收入,来源"];
+      slices.forEach((s) => lines.push(s[0] + "," + s[1] + "," + (s[1] / revenueBase * 100).toFixed(2) + "%," + (s[0] === "营销投入" ? "管报" : "本页")));
+      lines.push("营业收入," + revenueBase + ",100%,本页");
+      lines.push("其它全部明细,销售样机,8000");
+      lines.push(",营销样机(销售投入/广告投放),15000");
+      lines.push(",KOL费用,25000");
+      lines.push(",PR费用,10000");
+      lines.push(",售后服务,16000");
+      lines.push(",其它,5000");
+      lines.push(",包裹险收入,-30000");
+      lines.push(",包裹险扣减,7200");
+      const blob = new Blob(["\uFEFF" + lines.join("\n")], { type: "text/csv;charset=utf-8" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = "成本结构-管报口径.csv";
+      a.click();
+    });
+
+    const trendSeries = ["营业收入","营业利润","营业利润率","销量","零售销售额","销售收入","临时激励","税费","成本","流量","转化率","连带率","ASP","AOV","复购率","海运比","订单数量","客户数","跳出率","加购率","折扣比","Seel销售额","Seel订单数","B2B净销售额","B2B订单数","MCF加急配送订单数"];
+    document.getElementById("trendLegend").innerHTML = trendSeries.map((n) => "<span style=\"display:inline-block;margin-right:8px\">" + n + "</span>").join("");
+    document.getElementById("kpiBars").innerHTML = [78,92,70,64,55,48,40].map((h) => "<i style=\"height:" + h + "%\"></i>").join("");
+    document.getElementById("expTrend").addEventListener("click", () => {
+      const head = ["日期"].concat(trendSeries).join(",");
+      const row = ["2025-10-07","420000","131000","31.23%","2480","600000","600000","-105000","-27000","130000","244000","1.20%","1.51","126.88","191.64","35.77%","100%","2940","2970","63.17%","2.96%","38.34%","1800","740","0","0","860"].join(",");
+      const blob = new Blob(["\uFEFF" + head + "\n" + row], { type: "text/csv;charset=utf-8" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = "汇总+趋势.csv";
+      a.click();
+    });
+
+    const countryItems = slices.filter((s) => s[0] !== "营业利润");
+    const countries = [
+      ["美国", 0.46], ["加拿大", 0.12], ["英国", 0.1], ["德国", 0.09], ["法国", 0.07], ["荷兰", 0.05], ["意大利", 0.04], ["西班牙", 0.03], ["波兰", 0.02], ["其他", 0.02]
+    ];
+    const countryBox = document.createElement("div");
+    countryBox.className = "box";
+    countryBox.style.marginTop = "12px";
+    countryBox.innerHTML = "<strong>国家成本结构</strong><span class=\"hint\"> 与成本结构相同的费用项，不显示营业利润。营销投入按国家取管报金额。</span><div id=\"country\" style=\"margin-top:10px;overflow:auto\"></div>";
+    document.querySelector(".cost").after(countryBox);
+    document.getElementById("country").innerHTML = "<table><tr><td>国家</td>" + countryItems.map((s) => "<td class=\"n\">" + s[0] + "</td>").join("") + "</tr>" +
+      countries.map((c) => "<tr><td>" + c[0] + "</td>" + countryItems.map((s) => "<td class=\"n\">" + Math.round(s[1] * c[1]).toLocaleString("en-US") + "</td>").join("") + "</tr>").join("") +
+      "</table>";
+
+    const more = document.createElement("div");
+    more.innerHTML = ["流量指标","品线销售额","品线国家销售额占比","品线销售利润分析","SKU 明细","积分 Top10 兑换","积分相关指标","市场销售额"].map((t) =>
+      "<div class=\"box\" style=\"margin-top:12px\"><strong>" + t + "</strong><p class=\"hint\">现网区块保留，本次不改取数。</p></div>"
+    ).join("");
+    countryBox.after(more);
+  </script>
+</body>
+</html>

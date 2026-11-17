@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>背景结构图 · 财务报表 · 金蝶 · 管报（对齐草案）</title>
+  <style>
+    :root {
+      --bg: #eef3f8;
+      --text: #0f172a;
+      --muted: #64748b;
+      --line: #cbd5e1;
+      --ink: #0f2f63;
+      --shadow: 0 8px 24px rgba(15, 23, 42, .07);
+      --kingdee: #fff7ed;
+      --kingdee-b: #fdba74;
+      --offline: #ecfdf5;
+      --offline-b: #6ee7b7;
+      --mr: #eff6ff;
+      --mr-b: #93c5fd;
+      --warn: #fffbeb;
+      --warn-b: #fcd34d;
+      --gap: #fef2f2;
+      --gap-b: #fca5a5;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "PingFang SC", "Microsoft YaHei", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.55;
+    }
+    header {
+      background: linear-gradient(135deg, #0f2f63, #1677ff);
+      color: #fff;
+      padding: 18px 24px 20px;
+    }
+    header h1 { margin: 0; font-size: 20px; font-weight: 700; }
+    header p { margin: 8px 0 0; font-size: 13px; opacity: .92; max-width: 920px; }
+    .wrap { max-width: 1180px; margin: 0 auto; padding: 20px 16px 48px; }
+    .card {
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 16px 18px;
+      box-shadow: var(--shadow);
+      margin-bottom: 14px;
+    }
+    .card h2 { margin: 0 0 10px; font-size: 15px; color: var(--ink); }
+    .card p, .card li { font-size: 13px; color: #334155; }
+    .card ul { margin: 8px 0 0; padding-left: 18px; }
+    .legend { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 12px; }
+    .legend span {
+      font-size: 12px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      background: #fff;
+    }
+    .diagram {
+      position: relative;
+      min-height: 520px;
+      padding: 8px 4px 12px;
+    }
+    .layer-label {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: .06em;
+      color: var(--muted);
+      text-transform: uppercase;
+      margin-bottom: 8px;
+    }
+    .row { display: grid; gap: 12px; margin-bottom: 28px; }
+    .row.biz { grid-template-columns: 1fr 1fr; }
+    .row.core { grid-template-columns: 1fr 1fr 1fr; align-items: stretch; }
+    .box {
+      border-radius: 12px;
+      border: 2px solid;
+      padding: 14px 16px;
+      min-height: 108px;
+    }
+    .box h3 { margin: 0 0 6px; font-size: 15px; }
+    .box p { margin: 0; font-size: 12px; color: #475569; }
+    .box .tag {
+      display: inline-block;
+      margin-top: 8px;
+      font-size: 11px;
+      padding: 2px 8px;
+      border-radius: 6px;
+      background: rgba(255,255,255,.7);
+    }
+    .offline { background: var(--offline); border-color: var(--offline-b); }
+    .kingdee { background: var(--kingdee); border-color: var(--kingdee-b); }
+    .mr { background: var(--mr); border-color: var(--mr-b); }
+    .warn-box {
+      background: var(--warn);
+      border: 1px dashed var(--warn-b);
+      border-radius: 12px;
+      padding: 12px 14px;
+      font-size: 12px;
+      color: #92400e;
+      margin-top: 4px;
+    }
+    .gap-box {
+      background: var(--gap);
+      border: 1px solid var(--gap-b);
+      border-radius: 10px;
+      padding: 10px 12px;
+      font-size: 12px;
+      color: #991b1b;
+      max-width: 280px;
+    }
+    svg.flow {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      overflow: visible;
+    }
+    .flow line, .flow path { fill: none; stroke-width: 2; }
+    .flow .solid { stroke: #64748b; }
+    .flow .dashed { stroke: #ef4444; stroke-dasharray: 6 5; }
+    .flow .ideal { stroke: #16a34a; stroke-dasharray: 4 4; opacity: .85; }
+    .flow text { font-size: 11px; fill: #475569; font-family: inherit; }
+    .cols-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    @media (max-width: 900px) {
+      .row.biz, .row.core, .cols-2 { grid-template-columns: 1fr; }
+      .diagram { min-height: auto; }
+      svg.flow { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>背景结构图（对齐草案）</h1>
+    <p>用于《财务系统与线下财务报表数据对齐》叙事中的「背景」：说明管报决策主线、金蝶账面与财务线下报表各自角色，以及线下渠道口径未闭环时的张力。</p>
+  </header>
+
+  <div class="wrap">
+    <div class="card">
+      <h2>图例</h2>
+      <div class="legend">
+        <span>实线：系统取数 / 导入</span>
+        <span style="border-color:#16a34a;color:#166534">虚线绿：理想应同步（业务确认 → 金蝶）</span>
+        <span style="border-color:#ef4444;color:#991b1b">虚线红：当前缺口（调整未回写）</span>
+      </div>
+    </div>
+
+    <div class="card diagram" id="diagram">
+      <!-- 箭头层（桌面端） -->
+      <svg class="flow" viewBox="0 0 1100 520" preserveAspectRatio="xMidYMid meet">
+        <!-- 业务 → 线下报表 -->
+        <path class="solid" d="M 180 95 Q 280 95 320 130" marker-end="url(#arr)"/>
+        <!-- 业务 → 金蝶（出库/订单） -->
+        <path class="solid" d="M 180 95 Q 280 60 520 130" marker-end="url(#arr)"/>
+        <!-- 金蝶 → 管报 -->
+        <path class="solid" d="M 550 230 L 550 280" marker-end="url(#arr)"/>
+        <!-- 线下报表 → 管报（对照/部分指标） -->
+        <path class="solid" d="M 320 230 Q 400 260 480 300" marker-end="url(#arr)"/>
+        <!-- 财务导入费用 → 管报 -->
+        <path class="solid" d="M 820 230 L 620 300" marker-end="url(#arr)"/>
+        <!-- 理想：线下确认回写金蝶 -->
+        <path class="ideal" d="M 350 175 Q 450 200 520 175" marker-end="url(#arrG)"/>
+        <text x="400" y="168">业务确认结果应回写</text>
+        <!-- 缺口 -->
+        <path class="dashed" d="M 350 195 Q 430 220 520 195" marker-end="url(#arrR)"/>
+        <text x="388" y="212" fill="#991b1b">当前多数未回写</text>
+        <defs>
+          <marker id="arr" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+            <path d="M0,0 L6,3 L0,6 Z" fill="#64748b"/>
+          </marker>
+          <marker id="arrG" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+            <path d="M0,0 L6,3 L0,6 Z" fill="#16a34a"/>
+          </marker>
+          <marker id="arrR" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+            <path d="M0,0 L6,3 L0,6 Z" fill="#ef4444"/>
+          </marker>
+        </defs>
+      </svg>
+
+      <div class="layer-label">L1 · 业务发生</div>
+      <div class="row biz">
+        <div class="box offline">
+          <h3>线下渠道业务</h3>
+          <p>商超、分销：结算单、补录、退货/折扣谈判、客户确认数量与金额。</p>
+          <span class="tag">事实来源分散</span>
+        </div>
+        <div class="box kingdee">
+          <h3>自营 / 线上履约</h3>
+          <p>订单、出库、账单相对闭环，金蝶与业务系统耦合更紧。</p>
+          <span class="tag">账面较易对齐</span>
+        </div>
+      </div>
+
+      <div class="layer-label">L2 · 两套「财务事实」</div>
+      <div class="row core">
+        <div class="box offline">
+          <h3>财务线下报表</h3>
+          <p><strong>业务确认口径</strong>：按结算、补录、计提、含税/不含税约定汇总；是财务对外汇报与渠道对账的「已确认数」。</p>
+          <span class="tag">Excel / 线下汇总</span>
+        </div>
+        <div class="box kingdee">
+          <h3>金蝶 ERP</h3>
+          <p><strong>账面口径</strong>：销售订单、出库单、物料行；收入/数量以单据流转为主；部分调整靠人工导入。</p>
+          <span class="tag">管报大量费用项的来源</span>
+        </div>
+        <div class="box mr">
+          <h3>财务系统 · 管报</h3>
+          <p><strong>经营分析口径</strong>：收入/数量/成本/费用拼装成渠道毛利、分摊与看板；线下渠道若只读金蝶，会与线下报表偏离。</p>
+          <span class="tag">决策主线（目标态）</span>
+        </div>
+      </div>
+
+      <div class="warn-box">
+        <strong>核心张力（背景一句话）：</strong>公司要以管报做经营决策，管报侧很多费用来自金蝶；但<strong>线下渠道的收入/数量以财务线下报表为准</strong>，其中对金蝶的修正往往<strong>没有回写</strong>，于是「管报读金蝶」与「财务已确认口径」之间出现系统性小差异，进而影响分摊基数与毛利结论。
+      </div>
+
+      <div style="margin-top:16px" class="gap-box">
+        差异放大器：退款/折扣（计提 vs 实收）、含税 vs 不含税、汇率尾差、出库缺失但报表有行、成本（出货授权 vs 真实采购）等——在案例中逐项举证，不在背景图里展开。
+      </div>
+    </div>
+
+    <div class="card cols-2">
+      <div>
+        <h2>建议文档叙事（待你对齐）</h2>
+        <ul>
+          <li><strong>背景</strong>：管报主线 + 本结构图 + 线下 vs 自营数据源差异</li>
+          <li><strong>问题</strong>：管报若以金蝶为线下渠道唯一来源，与财务线下报表不一致；差异虽常为小数，但会传导到费用分摊与渠道毛利</li>
+          <li><strong>案例</strong>：商超 8 月（收入 4234、典型 SKU/负数行）→ 分销 8 月（含税/汇率）→ 其他科目（头程、退款、可导入费用）各用「现象 → 原因 → 是否阻塞管报」模板</li>
+        </ul>
+      </div>
+      <div>
+        <h2>请你确认的点</h2>
+        <ul>
+          <li>图中「财务系统」是否等同于你们口中的「管报/财务中台」，还是还要单独画「ERP 自营系统」？</li>
+          <li>线下报表 → 管报：是「应对标的目标源」，还是已有部分手工导入？</li>
+          <li>背景图要不要区分<strong>商超 / 分销 / 自营</strong>三条泳道？</li>
+          <li>案例章是否固定为：收入 → 数量 → 头程 → 退款/折扣 → 成本 → 可导入费用？</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

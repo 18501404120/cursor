@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>成品库龄看板 - 未来预计呆滞（原型）</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+      margin: 0;
+      padding: 20px 24px;
+      background: #f5f5f5;
+      color: #1e1e1e;
+      font-size: 14px;
+    }
+    header {
+      margin-bottom: 20px;
+    }
+    .breadcrumb {
+      color: #666;
+      font-size: 12px;
+      margin-bottom: 8px;
+    }
+    .breadcrumb span { margin: 0 4px; }
+    h1 {
+      font-size: 20px;
+      font-weight: 600;
+      margin: 0;
+    }
+    .filters {
+      background: #fff;
+      padding: 16px 20px;
+      border-radius: 8px;
+      margin-bottom: 16px;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 16px 24px;
+      box-shadow: 0 1px 3px rgba(0,0,0,.08);
+    }
+    .filters label {
+      margin-right: 6px;
+      color: #555;
+    }
+    .filters input[type="date"],
+    .filters select {
+      padding: 8px 12px;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      font-size: 14px;
+    }
+    .filters .tabs {
+      display: inline-flex;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      overflow: hidden;
+    }
+    .filters .tabs span {
+      padding: 8px 16px;
+      cursor: pointer;
+      background: #fff;
+      border-right: 1px solid #ddd;
+    }
+    .filters .tabs span:last-child { border-right: none; }
+    .filters .tabs span.active {
+      background: #1971c2;
+      color: #fff;
+      border-color: #1971c2;
+    }
+    .filters button {
+      padding: 8px 20px;
+      background: #1971c2;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+    .filters button:hover { background: #1565b8; }
+    .content {
+      background: #fff;
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 1px 3px rgba(0,0,0,.08);
+    }
+    .table-wrap {
+      overflow: auto;
+      max-height: min(65vh, 560px);
+    }
+    .table-wrap thead th {
+      position: sticky;
+      top: 0;
+      z-index: 2;
+      background: #f8f9fa;
+      box-shadow: 0 1px 0 #eee;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 900px;
+    }
+    th, td {
+      padding: 10px 12px;
+      text-align: left;
+      border-bottom: 1px solid #eee;
+    }
+    th {
+      background: #f8f9fa;
+      font-weight: 600;
+      color: #333;
+      white-space: nowrap;
+    }
+    th.sortable { cursor: pointer; user-select: none; }
+    th.sortable:hover { background: #e9ecef; }
+    tbody tr:nth-child(even) { background: #fafafa; }
+    tbody tr:hover { background: #f0f7ff; }
+    td.num { text-align: right; font-variant-numeric: tabular-nums; }
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #333;
+      color: #fff;
+      padding: 10px 20px;
+      border-radius: 8px;
+      font-size: 13px;
+      opacity: 0;
+      transition: opacity .25s;
+      z-index: 1000;
+    }
+    .toast.show { opacity: 1; }
+    .note {
+      margin-top: 12px;
+      padding: 8px 12px;
+      background: #fff3cd;
+      border-radius: 6px;
+      font-size: 12px;
+      color: #856404;
+    }
+  </style>
+</head>
+<body>
+  <!-- 本原型根据 需求文档.md 生成，数据为模拟，仅用于演示 -->
+  <header>
+    <nav class="breadcrumb">数据中心 <span>→</span> 库存分析 <span>→</span> 成品库龄看板</nav>
+    <h1>成品库龄看板 - 未来预计呆滞</h1>
+  </header>
+
+  <section class="filters">
+    <div>
+      <label>筛选日期（未来某日）</label>
+      <input type="date" id="filterDate" />
+    </div>
+    <div>
+      <label>Forecast 类型</label>
+      <div class="tabs" id="forecastTabs">
+        <span class="active" data-value="approved">已审核 forecast</span>
+        <span data-value="pending">待审核 forecast</span>
+      </div>
+    </div>
+    <div>
+      <label>负责人</label>
+      <select id="owner">
+        <option value="">全部</option>
+        <option value="张三">张三</option>
+        <option value="李四">李四</option>
+        <option value="王五">王五</option>
+      </select>
+    </div>
+    <button type="button" id="btnQuery">查询</button>
+  </section>
+
+  <section class="content">
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>SKU / 仓</th>
+            <th>当前呆滞 A</th>
+            <th>预计转呆滞 B</th>
+            <th>预计可消耗 C</th>
+            <th>未来剩余呆滞 D</th>
+            <th>当前库存 E</th>
+            <th>预计可入库 F</th>
+            <th>未来总库存 G</th>
+            <th class="sortable" id="thRatio">预计未来呆滞占比 <small>(D/G)</small></th>
+          </tr>
+        </thead>
+        <tbody id="tbody">
+          <!-- 由 JS 填充模拟数据 -->
+        </tbody>
+      </table>
+    </div>
+    <div class="note">说明：D = A+B−C，G = E+F−C，占比 = D/G；G=0 时显示 N/A。本原型数据为模拟，仅用于演示布局与交互。</div>
+  </section>
+
+  <div class="toast" id="toast">已按条件筛选（模拟）</div>
+
+  <script>
+    (function () {
+      var today = new Date();
+      var nextWeek = new Date(today);
+      nextWeek.setDate(today.getDate() + 7);
+      document.getElementById('filterDate').value = nextWeek.toISOString().slice(0, 10);
+
+      var mockData = [
+        { sku: 'SKU-001 / 深圳仓', a: 120, b: 0, c: 80, e: 500, f: 200 },
+        { sku: 'SKU-002 / 海外仓', a: 50, b: 0, c: 200, e: 800, f: 100 },
+        { sku: 'SKU-003 / FBA', a: 0, b: 0, c: 150, e: 300, f: 0 },
+        { sku: 'SKU-004 / 深圳仓', a: 200, b: 0, c: 50, e: 100, f: 50 },
+        { sku: 'SKU-005 / 海外仓', a: 80, b: 0, c: 320, e: 1000, f: 0 }
+      ];
+
+      function calcRow(r) {
+        var d = r.a + r.b - r.c;
+        var g = r.e + r.f - r.c;
+        var ratio = g > 0 ? (d / g * 100).toFixed(1) + '%' : 'N/A';
+        return { d: d, g: g, ratio: ratio };
+      }
+
+      function render(rows, sortDesc) {
+        var tbody = document.getElementById('tbody');
+        var list = rows.map(function (r) {
+          var x = calcRow(r);
+          return { sku: r.sku, a: r.a, b: r.b, c: r.c, d: x.d, e: r.e, f: r.f, g: x.g, ratio: x.ratio, _ratioVal: x.g > 0 ? x.d / x.g : 0 };
+        });
+        if (sortDesc !== undefined) {
+          list.sort(function (p, q) {
+            var v = (q._ratioVal - p._ratioVal);
+            return sortDesc ? v : -v;
+          });
+        }
+        tbody.innerHTML = list.map(function (row) {
+          return '<tr>' +
+            '<td>' + row.sku + '</td>' +
+            '<td class="num">' + row.a + '</td>' +
+            '<td class="num">' + row.b + '</td>' +
+            '<td class="num">' + row.c + '</td>' +
+            '<td class="num">' + row.d + '</td>' +
+            '<td class="num">' + row.e + '</td>' +
+            '<td class="num">' + row.f + '</td>' +
+            '<td class="num">' + row.g + '</td>' +
+            '<td class="num">' + row.ratio + '</td>' +
+            '</tr>';
+        }).join('');
+      }
+
+      var sortDesc = true;
+      document.getElementById('thRatio').addEventListener('click', function () {
+        sortDesc = !sortDesc;
+        render(mockData, sortDesc);
+      });
+
+      document.getElementById('forecastTabs').addEventListener('click', function (e) {
+        var t = e.target;
+        if (t.tagName !== 'SPAN') return;
+        document.querySelectorAll('#forecastTabs span').forEach(function (s) { s.classList.remove('active'); });
+        t.classList.add('active');
+      });
+
+      document.getElementById('btnQuery').addEventListener('click', function () {
+        var toast = document.getElementById('toast');
+        toast.textContent = '已按条件筛选（模拟）';
+        toast.classList.add('show');
+        setTimeout(function () { toast.classList.remove('show'); }, 2000);
+        render(mockData, sortDesc);
+      });
+
+      render(mockData, sortDesc);
+    })();
+  </script>
+</body>
+</html>

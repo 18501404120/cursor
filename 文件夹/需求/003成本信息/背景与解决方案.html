@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>003 · 全渠道成本口径 · 思路与方案</title>
+  <style>
+    :root {
+      --bg: #eef3fb; --surface: #fff; --text: #0f172a; --muted: #475569;
+      --line: #dbe4f0; --brand: #0b5ed7; --brand-soft: #e7f1ff;
+      --good: #0f766e; --good-soft: #ecfdf5;
+      --warn: #b45309; --warn-soft: #fffbeb;
+      --danger: #b91c1c; --danger-soft: #fef2f2;
+      --purple: #7c3aed; --purple-soft: #f5f3ff;
+      --shadow: 0 8px 24px rgba(15,23,42,.07); --radius: 12px;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; font-family: "PingFang SC", "Microsoft YaHei", sans-serif;
+      background: linear-gradient(165deg, #eaf0fb, var(--bg) 60%, #f8fafc);
+      color: var(--text); line-height: 1.65;
+    }
+    .page { max-width: 1100px; margin: 0 auto; padding: 20px 16px 56px; }
+    h1 { margin: 0 0 6px; font-size: 22px; color: #0f2f63; }
+    .sub { margin: 0 0 14px; font-size: 13px; color: var(--muted); }
+    .sub a { color: var(--brand); font-weight: 600; text-decoration: none; }
+    .sub a:hover { text-decoration: underline; }
+    .hero {
+      padding: 16px 18px; background: #fff; border: 1px solid var(--line);
+      border-radius: var(--radius); box-shadow: var(--shadow); margin-bottom: 14px;
+    }
+    .hero p { margin: 0; font-size: 14px; }
+    .hero .hint { margin-top: 8px; font-size: 12px; color: var(--muted); }
+    .nav {
+      position: sticky; top: 0; z-index: 30; display: flex; flex-wrap: wrap; gap: 6px;
+      padding: 8px 0 12px; background: linear-gradient(180deg, #eef3fb 85%, transparent);
+    }
+    .nav a {
+      font-size: 12px; text-decoration: none; color: var(--brand);
+      padding: 5px 10px; border-radius: 999px; border: 1px solid #bfdbfe; background: #fff;
+    }
+    .nav a:hover { background: var(--brand-soft); }
+    section {
+      margin-top: 14px; background: var(--surface); border: 1px solid var(--line);
+      border-radius: var(--radius); box-shadow: var(--shadow); overflow: hidden;
+    }
+    section > header {
+      padding: 12px 16px; font-size: 14px; font-weight: 800; color: #0f2f63;
+      border-bottom: 1px solid var(--line); background: #f8fbff;
+    }
+    section > .bd { padding: 16px; }
+    .lead { font-size: 15px; font-weight: 600; color: #0f2f63; margin: 0 0 10px; }
+    .muted { font-size: 13px; color: var(--muted); margin: 0 0 12px; }
+    .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; }
+    .card {
+      padding: 12px; border: 1px solid var(--line); border-radius: 10px; background: #fafbff; font-size: 13px;
+    }
+    .card strong { display: block; margin-bottom: 4px; color: #0f2f63; }
+    .pipe {
+      display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 14px 0; font-size: 12px;
+    }
+    .pipe .n {
+      padding: 10px 12px; border-radius: 10px; text-align: center; min-width: 96px;
+      border: 2px solid var(--line); background: #fff;
+    }
+    .pipe .n.brand { border-color: #93c5fd; background: var(--brand-soft); }
+    .pipe .n.good { border-color: #6ee7b7; background: var(--good-soft); }
+    .pipe .n.warn { border-color: #fcd34d; background: var(--warn-soft); }
+    .pipe .n.purple { border-color: #c4b5fd; background: var(--purple-soft); }
+    .pipe .arr { color: #94a3b8; font-weight: 800; font-size: 18px; }
+    table { width: 100%; border-collapse: collapse; font-size: 12px; margin: 10px 0; }
+    th, td { border: 1px solid var(--line); padding: 7px 8px; text-align: left; vertical-align: top; }
+    th { background: #f1f5f9; font-weight: 700; }
+    tr.lock td { background: #fef3c7; }
+    tr.ok td { background: #ecfdf5; }
+    tr.note td { background: #f8fafc; }
+    .pill-row { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0; }
+    .pill {
+      padding: 8px 12px; border-radius: 8px; font-size: 13px; font-weight: 600;
+      border: 1px solid var(--line); background: #fff;
+    }
+    .pill.b { border-color: #93c5fd; background: var(--brand-soft); color: #1e40af; }
+    .pill.g { border-color: #6ee7b7; background: var(--good-soft); color: #065f46; }
+    .pill.w { border-color: #fcd34d; background: var(--warn-soft); color: #92400e; }
+    .pill.p { border-color: #c4b5fd; background: var(--purple-soft); color: #5b21b6; }
+    .callout {
+      margin: 12px 0 0; padding: 12px 14px; border-radius: 10px; font-size: 13px;
+      border: 1px solid var(--line); background: #f8fbff;
+    }
+    .callout.good { background: var(--good-soft); border-color: #6ee7b7; }
+    .callout strong { color: #0f2f63; }
+    .open-list { font-size: 13px; padding-left: 1.2em; margin: 0; }
+    .open-list li { margin: 8px 0; }
+    .open-list strong { color: #0f2f63; }
+    .bullets { font-size: 13px; margin: 0; padding-left: 1.2em; }
+    .bullets li { margin: 6px 0; }
+    .formula {
+      font-family: ui-monospace, "SF Mono", Menlo, monospace;
+      font-size: 12px; background: #f1f5f9; padding: 10px 12px; border-radius: 8px;
+      margin: 8px 0; overflow-x: auto;
+    }
+    .src { font-size: 12px; color: var(--muted); }
+    .src a { color: var(--brand); }
+    .principles { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 12px 0; }
+    @media (max-width: 700px) { .principles { grid-template-columns: 1fr; } }
+    .principle {
+      padding: 12px; border-radius: 10px; font-size: 13px;
+      border: 1px solid #93c5fd; background: var(--brand-soft);
+    }
+    .principle h5 { margin: 0 0 6px; font-size: 13px; color: #0f2f63; }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <h1>全渠道成本口径 · 思路与方案</h1>
+    <p class="sub">
+      依据
+      <a href="https://alidocs.dingtalk.com/i/nodes/ydxXB52LJq7GoRM3uZ4M3PRgWqjMp697" target="_blank" rel="noopener">《msku成本信息表逻辑》</a>
+      · 覆盖亚马逊、Shopify、APP 商城、商超 3P 及后续管报 / DP
+    </p>
+
+    <div class="hero">
+      <p><strong>一句话：</strong>全渠道共用同一套费用项名字和计算公式，定义落在 <strong>MSKU 成本信息</strong>。各渠道看板、经营分析、管报只读该月快照做滚动。渠道差异只换取值来源；没有的项记 0，不另起名字、不另写公式。</p>
+      <p class="hint">底表逻辑见钉钉表（2026-08-18 起维护）。本页把表内口径与落地路径写成可评审的方案说明。</p>
+    </div>
+
+    <nav class="nav" aria-label="章节">
+      <a href="#bg">现状</a>
+      <a href="#idea">思路</a>
+      <a href="#layers">分层</a>
+      <a href="#fields">费用项</a>
+      <a href="#rules">关键口径</a>
+      <a href="#steps">落地步骤</a>
+      <a href="#open">待确认</a>
+    </nav>
+
+    <section id="bg">
+      <header>1 · 现状</header>
+      <div class="bd">
+        <p class="lead">各渠道已经在看利润，但底层不是同一套成本定义。</p>
+        <div class="cards">
+          <div class="card">
+            <strong>MSKU 成本信息偏旧</strong>
+            页面现网主要按亚马逊单件公式算毛利：售价 − 出货授权价 − 头程 − FBA − 佣金 − 其他 − VAT − 退货。仓储、收单、营销、海外仓操作未进公式，费用项不全。
+          </div>
+          <div class="card">
+            <strong>看板各自滚动</strong>
+            大促、日利润、自营经营分析各自扣项。自营经营分析（Shopify）现网为：净销售 − 其他 − 采购 − 头程 − 尾程 − 提现 − 广告 − 预留 − 关税，汇总再减 Seel×6%。货值拆成采购 / 关税 / 预留，不直接读底表出货授权价。
+          </div>
+          <div class="card">
+            <strong>渠道缺项表现为 0 或手填</strong>
+            Shopify / 商城在本页仍走亚马逊公式，内部账号常无 FBA、佣金预测，对应列多为 0。业务侧用线下 Excel 补尾程、收单、仓储等，才能估毛利。
+          </div>
+          <div class="card">
+            <strong>后续消费方要对齐</strong>
+            管报上线后利润逻辑按标准费用项看齐；明年 DP 模板按同一套释放。定价、折扣、促销预估需要和全渠道同一指标对得上。
+          </div>
+        </div>
+        <p class="muted" style="margin-top:12px">财报是滞后约半个月的结果分类，不是指标定义。预估利润点对齐的是底表费用项，不是财报分类差异。</p>
+      </div>
+    </section>
+
+    <section id="idea">
+      <header>2 · 全渠道思路</header>
+      <div class="bd">
+        <p class="lead">先锁定义，再换取值，最后让看板消费。</p>
+        <div class="principles">
+          <div class="principle">
+            <h5>1. 公共字段同一口径</h5>
+            出货授权价、头程、RP / Baseline、还价折扣等全渠道都有的字段，名字和公式锁定。分类差异可以存在，指标定义不能各写一套。
+          </div>
+          <div class="principle">
+            <h5>2. 渠道差异只换数据源</h5>
+            某渠道多出来的项可以加，并写清口径；某渠道没有的项保留列、记 0。例如亚马逊无收单、自营无 FBA。
+          </div>
+          <div class="principle">
+            <h5>3. 底表算单件，看板滚期间</h5>
+            MSKU 成本信息存 Listing × 渠道 × 自然月的完整成本。看板用单件 × 销量或发货、费率 × 净销售。折扣 / Deal / Seel 跟订单走，不进底表标准单件。
+          </div>
+          <div class="principle">
+            <h5>4. 预估与关账同一结构</h5>
+            未关账用预估或上一关账月结转；关账后用财务 / 物流实际覆盖该月。来源打标，不另做第二套公式。
+          </div>
+        </div>
+        <ul class="bullets">
+          <li>面向使用：定价、调价、促销时，在 MSKU 成本信息按该月快照试算毛利；经营分析等看板展示期间利润。</li>
+          <li>面向系统：经营分析、大促、广告、管报、明年 DP 复用同一费用项，只换各自数据源。</li>
+        </ul>
+      </div>
+    </section>
+
+    <section id="layers">
+      <header>3 · 分层</header>
+      <div class="bd">
+        <p class="lead">一层定义，多层消费。</p>
+        <div class="pipe">
+          <div class="n brand">MSKU 成本信息<br><small>单 PCS / 费率 / 月快照</small></div>
+          <span class="arr">→</span>
+          <div class="n good">该月完整成本<br><small>Listing × 渠道 × 自然月</small></div>
+          <span class="arr">→</span>
+          <div class="n purple">各渠道看板<br><small>读底表，按销量 / 发货滚动</small></div>
+          <span class="arr">→</span>
+          <div class="n warn">管报 / DP<br><small>同一费用项，换数据源</small></div>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>层</th>
+              <th>职责</th>
+              <th>边界</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr class="ok">
+              <td>底表<br>销售系统 → 销售基础信息 → MSKU 成本信息</td>
+              <td>费用项命名、形态（单件 / 费率 / 期间结转）、月份快照、预估与关账切换、单 PCS 毛利试算。</td>
+              <td>数量口径不写进单价公式；不按渠道另起分类。</td>
+            </tr>
+            <tr class="note">
+              <td>看板<br>经营分析、进销销售、大促、广告、管报</td>
+              <td>读该月底表。单件 × 销量或发货；费率 × 净销售。订单折扣 / Deal / Seel 仍跟订单。</td>
+              <td>不在看板维护第二套成本公式，不写死国家费比计算器。</td>
+            </tr>
+            <tr class="lock">
+              <td>全渠道锁定</td>
+              <td>费用项分类与命名、出货授权价公式、毛利扣减结构。</td>
+              <td>渠道没有的项记 0，不删列。</td>
+            </tr>
+            <tr class="ok">
+              <td>渠道可换</td>
+              <td>佣金数据源、税费国家规则、收单机构费率、仓储 / 尾程 / 海外仓账单、预估或关账实际（来源打标）。</td>
+              <td>不换分类、不换公式。</td>
+            </tr>
+          </tbody>
+        </table>
+        <p class="formula">底表单件试算：毛利润 = 售价 − 出货授权价 − 头程 − 尾程 − 平台佣金 − 收单 − 销售税费 − 退货 − 其他 − 营销 − 仓储单件 − 海外仓操作</p>
+        <p class="muted">没有的项为 0。无售价或无成本记录，毛利为 0。</p>
+      </div>
+    </section>
+
+    <section id="fields">
+      <header>4 · 标准费用项</header>
+      <div class="bd">
+        <p class="lead">全渠道同一套列。渠道列只写取值，不写另一套定义。</p>
+        <div class="pill-row">
+          <span class="pill g">RP / Baseline · 已统一</span>
+          <span class="pill g">还价折扣 · 已统一</span>
+          <span class="pill w">出货授权价 / 头程 · 公式锁定</span>
+          <span class="pill p">尾程 / 仓储 / 收单 / 海外仓 · 换取值</span>
+          <span class="pill b">渠道没有 · 记 0</span>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>费用项</th>
+              <th>形态</th>
+              <th>全渠道定义</th>
+              <th>亚马逊取值</th>
+              <th>Shopify / APP 商城取值</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr class="ok">
+              <td>RP / Baseline</td>
+              <td>—</td>
+              <td>全渠道同一套 baseline</td>
+              <td>公司 baseline</td>
+              <td>同左</td>
+            </tr>
+            <tr class="ok">
+              <td>还价折扣</td>
+              <td>—</td>
+              <td>全渠道同一套还价逻辑</td>
+              <td>公司还价</td>
+              <td>同左</td>
+            </tr>
+            <tr class="lock">
+              <td>出货授权价</td>
+              <td>单件</td>
+              <td>（授权采购价 + 授权关税）×（1 + 预留毛利率%），不含头程。三底数缺一则空。</td>
+              <td>GTM 预估出货授权价 / 本页已落底数</td>
+              <td>同左</td>
+            </tr>
+            <tr class="lock">
+              <td>头程运费</td>
+              <td>单件</td>
+              <td>有货件用系统回写加权；无货件用本页预估。与授权价分列。</td>
+              <td>物流回写 / 预估空海运</td>
+              <td>同左；新品无历史时用预估</td>
+            </tr>
+            <tr class="note">
+              <td>尾程费用</td>
+              <td>单件</td>
+              <td>末端配送单价。看板按发货件数滚动。</td>
+              <td>FBA 预计每件配送费</td>
+              <td>关账用财务尾程单价；未关账用上月；新品预估</td>
+            </tr>
+            <tr class="note">
+              <td>平台佣金</td>
+              <td>单件或费率</td>
+              <td>平台抽成。没有则 0。</td>
+              <td>预测推荐费或类目比例 × 售价</td>
+              <td>0（支付走收单）</td>
+            </tr>
+            <tr class="note">
+              <td>收单成本</td>
+              <td>费率</td>
+              <td>支付 / 提现。看板按净销售 × 费率。</td>
+              <td>0</td>
+              <td>成本费率配置；未配置可用站点预估费率</td>
+            </tr>
+            <tr class="note">
+              <td>仓储费</td>
+              <td>期间结转 → 单件</td>
+              <td>该月仓租总额 ÷ 对应数量，进毛利。销量为 0 则单件记 0。</td>
+              <td>大促看板月度 + 长期仓储 ÷ 该月销量</td>
+              <td>物流看板 / App 物流面板仓租 ÷ 同期 pcs</td>
+            </tr>
+            <tr class="note">
+              <td>海外仓操作</td>
+              <td>费率</td>
+              <td>试算 = 售价 × 站点费率。未列站点 0。</td>
+              <td>0</td>
+              <td>US 0.58%、CA 0.41%、EU / UK 0.8%</td>
+            </tr>
+            <tr class="note">
+              <td>销售税费</td>
+              <td>费率</td>
+              <td>按 Listing 市场 VAT 配置换算</td>
+              <td>市场税率；US 多为 0</td>
+              <td>同左（按市场，不按店铺另写公式）</td>
+            </tr>
+            <tr class="note">
+              <td>退货成本</td>
+              <td>费率</td>
+              <td>退货比例 × 售价（试算）；看板可用销售额 × 比例</td>
+              <td>亚马逊退货率回写</td>
+              <td>近窗退货率或本页维护比例</td>
+            </tr>
+            <tr class="note">
+              <td>营销费用</td>
+              <td>费率</td>
+              <td>本页存费率。看板：净销售 × 该月费率。关账可用花费 ÷ 净销售覆盖。</td>
+              <td>按费率取值，不记 0</td>
+              <td>站点 / 本页费率</td>
+            </tr>
+            <tr class="note">
+              <td>其他费用</td>
+              <td>单件或费率</td>
+              <td>兜底。能拆到收单、风控、仓储的不放这里。</td>
+              <td>手填 $/ 件</td>
+              <td>其他费率 × 净销售</td>
+            </tr>
+            <tr class="note">
+              <td>渠道商利润</td>
+              <td>—</td>
+              <td>仅线下有业务含义，不进线上标准毛利</td>
+              <td>—</td>
+              <td>—</td>
+            </tr>
+          </tbody>
+        </table>
+        <p class="muted">商超 3P：售价、授权价、头程与上表相同；尾程按 WFS 或尾程账单；平台佣金按平台订单佣金；仓储 / 海外仓取值待补。没有的项先记 0。</p>
+      </div>
+    </section>
+
+    <section id="rules">
+      <header>5 · 关键口径</header>
+      <div class="bd">
+        <p class="lead">数量、仓库、新品都不改变字段定义，只改变取值或滚动方式。</p>
+        <table>
+          <thead>
+            <tr>
+              <th>规则</th>
+              <th>口径</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr class="lock">
+              <td>出货授权价是单 PCS 价格</td>
+              <td>公式见上表，不含头程。期间出货总成本 = 单价 × 出货数量（或锁定的销量口径）。发货减退货属于看板滚动，不改字段本身。</td>
+            </tr>
+            <tr class="lock">
+              <td>头程与授权价分列</td>
+              <td>沿用公司头程分摊逻辑。底层已按仓库、物流方式分开算。渠道差异换仓库 / 账单，不换「头程」这个费用项。</td>
+            </tr>
+            <tr class="ok">
+              <td>新品无 12 个月物流历史</td>
+              <td>在底表该月快照写入预估头程 / 尾程。有货件或关账后覆盖。看板只读结果。US / CA、EU 取值不同时在底表标注，不另开公式。</td>
+            </tr>
+            <tr class="ok">
+              <td>月份快照</td>
+              <td>每个 Listing × 渠道 × 自然月存一份完整成本。进入新月先复制上月，再回写可刷新项。历史月读落存，当月可刷新。</td>
+            </tr>
+          </tbody>
+        </table>
+        <div class="callout">
+          <strong>试算与看板怎么配合：</strong>
+          调价、促销时在 MSKU 成本信息选所属月，按售价减标准费用项得到单 PCS 毛利。经营分析把该月单件按销量或发货滚成期间利润，与管报费用项一一对应。
+        </div>
+      </div>
+    </section>
+
+    <section id="steps">
+      <header>6 · 落地步骤</header>
+      <div class="bd">
+        <p class="lead">按层推进。渠道看板改造发生在底表字段就绪之后。</p>
+        <table>
+          <thead>
+            <tr>
+              <th>阶段</th>
+              <th>内容</th>
+              <th>结果</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr class="ok">
+              <td>A. 锁口径</td>
+              <td>确认标准费用项、锁定公式、分渠道取值表。公共字段跟《msku成本信息表逻辑》走。</td>
+              <td>各渠道评审用同一张表</td>
+            </tr>
+            <tr class="ok">
+              <td>B. 补底表</td>
+              <td>MSKU 成本信息增加所属月；补尾程、仓储、海外仓、收单、营销等列。新品建档写预估。无则 0。</td>
+              <td>单 PCS 试算可用，定价 / 促销可先离开纯 Excel</td>
+            </tr>
+            <tr class="lock">
+              <td>C. 看板改读底表</td>
+              <td>经营分析、进销销售、大促 / 广告等改为读该月快照滚动。财务关账回写后重算对应月。</td>
+              <td>各渠道看板利润点可对齐</td>
+            </tr>
+            <tr class="note">
+              <td>D. 管报 / DP 复用</td>
+              <td>管报与明年 DP 模板使用同一费用项，只换数据源或补 0 项。</td>
+              <td>B / C 不因后续释放作废</td>
+            </tr>
+          </tbody>
+        </table>
+        <div class="callout good">
+          <strong>历史月：</strong>
+          上线后按月重算可回溯月；未关账月用预估或上月结转。只从改完当天生效会造成年内口径断裂，默认不采用。
+        </div>
+      </div>
+    </section>
+
+    <section id="open">
+      <header>7 · 待确认</header>
+      <div class="bd">
+        <p class="lead">下列项只影响取值，不改变「先底表、后看板」和「公共字段同一公式」。</p>
+        <ol class="open-list">
+          <li><strong>滚动驱动：</strong>出货授权价、头程在看板乘销量还是发货件数，全渠道锁一种。</li>
+          <li><strong>费率分母：</strong>收单、营销、海外仓用净销售还是含税销售额；EU 0.8% 覆盖哪些欧洲站。</li>
+          <li><strong>仓储分母：</strong>亚马逊是否锁定为大促看板销量；销量为 0 时单件记 0。</li>
+          <li><strong>新品头程预估：</strong>各渠道线下估算规则写入底表，并与物流对齐。</li>
+          <li><strong>尾程关账：</strong>财务实际、上月结转、新品预估的最终取数页。</li>
+          <li><strong>自营平台佣金：</strong>是否独立保留，或由收单覆盖。</li>
+          <li><strong>范围：</strong>TTS、商超 3P 是否同期进底表；3P 仓储 / 海外仓取值。</li>
+        </ol>
+        <h4 style="margin:16px 0 8px;font-size:14px;color:#0f2f63;">资料</h4>
+        <ul class="bullets src">
+          <li>钉钉表格 <a href="https://alidocs.dingtalk.com/i/nodes/ydxXB52LJq7GoRM3uZ4M3PRgWqjMp697" target="_blank" rel="noopener">msku成本信息表逻辑</a></li>
+          <li>销售系统 v7.0.7《MSKU 成本字段多渠道口径统一》方案与字段梳理</li>
+        </ul>
+      </div>
+    </section>
+  </div>
+</body>
+</html>

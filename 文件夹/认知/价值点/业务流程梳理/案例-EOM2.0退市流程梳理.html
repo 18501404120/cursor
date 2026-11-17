@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>案例 · 如何梳理 EOM 2.0 退市管理流程</title>
+<style>
+  :root {
+    --bg: #eef3f9; --ink: #14233c; --sub: #5c6b82; --line: #e4ebf4;
+    --accent: #2b6cb0; --shadow: 0 10px 30px rgba(28, 52, 96, .06);
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; font-family: "PingFang SC", "Hiragino Sans GB", "Noto Sans SC", "Microsoft YaHei", sans-serif;
+    background: var(--bg); color: var(--ink); line-height: 1.65;
+  }
+  .page { max-width: 1120px; margin: 0 auto; padding: 22px 18px 56px; }
+  .nav { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+  .nav a { text-decoration: none; color: var(--sub); background: #fff; border: 1px solid var(--line); border-radius: 999px; padding: 4px 12px; font-size: 13px; }
+  .nav a.on { color: #fff; background: var(--accent); border-color: var(--accent); }
+  .hero { background: linear-gradient(180deg, #fff, #f4f8ff); border: 1px solid var(--line); border-radius: 22px; padding: 26px 28px; box-shadow: var(--shadow); }
+  .kicker { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; color: var(--sub); font-size: 13px; }
+  .pill { border-radius: 999px; padding: 2px 10px; font-weight: 700; font-size: 12px; }
+  .pill.solid { background: var(--accent); color: #fff; }
+  .pill.ghost { background: #e7f0fb; color: var(--accent); }
+  h1 { margin: 12px 0 8px; font-size: 32px; line-height: 1.3; }
+  .lead { margin: 0; color: var(--sub); font-size: 15px; }
+  .metrics { margin-top: 16px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+  .metric { background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 12px; }
+  .metric b { display: block; font-size: 22px; color: var(--accent); letter-spacing: -.03em; }
+  .metric span { font-size: 12px; color: var(--sub); }
+  section { margin-top: 14px; background: #fff; border: 1px solid var(--line); border-radius: 18px; padding: 18px; box-shadow: var(--shadow); }
+  .sec-h { display: flex; gap: 10px; align-items: center; margin-bottom: 6px; }
+  .num { width: 28px; height: 28px; border-radius: 8px; background: var(--accent); color: #fff; display: grid; place-items: center; font-weight: 800; font-size: 13px; }
+  h2 { margin: 0; font-size: 18px; }
+  .cap { margin: 0 0 12px; color: #8b97a8; font-size: 12px; }
+  p { margin: 0 0 10px; font-size: 14px; }
+  .flow { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+  .step { background: #f4f7fb; border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; font-size: 13px; }
+  .step.end { background: #fff1f0; border-color: #f0c2be; color: #b4332a; }
+  .step.ok { background: #eef8f2; border-color: #c6e6d2; }
+  .step.here { background: #e8f1fc; border-color: #c5d9f5; }
+  .drop { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .drop span { border: 1px dashed #d5dde8; color: #8b97a8; border-radius: 8px; padding: 4px 8px; font-size: 12px; }
+  .cut { margin-top: 10px; background: #fff6f5; color: #9a3412; border-radius: 10px; padding: 8px 10px; font-size: 13px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { background: #f7f9fc; color: var(--sub); font-weight: 650; }
+  .tag { display: inline-block; border-radius: 999px; padding: 1px 8px; font-size: 12px; }
+  .tag.y { background: #fff1f0; color: #b4332a; }
+  .tag.n { background: #f3f5f8; color: #5c6b82; }
+  .lane { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+  .node { border-radius: 12px; padding: 12px; background: #f7f9fc; border: 1px solid var(--line); min-height: 108px; }
+  .node b { display: block; margin-bottom: 4px; }
+  .node span { font-size: 12px; color: var(--sub); }
+  .node.here { background: #e8f7f4; border-color: #b7e4df; }
+  .node.stop { background: #fff6f5; border-color: #f0c2be; }
+  .wrong { margin-top: 8px; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .wrong div { background: #fafbfc; border-radius: 10px; padding: 10px; font-size: 13px; color: #5c6b82; }
+  .rules { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
+  .rule { background: #f7f9fc; border-radius: 12px; padding: 12px; font-size: 13px; }
+  .rule b { display: block; margin-bottom: 4px; }
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .card { border-radius: 14px; padding: 14px; }
+  .card h3 { margin: 0 0 6px; font-size: 15px; }
+  .card ul { margin: 0; padding-left: 18px; font-size: 13px; }
+  .card li { margin: 4px 0; }
+  .card.a { background: #f3f7ff; }
+  .card.b { background: #fff8ee; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chip { background: #fff; border: 1px solid var(--line); border-radius: 8px; padding: 4px 8px; font-size: 12px; }
+  .buckets { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+  .bk { border-radius: 12px; padding: 12px; font-size: 13px; min-height: 160px; }
+  .bk b { display: block; margin-bottom: 6px; }
+  .bk.m { background: #fff6f5; }
+  .bk.w { background: #f3fbf6; }
+  .bk.o { background: #f4f6f8; }
+  .bk.v { background: #fffaf1; }
+  .foot { margin-top: 14px; background: #14233c; color: #d5deea; border-radius: 16px; padding: 14px 16px; font-size: 13px; }
+  @media (max-width: 860px) {
+    h1 { font-size: 26px; }
+    .metrics, .lane, .wrong, .rules, .two, .buckets { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+  <nav class="nav">
+    <a href="体系-如何系统地开展业务流程梳理.html">体系</a>
+    <a href="理论-业务流程梳理的目的.html">理论</a>
+    <a class="on" href="案例-EOM2.0退市流程梳理.html">案例</a>
+    <a href="认知-当不同事项都被要求放进同一条系统流程时如何划分范围.html">认知</a>
+  </nav>
+
+  <header class="hero">
+    <div class="kicker">
+      <span class="pill solid">知识卡片</span>
+      <span class="pill ghost">案例</span>
+      <span>价值点 · 业务流程梳理</span>
+    </div>
+    <h1>如何梳理 EOM 2.0 退市管理流程</h1>
+    <p class="lead">这一次梳理的是 GTM 里的退市管理。材料是 2026-09-22 的 EOM 流程 2.0 方案，以及 2026-09-23 的退市管理会议结论。下面按对象、角色、状态、信息和取舍，把这一次怎么定下来的走完。</p>
+    <div class="metrics">
+      <div class="metric"><b>约 50</b><span>半年 SKU 量，不能每个都单独立项</span></div>
+      <div class="metric"><b>约半年</b><span>发起到清完最快</span></div>
+      <div class="metric"><b>约 8 个月</b><span>多数 SKU 的实际时长</span></div>
+      <div class="metric"><b>2 人</b><span>需求计划业务执行，撑不住再组班子</span></div>
+    </div>
+  </header>
+
+  <section>
+    <div class="sec-h"><div class="num">1</div><h2>先定这次梳理的对象</h2></div>
+    <p class="cap">图 1 · 1.0 停在计划确认，2.0 的起点和终点</p>
+    <p>1.0 把核料放进了 ERP，大约每半年集中发起一次。系统能做发起、选品、上传一份方案附件、计划确认。确认之后页面显示完结，并禁止继续下单。清库和反退市仍在线下，库存、库龄、渠道进度、新品和备料靠人工拼接。清库拖久了，会挡住新品上市。</p>
+    <div class="flow">
+      <div class="step">线下评估后发起</div><span>→</span>
+      <div class="step here">核料</div><span>→</span>
+      <div class="step here">方案决策</div><span>→</span>
+      <div class="step here">执行清库</div><span>→</span>
+      <div class="step ok">库存清完闭环</div>
+    </div>
+    <p style="margin-top:10px">2.0 改成按月常态运营。起点定在「GTM 线下评估之后发起」，终点定在「库存清完并闭环」。工单按 8 位 SKU 管理，渠道链接用来核对 Last Buy 和库存明细。</p>
+  </section>
+
+  <section>
+    <div class="sec-h"><div class="num">2</div><h2>还原现状，先找系统停住的位置</h2></div>
+    <p class="cap">图 2 · 页面上的完结，只表示计划点过确认</p>
+    <div class="flow">
+      <div class="step">发起，选择产品</div><span>→</span>
+      <div class="step">上传方案附件</div><span>→</span>
+      <div class="step">核料测算</div><span>→</span>
+      <div class="step">计划确认</div><span>→</span>
+      <div class="step end">页面显示完结</div>
+    </div>
+    <div class="drop">
+      <span>Last Buy</span><span>成品清库</span><span>专用料清理</span><span>反退市</span>
+    </div>
+    <div class="cut">断点标在计划确认。后面只继续追会影响闭环的部分，不把复盘、升级、超权限审批一起画进主流程。</div>
+  </section>
+
+  <section>
+    <div class="sec-h"><div class="num">3</div><h2>把「完成」拆成四种状态</h2></div>
+    <p class="cap">图 3 · 四套状态彼此不代替</p>
+    <table>
+      <thead><tr><th>要回答的问题</th><th>用哪套状态</th><th>退市里怎么走</th></tr></thead>
+      <tbody>
+        <tr><td>这张单走到哪</td><td>工单阶段</td><td>草稿 → 核料中 → 待方案决策 → 执行中 → 库存清完闭环。正式退市前也可以关闭</td></tr>
+        <tr><td>这个产品处于什么状态</td><td>产品状态</td><td>提交后进入准备退市；方案生效后进入正式退市；当前库存为 0 进入 EOL</td></tr>
+        <tr><td>某人的任务做完没有</td><td>节点任务</td><td>只有计划确认核料、发起人确认方案会卡住往下走</td></tr>
+        <tr><td>Last Buy 到没到</td><td>Last Buy 状态</td><td>无需、未进在途、在途中、已完成。不推动工单阶段，也不决定能不能闭环</td></tr>
+      </tbody>
+    </table>
+    <div class="cut">闭环只看一件事：本单全部 SKU 的当前库存为 0，含采购在途。专用料没清完、Last Buy 没做完，都不把闭环再往后拖。发起页另有一个不含采购在途的库存数，两套数不能拿来对账。</div>
+  </section>
+
+  <section>
+    <div class="sec-h"><div class="num">4</div><h2>核对关键动作卡在哪个节点</h2></div>
+    <p class="cap">图 4 · 「发起后禁止继续下单」落到时间上，要拆成两段</p>
+    <div class="lane">
+      <div class="node"><b>准备退市</b><span>采购仍要下 Last Buy</span></div>
+      <div class="node here"><b>确认整单</b><span>只查 Last Buy 大于 0 的每一个渠道链接，是否已经进入在途。不比数量。未过就停在待方案决策</span></div>
+      <div class="node stop"><b>正式退市</b><span>不能再下任何采购单</span></div>
+      <div class="node"><b>库存为 0</b><span>自动闭环</span></div>
+    </div>
+    <div class="wrong">
+      <div>不能用「这个 SKU 已经有任意一张采购单」代替每一个渠道链接。</div>
+      <div>备料数据要在方案决策前到位。定了再补，清库方式、下单量和报废量容易被推翻。</div>
+    </div>
+    <div class="rules">
+      <div class="rule"><b>核料</b>系统算出呆滞，计划按自己负责的 SKU 确认。全部确认后才进入方案决策。PMC 核对专用料，不卡住定版。</div>
+      <div class="rule"><b>报废与反退市</b>超过权限的报废只强提示，线下走计委会，不挡正式退市。反退市只在正式退市之后、由本单发起人发起，审批通过后回写并关单。本期不跟踪追加 Last Buy。</div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-h"><div class="num">5</div><h2>角色只保留会卡住闭环的动作</h2></div>
+    <p class="cap">图 5 · 谁的动作会改变阶段</p>
+    <table>
+      <thead><tr><th>角色</th><th>在这条流程里做什么</th><th>卡住往下走</th></tr></thead>
+      <tbody>
+        <tr><td>GTM 发起人</td><td>线下评估后发起，编写并确认清库方案</td><td><span class="tag y">确认整单会卡住</span></td></tr>
+        <tr><td>计划</td><td>按 SKU 确认核料；数量或结论被改过时再确认一次</td><td><span class="tag y">会卡住</span></td></tr>
+        <tr><td>PMC</td><td>核对专用料；正式退市后看专用料清理</td><td><span class="tag n">不卡住定版</span></td></tr>
+        <tr><td>销售</td><td>在销售系统填后续销量，正式退市后按方案清库。销量不能超过全链路库存</td><td><span class="tag n">不进退市待办</span></td></tr>
+        <tr><td>采购</td><td>准备退市阶段下 Last Buy；正式退市后不能再下单</td><td><span class="tag n">不在退市系统点完成</span></td></tr>
+        <tr><td>需求计划</td><td>看工单和台账，组织这条链</td><td><span class="tag n">没有必办待办</span></td></tr>
+      </tbody>
+    </table>
+    <p style="margin-top:10px">销售刷新预测只发提醒，不卡住核料。清尾进度看台账，由库存和在途回写。</p>
+  </section>
+
+  <section>
+    <div class="sec-h"><div class="num">6</div><h2>决策前要到齐的信息</h2></div>
+    <p class="cap">图 6 · 用来判断的数，和必须留下的结论</p>
+    <div class="two">
+      <div class="card a">
+        <h3>集成进来，不单独变成审批</h3>
+        <div class="chips">
+          <span class="chip">库存</span><span class="chip">库龄</span><span class="chip">渠道进度</span>
+          <span class="chip">新品</span><span class="chip">Last Buy</span><span class="chip">供应链备料</span>
+        </div>
+      </div>
+      <div class="card b">
+        <h3>从附件拆成字段</h3>
+        <div class="chips">
+          <span class="chip">清库方式</span><span class="chip">Last Buy</span>
+          <span class="chip">下单量</span><span class="chip">报废量</span>
+        </div>
+        <p style="margin-top:8px">方式包括正常销售、降价、渠道调拨、改制、转卖、报废。附件还在，但数量和方式不能只锁在文件里。</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-h"><div class="num">7</div><h2>9 月 23 日把范围再收了一次</h2></div>
+    <p class="cap">图 7 · 会上收的两刀</p>
+    <p>9 月 22 日的方案已经把主链从计划确认收到库存清完，销售和采购的清尾也没有做成待办。会上又收了两刀。</p>
+    <div class="two">
+      <div class="card a">
+        <h3>第一刀 · 按有没有时间目标拆开</h3>
+        <ul>
+          <li>新老品切换有上市时间，嵌在 GTM 项目里倒推，不另拆项目，仍是同一班人。</li>
+          <li>销量、毛利驱动的常态退市走这条流程，没有统一截止日。</li>
+          <li>主动、被动仍作为发起类型，用来区分要不要维护新品衔接，不再生成两套节点。</li>
+        </ul>
+      </div>
+      <div class="card b">
+        <h3>第二刀 · 不用流程去推人</h3>
+        <ul>
+          <li>「核料超过 7 天再提醒」不按流程待办落地。</li>
+          <li>时间目标放在 GTM 项目里排。</li>
+          <li>流程上留下两个确认：计划确认核料，发起人确认方案。</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-h"><div class="num">8</div><h2>这次梳理留下的取舍</h2></div>
+    <p class="cap">图 8 · 必须做、值得做、不进系统、待验证</p>
+    <div class="buckets">
+      <div class="bk m"><b>必须进系统</b>工单从发起到库存清完；计划按 SKU 确认核料；确认前写清方式和数量；Last Buy 在正式退市前进入在途；正式退市后禁止再下采购单；库存清零自动闭环；反退市通过后回写。</div>
+      <div class="bk w"><b>值得进系统</b>库存、库龄、在途、备料和新品进度在决策前集成；清库方式、下单量、报废量结构化；台账按日看清库进度。</div>
+      <div class="bk o"><b>不进系统</b>用超期待办催人；销售、采购、PMC 在 GTM 点清尾完成；复盘和自动升级；超过权限的报废审批；本期跟踪追加 Last Buy。</div>
+      <div class="bk v"><b>待验证</b>拉会时要找到这个 SKU 的销售负责人，还是只找到主管。会上已经提出，还没有核对完，不先写进规则。</div>
+    </div>
+  </section>
+
+  <footer class="foot">材料依据：2026-09-22《GTM EOM流程2.0》方案，2026-09-23 退市管理会议结论。金额阈值未写入本页。</footer>
+</div>
+</body>
+</html>

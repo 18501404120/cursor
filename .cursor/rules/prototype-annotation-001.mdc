@@ -1,0 +1,33 @@
+---
+description: 用户说「原型标注001」「原型标注 001」「通过原型标注001对当前原型页面进行标注」「用原型标注001」「原型标注1」或同义表达，要求对 HTML/Web 原型做业务标注、页面说明、刷新标注时，必须读取并严格按 `.cursor/skills/prototype-annotation/SKILL.md` 执行。
+alwaysApply: false
+---
+
+# 原型标注001（phrase 触发）
+
+## 必须执行
+
+1. **先读取** Skill 全文：`.cursor/skills/prototype-annotation/SKILL.md`，并同时读取 **`references/ai-persistence-policy.md`** 与 **`references/content-generation-guide.md`**；运行时注入层与内容生成层必须一起执行。
+2. **目标页面**：用户说「当前原型页面」时，优先取**当前聚焦或最近编辑的 HTML**；若仍不明确，**只问一次**让用户给出文件路径。
+3. **持久化（零导出）**：用户页内标注编辑由 runtime 静默写入 HTML 内 `persistedState`；Agent **默认不得**改动标注层。
+4. **按 Skill 工作流**完成标注注入/刷新；校验 **`.pa-toolbar`（查看页面说明 + 添加标注）**。
+
+## 两种模式（强制）
+
+| 用户意图 | Agent |
+| --- | --- |
+| 改页面 / 改需求 / 改原型（**未**要求刷新标注） | **禁止**修改 `#prototype-annotation-config`、`persistedState`、标注 runtime 块；**禁止**升 `version` / 改 `pageId` |
+| 「刷新/更新/重生成 原型标注001」 | 可更新基础 config；**必须** `--preserve-persisted` 保留 `persistedState` |
+| 「全量重生成 / 不要保留标注修改」 | 允许 `--no-preserve-persisted` |
+
+## 本仓库资源路径
+
+- Skill、脚本与样式：`.cursor/skills/prototype-annotation/` 下 `assets/`、`scripts/`、`references/`。
+- **弹层防裁切**：注入时必须使用 skill `assets/` 最新 `prototype-annotation-runtime.js` / `.css`（`placePopover` 按实际宽高钳制视口；带图 420 宽；内容渲染后 `schedulePlacePopover`）。禁止沿用业务目录过期 runtime。
+
+## 不要做的事
+
+- **改页面时顺便重写标注**（最常见回滚原因）。
+- 用 AI 新文案覆盖 `persistedState.edits` 中已有 key。
+- 恢复 `persistedState.hidden` 中用户已删标注。
+- 在标注文案中暴露代码名、接口名、表名等（见 Skill Content Standards）。

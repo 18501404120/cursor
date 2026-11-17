@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>管报与财报 · 背景、用户、用途与数据来源</title>
+  <style>
+    :root {
+      --bg: #eef3fb;
+      --surface: #fff;
+      --text: #0f172a;
+      --muted: #475569;
+      --line: #dbe4f0;
+      --brand: #0b5ed7;
+      --brand-soft: #e7f1ff;
+      --good: #0f766e;
+      --good-soft: #ecfdf5;
+      --warn: #b45309;
+      --warn-soft: #fffbeb;
+      --danger: #b91c1c;
+      --danger-soft: #fef2f2;
+      --purple: #7c3aed;
+      --purple-soft: #f5f3ff;
+      --mr: #eff6ff;
+      --mr-b: #93c5fd;
+      --fin: #fff7ed;
+      --fin-b: #fdba74;
+      --offline: #ecfdf5;
+      --offline-b: #6ee7b7;
+      --shadow: 0 8px 24px rgba(15, 23, 42, .07);
+      --radius: 12px;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "PingFang SC", "Microsoft YaHei", sans-serif;
+      background: linear-gradient(165deg, #eaf0fb, var(--bg) 60%, #f8fafc);
+      color: var(--text);
+      line-height: 1.65;
+    }
+    .page { max-width: 1100px; margin: 0 auto; padding: 20px 16px 56px; }
+    h1 { margin: 0 0 6px; font-size: 22px; color: #0f2f63; }
+    .sub { margin: 0 0 14px; font-size: 13px; color: var(--muted); }
+    .hero {
+      padding: 16px 18px;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      margin-bottom: 14px;
+    }
+    .hero p { margin: 0; font-size: 14px; }
+    .hero .hint { margin-top: 10px; font-size: 12px; color: var(--muted); }
+    .nav {
+      position: sticky;
+      top: 0;
+      z-index: 30;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      padding: 8px 0 12px;
+      background: linear-gradient(180deg, #eef3fb 85%, transparent);
+    }
+    .nav a {
+      font-size: 12px;
+      text-decoration: none;
+      color: var(--brand);
+      padding: 5px 10px;
+      border-radius: 999px;
+      border: 1px solid #bfdbfe;
+      background: #fff;
+    }
+    .nav a:hover { background: var(--brand-soft); }
+    section {
+      margin-top: 14px;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+    section > header {
+      padding: 12px 16px;
+      font-size: 14px;
+      font-weight: 800;
+      color: #0f2f63;
+      border-bottom: 1px solid var(--line);
+      background: #f8fbff;
+    }
+    section > .bd { padding: 16px; }
+    .lead { font-size: 15px; font-weight: 600; color: #0f2f63; margin: 0 0 10px; }
+    .muted { font-size: 13px; color: var(--muted); margin: 0 0 12px; }
+    .bullets { font-size: 13px; margin: 0; padding-left: 1.2em; }
+    .bullets li { margin: 6px 0; }
+    table { width: 100%; border-collapse: collapse; font-size: 12px; margin: 10px 0; }
+    th, td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+    th { background: #f1f5f9; font-weight: 700; }
+    tr.highlight td { background: var(--brand-soft); }
+    .callout {
+      margin: 12px 0 0;
+      padding: 12px 14px;
+      border-radius: 10px;
+      font-size: 13px;
+      border: 1px solid var(--line);
+      background: #f8fbff;
+    }
+    .callout.warn {
+      background: var(--warn-soft);
+      border-color: #fcd34d;
+      color: #78350f;
+    }
+    .callout.danger {
+      background: var(--danger-soft);
+      border-color: #fca5a5;
+      color: #991b1b;
+    }
+    .callout.good {
+      background: var(--good-soft);
+      border-color: #6ee7b7;
+    }
+    .callout strong { color: #0f2f63; }
+    .pill-row { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0; }
+    .pill {
+      padding: 8px 12px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 600;
+      border: 1px solid var(--line);
+      background: #fff;
+    }
+    .pill.b { border-color: var(--mr-b); background: var(--mr); color: #1e40af; }
+    .pill.o { border-color: var(--fin-b); background: var(--fin); color: #9a3412; }
+    .pill.g { border-color: var(--offline-b); background: var(--offline); color: #065f46; }
+    .pipe {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      margin: 16px 0;
+      font-size: 11px;
+    }
+    .pipe .n {
+      padding: 12px 14px;
+      border-radius: 10px;
+      text-align: center;
+      min-width: 100px;
+      max-width: 140px;
+      border: 2px solid var(--line);
+      background: #fff;
+    }
+    .pipe .n small { display: block; margin-top: 4px; color: var(--muted); font-weight: 400; }
+    .pipe .n.src { border-color: #cbd5e1; background: #f8fafc; }
+    .pipe .n.mr { border-color: var(--mr-b); background: var(--mr); }
+    .pipe .n.fin { border-color: var(--fin-b); background: var(--fin); }
+    .pipe .n.pr { border-color: var(--offline-b); background: var(--offline); }
+    .pipe .arr { color: #94a3b8; font-weight: 800; font-size: 16px; }
+    .pipe .dash {
+      width: 100%;
+      text-align: center;
+      font-size: 11px;
+      color: var(--muted);
+      margin: 4px 0;
+    }
+    .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    @media (max-width: 720px) { .grid2 { grid-template-columns: 1fr; } }
+    .mini-card {
+      padding: 12px 14px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      font-size: 13px;
+      background: #fafbff;
+    }
+    .mini-card h4 { margin: 0 0 8px; font-size: 13px; color: #0f2f63; }
+    .open-list { font-size: 13px; padding-left: 1.2em; margin: 0; }
+    .open-list li { margin: 8px 0; }
+    footer {
+      margin-top: 20px;
+      font-size: 11px;
+      color: var(--muted);
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <h1>管报与财报 · 背景、用户、用途与数据来源</h1>
+    <p class="sub">用于业财对齐、差异案例讨论前的「背景与问题抽象」 · 依据全渠道管报方案、管报二期规划、财务系统知识库及线下渠道取值逻辑整理 · 2026-11-03</p>
+
+    <div class="hero">
+      <p>智岩/Govee 全渠道经营下，<strong>管报</strong>解决「月中怎么决策、MSKU 级费用从哪来」；<strong>财报</strong>（含财务系统渠道利润报表与关账结果）解决「认账对不对、最终数以谁为准」。二者同源异构，需勾稽而非混为一谈。</p>
+      <p class="hint">对外表述：禁止简称「两套财报」；应区分<strong>业务考核报表</strong>（给业务看、不暴露采购价/关税等敏感成本）与<strong>正式财报</strong>（关账/对外口径）。</p>
+    </div>
+
+    <nav class="nav" aria-label="页内导航">
+      <a href="#mr">管报</a>
+      <a href="#fin">财报</a>
+      <a href="#offline">线下渠道财报</a>
+      <a href="#compare">对照关系</a>
+      <a href="#open">待对齐</a>
+    </nav>
+
+    <section id="mr">
+      <header>一、管报（全渠道管报）</header>
+      <div class="bd">
+        <p class="lead">背景</p>
+        <p class="muted">渠道已覆盖平台电商、独立站、社媒与线下零售/分销。管理层与业务不再满足于销量、营收、毛利等粗粒度，需要稳定回答：哪个渠道、哪个 MSKU 赚不赚、费用花在哪、与目标（BP）差多少。痛点包括口径不统一、线下长期只有销售额/销量、营销等费用大量在表外、BP 与管报不同源等。</p>
+        <p class="lead">建设定位</p>
+        <ul class="bullets">
+          <li>不是「多一张报表」，而是<strong>统一经营分析体系</strong>：口径、颗粒度（MSKU + 渠道 + 店铺 + 时间）、费用归集与分摊、与财务关账结果的勾稽。</li>
+          <li><strong>GTM 管报 = 业务端经营决策</strong>；「业务营收 vs 财务营收」不宜在管报里当主叙事，看财务口径应去财务系统/正式财报链路。</li>
+          <li>在可对账的财报结果前提下，把收入、成本、费用拆到渠道 × 站点 × MSKU × 时间，解释变化原因；公司合计盈亏方向<strong>不能与财报相反</strong>。</li>
+        </ul>
+
+        <p class="lead">面向用户与用途</p>
+        <table>
+          <thead>
+            <tr><th>角色</th><th>主要用途</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>业务负责人 / GTM / 渠道运营</td><td>渠道、店铺、MSKU 经营结果与费用结构；放量与投入决策；与<strong>目标</strong>比达成（文档强调用「目标」而非易混淆的「预算」）</td></tr>
+            <tr><td>管报分析 / 经营分析</td><td>费用项树、趋势与结构、明细下钻、追溯「数从哪来」</td></tr>
+            <tr><td>财务运营</td><td>费用项与部门归属、与财报/财务口径差异、关账/定稿状态</td></tr>
+            <tr><td>管理层</td><td>全渠道经营质量：为什么赚/亏、哪里值得投</td></tr>
+          </tbody>
+        </table>
+
+        <p class="lead">数据来源（一期「取值」）</p>
+        <div class="pill-row">
+          <span class="pill b">平台报告</span>
+          <span class="pill b">业务系统单据</span>
+          <span class="pill b">金蝶 / 财务同口径</span>
+          <span class="pill b">站外费用导入</span>
+          <span class="pill b">项目预算</span>
+          <span class="pill b">计提 / 扣款规则</span>
+          <span class="pill b">汇总公式卷积</span>
+        </div>
+        <p class="muted">产出形态包括 MSKU 店铺管报汇总、MSKU 店铺费用明细等。自营「经营分析看板（新）」等会把<strong>展示名称对齐管报费用项</strong>，仍是渠道经营视图，不等于管报系统全部能力。</p>
+
+        <div class="callout good">
+          <strong>时效：</strong>月中运营多依赖管报/GTM <strong>过程态</strong>；业务普遍认可<strong>最准</strong>的是关账后的财报（常见为<strong>次月约 10 号前后</strong>反映当月，以实际关账节奏为准）。
+        </div>
+      </div>
+    </section>
+
+    <section id="fin">
+      <header>二、财报（项目语境下的含义）</header>
+      <div class="bd">
+        <p class="lead">在本项目里「财报」通常指三类对象</p>
+        <table>
+          <thead>
+            <tr><th>对象</th><th>是什么</th><th>特点</th></tr>
+          </thead>
+          <tbody>
+            <tr class="highlight"><td>正式财报 / 财务关账结果</td><td>对外披露与总账认账口径</td><td>滞后、最准；差异讨论的最终参照</td></tr>
+            <tr><td>财务系统 · 渠道利润报表</td><td>亚马逊、自营、商超、分销、TikTok、国内渠道等</td><td>现网<strong>财务核算口径</strong>；预计算后查询，非全部即时重算</td></tr>
+            <tr><td>管报二期 · 财报对照与差异</td><td>管报金额 − 财务金额</td><td>可跳转到管报明细与财务来源</td></tr>
+          </tbody>
+        </table>
+
+        <p class="lead">面向用户与用途（财报 / 财务系统侧）</p>
+        <table>
+          <thead>
+            <tr><th>角色</th><th>用途</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>财务人员</td><td>利润报表查看、账单核对、站外导入、差异台账、凭证与金蝶协同</td></tr>
+            <tr><td>经营管理人员</td><td>全渠道/分渠道经营看板、销售收入、成本费用、毛利利润</td></tr>
+            <tr><td>渠道业务人员</td><td>各渠道经营数据与明细口径（含线下商超、分销）</td></tr>
+            <tr><td>供应链 / 物流</td><td>发货、退货、仓储、进销存等与核算相关的数据</td></tr>
+          </tbody>
+        </table>
+
+        <div class="callout warn">
+          <strong>与管报的关系：</strong>财务系统里的渠道利润报表是<strong>现网财务口径</strong>；全渠道管报是<strong>目标口径 + 更细 MSKU 费用项</strong>。验证时：商超/分销等利润报表<strong>不是管报验收的默认对照组</strong>（除非该费用项主取值模式为「财务系统同口径取数」）。用利润报表看「管报 vs 现状差多少」可以，用它判「管报算错」容易把<strong>口径差</strong>当成<strong>系统错</strong>。
+        </div>
+      </div>
+    </section>
+
+    <section id="offline">
+      <header>三、线下渠道「财报」（商超 + 分销利润报表）</header>
+      <div class="bd">
+        <p class="muted">材料中无单独产品名「线下财报」；与线下强相关、且属财务关账/核算链路的，主要是<strong>财务系统 → 报表 → 商超利润报表、分销利润报表</strong>（Sell-in、分销客户仓等）。以下按此理解展开；若你指的是 Excel 关账包或合并报表线下板块，见文末「待对齐」。</p>
+
+        <div class="grid2">
+          <div class="mini-card">
+            <h4>商超利润报表</h4>
+            <p class="muted" style="margin:0 0 8px;"><strong>入口：</strong>财务系统 → 报表 → 商超利润报表（平台=商超，不含商超 3P 店铺逻辑混用）</p>
+            <p class="muted" style="margin:0 0 8px;"><strong>页签：</strong>年度 / 月度 / 零售商 / 国家 / SKU</p>
+            <p class="muted" style="margin:0;"><strong>特征：</strong>金蝶 Trading 销售退货 + 站外导入按零售商销售收入占比分摊 + 样品推广等；批处理后换汇展示。</p>
+          </div>
+          <div class="mini-card">
+            <h4>分销利润报表</h4>
+            <p class="muted" style="margin:0 0 8px;"><strong>入口：</strong>财务系统 → 报表 → 分销利润报表</p>
+            <p class="muted" style="margin:0 0 8px;"><strong>页签：</strong>年度 / 月度 / 国家 / 客户 / SKU</p>
+            <p class="muted" style="margin:0;"><strong>特征：</strong>金蝶分销客户仓销售 + 已报关运费收入 + 样品/海外仓/站外导入；结果列「销售利润」。</p>
+          </div>
+        </div>
+
+        <p class="lead">线下渠道报表 · 数据来源摘要</p>
+        <table>
+          <thead>
+            <tr><th>渠道</th><th>核心来源</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>商超</td>
+              <td>金蝶 Trading / Trading US 销售与退货；采购价/头程/关税快照；站外费用导入（退款、折扣、广告、OTIF、佣金、海外仓等）按<strong>零售商当月 SKU 销售收入占比</strong>分摊；样品/推广（销售中心-线下商超）；海外仓尾程等</td>
+            </tr>
+            <tr>
+              <td>分销</td>
+              <td>金蝶指定<strong>分销客户仓</strong>销售；分销订单<strong>已报关</strong>运费收入；样品费；海外仓物流成本分摊；站外导入佣金/推广；采购/头程/关税等</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <p class="lead">用途</p>
+        <ul class="bullets">
+          <li>按财务现网规则输出线下渠道多维度利润，支撑<strong>核算、关账核对、渠道复盘</strong>。</li>
+          <li>为全渠道管报提供<strong>费用项映射、初始化取数、差异对比</strong>参考，不等于管报真理源。</li>
+        </ul>
+      </div>
+    </section>
+
+    <section id="compare">
+      <header>四、管报 vs 财报 · 对照关系</header>
+      <div class="bd">
+        <div class="pipe" role="img" aria-label="数据流示意">
+          <div class="n src">订单 / 发货<br><small>GTM · OMS</small></div>
+          <span class="arr">→</span>
+          <div class="n src">平台报告<br><small>Transaction 等</small></div>
+          <span class="arr">→</span>
+          <div class="n src">金蝶<br><small>销售 / 出库</small></div>
+          <span class="arr">→</span>
+          <div class="n src">站外导入<br><small>账单 · Excel</small></div>
+          <div class="dash">↓ 加工 / 分摊 / 规则 ↓</div>
+          <div class="n mr">全渠道管报<br><small>MSKU 费用明细<br>目标口径 · 可追溯</small></div>
+          <span class="arr">⇄</span>
+          <div class="n pr">渠道利润报表<br><small>商超 / 分销等<br>现网财务口径</small></div>
+          <span class="arr">→</span>
+          <div class="n fin">正式财报<br><small>关账 · 最准 · 滞后</small></div>
+        </div>
+
+        <table>
+          <thead>
+            <tr><th>维度</th><th>管报</th><th>财报 / 财务渠道报表</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>看谁、何时用</td><td>月中纠偏、MSKU 级经营决策</td><td>认账、对外、最终对错；线下查利润走商超/分销报表</td></tr>
+            <tr><td>颗粒度</td><td>MSKU + 费用项树 + 来源追溯</td><td>财务列结构 + 零售商/客户/SKU 等页签</td></tr>
+            <tr><td>差异含义</td><td>口径升级、分摊规则、过程态 vs 关账态</td><td>需结构化解释，避免会议「同题不同数」无结论</td></tr>
+          </tbody>
+        </table>
+
+        <div class="callout">
+          <strong>差异讨论前置（会议建议）：</strong>先呈现本文背景与问题抽象，再列举不一致<strong>案例</strong>，并明确业务/财务对差异的接受度——是登记为已知口径差、忽略，还是继续收敛到可接受阈值（如广告等科目）。
+        </div>
+      </div>
+    </section>
+
+    <section id="open">
+      <header>五、待与业务/财务对齐的问题</header>
+      <div class="bd">
+        <ol class="open-list">
+          <li><strong>「线下财报」</strong>是否就是指<strong>商超 + 分销利润报表</strong>，还是 Excel 关账包 / 合并报表中的线下板块？</li>
+          <li>对外说明「财报用户」时，是否只讲线下渠道报表，还是<strong>全渠道利润报表 + 关账</strong>一并讲？</li>
+          <li>是否在对业务材料中写入<strong>业务考核报表 vs 正式财报</strong>的表述规范？</li>
+          <li>时效 SLA：是否仍采用<strong>次月约 10 号</strong>反映上月财报？关账日（如管报「下月 20 号关上月」）以哪套为准对外说明？</li>
+          <li>自营看板等「<strong>本月财报尾程</strong>」是否即财务关账后的尾程总额，用于把过程估算改为实际？</li>
+        </ol>
+      </div>
+    </section>
+
+    <footer>
+      参考：全渠道管报解决方案 · 管报二期 01/02 · 财务系统全局认知 · 线下商超/分销费用项取值逻辑 · 管报费用项业务验证方案 · 方案框架沟通会议2 修改点清单
+    </footer>
+  </div>
+</body>
+</html>

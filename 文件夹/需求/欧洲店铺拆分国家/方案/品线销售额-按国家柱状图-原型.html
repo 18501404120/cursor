@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>欧洲店铺拆分国家 · 柱状图原型</title>
+  <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
+  <style>
+    :root {
+      --page-bg: #f0f2f5;
+      --card: #fff;
+      --border: #d9d9d9;
+      --text: rgba(0, 0, 0, 0.88);
+      --text-sec: rgba(0, 0, 0, 0.45);
+      --primary: #1677ff;
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; margin: 0; }
+    body {
+      font-family: "PingFang SC", "Microsoft YaHei", -apple-system, sans-serif;
+      font-size: 13px;
+      color: var(--text);
+      background: var(--page-bg);
+      line-height: 1.5;
+    }
+    .page { max-width: 1280px; margin: 0 auto; padding: 20px 24px 32px; }
+    .back { font-size: 12px; margin-bottom: 12px; }
+    .back a { color: var(--primary); text-decoration: none; }
+    .back a:hover { text-decoration: underline; }
+    h1 { font-size: 18px; font-weight: 600; margin: 0 0 6px; }
+    h2.section-title {
+      font-size: 16px;
+      font-weight: 600;
+      margin: 28px 0 8px;
+      padding-top: 8px;
+      border-top: 2px solid #e8e8e8;
+    }
+    .lead { color: var(--text-sec); font-size: 13px; margin: 0 0 16px; max-width: 920px; }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      margin-bottom: 16px;
+    }
+    .card-hd {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+      padding: 14px 16px;
+      border-bottom: 1px solid #f0f0f0;
+    }
+    .card-title { font-size: 15px; font-weight: 600; }
+    .card-sub { font-size: 12px; color: var(--text-sec); margin-top: 2px; }
+    .card-bd { padding: 16px; }
+    .filter-bar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 16px;
+      padding: 12px 16px;
+      border-bottom: 1px solid #f0f0f0;
+    }
+    .field { display: flex; align-items: center; gap: 8px; }
+    .field label { color: var(--text-sec); white-space: nowrap; font-size: 12px; }
+    .field select {
+      height: 32px;
+      min-width: 120px;
+      padding: 0 8px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-size: 13px;
+      background: #fff;
+    }
+    .seg {
+      display: inline-flex;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      overflow: hidden;
+    }
+    .seg button {
+      border: none;
+      background: #fff;
+      padding: 6px 12px;
+      font-size: 12px;
+      cursor: pointer;
+      color: var(--text);
+    }
+    .seg button.active {
+      background: #e6f4ff;
+      color: var(--primary);
+      font-weight: 600;
+    }
+    .btn {
+      height: 32px;
+      padding: 0 14px;
+      border: 1px solid var(--primary);
+      border-radius: 6px;
+      background: var(--primary);
+      color: #fff;
+      font-size: 13px;
+      cursor: pointer;
+    }
+    .btn.secondary {
+      background: #fff;
+      color: var(--text);
+      border-color: var(--border);
+    }
+    .chart-box { width: 100%; height: 460px; }
+    .summary-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+    .summary-item {
+      background: #fafafa;
+      border: 1px solid #f0f0f0;
+      border-radius: 8px;
+      padding: 10px 12px;
+    }
+    .summary-item .k { font-size: 12px; color: var(--text-sec); }
+    .summary-item .v { font-size: 18px; font-weight: 600; margin-top: 4px; }
+    .table-scroll {
+      overflow: auto;
+      max-height: 360px;
+      border: 1px solid #f0f0f0;
+      border-radius: 6px;
+    }
+    table.data-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+    .data-table th,
+    .data-table td {
+      border: 1px solid #f0f0f0;
+      padding: 8px 10px;
+      text-align: right;
+      white-space: nowrap;
+    }
+    .data-table th {
+      position: sticky;
+      top: 0;
+      z-index: 2;
+      background: #fafafa;
+      font-weight: 600;
+      text-align: center;
+      box-shadow: 0 1px 0 #f0f0f0;
+    }
+    .data-table td:first-child,
+    .data-table th:first-child { text-align: left; }
+    .data-table tbody tr:hover td { background: #fafafa; }
+    .data-table .row-total td { background: #f6ffed; font-weight: 600; }
+    .tag-demo {
+      display: inline-block;
+      font-size: 11px;
+      padding: 2px 8px;
+      border-radius: 999px;
+      background: #fff7e6;
+      color: #d46b08;
+      border: 1px solid #ffd591;
+      margin-left: 8px;
+      vertical-align: middle;
+    }
+    .note {
+      font-size: 12px;
+      color: var(--text-sec);
+      margin-top: 12px;
+      padding-top: 12px;
+      border-top: 1px dashed #e8e8e8;
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <p class="back"><a href="../../index.html">← 需求原型目录</a></p>
+    <h1>欧洲店铺拆分国家 · 图表原型 <span class="tag-demo">演示原型</span></h1>
+    <p class="lead">
+      将原饼图升级为<strong>柱状图</strong>并增加<strong>国家</strong>维度，可同时查看德国、法国、意大利、西班牙、荷兰等欧洲站点的分布。
+      下方数据由原图汇总值按国家权重拆分生成，仅供交互与版式评审。
+    </p>
+
+    <!-- ========== 板块一：品线销售额 ========== -->
+    <h2 class="section-title">品线销售额占比</h2>
+    <p class="lead" style="margin-top:0">原饼图「品线销售额占比」→ 柱状图 + 国家维度。</p>
+
+    <section class="card" id="blockSales">
+      <div class="filter-bar">
+        <div class="field">
+          <label>区域</label>
+          <select><option selected>欧洲区</option></select>
+        </div>
+        <div class="field">
+          <label>国家</label>
+          <select multiple style="min-width:160px;height:32px">
+            <option selected>德国</option>
+            <option selected>法国</option>
+            <option selected>意大利</option>
+            <option selected>西班牙</option>
+            <option selected>荷兰</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>店铺</label>
+          <select><option selected>欧洲店铺（汇总）</option></select>
+        </div>
+        <button type="button" class="btn btn-query">查询</button>
+        <button type="button" class="btn secondary btn-reset">重置</button>
+      </div>
+
+      <div class="card-hd">
+        <div>
+          <div class="card-title">品线销售额 · 国家 × 品线</div>
+          <div class="card-sub">销售额（USD）· 可切换分组 / 堆叠视图</div>
+        </div>
+        <div class="seg" role="tablist">
+          <button type="button" class="active" data-mode="group-country">按国家分组</button>
+          <button type="button" data-mode="group-line">按品线分组</button>
+          <button type="button" data-mode="stack-country">按国家堆叠</button>
+        </div>
+      </div>
+
+      <div class="card-bd">
+        <div class="summary-row"></div>
+        <div class="chart-box"></div>
+        <p class="note">提示：鼠标悬停可查看各国各品线明细；堆叠视图便于对比各国销售总额及品线构成。</p>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="card-hd">
+        <div class="card-title">明细表 · 品线 × 国家</div>
+      </div>
+      <div class="card-bd">
+        <div class="table-scroll">
+          <table class="data-table">
+            <thead></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========== 板块二：费用构成 ========== -->
+    <h2 class="section-title">费用构成占比</h2>
+    <p class="lead" style="margin-top:0">原饼图「费用构成占比」→ 柱状图 + 国家维度（出货授权价、头程/尾程成本、提现费用、其他费用等）。</p>
+
+    <section class="card" id="blockCost">
+      <div class="filter-bar">
+        <div class="field">
+          <label>区域</label>
+          <select><option selected>欧洲区</option></select>
+        </div>
+        <div class="field">
+          <label>国家</label>
+          <select multiple style="min-width:160px;height:32px">
+            <option selected>德国</option>
+            <option selected>法国</option>
+            <option selected>意大利</option>
+            <option selected>西班牙</option>
+            <option selected>荷兰</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>店铺</label>
+          <select><option selected>欧洲店铺（汇总）</option></select>
+        </div>
+        <button type="button" class="btn btn-query">查询</button>
+        <button type="button" class="btn secondary btn-reset">重置</button>
+      </div>
+
+      <div class="card-hd">
+        <div>
+          <div class="card-title">费用构成 · 国家 × 费用项</div>
+          <div class="card-sub">金额（USD）· 可切换分组 / 堆叠视图</div>
+        </div>
+        <div class="seg" role="tablist">
+          <button type="button" class="active" data-mode="group-country">按国家分组</button>
+          <button type="button" data-mode="group-line">按费用项分组</button>
+          <button type="button" data-mode="stack-country">按国家堆叠</button>
+        </div>
+      </div>
+
+      <div class="card-bd">
+        <div class="summary-row"></div>
+        <div class="chart-box"></div>
+        <p class="note">提示：鼠标悬停可查看各国各费用项明细；堆叠视图便于对比各国费用总额及构成。</p>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="card-hd">
+        <div class="card-title">明细表 · 费用项 × 国家</div>
+      </div>
+      <div class="card-bd">
+        <div class="table-scroll">
+          <table class="data-table">
+            <thead></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    (function () {
+      var COUNTRIES = [
+        { code: 'DE', name: '德国' },
+        { code: 'FR', name: '法国' },
+        { code: 'IT', name: '意大利' },
+        { code: 'ES', name: '西班牙' },
+        { code: 'NL', name: '荷兰' }
+      ];
+
+      var COUNTRY_COLORS = ['#1677ff', '#722ed1', '#13c2c2', '#fa8c16', '#eb2f96'];
+
+      function fmtNum(n) {
+        return n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      }
+
+      function fmtShort(n) {
+        if (n >= 10000) return (n / 1000).toFixed(1) + 'k';
+        return fmtNum(n);
+      }
+
+      function buildMatrix(dimensions, weights) {
+        var data = {};
+        dimensions.forEach(function (d) {
+          data[d.key] = {};
+          var w = weights[d.key];
+          var sum = 0;
+          COUNTRIES.forEach(function (c, i) {
+            var v = Math.round(d.total * w[i] * 100) / 100;
+            data[d.key][c.code] = v;
+            sum += v;
+          });
+          var diff = Math.round((d.total - sum) * 100) / 100;
+          if (diff !== 0) data[d.key]['DE'] = Math.round((data[d.key]['DE'] + diff) * 100) / 100;
+        });
+        return data;
+      }
+
+      function initChartBlock(rootEl, config) {
+        var dimensions = config.dimensions;
+        var weights = config.weights;
+        var matrix = buildMatrix(dimensions, weights);
+        var chartMode = 'group-country';
+        var dimLabel = config.dimLabel || '维度';
+        var yAxisName = config.yAxisName || '金额（USD）';
+        var totalLabel = config.totalLabel || '总额';
+
+        var summaryEl = rootEl.querySelector('.summary-row');
+        var chartEl = rootEl.querySelector('.chart-box');
+        var segEl = rootEl.querySelector('.seg');
+        var tableSection = rootEl.nextElementSibling;
+        var tableEl = tableSection ? tableSection.querySelector('.data-table') : null;
+
+        function getGrandTotal() {
+          return dimensions.reduce(function (s, d) { return s + d.total; }, 0);
+        }
+
+        function getCountryTotal(code) {
+          return dimensions.reduce(function (s, d) { return s + matrix[d.key][code]; }, 0);
+        }
+
+        function renderSummary() {
+          var grand = getGrandTotal();
+          var html = '<div class="summary-item"><div class="k">' + totalLabel + '</div><div class="v">' + fmtShort(grand) + '</div></div>';
+          COUNTRIES.forEach(function (c) {
+            html += '<div class="summary-item"><div class="k">' + c.name + '</div><div class="v">' + fmtShort(getCountryTotal(c.code)) + '</div></div>';
+          });
+          summaryEl.innerHTML = html;
+        }
+
+        function renderTable() {
+          if (!tableEl) return;
+          var thead = tableEl.querySelector('thead');
+          var tbody = tableEl.querySelector('tbody');
+          var head = '<tr><th>' + dimLabel + '</th>';
+          COUNTRIES.forEach(function (c) { head += '<th>' + c.name + '</th>'; });
+          head += '<th>合计</th><th>占比</th></tr>';
+          thead.innerHTML = head;
+
+          var grand = getGrandTotal();
+          var body = '';
+          dimensions.forEach(function (d) {
+            var rowSum = 0;
+            body += '<tr><td>' + d.name + '</td>';
+            COUNTRIES.forEach(function (c) {
+              var v = matrix[d.key][c.code];
+              rowSum += v;
+              body += '<td>' + fmtNum(v) + '</td>';
+            });
+            body += '<td>' + fmtNum(rowSum) + '</td>';
+            body += '<td>' + ((rowSum / grand) * 100).toFixed(2) + '%</td></tr>';
+          });
+          body += '<tr class="row-total"><td>合计</td>';
+          COUNTRIES.forEach(function (c) {
+            body += '<td>' + fmtNum(getCountryTotal(c.code)) + '</td>';
+          });
+          body += '<td>' + fmtNum(grand) + '</td><td>100%</td></tr>';
+          tbody.innerHTML = body;
+        }
+
+        function buildChartOption() {
+          var series = [];
+          if (chartMode === 'group-country') {
+            var xData = COUNTRIES.map(function (c) { return c.name; });
+            dimensions.forEach(function (d) {
+              series.push({
+                name: d.name,
+                type: 'bar',
+                barMaxWidth: 18,
+                itemStyle: { color: d.color },
+                emphasis: { focus: 'series' },
+                data: COUNTRIES.map(function (c) { return matrix[d.key][c.code]; })
+              });
+            });
+            return baseOption(xData, series, '国家');
+          }
+          if (chartMode === 'group-line') {
+            var xDims = dimensions.map(function (d) { return d.name; });
+            COUNTRIES.forEach(function (c, ci) {
+              series.push({
+                name: c.name,
+                type: 'bar',
+                barMaxWidth: 18,
+                itemStyle: { color: COUNTRY_COLORS[ci % 5] },
+                emphasis: { focus: 'series' },
+                data: dimensions.map(function (d) { return matrix[d.key][c.code]; })
+              });
+            });
+            return baseOption(xDims, series, dimLabel);
+          }
+          var xStack = COUNTRIES.map(function (c) { return c.name; });
+          dimensions.forEach(function (d) {
+            series.push({
+              name: d.name,
+              type: 'bar',
+              stack: 'total',
+              barMaxWidth: 48,
+              itemStyle: { color: d.color },
+              emphasis: { focus: 'series' },
+              data: COUNTRIES.map(function (c) { return matrix[d.key][c.code]; })
+            });
+          });
+          return baseOption(xStack, series, '国家');
+        }
+
+        function baseOption(xData, series, xName) {
+          var grand = getGrandTotal();
+          return {
+            tooltip: {
+              trigger: 'axis',
+              axisPointer: { type: 'shadow' },
+              formatter: function (params) {
+                if (!params || !params.length) return '';
+                var title = params[0].axisValue;
+                var lines = ['<strong>' + title + '</strong>'];
+                var subtotal = 0;
+                params.forEach(function (p) {
+                  subtotal += p.value;
+                  lines.push(
+                    p.marker + p.seriesName + '：' + fmtNum(p.value) +
+                    '（' + ((p.value / grand) * 100).toFixed(2) + '%）'
+                  );
+                });
+                if (params.length > 1) {
+                  lines.push('<span style="color:#888">小计：' + fmtNum(subtotal) + '</span>');
+                }
+                return lines.join('<br/>');
+              }
+            },
+            legend: { type: 'scroll', bottom: 0, data: series.map(function (s) { return s.name; }) },
+            grid: { left: 56, right: 24, top: 28, bottom: 72 },
+            xAxis: { type: 'category', name: xName, data: xData, axisLabel: { fontSize: 12 } },
+            yAxis: {
+              type: 'value',
+              name: yAxisName,
+              axisLabel: {
+                fontSize: 11,
+                formatter: function (v) { return v >= 1000 ? (v / 1000).toFixed(0) + 'k' : v; }
+              },
+              splitLine: { lineStyle: { type: 'dashed', color: '#eee' } }
+            },
+            series: series
+          };
+        }
+
+        var chart = echarts.init(chartEl);
+        chart.setOption(buildChartOption());
+        renderSummary();
+        renderTable();
+
+        segEl.querySelectorAll('button').forEach(function (btn) {
+          btn.addEventListener('click', function () {
+            segEl.querySelectorAll('button').forEach(function (b) { b.classList.remove('active'); });
+            btn.classList.add('active');
+            chartMode = btn.getAttribute('data-mode');
+            chart.setOption(buildChartOption(), true);
+          });
+        });
+
+        rootEl.querySelector('.btn-query').addEventListener('click', function () { chart.resize(); });
+        rootEl.querySelector('.btn-reset').addEventListener('click', function () {
+          chartMode = 'group-country';
+          segEl.querySelectorAll('button').forEach(function (b) { b.classList.remove('active'); });
+          segEl.querySelector('button[data-mode="group-country"]').classList.add('active');
+          chart.setOption(buildChartOption(), true);
+        });
+
+        return chart;
+      }
+
+      /* 板块一：品线销售额（原饼图汇总 USD） */
+      var salesCharts = initChartBlock(document.getElementById('blockSales'), {
+        dimLabel: '品线',
+        yAxisName: '销售额（USD）',
+        totalLabel: '销售总额',
+        dimensions: [
+          { key: 'home', name: '居家', total: 223865.35, color: '#2e7d32' },
+          { key: 'outdoor', name: '户外', total: 162044.73, color: '#66bb6a' },
+          { key: 'movie', name: '观影', total: 25701.57, color: '#fb8c00' },
+          { key: 'appliance', name: '家电', total: 21626.32, color: '#e53935' },
+          { key: 'line51', name: '51线', total: 18742.57, color: '#1e3a8a' },
+          { key: 'season', name: '季节', total: 4553.44, color: '#f9a825' },
+          { key: 'game', name: '游戏', total: 3151.55, color: '#29b6f6' }
+        ],
+        weights: {
+          home:      [0.36, 0.24, 0.17, 0.14, 0.09],
+          outdoor:   [0.34, 0.26, 0.18, 0.13, 0.09],
+          movie:     [0.32, 0.27, 0.19, 0.14, 0.08],
+          appliance: [0.35, 0.25, 0.17, 0.14, 0.09],
+          line51:    [0.33, 0.26, 0.18, 0.15, 0.08],
+          season:    [0.30, 0.28, 0.20, 0.14, 0.08],
+          game:      [0.38, 0.22, 0.16, 0.14, 0.10]
+        }
+      });
+
+      /* 板块二：费用构成（原饼图汇总 USD，颜色对齐原图） */
+      var costCharts = initChartBlock(document.getElementById('blockCost'), {
+        dimLabel: '费用项',
+        yAxisName: '金额（USD）',
+        totalLabel: '费用总额',
+        dimensions: [
+          { key: 'authPrice', name: '出货授权价', total: 50384.119, color: '#1e3a8a' },
+          { key: 'firstLeg', name: '头程成本', total: 2626.504, color: '#43a047' },
+          { key: 'lastLeg', name: '尾程成本', total: 9502.043, color: '#fbc02d' },
+          { key: 'withdraw', name: '提现费用', total: 6398.277, color: '#e53935' },
+          { key: 'other', name: '其他费用', total: 7767.268, color: '#29b6f6' }
+        ],
+        weights: {
+          authPrice: [0.38, 0.24, 0.17, 0.13, 0.08],
+          firstLeg:  [0.35, 0.25, 0.18, 0.14, 0.08],
+          lastLeg:   [0.34, 0.26, 0.18, 0.13, 0.09],
+          withdraw:  [0.36, 0.24, 0.17, 0.14, 0.09],
+          other:     [0.33, 0.27, 0.18, 0.14, 0.08]
+        }
+      });
+
+      window.addEventListener('resize', function () {
+        salesCharts.resize();
+        costCharts.resize();
+      });
+    })();
+  </script>
+</body>
+</html>
