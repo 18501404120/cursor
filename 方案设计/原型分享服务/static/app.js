@@ -56,6 +56,20 @@ function localFileHref(path) {
   return `/files/${path.split("/").map(encodeURIComponent).join("/")}`;
 }
 
+function dingtalkExportHref(path) {
+  return `/api/dingtalk-export?path=${encodeURIComponent(path)}`;
+}
+
+function addDingtalkExport(actions, path) {
+  const exportBtn = document.createElement("a");
+  exportBtn.className = "mini-btn";
+  exportBtn.href = dingtalkExportHref(path);
+  exportBtn.textContent = "钉钉";
+  exportBtn.title = "下载钉钉预览文件：标注已写进 HTML，不改源文件";
+  exportBtn.onclick = (e) => e.stopPropagation();
+  actions.appendChild(exportBtn);
+}
+
 function depthOf(path) {
   if (!path) return 0;
   return path.split("/").filter(Boolean).length;
@@ -150,6 +164,7 @@ function createTreeRow(item, depth) {
       copyText(fileUrl(item.path));
     };
     actions.appendChild(shareBtn);
+    addDingtalkExport(actions, item.path);
   } else if (item.type === "dir" && item.is_demand) {
     const shareBtn = document.createElement("button");
     shareBtn.type = "button";
@@ -372,7 +387,13 @@ async function selectDirectory(path) {
     shareBtn.textContent = "分享";
     shareBtn.onclick = () => copyText(fileUrl(f.path));
 
-    actions.append(openBtn, shareBtn);
+    const exportBtn = document.createElement("a");
+    exportBtn.className = "btn";
+    exportBtn.href = dingtalkExportHref(f.path);
+    exportBtn.textContent = "钉钉预览";
+    exportBtn.title = "下载一份标注已写进页面的 HTML，上传钉钉。不改源文件。";
+
+    actions.append(openBtn, shareBtn, exportBtn);
     row.append(main, actions);
     list.appendChild(row);
   });

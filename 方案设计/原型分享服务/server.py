@@ -14,6 +14,8 @@ import urllib.parse
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
+from dingtalk_export import bake_annotations, export_filename, has_annotation
+
 ROOT = Path(__file__).resolve().parent
 STATIC_DIR = ROOT / "static"
 DEFAULT_PRODUCT_ROOT = ROOT.parent.parent.parent / "ERP_product"
@@ -435,6 +437,38 @@ class ProtoShareHandler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(data)
 
+    def _send_dingtalk_export(self, rel: str) -> None:
+        resolved = resolve_virtual_path(rel or "")
+        if resolved is None:
+            self._send_json({"error": "文件不存在"}, 404)
+            return
+        _, target = resolved
+        if not target.is_file() or target.suffix.lower() not in PROTOTYPE_EXTS:
+            self._send_json({"error": "只能导出 HTML 原型"}, 400)
+            return
+        html_text = target.read_text(encoding="utf-8")
+        if not has_annotation(html_text):
+            self._send_json({"error": "这个原型没有标注，直接上传原 HTML 即可"}, 400)
+            return
+        try:
+            baked, report = bake_annotations(html_text)
+        except ValueError as exc:
+            self._send_json({"error": str(exc)}, 400)
+            return
+        filename = export_filename(target)
+        data = baked.encode("utf-8")
+        self.send_response(200)
+        self.send_header("Content-Type", "text/html; charset=utf-8")
+        self.send_header("Content-Length", str(len(data)))
+        self.send_header("Cache-Control", "no-store")
+        self.send_header(
+            "Content-Disposition",
+            "attachment; filename*=UTF-8''" + urllib.parse.quote(filename),
+        )
+        self.send_header("X-Dingtalk-Export", urllib.parse.quote(json.dumps(report, ensure_ascii=False)))
+        self.end_headers()
+        self.wfile.write(data)
+
     def _send_file(self, path: Path) -> None:
         ctype, _ = mimetypes.guess_type(str(path))
         if path.suffix.lower() in {".html", ".htm"}:
@@ -612,6 +646,10 @@ class ProtoShareHandler(BaseHTTPRequestHandler):
                 self._send_json({"error": "不支持的文件类型"}, 403)
                 return
             self._send_file(target)
+            return
+        if path == "/api/dingtalk-export":
+            rel = (qs.get("path") or [""])[0]
+            self._send_dingtalk_export(rel)
             return
 
         self._send_json({"error": "not found"}, 404)
